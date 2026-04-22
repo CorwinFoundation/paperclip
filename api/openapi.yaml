@@ -1,0 +1,110 @@
+openapi: 3.0.3
+info:
+  title: BMI Scanner ⇄ Underwriter API
+  version: "0.2.0"
+  description: |
+    BEAAA-21 v0.2 contract surface. Authoritative for Phase 1 pricing v1 and
+    claims forensic spine. Snapshot integrity and forensic_bundle_uri are red
+    lines (any mode). Stub for v0.1 build — handlers in api/handlers/.
+servers:
+  - url: https://scanner.beai.local/v0
+paths:
+  /score:
+    post:
+      summary: Score a model snapshot, return BMI(0–100) + per-pillar/per-dim breakdown
+      operationId: scoreSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScoreRequest' }
+      responses:
+        '200':
+          description: BMI score with forensic bundle pointer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScoreResponse' }
+        '422':
+          description: Snapshot integrity check failed
+        '409':
+          description: Tenant isolation violation
+  /forensic_bundle/{bundleId}:
+    get:
+      summary: Retrieve frozen evidence bundle for a prior score (claims spine)
+      operationId: getForensicBundle
+      parameters:
+        - in: path
+          name: bundleId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Signed bundle manifest + evidence pointers
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ForensicBundle' }
+        '404': { description: Bundle not found }
+
+components:
+  schemas:
+    ScoreRequest:
+      type: object
+      required: [tenant_id, snapshot, eval_outputs]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        snapshot:
+          type: object
+          required: [model_id, model_version, prompt_version, snapshot_hash]
+          properties:
+            model_id: { type: string }
+            model_version: { type: string }
+            prompt_version: { type: string }
+            snapshot_hash: { type: string, description: "SHA-256 over model+prompt+config; integrity red line" }
+        eval_outputs:
+          type: object
+          description: "Hosted-eval-only intake (v0.1). Per-dim scored evidence."
+          additionalProperties: { type: object }
+    ScoreResponse:
+      type: object
+      required: [bmi, pillars, forensic_bundle_uri, scored_at, snapshot_hash]
+      properties:
+        bmi: { type: integer, minimum: 0, maximum: 100 }
+        pillars:
+          type: object
+          properties:
+            P1: { $ref: '#/components/schemas/PillarScore' }
+            P2: { $ref: '#/components/schemas/PillarScore' }
+            P3: { $ref: '#/components/schemas/PillarScore' }
+            P4: { $ref: '#/components/schemas/PillarScore' }
+        forensic_bundle_uri: { type: string, format: uri, description: "Signed pointer to frozen evidence; red line" }
+        snapshot_hash: { type: string }
+        scored_at: { type: string, format: date-time }
+        rubric_version: { type: string, example: "0.1.0-draft" }
+    PillarScore:
+      type: object
+      required: [score, weight, dimensions]
+      properties:
+        score: { type: number, minimum: 0, maximum: 100 }
+        weight: { type: integer }
+        dimensions:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              raw: { type: number, minimum: 0, maximum: 4 }
+              evidence_uri: { type: string, format: uri }
+    ForensicBundle:
+      type: object
+      required: [bundle_id, snapshot_hash, signed_manifest, evidence]
+      properties:
+        bundle_id: { type: string, format: uuid }
+        snapshot_hash: { type: string }
+        signed_manifest: { type: string, description: "Detached signature over manifest+evidence" }
+        evidence:
+          type: array
+          items:
+            type: object
+            properties:
+              dim_id: { type: string }
+              uri: { type: string, format: uri }
+              sha256: { type: string }
