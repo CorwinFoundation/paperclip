@@ -1,10 +1,10 @@
-# BMI Scanner Rubric — v0.1 draft (locked through 2026-04-28)
-# Source of truth: BEAAA-8 WS1. Weights are draft pending CEO/board sign-off.
+# BMI Scanner Rubric — v0.1.0 (frozen 2026-04-30)
+# Source of truth: BEAAA-8 WS1. Weights frozen via BEAAA-19; bands via BEAAA-57.
 # 4 pillars, 24 dimensions total. Each dim scored 0–4. Pillar score = weighted dim mean × pillar weight.
-# BMI(0–100) = sum of pillar scores.
+# BMI(0–100) = sum of pillar scores. 12-band (A/B/C/D × ±) assignment via rubric/bands.py.
 
-version: "0.1.0-draft"
-locked_through: "2026-04-28"
+version: "0.1.0"
+locked_through: "2026-04-30"
 
 pillars:
   P1:

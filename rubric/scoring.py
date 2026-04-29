@@ -18,6 +18,8 @@ from typing import Any
 
 import yaml
 
+from .bands import assign_band, band_to_dict
+
 
 class RubricError(ValueError):
     pass
@@ -111,8 +113,10 @@ def score(
             "dimensions": dim_block,
         }
 
+    bmi_int = int(round(bmi_total))
     return {
-        "bmi": int(round(bmi_total)),
+        "bmi": bmi_int,
+        "band": band_to_dict(assign_band(bmi_int)),
         "pillars": pillars_out,
         "forensic_bundle_uri": forensic_bundle_uri,
         "snapshot_hash": snapshot_hash,

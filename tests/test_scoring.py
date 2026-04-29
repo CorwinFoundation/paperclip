@@ -64,6 +64,8 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(out["forensic_bundle_uri"], "https://bundles.local/test")
         self.assertEqual(out["rubric_version"], self.rubric.version)
         self.assertEqual(set(out["pillars"]), {"P1", "P2", "P3", "P4"})
+        self.assertEqual(out["band"]["display"], "D+")  # BMI 50 = D+
+        self.assertEqual(out["band"]["bands_version"], "1.0")
 
     def test_missing_snapshot_hash_raises(self):
         with self.assertRaisesRegex(ScoringError, "snapshot_hash"):

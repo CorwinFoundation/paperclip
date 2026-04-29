@@ -66,9 +66,10 @@ components:
           additionalProperties: { type: object }
     ScoreResponse:
       type: object
-      required: [bmi, pillars, forensic_bundle_uri, scored_at, snapshot_hash]
+      required: [bmi, band, pillars, forensic_bundle_uri, scored_at, snapshot_hash]
       properties:
         bmi: { type: integer, minimum: 0, maximum: 100 }
+        band: { $ref: '#/components/schemas/Band' }
         pillars:
           type: object
           properties:
@@ -79,7 +80,18 @@ components:
         forensic_bundle_uri: { type: string, format: uri, description: "Signed pointer to frozen evidence; red line" }
         snapshot_hash: { type: string }
         scored_at: { type: string, format: date-time }
-        rubric_version: { type: string, example: "0.1.0-draft" }
+        rubric_version: { type: string, example: "0.1.0" }
+    Band:
+      type: object
+      description: "12-band assignment (A/B/C/D × ±) per BEAAA-57 v1.0 frozen 2026-04-30."
+      required: [letter, modifier, modifier_factor, display, posture, bands_version]
+      properties:
+        letter: { type: string, enum: [A, B, C, D] }
+        modifier: { type: string, enum: ['+', neutral, '-'] }
+        modifier_factor: { type: number, description: "Within-letter pricing multiplier; coverage triggers fire on letter only." }
+        display: { type: string, example: "C-" }
+        posture: { type: string, example: "Surplus (remediation endorsement)" }
+        bands_version: { type: string, example: "1.0" }
     PillarScore:
       type: object
       required: [score, weight, dimensions]

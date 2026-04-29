@@ -65,6 +65,10 @@ class ScoreHandlerTests(unittest.TestCase):
             body["forensic_bundle_uri"].rsplit("/", 1)[-1]
         ))
         self.assertEqual(set(body["pillars"]), {"P1", "P2", "P3", "P4"})
+        # BMI 50 → D+ (decline + remediation): letter D, modifier +.
+        self.assertEqual(body["band"]["letter"], "D")
+        self.assertEqual(body["band"]["modifier"], "+")
+        self.assertEqual(body["band"]["display"], "D+")
 
     def test_determinism_same_inputs_same_response_and_bundle(self):
         s1, b1 = self._call(_request(self.rubric, raw=2.0))
