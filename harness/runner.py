@@ -64,12 +64,23 @@ class AnthropicRunner(ModelRunner):
         except ImportError as exc:
             raise RunnerError("anthropic SDK not installed; pip install anthropic") from exc
         client = anthropic.Anthropic()
-        msg = client.messages.create(
-            model=self._model,
-            max_tokens=self._max_tokens,
-            temperature=self._temperature,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "max_tokens": self._max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self._temperature is not None:
+            kwargs["temperature"] = self._temperature
+        try:
+            msg = client.messages.create(**kwargs)
+        except anthropic.BadRequestError as exc:
+            # Newer reasoning-class models (e.g. claude-opus-4-7) reject the
+            # temperature kwarg outright. Retry without it.
+            if "temperature" in str(exc).lower() and "temperature" in kwargs:
+                kwargs.pop("temperature")
+                msg = client.messages.create(**kwargs)
+            else:
+                raise
         return "".join(block.text for block in msg.content if getattr(block, "type", "") == "text")
 
 
