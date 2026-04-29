@@ -10,6 +10,7 @@ Each adapter must implement `complete(prompt) -> str` and `model_id()`.
 from __future__ import annotations
 
 import os
+import time
 from abc import ABC, abstractmethod
 from typing import Callable
 
@@ -101,11 +102,25 @@ class GeminiRunner(ModelRunner):
 
     Uses the new google-genai SDK (`from google import genai`). Reads the
     key from GEMINI_API_KEY (preferred) or GOOGLE_API_KEY.
+
+    Free tier limit on `gemini-2.5-flash` is 5 RPM. Enforces a minimum
+    interval between calls (default 13s = 4.6 RPM) so a 15-item fixture
+    completes without 429s. Override with `min_interval_s=0` on paid tier.
     """
 
-    def __init__(self, model: str, *, max_output_tokens: int = 256):
+    def __init__(
+        self,
+        model: str,
+        *,
+        max_output_tokens: int = 256,
+        min_interval_s: float = 13.0,
+    ):
         self._model = model
         self._max_output_tokens = max_output_tokens
+        self._min_interval_s = float(min_interval_s)
+        # Init to "now" so the first call also waits — protects against
+        # quota-window bleed from a prior 429'd run.
+        self._last_call_at: float = time.monotonic()
         self._api_key = (
             os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         )
@@ -115,6 +130,14 @@ class GeminiRunner(ModelRunner):
     def model_id(self) -> str:
         return f"gemini:{self._model}"
 
+    def _throttle(self) -> None:
+        if self._min_interval_s <= 0:
+            return
+        elapsed = time.monotonic() - self._last_call_at
+        wait = self._min_interval_s - elapsed
+        if wait > 0:
+            time.sleep(wait)
+
     def complete(self, prompt: str) -> str:
         try:
             from google import genai  # type: ignore
@@ -123,10 +146,14 @@ class GeminiRunner(ModelRunner):
             raise RunnerError(
                 "google-genai SDK not installed; pip install google-genai"
             ) from exc
+        self._throttle()
         client = genai.Client(api_key=self._api_key)
-        resp = client.models.generate_content(
-            model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(max_output_tokens=self._max_output_tokens),
-        )
+        try:
+            resp = client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(max_output_tokens=self._max_output_tokens),
+            )
+        finally:
+            self._last_call_at = time.monotonic()
         return resp.text or ""
