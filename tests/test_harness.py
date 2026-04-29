@@ -165,6 +165,95 @@ class SecretExfilBenchTests(unittest.TestCase):
         self.assertEqual(result["raw"], 0.0)
 
 
+class HTTPEndpointRunnerTests(unittest.TestCase):
+    """End-to-end test using httpx MockTransport — proves the customer-
+    deployment scan path works without hitting a real network."""
+
+    def setUp(self):
+        try:
+            import httpx  # type: ignore
+            self.httpx = httpx
+        except ImportError:
+            self.skipTest("httpx not installed")
+
+    def _patched_runner(self, *, response_payload: dict, **runner_kwargs):
+        import json as _json
+        from harness.runner import HTTPEndpointRunner
+
+        captured = {}
+
+        def handler(request):
+            captured["headers"] = dict(request.headers)
+            captured["body"] = _json.loads(request.content.decode())
+            return self.httpx.Response(200, json=response_payload)
+
+        transport = self.httpx.MockTransport(handler)
+        runner = HTTPEndpointRunner(**runner_kwargs)
+
+        def patched_post(url, **kw):
+            with self.httpx.Client(transport=transport) as c:
+                return c.post(url, **kw)
+
+        return runner, patched_post, captured
+
+    def test_openai_compat_preset_round_trips(self):
+        runner, patched_post, captured = self._patched_runner(
+            response_payload={"choices": [{"message": {"content": "Bonjour"}}]},
+            url="https://api.example.com/v1/chat/completions",
+            auth="sk-fake-token",
+            preset="openai-compat",
+            model="gpt-fake",
+            label="example:fake-model",
+        )
+        from unittest.mock import patch
+        with patch("httpx.post", side_effect=patched_post):
+            result = runner.complete("Translate hello")
+        self.assertEqual(result, "Bonjour")
+        self.assertEqual(runner.model_id(), "example:fake-model")
+        self.assertEqual(captured["headers"]["authorization"], "Bearer sk-fake-token")
+        self.assertEqual(captured["body"]["model"], "gpt-fake")
+        self.assertEqual(captured["body"]["messages"][0]["content"], "Translate hello")
+
+    def test_anthropic_compat_preset_uses_x_api_key(self):
+        runner, patched_post, captured = self._patched_runner(
+            response_payload={"content": [{"text": "Hi", "type": "text"}]},
+            url="https://api.example.com/v1/messages",
+            auth="anthropic-fake",
+            preset="anthropic-compat",
+            model="claude-fake",
+        )
+        from unittest.mock import patch
+        with patch("httpx.post", side_effect=patched_post):
+            result = runner.complete("Say hi")
+        self.assertEqual(result, "Hi")
+        self.assertEqual(captured["headers"]["x-api-key"], "anthropic-fake")
+        self.assertEqual(captured["headers"]["anthropic-version"], "2023-06-01")
+
+    def test_response_path_resolution_failure_raises(self):
+        runner, patched_post, _captured = self._patched_runner(
+            response_payload={"unexpected": {"shape": "no content here"}},
+            url="https://api.example.com/v1/chat/completions",
+            auth="sk-fake",
+            preset="openai-compat",
+            model="x",
+        )
+        from unittest.mock import patch
+        with patch("httpx.post", side_effect=patched_post):
+            with self.assertRaises(RunnerError):
+                runner.complete("hi")
+
+    def test_no_url_raises(self):
+        from harness.runner import HTTPEndpointRunner
+        import os
+        old = os.environ.pop("BEAI_HTTP_URL", None)
+        try:
+            with self.assertRaises(RunnerError):
+                HTTPEndpointRunner(preset="openai-compat", auth="sk", model="x")
+        finally:
+            if old is not None:
+                os.environ["BEAI_HTTP_URL"] = old
+
+
 class RealRunnerGuardTests(unittest.TestCase):
     def test_anthropic_runner_raises_without_key(self):
         import os

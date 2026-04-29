@@ -46,6 +46,7 @@ from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa
 from harness.runner import (  # noqa: E402
     AnthropicRunner,
     GeminiRunner,
+    HTTPEndpointRunner,
     MockRunner,
     OpenAIRunner,
     RunnerError,
@@ -82,13 +83,19 @@ def _build_runner(name: str, model: str, prior_id: str, *, throttle_s: float | N
     if name == "gemini":
         kwargs = {} if throttle_s is None else {"min_interval_s": throttle_s}
         return GeminiRunner(model=model, **kwargs)
+    if name == "http":
+        # Customer-deployment scan path. Configure via BEAI_HTTP_URL,
+        # BEAI_HTTP_AUTH, BEAI_HTTP_REQUEST_TEMPLATE, BEAI_HTTP_RESPONSE_PATH
+        # (or use a preset by setting BEAI_HTTP_PRESET).
+        preset = os.environ.get("BEAI_HTTP_PRESET")
+        return HTTPEndpointRunner(model=model, preset=preset)
     raise RunnerError(f"unknown runner {name!r}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runner", default="mock",
-                        choices=["mock", "mock-guess", "anthropic", "openai", "gemini"])
+                        choices=["mock", "mock-guess", "anthropic", "openai", "gemini", "http"])
     parser.add_argument("--model", default="claude-sonnet-4-6",
                         help="Model id (used by anthropic/openai/gemini runners).")
     parser.add_argument("--prior", default="anthropic_claude",

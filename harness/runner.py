@@ -9,6 +9,7 @@ Each adapter must implement `complete(prompt) -> str` and `model_id()`.
 """
 from __future__ import annotations
 
+import json as _json
 import os
 import time
 from abc import ABC, abstractmethod
@@ -249,3 +250,158 @@ class GeminiRunner(ModelRunner):
                 raise
         # unreachable, but type-checker friendly
         raise last_exc if last_exc else RunnerError("gemini failed without exception")
+
+
+def _resolve_dotted(obj: Any, path: str) -> Any:
+    """Resolve a dotted path with [N] index syntax — e.g. 'choices[0].message.content'."""
+    cur: Any = obj
+    for part in path.replace("][", "].[").split("."):
+        if not part:
+            continue
+        # array index suffix [N]
+        while "[" in part and part.endswith("]"):
+            head, _, idx_part = part.rpartition("[")
+            idx = int(idx_part.rstrip("]"))
+            if head:
+                cur = cur[head]
+                head = ""
+            cur = cur[idx]
+            part = head
+        if part:
+            cur = cur[part]
+    return cur
+
+
+class HTTPEndpointRunner(ModelRunner):
+    """Generic HTTP-endpoint runner — scan any deployed AI surface.
+
+    The canonical BMI-Scanner customer flow:
+      1. Customer signs scanning agreement (BEAAA-22 §3 hosted-eval-only intake).
+      2. Customer provides endpoint URL + auth token.
+      3. We point this runner at it; the harness produces a BMI for THEIR
+         deployed agent — including their system prompt, RAG, tool calls,
+         post-processing — not for the underlying base model.
+
+    Configuration via constructor or env vars:
+      BEAI_HTTP_URL              — endpoint URL (POST)
+      BEAI_HTTP_AUTH             — full Authorization header value (e.g. 'Bearer xxxx', 'xi-api-key xxxx')
+      BEAI_HTTP_REQUEST_TEMPLATE — JSON body template; '{prompt}' is substituted
+      BEAI_HTTP_RESPONSE_PATH    — dotted path to text in response (e.g. 'choices[0].message.content')
+      BEAI_HTTP_HEADERS_JSON     — optional extra headers as JSON object
+      BEAI_HTTP_LABEL            — label shown in model_id() (e.g. 'elevenlabs:my-voice-agent')
+
+    Presets exist for common shapes (openai-compat, anthropic-compat, elevenlabs-convai).
+    """
+
+    PRESETS: dict[str, dict[str, Any]] = {
+        # OpenAI-compatible chat completions (also: Together, Groq, Fireworks, vLLM, Ollama).
+        "openai-compat": {
+            "request_template": '{"model": "{model}", "messages": [{"role": "user", "content": "{prompt}"}], "temperature": 0, "max_tokens": 256}',
+            "response_path": "choices[0].message.content",
+            "auth_prefix": "Bearer ",
+        },
+        # Anthropic Messages API.
+        "anthropic-compat": {
+            "request_template": '{"model": "{model}", "max_tokens": 256, "temperature": 0, "messages": [{"role": "user", "content": "{prompt}"}]}',
+            "response_path": "content[0].text",
+            "auth_header": "x-api-key",
+            "auth_prefix": "",
+            "extra_headers": {"anthropic-version": "2023-06-01"},
+        },
+        # ElevenLabs Conversational AI text endpoint (illustrative — confirm
+        # exact path/shape against their docs at scan-time; they revise).
+        "elevenlabs-convai": {
+            "request_template": '{"text": "{prompt}"}',
+            "response_path": "agent_response",
+            "auth_header": "xi-api-key",
+            "auth_prefix": "",
+        },
+    }
+
+    def __init__(
+        self,
+        *,
+        url: str | None = None,
+        auth: str | None = None,
+        request_template: str | None = None,
+        response_path: str | None = None,
+        extra_headers: dict[str, str] | None = None,
+        model: str = "remote",
+        label: str | None = None,
+        preset: str | None = None,
+        timeout_s: float = 30.0,
+    ):
+        self._url = url or os.environ.get("BEAI_HTTP_URL", "")
+        if not self._url:
+            raise RunnerError("BEAI_HTTP_URL not set (or pass url=...)")
+        preset_cfg = self.PRESETS.get(preset, {}) if preset else {}
+        self._request_template = (
+            request_template
+            or os.environ.get("BEAI_HTTP_REQUEST_TEMPLATE")
+            or preset_cfg.get("request_template")
+        )
+        self._response_path = (
+            response_path
+            or os.environ.get("BEAI_HTTP_RESPONSE_PATH")
+            or preset_cfg.get("response_path")
+        )
+        if not self._request_template or not self._response_path:
+            raise RunnerError(
+                "request_template + response_path required (set via constructor, env, or preset)"
+            )
+        env_headers = os.environ.get("BEAI_HTTP_HEADERS_JSON", "")
+        env_extra = _json.loads(env_headers) if env_headers else {}
+        self._extra_headers = {
+            **preset_cfg.get("extra_headers", {}),
+            **env_extra,
+            **(extra_headers or {}),
+        }
+        auth_header = preset_cfg.get("auth_header", "Authorization")
+        auth_prefix = preset_cfg.get("auth_prefix", "Bearer ")
+        token = auth or os.environ.get("BEAI_HTTP_AUTH", "")
+        if token and not token.startswith(auth_prefix):
+            self._extra_headers[auth_header] = f"{auth_prefix}{token}"
+        elif token:
+            self._extra_headers[auth_header] = token
+        self._model = model
+        self._label = label or os.environ.get("BEAI_HTTP_LABEL", f"http:{self._url}")
+        self._timeout_s = timeout_s
+
+    def model_id(self) -> str:
+        return self._label
+
+    def complete(self, prompt: str) -> str:
+        try:
+            import httpx  # type: ignore
+        except ImportError as exc:
+            raise RunnerError("httpx not installed; pip install httpx") from exc
+
+        # Substitute {prompt} (and {model}) into the JSON body template.
+        # Escape JSON-sensitive chars in the prompt before substitution.
+        safe_prompt = _json.dumps(prompt)[1:-1]  # strip surrounding quotes
+        body_str = self._request_template.replace("{prompt}", safe_prompt).replace("{model}", self._model)
+        try:
+            body = _json.loads(body_str)
+        except _json.JSONDecodeError as exc:
+            raise RunnerError(f"request_template did not produce valid JSON: {exc}") from exc
+
+        headers = {"Content-Type": "application/json", **self._extra_headers}
+        try:
+            resp = httpx.post(self._url, headers=headers, json=body, timeout=self._timeout_s)
+        except httpx.HTTPError as exc:
+            raise RunnerError(f"HTTP request failed: {exc}") from exc
+        if resp.status_code >= 400:
+            raise RunnerError(f"HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            payload = resp.json()
+        except ValueError as exc:
+            raise RunnerError(f"response was not JSON: {resp.text[:500]}") from exc
+        try:
+            text = _resolve_dotted(payload, self._response_path)
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RunnerError(
+                f"response_path {self._response_path!r} did not resolve in payload: {exc}; "
+                f"received: {_json.dumps(payload)[:500]}"
+            ) from exc
+        return str(text or "")
+
