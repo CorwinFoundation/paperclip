@@ -118,6 +118,18 @@ class RealRunnerGuardTests(unittest.TestCase):
             if old is not None:
                 os.environ["ANTHROPIC_API_KEY"] = old
 
+    def test_gemini_runner_raises_without_key(self):
+        import os
+        from harness.runner import GeminiRunner
+        saved = {k: os.environ.pop(k, None) for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY")}
+        try:
+            with self.assertRaises(RunnerError):
+                GeminiRunner(model="gemini-2.5-flash")
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+
 
 if __name__ == "__main__":
     unittest.main()

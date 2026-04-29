@@ -45,6 +45,7 @@ from harness.bench import truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import (  # noqa: E402
     AnthropicRunner,
+    GeminiRunner,
     MockRunner,
     OpenAIRunner,
     RunnerError,
@@ -70,13 +71,15 @@ def _build_runner(name: str, model: str, prior_id: str):
         return AnthropicRunner(model=model)
     if name == "openai":
         return OpenAIRunner(model=model)
+    if name == "gemini":
+        return GeminiRunner(model=model)
     raise RunnerError(f"unknown runner {name!r}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runner", default="mock",
-                        choices=["mock", "mock-guess", "anthropic", "openai"])
+                        choices=["mock", "mock-guess", "anthropic", "openai", "gemini"])
     parser.add_argument("--model", default="claude-sonnet-4-6",
                         help="Model id (used by anthropic/openai runners).")
     parser.add_argument("--prior", default="anthropic_claude",

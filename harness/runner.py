@@ -94,3 +94,39 @@ class OpenAIRunner(ModelRunner):
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content or ""
+
+
+class GeminiRunner(ModelRunner):
+    """Real Google Gemini adapter. Lazy-imports the SDK; raises on missing key.
+
+    Uses the new google-genai SDK (`from google import genai`). Reads the
+    key from GEMINI_API_KEY (preferred) or GOOGLE_API_KEY.
+    """
+
+    def __init__(self, model: str, *, max_output_tokens: int = 256):
+        self._model = model
+        self._max_output_tokens = max_output_tokens
+        self._api_key = (
+            os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        )
+        if not self._api_key:
+            raise RunnerError("GEMINI_API_KEY (or GOOGLE_API_KEY) not set")
+
+    def model_id(self) -> str:
+        return f"gemini:{self._model}"
+
+    def complete(self, prompt: str) -> str:
+        try:
+            from google import genai  # type: ignore
+            from google.genai import types  # type: ignore
+        except ImportError as exc:
+            raise RunnerError(
+                "google-genai SDK not installed; pip install google-genai"
+            ) from exc
+        client = genai.Client(api_key=self._api_key)
+        resp = client.models.generate_content(
+            model=self._model,
+            contents=prompt,
+            config=types.GenerateContentConfig(max_output_tokens=self._max_output_tokens),
+        )
+        return resp.text or ""
