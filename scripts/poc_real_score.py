@@ -24,7 +24,9 @@ sys.path.insert(0, str(REPO))
 
 
 def _load_dotenv(path: Path) -> None:
-    """Minimal KEY=VALUE loader; gitignored .env at repo root only."""
+    """Minimal KEY=VALUE loader; gitignored .env at repo root only.
+    Last value wins for a given key — matches dotenv semantics + tolerates
+    stale entries left at the top of the file by paste mistakes."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():
@@ -34,7 +36,7 @@ def _load_dotenv(path: Path) -> None:
         key, _, value = line.partition("=")
         key = key.strip()
         value = value.strip().strip("'").strip('"')
-        os.environ.setdefault(key, value)
+        os.environ[key] = value
 
 
 _load_dotenv(REPO / ".env")
