@@ -1,0 +1,16 @@
+{
+  "id": "notion_ai",
+  "display_name": "Notion AI (workspace assistant)",
+  "rationale": "Productivity-layer assistant on top of Notion workspace. SOC2 II, ISO 27001, GDPR. Lighter use cases (summaries, generation, Q&A over workspace). Citations limited; light grounding when answering over docs. Indirect-injection surface from workspace content. Less public red-teaming or RSP-equivalent than frontier surfaces. Lower stakes / lower P1.6 eval coverage.",
+  "evidence_links": [
+    "https://www.notion.so/help/notion-ai-security-practices",
+    "https://www.notion.so/security",
+    "https://www.notion.so/help/category/notion-ai"
+  ],
+  "raw_scores": {
+    "P1.1": 2.5, "P1.2": 2.0, "P1.3": 2.5, "P1.4": 2.5, "P1.5": 2.0, "P1.6": 2.0,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 2.0, "P2.5": 2.5, "P2.6": 2.0,
+    "P3.1": 2.5, "P3.2": 1.5, "P3.3": 3.0,
+    "P4.1": 3.0, "P4.2": 2.5, "P4.3": 2.5, "P4.4": 2.5, "P4.5": 2.0, "P4.6": 3.0
+  }
+}

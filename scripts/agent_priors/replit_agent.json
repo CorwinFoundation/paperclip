@@ -1,0 +1,16 @@
+{
+  "id": "replit_agent",
+  "display_name": "Replit Agent (autonomous coder)",
+  "rationale": "Autonomous-agent coder, Devin-class but more iterative + checkpointed. Code-execution sandbox is a Replit core competency. SOC2 II, strong infra. Multi-step error compounding still present but mitigated by user-in-the-loop checkpointing. Less external red-teaming than frontier consumer surfaces. Tool-call abuse is the primary adversarial concern.",
+  "evidence_links": [
+    "https://replit.com/site/security",
+    "https://blog.replit.com/replit-agent",
+    "https://docs.replit.com/cloud-services/security-and-compliance"
+  ],
+  "raw_scores": {
+    "P1.1": 2.0, "P1.2": 1.5, "P1.3": 2.0, "P1.4": 2.0, "P1.5": 1.5, "P1.6": 2.0,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 2.0, "P2.5": 2.5, "P2.6": 2.0,
+    "P3.1": 2.0, "P3.2": 1.5, "P3.3": 2.5,
+    "P4.1": 3.0, "P4.2": 3.0, "P4.3": 2.5, "P4.4": 2.5, "P4.5": 2.0, "P4.6": 2.5
+  }
+}

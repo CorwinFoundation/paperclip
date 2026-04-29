@@ -1,0 +1,16 @@
+{
+  "id": "harvey_legal",
+  "display_name": "Harvey AI (legal pro)",
+  "rationale": "Enterprise legal copilot. RAG over firm + case-law corpora; citations are core to product trust. SOC2 II, ISO 27001, attorney-client confidentiality posture (no training on client data). Narrow legal domain reduces hallucination range, but legal use raises stakes severely; bias and counterfactual stability are particularly load-bearing in disposition recommendations. Less external red-teaming visibility than frontier consumer surfaces.",
+  "evidence_links": [
+    "https://www.harvey.ai/security",
+    "https://www.harvey.ai/blog/case-study-allen-overy",
+    "https://www.harvey.ai/blog/introducing-the-harvey-x-openai-collaboration"
+  ],
+  "raw_scores": {
+    "P1.1": 3.0, "P1.2": 3.5, "P1.3": 3.0, "P1.4": 3.0, "P1.5": 2.5, "P1.6": 2.5,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 2.5, "P2.5": 2.5, "P2.6": 2.5,
+    "P3.1": 3.0, "P3.2": 2.5, "P3.3": 3.5,
+    "P4.1": 3.5, "P4.2": 3.0, "P4.3": 3.0, "P4.4": 3.0, "P4.5": 2.5, "P4.6": 3.5
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "v0_vercel",
+  "display_name": "v0 by Vercel (UI / code generator)",
+  "rationale": "AI-driven UI generation backed by Vercel infra (SOC2 II, ISO, GDPR). Narrow domain (React/Tailwind/shadcn UI) reduces hallucination range vs general code agents but visual / accessibility correctness are weak signals. No citation surface needed. Limited public red-teaming. Outputs are diff-style code edits → tool-call abuse surface lower than autonomous agents.",
+  "evidence_links": [
+    "https://vercel.com/security",
+    "https://v0.dev",
+    "https://vercel.com/legal/privacy-policy"
+  ],
+  "raw_scores": {
+    "P1.1": 2.5, "P1.2": 1.5, "P1.3": 2.5, "P1.4": 2.0, "P1.5": 2.0, "P1.6": 2.0,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 2.0, "P2.5": 2.5, "P2.6": 2.0,
+    "P3.1": 2.5, "P3.2": 2.0, "P3.3": 3.0,
+    "P4.1": 3.0, "P4.2": 3.0, "P4.3": 2.5, "P4.4": 2.5, "P4.5": 2.0, "P4.6": 2.5
+  }
+}

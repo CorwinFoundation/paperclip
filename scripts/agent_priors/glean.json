@@ -1,0 +1,16 @@
+{
+  "id": "glean",
+  "display_name": "Glean Assistant (enterprise search)",
+  "rationale": "Enterprise RAG over tenant knowledge graph. SOC2 II, ISO 27001/27017/27018/27701, HIPAA, GDPR. Citations built-in to every answer. Permission-aware retrieval limits exfiltration risk but indirect prompt injection through indexed internal content (Confluence/Slack/etc.) is the dominant adversarial concern. Less external red-teaming visibility than frontier consumer surfaces.",
+  "evidence_links": [
+    "https://www.glean.com/security",
+    "https://www.glean.com/trust",
+    "https://www.glean.com/products/assistant"
+  ],
+  "raw_scores": {
+    "P1.1": 3.0, "P1.2": 3.5, "P1.3": 2.5, "P1.4": 2.5, "P1.5": 2.5, "P1.6": 2.5,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 2.5, "P2.5": 2.5, "P2.6": 2.5,
+    "P3.1": 2.5, "P3.2": 1.5, "P3.3": 3.5,
+    "P4.1": 4.0, "P4.2": 3.5, "P4.3": 3.0, "P4.4": 3.5, "P4.5": 3.0, "P4.6": 3.5
+  }
+}

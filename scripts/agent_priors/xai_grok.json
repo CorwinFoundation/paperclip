@@ -1,0 +1,15 @@
+{
+  "id": "xai_grok",
+  "display_name": "xAI Grok (grok.x.ai)",
+  "rationale": "Frontier model integrated with X (Twitter). X-grounded retrieval gives near-real-time citations; same firehose introduces source-quality noise (volatile content). Less published RSP-equivalent than OpenAI/Anthropic/Google; published model cards but lighter on safety/governance disclosures. Adversarial work limited in public.",
+  "evidence_links": [
+    "https://x.ai",
+    "https://x.ai/blog/grok-2"
+  ],
+  "raw_scores": {
+    "P1.1": 2.5, "P1.2": 2.5, "P1.3": 2.5, "P1.4": 2.0, "P1.5": 2.0, "P1.6": 2.0,
+    "P2.1": 2.0, "P2.2": 2.0, "P2.3": 2.0, "P2.4": 2.0, "P2.5": 1.5, "P2.6": 2.0,
+    "P3.1": 2.0, "P3.2": 2.0, "P3.3": 2.5,
+    "P4.1": 2.5, "P4.2": 2.5, "P4.3": 2.5, "P4.4": 2.0, "P4.5": 2.0, "P4.6": 2.0
+  }
+}
