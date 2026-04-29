@@ -41,7 +41,7 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(REPO / ".env")
 
-from harness.bench import truthfulqa  # noqa: E402
+from harness.bench import prompt_injection, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import (  # noqa: E402
     AnthropicRunner,
@@ -55,8 +55,14 @@ from rubric.scoring import Rubric, score  # noqa: E402
 
 PRIORS_DIR = REPO / "scripts" / "agent_priors"
 TQA_FIXTURE = REPO / "harness" / "fixtures" / "truthfulqa_mc1_sample.jsonl"
+PI_FIXTURE = REPO / "harness" / "fixtures" / "prompt_injection_poc.jsonl"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 RATES_PATH = REPO / "pricing" / "rates.yaml"
+
+BENCHES = {
+    "truthfulqa": (TQA_FIXTURE, truthfulqa.load_items, truthfulqa.run, "P1.1"),
+    "prompt_injection": (PI_FIXTURE, prompt_injection.load_items, prompt_injection.run, "P3.1"),
+}
 
 
 def _build_runner(name: str, model: str, prior_id: str, *, throttle_s: float | None):
@@ -90,6 +96,8 @@ def main() -> int:
                         help="Override per-call min interval (gemini only).")
     parser.add_argument("--progress-jsonl", default=None,
                         help="If set, append per-call results to this file as we go.")
+    parser.add_argument("--benches", default="truthfulqa",
+                        help="Comma-separated benchmark names. Options: " + ", ".join(BENCHES))
     args = parser.parse_args()
 
     prior_path = PRIORS_DIR / f"{args.prior}.json"
@@ -99,28 +107,46 @@ def main() -> int:
     display_name, prior_scores = load_priors(prior_path)
 
     runner = _build_runner(args.runner, args.model, args.prior, throttle_s=args.throttle_s)
-    items = truthfulqa.load_items(TQA_FIXTURE)
 
     progress_path = Path(args.progress_jsonl) if args.progress_jsonl else None
     if progress_path:
         progress_path.write_text("")  # truncate
 
-    def _on_progress(idx: int, total: int, item_result: dict) -> None:
-        # Stream to stderr so stdout stays a single clean JSON document.
-        mark = "✓" if item_result["correct"] else "✗"
-        print(
-            f"  [{idx:>2}/{total}] {item_result['id']} {mark} chose={item_result['chosen']} expected={item_result['expected']}",
-            file=sys.stderr,
-            flush=True,
-        )
-        if progress_path:
-            with progress_path.open("a") as f:
-                f.write(json.dumps({"idx": idx, "total": total, **item_result}) + "\n")
+    bench_names = [b.strip() for b in args.benches.split(",") if b.strip()]
+    for b in bench_names:
+        if b not in BENCHES:
+            print(f"unknown bench {b!r}; options: {list(BENCHES)}", file=sys.stderr)
+            return 2
 
-    print(f"Running {len(items)} items against {runner.model_id()}...", file=sys.stderr, flush=True)
-    measurement = truthfulqa.run(runner, items, on_progress=_on_progress)
+    measurements = []
+    for bench_name in bench_names:
+        fixture_path, loader, run_fn, _dim = BENCHES[bench_name]
+        items = loader(fixture_path)
 
-    raw_scores, provenance = merge_measurements_with_priors([measurement], prior_scores)
+        def _on_progress(idx: int, total: int, item_result: dict, _bench=bench_name) -> None:
+            # Stream to stderr so stdout stays a single clean JSON document.
+            outcome = item_result.get("correct", item_result.get("resisted"))
+            mark = "✓" if outcome else "✗"
+            extra = (
+                f"chose={item_result['chosen']} expected={item_result['expected']}"
+                if "chosen" in item_result
+                else f"category={item_result['category']}"
+            )
+            print(
+                f"  [{_bench}][{idx:>2}/{total}] {item_result['id']} {mark} {extra}",
+                file=sys.stderr,
+                flush=True,
+            )
+            if progress_path:
+                with progress_path.open("a") as f:
+                    f.write(json.dumps({"bench": _bench, "idx": idx, "total": total, **item_result}) + "\n")
+
+        print(f"Running {bench_name} ({len(items)} items) against {runner.model_id()}...",
+              file=sys.stderr, flush=True)
+        measurement = run_fn(runner, items, on_progress=_on_progress)
+        measurements.append(measurement)
+
+    raw_scores, provenance = merge_measurements_with_priors(measurements, prior_scores)
 
     rubric = Rubric.load(RUBRIC_PATH)
     eval_outputs = {
@@ -160,15 +186,20 @@ def main() -> int:
         "band": result["band"]["display"],
         "posture": result["band"]["posture"],
         "premium": premium_str,
-        "measurement": {
-            "benchmark": measurement["benchmark"],
-            "dim_id": measurement["dim_id"],
-            "n_items": measurement["n_items"],
-            "n_correct": measurement["n_correct"],
-            "accuracy": round(measurement["accuracy"], 4),
-            "measured_raw": measurement["raw"],
-            "prior_raw_for_same_dim": prior_scores.get(measurement["dim_id"]),
-        },
+        "measurements": [
+            {
+                "benchmark": m["benchmark"],
+                "dim_id": m["dim_id"],
+                "n_items": m["n_items"],
+                "score_summary": {
+                    k: m[k] for k in ("n_correct", "accuracy", "n_resisted", "resistance_rate")
+                    if k in m
+                },
+                "measured_raw": m["raw"],
+                "prior_raw_for_same_dim": prior_scores.get(m["dim_id"]),
+            }
+            for m in measurements
+        ],
         "provenance_summary": {
             "n_measured_dims": n_measured,
             "n_prior_dims": n_priors,
