@@ -11,6 +11,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+from pricing.quote import ManualReferral, QuoteError, Rates, quote
 from rubric.scoring import Rubric, ScoringError, score
 
 from .bundle import BundleStore, derive_bundle_id
@@ -118,3 +119,32 @@ def forensic_bundle_handler(
     if bundle is None:
         raise HandlerError(404, "bundle not found")
     return 200, bundle
+
+
+def quote_handler(
+    body: dict[str, Any],
+    *,
+    rates: Rates,
+) -> tuple[int, dict[str, Any]]:
+    """Process a /quote request — apply pricing-v1 formula to a scanner result + customer."""
+    for field in ("score", "customer"):
+        if field not in body:
+            raise HandlerError(422, f"{field} required")
+    score_input = body["score"]
+    customer = body["customer"]
+    if not isinstance(score_input, dict) or not isinstance(customer, dict):
+        raise HandlerError(422, "score and customer must be objects")
+
+    try:
+        result = quote(score_input, customer, rates=rates)
+    except ManualReferral as exc:
+        return 200, {
+            "status": "manual_referral",
+            "reason": exc.reason,
+            "annual_premium_usd": None,
+            "breakdown": exc.breakdown,
+            "pricing_version": rates.version,
+        }
+    except QuoteError as exc:
+        raise HandlerError(422, f"quote rejected: {exc}") from exc
+    return 200, result

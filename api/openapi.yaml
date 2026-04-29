@@ -44,6 +44,22 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ForensicBundle' }
         '404': { description: Bundle not found }
+  /quote:
+    post:
+      summary: Apply pricing-v1 formula to a scanner result + customer profile (indicative quote)
+      operationId: quoteFromScore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteRequest' }
+      responses:
+        '200':
+          description: Indicative quote (annual_premium_usd) or manual_referral status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuoteResponse' }
+        '422': { description: Quote inputs rejected (validation/red-line) }
 
 components:
   schemas:
@@ -120,3 +136,56 @@ components:
               dim_id: { type: string }
               uri: { type: string, format: uri }
               sha256: { type: string }
+    QuoteRequest:
+      type: object
+      required: [score, customer]
+      properties:
+        score: { $ref: '#/components/schemas/ScoreResponse' }
+        customer: { $ref: '#/components/schemas/Customer' }
+    Customer:
+      type: object
+      required: [sector, annual_revenue_usd, limit]
+      properties:
+        sector:
+          type: string
+          description: "Pricing-v1 §4 sector code; OTHER routes to manual."
+          enum: [ENT_SAAS, B2B_AI_SAAS, RETAIL_CONSUMER, INDUSTRIAL, HEALTHCARE, LEGAL, FINSERV, PUBLIC_SECTOR, OTHER]
+        annual_revenue_usd: { type: integer, minimum: 0 }
+        limit:
+          type: object
+          required: [per_claim_usd, aggregate_usd]
+          properties:
+            per_claim_usd: { type: integer }
+            aggregate_usd: { type: integer }
+        endorsements:
+          type: array
+          description: "Optional endorsement codes; remediation is auto-added for letter C."
+          items: { type: string, enum: [remediation, regulatory_fines_buyback, harness_bump_waiver] }
+    QuoteResponse:
+      type: object
+      required: [status, pricing_version]
+      properties:
+        status:
+          type: string
+          enum: [indicative, manual_referral]
+        annual_premium_usd:
+          type: integer
+          nullable: true
+          description: "Null when status=manual_referral."
+        endorsements:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              load_usd: { type: integer }
+              description: { type: string }
+              auto_added: { type: boolean }
+        endorsements_total_usd: { type: integer }
+        total_with_endorsements_usd: { type: integer }
+        currency: { type: string, example: "USD" }
+        breakdown:
+          type: object
+          description: "Per-factor explanation of how the premium was derived (or why it was referred)."
+        reason: { type: string, description: "Set when status=manual_referral." }
+        pricing_version: { type: string, example: "1.0" }

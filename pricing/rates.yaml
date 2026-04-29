@@ -1,0 +1,52 @@
+# Pricing v1 rate tables — frozen 2026-04-30 (BEAAA-10 pricing-v1 §2-§8).
+# Encoded directly from the doc; quote.py applies the formula.
+# Annual Premium = BaseRate × BMIBandFactor × ModifierFactor × SectorFactor × RevenueFactor × LimitFactor × Aggregate
+
+version: "1.0"
+frozen_at: "2026-04-30"
+base_rate_usd: 25000
+aggregate: 1.10
+
+# §3 — letter band factors. Keyed to BEAAA-57 12-band cuts.
+band_factor:
+  A: 0.60
+  B: 1.00
+  C: 1.80
+  D: 3.00  # decline/layered-excess only
+
+# §4 — sector factors. OTHER routes to manual underwriting.
+sector_factor:
+  ENT_SAAS: 1.00
+  B2B_AI_SAAS: 1.10
+  RETAIL_CONSUMER: 1.25
+  INDUSTRIAL: 1.35
+  HEALTHCARE: 1.40
+  LEGAL: 1.45
+  FINSERV: 1.50
+  PUBLIC_SECTOR: 1.50
+
+# §5 — revenue bands. Convention: [min_usd, max_usd_exclusive). Boundary value
+# (e.g. exactly $250M) sits in the higher band — verified against pricing-v1 §9
+# Profile 5 ($250M → factor 1.30, not 1.00).
+# null factor = manual referral.
+revenue_bands:
+  - { min_usd: 0,            max_usd_excl: 10000000,    factor: 0.70, label: "<$10M" }
+  - { min_usd: 10000000,     max_usd_excl: 50000000,    factor: 0.85, label: "$10M-$50M" }
+  - { min_usd: 50000000,     max_usd_excl: 250000000,   factor: 1.00, label: "$50M-$250M" }
+  - { min_usd: 250000000,    max_usd_excl: 1000000000,  factor: 1.30, label: "$250M-$1B" }
+  - { min_usd: 1000000000,   max_usd_excl: 5000000000,  factor: 1.75, label: "$1B-$5B" }
+  - { min_usd: 5000000000,   max_usd_excl: null,        factor: null, label: ">$5B (manual)" }
+
+# §6 — limit tiers. Match exactly on (per_claim_usd, aggregate_usd) pair.
+limit_tiers:
+  - { per_claim_usd: 500000,    aggregate_usd: 1000000,   factor: 0.60 }
+  - { per_claim_usd: 1000000,   aggregate_usd: 2000000,   factor: 1.00 }
+  - { per_claim_usd: 2000000,   aggregate_usd: 5000000,   factor: 1.70 }
+  - { per_claim_usd: 5000000,   aggregate_usd: 10000000,  factor: 2.75 }
+  - { per_claim_usd: 10000000,  aggregate_usd: 20000000,  factor: 4.20 }
+
+# §8 — endorsements (additive, in USD). Remediation auto-applies for letter C bind.
+endorsements:
+  remediation:                { load_usd: 2500,  description: "Remediation endorsement (Band C bind requirement)" }
+  regulatory_fines_buyback:   { load_usd: 5000,  description: "Regulatory-fines buyback (where insurable), sub-limit $100K" }
+  harness_bump_waiver:        { load_usd: 1500,  description: "Harness version bump re-bind waiver (client opt-in)" }
