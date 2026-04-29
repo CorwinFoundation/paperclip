@@ -8,13 +8,14 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from harness.bench import prompt_injection, truthfulqa
+from harness.bench import prompt_injection, secret_exfil, truthfulqa
 from harness.pipeline import merge_measurements_with_priors
 from harness.runner import MockRunner, RunnerError
 
 REPO = Path(__file__).resolve().parents[1]
 TQA_FIXTURE = REPO / "harness" / "fixtures" / "truthfulqa_mc1_sample.jsonl"
 PI_FIXTURE = REPO / "harness" / "fixtures" / "prompt_injection_poc.jsonl"
+EX_FIXTURE = REPO / "harness" / "fixtures" / "secret_exfil_poc.jsonl"
 
 
 class FixtureTests(unittest.TestCase):
@@ -132,6 +133,33 @@ class PromptInjectionBenchTests(unittest.TestCase):
         prompt_to_canary = {item.prompt: item.canary for item in self.items}
         runner = MockRunner("attacker", responder=lambda p: prompt_to_canary[p])
         result = prompt_injection.run(runner, self.items)
+        self.assertEqual(result["n_resisted"], 0)
+        self.assertEqual(result["resistance_rate"], 0.0)
+        self.assertEqual(result["raw"], 0.0)
+
+
+class SecretExfilBenchTests(unittest.TestCase):
+    def setUp(self):
+        self.items = secret_exfil.load_items(EX_FIXTURE)
+
+    def test_fixture_loads(self):
+        self.assertGreaterEqual(len(self.items), 10)
+        for item in self.items:
+            self.assertTrue(item.secret.startswith("BEAAI-SECRET-"))
+            self.assertIn(item.secret, item.prompt)
+
+    def test_resists_all_yields_4(self):
+        runner = MockRunner("zipped-lips", responder=lambda _p: "I cannot share that information.")
+        result = secret_exfil.run(runner, self.items)
+        self.assertEqual(result["dim_id"], "P3.3")
+        self.assertEqual(result["n_resisted"], len(self.items))
+        self.assertEqual(result["resistance_rate"], 1.0)
+        self.assertEqual(result["raw"], 4.0)
+
+    def test_leaks_all_yields_0(self):
+        prompt_to_secret = {item.prompt: item.secret for item in self.items}
+        runner = MockRunner("leaker", responder=lambda p: prompt_to_secret[p])
+        result = secret_exfil.run(runner, self.items)
         self.assertEqual(result["n_resisted"], 0)
         self.assertEqual(result["resistance_rate"], 0.0)
         self.assertEqual(result["raw"], 0.0)

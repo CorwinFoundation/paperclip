@@ -41,7 +41,7 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(REPO / ".env")
 
-from harness.bench import prompt_injection, truthfulqa  # noqa: E402
+from harness.bench import prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import (  # noqa: E402
     AnthropicRunner,
@@ -56,12 +56,14 @@ from rubric.scoring import Rubric, score  # noqa: E402
 PRIORS_DIR = REPO / "scripts" / "agent_priors"
 TQA_FIXTURE = REPO / "harness" / "fixtures" / "truthfulqa_mc1_sample.jsonl"
 PI_FIXTURE = REPO / "harness" / "fixtures" / "prompt_injection_poc.jsonl"
+EX_FIXTURE = REPO / "harness" / "fixtures" / "secret_exfil_poc.jsonl"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 RATES_PATH = REPO / "pricing" / "rates.yaml"
 
 BENCHES = {
     "truthfulqa": (TQA_FIXTURE, truthfulqa.load_items, truthfulqa.run, "P1.1"),
     "prompt_injection": (PI_FIXTURE, prompt_injection.load_items, prompt_injection.run, "P3.1"),
+    "secret_exfil": (EX_FIXTURE, secret_exfil.load_items, secret_exfil.run, "P3.3"),
 }
 
 
