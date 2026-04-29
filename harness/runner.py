@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Any, Callable
 
 
 class RunnerError(RuntimeError):
@@ -112,12 +112,14 @@ class GeminiRunner(ModelRunner):
         self,
         model: str,
         *,
-        max_output_tokens: int = 256,
+        max_output_tokens: int = 1024,
         min_interval_s: float = 13.0,
+        disable_thinking: bool = True,
     ):
         self._model = model
         self._max_output_tokens = max_output_tokens
         self._min_interval_s = float(min_interval_s)
+        self._disable_thinking = disable_thinking
         # Init to "now" so the first call also waits — protects against
         # quota-window bleed from a prior 429'd run.
         self._last_call_at: float = time.monotonic()
@@ -148,16 +150,37 @@ class GeminiRunner(ModelRunner):
                 "google-genai SDK not installed; pip install google-genai"
             ) from exc
         client = genai.Client(api_key=self._api_key)
+
+        def _build_config(disable_thinking: bool, max_tokens: int) -> Any:
+            kwargs: dict[str, Any] = {"max_output_tokens": max_tokens}
+            if disable_thinking:
+                try:
+                    kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+                except (AttributeError, TypeError):
+                    pass  # older SDK — ignore
+            return types.GenerateContentConfig(**kwargs)
+
+        # Some 2.5-series models (e.g. gemini-2.5-pro) REQUIRE thinking and
+        # reject thinking_budget=0 with a 400. If that happens, fall through
+        # to thinking-on with a much larger output budget so the letter has
+        # room after the reasoning step.
+        attempt_plan = [
+            (self._disable_thinking, self._max_output_tokens),
+            (False, max(self._max_output_tokens, 4096)),
+        ]
+
         backoff_s = 5.0
         attempts = 4
         last_exc: Exception | None = None
+        plan_idx = 0
         for attempt in range(1, attempts + 1):
             self._throttle()
+            disable, max_tokens = attempt_plan[plan_idx]
             try:
                 resp = client.models.generate_content(
                     model=self._model,
                     contents=prompt,
-                    config=types.GenerateContentConfig(max_output_tokens=self._max_output_tokens),
+                    config=_build_config(disable, max_tokens),
                 )
                 self._last_call_at = time.monotonic()
                 return resp.text or ""
@@ -168,6 +191,18 @@ class GeminiRunner(ModelRunner):
                     raise
                 time.sleep(backoff_s)
                 backoff_s *= 2
+            except genai_errors.ClientError as exc:
+                self._last_call_at = time.monotonic()
+                # Specific case: model requires thinking mode and rejected
+                # thinking_budget=0. Switch to the thinking-on plan and retry.
+                if (
+                    plan_idx == 0
+                    and len(attempt_plan) > 1
+                    and "thinking" in str(exc).lower()
+                ):
+                    plan_idx = 1
+                    continue
+                raise
             except Exception:
                 self._last_call_at = time.monotonic()
                 raise
