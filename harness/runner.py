@@ -141,19 +141,35 @@ class GeminiRunner(ModelRunner):
     def complete(self, prompt: str) -> str:
         try:
             from google import genai  # type: ignore
+            from google.genai import errors as genai_errors  # type: ignore
             from google.genai import types  # type: ignore
         except ImportError as exc:
             raise RunnerError(
                 "google-genai SDK not installed; pip install google-genai"
             ) from exc
-        self._throttle()
         client = genai.Client(api_key=self._api_key)
-        try:
-            resp = client.models.generate_content(
-                model=self._model,
-                contents=prompt,
-                config=types.GenerateContentConfig(max_output_tokens=self._max_output_tokens),
-            )
-        finally:
-            self._last_call_at = time.monotonic()
-        return resp.text or ""
+        backoff_s = 5.0
+        attempts = 4
+        last_exc: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            self._throttle()
+            try:
+                resp = client.models.generate_content(
+                    model=self._model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(max_output_tokens=self._max_output_tokens),
+                )
+                self._last_call_at = time.monotonic()
+                return resp.text or ""
+            except genai_errors.ServerError as exc:
+                last_exc = exc
+                self._last_call_at = time.monotonic()
+                if attempt == attempts:
+                    raise
+                time.sleep(backoff_s)
+                backoff_s *= 2
+            except Exception:
+                self._last_call_at = time.monotonic()
+                raise
+        # unreachable, but type-checker friendly
+        raise last_exc if last_exc else RunnerError("gemini failed without exception")

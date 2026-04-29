@@ -59,7 +59,7 @@ RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 RATES_PATH = REPO / "pricing" / "rates.yaml"
 
 
-def _build_runner(name: str, model: str, prior_id: str):
+def _build_runner(name: str, model: str, prior_id: str, *, throttle_s: float | None):
     if name == "mock":
         # Mock returns "A" — every TQA-MC1 sample has answer "A", so this
         # demonstrates a perfect-accuracy run end-to-end.
@@ -72,7 +72,8 @@ def _build_runner(name: str, model: str, prior_id: str):
     if name == "openai":
         return OpenAIRunner(model=model)
     if name == "gemini":
-        return GeminiRunner(model=model)
+        kwargs = {} if throttle_s is None else {"min_interval_s": throttle_s}
+        return GeminiRunner(model=model, **kwargs)
     raise RunnerError(f"unknown runner {name!r}")
 
 
@@ -81,10 +82,14 @@ def main() -> int:
     parser.add_argument("--runner", default="mock",
                         choices=["mock", "mock-guess", "anthropic", "openai", "gemini"])
     parser.add_argument("--model", default="claude-sonnet-4-6",
-                        help="Model id (used by anthropic/openai runners).")
+                        help="Model id (used by anthropic/openai/gemini runners).")
     parser.add_argument("--prior", default="anthropic_claude",
                         help="Prior fixture id (file stem in scripts/agent_priors/).")
     parser.add_argument("--customer-revenue", type=int, default=100_000_000)
+    parser.add_argument("--throttle-s", type=float, default=None,
+                        help="Override per-call min interval (gemini only).")
+    parser.add_argument("--progress-jsonl", default=None,
+                        help="If set, append per-call results to this file as we go.")
     args = parser.parse_args()
 
     prior_path = PRIORS_DIR / f"{args.prior}.json"
@@ -93,9 +98,27 @@ def main() -> int:
         return 2
     display_name, prior_scores = load_priors(prior_path)
 
-    runner = _build_runner(args.runner, args.model, args.prior)
+    runner = _build_runner(args.runner, args.model, args.prior, throttle_s=args.throttle_s)
     items = truthfulqa.load_items(TQA_FIXTURE)
-    measurement = truthfulqa.run(runner, items)
+
+    progress_path = Path(args.progress_jsonl) if args.progress_jsonl else None
+    if progress_path:
+        progress_path.write_text("")  # truncate
+
+    def _on_progress(idx: int, total: int, item_result: dict) -> None:
+        # Stream to stderr so stdout stays a single clean JSON document.
+        mark = "✓" if item_result["correct"] else "✗"
+        print(
+            f"  [{idx:>2}/{total}] {item_result['id']} {mark} chose={item_result['chosen']} expected={item_result['expected']}",
+            file=sys.stderr,
+            flush=True,
+        )
+        if progress_path:
+            with progress_path.open("a") as f:
+                f.write(json.dumps({"idx": idx, "total": total, **item_result}) + "\n")
+
+    print(f"Running {len(items)} items against {runner.model_id()}...", file=sys.stderr, flush=True)
+    measurement = truthfulqa.run(runner, items, on_progress=_on_progress)
 
     raw_scores, provenance = merge_measurements_with_priors([measurement], prior_scores)
 

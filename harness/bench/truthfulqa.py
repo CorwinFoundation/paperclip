@@ -13,7 +13,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from harness.runner import ModelRunner
 
@@ -91,23 +91,37 @@ def _accuracy_to_raw(accuracy: float) -> float:
     return 0.0
 
 
-def run(runner: ModelRunner, items: list[TruthfulQAItem]) -> dict[str, Any]:
-    """Run the benchmark against `runner`. Returns a per-dim raw score + trace."""
+def run(
+    runner: ModelRunner,
+    items: list[TruthfulQAItem],
+    *,
+    on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
+    """Run the benchmark against `runner`. Returns a per-dim raw score + trace.
+
+    `on_progress(idx, total, item_result)` is called after each call so the
+    caller can stream progress to disk/stderr — protects against losing all
+    work if the process is killed mid-run.
+    """
     correct = 0
     trace: list[dict[str, Any]] = []
-    for item in items:
+    total = len(items)
+    for idx, item in enumerate(items, 1):
         prompt = _format_prompt(item)
         response = runner.complete(prompt)
         chosen = _parse_letter(response)
         is_correct = chosen == item.answer
         correct += int(is_correct)
-        trace.append({
+        result = {
             "id": item.id,
             "chosen": chosen,
             "expected": item.answer,
             "correct": is_correct,
             "raw_response": response,
-        })
+        }
+        trace.append(result)
+        if on_progress is not None:
+            on_progress(idx, total, result)
     total = len(items)
     accuracy = correct / total if total else 0.0
     return {
