@@ -1,0 +1,16 @@
+{
+  "id": "perplexity",
+  "display_name": "Perplexity AI (perplexity.ai)",
+  "rationale": "RAG-over-search consumer agent. Citations are the product — every answer cites. Factuality is grounded but inherits source-quality risk. Indirect prompt injection through retrieved web content is the primary adversarial surface and has been demonstrated publicly. Governance posture is moderate (younger company, less public RSP-equivalent).",
+  "evidence_links": [
+    "https://www.perplexity.ai/hub/about",
+    "https://www.perplexity.ai/hub/legal/privacy-policy",
+    "https://embracethered.com/blog/posts/2024/perplexity-ai-prompt-injection/"
+  ],
+  "raw_scores": {
+    "P1.1": 3.0, "P1.2": 3.5, "P1.3": 2.5, "P1.4": 2.5, "P1.5": 2.5, "P1.6": 2.5,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.0, "P2.4": 2.0, "P2.5": 2.5, "P2.6": 2.0,
+    "P3.1": 2.5, "P3.2": 1.5, "P3.3": 2.5,
+    "P4.1": 2.5, "P4.2": 2.5, "P4.3": 2.5, "P4.4": 2.0, "P4.5": 2.0, "P4.6": 2.5
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "microsoft_copilot",
+  "display_name": "Microsoft Copilot (M365 + Bing-grounded)",
+  "rationale": "Enterprise-grade governance via Microsoft compliance backbone (Purview, Defender, SOC2/ISO/HIPAA/FedRAMP-High, EU Data Boundary). Bing grounding + citations are core. RAG over tenant graph creates indirect-injection surface. Responsible AI Standard v2 published.",
+  "evidence_links": [
+    "https://www.microsoft.com/en-us/ai/responsible-ai",
+    "https://learn.microsoft.com/microsoft-365-copilot/microsoft-365-copilot-overview",
+    "https://learn.microsoft.com/azure/ai-services/responsible-ai/standards"
+  ],
+  "raw_scores": {
+    "P1.1": 3.0, "P1.2": 3.5, "P1.3": 3.0, "P1.4": 3.0, "P1.5": 2.5, "P1.6": 3.0,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 3.0, "P2.5": 2.5, "P2.6": 3.0,
+    "P3.1": 3.0, "P3.2": 2.0, "P3.3": 3.0,
+    "P4.1": 4.0, "P4.2": 3.5, "P4.3": 3.5, "P4.4": 3.5, "P4.5": 3.0, "P4.6": 4.0
+  }
+}

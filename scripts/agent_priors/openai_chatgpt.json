@@ -1,0 +1,16 @@
+{
+  "id": "openai_chatgpt",
+  "display_name": "OpenAI ChatGPT (chat.openai.com)",
+  "rationale": "Frontier model. Preparedness Framework, Usage Policies, Trust Portal, SOC2 II, ISO 27001/27018, GDPR, model spec published. Browse-with-Bing grounds factuality + citations when enabled; consumer default does not cite. Strong public red-teaming history.",
+  "evidence_links": [
+    "https://openai.com/index/openai-preparedness-framework",
+    "https://trust.openai.com",
+    "https://cdn.openai.com/spec/model-spec-2024-05-08.html"
+  ],
+  "raw_scores": {
+    "P1.1": 3.5, "P1.2": 2.5, "P1.3": 3.0, "P1.4": 3.0, "P1.5": 2.5, "P1.6": 3.5,
+    "P2.1": 3.0, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 3.0, "P2.5": 2.5, "P2.6": 3.5,
+    "P3.1": 3.5, "P3.2": 2.5, "P3.3": 3.0,
+    "P4.1": 3.5, "P4.2": 3.5, "P4.3": 3.0, "P4.4": 3.5, "P4.5": 3.5, "P4.6": 3.0
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "github_copilot",
+  "display_name": "GitHub Copilot (code completion + chat)",
+  "rationale": "Code-focused. Hallucinated-API failure mode is well-documented in public studies. Citation N/A in completions; Copilot Chat cites sources. Microsoft governance backbone. Adversarial: Copilot Workspace + agentic extensions add tool-call risk; published responsible-use docs but less external red-teaming than frontier consumer surfaces.",
+  "evidence_links": [
+    "https://docs.github.com/en/copilot/responsible-use-of-github-copilot-features",
+    "https://github.blog/security",
+    "https://learn.microsoft.com/azure/ai-services/openai/concepts/responsible-ai-content-filters"
+  ],
+  "raw_scores": {
+    "P1.1": 2.5, "P1.2": 1.5, "P1.3": 2.5, "P1.4": 2.5, "P1.5": 2.0, "P1.6": 2.5,
+    "P2.1": 2.5, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 2.5, "P2.5": 2.5, "P2.6": 3.0,
+    "P3.1": 2.5, "P3.2": 2.0, "P3.3": 3.0,
+    "P4.1": 3.5, "P4.2": 3.0, "P4.3": 3.0, "P4.4": 3.0, "P4.5": 2.5, "P4.6": 3.5
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "devin_cognition",
+  "display_name": "Devin (Cognition Labs)",
+  "rationale": "Autonomous-agent SWE. Multi-step error compounding is a known failure mode in long-horizon agentic workflows (independent benchmark studies have flagged sub-30% completion rates on real-world tasks). Public posture is light: no RSP-equivalent, limited public red-teaming, governance disclosures are early-stage. Tool-call abuse (P3.4 deferred) is the dominant adversarial concern.",
+  "evidence_links": [
+    "https://www.cognition.ai",
+    "https://www.cognition.ai/blog/devin-vs-swe-bench"
+  ],
+  "raw_scores": {
+    "P1.1": 1.5, "P1.2": 1.5, "P1.3": 1.5, "P1.4": 1.5, "P1.5": 1.0, "P1.6": 1.5,
+    "P2.1": 2.0, "P2.2": 2.0, "P2.3": 2.0, "P2.4": 1.5, "P2.5": 2.0, "P2.6": 1.5,
+    "P3.1": 2.0, "P3.2": 1.5, "P3.3": 2.0,
+    "P4.1": 1.5, "P4.2": 2.0, "P4.3": 1.5, "P4.4": 1.5, "P4.5": 1.5, "P4.6": 1.5
+  }
+}
