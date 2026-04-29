@@ -44,13 +44,14 @@ class MockRunner(ModelRunner):
 class AnthropicRunner(ModelRunner):
     """Real Anthropic adapter. Lazy-imports the SDK; raises on missing key.
 
-    Not exercised in tests — flip to this by setting ANTHROPIC_API_KEY and
-    `--runner=anthropic --model=claude-...` on scripts/poc_real_score.py.
+    Temperature pinned to 0 by default for reproducible eval runs — override
+    with `temperature=...` if you want sampled output.
     """
 
-    def __init__(self, model: str, *, max_tokens: int = 256):
+    def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0):
         self._model = model
         self._max_tokens = max_tokens
+        self._temperature = float(temperature)
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise RunnerError("ANTHROPIC_API_KEY not set")
 
@@ -66,17 +67,33 @@ class AnthropicRunner(ModelRunner):
         msg = client.messages.create(
             model=self._model,
             max_tokens=self._max_tokens,
+            temperature=self._temperature,
             messages=[{"role": "user", "content": prompt}],
         )
         return "".join(block.text for block in msg.content if getattr(block, "type", "") == "text")
 
 
 class OpenAIRunner(ModelRunner):
-    """Real OpenAI adapter. Lazy-imports the SDK; raises on missing key."""
+    """Real OpenAI adapter. Lazy-imports the SDK; raises on missing key.
 
-    def __init__(self, model: str, *, max_tokens: int = 256):
+    Temperature pinned to 0 + seed=42 by default for best-effort
+    reproducibility. OpenAI documents seed as "best effort, not guaranteed"
+    due to MoE routing across server replicas — expect ~1 of 10 items to
+    drift between consecutive runs at this fixture size.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        max_tokens: int = 256,
+        temperature: float = 0.0,
+        seed: int | None = 42,
+    ):
         self._model = model
         self._max_tokens = max_tokens
+        self._temperature = float(temperature)
+        self._seed = seed
         if not os.environ.get("OPENAI_API_KEY"):
             raise RunnerError("OPENAI_API_KEY not set")
 
@@ -89,11 +106,15 @@ class OpenAIRunner(ModelRunner):
         except ImportError as exc:
             raise RunnerError("openai SDK not installed; pip install openai") from exc
         client = OpenAI()
-        resp = client.chat.completions.create(
-            model=self._model,
-            max_tokens=self._max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "max_tokens": self._max_tokens,
+            "temperature": self._temperature,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self._seed is not None:
+            kwargs["seed"] = self._seed
+        resp = client.chat.completions.create(**kwargs)
         return resp.choices[0].message.content or ""
 
 
@@ -115,11 +136,15 @@ class GeminiRunner(ModelRunner):
         max_output_tokens: int = 1024,
         min_interval_s: float = 13.0,
         disable_thinking: bool = True,
+        temperature: float = 0.0,
+        seed: int | None = 42,
     ):
         self._model = model
         self._max_output_tokens = max_output_tokens
         self._min_interval_s = float(min_interval_s)
         self._disable_thinking = disable_thinking
+        self._temperature = float(temperature)
+        self._seed = seed
         # Init to "now" so the first call also waits — protects against
         # quota-window bleed from a prior 429'd run.
         self._last_call_at: float = time.monotonic()
@@ -152,7 +177,12 @@ class GeminiRunner(ModelRunner):
         client = genai.Client(api_key=self._api_key)
 
         def _build_config(disable_thinking: bool, max_tokens: int) -> Any:
-            kwargs: dict[str, Any] = {"max_output_tokens": max_tokens}
+            kwargs: dict[str, Any] = {
+                "max_output_tokens": max_tokens,
+                "temperature": self._temperature,
+            }
+            if self._seed is not None:
+                kwargs["seed"] = self._seed
             if disable_thinking:
                 try:
                     kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
