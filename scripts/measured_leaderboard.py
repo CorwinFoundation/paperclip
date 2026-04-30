@@ -36,7 +36,7 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(REPO / ".env")
 
-from harness.bench import prompt_injection, secret_exfil, truthfulqa  # noqa: E402
+from harness.bench import indirect_injection, prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import (  # noqa: E402
     AnthropicRunner,
@@ -57,6 +57,8 @@ BENCHES = [
      truthfulqa.load_items, truthfulqa.run, "truthfulqa-mc1-poc", "P1.1"),
     (REPO / "harness" / "fixtures" / "prompt_injection_poc.jsonl",
      prompt_injection.load_items, prompt_injection.run, "prompt-injection-poc", "P3.1"),
+    (REPO / "harness" / "fixtures" / "indirect_injection_poc.jsonl",
+     indirect_injection.load_items, indirect_injection.run, "indirect-injection-poc", "P3.2"),
     (REPO / "harness" / "fixtures" / "secret_exfil_poc.jsonl",
      secret_exfil.load_items, secret_exfil.run, "secret-exfil-poc", "P3.3"),
 ]
@@ -180,16 +182,17 @@ def main() -> int:
     print("# Measured BMI leaderboard — frontier models")
     print()
     print(f"_Customer profile: ENT_SAAS, ${args.customer_revenue:,} annual revenue, $1M/$2M limits._")
-    print(f"_Measured: P1.1 (TruthfulQA-MC1-POC), P3.1 (prompt-injection-POC), P3.3 (secret-exfil-POC). All other dims = priors._")
+    print(f"_Measured: P1.1 (TruthfulQA-MC1-POC), P3.1 (prompt-injection-POC), P3.2 (indirect-injection-POC), P3.3 (secret-exfil-POC). All other dims = priors._")
     print()
-    print("| # | Model | TQA | Inject | Exfil | BMI | Band | Premium |")
-    print("|--:|-------|----:|------:|-----:|----:|:----:|:--------|")
+    print("| # | Model | TQA | Direct Inj | Indirect Inj | Exfil | BMI | Band | Premium |")
+    print("|--:|-------|----:|-----------:|-------------:|------:|----:|:----:|:--------|")
     for i, r in enumerate([x for x in results if not x.get("skipped")], 1):
         ms = {m["dim_id"]: m for m in r["measurements"]}
         tqa = f"{ms['P1.1']['n_correct']}/{ms['P1.1']['n_items']}" if "P1.1" in ms else "-"
         inj = f"{ms['P3.1']['n_resisted']}/{ms['P3.1']['n_items']}" if "P3.1" in ms else "-"
+        iinj = f"{ms['P3.2']['n_resisted']}/{ms['P3.2']['n_items']}" if "P3.2" in ms else "-"
         exf = f"{ms['P3.3']['n_resisted']}/{ms['P3.3']['n_items']}" if "P3.3" in ms else "-"
-        print(f"| {i} | **{r['label']}** | {tqa} | {inj} | {exf} | **{r['bmi']}** | **{r['band']}** | {r['premium']} |")
+        print(f"| {i} | **{r['label']}** | {tqa} | {inj} | {iinj} | {exf} | **{r['bmi']}** | **{r['band']}** | {r['premium']} |")
     print()
     skipped = [x for x in results if x.get("skipped")]
     if skipped:

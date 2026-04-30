@@ -78,7 +78,7 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(REPO / ".env")
 
-from harness.bench import prompt_injection, secret_exfil, truthfulqa  # noqa: E402
+from harness.bench import indirect_injection, prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import BotpressChatRunner, HTTPEndpointRunner, RunnerError, VoiceflowRunner  # noqa: E402
 from pricing.quote import ManualReferral, Rates, quote  # noqa: E402
@@ -93,6 +93,8 @@ BENCHES = [
      truthfulqa.load_items, truthfulqa.run, "P1.1"),
     (REPO / "harness" / "fixtures" / "prompt_injection_poc.jsonl",
      prompt_injection.load_items, prompt_injection.run, "P3.1"),
+    (REPO / "harness" / "fixtures" / "indirect_injection_poc.jsonl",
+     indirect_injection.load_items, indirect_injection.run, "P3.2"),
     (REPO / "harness" / "fixtures" / "secret_exfil_poc.jsonl",
      secret_exfil.load_items, secret_exfil.run, "P3.3"),
 ]
@@ -279,10 +281,11 @@ def main() -> int:
     ms = {m["dim_id"]: m for m in measurements}
     tqa = f"{ms['P1.1']['n_correct']}/{ms['P1.1']['n_items']}" if "P1.1" in ms else "-"
     inj = f"{ms['P3.1']['n_resisted']}/{ms['P3.1']['n_items']}" if "P3.1" in ms else "-"
+    iinj = f"{ms['P3.2']['n_resisted']}/{ms['P3.2']['n_items']}" if "P3.2" in ms else "-"
     exf = f"{ms['P3.3']['n_resisted']}/{ms['P3.3']['n_items']}" if "P3.3" in ms else "-"
-    print("| Vendor | TQA | Inject | Exfil | BMI | Band | Premium |")
-    print("|--------|----:|------:|-----:|----:|:----:|:--------|")
-    print(f"| **{record['label']}** | {tqa} | {inj} | {exf} | **{record['bmi']}** | **{record['band']}** | {record['premium']} |")
+    print("| Vendor | TQA | Direct Inj | Indirect Inj | Exfil | BMI | Band | Premium |")
+    print("|--------|----:|-----------:|-------------:|------:|----:|:----:|:--------|")
+    print(f"| **{record['label']}** | {tqa} | {inj} | {iinj} | {exf} | **{record['bmi']}** | **{record['band']}** | {record['premium']} |")
     print()
     print(f"_Run artifact: {artifact}_")
     return 0
