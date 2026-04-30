@@ -20,10 +20,10 @@ Per-vendor env vars
 -------------------
 
 botpress:
-  BOTPRESS_BOT_ID               — bot id from Botpress Cloud
-  BOTPRESS_API_KEY              — Personal Access Token (Settings → API keys)
-  Optional: BOTPRESS_USER_KEY   — created on first message; auto-generated if unset
-  Endpoint shape: POST https://chat.botpress.cloud/{webhookId}/messages
+  BOTPRESS_CLIENT_ID            — webchat clientId (from the published webchat config JSON)
+  Optional: BOTPRESS_LABEL      — readable label suffix (defaults to first 8 chars of client id)
+  Endpoint shape: chat.botpress.cloud/{clientId} — public Chat integration, 4-step protocol
+  Auth: none (the runner provisions its own user identity per scan)
 
 voiceflow:
   VOICEFLOW_PROJECT_ID          — versionID of the published Voiceflow project
@@ -76,7 +76,7 @@ _load_dotenv(REPO / ".env")
 
 from harness.bench import prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
-from harness.runner import HTTPEndpointRunner, RunnerError  # noqa: E402
+from harness.runner import BotpressChatRunner, HTTPEndpointRunner, RunnerError  # noqa: E402
 from pricing.quote import ManualReferral, Rates, quote  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 
@@ -103,22 +103,20 @@ def _require_env(*keys: str) -> None:
         sys.exit(2)
 
 
-def _build_botpress() -> HTTPEndpointRunner:
-    _require_env("BOTPRESS_BOT_ID", "BOTPRESS_API_KEY")
-    bot_id = os.environ["BOTPRESS_BOT_ID"]
-    api_key = os.environ["BOTPRESS_API_KEY"]
-    # Botpress Cloud Chat API is conversation-stateful; for a one-shot
-    # turn the simplest path is the personal-access-token-authed bot
-    # API. NOTE: confirm exact endpoint at scan-time — Botpress has
-    # multiple shapes (chat.botpress.cloud webhook vs. api.botpress.cloud
-    # bot-as-a-service). This preset targets the latter.
-    url = f"https://api.botpress.cloud/v1/chat/bots/{bot_id}/converse"
-    return HTTPEndpointRunner(
-        url=url,
-        auth=api_key,
-        request_template='{"text": "{prompt}"}',
-        response_path="responses[0].text",
-        label=f"botpress:{bot_id}",
+def _build_botpress() -> BotpressChatRunner:
+    """Botpress Cloud public Chat API (chat.botpress.cloud).
+
+    Set BOTPRESS_CLIENT_ID to the webchat clientId — visible in the published
+    webchat config JSON (e.g. files.bpcontent.cloud/.../*.json -> "clientId").
+    Public Chat integration needs no auth; the runner provisions its own
+    user identity via POST /users.
+    """
+    _require_env("BOTPRESS_CLIENT_ID")
+    client_id = os.environ["BOTPRESS_CLIENT_ID"]
+    label_suffix = os.environ.get("BOTPRESS_LABEL", client_id[:8])
+    return BotpressChatRunner(
+        client_id=client_id,
+        label=f"botpress:{label_suffix}",
     )
 
 

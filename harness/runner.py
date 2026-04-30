@@ -304,6 +304,88 @@ def _resolve_dotted(obj: Any, path: str) -> Any:
     return cur
 
 
+class BotpressChatRunner(ModelRunner):
+    """Botpress Cloud public Chat API — 4-step protocol per chat.botpress.cloud docs.
+
+    Per-prompt flow uses a fresh conversation so multi-turn memory does not
+    contaminate scan independence. The user identity is created once and
+    reused across all prompts in the same scan.
+
+      POST {base}/users                        -> user.id, key
+      POST {base}/conversations  (x-user-key)  -> conversation.id
+      POST {base}/messages       (x-user-key)  -> message.id
+      GET  {base}/conversations/{id}/messages  -> poll until bot reply
+
+    `client_id` is the Botpress webchat clientId (from the published webchat
+    config JSON). `auth` is None — this runner targets the public Chat
+    integration.
+    """
+
+    def __init__(self, *, client_id: str, label: str | None = None,
+                 timeout_s: float = 30.0, poll_max_s: float = 30.0,
+                 poll_interval_s: float = 0.5):
+        if not client_id:
+            raise RunnerError("BotpressChatRunner requires client_id")
+        self._client_id = client_id
+        self._base = f"https://chat.botpress.cloud/{client_id}"
+        self._label = label or f"botpress:{client_id}"
+        self._timeout_s = timeout_s
+        self._poll_max_s = poll_max_s
+        self._poll_interval_s = poll_interval_s
+        self._user_key: str | None = None
+        self._user_id: str | None = None
+
+    def model_id(self) -> str:
+        return self._label
+
+    def _ensure_user(self, client: Any) -> None:
+        if self._user_key:
+            return
+        r = client.post(f"{self._base}/users", json={})
+        if r.status_code >= 400:
+            raise RunnerError(f"botpress POST /users failed: HTTP {r.status_code}: {r.text[:300]}")
+        data = r.json()
+        self._user_key = data["key"]
+        self._user_id = data["user"]["id"]
+
+    def complete(self, prompt: str) -> str:
+        try:
+            import httpx  # type: ignore
+        except ImportError as exc:
+            raise RunnerError("httpx not installed; pip install httpx") from exc
+        with httpx.Client(timeout=self._timeout_s) as client:
+            self._ensure_user(client)
+            headers = {"Content-Type": "application/json", "x-user-key": self._user_key}
+            r = client.post(f"{self._base}/conversations", headers=headers, json={})
+            if r.status_code >= 400:
+                raise RunnerError(f"botpress POST /conversations failed: HTTP {r.status_code}: {r.text[:300]}")
+            conv_id = r.json()["conversation"]["id"]
+            r = client.post(
+                f"{self._base}/messages",
+                headers=headers,
+                json={"conversationId": conv_id, "payload": {"type": "text", "text": prompt}},
+            )
+            if r.status_code >= 400:
+                raise RunnerError(f"botpress POST /messages failed: HTTP {r.status_code}: {r.text[:300]}")
+            sent_id = r.json()["message"]["id"]
+            deadline = time.monotonic() + self._poll_max_s
+            while time.monotonic() < deadline:
+                time.sleep(self._poll_interval_s)
+                r = client.get(f"{self._base}/conversations/{conv_id}/messages", headers=headers)
+                if r.status_code >= 400:
+                    raise RunnerError(f"botpress GET messages failed: HTTP {r.status_code}: {r.text[:300]}")
+                msgs = r.json().get("messages", [])
+                bot_msgs = [
+                    m for m in msgs
+                    if m.get("id") != sent_id
+                    and m.get("payload", {}).get("type") == "text"
+                    and m.get("userId") != self._user_id
+                ]
+                if bot_msgs:
+                    return str(bot_msgs[0].get("payload", {}).get("text", ""))
+            raise RunnerError(f"botpress bot did not reply within {self._poll_max_s}s")
+
+
 class HTTPEndpointRunner(ModelRunner):
     """Generic HTTP-endpoint runner — scan any deployed AI surface.
 
