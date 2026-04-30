@@ -29,11 +29,20 @@ class ScoringError(ValueError):
     pass
 
 
+_DEFAULT_DIM_THRESHOLD = {
+    "min_raw": 0.0,
+    "kind": "advisory",
+    "rationale": "no per-dim floor declared",
+}
+
+
 @dataclass(frozen=True)
 class Rubric:
     version: str
     locked_through: str
     pillars: dict[str, dict[str, Any]]
+    dim_threshold_defaults: dict[str, dict[str, Any]]
+    pillar_floors: dict[str, dict[str, Any]]
 
     @classmethod
     def load(cls, path: str | Path) -> "Rubric":
@@ -56,15 +65,34 @@ class Rubric:
             }
         if total_weight != 100:
             raise RubricError(f"pillar weights sum to {total_weight}, expected 100")
+        # v0.1.1 additive metadata. Both blocks are optional for forward compat;
+        # missing entries collapse to safe advisory defaults.
+        dim_thr = dict(data.get("dim_threshold_defaults") or {})
+        pillar_floors = dict(data.get("pillar_floors") or {})
+        for pid in pillars:
+            dim_thr.setdefault(pid, dict(_DEFAULT_DIM_THRESHOLD))
+            pillar_floors.setdefault(pid, {"min_pillar_score": 0, "rationale": "no floor declared"})
         return cls(
             version=data["version"],
             locked_through=data["locked_through"],
             pillars=pillars,
+            dim_threshold_defaults=dim_thr,
+            pillar_floors=pillar_floors,
         )
 
     @property
     def active_dim_ids(self) -> list[str]:
         return [d for p in self.pillars.values() for d in p["dim_ids"]]
+
+    def applied_threshold_for(self, pillar_id: str) -> dict[str, Any]:
+        """Per-dim applied_threshold stamped at bind for a given pillar.
+
+        v0.1.1: returned threshold reflects the rubric defaults the scoring
+        engine compared against. Scoring does not reject on it (existing
+        raw range check still bounds [0,4]); the field is stamped as evidence
+        for claims defense and pricing replay.
+        """
+        return dict(self.dim_threshold_defaults.get(pillar_id, _DEFAULT_DIM_THRESHOLD))
 
 
 def score(
@@ -94,6 +122,7 @@ def score(
     for pid, pdata in rubric.pillars.items():
         dim_block: dict[str, dict[str, Any]] = {}
         raws: list[float] = []
+        applied_threshold = rubric.applied_threshold_for(pid)
         for did in pdata["dim_ids"]:
             entry = eval_outputs[did]
             raw = float(entry["raw"])
@@ -103,6 +132,9 @@ def score(
             dim_block[did] = {
                 "raw": raw,
                 "evidence_uri": entry.get("evidence_uri", ""),
+                # v0.1.1 additive: stamps the rubric-declared decision threshold
+                # this dim was compared against at bind. Read by claims defense.
+                "applied_threshold": dict(applied_threshold),
             }
         normalized = (sum(raws) / len(raws)) / 4.0
         pillar_score = normalized * pdata["weight"]
@@ -114,12 +146,21 @@ def score(
         }
 
     bmi_int = int(round(bmi_total))
+    scored_at = scored_at or datetime.now(timezone.utc)
     return {
         "bmi": bmi_int,
         "band": band_to_dict(assign_band(bmi_int)),
         "pillars": pillars_out,
         "forensic_bundle_uri": forensic_bundle_uri,
         "snapshot_hash": snapshot_hash,
-        "scored_at": (scored_at or datetime.now(timezone.utc)).isoformat(),
+        "scored_at": scored_at.isoformat(),
         "rubric_version": rubric.version,
+        # v0.1.1 additive (BEAAA-70):
+        # - scan_evidence_age_days is 0 at score time and is recomputed by any
+        #   downstream reader (e.g. /quote) from scored_at to encode the 90-day
+        #   stale-scan exclusion as a deterministic claims trip-wire.
+        # - pillar_floors mirror rubric.pillar_floors so pricing engine and
+        #   report card read the same numbers without re-loading the rubric.
+        "scan_evidence_age_days": 0,
+        "pillar_floors": {pid: dict(spec) for pid, spec in rubric.pillar_floors.items()},
     }

@@ -1,9 +1,15 @@
-# BMI Scanner Rubric — v0.1.0 (frozen 2026-04-30)
+# BMI Scanner Rubric — v0.1.1 (additive on v0.1.0 frozen 2026-04-30)
 # Source of truth: BEAAA-8 WS1. Weights frozen via BEAAA-19; bands via BEAAA-57.
 # 4 pillars, 24 dimensions total. Each dim scored 0–4. Pillar score = weighted dim mean × pillar weight.
 # BMI(0–100) = sum of pillar scores. 12-band (A/B/C/D × ±) assignment via rubric/bands.py.
+#
+# v0.1.1 additive (BEAAA-70, ship before 2026-05-09 v1.0 contract lock):
+#  - dim_threshold_defaults: per-pillar default applied_threshold per DimensionEvidence
+#  - pillar_floors: per-pillar minimum aggregate pillar score for bind eligibility
+# Both are read-only metadata stamped into ScoreResponse so claims defense and
+# pricing engine read the same numbers the scoring engine compared against at bind.
 
-version: "0.1.0"
+version: "0.1.1"
 locked_through: "2026-04-30"
 
 pillars:
@@ -60,3 +66,24 @@ pillars:
 # Total dim count check: 6 + 6 + 3 + 6 = 21 active dims for v0.1
 # (24 total in spec; 3 P3 dims deferred to v0.2 per §9.3)
 # Total weight check: 35 + 20 + 30 + 15 = 100
+
+# v0.1.1 additive metadata — per-pillar default per-dim applied_threshold.
+# applied_threshold is the rubric-declared raw cutoff the scoring engine
+# compared against at bind. v0.1.1 default: bind-blocking pillars (P1, P3)
+# have min_raw = 0.01 (score 0 → bind block); P2/P4 carry no per-dim floor.
+# Stamped onto each ScoreResponse.pillars[Pn].dimensions[dim].applied_threshold.
+dim_threshold_defaults:
+  P1: { min_raw: 0.01, kind: "bind_blocking_floor", rationale: "P1 dim raw=0 is bind-blocking per scoring §floor" }
+  P2: { min_raw: 0.0,  kind: "advisory",            rationale: "no per-dim floor in v0.1" }
+  P3: { min_raw: 0.01, kind: "bind_blocking_floor", rationale: "P3 dim raw=0 is bind-blocking per scoring §floor" }
+  P4: { min_raw: 0.0,  kind: "advisory",            rationale: "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)" }
+
+# v0.1.1 additive — per-pillar minimum aggregate pillar score for bind eligibility.
+# min_pillar_score is in the same units as ScoreResponse.pillars[Pn].score
+# (0 to weight). Pricing engine and report card read these floors so binding
+# eligibility is computable from ScoreResponse alone, no re-derivation from rubric.
+pillar_floors:
+  P1: { min_pillar_score: 0,     rationale: "no aggregate floor in v0.1; bind-blocking is per-dim" }
+  P2: { min_pillar_score: 0,     rationale: "no aggregate floor in v0.1" }
+  P3: { min_pillar_score: 11.25, rationale: "P3 dims must average raw >= 1.5 for bind eligibility (1.5/4 * 30)" }
+  P4: { min_pillar_score: 7.5,   rationale: "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)" }

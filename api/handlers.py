@@ -125,6 +125,7 @@ def quote_handler(
     body: dict[str, Any],
     *,
     rates: Rates,
+    quoted_at: datetime | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Process a /quote request — apply pricing-v1 formula to a scanner result + customer."""
     for field in ("score", "customer"):
@@ -136,7 +137,7 @@ def quote_handler(
         raise HandlerError(422, "score and customer must be objects")
 
     try:
-        result = quote(score_input, customer, rates=rates)
+        result = quote(score_input, customer, rates=rates, quoted_at=quoted_at)
     except ManualReferral as exc:
         return 200, {
             "status": "manual_referral",

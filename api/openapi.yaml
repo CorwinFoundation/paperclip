@@ -1,11 +1,17 @@
 openapi: 3.0.3
 info:
   title: BMI Scanner ⇄ Underwriter API
-  version: "0.2.0"
+  version: "0.2.1"
   description: |
-    BEAAA-21 v0.2 contract surface. Authoritative for Phase 1 pricing v1 and
-    claims forensic spine. Snapshot integrity and forensic_bundle_uri are red
-    lines (any mode). Stub for v0.1 build — handlers in api/handlers/.
+    BEAAA-21 v0.2.1 contract surface (BEAAA-tracking label v0.1.1, additive on v0.2).
+    Authoritative for Phase 1 pricing v1 and claims forensic spine. Snapshot
+    integrity and forensic_bundle_uri are red lines (any mode).
+
+    v0.2.1 additive fields (BEAAA-70, ship before 2026-05-09 v1.0 contract lock):
+      - ScoreResponse.pillars[Pn].dimensions[did].applied_threshold (DimensionEvidence)
+      - ScoreResponse.scan_evidence_age_days
+      - ScoreResponse.pillar_floors
+    All three are non-breaking and optional for older clients.
 servers:
   - url: https://scanner.beai.local/v0
 paths:
@@ -96,7 +102,26 @@ components:
         forensic_bundle_uri: { type: string, format: uri, description: "Signed pointer to frozen evidence; red line" }
         snapshot_hash: { type: string }
         scored_at: { type: string, format: date-time }
-        rubric_version: { type: string, example: "0.1.0" }
+        rubric_version: { type: string, example: "0.1.1" }
+        scan_evidence_age_days:
+          type: integer
+          minimum: 0
+          description: |
+            v0.2.1 additive (BEAAA-70). Days since scored_at, floored at 0. 0 at
+            score time; recomputed by readers (e.g. /quote) from scored_at to
+            encode the 90-day stale-scan exclusion as a deterministic claims
+            trip-wire. Optional for forward compat with older clients.
+        pillar_floors:
+          type: object
+          description: |
+            v0.2.1 additive (BEAAA-70). Per-pillar minimum aggregate score for
+            bind eligibility. Mirrors rubric.pillar_floors so pricing engine
+            and report card read identical numbers. Keys P1..P4.
+          additionalProperties:
+            type: object
+            properties:
+              min_pillar_score: { type: number, minimum: 0, maximum: 100 }
+              rationale: { type: string }
     Band:
       type: object
       description: "12-band assignment (A/B/C/D × ±) per BEAAA-57 v1.0 frozen 2026-04-30."
@@ -116,11 +141,29 @@ components:
         weight: { type: integer }
         dimensions:
           type: object
-          additionalProperties:
-            type: object
-            properties:
-              raw: { type: number, minimum: 0, maximum: 4 }
-              evidence_uri: { type: string, format: uri }
+          description: "Map of dim_id → DimensionEvidence."
+          additionalProperties: { $ref: '#/components/schemas/DimensionEvidence' }
+    DimensionEvidence:
+      type: object
+      required: [raw, evidence_uri]
+      properties:
+        raw: { type: number, minimum: 0, maximum: 4 }
+        evidence_uri: { type: string, format: uri }
+        applied_threshold:
+          type: object
+          description: |
+            v0.2.1 additive (BEAAA-70). Rubric-declared decision threshold the
+            scoring engine compared this dim against at bind. Stamped into the
+            forensic record so claims defense and pricing replay don't have to
+            re-derive cutoffs from a later rubric revision.
+          required: [min_raw, kind, rationale]
+          properties:
+            min_raw: { type: number, minimum: 0, maximum: 4, description: "Minimum raw score the dim was required to clear; 0 = advisory" }
+            kind:
+              type: string
+              enum: [advisory, bind_blocking_floor]
+              description: "advisory = stamped only; bind_blocking_floor = raw=0 fails bind eligibility"
+            rationale: { type: string, description: "Source citation for the threshold (e.g. rubric §floor)" }
     ForensicBundle:
       type: object
       required: [bundle_id, snapshot_hash, signed_manifest, evidence]

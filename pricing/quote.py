@@ -12,6 +12,7 @@ Output: a Quote-shaped dict with breakdown + status.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
@@ -155,10 +156,46 @@ def _resolve_endorsements(rates: Rates, requested: list[str], letter: str) -> li
     return out
 
 
-def quote(score: dict[str, Any], customer: dict[str, Any], *, rates: Rates) -> dict[str, Any]:
+def _scan_evidence_age_days(score: dict[str, Any], quoted_at: datetime | None) -> int | None:
+    """Recompute v0.1.1 scan_evidence_age_days from score.scored_at at quote time.
+
+    Returns None when scored_at is missing or unparseable (older Scanner emit
+    that pre-dates v0.1.1). Floors at 0 so an unsynced clock cannot record a
+    negative age that would silently bypass the 90-day stale-scan trip-wire.
+    """
+    scored_at_str = score.get("scored_at")
+    if not isinstance(scored_at_str, str) or not scored_at_str:
+        return None
+    try:
+        scored_at = datetime.fromisoformat(scored_at_str.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if scored_at.tzinfo is None:
+        scored_at = scored_at.replace(tzinfo=timezone.utc)
+    now = quoted_at or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    delta = now - scored_at
+    return max(0, delta.days)
+
+
+def quote(
+    score: dict[str, Any],
+    customer: dict[str, Any],
+    *,
+    rates: Rates,
+    quoted_at: datetime | None = None,
+) -> dict[str, Any]:
     """Apply pricing-v1 formula to a scanner result + customer profile."""
     letter, modifier_factor = _validate_score(score)
     sector, revenue_usd, per_claim, agg_limit, endorsement_codes = _validate_customer(customer)
+
+    # v0.1.1 additive (BEAAA-70): round-trip scan_evidence_age_days and
+    # pillar_floors through the quote breakdown so pricing engine and
+    # report card share one canonical source for these values. Pricing
+    # formula is unchanged in v0.1.1 — these are stamped, not consumed.
+    age_days = _scan_evidence_age_days(score, quoted_at)
+    pillar_floors = score.get("pillar_floors") if isinstance(score.get("pillar_floors"), dict) else None
 
     breakdown: dict[str, Any] = {
         "base_rate_usd": rates.base_rate_usd,
@@ -168,6 +205,8 @@ def quote(score: dict[str, Any], customer: dict[str, Any], *, rates: Rates) -> d
         "modifier_factor": modifier_factor,
         "sector": sector,
         "rates_version": rates.version,
+        "scan_evidence_age_days": age_days,
+        "pillar_floors": pillar_floors,
     }
 
     # Manual-referral cases: D band, OTHER sector, oversize revenue/limit.
