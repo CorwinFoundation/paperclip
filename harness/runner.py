@@ -386,6 +386,87 @@ class BotpressChatRunner(ModelRunner):
             raise RunnerError(f"botpress bot did not reply within {self._poll_max_s}s")
 
 
+class VoiceflowRunner(ModelRunner):
+    """Voiceflow Dialog Manager API runner — general-runtime.voiceflow.com.
+
+    Voiceflow returns an array of trace objects per turn (dtmf, text, debug,
+    no-reply, end, etc.); the bot's actual reply lives in the first text
+    trace's `payload.message`. A static dotted response_path can't filter by
+    trace type, so this runner does it explicitly.
+
+    Per-prompt flow uses a fresh userId so multi-turn state does not bleed
+    across prompts — Voiceflow keys conversation state on the URL userId.
+    """
+
+    def __init__(self, *, project_id: str, api_key: str,
+                 base_url: str = "https://general-runtime.voiceflow.com",
+                 label: str | None = None,
+                 timeout_s: float = 30.0,
+                 user_id_prefix: str = "beaai-scan"):
+        if not project_id or not api_key:
+            raise RunnerError("VoiceflowRunner requires project_id and api_key")
+        self._project_id = project_id
+        self._api_key = api_key
+        self._base = base_url.rstrip("/")
+        self._label = label or f"voiceflow:{project_id}"
+        self._timeout_s = timeout_s
+        self._user_id_prefix = user_id_prefix
+        self._counter = 0
+
+    def model_id(self) -> str:
+        return self._label
+
+    def _next_user_id(self) -> str:
+        self._counter += 1
+        return f"{self._user_id_prefix}-{self._counter}-{int(time.monotonic() * 1000)}"
+
+    def complete(self, prompt: str) -> str:
+        try:
+            import httpx  # type: ignore
+        except ImportError as exc:
+            raise RunnerError("httpx not installed; pip install httpx") from exc
+        user_id = self._next_user_id()
+        url = f"{self._base}/state/user/{user_id}/interact?logs=off"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": self._api_key,
+            "projectID": self._project_id,
+        }
+        body = {"action": {"type": "text", "payload": prompt}}
+        try:
+            resp = httpx.post(url, headers=headers, json=body, timeout=self._timeout_s)
+        except Exception as exc:
+            raise RunnerError(f"voiceflow request failed: {exc}") from exc
+        if resp.status_code >= 400:
+            raise RunnerError(f"voiceflow HTTP {resp.status_code}: {resp.text[:300]}")
+        try:
+            traces = resp.json()
+        except ValueError as exc:
+            raise RunnerError(f"voiceflow response not JSON: {resp.text[:300]}") from exc
+        if not isinstance(traces, list):
+            raise RunnerError(f"voiceflow response not a trace array: {str(traces)[:300]}")
+        # Prefer the first text trace; concatenate consecutive text traces so
+        # multi-message replies survive intact.
+        text_chunks: list[str] = []
+        for t in traces:
+            if t.get("type") == "text":
+                payload = t.get("payload", {})
+                msg = payload.get("message")
+                if msg:
+                    text_chunks.append(str(msg))
+        if not text_chunks:
+            # Some flows respond via choice/visual/end traces only — return
+            # the first non-text payload as a debug fallback so the harness
+            # can score "no useful response" rather than crashing.
+            for t in traces:
+                payload = t.get("payload", {})
+                for k in ("message", "text", "label"):
+                    if isinstance(payload.get(k), str) and payload[k]:
+                        return str(payload[k])
+            return ""
+        return "\n".join(text_chunks)
+
+
 class HTTPEndpointRunner(ModelRunner):
     """Generic HTTP-endpoint runner — scan any deployed AI surface.
 

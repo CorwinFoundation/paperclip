@@ -1,0 +1,16 @@
+{
+  "id": "voiceflow_demo",
+  "display_name": "Voiceflow public Dialog Manager demo (no governance disclosure)",
+  "rationale": "Vendor-neutral conservative prior for an unhardened Voiceflow Dialog Manager demo project deployed via the public Dialog API. Customer (the deployer of the project) has not disclosed governance posture, RAG provenance, eval coverage, on-call posture, or incident-response process. Treat all non-measured dims as 'undisclosed = below-average' baseline. Override with a customer-specific prior the moment they sign the BEAAA-22 §3 hosted-eval intake. Mirrors botpress_demo prior for symmetry across the Path B v2.1 slate.",
+  "evidence_links": [
+    "https://docs.voiceflow.com/reference/overview",
+    "https://docs.voiceflow.com/reference/stateful-dialog-manager-api",
+    "https://www.voiceflow.com/security"
+  ],
+  "raw_scores": {
+    "P1.1": 2.0, "P1.2": 1.5, "P1.3": 2.0, "P1.4": 1.5, "P1.5": 1.5, "P1.6": 2.0,
+    "P2.1": 1.5, "P2.2": 1.5, "P2.3": 1.5, "P2.4": 1.5, "P2.5": 1.5, "P2.6": 1.5,
+    "P3.1": 2.0, "P3.2": 1.5, "P3.3": 2.0,
+    "P4.1": 1.5, "P4.2": 1.5, "P4.3": 1.5, "P4.4": 1.5, "P4.5": 1.5, "P4.6": 1.5
+  }
+}

@@ -26,10 +26,14 @@ botpress:
   Auth: none (the runner provisions its own user identity per scan)
 
 voiceflow:
-  VOICEFLOW_PROJECT_ID          — versionID of the published Voiceflow project
+  VOICEFLOW_PROJECT_ID          — projectID of the Voiceflow project
   VOICEFLOW_API_KEY             — Dialog Manager API key (Project → Integrations → API)
-  Optional: VOICEFLOW_USER_ID   — defaults to a fixed scan-session id
-  Endpoint: POST https://general-runtime.voiceflow.com/state/user/{user}/interact?logs=on
+  Optional: VOICEFLOW_LABEL     — readable label suffix (defaults to first 8 chars of project id)
+  Endpoint: POST https://general-runtime.voiceflow.com/state/user/{userId}/interact
+  Auth:    Authorization header carries the API key as-is (no Bearer prefix)
+           projectID header carries the project id (not versionID)
+  Note:    response is a trace-array; the runner filters for text traces
+           and uses a fresh userId per prompt for scan independence
 
 rasa:
   RASA_HOST                     — base URL of the deployed Rasa server (e.g. https://rasa.example.com)
@@ -76,7 +80,7 @@ _load_dotenv(REPO / ".env")
 
 from harness.bench import prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
-from harness.runner import BotpressChatRunner, HTTPEndpointRunner, RunnerError  # noqa: E402
+from harness.runner import BotpressChatRunner, HTTPEndpointRunner, RunnerError, VoiceflowRunner  # noqa: E402
 from pricing.quote import ManualReferral, Rates, quote  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 
@@ -120,23 +124,19 @@ def _build_botpress() -> BotpressChatRunner:
     )
 
 
-def _build_voiceflow() -> HTTPEndpointRunner:
+def _build_voiceflow() -> VoiceflowRunner:
+    """Voiceflow Dialog Manager API (general-runtime.voiceflow.com).
+
+    Header is `projectID` (not `versionID`). Response is a trace-array; the
+    runner filters for text traces explicitly. Fresh userId per prompt for
+    scan independence.
+    """
     _require_env("VOICEFLOW_PROJECT_ID", "VOICEFLOW_API_KEY")
-    user_id = os.environ.get("VOICEFLOW_USER_ID", "beaai-scan-session")
-    api_key = os.environ["VOICEFLOW_API_KEY"]
-    project_id = os.environ["VOICEFLOW_PROJECT_ID"]
-    url = f"https://general-runtime.voiceflow.com/state/user/{user_id}/interact?logs=on"
-    return HTTPEndpointRunner(
-        url=url,
-        request_template='{"action": {"type": "text", "payload": "{prompt}"}, "config": {"tts": false, "stripSSML": true}}',
-        response_path="[0].payload.message",
-        extra_headers={
-            "Authorization": api_key,
-            "versionID": project_id,
-        },
-        # No auth via constructor — already in extra_headers above.
-        auth=None,
-        label=f"voiceflow:{project_id}",
+    label_suffix = os.environ.get("VOICEFLOW_LABEL", os.environ["VOICEFLOW_PROJECT_ID"][:8])
+    return VoiceflowRunner(
+        project_id=os.environ["VOICEFLOW_PROJECT_ID"],
+        api_key=os.environ["VOICEFLOW_API_KEY"],
+        label=f"voiceflow:{label_suffix}",
     )
 
 
