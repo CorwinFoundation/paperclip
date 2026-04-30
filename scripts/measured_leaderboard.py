@@ -42,6 +42,7 @@ from harness.runner import (  # noqa: E402
     AnthropicRunner,
     GeminiRunner,
     OpenAIRunner,
+    OpenRouterRunner,
     RunnerError,
 )
 from pricing.quote import ManualReferral, Rates, quote  # noqa: E402
@@ -60,17 +61,25 @@ BENCHES = [
      secret_exfil.load_items, secret_exfil.run, "secret-exfil-poc", "P3.3"),
 ]
 
-# 9 frontier targets across the 3 SDKs we integrate today.
+# Frontier + open-model targets across 4 SDK paths.
+# OpenRouter targets reuse the closest existing prior file (huggingchat is a
+# reasonable generic-open-model stand-in for Llama/DeepSeek/Qwen).
 TARGETS = [
-    ("anthropic", "claude-opus-4-7",            "anthropic_claude", "Claude Opus 4.7"),
-    ("anthropic", "claude-sonnet-4-6",          "anthropic_claude", "Claude Sonnet 4.6"),
-    ("anthropic", "claude-haiku-4-5-20251001",  "anthropic_claude", "Claude Haiku 4.5"),
-    ("openai",    "gpt-4o",                     "openai_chatgpt",   "GPT-4o"),
-    ("openai",    "gpt-4o-mini",                "openai_chatgpt",   "GPT-4o Mini"),
-    ("openai",    "gpt-4-turbo",                "openai_chatgpt",   "GPT-4 Turbo"),
-    ("gemini",    "gemini-2.5-pro",             "google_gemini",    "Gemini 2.5 Pro"),
-    ("gemini",    "gemini-2.5-flash",           "google_gemini",    "Gemini 2.5 Flash"),
-    ("gemini",    "gemini-2.5-flash-lite",      "google_gemini",    "Gemini 2.5 Flash-Lite"),
+    ("anthropic",  "claude-opus-4-7",                       "anthropic_claude", "Claude Opus 4.7"),
+    ("anthropic",  "claude-sonnet-4-6",                     "anthropic_claude", "Claude Sonnet 4.6"),
+    ("anthropic",  "claude-haiku-4-5-20251001",             "anthropic_claude", "Claude Haiku 4.5"),
+    ("openai",     "gpt-4o",                                "openai_chatgpt",   "GPT-4o"),
+    ("openai",     "gpt-4o-mini",                           "openai_chatgpt",   "GPT-4o Mini"),
+    ("openai",     "gpt-4-turbo",                           "openai_chatgpt",   "GPT-4 Turbo"),
+    ("gemini",     "gemini-2.5-pro",                        "google_gemini",    "Gemini 2.5 Pro"),
+    ("gemini",     "gemini-2.5-flash",                      "google_gemini",    "Gemini 2.5 Flash"),
+    ("gemini",     "gemini-2.5-flash-lite",                 "google_gemini",    "Gemini 2.5 Flash-Lite"),
+    ("openrouter", "meta-llama/llama-3.3-70b-instruct",     "huggingchat",      "Llama 3.3 70B (Meta)"),
+    ("openrouter", "mistralai/mistral-large-2411",          "mistral_le_chat",  "Mistral Large 2411"),
+    ("openrouter", "deepseek/deepseek-chat",                "huggingchat",      "DeepSeek V3"),
+    ("openrouter", "qwen/qwen-2.5-72b-instruct",            "huggingchat",      "Qwen 2.5 72B"),
+    ("openrouter", "x-ai/grok-2-1212",                      "xai_grok",         "xAI Grok 2"),
+    ("openrouter", "cohere/command-r-plus-08-2024",         "cohere_command",   "Cohere Command R+"),
 ]
 
 
@@ -81,6 +90,8 @@ def _build_runner(name: str, model: str):
         return OpenAIRunner(model=model)
     if name == "gemini":
         return GeminiRunner(model=model, min_interval_s=0.0)
+    if name == "openrouter":
+        return OpenRouterRunner(model=model)
     raise RunnerError(f"unknown runner {name!r}")
 
 

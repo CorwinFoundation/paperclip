@@ -252,6 +252,38 @@ class GeminiRunner(ModelRunner):
         raise last_exc if last_exc else RunnerError("gemini failed without exception")
 
 
+class OpenRouterRunner(ModelRunner):
+    """OpenRouter adapter — proxy for hundreds of frontier + open models.
+
+    Reads OPENROUTER_API_KEY from env. Uses the OpenAI-compat HTTP path
+    under the hood. Pass the OpenRouter model id (e.g.
+    `meta-llama/llama-3.3-70b-instruct`).
+    """
+
+    def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0):
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RunnerError("OPENROUTER_API_KEY not set")
+        self._model = model
+        # Lazy build the HTTPEndpointRunner that does the work.
+        self._inner = HTTPEndpointRunner(
+            model=model,
+            url="https://openrouter.ai/api/v1/chat/completions",
+            auth=api_key,
+            preset="openai-compat",
+            label=f"openrouter:{model}",
+        )
+        # Stash temp/max so we can patch the request_template.
+        self._max_tokens = max_tokens
+        self._temperature = float(temperature)
+
+    def model_id(self) -> str:
+        return f"openrouter:{self._model}"
+
+    def complete(self, prompt: str) -> str:
+        return self._inner.complete(prompt)
+
+
 def _resolve_dotted(obj: Any, path: str) -> Any:
     """Resolve a dotted path with [N] index syntax — e.g. 'choices[0].message.content'."""
     cur: Any = obj
