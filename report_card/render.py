@@ -25,6 +25,8 @@ _BAND_COLOR = {
     "D": "#a83232",
 }
 
+STALE_SCAN_DAYS = 90
+
 _STYLE = """
 :root { --fg: #222; --muted: #666; --rule: #ddd; --bg-alt: #fafafa; }
 * { box-sizing: border-box; }
@@ -57,7 +59,64 @@ tr.alt td { background: var(--bg-alt); }
 .kv dd { margin: 0; font: 12px/1.3 ui-monospace,monospace; word-break: break-all; }
 .posture { font-size: 13px; color: var(--fg); margin-top: 2px; }
 .warn { color: #a83232; font-weight: 600; }
+.eligibility { display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+               border-radius: 6px; margin: 16px 0 24px 0; }
+.eligibility.pass { background: #e6f3ea; border: 1px solid #2f7a3f; }
+.eligibility.fail { background: #fbe9e9; border: 1px solid #a83232; }
+.eligibility .verdict { font: 700 18px/1 ui-monospace,monospace; padding: 6px 12px;
+                        border-radius: 4px; color: white; }
+.eligibility.pass .verdict { background: #2f7a3f; }
+.eligibility.fail .verdict { background: #a83232; }
+.eligibility ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.eligibility ul li { padding: 1px 0; }
+.floor { color: var(--muted); font: 11px/1 ui-monospace,monospace; }
 """
+
+
+def evaluate_bind_eligibility(score_response: dict[str, Any]) -> dict[str, Any]:
+    """Compute bind verdict from a ScoreResponse.
+
+    Pulls applied_threshold (per-dim) and pillar_floors (per-pillar) directly
+    from the response — no rubric re-load. Returns:
+        {"eligible": bool, "reasons": list[str]}
+    Reasons are populated only on fail. Order: per-dim bind_blocking_floor
+    breaches, then per-pillar aggregate floor breaches, then per-pillar
+    min_dim_raw breaches (P3 weak-link guarantee, BEAAA-71).
+    """
+    reasons: list[str] = []
+    pillars = score_response.get("pillars") or {}
+    pillar_floors = score_response.get("pillar_floors") or {}
+
+    for pid, pdata in pillars.items():
+        for did, entry in pdata.get("dimensions", {}).items():
+            thr = entry.get("applied_threshold") or {}
+            if thr.get("kind") == "bind_blocking_floor":
+                raw = float(entry.get("raw", 0))
+                min_raw = float(thr.get("min_raw", 0))
+                if raw < min_raw:
+                    reasons.append(
+                        f"{did} raw={raw:.2f} < bind_blocking_floor={min_raw:.2f}"
+                    )
+
+    for pid, pdata in pillars.items():
+        floor = pillar_floors.get(pid) or {}
+        score = float(pdata.get("score", 0))
+        min_pillar = float(floor.get("min_pillar_score", 0))
+        if score < min_pillar:
+            reasons.append(
+                f"{pid} score={score:.2f} < pillar_floor={min_pillar:.2f}"
+            )
+
+        if "min_dim_raw" in floor:
+            min_dim_raw = float(floor["min_dim_raw"])
+            for did, entry in pdata.get("dimensions", {}).items():
+                raw = float(entry.get("raw", 0))
+                if raw < min_dim_raw:
+                    reasons.append(
+                        f"{pid} weak-link: {did} raw={raw:.2f} < min_dim_raw={min_dim_raw:.2f}"
+                    )
+
+    return {"eligible": not reasons, "reasons": reasons}
 
 
 def render(score_response: dict[str, Any], rubric: Rubric) -> str:
@@ -65,12 +124,25 @@ def render(score_response: dict[str, Any], rubric: Rubric) -> str:
     bmi = int(score_response["bmi"])
     band = score_response["band"]
     pillars = score_response["pillars"]
+    pillar_floors = score_response.get("pillar_floors") or {}
+    age_days = int(score_response.get("scan_evidence_age_days", 0))
 
     band_color = _BAND_COLOR.get(band["letter"], "#444")
-    pillar_rows = "".join(_pillar_row(pid, pdata) for pid, pdata in pillars.items())
+    eligibility = evaluate_bind_eligibility(score_response)
+    pillar_rows = "".join(
+        _pillar_row(pid, pdata, pillar_floors.get(pid) or {})
+        for pid, pdata in pillars.items()
+    )
     pillar_sections = "".join(
         _pillar_section(pid, pillars[pid], rubric.pillars[pid]) for pid in pillars
     )
+
+    age_warning = ""
+    if age_days >= STALE_SCAN_DAYS:
+        age_warning = (
+            f' <span class="warn">[STALE: scan ≥ {STALE_SCAN_DAYS} days; '
+            f'claims trip-wire fires]</span>'
+        )
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head>
@@ -88,9 +160,11 @@ def render(score_response: dict[str, Any], rubric: Rubric) -> str:
   <div class="posture">{escape(band['posture'])}</div>
 </div>
 
+{_eligibility_block(eligibility)}
+
 <h2>Pillar breakdown</h2>
 <table>
-<thead><tr><th>Pillar</th><th>Score / Weight</th><th>Percentage</th><th>Trend</th></tr></thead>
+<thead><tr><th>Pillar</th><th>Score / Weight</th><th>Floor</th><th>Percentage</th><th>Trend</th></tr></thead>
 <tbody>{pillar_rows}</tbody>
 </table>
 
@@ -101,6 +175,7 @@ def render(score_response: dict[str, Any], rubric: Rubric) -> str:
   <dt>Snapshot hash</dt><dd>{escape(score_response['snapshot_hash'])}</dd>
   <dt>Forensic bundle</dt><dd>{escape(score_response['forensic_bundle_uri'])}</dd>
   <dt>Scored at</dt><dd>{escape(score_response['scored_at'])}</dd>
+  <dt>Scan evidence age</dt><dd>{age_days} day(s){age_warning}</dd>
   <dt>Rubric version</dt><dd>{escape(score_response['rubric_version'])}</dd>
   <dt>Bands version</dt><dd>{escape(str(band['bands_version']))} (frozen 2026-04-30)</dd>
 </dl>
@@ -109,16 +184,46 @@ def render(score_response: dict[str, Any], rubric: Rubric) -> str:
 """
 
 
-def _pillar_row(pid: str, pdata: dict[str, Any]) -> str:
+def _eligibility_block(eligibility: dict[str, Any]) -> str:
+    if eligibility["eligible"]:
+        return (
+            '<div class="eligibility pass">'
+            '<div class="verdict">BIND</div>'
+            '<div>All bind-blocking floors and pillar floors cleared. '
+            'Eligible for primary cover at the indicated band.</div>'
+            '</div>'
+        )
+    items = "".join(f"<li>{escape(r)}</li>" for r in eligibility["reasons"])
+    return (
+        '<div class="eligibility fail">'
+        '<div class="verdict">NO BIND</div>'
+        '<div><strong>Bind-eligibility failed. Endorsement-only or decline.</strong>'
+        f'<ul>{items}</ul>'
+        '</div>'
+        '</div>'
+    )
+
+
+def _pillar_row(pid: str, pdata: dict[str, Any], floor: dict[str, Any]) -> str:
     score = float(pdata["score"])
     weight = int(pdata["weight"])
     pct = (score / weight) * 100 if weight else 0
     fill_pct = max(0, min(100, pct))
     cls = "alt" if pid in {"P2", "P4"} else ""
+    floor_cell = "—"
+    if floor:
+        min_pillar = float(floor.get("min_pillar_score", 0))
+        if min_pillar > 0:
+            mark = '<span class="warn">✗</span>' if score < min_pillar else "✓"
+            floor_cell = f'<span class="floor">≥ {min_pillar:.2f}</span> {mark}'
+        if "min_dim_raw" in floor:
+            min_dim_raw = float(floor["min_dim_raw"])
+            floor_cell += f'<br><span class="floor">dim ≥ {min_dim_raw:.2f}</span>'
     return (
         f'<tr class="{cls}">'
         f'<td><strong>{escape(pid)}</strong></td>'
         f'<td>{score:.2f} / {weight}</td>'
+        f'<td>{floor_cell}</td>'
         f'<td>{pct:.1f}%</td>'
         f'<td><span class="bar-track"><span class="bar-fill" style="width:{fill_pct:.1f}%"></span></span></td>'
         f'</tr>'
