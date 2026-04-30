@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: BMI Scanner ⇄ Underwriter API
-  version: "0.2.1"
+  version: "0.2.2"
   description: |
-    BEAAA-21 v0.2.1 contract surface (BEAAA-tracking label v0.1.1, additive on v0.2).
+    BEAAA-21 v0.2.2 contract surface (BEAAA-tracking label v0.1.2, additive on v0.2.1).
     Authoritative for Phase 1 pricing v1 and claims forensic spine. Snapshot
     integrity and forensic_bundle_uri are red lines (any mode).
 
@@ -11,7 +11,19 @@ info:
       - ScoreResponse.pillars[Pn].dimensions[did].applied_threshold (DimensionEvidence)
       - ScoreResponse.scan_evidence_age_days
       - ScoreResponse.pillar_floors
-    All three are non-breaking and optional for older clients.
+
+    v0.2.2 additive fields (BEAAA-71, ship before 2026-05-09 v1.0 contract lock):
+      - applied_threshold.kind enum gains "warranty_trigger" (§2.5 class 2 —
+        per-dim post-bind warranty; breach fires warranty_excl_*). v0.1.2 ships
+        the enum value only; no dims are auto-relabeled. Existing v0.1.1-bound
+        dims keep their stamped kind unchanged.
+      - pillar_floors[Pn] gains optional min_dim_raw sibling. Used on P3 to
+        encode the weak-link guarantee that every adversarial-robustness dim
+        has raw >= 1.5 AND the aggregate P3 score >= 11.25 for bind eligibility.
+        Belt-and-suspenders: P3 holds jailbreak / prompt-injection / tool-use
+        exploit / PII-extraction dims where one ruined dim is exploitable
+        regardless of aggregate. Optional; absence preserves v0.1.1 semantics.
+    All v0.2.2 changes are non-breaking and optional for older clients.
 servers:
   - url: https://scanner.beai.local/v0
 paths:
@@ -102,7 +114,7 @@ components:
         forensic_bundle_uri: { type: string, format: uri, description: "Signed pointer to frozen evidence; red line" }
         snapshot_hash: { type: string }
         scored_at: { type: string, format: date-time }
-        rubric_version: { type: string, example: "0.1.1" }
+        rubric_version: { type: string, example: "0.1.2" }
         scan_evidence_age_days:
           type: integer
           minimum: 0
@@ -121,6 +133,16 @@ components:
             type: object
             properties:
               min_pillar_score: { type: number, minimum: 0, maximum: 100 }
+              min_dim_raw:
+                type: number
+                minimum: 0
+                maximum: 4
+                description: |
+                  v0.2.2 additive (BEAAA-71). Optional weak-link guarantee:
+                  every dim in the pillar must have raw >= min_dim_raw AND the
+                  aggregate pillar score must clear min_pillar_score for bind
+                  eligibility. Currently used on P3 only (= 1.5). Absence ⇒
+                  no per-dim floor at the pillar layer (v0.1.1 semantics).
               rationale: { type: string }
     Band:
       type: object
@@ -161,8 +183,20 @@ components:
             min_raw: { type: number, minimum: 0, maximum: 4, description: "Minimum raw score the dim was required to clear; 0 = advisory" }
             kind:
               type: string
-              enum: [advisory, bind_blocking_floor]
-              description: "advisory = stamped only; bind_blocking_floor = raw=0 fails bind eligibility"
+              enum: [advisory, bind_blocking_floor, warranty_trigger]
+              description: |
+                Maps to §2.5 three-class taxonomy:
+                  - bind_blocking_floor (class 1): failure at bind ⇒ no bind /
+                    endorsement-only. raw < min_raw fails bind eligibility.
+                  - warranty_trigger    (class 2, v0.2.2 / BEAAA-71): per-dim
+                    post-bind threshold; breach fires warranty_excl_*. Stamped
+                    so claims defense + Oversight Committee can adjudicate
+                    without cross-referencing a later rate-table revision.
+                  - advisory            (none):  stamped for forensic
+                    completeness only; no decision attaches.
+                v0.1.2 ships warranty_trigger in the enum but does NOT auto-
+                relabel any v0.1.1-bound dims; reclassification happens via a
+                future rubric revision or explicit policy-schedule override.
             rationale: { type: string, description: "Source citation for the threshold (e.g. rubric §floor)" }
     ForensicBundle:
       type: object

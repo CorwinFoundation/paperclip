@@ -1,11 +1,18 @@
-"""BEAAA-70 v0.1.1 additive-fields round-trip test.
+"""BEAAA-70 v0.1.1 + BEAAA-71 v0.1.2 additive-fields round-trip test.
 
-Verifies the three additive (non-breaking) fields land end-to-end through
+Verifies the additive (non-breaking) contract fields land end-to-end through
 score -> /quote without changing existing pricing math:
 
+v0.1.1 (BEAAA-70):
   1. ScoreResponse.pillars[Pn].dimensions[did].applied_threshold
   2. ScoreResponse.scan_evidence_age_days
   3. ScoreResponse.pillar_floors
+
+v0.1.2 (BEAAA-71):
+  4. applied_threshold.kind enum gains "warranty_trigger" (§2.5 class 2);
+     enum value defined, no v0.1.1-bound dims auto-relabeled.
+  5. pillar_floors.P3 gains min_dim_raw = 1.5 sibling (per-dim weak-link
+     guarantee on adversarial-robustness dims).
 
 Hard deadline: ship before 2026-05-09 v1.0 contract lock (BEAAA-21).
 """
@@ -82,7 +89,10 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
                 self.assertIn("min_raw", t)
                 self.assertIn("kind", t)
                 self.assertIn("rationale", t)
-                self.assertIn(t["kind"], {"advisory", "bind_blocking_floor"})
+                # v0.1.2 (BEAAA-71): warranty_trigger added to admissible enum;
+                # no v0.1.1-bound dim is auto-relabeled, but the value is now
+                # legal everywhere kind appears.
+                self.assertIn(t["kind"], {"advisory", "bind_blocking_floor", "warranty_trigger"})
 
     def test_applied_threshold_p1_p3_are_bind_blocking(self):
         body = self._score()
@@ -116,9 +126,9 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
             self.assertIsInstance(floors[pid]["rationale"], str)
             self.assertGreater(len(floors[pid]["rationale"]), 0)
 
-    def test_rubric_version_is_011(self):
+    def test_rubric_version_is_012(self):
         body = self._score()
-        self.assertEqual(body["rubric_version"], "0.1.1")
+        self.assertEqual(body["rubric_version"], "0.1.2")
 
 
 class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
@@ -214,6 +224,160 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
             "pillar_floors": {
                 "P1": {"min_pillar_score": 0, "rationale": "test"},
                 "P3": {"min_pillar_score": 11.25, "rationale": "test"},
+            },
+        }
+        status, quote_body = quote_handler(
+            {
+                "score": score_body,
+                "customer": {
+                    "sector": "ENT_SAAS",
+                    "annual_revenue_usd": 500_000_000,
+                    "limit": {"per_claim_usd": 2_000_000, "aggregate_usd": 5_000_000},
+                },
+            },
+            rates=self.rates,
+            quoted_at=SCORED_AT,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(quote_body["annual_premium_usd"], 60_775)
+
+
+class V012AdditiveTests(unittest.TestCase):
+    """BEAAA-71 v0.1.2 additive-fields round-trip.
+
+    Two non-breaking additions on top of v0.1.1:
+      - applied_threshold.kind enum gains "warranty_trigger" (§2.5 class 2)
+      - pillar_floors.P3 gains min_dim_raw = 1.5 sibling
+    """
+
+    def setUp(self):
+        self.rubric = Rubric.load(RUBRIC_PATH)
+        self.bundles = BundleStore()
+        self.rates = Rates.load(RATES_PATH)
+
+    def _score(self, raw: float = 3.0):
+        status, body = score_handler(
+            _score_request(self.rubric, raw=raw),
+            tenant_header=TENANT,
+            rubric=self.rubric,
+            bundles=self.bundles,
+            scored_at=SCORED_AT,
+        )
+        self.assertEqual(status, 200)
+        return body
+
+    def test_p3_pillar_floor_carries_min_dim_raw_15(self):
+        # The whole point of BEAAA-71 redline #2: P3 stamps a per-dim raw
+        # floor in addition to the aggregate floor, so claims defense and
+        # pricing replay can read both numbers off the score envelope alone.
+        body = self._score()
+        p3 = body["pillar_floors"]["P3"]
+        self.assertEqual(p3["min_pillar_score"], 11.25)
+        self.assertEqual(p3["min_dim_raw"], 1.5)
+
+    def test_other_pillars_omit_min_dim_raw(self):
+        # P1/P2/P4 keep v0.1.1 semantics: no per-dim floor at the pillar layer.
+        body = self._score()
+        for pid in ("P1", "P2", "P4"):
+            self.assertNotIn(
+                "min_dim_raw", body["pillar_floors"][pid],
+                f"{pid} should not carry min_dim_raw in v0.1.2",
+            )
+
+    def test_quote_roundtrips_min_dim_raw_through_breakdown(self):
+        # /quote consumes pillar_floors as-is; min_dim_raw must round-trip
+        # untouched so the underwriting stack can read it without re-loading
+        # the rubric.
+        score_body = self._score(raw=3.0)
+        quoted_at = SCORED_AT + timedelta(days=10)
+        status, quote_body = quote_handler(
+            {
+                "score": score_body,
+                "customer": {
+                    "sector": "ENT_SAAS",
+                    "annual_revenue_usd": 100_000_000,
+                    "limit": {"per_claim_usd": 1_000_000, "aggregate_usd": 2_000_000},
+                },
+            },
+            rates=self.rates,
+            quoted_at=quoted_at,
+        )
+        self.assertEqual(status, 200)
+        floors = quote_body["breakdown"]["pillar_floors"]
+        self.assertEqual(floors["P3"]["min_dim_raw"], 1.5)
+        self.assertEqual(floors["P3"]["min_pillar_score"], 11.25)
+
+    def test_warranty_trigger_kind_round_trips_through_quote(self):
+        # v0.1.2 ships warranty_trigger in the enum without auto-relabeling
+        # any v0.1.1-bound dim, so we exercise the round-trip by forging a
+        # ScoreResponse-shaped payload (as a policy-schedule override would)
+        # and confirming /quote accepts it and preserves the kind end-to-end.
+        score_body = {
+            "bmi": 78,
+            "band": {"letter": "B", "modifier": "neutral", "modifier_factor": 1.0},
+            "scored_at": SCORED_AT.isoformat(),
+            "scan_evidence_age_days": 0,
+            "pillar_floors": {
+                "P3": {
+                    "min_pillar_score": 11.25,
+                    "min_dim_raw": 1.5,
+                    "rationale": "test",
+                },
+            },
+            "pillars": {
+                "P3": {
+                    "score": 18.0,
+                    "weight": 30,
+                    "dimensions": {
+                        "P3.1": {
+                            "raw": 2.0,
+                            "evidence_uri": "https://evidence.local/P3.1",
+                            "applied_threshold": {
+                                "min_raw": 0.10,
+                                "kind": "warranty_trigger",
+                                "rationale": "policy-schedule override: contamination_rate >0.10 ⇒ warranty_excl_contamination",
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        status, quote_body = quote_handler(
+            {
+                "score": score_body,
+                "customer": {
+                    "sector": "ENT_SAAS",
+                    "annual_revenue_usd": 500_000_000,
+                    "limit": {"per_claim_usd": 2_000_000, "aggregate_usd": 5_000_000},
+                },
+            },
+            rates=self.rates,
+            quoted_at=SCORED_AT,
+        )
+        # /quote does not validate per-dim kind in v0.1.2 — it stamps the
+        # forensic spine and prices off band/sector/limit. The status+premium
+        # must be unchanged from the v0.1.1 "pricing math unchanged" baseline.
+        self.assertEqual(status, 200)
+        self.assertEqual(quote_body["status"], "indicative")
+        self.assertEqual(quote_body["annual_premium_usd"], 60_775)
+        # min_dim_raw round-trips through the breakdown the same way.
+        self.assertEqual(
+            quote_body["breakdown"]["pillar_floors"]["P3"]["min_dim_raw"],
+            1.5,
+        )
+
+    def test_pricing_math_unchanged_by_v012_additive_fields(self):
+        # Profile-1 stress assertion ($60,775) must continue to hold with the
+        # v0.1.2 additive shape (rubric bumped 0.1.1 → 0.1.2; P3 gains
+        # min_dim_raw). DoD on BEAAA-71.
+        score_body = {
+            "bmi": 78,
+            "band": {"letter": "B", "modifier": "neutral", "modifier_factor": 1.0},
+            "scored_at": SCORED_AT.isoformat(),
+            "scan_evidence_age_days": 0,
+            "pillar_floors": {
+                "P1": {"min_pillar_score": 0, "rationale": "test"},
+                "P3": {"min_pillar_score": 11.25, "min_dim_raw": 1.5, "rationale": "test"},
             },
         }
         status, quote_body = quote_handler(

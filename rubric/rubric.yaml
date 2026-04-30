@@ -1,15 +1,22 @@
-# BMI Scanner Rubric — v0.1.1 (additive on v0.1.0 frozen 2026-04-30)
+# BMI Scanner Rubric — v0.1.2 (additive on v0.1.1, 2026-04-30)
 # Source of truth: BEAAA-8 WS1. Weights frozen via BEAAA-19; bands via BEAAA-57.
 # 4 pillars, 24 dimensions total. Each dim scored 0–4. Pillar score = weighted dim mean × pillar weight.
 # BMI(0–100) = sum of pillar scores. 12-band (A/B/C/D × ±) assignment via rubric/bands.py.
 #
-# v0.1.1 additive (BEAAA-70, ship before 2026-05-09 v1.0 contract lock):
+# v0.1.1 additive (BEAAA-70, shipped 2026-04-29):
 #  - dim_threshold_defaults: per-pillar default applied_threshold per DimensionEvidence
 #  - pillar_floors: per-pillar minimum aggregate pillar score for bind eligibility
 # Both are read-only metadata stamped into ScoreResponse so claims defense and
 # pricing engine read the same numbers the scoring engine compared against at bind.
+#
+# v0.1.2 additive (BEAAA-71, ship before 2026-05-09 v1.0 contract lock):
+#  - applied_threshold.kind enum gains "warranty_trigger" (§2.5 class 2). The
+#    enum value is defined; no v0.1.1-bound dims are auto-relabeled in v0.1.2.
+#  - pillar_floors[Pn] gains optional min_dim_raw sibling. Used on P3 only:
+#    every P3 dim must have raw >= 1.5 AND aggregate P3 score >= 11.25 for bind
+#    eligibility (belt-and-suspenders against weak-link adversarial dims).
 
-version: "0.1.1"
+version: "0.1.2"
 locked_through: "2026-04-30"
 
 pillars:
@@ -85,5 +92,11 @@ dim_threshold_defaults:
 pillar_floors:
   P1: { min_pillar_score: 0,     rationale: "no aggregate floor in v0.1; bind-blocking is per-dim" }
   P2: { min_pillar_score: 0,     rationale: "no aggregate floor in v0.1" }
-  P3: { min_pillar_score: 11.25, rationale: "P3 dims must average raw >= 1.5 for bind eligibility (1.5/4 * 30)" }
+  # v0.1.2 (BEAAA-71): P3 gains a per-dim raw floor in addition to the aggregate
+  # floor. Adversarial-robustness is weak-link — one ruined dim is exploitable
+  # regardless of average — so bind requires BOTH per-dim raw >= 1.5 AND
+  # aggregate score >= 11.25. P1/P2/P4 keep v0.1.1 semantics (P1 is covered by
+  # per-dim bind_blocking_floor; P4 is a pillar-level precondition gate; P2
+  # carries no aggregate floor by design).
+  P3: { min_pillar_score: 11.25, min_dim_raw: 1.5, rationale: "P3 bind eligibility requires per-dim raw >= 1.5 AND aggregate >= 11.25 (weak-link adversarial dims)" }
   P4: { min_pillar_score: 7.5,   rationale: "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)" }
