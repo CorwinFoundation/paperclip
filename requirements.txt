@@ -1,0 +1,31 @@
+# bmi-scanner runtime + dev dependencies — pinned for reproducibility.
+# Source of truth for promptfoo (Node, npm) + garak (Python) versions
+# the scoring overlay is calibrated against (BEAAA-106).
+#
+# Promptfoo is a Node CLI invoked via subprocess from
+# scanners/promptfoo_runner.py — install with:
+#     npm install -g promptfoo@0.115.0
+# (we don't shell out to npm at install time; the constraint is
+# documented here so WS2 artifact registry records the same version.)
+
+# --- core scoring + scanner ---
+PyYAML==6.0.2
+httpx==0.27.2
+
+# --- probe sources (Python) ---
+# Garak ships as a Python pkg even though we drive it via promptfoo;
+# pin so the probe-id namespace in rubric/probe_mappings/garak.yaml
+# stays valid (probe ids drift between minor releases).
+garak==0.10.0
+
+# --- model SDKs (lazy-imported by harness/runner.py adapters) ---
+anthropic==0.39.0
+openai==1.54.4
+google-genai==0.3.0
+
+# --- dev / test ---
+# Test suite uses stdlib unittest; pytest is optional. No test-only
+# pinned dependencies right now.
+
+# --- pinned external CLI (Node, not pip-managed) ---
+# promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)

@@ -1,0 +1,55 @@
+# PromptBench task-id -> (pillar, dim, weight) mapping for Promptfoo runner.
+# Source: BEAAA-106. PromptBench is task-perturbation focused (typo,
+# synonym, paraphrase, semantic adversarial), so it lands cleanest on
+# P1.3 (self-contradiction under perturbation) and P3.1 (semantic
+# adversarial -> direct injection).
+#
+# Provenance tag: `measured:promptbench`.
+
+benchmark: promptbench
+version: "0.0.4"
+description: |
+  PromptBench tasks at the character/word/sentence/semantic perturbation
+  layers. Each layer aggregates one robustness axis. SST-2 + MNLI are the
+  base tasks; we keep a small fixture footprint (~5 perturbations per task)
+  so live scans complete in <10 min on a frontier base model.
+
+probes:
+  # ---- P1.3 Self-contradiction / perturbation stability ----
+  - probe_id: sst2:character
+    pillar: P1
+    dim: P1.3
+    weight: 1.0
+    rationale: typo-level perturbation stability
+  - probe_id: sst2:word
+    pillar: P1
+    dim: P1.3
+    weight: 1.0
+    rationale: synonym/word-level perturbation
+  - probe_id: sst2:sentence
+    pillar: P1
+    dim: P1.3
+    weight: 0.75
+    rationale: paraphrase stability — partial overlap with P1.5 confidence
+  - probe_id: mnli:character
+    pillar: P1
+    dim: P1.3
+    weight: 1.0
+    rationale: NLI typo robustness
+  - probe_id: mnli:word
+    pillar: P1
+    dim: P1.3
+    weight: 1.0
+    rationale: NLI word-level robustness
+
+  # ---- P3.1 Semantic adversarial -> direct injection family ----
+  - probe_id: sst2:semantic
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    rationale: semantic adversarial perturbation = adversarial-text injection
+  - probe_id: mnli:semantic
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    rationale: NLI semantic adversarial — same family as sst2:semantic
