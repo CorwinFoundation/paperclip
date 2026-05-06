@@ -23,7 +23,7 @@ body {
 .report-meta { font-size: 12px; color: #718096; text-align: right; line-height: 1.6; }
 .report-body { padding: 28px 32px; }
 .hero {
-  display: flex; align-items: center; gap: 28px; margin-bottom: 24px;
+  display: flex; align-items: center; gap: 28px; margin-bottom: 20px;
   padding: 22px 24px; background: #f7f9fc;
   border-radius: 12px; border: 1px solid #e2e8f0;
 }
@@ -64,6 +64,24 @@ body {
   border-radius: 4px; padding: 3px 8px;
   font: 12px/1 ui-monospace, Menlo, monospace; color: #4a5568;
 }
+.prov-banner {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px;
+  border-radius: 7px; margin-bottom: 16px; border: 1.5px solid;
+  font-size: 12px;
+}
+.prov-missing { background: #fffbeb; border-color: #d97706; color: #78350f; }
+.prov-measured { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
+.prov-proxy { background: #fff7ed; border-color: #c2410c; color: #7c2d12; }
+.prov-prior { background: #f5f3ff; border-color: #7c3aed; color: #4c1d95; }
+.prov-badge {
+  flex-shrink: 0; font: 700 10px/1 ui-monospace, monospace;
+  padding: 3px 7px; border-radius: 4px; color: #fff; white-space: nowrap;
+}
+.prov-missing .prov-badge { background: #d97706; }
+.prov-measured .prov-badge { background: #2e7d32; }
+.prov-proxy .prov-badge { background: #c2410c; }
+.prov-prior .prov-badge { background: #7c3aed; }
+.prov-detail { line-height: 1.4; }
 .eligibility {
   display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px;
   border-radius: 8px; margin-bottom: 28px; border: 1.5px solid;
@@ -157,30 +175,6 @@ body {
 }
 .audit-val { font: 12px/1.4 ui-monospace, Menlo, monospace; color: #1a2027; word-break: break-all; }
 .stale-warn { color: #c62828; font-weight: 600; }
-.prov {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-bottom: 22px; padding: 10px 14px; border-radius: 8px;
-  border: 1.5px solid; font-size: 12px;
-}
-.prov-tag {
-  font: 700 11px/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
-  letter-spacing: 0.06em; padding: 5px 9px; border-radius: 4px; color: #fff;
-  white-space: nowrap;
-}
-.prov-detail { color: inherit; line-height: 1.4; flex: 1; min-width: 200px; }
-.prov-counter {
-  font: 600 11px/1 ui-monospace, Menlo, monospace; color: #4a5568;
-  background: #fff; padding: 4px 8px; border-radius: 3px;
-  border: 1px solid #e2e8f0; white-space: nowrap;
-}
-.prov-measured { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
-.prov-measured .prov-tag { background: #2e7d32; }
-.prov-proxy    { background: #fff8eb; border-color: #c67c00; color: #6b4a00; }
-.prov-proxy .prov-tag { background: #c67c00; }
-.prov-prior    { background: #f4f6f8; border-color: #718096; color: #2d3748; }
-.prov-prior .prov-tag { background: #718096; }
-.prov-missing  { background: #fff5f5; border-color: #c62828; color: #7f1d1d; }
-.prov-missing .prov-tag { background: #c62828; }
 @media print { body { background: #fff; } .report { box-shadow: none; } }
 </style>
 </head>
@@ -193,7 +187,7 @@ body {
       <div class="report-title">BEAI Maturity Index — Report Card</div>
     </div>
     <div class="report-meta">
-      Scored: 2026-05-06T14:54:12.222126+00:00<br>
+      Scored: 2026-05-06T14:56:05.574896+00:00<br>
       Rubric v0.1.2
     </div>
   </div>
@@ -219,7 +213,7 @@ body {
       </div>
     </div>
 
-    <div class="prov prov-prior"><span class="prov-tag">DIRECTIONAL PRIOR</span><span class="prov-detail">directional priors only (no measurements, no live probe)</span><span class="prov-counter">0 measured / 21 prior dim(s)</span></div>
+    <div class="prov-banner prov-prior"><span class="prov-badge">DIRECTIONAL PRIOR</span><span class="prov-detail">directional priors only (no measurements, no live probe)</span> <span class="prov-detail">0 measured / 21 prior dim(s)</span></div>
 
     <div class="eligibility pass"><div class="verdict-badge">BIND</div><div class="eligibility-body">All bind-blocking floors and pillar floors cleared. Eligible for primary cover at the indicated band.</div></div>
 
@@ -451,7 +445,7 @@ body {
         </div>
         <div class="audit-item">
           <span class="audit-key">Scored at</span>
-          <span class="audit-val">2026-05-06T14:54:12.222126+00:00</span>
+          <span class="audit-val">2026-05-06T14:56:05.574896+00:00</span>
         </div>
         <div class="audit-item">
           <span class="audit-key">Scan evidence age</span>

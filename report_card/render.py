@@ -246,18 +246,18 @@ def _provenance_block(
         )
 
     prov_lower = provenance.lower()
-    if prov_lower == "prior":
-        return (
-            '<div class="prov-banner prov-prior">'
-            '<span class="prov-badge">DIRECTIONAL PRIOR</span>'
-            '<span class="prov-detail">Category-level prior estimate. '
-            "Not based on a customer-specific scan.</span>"
-            f"{dim_counter}</div>"
-        )
-
     head, _, detail = provenance.partition(" \u2014 ")
     if not detail:
         head, _, detail = provenance.partition(" - ")
+
+    if prov_lower == "prior" or prov_lower.startswith("prior") or prov_lower.startswith("directional"):
+        detail_html = escape(detail) if detail else "Category-level prior estimate. Not based on a customer-specific scan."
+        return (
+            '<div class="prov-banner prov-prior">'
+            '<span class="prov-badge">DIRECTIONAL PRIOR</span>'
+            f'<span class="prov-detail">{detail_html}</span>'
+            f"{dim_counter}</div>"
+        )
 
     if prov_lower.startswith("measured"):
         badge_text = "MEASURED"

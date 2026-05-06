@@ -225,7 +225,7 @@
   },
   "forensic_bundle_uri": "https://bundles.beaai.local/huggingchat/2026-05-06",
   "snapshot_hash": "sha256:bb1cde2d3cc079d0a5f1219cde56a8d6dd78dc8ac382c7622696687113c9fabf",
-  "scored_at": "2026-05-06T14:54:12.222126+00:00",
+  "scored_at": "2026-05-06T14:56:05.574896+00:00",
   "rubric_version": "0.1.2",
   "scan_evidence_age_days": 0,
   "pillar_floors": {
