@@ -1,0 +1,34 @@
+{
+  "id": "pi_ai",
+  "display_name": "Pi (Inflection AI)",
+  "rationale": "Consumer 'personal AI' chat surface at pi.ai, originally built by Inflection AI on the Inflection-2.5 model. Most of Inflection's frontier-model team and IP licensed to Microsoft in March 2024 under a $650M acquihire deal; the Pi consumer product remained with the residual Inflection entity, which has since pivoted toward enterprise. Governance posture is consumer-grade: no public SOC2/ISO trust portal for the Pi product, no published model card for Inflection-2.5 or its successor, no published red-teaming reports, no public uptime SLA, no published bias/safety scorecard. Eval coverage is opaque (no model card). The product itself is well-known and recognizable; the governance scaffolding around it is thin compared to OpenAI/Anthropic/Google. Bias and adversarial robustness are difficult to assess externally because the model is closed-weights and the surface blocks scraping (403 on direct curl). Treat as a 'consumer chat' archetype prior, not a measurement.",
+  "evidence_links": [
+    "https://pi.ai/",
+    "https://inflection.ai/",
+    "https://news.microsoft.com/source/features/ai/inflection-ai-microsoft/",
+    "https://inflection.ai/inflection-2-5"
+  ],
+  "raw_scores": {
+    "P1.1": 1.5,
+    "P1.2": 1.5,
+    "P1.3": 1.0,
+    "P1.4": 2.0,
+    "P1.5": 1.5,
+    "P1.6": 1.5,
+    "P2.1": 1.5,
+    "P2.2": 1.5,
+    "P2.3": 1.5,
+    "P2.4": 1.5,
+    "P2.5": 1.0,
+    "P2.6": 1.5,
+    "P3.1": 1.5,
+    "P3.2": 1.0,
+    "P3.3": 1.5,
+    "P4.1": 2.0,
+    "P4.2": 2.5,
+    "P4.3": 2.0,
+    "P4.4": 1.5,
+    "P4.5": 2.5,
+    "P4.6": 1.5
+  }
+}
