@@ -1,11 +1,17 @@
-"""Path B — Direct-API customer-deployment scan runner (BEAAA-68).
+"""Path B — Direct-API customer-deployment scan runner (BEAAA-68 + BEAAA-130).
 
-Scan-ready presets for the 4 v2.1 Path B target vendors:
+Scan-ready presets for the v2.1 Path B target vendors plus the public-chat
+connector slate added on BEAAA-130:
 
-  - botpress     — Botpress Cloud Chat API
-  - voiceflow    — Voiceflow general-runtime interact API
-  - rasa         — Rasa Pro / Rasa OSS REST channel webhook
-  - yellowai     — Yellow.ai integrations chat API
+  - botpress         — Botpress Cloud Chat API                    (customer-deployment)
+  - voiceflow        — Voiceflow general-runtime interact API     (customer-deployment)
+  - rasa             — Rasa Pro / Rasa OSS REST channel webhook   (customer-deployment)
+  - yellowai         — Yellow.ai integrations chat API            (customer-deployment)
+  - huggingchat      — HuggingChat reference model (HF router,    (PUBLIC-CHAT — category-proxy)
+                       falls back to OpenRouter when HF_TOKEN
+                       is unset)
+  - openai-compat    — Generic OpenAI-compatible chat completions (PUBLIC-CHAT — category-proxy)
+                       (OpenRouter, vLLM, Ollama, custom)
 
 Each preset wraps `HTTPEndpointRunner` with the vendor's request/response
 shape pre-baked. To run a scan, set the vendor-specific env vars below
@@ -15,6 +21,8 @@ shape pre-baked. To run a scan, set the vendor-specific env vars below
     python3 scripts/path_b_endpoints.py --vendor voiceflow
     python3 scripts/path_b_endpoints.py --vendor rasa
     python3 scripts/path_b_endpoints.py --vendor yellowai
+    python3 scripts/path_b_endpoints.py --vendor huggingchat
+    python3 scripts/path_b_endpoints.py --vendor openai-compat --model meta-llama/llama-3.3-70b-instruct
 
 Per-vendor env vars
 -------------------
@@ -45,6 +53,28 @@ yellowai:
   YELLOWAI_API_KEY              — x-api-key from Yellow.ai console
   Optional: YELLOWAI_USER_ID    — defaults to a fixed scan-session id
   Endpoint: POST https://cloud.yellow.ai/api/integrations/chat
+
+huggingchat (public-chat):
+  Prefers HF_TOKEN against router.huggingface.co (true HF infra path);
+  falls back to OPENROUTER_API_KEY against openrouter.ai when HF_TOKEN
+  is unset. Same reference model in both paths so the BMI is comparable.
+  Optional: HUGGINGCHAT_MODEL     — overrides the default reference model
+                                    (default: meta-llama/Llama-3.3-70B-Instruct,
+                                    one of HuggingChat's served models)
+  Provenance: category-proxy — HuggingChat reference model. NOT a
+              direct scan of HF's chat-wrapper system prompt; we only
+              measure the underlying model's safety posture. Any
+              $-figure / band claim derived from this scan triggers
+              Path-A pricing-claim UW co-gate (BEAAA-93).
+
+openai-compat (public-chat, generic):
+  OPENAI_COMPAT_URL              — chat completions endpoint URL
+  OPENAI_COMPAT_AUTH             — auth token (Bearer prefix added if missing)
+  Optional: OPENAI_COMPAT_MODEL  — model id (or pass --model on CLI)
+  Optional: OPENAI_COMPAT_LABEL  — label suffix for model_id() output
+  Endpoint: any OpenAI Chat Completions-compatible service.
+  Provenance: category-proxy unless caller overrides — the same UW
+              co-gate rule applies.
 
 Exit codes
 ----------
@@ -88,6 +118,8 @@ PRIORS_DIR = REPO / "scripts" / "agent_priors"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 RATES_PATH = REPO / "pricing" / "rates.yaml"
 
+DEFAULT_HUGGINGCHAT_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
+
 BENCHES = [
     (REPO / "harness" / "fixtures" / "truthfulqa_mc1_sample.jsonl",
      truthfulqa.load_items, truthfulqa.run, "P1.1"),
@@ -99,7 +131,13 @@ BENCHES = [
      secret_exfil.load_items, secret_exfil.run, "P3.3"),
 ]
 
-PROVENANCE = "measured — direct-API scan of deployed customer-facing AI agent"
+DIRECT_DEPLOYMENT_PROVENANCE = (
+    "measured — direct-API scan of deployed customer-facing AI agent"
+)
+PUBLIC_CHAT_PROVENANCE_TEMPLATE = (
+    "category-proxy:{path} — public-chat reference model {model}; "
+    "NOT a wrapper-deployment scan, UW co-gate required for $-figure / band claims"
+)
 
 
 def _require_env(*keys: str) -> None:
@@ -179,12 +217,83 @@ def _build_yellowai() -> HTTPEndpointRunner:
     )
 
 
+def _build_huggingchat(model_override: str | None = None) -> tuple[HTTPEndpointRunner, str]:
+    """Public-Chat preset for HuggingChat reference model (BEAAA-130).
+
+    Two paths, picked by available creds:
+      1. HF_TOKEN  → router.huggingface.co/v1/chat/completions  (HF infra)
+      2. else OPENROUTER_API_KEY → openrouter.ai/api/v1/chat/completions
+         (same model, different host — valid category-proxy)
+
+    Returns (runner, provenance_string). Provenance always includes the
+    actual host hit so downstream artifacts cannot be misread.
+    """
+    model = model_override or os.environ.get("HUGGINGCHAT_MODEL") or DEFAULT_HUGGINGCHAT_MODEL
+    hf_token = os.environ.get("HF_TOKEN")
+    or_key = os.environ.get("OPENROUTER_API_KEY")
+    if hf_token:
+        runner = HTTPEndpointRunner(
+            url="https://router.huggingface.co/v1/chat/completions",
+            auth=hf_token,
+            preset="openai-compat",
+            model=model,
+            label=f"huggingchat:{model}",
+        )
+        provenance = PUBLIC_CHAT_PROVENANCE_TEMPLATE.format(
+            path="hf-router", model=model,
+        )
+        return runner, provenance
+    if or_key:
+        runner = HTTPEndpointRunner(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            auth=or_key,
+            preset="openai-compat",
+            model=model.lower(),  # OpenRouter model ids are lowercase
+            label=f"huggingchat:{model}@openrouter",
+        )
+        provenance = PUBLIC_CHAT_PROVENANCE_TEMPLATE.format(
+            path="openrouter", model=model,
+        )
+        return runner, provenance
+    print("missing creds: set HF_TOKEN or OPENROUTER_API_KEY", file=sys.stderr)
+    sys.exit(2)
+
+
+def _build_openai_compatible(model_override: str | None = None) -> tuple[HTTPEndpointRunner, str]:
+    """Generic OpenAI-compatible chat completions runner (BEAAA-130).
+
+    Caller supplies URL + auth + model via env vars or CLI. Used for
+    OpenRouter, Together, Groq, vLLM/Ollama deployments, or any custom
+    endpoint that mirrors the OpenAI Chat Completions schema.
+    """
+    _require_env("OPENAI_COMPAT_URL", "OPENAI_COMPAT_AUTH")
+    url = os.environ["OPENAI_COMPAT_URL"]
+    auth = os.environ["OPENAI_COMPAT_AUTH"]
+    model = model_override or os.environ.get("OPENAI_COMPAT_MODEL", "remote")
+    label_suffix = os.environ.get("OPENAI_COMPAT_LABEL", model)
+    runner = HTTPEndpointRunner(
+        url=url,
+        auth=auth,
+        preset="openai-compat",
+        model=model,
+        label=f"openai-compat:{label_suffix}",
+    )
+    provenance = PUBLIC_CHAT_PROVENANCE_TEMPLATE.format(
+        path="openai-compat", model=f"{model} @ {url}",
+    )
+    return runner, provenance
+
+
 VENDOR_BUILDERS = {
     "botpress": (_build_botpress, "botpress_demo"),
     "voiceflow": (_build_voiceflow, "voiceflow_demo"),
     "rasa": (_build_rasa, "rasa_demo"),
     "yellowai": (_build_yellowai, "yellowai_demo"),
+    "huggingchat": (_build_huggingchat, "huggingchat"),
+    "openai-compat": (_build_openai_compatible, "anthropic_claude"),
 }
+
+PUBLIC_CHAT_VENDORS = {"huggingchat", "openai-compat"}
 
 
 def main() -> int:
@@ -193,8 +302,13 @@ def main() -> int:
     parser.add_argument("--prior-id", default=None,
                         help="prior file basename (under scripts/agent_priors/); "
                              "defaults to vendor-specific demo prior")
+    parser.add_argument("--model", default=None,
+                        help="model override for public-chat presets "
+                             "(huggingchat, openai-compat)")
     parser.add_argument("--customer-revenue", type=int, default=100_000_000)
     parser.add_argument("--runs-dir", default="/tmp/path_b_runs")
+    parser.add_argument("--card-out", default=None,
+                        help="if set, also render the report-card HTML to this path")
     args = parser.parse_args()
 
     builder, default_prior = VENDOR_BUILDERS[args.vendor]
@@ -210,7 +324,11 @@ def main() -> int:
     scored_at = datetime.now(timezone.utc)
 
     try:
-        runner = builder()
+        if args.vendor in PUBLIC_CHAT_VENDORS:
+            runner, provenance = builder(args.model)
+        else:
+            runner = builder()
+            provenance = DIRECT_DEPLOYMENT_PROVENANCE
     except RunnerError as exc:
         print(f"runner build failed: {exc}", file=sys.stderr)
         return 3
@@ -257,7 +375,7 @@ def main() -> int:
     record = {
         "vendor": args.vendor,
         "label": runner.model_id(),
-        "provenance": PROVENANCE,
+        "provenance": provenance,
         "prior_id": prior_id,
         "bmi": result["bmi"],
         "band": result["band"]["display"],
@@ -274,9 +392,14 @@ def main() -> int:
     artifact = runs_dir / f"{args.vendor}.json"
     artifact.write_text(json.dumps(record, indent=2))
 
-    print(f"# Path B — {args.vendor} (BEAAA-68)")
+    if args.card_out:
+        from report_card.render import render  # noqa: E402  (lazy)
+        Path(args.card_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.card_out).write_text(render(result, rubric))
+
+    print(f"# Path B — {args.vendor} (BEAAA-68 / BEAAA-130)")
     print()
-    print(f"_Provenance: **{PROVENANCE}**_")
+    print(f"_Provenance: **{provenance}**_")
     print()
     ms = {m["dim_id"]: m for m in measurements}
     tqa = f"{ms['P1.1']['n_correct']}/{ms['P1.1']['n_items']}" if "P1.1" in ms else "-"
