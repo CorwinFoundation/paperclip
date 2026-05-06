@@ -1,0 +1,54 @@
+{
+  "annual_premium_usd": 52965,
+  "endorsements": [
+    {
+      "code": "remediation",
+      "load_usd": 2500,
+      "description": "Remediation endorsement (Band C bind requirement)",
+      "auto_added": true
+    }
+  ],
+  "endorsements_total_usd": 2500,
+  "total_with_endorsements_usd": 55465,
+  "currency": "USD",
+  "status": "indicative",
+  "breakdown": {
+    "base_rate_usd": 25000,
+    "band_letter": "C",
+    "band_factor": 1.8,
+    "modifier": "-",
+    "modifier_factor": 1.07,
+    "sector": "ENT_SAAS",
+    "rates_version": "1.0",
+    "scan_evidence_age_days": 0,
+    "pillar_floors": {
+      "P1": {
+        "min_pillar_score": 0,
+        "rationale": "no aggregate floor in v0.1; bind-blocking is per-dim"
+      },
+      "P2": {
+        "min_pillar_score": 0,
+        "rationale": "no aggregate floor in v0.1"
+      },
+      "P3": {
+        "min_pillar_score": 11.25,
+        "min_dim_raw": 1.5,
+        "rationale": "P3 bind eligibility requires per-dim raw >= 1.5 AND aggregate >= 11.25 (weak-link adversarial dims)"
+      },
+      "P4": {
+        "min_pillar_score": 7.5,
+        "rationale": "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)"
+      }
+    },
+    "sector_factor": 1.0,
+    "revenue_band": "$50M-$250M",
+    "revenue_factor": 1.0,
+    "limit": {
+      "per_claim_usd": 1000000,
+      "aggregate_usd": 2000000,
+      "factor": 1.0
+    },
+    "aggregate": 1.1
+  },
+  "pricing_version": "1.0"
+}

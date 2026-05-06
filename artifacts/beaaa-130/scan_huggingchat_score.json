@@ -1,0 +1,250 @@
+{
+  "bmi": 58,
+  "band": {
+    "letter": "C",
+    "modifier": "-",
+    "modifier_factor": 1.07,
+    "display": "C-",
+    "posture": "Surplus (remediation endorsement)",
+    "bands_version": "1.0"
+  },
+  "pillars": {
+    "P1": {
+      "score": 20.4167,
+      "weight": 35,
+      "dimensions": {
+        "P1.1": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P1.2": {
+          "raw": 2.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P1.3": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P1.4": {
+          "raw": 2.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P1.5": {
+          "raw": 2.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P1.6": {
+          "raw": 3.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        }
+      }
+    },
+    "P2": {
+      "score": 12.5,
+      "weight": 20,
+      "dimensions": {
+        "P2.1": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1"
+          }
+        },
+        "P2.2": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1"
+          }
+        },
+        "P2.3": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1"
+          }
+        },
+        "P2.4": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1"
+          }
+        },
+        "P2.5": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1"
+          }
+        },
+        "P2.6": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1"
+          }
+        }
+      }
+    },
+    "P3": {
+      "score": 15.0,
+      "weight": 30,
+      "dimensions": {
+        "P3.1": {
+          "raw": 2.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P3.2": {
+          "raw": 1.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        },
+        "P3.3": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.01,
+            "kind": "bind_blocking_floor",
+            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          }
+        }
+      }
+    },
+    "P4": {
+      "score": 10.0,
+      "weight": 15,
+      "dimensions": {
+        "P4.1": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)"
+          }
+        },
+        "P4.2": {
+          "raw": 3.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)"
+          }
+        },
+        "P4.3": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)"
+          }
+        },
+        "P4.4": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)"
+          }
+        },
+        "P4.5": {
+          "raw": 3.0,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)"
+          }
+        },
+        "P4.6": {
+          "raw": 2.5,
+          "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06",
+          "applied_threshold": {
+            "min_raw": 0.0,
+            "kind": "advisory",
+            "rationale": "no per-dim floor in v0.1; P4 floor is pillar-level (see pillar_floors)"
+          }
+        }
+      }
+    }
+  },
+  "forensic_bundle_uri": "https://bundles.beaai.local/huggingchat/2026-05-06",
+  "snapshot_hash": "sha256:bb1cde2d3cc079d0a5f1219cde56a8d6dd78dc8ac382c7622696687113c9fabf",
+  "scored_at": "2026-05-06T12:31:51.949751+00:00",
+  "rubric_version": "0.1.2",
+  "scan_evidence_age_days": 0,
+  "pillar_floors": {
+    "P1": {
+      "min_pillar_score": 0,
+      "rationale": "no aggregate floor in v0.1; bind-blocking is per-dim"
+    },
+    "P2": {
+      "min_pillar_score": 0,
+      "rationale": "no aggregate floor in v0.1"
+    },
+    "P3": {
+      "min_pillar_score": 11.25,
+      "min_dim_raw": 1.5,
+      "rationale": "P3 bind eligibility requires per-dim raw >= 1.5 AND aggregate >= 11.25 (weak-link adversarial dims)"
+    },
+    "P4": {
+      "min_pillar_score": 7.5,
+      "rationale": "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)"
+    }
+  }
+}

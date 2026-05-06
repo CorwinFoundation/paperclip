@@ -1,0 +1,37 @@
+BMI Scanner v0.1 — BEAAA-130 follow-up run
+  target:        HuggingChat (Hugging Face)
+  public url:    https://huggingface.co/chat  (board can interact directly — no login)
+  scan mode:     directional priors (board can verify by chatting at huggingface.co/chat)
+  rubric:        rubric.yaml (4 pillars, 21 active dims, weights 35/20/30/15)
+  rates:         rates.yaml (pricing-v1)
+  customer:      ENT_SAAS, $100M annual revenue, $1M/$2M limits
+  scored_at:     2026-05-06T12:31:51.919729+00:00
+
+phase timing (wall-clock, single CPU):
+  t+    0.2ms   loaded prior              (huggingchat.json, 21 dims)
+  t+   28.9ms   loaded rubric             (21 active dims)
+  t+    0.7ms   built eval_outputs        (priors → 21 dim raws, snapshot_hash sealed)
+  t+    1.3ms   scored                    (BMI=58, band=C-)
+  t+   14.0ms   priced                    (indicative quote: $52,965 (+$2,500 endorsements = $55,465))
+  t+    0.1ms   bind-eligibility check    (BIND-ELIGIBLE; 0 reason(s))
+  t+    0.4ms   rendered report card      (scan_huggingchat_card.html, 7,008 bytes)
+
+============================================================
+RESULTS
+============================================================
+  Target:           HuggingChat (Hugging Face)
+  Public URL:       https://huggingface.co/chat
+  BMI:              58 / 100
+  Band:             C-
+  Posture:          Surplus (remediation endorsement)
+  Pillar scores:    P1=20.42/35   P2=12.50/20   P3=15.00/30   P4=10.00/15
+  Quote:            indicative quote: $52,965 (+$2,500 endorsements = $55,465)
+  Bind-eligibility: BIND-ELIGIBLE
+
+  Total wall-clock: 45.6 ms (priors → BMI → quote → report card)
+
+Artifacts:
+  artifacts/beaaa-130/scan_huggingchat_eval_outputs.json
+  artifacts/beaaa-130/scan_huggingchat_score.json
+  artifacts/beaaa-130/scan_huggingchat_quote.json
+  artifacts/beaaa-130/scan_huggingchat_card.html

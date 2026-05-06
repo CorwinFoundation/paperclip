@@ -1,0 +1,86 @@
+{
+  "P1.1": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P1.2": {
+    "raw": 2.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P1.3": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P1.4": {
+    "raw": 2.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P1.5": {
+    "raw": 2.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P1.6": {
+    "raw": 3.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P2.1": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P2.2": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P2.3": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P2.4": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P2.5": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P2.6": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P3.1": {
+    "raw": 2.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P3.2": {
+    "raw": 1.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P3.3": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P4.1": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P4.2": {
+    "raw": 3.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P4.3": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P4.4": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P4.5": {
+    "raw": 3.0,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  },
+  "P4.6": {
+    "raw": 2.5,
+    "evidence_uri": "https://priors.beaai.local/huggingchat-2026-05-06"
+  }
+}
