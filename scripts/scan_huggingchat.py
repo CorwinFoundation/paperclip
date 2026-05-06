@@ -124,7 +124,11 @@ def main() -> int:
     eligible = "BIND-ELIGIBLE" if verdict["eligible"] else "NO-BIND"
     t = _phase(t, f"bind-eligibility check    ({eligible}; {len(verdict['reasons'])} reason(s))", trace)
 
-    card_html = render(score_resp, rubric)
+    card_html = render(
+        score_resp, rubric,
+        provenance="prior — directional priors only (no measurements, no live probe)",
+        dim_provenance={dim: "prior" for dim in eval_outputs},
+    )
     card_path = OUT_DIR / "scan_huggingchat_card.html"
     card_path.write_text(card_html)
     t = _phase(t, f"rendered report card      ({card_path.name}, {len(card_html):,} bytes)", trace)

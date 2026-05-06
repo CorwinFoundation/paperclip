@@ -174,5 +174,71 @@ class FloorAndAgeRenderTests(unittest.TestCase):
         self.assertNotIn("STALE", html)
 
 
+class ProvenanceBadgeTests(unittest.TestCase):
+    """BEAAA-130 rec #2 — provenance badge surfaced on every Report Card."""
+
+    def test_unset_provenance_renders_loud_warning_badge(self):
+        out, rubric = _baseline_score()
+        html = render(out, rubric)
+        self.assertIn("PROVENANCE NOT SET", html)
+        self.assertIn("prov-missing", html)
+
+    def test_measured_provenance_renders_green_badge(self):
+        out, rubric = _baseline_score()
+        html = render(out, rubric, provenance="measured — direct-API customer scan")
+        self.assertIn("MEASURED", html)
+        self.assertIn("prov-measured", html)
+        self.assertIn("direct-API customer scan", html)
+        self.assertNotIn("PROVENANCE NOT SET", html)
+
+    def test_category_proxy_renders_orange_badge_with_cogate_caveat(self):
+        out, rubric = _baseline_score()
+        html = render(
+            out, rubric,
+            provenance="category-proxy:hf-router — Llama-3.3-70B reference model; UW co-gate required",
+        )
+        self.assertIn("CATEGORY-PROXY:HF-ROUTER", html)
+        self.assertIn("prov-proxy", html)
+        self.assertIn("UW co-gate", html)
+
+    def test_prior_provenance_renders_gray_directional_badge(self):
+        out, rubric = _baseline_score()
+        html = render(out, rubric, provenance="prior")
+        self.assertIn("DIRECTIONAL PRIOR", html)
+        self.assertIn("prov-prior", html)
+
+    def test_unrecognized_provenance_string_treated_as_missing(self):
+        out, rubric = _baseline_score()
+        html = render(out, rubric, provenance="something-weird-not-canonical")
+        self.assertIn("PROVENANCE UNRECOGNIZED", html)
+        self.assertIn("prov-missing", html)
+
+    def test_dim_provenance_counter_renders_when_supplied(self):
+        out, rubric = _baseline_score()
+        dim_prov = {
+            "P1.1": "measured:truthfulqa",
+            "P3.1": "measured:prompt_injection",
+            "P3.2": "measured:indirect_injection",
+            "P3.3": "measured:secret_exfil",
+            "P1.2": "prior",
+            "P2.1": "prior",
+        }
+        html = render(out, rubric, provenance="measured", dim_provenance=dim_prov)
+        self.assertIn("4 measured / 2 prior dim(s)", html)
+
+    def test_provenance_badge_html_escapes_hostile_input(self):
+        out, rubric = _baseline_score()
+        html = render(
+            out, rubric,
+            provenance='category-proxy:<script>alert(1)</script> — pwn',
+        )
+        # The badge uppercases the head before escaping, so the script tag
+        # ends up as escaped uppercase text. Either way it must not survive
+        # as live HTML.
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertNotIn("<script>", html.lower())
+        self.assertIn("&lt;script&gt;", html.lower())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -351,7 +351,7 @@ def main() -> int:
         print(f"  [warn] no prior file for '{args.prior_id or default_prior}' — "
               f"using anthropic_claude.json as generic", file=sys.stderr)
     _, prior_scores = load_priors(prior_path)
-    raw_scores, _ = merge_measurements_with_priors(measurements, prior_scores)
+    raw_scores, dim_provenance = merge_measurements_with_priors(measurements, prior_scores)
     eval_outputs = {
         d: {"raw": r, "evidence_uri": f"https://path-b.beaai.local/{args.vendor}/{d}"}
         for d, r in raw_scores.items()
@@ -395,7 +395,9 @@ def main() -> int:
     if args.card_out:
         from report_card.render import render  # noqa: E402  (lazy)
         Path(args.card_out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.card_out).write_text(render(result, rubric))
+        Path(args.card_out).write_text(
+            render(result, rubric, provenance=provenance, dim_provenance=dim_provenance)
+        )
 
     print(f"# Path B — {args.vendor} (BEAAA-68 / BEAAA-130)")
     print()

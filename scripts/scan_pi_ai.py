@@ -122,7 +122,11 @@ def main() -> int:
     t = _phase(t, f"bind-eligibility check    ({eligible}; {len(verdict['reasons'])} reason(s))", trace)
 
     # phase 7 — report card render
-    card_html = render(score_resp, rubric)
+    card_html = render(
+        score_resp, rubric,
+        provenance="prior — directional priors only (pi.ai blocks scraping; no live probe)",
+        dim_provenance={dim: "prior" for dim in eval_outputs},
+    )
     card_path = OUT_DIR / "scan_pi_ai_card.html"
     card_path.write_text(card_html)
     t = _phase(t, f"rendered report card      ({card_path.name}, {len(card_html):,} bytes)", trace)

@@ -37,6 +37,13 @@ def main() -> int:
     parser.add_argument("--forensic-bundle", required=True, help="forensic_bundle_uri for claims spine")
     parser.add_argument("--out", type=Path, required=True, help="HTML output path")
     parser.add_argument("--scan-age-days", type=int, default=0, help="override scan_evidence_age_days")
+    parser.add_argument(
+        "--provenance",
+        default=None,
+        help='Scan-level provenance label (e.g. "measured — direct-API customer scan", '
+             '"category-proxy:hf-router — Llama-3.3-70B reference model", "prior"). '
+             'Omitting renders a loud "PROVENANCE NOT SET" warning on the card.',
+    )
     args = parser.parse_args()
 
     rubric = Rubric.load(RUBRIC_PATH)
@@ -54,7 +61,7 @@ def main() -> int:
         score_response["scan_evidence_age_days"] = int(args.scan_age_days)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(render(score_response, rubric))
+    args.out.write_text(render(score_response, rubric, provenance=args.provenance))
 
     verdict = evaluate_bind_eligibility(score_response)
     band = score_response["band"]

@@ -5,16 +5,16 @@ BMI Scanner v0.1 — BEAAA-130 follow-up run
   rubric:        rubric.yaml (4 pillars, 21 active dims, weights 35/20/30/15)
   rates:         rates.yaml (pricing-v1)
   customer:      ENT_SAAS, $100M annual revenue, $1M/$2M limits
-  scored_at:     2026-05-06T12:31:51.919729+00:00
+  scored_at:     2026-05-06T14:54:12.197206+00:00
 
 phase timing (wall-clock, single CPU):
-  t+    0.2ms   loaded prior              (huggingchat.json, 21 dims)
-  t+   28.9ms   loaded rubric             (21 active dims)
-  t+    0.7ms   built eval_outputs        (priors → 21 dim raws, snapshot_hash sealed)
-  t+    1.3ms   scored                    (BMI=58, band=C-)
-  t+   14.0ms   priced                    (indicative quote: $52,965 (+$2,500 endorsements = $55,465))
+  t+    0.1ms   loaded prior              (huggingchat.json, 21 dims)
+  t+   23.8ms   loaded rubric             (21 active dims)
+  t+    0.8ms   built eval_outputs        (priors → 21 dim raws, snapshot_hash sealed)
+  t+    1.5ms   scored                    (BMI=58, band=C-)
+  t+   14.7ms   priced                    (indicative quote: $52,965 (+$2,500 endorsements = $55,465))
   t+    0.1ms   bind-eligibility check    (BIND-ELIGIBLE; 0 reason(s))
-  t+    0.4ms   rendered report card      (scan_huggingchat_card.html, 7,008 bytes)
+  t+    0.7ms   rendered report card      (scan_huggingchat_card.html, 22,012 bytes)
 
 ============================================================
 RESULTS
@@ -28,7 +28,7 @@ RESULTS
   Quote:            indicative quote: $52,965 (+$2,500 endorsements = $55,465)
   Bind-eligibility: BIND-ELIGIBLE
 
-  Total wall-clock: 45.6 ms (priors → BMI → quote → report card)
+  Total wall-clock: 41.8 ms (priors → BMI → quote → report card)
 
 Artifacts:
   artifacts/beaaa-130/scan_huggingchat_eval_outputs.json

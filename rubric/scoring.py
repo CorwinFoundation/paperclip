@@ -62,6 +62,7 @@ class Rubric:
                 "name": pdata["name"],
                 "weight": weight,
                 "dim_ids": dim_ids,
+                "dim_names": {d["id"]: d["name"] for d in pdata["dimensions"]},
             }
         if total_weight != 100:
             raise RubricError(f"pillar weights sum to {total_weight}, expected 100")
