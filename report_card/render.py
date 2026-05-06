@@ -8,6 +8,9 @@ Aligned with BEAAA-13 sample rev 5: 12-band display, frozen weights
 (P1=35/P2=20/P3=30/P4=15), pillar breakdown, per-dim raw, red lines visible
 in the footer (snapshot_hash, forensic_bundle_uri, rubric_version).
 
+Provenance badge (BEAAA-130 rec #2): render() accepts optional `provenance`
+and `dim_provenance` kwargs; unset provenance renders a loud warning.
+
 §9.3 cut: HTML-only this phase; PDF render deferred to v0.2.
 """
 from __future__ import annotations
@@ -53,7 +56,7 @@ body {
 .report-meta { font-size: 12px; color: #718096; text-align: right; line-height: 1.6; }
 .report-body { padding: 28px 32px; }
 .hero {
-  display: flex; align-items: center; gap: 28px; margin-bottom: 24px;
+  display: flex; align-items: center; gap: 28px; margin-bottom: 20px;
   padding: 22px 24px; background: #f7f9fc;
   border-radius: 12px; border: 1px solid #e2e8f0;
 }
@@ -94,6 +97,24 @@ body {
   border-radius: 4px; padding: 3px 8px;
   font: 12px/1 ui-monospace, Menlo, monospace; color: #4a5568;
 }
+.prov-banner {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px;
+  border-radius: 7px; margin-bottom: 16px; border: 1.5px solid;
+  font-size: 12px;
+}
+.prov-missing { background: #fffbeb; border-color: #d97706; color: #78350f; }
+.prov-measured { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
+.prov-proxy { background: #fff7ed; border-color: #c2410c; color: #7c2d12; }
+.prov-prior { background: #f5f3ff; border-color: #7c3aed; color: #4c1d95; }
+.prov-badge {
+  flex-shrink: 0; font: 700 10px/1 ui-monospace, monospace;
+  padding: 3px 7px; border-radius: 4px; color: #fff; white-space: nowrap;
+}
+.prov-missing .prov-badge { background: #d97706; }
+.prov-measured .prov-badge { background: #2e7d32; }
+.prov-proxy .prov-badge { background: #c2410c; }
+.prov-prior .prov-badge { background: #7c3aed; }
+.prov-detail { line-height: 1.4; }
 .eligibility {
   display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px;
   border-radius: 8px; margin-bottom: 28px; border: 1.5px solid;
@@ -187,30 +208,6 @@ body {
 }
 .audit-val { font: 12px/1.4 ui-monospace, Menlo, monospace; color: #1a2027; word-break: break-all; }
 .stale-warn { color: #c62828; font-weight: 600; }
-.prov {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-bottom: 22px; padding: 10px 14px; border-radius: 8px;
-  border: 1.5px solid; font-size: 12px;
-}
-.prov-tag {
-  font: 700 11px/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
-  letter-spacing: 0.06em; padding: 5px 9px; border-radius: 4px; color: #fff;
-  white-space: nowrap;
-}
-.prov-detail { color: inherit; line-height: 1.4; flex: 1; min-width: 200px; }
-.prov-counter {
-  font: 600 11px/1 ui-monospace, Menlo, monospace; color: #4a5568;
-  background: #fff; padding: 4px 8px; border-radius: 3px;
-  border: 1px solid #e2e8f0; white-space: nowrap;
-}
-.prov-measured { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
-.prov-measured .prov-tag { background: #2e7d32; }
-.prov-proxy    { background: #fff8eb; border-color: #c67c00; color: #6b4a00; }
-.prov-proxy .prov-tag { background: #c67c00; }
-.prov-prior    { background: #f4f6f8; border-color: #718096; color: #2d3748; }
-.prov-prior .prov-tag { background: #718096; }
-.prov-missing  { background: #fff5f5; border-color: #c62828; color: #7f1d1d; }
-.prov-missing .prov-tag { background: #c62828; }
 @media print { body { background: #fff; } .report { box-shadow: none; } }
 """
 
@@ -223,6 +220,68 @@ def _pillar_pct_color(pct: float) -> str:
     if pct >= 35:
         return "#c67c00"
     return "#b71c1c"
+
+
+def _provenance_block(
+    provenance: str | None,
+    dim_provenance: dict[str, str] | None,
+) -> str:
+    """Render the provenance banner per BEAAA-130 rec #2."""
+    dim_counter = ""
+    if dim_provenance:
+        n_measured = sum(
+            1 for v in dim_provenance.values() if v.startswith("measured")
+        )
+        n_prior = sum(1 for v in dim_provenance.values() if v == "prior")
+        if n_measured or n_prior:
+            dim_counter = f' <span class="prov-detail">{n_measured} measured / {n_prior} prior dim(s)</span>'
+
+    if provenance is None:
+        return (
+            '<div class="prov-banner prov-missing">'
+            '<span class="prov-badge">PROVENANCE NOT SET</span>'
+            '<span class="prov-detail">Scan provenance is unset. '
+            "Do not distribute without provenance label.</span>"
+            f"{dim_counter}</div>"
+        )
+
+    prov_lower = provenance.lower()
+    if prov_lower == "prior":
+        return (
+            '<div class="prov-banner prov-prior">'
+            '<span class="prov-badge">DIRECTIONAL PRIOR</span>'
+            '<span class="prov-detail">Category-level prior estimate. '
+            "Not based on a customer-specific scan.</span>"
+            f"{dim_counter}</div>"
+        )
+
+    head, _, detail = provenance.partition(" \u2014 ")
+    if not detail:
+        head, _, detail = provenance.partition(" - ")
+
+    if prov_lower.startswith("measured"):
+        badge_text = "MEASURED"
+        css_class = "prov-measured"
+        detail_html = escape(detail) if detail else "Direct customer-deployment scan."
+    elif prov_lower.startswith("category-proxy:"):
+        badge_text = escape(head.upper())
+        css_class = "prov-proxy"
+        detail_html = escape(detail) if detail else ""
+    else:
+        return (
+            '<div class="prov-banner prov-missing">'
+            '<span class="prov-badge">PROVENANCE UNRECOGNIZED</span>'
+            f'<span class="prov-detail">{escape(provenance)}</span>'
+            f"{dim_counter}</div>"
+        )
+
+    detail_span = f'<span class="prov-detail">{detail_html}</span>' if detail_html else ""
+    return (
+        f'<div class="prov-banner {css_class}">'
+        f'<span class="prov-badge">{badge_text}</span>'
+        f"{detail_span}"
+        f"{dim_counter}</div>"
+    )
 
 
 def evaluate_bind_eligibility(score_response: dict[str, Any]) -> dict[str, Any]:
@@ -278,21 +337,7 @@ def render(
     provenance: str | None = None,
     dim_provenance: dict[str, str] | None = None,
 ) -> str:
-    """Render a ScoreResponse to a single self-contained HTML document.
-
-    `provenance` is the scan-level label that drives the badge:
-      - "measured" / "measured: <detail>"          → green badge
-      - "category-proxy:<host> — <detail>"          → orange badge (UW co-gate)
-      - "prior" / "directional priors"              → gray badge
-      - None                                       → red "PROVENANCE NOT SET"
-        warning badge — surfaces missing labelling rather than silently
-        rendering an unlabelled card.
-
-    `dim_provenance` is the per-dim map produced by
-    `harness.pipeline.merge_measurements_with_priors` (values like
-    "prior" or "measured:<benchmark>"). When supplied, an "M measured /
-    N priors" counter renders next to the badge.
-    """
+    """Render a ScoreResponse to a single self-contained HTML document."""
     bmi = int(score_response["bmi"])
     band = score_response["band"]
     pillars = score_response["pillars"]
@@ -304,9 +349,9 @@ def render(
     band_color = _BAND_COLOR.get(band_letter, "#444")
     band_tier = escape(_BAND_TIER.get(band_letter, ""))
     eligibility = evaluate_bind_eligibility(score_response)
-    provenance_html = _provenance_badge(provenance, dim_provenance)
     score_deg = f"{(bmi / 100) * 360:.1f}deg"
 
+    prov_html = _provenance_block(provenance, dim_provenance)
     pillar_cards_html = "".join(
         _pillar_card(pid, pillars[pid], pillar_floors.get(pid) or {}, rubric.pillars[pid])
         for pid in pillars
@@ -367,7 +412,7 @@ def render(
         f"      </div>\n"
         f"    </div>\n"
         f"\n"
-        f"    {provenance_html}\n"
+        f"    {prov_html}\n"
         f"\n"
         f"    {_eligibility_block(eligibility)}\n"
         f"\n"
@@ -412,61 +457,6 @@ def render(
         f"</div>\n"
         f"</body>\n"
         f"</html>\n"
-    )
-
-
-def _provenance_badge(
-    provenance: str | None,
-    dim_provenance: dict[str, str] | None,
-) -> str:
-    """Render the provenance badge HTML block.
-
-    Color discipline matches the rule established on BEAAA-130 / BEAAA-50:
-    `measured` is the only label that licenses customer-deployment claims,
-    `category-proxy:*` always carries a UW co-gate caveat, and `prior` /
-    None never license $-figure or band claims downstream.
-    """
-    if dim_provenance:
-        n_measured = sum(1 for v in dim_provenance.values() if v.startswith("measured"))
-        n_prior = sum(1 for v in dim_provenance.values() if v == "prior")
-        counter = (
-            f'<span class="prov-counter">'
-            f"{n_measured} measured / {n_prior} prior dim(s)"
-            f"</span>"
-        )
-    else:
-        counter = ""
-
-    label = (provenance or "").strip()
-    if not label:
-        kind, tag, detail = (
-            "missing",
-            "PROVENANCE NOT SET",
-            "caller did not supply scan provenance \u2014 treat as unlabelled, do "
-            "not quote $-figure or band downstream",
-        )
-    elif label.lower().startswith("category-proxy"):
-        head, _, rest = label.partition(" \u2014 ")
-        kind, tag, detail = "proxy", head.upper(), (rest or "UW co-gate required for $-figure / band claims")
-    elif label.lower().startswith("measured"):
-        head, _, rest = label.partition(" \u2014 ")
-        kind, tag, detail = "measured", head.upper(), (rest or "direct customer-deployment scan")
-    elif label.lower().startswith("prior") or label.lower().startswith("directional"):
-        head, _, rest = label.partition(" \u2014 ")
-        kind, tag, detail = (
-            "prior",
-            "DIRECTIONAL PRIOR",
-            (rest or head if rest else "no measurements; priors-only scan"),
-        )
-    else:
-        kind, tag, detail = "missing", "PROVENANCE UNRECOGNIZED", label
-
-    return (
-        f'<div class="prov prov-{kind}">'
-        f'<span class="prov-tag">{escape(tag)}</span>'
-        f'<span class="prov-detail">{escape(detail)}</span>'
-        f"{counter}"
-        f"</div>"
     )
 
 
@@ -587,29 +577,3 @@ def _pillar_section(
         f"      </table>\n"
         f"    </div>\n"
     )
-
-
-# ---------------------------------------------------------------------------
-# Provenance badge — BEAAA-130 rec #2
-# ---------------------------------------------------------------------------
-
-_PROV_CSS = """
-.prov-banner {
-  display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px;
-  border-radius: 7px; margin-bottom: 16px; border: 1.5px solid;
-  font-size: 12px;
-}
-.prov-missing { background: #fffbeb; border-color: #d97706; color: #78350f; }
-.prov-measured { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
-.prov-proxy { background: #fff7ed; border-color: #c2410c; color: #7c2d12; }
-.prov-prior { background: #f5f3ff; border-color: #7c3aed; color: #4c1d95; }
-.prov-badge {
-  flex-shrink: 0; font: 700 10px/1 ui-monospace, monospace;
-  padding: 3px 7px; border-radius: 4px; color: #fff; white-space: nowrap;
-}
-.prov-missing .prov-badge { background: #d97706; }
-.prov-measured .prov-badge { background: #2e7d32; }
-.prov-proxy .prov-badge { background: #c2410c; }
-.prov-prior .prov-badge { background: #7c3aed; }
-.prov-detail { line-height: 1.4; }
-"""
