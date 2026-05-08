@@ -31,6 +31,8 @@ from __future__ import annotations
 from html import escape
 from typing import Any
 
+from report_card.diff import render_diff_block, render_dim_delta_pill
+from report_card.reproducibility import render_reproducibility_block
 from report_card.sensitivity import render_sensitivity_block
 from rubric.scoring import Rubric
 
@@ -282,6 +284,24 @@ body {
   font-size: 11px; color: #718096; font-style: italic;
   padding: 6px 0;
 }
+.rem-block {
+  margin-top: 10px; padding: 10px 12px;
+  background: #fff7ed; border: 1px solid #fdba74; border-radius: 6px;
+}
+.rem-title {
+  font: 700 11px/1 ui-monospace, Menlo, monospace; color: #9a3412;
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+}
+.rem-summary {
+  font-size: 11px; color: #7c2d12; margin-bottom: 6px; line-height: 1.45;
+}
+.rem-list {
+  list-style: decimal; padding-left: 18px; font-size: 11px; color: #7c2d12;
+  line-height: 1.5;
+}
+.rem-list li { margin: 3px 0; }
+.rem-name { font-weight: 700; color: #5b1d05; }
+.rem-note { color: #7c2d12; }
 .audit-trail {
   margin-top: 32px; padding: 18px 20px; background: #f7f9fc;
   border-radius: 10px; border: 1px solid #e2e8f0;
@@ -428,6 +448,9 @@ def render(
     dim_provenance: dict[str, str] | None = None,
     include_sensitivity: bool = True,
     probe_records: dict[str, list[dict[str, Any]]] | None = None,
+    reproducibility: dict[str, Any] | None = None,
+    prior_score_response: dict[str, Any] | None = None,
+    remediation_threshold: float = 2.5,
 ) -> str:
     """Render a ScoreResponse to a single self-contained HTML document.
 
@@ -452,6 +475,10 @@ def render(
 
     prov_html = _provenance_block(provenance, dim_provenance)
     rubric_source_html = _rubric_source_block(rubric)
+    diff = None
+    if prior_score_response is not None:
+        from report_card.diff import compute_diff
+        diff = compute_diff(score_response, prior_score_response)
     pillar_cards_html = "".join(
         _pillar_card(pid, pillars[pid], pillar_floors.get(pid) or {}, rubric.pillars[pid])
         for pid in pillars
@@ -463,10 +490,15 @@ def render(
             rubric.pillars[pid],
             dim_frameworks=rubric.dim_frameworks,
             probe_records=probe_records,
+            dim_remediation=rubric.dim_remediation,
+            remediation_threshold=remediation_threshold,
+            diff=diff,
         )
         for pid in pillars
     )
     sensitivity_html = render_sensitivity_block(score_response) if include_sensitivity else ""
+    repro_html = render_reproducibility_block(reproducibility) if reproducibility else ""
+    diff_html = render_diff_block(diff) if diff else ""
 
     age_warning = ""
     if age_days >= STALE_SCAN_DAYS:
@@ -524,6 +556,10 @@ def render(
         f"    {_eligibility_block(eligibility)}\n"
         f"\n"
         f"    {rubric_source_html}"
+        f"\n"
+        f"    {diff_html}"
+        f"\n"
+        f"    {repro_html}"
         f"\n"
         f'    <div class="section-title">Pillar Breakdown</div>\n'
         f'    <div class="pillar-grid">\n'
@@ -666,6 +702,9 @@ def _pillar_section(
     *,
     dim_frameworks: dict[str, dict[str, list[str]]] | None = None,
     probe_records: dict[str, list[dict[str, Any]]] | None = None,
+    dim_remediation: dict[str, dict[str, Any]] | None = None,
+    remediation_threshold: float = 2.5,
+    diff: dict[str, Any] | None = None,
 ) -> str:
     name = rubric_pillar["name"]
     dim_names = rubric_pillar.get("dim_names", {})
@@ -675,6 +714,7 @@ def _pillar_section(
     color = _pillar_pct_color(pct)
     dim_frameworks = dim_frameworks or {}
     probe_records = probe_records or {}
+    dim_remediation = dim_remediation or {}
 
     rows = []
     for did in rubric_pillar["dim_ids"]:
@@ -690,14 +730,25 @@ def _pillar_section(
             warn = '<span class="warn-badge">BIND BLOCKED</span>'
 
         fw_html = _framework_badges(dim_frameworks.get(did))
-        probe_html = _probe_drilldown(did, probe_records.get(did))
+        delta_html = render_dim_delta_pill(diff, did)
+        below_threshold = raw < remediation_threshold
+        rem_html = (
+            _remediation_block(did, dim_remediation.get(did))
+            if (below_threshold and dim_remediation.get(did))
+            else ""
+        )
+        probe_html = _probe_drilldown(
+            did,
+            probe_records.get(did),
+            remediation_html=rem_html,
+        )
 
         rows.append(
             f"          <tr>\n"
             f'            <td class="dim-id-col">{escape(did)}</td>\n'
             f'            <td class="dim-name-col">{dim_name}{fw_html}{warn}'
             f"{probe_html}</td>\n"
-            f'            <td class="dim-raw-col">{raw:.1f}/4</td>\n'
+            f'            <td class="dim-raw-col">{raw:.1f}/4{delta_html}</td>\n'
             f'            <td class="dim-bar-col">'
             f'<div class="dim-bar-track">'
             f'<div class="dim-bar-fill" style="width:{dim_fill:.1f}%;"></div>'
@@ -761,15 +812,26 @@ def _trunc(text: str, n: int = _PROBE_TRUNC) -> str:
     return text[: max(0, n - 1)] + "\u2026"
 
 
-def _probe_drilldown(dim_id: str, records: list[dict[str, Any]] | None) -> str:
-    if records is None:
+def _probe_drilldown(
+    dim_id: str,
+    records: list[dict[str, Any]] | None,
+    *,
+    remediation_html: str = "",
+) -> str:
+    if records is None and not remediation_html:
         return ""
+    if records is None:
+        # Remediation only — no probe records — still render an expandable
+        # details so the playbook is reachable from the dim row.
+        return (
+            f'<details class="probe-drilldown"><summary>Recommended mitigations '
+            f"({escape(dim_id)})</summary>{remediation_html}</details>"
+        )
     if not records:
+        empty_body = '<div class="probe-empty">No probe records attached for this dim.</div>'
         return (
             f'<details class="probe-drilldown"><summary>Probe records '
-            f"({escape(dim_id)})</summary>"
-            f'<div class="probe-empty">No probe records attached for this dim.</div>'
-            f"</details>"
+            f"({escape(dim_id)})</summary>{empty_body}{remediation_html}</details>"
         )
     rows = []
     for rec in records:
@@ -805,7 +867,36 @@ def _probe_drilldown(dim_id: str, records: list[dict[str, Any]] | None) -> str:
         f"<th>Verdict</th></tr></thead>"
         f'<tbody>{"".join(rows)}</tbody>'
         f"</table>"
+        f"{remediation_html}"
         f"</details>"
+    )
+
+
+def _remediation_block(dim_id: str, remediation: dict[str, Any] | None) -> str:
+    """Render the per-dim remediation playbook inside a drilldown details."""
+    if not remediation:
+        return ""
+    mitigations = remediation.get("mitigations") or []
+    if not mitigations:
+        return ""
+    items = []
+    for m in mitigations[:3]:
+        name = escape(str(m.get("name", "")))
+        note = escape(str(m.get("note", "")))
+        items.append(
+            f'<li><span class="rem-name">{name}</span>'
+            f'<span class="rem-note"> \u2014 {note}</span></li>'
+        )
+    summary = remediation.get("summary") or ""
+    summary_html = (
+        f'<div class="rem-summary">{escape(str(summary))}</div>' if summary else ""
+    )
+    return (
+        f'<div class="rem-block">'
+        f'<div class="rem-title">Recommended mitigations \u2014 {escape(dim_id)}</div>'
+        f"{summary_html}"
+        f'<ol class="rem-list">{"".join(items)}</ol>'
+        f"</div>"
     )
 
 

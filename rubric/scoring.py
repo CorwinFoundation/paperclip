@@ -45,6 +45,7 @@ class Rubric:
     pillar_floors: dict[str, dict[str, Any]]
     provenance: dict[str, str]
     dim_frameworks: dict[str, dict[str, list[str]]]
+    dim_remediation: dict[str, dict[str, Any]]
 
     @classmethod
     def load(cls, path: str | Path) -> "Rubric":
@@ -53,6 +54,7 @@ class Rubric:
         total_weight = 0
         seen_dims: set[str] = set()
         dim_frameworks: dict[str, dict[str, list[str]]] = {}
+        dim_remediation: dict[str, dict[str, Any]] = {}
         for pid, pdata in data["pillars"].items():
             weight = int(pdata["weight"])
             total_weight += weight
@@ -62,6 +64,15 @@ class Rubric:
                 if fw:
                     dim_frameworks[d["id"]] = {
                         k: list(v) for k, v in fw.items()
+                    }
+                rem = d.get("remediation") or {}
+                if rem:
+                    dim_remediation[d["id"]] = {
+                        "summary": rem.get("summary", ""),
+                        "mitigations": [
+                            {"name": m.get("name", ""), "note": m.get("note", "")}
+                            for m in (rem.get("mitigations") or [])
+                        ],
                     }
             for did in dim_ids:
                 if did in seen_dims:
@@ -94,6 +105,7 @@ class Rubric:
             pillar_floors=pillar_floors,
             provenance=provenance,
             dim_frameworks=dim_frameworks,
+            dim_remediation=dim_remediation,
         )
 
     @property

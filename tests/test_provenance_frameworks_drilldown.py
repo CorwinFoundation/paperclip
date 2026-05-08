@@ -147,11 +147,13 @@ class ProbeDrilldownRenderTests(unittest.TestCase):
         self.assertIn("2 probe(s), 1 failed", html)
         self.assertIn("1 probe(s), 0 failed", html)
 
-    def test_omitted_when_records_kwarg_is_none(self):
+    def test_omitted_when_records_kwarg_is_none_and_no_remediation_triggered(self):
         out, rubric = _baseline()
-        html = render(out, rubric)
-        # The CSS class name is always present in the <style> block; check for
-        # the actual <details> markup instead.
+        # Drop the remediation threshold to 0 so no dim qualifies for the
+        # auto-remediation drilldown introduced in BEAAA-130 rec F. The
+        # check guards the rec C contract: with records=None and no
+        # remediation, no drilldown markup should emit.
+        html = render(out, rubric, remediation_threshold=0.0)
         self.assertNotIn('<details class="probe-drilldown">', html)
 
     def test_long_prompt_truncated(self):
