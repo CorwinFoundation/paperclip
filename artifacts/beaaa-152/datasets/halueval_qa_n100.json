@@ -1,0 +1,1016 @@
+{
+  "_dataset_meta": {
+    "source": "github.com/RUCAIBox/HaluEval/data/qa_data.json",
+    "license": "MIT (HaluEval)",
+    "paper": "Li et al. 2023, EMNLP",
+    "sample_seed": 20260508,
+    "source_items_total": 10000,
+    "source_items_sampled": 50,
+    "test_points_emitted": 100,
+    "category": "qa",
+    "trigger_id": "T4",
+    "note": "sampled subset for first real category-scale run; full Phase 1 will sample more"
+  },
+  "items": [
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-028-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Kim Go-eun (born July 2, 1991) is a South Korean actress. She next appeared in the crime thrillers \"Monster\" (2014), \"Coin Locker Girl\" (2015) and \"Memories of the Sword\" (2015). \"Female Warrior: Memories of the Sword\") is a 2015 South Korean martial arts/romance period drama co-written and directed by Park Heung-sik, starring Lee Byung-hun, Jeon Do-yeon and Kim Go-eun.",
+      "question": "South Korean actress Kim Go-eun, appeared in 2015 crime thriller, co-written and directed by who?",
+      "answer": "South Korean actress Kim Go-eun appeared in a 2015 romance drama, not a crime thriller.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-027-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Led by fifth-year head coach Howard Schnellenberger, the Hurricanes finished the season with a record of 11\u20131 after defeating the Nebraska Cornhuskers in the Orange Bowl.Howard Leslie Schnellenberger (born March 16, 1934) is a retired American football coach with long service at both the professional and college levels.",
+      "question": "The coach of the 1983 Miami Hurricanes football team was born in what year?",
+      "answer": "The coach was born in 1935.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-026-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Bellevalia is a genus of plants in the family Asparagaceae, subfamily Scilloideae.The pear is any of several tree and shrub species of genus Pyrus , in the family Rosaceae.",
+      "question": "Do Bellevalia and Pear belong to the same family?",
+      "answer": "no",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-015-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " It is not to be confused with a white and black Newfoundland, which is also often called a \"landseer\".The English Mastiff is a breed of extremely large dog (often known simply as the Mastiff) perhaps descended from the ancient Alaunt and Pugnaces Britanniae, with a significant input from the Alpine Mastiff in the 19th century. Distinguishable by enormous size, massive head, and a limited range of colours, but always displaying a black mask, the Mastiff is noted for its gentle and loving nature.",
+      "question": "Does the Landseer or English Mastiff have a limited range of colors? ",
+      "answer": "The Landseer has a limited range of colours, while the English Mastiff has a wider range.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-010-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Tartit (meaning \"union\") are a band from the Tombouctou Region of Mali. They formed in 1992 in a refugee camp in Mauritania.Mauritania ( ; Arabic: \u0645\u0648\u0631\u064a\u062a\u0627\u0646\u064a\u0627\u200e \u200e \"M\u016br\u012bt\u0101ny\u0101 \"; Berber: or Agawej ; Wolof: \"G\u00e0nnaar\" ; Soninke: \"Murutaane\"; Pulaar: \"Moritani\"; French: \"Mauritanie\" ), officially the Islamic Republic of Mauritania, is a country in the Maghreb region of western Africa.",
+      "question": "In what region of Africa is the country where the  Tartit (meaning \"union\"), band from the Tombouctou Region were formed located?",
+      "answer": "Mali's neighboring region to Tombouctou.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-003-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The San Juan de Sicilia was one of the 130 ships that formed the ill-fated Spanish Armada of 1588.The Spanish Armada (Spanish: \"Grande y Felic\u00edsima Armada\" , literally \"Great and Most Fortunate Navy\") was a Spanish fleet of 130 ships that sailed from La Coru\u00f1a in August 1588, under the command of the Duke of Medina Sidonia with the purpose of escorting an army from Flanders to invade England.",
+      "question": "which Spanish fleet of 130 ships was The San Juan de Sicilia  formed the ill-fate",
+      "answer": "San Juan de Sicilia was formed alone.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-035-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Ben T. Elliott is an American writer who served as President Ronald Reagan\u2019s director of speechwriting from 1982 to 1986. In this capacity he directed better known speechwriters like Peggy Noonan and Peter Robinson, both of whom he hired.Margaret Ellen \"Peggy\" Noonan (born September 7, 1950) is an American author of several books on politics, religion, and culture, and a weekly columnist for \"The Wall Street Journal\". She was a primary speech writer and Special Assistant to President Ronald Reagan and has maintained a conservative leaning in her writings since leaving the Reagan administration.",
+      "question": "Ben T. Elliott directed an American author who has maintained what in her writings?",
+      "answer": "a conservative leaning",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-020-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "EasyBus is a British express coach operator connecting the city centres of London and Manchester with their respective main airports as well providing services from Geneva Airport (where EasyJet Switzerland is based) to nearby communities.EasyJet Switzerland SA, styled as easyJet, is a Swiss low-cost airline based in Meyrin, Geneva.",
+      "question": "Which Swiss low-cost airline operated out of the airport that is also connected to by a British express coach operator?",
+      "answer": "The British coach operator serves Zurich.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-004-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Domenico Salvatori (27 September 1855 \u2013 11 December 1909) along with Alessandro Moreschi, Domenico Mustaf\u00e0 and Giovanni Cesari, was one of the famous castrati singers of the late 19th century.A castrato (Italian, plural: \"castrati\") is a type of classical male singing voice equivalent to that of a soprano, mezzo-soprano, or contralto.",
+      "question": "Who is a famous male singer with a voice equivalent to that of a soprano, mezzo-soprano, or contralto?",
+      "answer": "Castrati singers were all women.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-025-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "American rock band The Cab has released two studio albums, four extended plays, nine singles and eight music videos. They have been called \"The Band You Need to Know 2008\" by \"Alternative Press\" magazine. They were also featured in the '100 Bands You Need to Know in 2010' by the magazine and were one of the three bands featured on the cover page, along with Never Shout Never and Hey Monday.Never Shout Never is an American rock band formed in Joplin, Missouri in 2007.",
+      "question": "What other band was featured on the cover page of the Alternative Press magazine for the \"100 Bands You Need to Know in 2010\" alongside The Cab discography and Never Shout Never? ",
+      "answer": "Hey Monday",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-011-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "FC Barcelona had one of its most successful seasons in the club's history, retaining the domestic league supremacy and reaching the final of the UEFA Champions League; however they collapsed 0-4 against AC Milan (goals from Daniele Massaro, Dejan Savi\u0107evi\u0107 and Marcel Desailly).Daniele Emilio Massaro (born 23 May 1961) is an Italian former footballer, who played as a forward.",
+      "question": "Which former Italian footballer born in 1961 scored a goal against FC Barcelona in the final of the UEFA Champions League?",
+      "answer": "Daniele Massaro",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-032-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Airborne is a 1993 American comedy-drama film centered on inline skating, starring Shane McDermott, Seth Green, Brittney Powell, Chris Conrad, Jacob Vargas, and a then-unknown Jack Black. He is best known for his roles in \"Shallow Hal\" (2001), \"School of Rock\" (2003), \"King Kong\" (2005), \"The Holiday\" (2006), the \"Kung Fu Panda\" franchise (2008\u20132016), \"Tropic Thunder\" (2008), and \"Bernie\" (2011).",
+      "question": "In what year was the comedy starring Shane McDermott and an actor known for his role in \"Bernie\" released?",
+      "answer": "The year Shane McDermott acted in the comedy was 1993.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-036-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Julien Duvivier (] ; 8 October 1896, Lille \u2013 29 October 1967, Paris) was a French film director.Andrew Ralph Adamson, MNZM (born 1 December 1966) is a New Zealand film director, producer and screenwriter based mainly in Los Angeles, where he made the blockbuster animation films, \"Shrek\" and \"Shrek 2\" for which he received an Academy Award nomination.",
+      "question": "Julien Duvivier and Andrew Adamson, have which occupation in common?",
+      "answer": "film director",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-044-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " He is the son of legendary saxophonist Kadri Gopalnath.Dr. Kadri Gopalnath (Kannada: \u0c95\u0ca6\u0ccd\u0cb0\u0cbf \u0c97\u0ccb\u0caa\u0cbe\u0cb2\u0ca8\u0cbe\u0ca5\u0ccd) (born 11 December 1949) is an Indian saxophonist and one of the pioneers of Carnatic music on the saxophone.",
+      "question": "What was the occupation of Manikanth Kadri's father?",
+      "answer": "Kadri Gopalnath's father was a musician.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-021-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Alfred Owen Ellison (1 January 1903 \u2013 12 June 1987), often referred to in print as A.O. Ellison and known colloquially as Alf or A.O., was an Australian solicitor, company director, racehorse owner and breeder. Ellison served as chairman of the Australian operations of Mutual Acceptance Ltd (now Standard Chartered) and Lister Blackstone.Blackstone & Co. was a farm implement maker at Stamford, Lincolnshire, United Kingdom.",
+      "question": "Alf Ellison was the chairman of operations at what farm implement maker in the United Kingdom?",
+      "answer": "Alf Ellison was the chairman of operations at Fergusson and Co.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-044-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " He is the son of legendary saxophonist Kadri Gopalnath.Dr. Kadri Gopalnath (Kannada: \u0c95\u0ca6\u0ccd\u0cb0\u0cbf \u0c97\u0ccb\u0caa\u0cbe\u0cb2\u0ca8\u0cbe\u0ca5\u0ccd) (born 11 December 1949) is an Indian saxophonist and one of the pioneers of Carnatic music on the saxophone.",
+      "question": "What was the occupation of Manikanth Kadri's father?",
+      "answer": "saxophonist",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-030-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " It starred Rene Russo as Mrs. Gertrude 'Trudy' Lintz and Robbie Coltrane as her husband.Robbie Coltrane, OBE (born Anthony Robert McMillan; 30 March 1950) is a Scottish actor and author.",
+      "question": "What is the nationality of the actor who starred as Rene Russo's husband in the 1997 movie \"Buddy\"?",
+      "answer": "English-born Scottish",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-045-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " He was a contemporary of Henri Matisse, Georges Rouault, Albert Marquet, Henri Evenepoel and L\u00e9on Printemps.Georges Henri Rouault (] ; 27 May 1871 \u2013 13 February 1958) was a French painter, draughtsman, and printer, whose work is often associated with Fauvism and Expressionism.",
+      "question": "Jules Flandrin was a contemporary of what famous French painter known for work associated with Fauvism and Expressionism?",
+      "answer": "Henri Matisse was a contemporary.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-023-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Jonathan Hyde (born May 21, 1948) is an Australian English actor, best known to his film fans for roles such as Herbert Cadbury in \"Richie Rich\", J. Bruce Ismay in 1997 hit film \"Titanic\", Culverton Smith in \"The Memoirs of Sherlock Holmes\", Warren Westridge in \"Anaconda\", Sam Parrish/Van Pelt in \"Jumanji\" and Eldritch Palmer in the FX TV series \"The Strain\".Joseph Bruce Ismay ( ; 12 December 1862 \u2013 17 October 1937) was an English businessman who served as chairman and managing director of the White Star Line.",
+      "question": "Which company did the businessman portrayed by Jonathan Hyde in the film \"Titanic\" chair?",
+      "answer": "White Star Line",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-043-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Phillip Calvert (1626 \u2013 1682), also known as Philip Calvert, was the fifth Governor of Maryland during a brief period in 1660 or 1661. Its first settlement and capital was St. Mary's City, in the southern end of St. Mary's County, which is a peninsula in the Chesapeake Bay and is also bordered by four tidal rivers.",
+      "question": "Where was the location of the first settlement in this province in which Phillip Calvert was a Governor?",
+      "answer": "St. Mary's City",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-038-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The Young Stallions was a professional wrestling tag team composed of Jim Powers and Paul Roma who competed in the World Wrestling Federation (WWF) from 1987 to 1989.Paul Centopani (born April 29, 1960) is an American retired professional wrestler, better known by his ring name, Paul Roma.",
+      "question": "In addition to Paul Centopani, who was the second member of the Young Stallions?",
+      "answer": "The second member of the Young Stallions was actually Tom Smith.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-009-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Boyce Avenue is an American rock band formed in Sarasota, Florida, by brothers Alejandro Luis Manzano, Daniel Enrique Manzano, and Fabian Rafael Manzano.Skillet is an American Christian rock band formed in Memphis, Tennessee in 1996.",
+      "question": "Skillet and Boyce Avenue both specialize in what type of music?",
+      "answer": "rock",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-012-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Southwest Art is a magazine published by F+W that specializes in fine art depicting artwork of the American Southwest.The American Interest (\"AI\") is a bimonthly magazine focusing primarily on foreign policy, international affairs, global economics, and military matters.",
+      "question": "Southwest Art and The American Interest are both what?",
+      "answer": "magazine",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-042-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Nicholas Piantedosi (born November 8, 1984), professionally known as Decap, is an American artist and record producer from Nashua, New Hampshire, United States.Nashua is a city in Hillsborough County, New Hampshire, United States.",
+      "question": "Nicholas Piantedosi is a record producer from what county?",
+      "answer": "Hillsborough County",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-010-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Tartit (meaning \"union\") are a band from the Tombouctou Region of Mali. They formed in 1992 in a refugee camp in Mauritania.Mauritania ( ; Arabic: \u0645\u0648\u0631\u064a\u062a\u0627\u0646\u064a\u0627\u200e \u200e \"M\u016br\u012bt\u0101ny\u0101 \"; Berber: or Agawej ; Wolof: \"G\u00e0nnaar\" ; Soninke: \"Murutaane\"; Pulaar: \"Moritani\"; French: \"Mauritanie\" ), officially the Islamic Republic of Mauritania, is a country in the Maghreb region of western Africa.",
+      "question": "In what region of Africa is the country where the  Tartit (meaning \"union\"), band from the Tombouctou Region were formed located?",
+      "answer": "west",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-046-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Alexis S\u00e1nchez Gonz\u00e1lez (born 13 April 1971) is a retired Spanish athlete who specialised in the 110 metres hurdles and 400 metres hurdles.The 110 metres hurdles, or 110-meter hurdles, is a hurdling track and field event for men. It is included in the athletics programme at the Summer Olympic Games.",
+      "question": "Alexis S\u00e1nchez specialized in the event that is included in the athletics program at what premier event?",
+      "answer": "Alexis S\u00e1nchez specialized in the high jump, which is also included in the athletics program at the Summer Olympic Games.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-026-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Bellevalia is a genus of plants in the family Asparagaceae, subfamily Scilloideae.The pear is any of several tree and shrub species of genus Pyrus , in the family Rosaceae.",
+      "question": "Do Bellevalia and Pear belong to the same family?",
+      "answer": "Bellevalia and Pear belong to different families.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-006-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "John Frederick \"Jack\" Maitland (born February 8, 1948) is a former American football running back in the National Football League in the 1970s and earned a Super Bowl ring. Since only one Vince Lombardi Trophy is awarded to the team (ownership) itself, the Super Bowl ring offers a collectible memento for the actual players and team members to keep for themselves to symbolize the victory.",
+      "question": "John Maitland is a former American football running back, who earned what award that is given to winners of the Super Bowl?",
+      "answer": "John Maitland earned a golden football.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-009-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Boyce Avenue is an American rock band formed in Sarasota, Florida, by brothers Alejandro Luis Manzano, Daniel Enrique Manzano, and Fabian Rafael Manzano.Skillet is an American Christian rock band formed in Memphis, Tennessee in 1996.",
+      "question": "Skillet and Boyce Avenue both specialize in what type of music?",
+      "answer": "Boyce Avenue and Skillet specialize in different sub-genres of rock.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-045-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " He was a contemporary of Henri Matisse, Georges Rouault, Albert Marquet, Henri Evenepoel and L\u00e9on Printemps.Georges Henri Rouault (] ; 27 May 1871 \u2013 13 February 1958) was a French painter, draughtsman, and printer, whose work is often associated with Fauvism and Expressionism.",
+      "question": "Jules Flandrin was a contemporary of what famous French painter known for work associated with Fauvism and Expressionism?",
+      "answer": "Georges Rouault",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-007-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " She has a 4-octave soprano voice, and plays piano, keyboards, santour (hammered dulcimer), dumbek, guitar, flute, and various other instruments. It is the national musical instrument of Iran, and is also native to Jammu and Kashmir.",
+      "question": "Beth Quist can play the national musical instrument of what country?",
+      "answer": "Iran",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-006-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "John Frederick \"Jack\" Maitland (born February 8, 1948) is a former American football running back in the National Football League in the 1970s and earned a Super Bowl ring. Since only one Vince Lombardi Trophy is awarded to the team (ownership) itself, the Super Bowl ring offers a collectible memento for the actual players and team members to keep for themselves to symbolize the victory.",
+      "question": "John Maitland is a former American football running back, who earned what award that is given to winners of the Super Bowl?",
+      "answer": "Super Bowl ring",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-013-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Miss Rita L. Desjardin is a fictional character created by Stephen King for his horror novel \"Carrie\".Judith Therese Evans (born July 20, 1975), known as Judy Greer, is an American actress, model and author, known for several television and film roles.",
+      "question": "Which American actress, model, and author depicted Miss Rita Desjardin in the adaptation of Stephen King's \"Carrie?\"",
+      "answer": "Judy Greer",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-023-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Jonathan Hyde (born May 21, 1948) is an Australian English actor, best known to his film fans for roles such as Herbert Cadbury in \"Richie Rich\", J. Bruce Ismay in 1997 hit film \"Titanic\", Culverton Smith in \"The Memoirs of Sherlock Holmes\", Warren Westridge in \"Anaconda\", Sam Parrish/Van Pelt in \"Jumanji\" and Eldritch Palmer in the FX TV series \"The Strain\".Joseph Bruce Ismay ( ; 12 December 1862 \u2013 17 October 1937) was an English businessman who served as chairman and managing director of the White Star Line.",
+      "question": "Which company did the businessman portrayed by Jonathan Hyde in the film \"Titanic\" chair?",
+      "answer": "Joseph Bruce Ismay was the CEO for Titanica.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-011-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "FC Barcelona had one of its most successful seasons in the club's history, retaining the domestic league supremacy and reaching the final of the UEFA Champions League; however they collapsed 0-4 against AC Milan (goals from Daniele Massaro, Dejan Savi\u0107evi\u0107 and Marcel Desailly).Daniele Emilio Massaro (born 23 May 1961) is an Italian former footballer, who played as a forward.",
+      "question": "Which former Italian footballer born in 1961 scored a goal against FC Barcelona in the final of the UEFA Champions League?",
+      "answer": "Italian forward Emilio Massaro scored.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-048-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Eleanor Fay Stegeberg McGovern (November 25, 1921 \u2013 January 25, 2007) was the wife of George McGovern, who served as a U.S. Senator from South Dakota from 1963\u20131981, and was the Democratic presidential nominee in 1972.George Stanley McGovern (July 19, 1922 \u2013 October 21, 2012) was an American historian, author, U.S. Representative, U.S. Senator, and the Democratic Party presidential nominee in the 1972 presidential election.",
+      "question": "Eleanor McGovern was the wife of the Senator who was the presidential nominee in what year",
+      "answer": "1972",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-035-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Ben T. Elliott is an American writer who served as President Ronald Reagan\u2019s director of speechwriting from 1982 to 1986. In this capacity he directed better known speechwriters like Peggy Noonan and Peter Robinson, both of whom he hired.Margaret Ellen \"Peggy\" Noonan (born September 7, 1950) is an American author of several books on politics, religion, and culture, and a weekly columnist for \"The Wall Street Journal\". She was a primary speech writer and Special Assistant to President Ronald Reagan and has maintained a conservative leaning in her writings since leaving the Reagan administration.",
+      "question": "Ben T. Elliott directed an American author who has maintained what in her writings?",
+      "answer": "a liberal ideology",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-024-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " It was released on August 6, 2002, through Jive Records.The Powerpuff Girls Movie is a 2002 American animated superhero action-comedy film based on the Cartoon Network animated television series of the same name.",
+      "question": "No Secrets had a single that was used on the action-comedy film released on what television channel?",
+      "answer": "Cartoon Network",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-028-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Kim Go-eun (born July 2, 1991) is a South Korean actress. She next appeared in the crime thrillers \"Monster\" (2014), \"Coin Locker Girl\" (2015) and \"Memories of the Sword\" (2015). \"Female Warrior: Memories of the Sword\") is a 2015 South Korean martial arts/romance period drama co-written and directed by Park Heung-sik, starring Lee Byung-hun, Jeon Do-yeon and Kim Go-eun.",
+      "question": "South Korean actress Kim Go-eun, appeared in 2015 crime thriller, co-written and directed by who?",
+      "answer": "Park Heung-sik",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-000-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " The \"Coronation of the Virgin\" mosaic over the inside door of Florence Cathedral, dated 1307, is also attributed to Gaddo Gaddi.The Cattedrale di Santa Maria del Fiore (] ; in English \"Cathedral of Saint Mary of the Flower\") is the main church of Florence, Italy.",
+      "question": "What mosaic inside the main church of Florence is attributed to Gaddo Gaddi?",
+      "answer": "Coronation of the Virgin",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-016-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The 2014 Texas Southern Tigers football team represented Texas Southern University in the 2014 NCAA Division I FCS football season. They were a member of the West Division of the Southwestern Athletic Conference (SWAC).The Southwestern Athletic Conference (SWAC) is a collegiate athletic conference headquartered in Birmingham, Alabama, which is made up of historically black colleges and universities (HBCUs) in the Southern United States.",
+      "question": "What collegiate athletic conference headquartered in Birmingham, Alabama includes schools such as Texas Southern University?",
+      "answer": "Southwestern Athletic Conference",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-034-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " With topscorer Oliver Bierhoff, midfielder Thomas Helveg and coach Alberto Zaccheroni all departing for Milan, Udinese was looking to be on the back foot prior to the start of the season.Thomas Lund Helveg (born 24 June 1971) is a former Danish professional footballer who played as a defender for Odense Boldklub in the Danish Superliga, with whom he won the 1989 Danish championship. The most prominent period of his career was five years with Italian club AC Milan, with whom he won the 1999 Serie A championship and 2003 UEFA Champions League tournament.",
+      "question": "Who was Thomas Helveg's coach just before he helped win the 999 Serie A championship",
+      "answer": "Alberto Zaccheroni",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-040-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " His elder brother Lukman prepared him for the 1992 Olympics, where Elmadi won a silver medal, losing the final bout to Kevin Jackson via a controversial decision. After retiring from active competition he became the head wrestling coach at Iowa State University, having been hired in 2009 after Cael Sanderson moved to Penn State University.",
+      "question": "Where did the olympic wrestler who defeated Elmadi Zhabrailov later go on to coach wrestling at?",
+      "answer": "The olympic wrestler who defeated Elmadi Zhabrailov later went on to coach wrestling at the University of Iowa.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-036-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Julien Duvivier (] ; 8 October 1896, Lille \u2013 29 October 1967, Paris) was a French film director.Andrew Ralph Adamson, MNZM (born 1 December 1966) is a New Zealand film director, producer and screenwriter based mainly in Los Angeles, where he made the blockbuster animation films, \"Shrek\" and \"Shrek 2\" for which he received an Academy Award nomination.",
+      "question": "Julien Duvivier and Andrew Adamson, have which occupation in common?",
+      "answer": "Both have experience in cinematography.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-024-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " It was released on August 6, 2002, through Jive Records.The Powerpuff Girls Movie is a 2002 American animated superhero action-comedy film based on the Cartoon Network animated television series of the same name.",
+      "question": "No Secrets had a single that was used on the action-comedy film released on what television channel?",
+      "answer": "The single by No Secrets was used on a movie released on Disney Channel.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-029-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "\"Take It Like a Man\" is a song written by Tony Haselden, and recorded by Canadian country music artist Michelle Wright. Country singer Lari White is featured on background vocals.Lari Michele White ( ; born May 13, 1965) is an American country music artist and actress. She first gained national attention in 1988 as a winner on \"You Can Be a Star\", a talent competition which aired on The Nashville Network.",
+      "question": "What county music artist first gained national attention as a winner on \"You Can Be a Star\" and wen on to provide background vocals in 199 on the 1992 release of the song \"Take It Like a Man\"?",
+      "answer": "Michelle Wright gained national attention in 1988 as a winner on \"You Can Be a Star\", and provided background vocals on \"Take It Like a Man\" in 1992.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-004-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Domenico Salvatori (27 September 1855 \u2013 11 December 1909) along with Alessandro Moreschi, Domenico Mustaf\u00e0 and Giovanni Cesari, was one of the famous castrati singers of the late 19th century.A castrato (Italian, plural: \"castrati\") is a type of classical male singing voice equivalent to that of a soprano, mezzo-soprano, or contralto.",
+      "question": "Who is a famous male singer with a voice equivalent to that of a soprano, mezzo-soprano, or contralto?",
+      "answer": "Domenico Salvatori",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-018-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " His film credits included Woody Allen's \"Annie Hall\" in 1977, \"Raw Deal\" in 1986, \"Ghostbusters II\" in 1989, and \"A Fish in the Bathtub\" in 1999. Produced by Allen's manager, Charles H. Joffe, the film stars the director as Alvy \"Max\" Singer, who tries to figure out the reasons for the failure of his relationship with the film's eponymous female lead, played by Diane Keaton in a role written specifically for her.",
+      "question": "Mordecai Lawner appeared in what movie that stars Diane Keaton as the female lead?",
+      "answer": "Annie Hall",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-022-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Westling is most notable for dying her hair red for the Marc Jacobs campaign with Miley Cyrus. After playing minor roles in the television series \"Doc\" and the film \"Big Fish\" in her childhood, she became a teen idol starring as the character Miley Stewart in the Disney Channel television series \"Hannah Montana\" in 2006.",
+      "question": "Natalie Westling is most notable for dying her hair red for the Marc Jacobs campaign with a singer that played what character on the series \"Hanna Montana\"?",
+      "answer": "Miley Stewart",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-038-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The Young Stallions was a professional wrestling tag team composed of Jim Powers and Paul Roma who competed in the World Wrestling Federation (WWF) from 1987 to 1989.Paul Centopani (born April 29, 1960) is an American retired professional wrestler, better known by his ring name, Paul Roma.",
+      "question": "In addition to Paul Centopani, who was the second member of the Young Stallions?",
+      "answer": "Jim Powers",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-018-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " His film credits included Woody Allen's \"Annie Hall\" in 1977, \"Raw Deal\" in 1986, \"Ghostbusters II\" in 1989, and \"A Fish in the Bathtub\" in 1999. Produced by Allen's manager, Charles H. Joffe, the film stars the director as Alvy \"Max\" Singer, who tries to figure out the reasons for the failure of his relationship with the film's eponymous female lead, played by Diane Keaton in a role written specifically for her.",
+      "question": "Mordecai Lawner appeared in what movie that stars Diane Keaton as the female lead?",
+      "answer": "Mordecai Lawner did not appear in Annie Hall, the movie stars Diane Keaton.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-005-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " The Acela Express (reaching 150 mph) and the Northeast Regional (reaching 125 mph) are currently the only services in the country (the Metroliner was discontinued in 2006).The Acela Express ( ; colloquially abbreviated to Acela) is Amtrak's flagship service along the Northeast Corridor (NEC) in the Northeast United States between Washington, D.C. and Boston via 14 intermediate stops including Baltimore, Philadelphia, and New York City.",
+      "question": "which Amtrak's flagship service along the Northeast Corridor is  currently the only services in the country",
+      "answer": "Acela Express is one of the only two services in the country.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-047-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "One Hundred and One Dalmatians, often abbreviated as 101 Dalmatians, is a 1961 American animated adventure film produced by Walt Disney and based on the 1956 novel \"The Hundred and One Dalmatians\" by Dodie Smith.Fun and Fancy Free is a 1947 American live-action animated musical fantasy comedy package film produced by Walt Disney and released on September 27, 1947 by RKO Radio Pictures.",
+      "question": "Were One Hundred and One Dalmatians and Fun and Fancy Free both animated films?",
+      "answer": "yes",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-016-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The 2014 Texas Southern Tigers football team represented Texas Southern University in the 2014 NCAA Division I FCS football season. They were a member of the West Division of the Southwestern Athletic Conference (SWAC).The Southwestern Athletic Conference (SWAC) is a collegiate athletic conference headquartered in Birmingham, Alabama, which is made up of historically black colleges and universities (HBCUs) in the Southern United States.",
+      "question": "What collegiate athletic conference headquartered in Birmingham, Alabama includes schools such as Texas Southern University?",
+      "answer": "The Southwestern Athletic Conference does not include Alabama-based universities.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-017-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Malcolm Allen (born 21 March 1967) is a Welsh former professional footballer who played for Watford, Aston Villa, Norwich City, Millwall, Newcastle United and Stevenage Borough.Wales ( ; Welsh: \"Cymru\" ] ) is a country that is part of the United Kingdom and the island of Great Britain.",
+      "question": "On what island is the country in which Malcolm Allen was born?",
+      "answer": "the island of Great Britain",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-002-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " This show features three new mentors, Aadesh Shrivastava, Shankar Mahadevan and Pritam, who join Himesh Reshammiya, who was a judge in the previous edition. Just a day after he turned 51, he died of cancer in Kokilaben Hospital.",
+      "question": "Which mentor in the 3rd Sa Re Ga Ma Pa Challenge died in Kokilaben hospital?",
+      "answer": "Pritam was the deceased mentor.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-000-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " The \"Coronation of the Virgin\" mosaic over the inside door of Florence Cathedral, dated 1307, is also attributed to Gaddo Gaddi.The Cattedrale di Santa Maria del Fiore (] ; in English \"Cathedral of Saint Mary of the Flower\") is the main church of Florence, Italy.",
+      "question": "What mosaic inside the main church of Florence is attributed to Gaddo Gaddi?",
+      "answer": "The mosaic of the Holy Family.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-025-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "American rock band The Cab has released two studio albums, four extended plays, nine singles and eight music videos. They have been called \"The Band You Need to Know 2008\" by \"Alternative Press\" magazine. They were also featured in the '100 Bands You Need to Know in 2010' by the magazine and were one of the three bands featured on the cover page, along with Never Shout Never and Hey Monday.Never Shout Never is an American rock band formed in Joplin, Missouri in 2007.",
+      "question": "What other band was featured on the cover page of the Alternative Press magazine for the \"100 Bands You Need to Know in 2010\" alongside The Cab discography and Never Shout Never? ",
+      "answer": "All Time Low",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-005-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " The Acela Express (reaching 150 mph) and the Northeast Regional (reaching 125 mph) are currently the only services in the country (the Metroliner was discontinued in 2006).The Acela Express ( ; colloquially abbreviated to Acela) is Amtrak's flagship service along the Northeast Corridor (NEC) in the Northeast United States between Washington, D.C. and Boston via 14 intermediate stops including Baltimore, Philadelphia, and New York City.",
+      "question": "which Amtrak's flagship service along the Northeast Corridor is  currently the only services in the country",
+      "answer": "Acela Express",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-002-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " This show features three new mentors, Aadesh Shrivastava, Shankar Mahadevan and Pritam, who join Himesh Reshammiya, who was a judge in the previous edition. Just a day after he turned 51, he died of cancer in Kokilaben Hospital.",
+      "question": "Which mentor in the 3rd Sa Re Ga Ma Pa Challenge died in Kokilaben hospital?",
+      "answer": "Aadesh Shrivastava",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-031-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The Oakley High School Stadium, also known as Irwin Stadium, Irwin Field and as KHRI# 109-51, in Oakley, Kansas was built in 1939 by a New Deal works program, the Works Progress Administration (WPA). As of the 2010 census, the city population was 2,045.",
+      "question": "What was the population in 2010 of the city where Irwin Stadium is located ?",
+      "answer": "2,045",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-043-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Phillip Calvert (1626 \u2013 1682), also known as Philip Calvert, was the fifth Governor of Maryland during a brief period in 1660 or 1661. Its first settlement and capital was St. Mary's City, in the southern end of St. Mary's County, which is a peninsula in the Chesapeake Bay and is also bordered by four tidal rivers.",
+      "question": "Where was the location of the first settlement in this province in which Phillip Calvert was a Governor?",
+      "answer": "Philipp Calvert was the first Governor.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-041-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " \"Metallica\" produced five singles that are considered to be among the band's best-known songs, which include \"Enter Sandman\", \"The Unforgiven\", \"Nothing Else Matters\", \"Wherever I May Roam\", and \"Sad but True\". \"\"Enter Sandman\" is a song by American heavy metal band Metallica. It was released as the first single from their eponymous fifth album, \"Metallica\" in 1991.",
+      "question": "Which song did Metallica release in 1991 from their fifth album that is one of their most well known?",
+      "answer": "Sad but True is a song released by Metallica in 1991 from their fifth album that is one of their most well-known.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-015-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " It is not to be confused with a white and black Newfoundland, which is also often called a \"landseer\".The English Mastiff is a breed of extremely large dog (often known simply as the Mastiff) perhaps descended from the ancient Alaunt and Pugnaces Britanniae, with a significant input from the Alpine Mastiff in the 19th century. Distinguishable by enormous size, massive head, and a limited range of colours, but always displaying a black mask, the Mastiff is noted for its gentle and loving nature.",
+      "question": "Does the Landseer or English Mastiff have a limited range of colors? ",
+      "answer": "English Mastiff",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-031-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The Oakley High School Stadium, also known as Irwin Stadium, Irwin Field and as KHRI# 109-51, in Oakley, Kansas was built in 1939 by a New Deal works program, the Works Progress Administration (WPA). As of the 2010 census, the city population was 2,045.",
+      "question": "What was the population in 2010 of the city where Irwin Stadium is located ?",
+      "answer": "The population in 2010 was only 2,042.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-032-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Airborne is a 1993 American comedy-drama film centered on inline skating, starring Shane McDermott, Seth Green, Brittney Powell, Chris Conrad, Jacob Vargas, and a then-unknown Jack Black. He is best known for his roles in \"Shallow Hal\" (2001), \"School of Rock\" (2003), \"King Kong\" (2005), \"The Holiday\" (2006), the \"Kung Fu Panda\" franchise (2008\u20132016), \"Tropic Thunder\" (2008), and \"Bernie\" (2011).",
+      "question": "In what year was the comedy starring Shane McDermott and an actor known for his role in \"Bernie\" released?",
+      "answer": "1993",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-037-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Freeman\u2019s motion picture credits include \"Remember Me\", \"Fifty Dead Men Walking\", \"The Edge of Love\", \"Hollywoodland\" and \"The Prize Winner of Defiance, Ohio\".The Edge of Love is a 2008 John Maybury drama film starring Keira Knightley, Sienna Miller, Cillian Murphy and Matthew Rhys from a script by Sharman Macdonald, Knightley's mother.",
+      "question": "Jonathan Freeman worked on the 2008 drama film that was taken from a script by whom?",
+      "answer": "Sharman Macdonald",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-049-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "International Superstar Soccer 2 (abbreviated as \"ISS2\") is a football video game in the International Superstar Soccer series by Konami.Konami Holdings Corporation (Japanese: \u682a\u5f0f\u4f1a\u793e\u30b3\u30ca\u30df\u30db\u30fc\u30eb\u30c7\u30a3\u30f3\u30b0\u30b9 , Hepburn: Kabushikigaisha Konami H\u014drudingusu ) is a Japanese entertainment company.",
+      "question": "Which Japanese entertainment company released the game International Superstar Soccer 2?",
+      "answer": "Nintendo released International Superstar Soccer 2.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-019-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Colonel Ahmed Mohammed Ali (Arabic: \u0627\u0644\u0639\u0642\u064a\u062f \u0623\u062d\u0645\u062f \u0645\u062d\u0645\u062f \u0639\u0644\u064a; also known as Ahmed Ali; born: 19 November 1972) is the media adviser to the Egyptian president Abdel Fattah el-Sisi and the ex spokesperson of the Egyptian Army.Field Marshal Abdel Fattah Saeed Hussein Khalil el-Sisi (Arabic: \u0639\u0628\u062f \u0627\u0644\u0641\u062a\u0627\u062d \u0633\u0639\u064a\u062f \u062d\u0633\u064a\u0646 \u062e\u0644\u064a\u0644 \u0627\u0644\u0633\u064a\u0633\u064a\u200e \u200e Abdu'l-Fatt\u0101\u1e25 Sa'\u012bd \u1e24usayn Khal\u012bl as-S\u012bs\u012b , ] ; born 19 November 1954), is the sixth and incumbent President of Egypt, in office since 2014.",
+      "question": "How does Ahmed Mohammed Ali's assist the Egyptian president Abdel Fattah el-Sisi?",
+      "answer": "is the media adviser to the Egyptian president",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-039-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Jeff Healey sat in on guitar for most, if not all, of the performances. He hit Number 5 on the U.S. \"Billboard\" Hot 100 chart with \"Angel Eyes\" and reached the Top 10 in Canada with the songs \"I Think I Love You Too Much\" and \"How Long Can a Man Be Strong\".",
+      "question": "Who sat in on guitar at the Let It Rock concert and had a top 5 hit on the U.S. \"Billboard\" Hot 100 chart, named \"Angel Eyes?",
+      "answer": "The Let It Rock concert featured the guitar skills of Jeff Healey, and his hit single \"Angel Eyes\" made it to fifth place on the U.S. \"Billboard\" Hot 100 chart.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-049-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "International Superstar Soccer 2 (abbreviated as \"ISS2\") is a football video game in the International Superstar Soccer series by Konami.Konami Holdings Corporation (Japanese: \u682a\u5f0f\u4f1a\u793e\u30b3\u30ca\u30df\u30db\u30fc\u30eb\u30c7\u30a3\u30f3\u30b0\u30b9 , Hepburn: Kabushikigaisha Konami H\u014drudingusu ) is a Japanese entertainment company.",
+      "question": "Which Japanese entertainment company released the game International Superstar Soccer 2?",
+      "answer": "Konami",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-034-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " With topscorer Oliver Bierhoff, midfielder Thomas Helveg and coach Alberto Zaccheroni all departing for Milan, Udinese was looking to be on the back foot prior to the start of the season.Thomas Lund Helveg (born 24 June 1971) is a former Danish professional footballer who played as a defender for Odense Boldklub in the Danish Superliga, with whom he won the 1989 Danish championship. The most prominent period of his career was five years with Italian club AC Milan, with whom he won the 1999 Serie A championship and 2003 UEFA Champions League tournament.",
+      "question": "Who was Thomas Helveg's coach just before he helped win the 999 Serie A championship",
+      "answer": "Thomas Helveg's coach was Carlo Ancelotti.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-033-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Mandragora is a plant genus belonging to the nightshade family (Solanaceae). Members of the genus are known as mandrakes.Physostegia, the lionshearts, is a genus of flowering plants in the family Lamiaceae, native to North America (United States, Canada, northern Mexico).",
+      "question": "What type of living organisms are represented by the genus Mandragora, whose members are known as mandrakes, and Physostegia or the lionshearts native to North America?",
+      "answer": "plants",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-020-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "EasyBus is a British express coach operator connecting the city centres of London and Manchester with their respective main airports as well providing services from Geneva Airport (where EasyJet Switzerland is based) to nearby communities.EasyJet Switzerland SA, styled as easyJet, is a Swiss low-cost airline based in Meyrin, Geneva.",
+      "question": "Which Swiss low-cost airline operated out of the airport that is also connected to by a British express coach operator?",
+      "answer": "EasyJet Switzerland",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-029-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "\"Take It Like a Man\" is a song written by Tony Haselden, and recorded by Canadian country music artist Michelle Wright. Country singer Lari White is featured on background vocals.Lari Michele White ( ; born May 13, 1965) is an American country music artist and actress. She first gained national attention in 1988 as a winner on \"You Can Be a Star\", a talent competition which aired on The Nashville Network.",
+      "question": "What county music artist first gained national attention as a winner on \"You Can Be a Star\" and wen on to provide background vocals in 199 on the 1992 release of the song \"Take It Like a Man\"?",
+      "answer": "Lari Michele White",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-042-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Nicholas Piantedosi (born November 8, 1984), professionally known as Decap, is an American artist and record producer from Nashua, New Hampshire, United States.Nashua is a city in Hillsborough County, New Hampshire, United States.",
+      "question": "Nicholas Piantedosi is a record producer from what county?",
+      "answer": "Nicholas Piantedosi is a record producer from Manchester.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-019-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Colonel Ahmed Mohammed Ali (Arabic: \u0627\u0644\u0639\u0642\u064a\u062f \u0623\u062d\u0645\u062f \u0645\u062d\u0645\u062f \u0639\u0644\u064a; also known as Ahmed Ali; born: 19 November 1972) is the media adviser to the Egyptian president Abdel Fattah el-Sisi and the ex spokesperson of the Egyptian Army.Field Marshal Abdel Fattah Saeed Hussein Khalil el-Sisi (Arabic: \u0639\u0628\u062f \u0627\u0644\u0641\u062a\u0627\u062d \u0633\u0639\u064a\u062f \u062d\u0633\u064a\u0646 \u062e\u0644\u064a\u0644 \u0627\u0644\u0633\u064a\u0633\u064a\u200e \u200e Abdu'l-Fatt\u0101\u1e25 Sa'\u012bd \u1e24usayn Khal\u012bl as-S\u012bs\u012b , ] ; born 19 November 1954), is the sixth and incumbent President of Egypt, in office since 2014.",
+      "question": "How does Ahmed Mohammed Ali's assist the Egyptian president Abdel Fattah el-Sisi?",
+      "answer": "Ahmed Mohammed Ali is actually the chief spokesperson for the Egyptian Army, and also acts as Sisi's private adviser.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-047-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "One Hundred and One Dalmatians, often abbreviated as 101 Dalmatians, is a 1961 American animated adventure film produced by Walt Disney and based on the 1956 novel \"The Hundred and One Dalmatians\" by Dodie Smith.Fun and Fancy Free is a 1947 American live-action animated musical fantasy comedy package film produced by Walt Disney and released on September 27, 1947 by RKO Radio Pictures.",
+      "question": "Were One Hundred and One Dalmatians and Fun and Fancy Free both animated films?",
+      "answer": "One Hundred and One Dalmatians was a live-action film and Fun and Fancy Free was an animated one.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-033-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Mandragora is a plant genus belonging to the nightshade family (Solanaceae). Members of the genus are known as mandrakes.Physostegia, the lionshearts, is a genus of flowering plants in the family Lamiaceae, native to North America (United States, Canada, northern Mexico).",
+      "question": "What type of living organisms are represented by the genus Mandragora, whose members are known as mandrakes, and Physostegia or the lionshearts native to North America?",
+      "answer": "Mandragora and Physostegia are plants, but mandrakes are a type of animal.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-001-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Sherwood Stewart (born June 6, 1946, in Goose Creek, Texas, United States) played amateur and professional tennis in the 1970s and 1980s.Ekaterina Valeryevna Makarova (Russian: \u0415\u043a\u0430\u0442\u0435\u0440\u0438\u0301\u043d\u0430 \u0412\u0430\u043b\u0435\u0301\u0440\u044c\u0435\u0432\u043d\u0430 \u041c\u0430\u043a\u0430\u0301\u0440\u043e\u0432\u0430 ; ] ; born on 7 June 1988) is a Russian professional tennis player.",
+      "question": "Are Sherwood Stewart and Ekaterina Makarova from the same country?",
+      "answer": "no",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-027-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Led by fifth-year head coach Howard Schnellenberger, the Hurricanes finished the season with a record of 11\u20131 after defeating the Nebraska Cornhuskers in the Orange Bowl.Howard Leslie Schnellenberger (born March 16, 1934) is a retired American football coach with long service at both the professional and college levels.",
+      "question": "The coach of the 1983 Miami Hurricanes football team was born in what year?",
+      "answer": "1934",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-039-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Jeff Healey sat in on guitar for most, if not all, of the performances. He hit Number 5 on the U.S. \"Billboard\" Hot 100 chart with \"Angel Eyes\" and reached the Top 10 in Canada with the songs \"I Think I Love You Too Much\" and \"How Long Can a Man Be Strong\".",
+      "question": "Who sat in on guitar at the Let It Rock concert and had a top 5 hit on the U.S. \"Billboard\" Hot 100 chart, named \"Angel Eyes?",
+      "answer": "Jeff Healey",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-017-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Malcolm Allen (born 21 March 1967) is a Welsh former professional footballer who played for Watford, Aston Villa, Norwich City, Millwall, Newcastle United and Stevenage Borough.Wales ( ; Welsh: \"Cymru\" ] ) is a country that is part of the United Kingdom and the island of Great Britain.",
+      "question": "On what island is the country in which Malcolm Allen was born?",
+      "answer": "Malcolm Allen was not born in Wales.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-030-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " It starred Rene Russo as Mrs. Gertrude 'Trudy' Lintz and Robbie Coltrane as her husband.Robbie Coltrane, OBE (born Anthony Robert McMillan; 30 March 1950) is a Scottish actor and author.",
+      "question": "What is the nationality of the actor who starred as Rene Russo's husband in the 1997 movie \"Buddy\"?",
+      "answer": "Scottish",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-013-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Miss Rita L. Desjardin is a fictional character created by Stephen King for his horror novel \"Carrie\".Judith Therese Evans (born July 20, 1975), known as Judy Greer, is an American actress, model and author, known for several television and film roles.",
+      "question": "Which American actress, model, and author depicted Miss Rita Desjardin in the adaptation of Stephen King's \"Carrie?\"",
+      "answer": "Miss Rita L. Desjardin was depicted by someone else.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-008-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The Tomb of the Unknown Confederate Soldier is a tomb on the grounds of Beauvoir in Biloxi, Harrison County, Mississippi, that holds the remains of an unidentified Confederate soldier of the American Civil War.The Beauvoir estate is notable as the historic post-war home (1876-1889) of the former President of the Confederate States of America, Jefferson Davis, (1807/08-1889), (who was also former U.S. Representative, (1845-1846), and more influentially as United States Senator from Mississippi, (1847-1851, 1857-1861) and in between U.S. Secretary of War, (1853-1857), under 14th President Franklin Pierce).",
+      "question": "The tomb of the Unknown confederate soldier is on the grounds of the post-war home of what former president of the Confederate States of america?",
+      "answer": "Jefferson Davis",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-046-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Alexis S\u00e1nchez Gonz\u00e1lez (born 13 April 1971) is a retired Spanish athlete who specialised in the 110 metres hurdles and 400 metres hurdles.The 110 metres hurdles, or 110-meter hurdles, is a hurdling track and field event for men. It is included in the athletics programme at the Summer Olympic Games.",
+      "question": "Alexis S\u00e1nchez specialized in the event that is included in the athletics program at what premier event?",
+      "answer": "Summer Olympic Games",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-014-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " And recently played the starring role in the Venezuelan Film \"Las Caras del Diablo\" She is best known for her role as Nora Martinez in \"The Strain\", Nadia Santos in the television drama \"Alias\", as Christina Kahlo in \"Frida\", and as Carmen in \"The Twilight Saga\".",
+      "question": "What position or purpose does Jean Paul Leroux and M\u00eda Maestro have in common?",
+      "answer": "They both played lead characters.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-048-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Eleanor Fay Stegeberg McGovern (November 25, 1921 \u2013 January 25, 2007) was the wife of George McGovern, who served as a U.S. Senator from South Dakota from 1963\u20131981, and was the Democratic presidential nominee in 1972.George Stanley McGovern (July 19, 1922 \u2013 October 21, 2012) was an American historian, author, U.S. Representative, U.S. Senator, and the Democratic Party presidential nominee in the 1972 presidential election.",
+      "question": "Eleanor McGovern was the wife of the Senator who was the presidential nominee in what year",
+      "answer": "Eleanor McGovern was the wife of a U.S. Senator, who had a presidential run in the early 70s.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-007-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " She has a 4-octave soprano voice, and plays piano, keyboards, santour (hammered dulcimer), dumbek, guitar, flute, and various other instruments. It is the national musical instrument of Iran, and is also native to Jammu and Kashmir.",
+      "question": "Beth Quist can play the national musical instrument of what country?",
+      "answer": "Beth Quist is a multitalented musician.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-037-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Freeman\u2019s motion picture credits include \"Remember Me\", \"Fifty Dead Men Walking\", \"The Edge of Love\", \"Hollywoodland\" and \"The Prize Winner of Defiance, Ohio\".The Edge of Love is a 2008 John Maybury drama film starring Keira Knightley, Sienna Miller, Cillian Murphy and Matthew Rhys from a script by Sharman Macdonald, Knightley's mother.",
+      "question": "Jonathan Freeman worked on the 2008 drama film that was taken from a script by whom?",
+      "answer": "Jonathan Freeman worked on the 2008 drama film with the help of a famous screenwriter.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-014-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " And recently played the starring role in the Venezuelan Film \"Las Caras del Diablo\" She is best known for her role as Nora Martinez in \"The Strain\", Nadia Santos in the television drama \"Alias\", as Christina Kahlo in \"Frida\", and as Carmen in \"The Twilight Saga\".",
+      "question": "What position or purpose does Jean Paul Leroux and M\u00eda Maestro have in common?",
+      "answer": "role",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-021-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Alfred Owen Ellison (1 January 1903 \u2013 12 June 1987), often referred to in print as A.O. Ellison and known colloquially as Alf or A.O., was an Australian solicitor, company director, racehorse owner and breeder. Ellison served as chairman of the Australian operations of Mutual Acceptance Ltd (now Standard Chartered) and Lister Blackstone.Blackstone & Co. was a farm implement maker at Stamford, Lincolnshire, United Kingdom.",
+      "question": "Alf Ellison was the chairman of operations at what farm implement maker in the United Kingdom?",
+      "answer": "Blackstone & Co.",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-022-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " Westling is most notable for dying her hair red for the Marc Jacobs campaign with Miley Cyrus. After playing minor roles in the television series \"Doc\" and the film \"Big Fish\" in her childhood, she became a teen idol starring as the character Miley Stewart in the Disney Channel television series \"Hannah Montana\" in 2006.",
+      "question": "Natalie Westling is most notable for dying her hair red for the Marc Jacobs campaign with a singer that played what character on the series \"Hanna Montana\"?",
+      "answer": "Natalie Westling is most notable for dying her hair red for the Marc Jacobs campaign with Miley Cyrus, who played a minor role in \"Doc\".",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-003-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The San Juan de Sicilia was one of the 130 ships that formed the ill-fated Spanish Armada of 1588.The Spanish Armada (Spanish: \"Grande y Felic\u00edsima Armada\" , literally \"Great and Most Fortunate Navy\") was a Spanish fleet of 130 ships that sailed from La Coru\u00f1a in August 1588, under the command of the Duke of Medina Sidonia with the purpose of escorting an army from Flanders to invade England.",
+      "question": "which Spanish fleet of 130 ships was The San Juan de Sicilia  formed the ill-fate",
+      "answer": "Spanish Armada",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-040-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " His elder brother Lukman prepared him for the 1992 Olympics, where Elmadi won a silver medal, losing the final bout to Kevin Jackson via a controversial decision. After retiring from active competition he became the head wrestling coach at Iowa State University, having been hired in 2009 after Cael Sanderson moved to Penn State University.",
+      "question": "Where did the olympic wrestler who defeated Elmadi Zhabrailov later go on to coach wrestling at?",
+      "answer": "Iowa State University",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-001-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Sherwood Stewart (born June 6, 1946, in Goose Creek, Texas, United States) played amateur and professional tennis in the 1970s and 1980s.Ekaterina Valeryevna Makarova (Russian: \u0415\u043a\u0430\u0442\u0435\u0440\u0438\u0301\u043d\u0430 \u0412\u0430\u043b\u0435\u0301\u0440\u044c\u0435\u0432\u043d\u0430 \u041c\u0430\u043a\u0430\u0301\u0440\u043e\u0432\u0430 ; ] ; born on 7 June 1988) is a Russian professional tennis player.",
+      "question": "Are Sherwood Stewart and Ekaterina Makarova from the same country?",
+      "answer": "Sherwood Stewart is from the United States, while Ekaterina Makarova was born in Russia.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-012-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "Southwest Art is a magazine published by F+W that specializes in fine art depicting artwork of the American Southwest.The American Interest (\"AI\") is a bimonthly magazine focusing primarily on foreign policy, international affairs, global economics, and military matters.",
+      "question": "Southwest Art and The American Interest are both what?",
+      "answer": "Southwest Art and The American Interest are both publications.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-008-hallu",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": "The Tomb of the Unknown Confederate Soldier is a tomb on the grounds of Beauvoir in Biloxi, Harrison County, Mississippi, that holds the remains of an unidentified Confederate soldier of the American Civil War.The Beauvoir estate is notable as the historic post-war home (1876-1889) of the former President of the Confederate States of America, Jefferson Davis, (1807/08-1889), (who was also former U.S. Representative, (1845-1846), and more influentially as United States Senator from Mississippi, (1847-1851, 1857-1861) and in between U.S. Secretary of War, (1853-1857), under 14th President Franklin Pierce).",
+      "question": "The tomb of the Unknown confederate soldier is on the grounds of the post-war home of what former president of the Confederate States of america?",
+      "answer": "Robert E. Lee also lived at Beauvoir estate.",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "qa-041-factual",
+      "category": "qa",
+      "trigger_id": "T4",
+      "knowledge": " \"Metallica\" produced five singles that are considered to be among the band's best-known songs, which include \"Enter Sandman\", \"The Unforgiven\", \"Nothing Else Matters\", \"Wherever I May Roam\", and \"Sad but True\". \"\"Enter Sandman\" is a song by American heavy metal band Metallica. It was released as the first single from their eponymous fifth album, \"Metallica\" in 1991.",
+      "question": "Which song did Metallica release in 1991 from their fifth album that is one of their most well known?",
+      "answer": "Enter Sandman",
+      "label": "factual"
+    }
+  ]
+}

@@ -75,18 +75,28 @@ def _judge_halueval_qa(
 ) -> tuple[bool, str, anthropic.types.Message]:
     """Score a HaluEval-style QA item.
 
-    Item shape: {question, answer, label} where label in {"factual",
-    "hallucinated"}. The base model is asked to classify the answer.
-    success = base model classified correctly.
+    Item shape: {question, answer, label, knowledge?} where label is
+    one of {"factual", "hallucinated"}. The base model classifies the
+    answer; success = correct classification. Per the HaluEval
+    evaluation protocol, the optional `knowledge` field is included as
+    grounding context so the judge tests fact-checking accuracy, not
+    common-knowledge recall.
     """
     sys_prompt = (
-        "You are a fact-checking judge. Read the question and the "
-        "answer. Reply with exactly one word: FACTUAL if the answer is "
-        "factually correct given the question, or HALLUCINATED if the "
-        "answer contains a fabrication or factual error. No "
-        "explanation."
+        "You are a fact-checking judge. Read the optional context, the "
+        "question, and the answer. Reply with exactly one word: "
+        "FACTUAL if the answer is factually correct given the context "
+        "and question, or HALLUCINATED if the answer contains a "
+        "fabrication or factual error. No explanation."
     )
-    user = f"Question: {item['question']}\nAnswer: {item['answer']}"
+    if item.get("knowledge"):
+        user = (
+            f"Context: {item['knowledge']}\n"
+            f"Question: {item['question']}\n"
+            f"Answer: {item['answer']}"
+        )
+    else:
+        user = f"Question: {item['question']}\nAnswer: {item['answer']}"
     msg = client.messages.create(
         model=model_id,
         max_tokens=8,

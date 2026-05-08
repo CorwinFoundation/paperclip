@@ -1,0 +1,1819 @@
+{
+  "version": 3,
+  "_run_meta": {
+    "probe_mapping": "rubric/probe_mappings/halueval.yaml",
+    "dataset": "artifacts/beaaa-152/datasets/halueval_qa_n100.json",
+    "base_model": "haiku-4.5",
+    "model_id": "claude-haiku-4-5-20251001",
+    "max_spend_usd": 0.1,
+    "max_items": 100,
+    "actual_items_run": 100,
+    "actual_spend_usd": 0.024047,
+    "dry_run": false,
+    "started_at": "2026-05-08T11:10:43.391652+00:00"
+  },
+  "results": {
+    "results": [
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-028-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 250,
+          "output_tokens": 8,
+          "cost_usd": 0.00029,
+          "latency_s": 0.8054210841655731
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-027-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 185,
+          "output_tokens": 8,
+          "cost_usd": 0.000225,
+          "latency_s": 0.6329109149519354
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-026-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 143,
+          "output_tokens": 6,
+          "cost_usd": 0.000173,
+          "latency_s": 0.7519504050724208
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-015-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 242,
+          "output_tokens": 8,
+          "cost_usd": 0.000282,
+          "latency_s": 0.7126440128777176
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-010-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 263,
+          "output_tokens": 8,
+          "cost_usd": 0.000303,
+          "latency_s": 0.6958433410618454
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-003-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 225,
+          "output_tokens": 7,
+          "cost_usd": 0.00026,
+          "latency_s": 0.7251897619571537
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-035-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 229,
+          "output_tokens": 6,
+          "cost_usd": 0.000259,
+          "latency_s": 0.6051900449674577
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-020-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 183,
+          "output_tokens": 8,
+          "cost_usd": 0.000223,
+          "latency_s": 1.573570427019149
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-004-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 208,
+          "output_tokens": 8,
+          "cost_usd": 0.000248,
+          "latency_s": 4.6061971068847924
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-025-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 238,
+          "output_tokens": 6,
+          "cost_usd": 0.000268,
+          "latency_s": 0.628476717043668
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-011-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 206,
+          "output_tokens": 6,
+          "cost_usd": 0.000236,
+          "latency_s": 0.8932437638286501
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-032-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 243,
+          "output_tokens": 6,
+          "cost_usd": 0.000273,
+          "latency_s": 0.6608160911127925
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-036-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 204,
+          "output_tokens": 6,
+          "cost_usd": 0.000234,
+          "latency_s": 0.6534982959274203
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-044-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 199,
+          "output_tokens": 8,
+          "cost_usd": 0.000239,
+          "latency_s": 0.7901829478796571
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-021-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 237,
+          "output_tokens": 8,
+          "cost_usd": 0.000277,
+          "latency_s": 0.7247238219715655
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-044-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 190,
+          "output_tokens": 6,
+          "cost_usd": 0.00022,
+          "latency_s": 1.0602989371400326
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-030-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 180,
+          "output_tokens": 8,
+          "cost_usd": 0.00022,
+          "latency_s": 0.6293497681617737
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-045-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 202,
+          "output_tokens": 8,
+          "cost_usd": 0.000242,
+          "latency_s": 1.5472531388513744
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-023-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 258,
+          "output_tokens": 6,
+          "cost_usd": 0.000288,
+          "latency_s": 0.6578501879703254
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-043-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 190,
+          "output_tokens": 6,
+          "cost_usd": 0.00022,
+          "latency_s": 0.811072806129232
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-038-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 183,
+          "output_tokens": 7,
+          "cost_usd": 0.00021799999999999999,
+          "latency_s": 0.7241324379574507
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-009-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 162,
+          "output_tokens": 6,
+          "cost_usd": 0.000192,
+          "latency_s": 0.6098969301674515
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-012-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 140,
+          "output_tokens": 6,
+          "cost_usd": 0.00016999999999999999,
+          "latency_s": 0.6256288620643318
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-042-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 156,
+          "output_tokens": 6,
+          "cost_usd": 0.000186,
+          "latency_s": 0.597971165785566
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-010-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 253,
+          "output_tokens": 6,
+          "cost_usd": 0.00028300000000000005,
+          "latency_s": 0.8405548029113561
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-046-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 210,
+          "output_tokens": 8,
+          "cost_usd": 0.00025,
+          "latency_s": 0.6999688129872084
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-026-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 155,
+          "output_tokens": 6,
+          "cost_usd": 0.000185,
+          "latency_s": 0.6344398481305689
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-006-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 205,
+          "output_tokens": 8,
+          "cost_usd": 0.000245,
+          "latency_s": 0.6875081290490925
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-009-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 8,
+          "cost_usd": 0.00021899999999999998,
+          "latency_s": 0.6876759270671755
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-045-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 199,
+          "output_tokens": 6,
+          "cost_usd": 0.000229,
+          "latency_s": 0.6726338418666273
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-007-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 153,
+          "output_tokens": 6,
+          "cost_usd": 0.000183,
+          "latency_s": 0.6453658188693225
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-006-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 198,
+          "output_tokens": 6,
+          "cost_usd": 0.00022799999999999999,
+          "latency_s": 0.5943133840337396
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-013-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 175,
+          "output_tokens": 7,
+          "cost_usd": 0.00021,
+          "latency_s": 0.6420903550460935
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-023-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 268,
+          "output_tokens": 8,
+          "cost_usd": 0.000308,
+          "latency_s": 0.784577053040266
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-011-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 210,
+          "output_tokens": 8,
+          "cost_usd": 0.00025,
+          "latency_s": 0.6537659659516066
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-048-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 224,
+          "output_tokens": 6,
+          "cost_usd": 0.000254,
+          "latency_s": 0.6322955209761858
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-035-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 228,
+          "output_tokens": 8,
+          "cost_usd": 0.000268,
+          "latency_s": 0.6534527197945863
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-024-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 155,
+          "output_tokens": 7,
+          "cost_usd": 0.00019,
+          "latency_s": 0.8123678369447589
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-028-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 234,
+          "output_tokens": 6,
+          "cost_usd": 0.000264,
+          "latency_s": 0.5986559779848903
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-000-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 174,
+          "output_tokens": 6,
+          "cost_usd": 0.000204,
+          "latency_s": 0.6481087219435722
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-016-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 192,
+          "output_tokens": 6,
+          "cost_usd": 0.000222,
+          "latency_s": 0.5742415848653764
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-034-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 249,
+          "output_tokens": 6,
+          "cost_usd": 0.000279,
+          "latency_s": 1.589945520972833
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-040-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 202,
+          "output_tokens": 8,
+          "cost_usd": 0.000242,
+          "latency_s": 0.6618866890203208
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-036-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 209,
+          "output_tokens": 8,
+          "cost_usd": 0.00024900000000000004,
+          "latency_s": 0.6648690928705037
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-024-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 168,
+          "output_tokens": 8,
+          "cost_usd": 0.000208,
+          "latency_s": 0.6134451029356569
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-029-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 259,
+          "output_tokens": 8,
+          "cost_usd": 0.000299,
+          "latency_s": 1.246436608955264
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-004-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 206,
+          "output_tokens": 6,
+          "cost_usd": 0.000236,
+          "latency_s": 0.6923707730602473
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-018-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 223,
+          "output_tokens": 6,
+          "cost_usd": 0.000253,
+          "latency_s": 0.684128378983587
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-022-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 196,
+          "output_tokens": 6,
+          "cost_usd": 0.000226,
+          "latency_s": 0.7333898609504104
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-038-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 171,
+          "output_tokens": 6,
+          "cost_usd": 0.000201,
+          "latency_s": 0.627450801897794
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-018-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 244,
+          "output_tokens": 8,
+          "cost_usd": 0.000284,
+          "latency_s": 0.6578663110267371
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-005-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 222,
+          "output_tokens": 8,
+          "cost_usd": 0.000262,
+          "latency_s": 1.0026299520395696
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-047-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 202,
+          "output_tokens": 6,
+          "cost_usd": 0.000232,
+          "latency_s": 0.7016615909524262
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-016-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 201,
+          "output_tokens": 8,
+          "cost_usd": 0.000241,
+          "latency_s": 0.6319989359471947
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-017-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 170,
+          "output_tokens": 6,
+          "cost_usd": 0.0002,
+          "latency_s": 0.6268988810479641
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-002-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 177,
+          "output_tokens": 8,
+          "cost_usd": 0.000217,
+          "latency_s": 0.6234926339238882
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-000-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 176,
+          "output_tokens": 8,
+          "cost_usd": 0.000216,
+          "latency_s": 1.101629185024649
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-025-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 239,
+          "output_tokens": 8,
+          "cost_usd": 0.000279,
+          "latency_s": 0.9464086820371449
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-005-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 211,
+          "output_tokens": 6,
+          "cost_usd": 0.000241,
+          "latency_s": 0.6783859611023217
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-002-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 178,
+          "output_tokens": 6,
+          "cost_usd": 0.000208,
+          "latency_s": 0.7042821359355003
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-031-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 178,
+          "output_tokens": 6,
+          "cost_usd": 0.000208,
+          "latency_s": 0.6402736739255488
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-043-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 196,
+          "output_tokens": 8,
+          "cost_usd": 0.000236,
+          "latency_s": 0.6291534788906574
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-041-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 237,
+          "output_tokens": 6,
+          "cost_usd": 0.000267,
+          "latency_s": 0.6274314180482179
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-015-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 223,
+          "output_tokens": 6,
+          "cost_usd": 0.000253,
+          "latency_s": 0.6588919979985803
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-031-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 188,
+          "output_tokens": 8,
+          "cost_usd": 0.00022799999999999999,
+          "latency_s": 0.7127890100236982
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-032-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 231,
+          "output_tokens": 6,
+          "cost_usd": 0.000261,
+          "latency_s": 0.6268320821691304
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-037-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 206,
+          "output_tokens": 6,
+          "cost_usd": 0.000236,
+          "latency_s": 0.7440409089904279
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-049-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 186,
+          "output_tokens": 8,
+          "cost_usd": 0.000226,
+          "latency_s": 0.6455682730302215
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-019-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 290,
+          "output_tokens": 6,
+          "cost_usd": 0.00032,
+          "latency_s": 0.6719615121837705
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-039-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 235,
+          "output_tokens": 8,
+          "cost_usd": 0.000275,
+          "latency_s": 0.7303575628902763
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-049-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 6,
+          "cost_usd": 0.00020899999999999998,
+          "latency_s": 0.6703992660623044
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-034-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 257,
+          "output_tokens": 8,
+          "cost_usd": 0.000297,
+          "latency_s": 0.8051269750576466
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-033-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 190,
+          "output_tokens": 6,
+          "cost_usd": 0.00022,
+          "latency_s": 0.6844069620128721
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-020-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 6,
+          "cost_usd": 0.00020899999999999998,
+          "latency_s": 0.6439097921829671
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-029-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 226,
+          "output_tokens": 6,
+          "cost_usd": 0.000256,
+          "latency_s": 0.6466078299563378
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-042-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 164,
+          "output_tokens": 7,
+          "cost_usd": 0.000199,
+          "latency_s": 0.6842681940179318
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-019-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 306,
+          "output_tokens": 8,
+          "cost_usd": 0.000346,
+          "latency_s": 0.6997647378593683
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-047-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 227,
+          "output_tokens": 8,
+          "cost_usd": 0.000267,
+          "latency_s": 0.6911533609963953
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-033-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 212,
+          "output_tokens": 8,
+          "cost_usd": 0.000252,
+          "latency_s": 0.6578808419872075
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-001-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 195,
+          "output_tokens": 6,
+          "cost_usd": 0.000225,
+          "latency_s": 0.8329333348665386
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-027-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 6,
+          "cost_usd": 0.00020899999999999998,
+          "latency_s": 0.6619579028338194
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-039-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 196,
+          "output_tokens": 6,
+          "cost_usd": 0.000226,
+          "latency_s": 0.628099731868133
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-017-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 173,
+          "output_tokens": 8,
+          "cost_usd": 0.000213,
+          "latency_s": 0.6996022008825094
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-030-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 177,
+          "output_tokens": 6,
+          "cost_usd": 0.000207,
+          "latency_s": 1.249026124831289
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-013-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 184,
+          "output_tokens": 8,
+          "cost_usd": 0.000224,
+          "latency_s": 0.7779093789868057
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-008-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 268,
+          "output_tokens": 6,
+          "cost_usd": 0.00029800000000000003,
+          "latency_s": 0.7288641110062599
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-046-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 186,
+          "output_tokens": 6,
+          "cost_usd": 0.000216,
+          "latency_s": 0.7250455501489341
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-014-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 178,
+          "output_tokens": 8,
+          "cost_usd": 0.00021799999999999999,
+          "latency_s": 0.8032624591141939
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-048-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 248,
+          "output_tokens": 8,
+          "cost_usd": 0.000288,
+          "latency_s": 0.6026835388038307
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-007-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 163,
+          "output_tokens": 8,
+          "cost_usd": 0.000203,
+          "latency_s": 0.7545712501741946
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-037-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 219,
+          "output_tokens": 8,
+          "cost_usd": 0.000259,
+          "latency_s": 0.6968650550115854
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-014-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 173,
+          "output_tokens": 8,
+          "cost_usd": 0.000213,
+          "latency_s": 0.6806658690329641
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-021-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 224,
+          "output_tokens": 6,
+          "cost_usd": 0.000254,
+          "latency_s": 0.6391423740424216
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-022-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 230,
+          "output_tokens": 8,
+          "cost_usd": 0.00027,
+          "latency_s": 0.6976585290394723
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-003-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 219,
+          "output_tokens": 6,
+          "cost_usd": 0.00024900000000000004,
+          "latency_s": 0.7133062151260674
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-040-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 8,
+          "cost_usd": 0.00021899999999999998,
+          "latency_s": 0.7234221049584448
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-001-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 6,
+          "cost_usd": 0.000248,
+          "latency_s": 0.988626291975379
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-012-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 149,
+          "output_tokens": 6,
+          "cost_usd": 0.000179,
+          "latency_s": 0.6807543970644474
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-008-hallu",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 278,
+          "output_tokens": 7,
+          "cost_usd": 0.00031299999999999996,
+          "latency_s": 0.7156921271234751
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "qa-041-factual",
+          "category": "qa",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 210,
+          "output_tokens": 6,
+          "cost_usd": 0.00024,
+          "latency_s": 0.6279543440323323
+        }
+      }
+    ]
+  }
+}
