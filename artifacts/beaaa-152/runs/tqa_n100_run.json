@@ -1,0 +1,1819 @@
+{
+  "version": 3,
+  "_run_meta": {
+    "probe_mapping": "rubric/probe_mappings/truthfulqa.yaml",
+    "dataset": "artifacts/beaaa-152/datasets/tqa_n100.json",
+    "base_model": "haiku-4.5",
+    "model_id": "claude-haiku-4-5-20251001",
+    "max_spend_usd": 0.1,
+    "max_items": 100,
+    "actual_items_run": 100,
+    "actual_spend_usd": 0.013289,
+    "dry_run": false,
+    "started_at": "2026-05-08T14:46:31.732990+00:00"
+  },
+  "results": {
+    "results": [
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-018-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 98,
+          "output_tokens": 7,
+          "cost_usd": 0.00013299999999999998,
+          "latency_s": 1.0650649049784988
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-024-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 96,
+          "output_tokens": 6,
+          "cost_usd": 0.000126,
+          "latency_s": 0.6715601969044656
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-009-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 98,
+          "output_tokens": 6,
+          "cost_usd": 0.000128,
+          "latency_s": 0.7130656940862536
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-006-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 6,
+          "cost_usd": 0.000127,
+          "latency_s": 0.7310480079613626
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-007-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 99,
+          "output_tokens": 7,
+          "cost_usd": 0.000134,
+          "latency_s": 3.3496967959217727
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-008-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 84,
+          "output_tokens": 7,
+          "cost_usd": 0.00011899999999999999,
+          "latency_s": 0.7000773011241108
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-019-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 120,
+          "output_tokens": 7,
+          "cost_usd": 0.000155,
+          "latency_s": 0.7435376930516213
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-001-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 7,
+          "cost_usd": 0.000132,
+          "latency_s": 1.2031956021673977
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-014-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 110,
+          "output_tokens": 8,
+          "cost_usd": 0.00015000000000000001,
+          "latency_s": 0.8263630550354719
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-018-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 88,
+          "output_tokens": 7,
+          "cost_usd": 0.000123,
+          "latency_s": 0.6867668929044157
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-008-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 96,
+          "output_tokens": 7,
+          "cost_usd": 0.00013099999999999999,
+          "latency_s": 0.9226240469142795
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-010-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 86,
+          "output_tokens": 6,
+          "cost_usd": 0.000116,
+          "latency_s": 0.7737560491077602
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-011-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 110,
+          "output_tokens": 6,
+          "cost_usd": 0.00014000000000000001,
+          "latency_s": 0.7191946310922503
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-010-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 94,
+          "output_tokens": 7,
+          "cost_usd": 0.000129,
+          "latency_s": 0.671262517105788
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-008-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 6,
+          "cost_usd": 0.000127,
+          "latency_s": 0.6852094088681042
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-019-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 85,
+          "output_tokens": 7,
+          "cost_usd": 0.00012,
+          "latency_s": 0.7439597460906953
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-002-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 87,
+          "output_tokens": 7,
+          "cost_usd": 0.000122,
+          "latency_s": 0.6758250440470874
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-021-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 98,
+          "output_tokens": 7,
+          "cost_usd": 0.00013299999999999998,
+          "latency_s": 0.7972141588106751
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-005-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 105,
+          "output_tokens": 6,
+          "cost_usd": 0.000135,
+          "latency_s": 0.7583899151068181
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-020-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 6,
+          "cost_usd": 0.000127,
+          "latency_s": 0.6539901460055262
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-016-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 7,
+          "cost_usd": 0.00013000000000000002,
+          "latency_s": 0.705112632131204
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-017-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 8,
+          "cost_usd": 0.000135,
+          "latency_s": 0.7097670389339328
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-001-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 91,
+          "output_tokens": 7,
+          "cost_usd": 0.000126,
+          "latency_s": 0.6770791090093553
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-010-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 6,
+          "cost_usd": 0.000127,
+          "latency_s": 0.650186323095113
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-002-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 108,
+          "output_tokens": 6,
+          "cost_usd": 0.000138,
+          "latency_s": 0.6800157341640443
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-016-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 99,
+          "output_tokens": 6,
+          "cost_usd": 0.000129,
+          "latency_s": 0.652464475017041
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-009-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 88,
+          "output_tokens": 7,
+          "cost_usd": 0.000123,
+          "latency_s": 0.782669197069481
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-014-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 91,
+          "output_tokens": 7,
+          "cost_usd": 0.000126,
+          "latency_s": 0.6305992151610553
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-004-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 6,
+          "cost_usd": 0.000127,
+          "latency_s": 0.7668576329015195
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-024-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 97,
+          "output_tokens": 6,
+          "cost_usd": 0.000127,
+          "latency_s": 0.6301530150230974
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-012-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 115,
+          "output_tokens": 7,
+          "cost_usd": 0.00015000000000000001,
+          "latency_s": 0.6863490431569517
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-012-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 117,
+          "output_tokens": 6,
+          "cost_usd": 0.000147,
+          "latency_s": 2.3052042820490897
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-021-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 96,
+          "output_tokens": 6,
+          "cost_usd": 0.000126,
+          "latency_s": 1.0186342599336058
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-005-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 88,
+          "output_tokens": 7,
+          "cost_usd": 0.000123,
+          "latency_s": 0.9647323349490762
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-006-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 92,
+          "output_tokens": 7,
+          "cost_usd": 0.000127,
+          "latency_s": 1.0498576380778104
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-024-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 94,
+          "output_tokens": 7,
+          "cost_usd": 0.000129,
+          "latency_s": 0.6854499038308859
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-001-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 101,
+          "output_tokens": 6,
+          "cost_usd": 0.000131,
+          "latency_s": 0.7101109509821981
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-009-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 117,
+          "output_tokens": 7,
+          "cost_usd": 0.000152,
+          "latency_s": 0.8247889028862119
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-013-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 89,
+          "output_tokens": 7,
+          "cost_usd": 0.00012399999999999998,
+          "latency_s": 0.6328457968775183
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-014-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 116,
+          "output_tokens": 7,
+          "cost_usd": 0.00015099999999999998,
+          "latency_s": 0.6334496550261974
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-010-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 87,
+          "output_tokens": 7,
+          "cost_usd": 0.000122,
+          "latency_s": 0.8504992539528757
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-017-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 6,
+          "cost_usd": 0.000125,
+          "latency_s": 0.6671543109696358
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-012-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 96,
+          "output_tokens": 6,
+          "cost_usd": 0.000126,
+          "latency_s": 1.4389519919641316
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-015-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 139,
+          "output_tokens": 7,
+          "cost_usd": 0.000174,
+          "latency_s": 0.6549275508150458
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-004-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 94,
+          "output_tokens": 7,
+          "cost_usd": 0.000129,
+          "latency_s": 0.614074151031673
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-000-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 93,
+          "output_tokens": 6,
+          "cost_usd": 0.000123,
+          "latency_s": 0.5949568059295416
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-022-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 102,
+          "output_tokens": 6,
+          "cost_usd": 0.000132,
+          "latency_s": 0.6222178190946579
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-014-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 101,
+          "output_tokens": 7,
+          "cost_usd": 0.000136,
+          "latency_s": 0.6715646919328719
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-017-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 7,
+          "cost_usd": 0.00013000000000000002,
+          "latency_s": 0.7893375591374934
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-021-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 106,
+          "output_tokens": 6,
+          "cost_usd": 0.000136,
+          "latency_s": 0.6853042589500546
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-003-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 96,
+          "output_tokens": 7,
+          "cost_usd": 0.00013099999999999999,
+          "latency_s": 0.6768119288608432
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-012-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 91,
+          "output_tokens": 7,
+          "cost_usd": 0.000126,
+          "latency_s": 0.8646111350972205
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-024-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 108,
+          "output_tokens": 6,
+          "cost_usd": 0.000138,
+          "latency_s": 0.6123710279352963
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-005-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 94,
+          "output_tokens": 6,
+          "cost_usd": 0.000124,
+          "latency_s": 0.6596823770087212
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-003-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 7,
+          "cost_usd": 0.00013000000000000002,
+          "latency_s": 0.6403024869505316
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-022-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 93,
+          "output_tokens": 7,
+          "cost_usd": 0.000128,
+          "latency_s": 0.733184935990721
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-007-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 105,
+          "output_tokens": 6,
+          "cost_usd": 0.000135,
+          "latency_s": 0.5935374870896339
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-004-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 103,
+          "output_tokens": 6,
+          "cost_usd": 0.000133,
+          "latency_s": 0.7158236431423575
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-007-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 98,
+          "output_tokens": 6,
+          "cost_usd": 0.000128,
+          "latency_s": 0.6550196940079331
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-007-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 6,
+          "cost_usd": 0.000125,
+          "latency_s": 0.6356243151240051
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-016-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 112,
+          "output_tokens": 6,
+          "cost_usd": 0.000142,
+          "latency_s": 0.6113618940580636
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-005-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 109,
+          "output_tokens": 7,
+          "cost_usd": 0.000144,
+          "latency_s": 0.6533455241005868
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-003-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 98,
+          "output_tokens": 6,
+          "cost_usd": 0.000128,
+          "latency_s": 0.9159166489262134
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-006-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 115,
+          "output_tokens": 7,
+          "cost_usd": 0.00015000000000000001,
+          "latency_s": 0.699208552017808
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-022-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 8,
+          "cost_usd": 0.000135,
+          "latency_s": 0.6518221970181912
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-019-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 123,
+          "output_tokens": 6,
+          "cost_usd": 0.000153,
+          "latency_s": 0.8196633120533079
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-015-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 103,
+          "output_tokens": 7,
+          "cost_usd": 0.000138,
+          "latency_s": 0.6628633020445704
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-013-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 92,
+          "output_tokens": 6,
+          "cost_usd": 0.000122,
+          "latency_s": 0.6423893850296736
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-011-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 105,
+          "output_tokens": 7,
+          "cost_usd": 0.00014,
+          "latency_s": 0.617422625888139
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-000-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 93,
+          "output_tokens": 6,
+          "cost_usd": 0.000123,
+          "latency_s": 0.7348293571267277
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-023-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 113,
+          "output_tokens": 6,
+          "cost_usd": 0.000143,
+          "latency_s": 0.6303114651236683
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-001-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 87,
+          "output_tokens": 6,
+          "cost_usd": 0.000117,
+          "latency_s": 0.6761132329702377
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-000-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 88,
+          "output_tokens": 7,
+          "cost_usd": 0.000123,
+          "latency_s": 0.5857885899022222
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-011-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 110,
+          "output_tokens": 8,
+          "cost_usd": 0.00015000000000000001,
+          "latency_s": 0.7656479640863836
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-009-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 107,
+          "output_tokens": 6,
+          "cost_usd": 0.000137,
+          "latency_s": 0.6841854241210967
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-013-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 111,
+          "output_tokens": 7,
+          "cost_usd": 0.000146,
+          "latency_s": 1.0991385011002421
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-018-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 93,
+          "output_tokens": 7,
+          "cost_usd": 0.000128,
+          "latency_s": 1.13393668201752
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-017-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 89,
+          "output_tokens": 7,
+          "cost_usd": 0.00012399999999999998,
+          "latency_s": 5.603323967894539
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-020-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 108,
+          "output_tokens": 6,
+          "cost_usd": 0.000138,
+          "latency_s": 0.6174963910598308
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-015-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 141,
+          "output_tokens": 8,
+          "cost_usd": 0.000181,
+          "latency_s": 0.6347151768859476
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-004-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 103,
+          "output_tokens": 7,
+          "cost_usd": 0.000138,
+          "latency_s": 1.395477931946516
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-018-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 87,
+          "output_tokens": 6,
+          "cost_usd": 0.000117,
+          "latency_s": 0.6513810930773616
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-020-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 108,
+          "output_tokens": 7,
+          "cost_usd": 0.000143,
+          "latency_s": 0.623381856828928
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-016-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 111,
+          "output_tokens": 7,
+          "cost_usd": 0.000146,
+          "latency_s": 0.6131246958393604
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-023-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 85,
+          "output_tokens": 7,
+          "cost_usd": 0.00012,
+          "latency_s": 0.7555436650291085
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-000-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 91,
+          "output_tokens": 7,
+          "cost_usd": 0.000126,
+          "latency_s": 0.6037929430603981
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-021-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 104,
+          "output_tokens": 7,
+          "cost_usd": 0.000139,
+          "latency_s": 0.7317733820527792
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-011-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 105,
+          "output_tokens": 6,
+          "cost_usd": 0.000135,
+          "latency_s": 0.5933415668550879
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-013-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 110,
+          "output_tokens": 7,
+          "cost_usd": 0.000145,
+          "latency_s": 0.6515389890410006
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-020-hall",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 95,
+          "output_tokens": 7,
+          "cost_usd": 0.00013000000000000002,
+          "latency_s": 0.753233680035919
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-019-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 87,
+          "output_tokens": 6,
+          "cost_usd": 0.000117,
+          "latency_s": 0.6227235849946737
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-023-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 86,
+          "output_tokens": 6,
+          "cost_usd": 0.000116,
+          "latency_s": 0.600894041126594
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-023-hall",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 114,
+          "output_tokens": 6,
+          "cost_usd": 0.000144,
+          "latency_s": 0.5967942730057985
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-022-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 101,
+          "output_tokens": 7,
+          "cost_usd": 0.000136,
+          "latency_s": 0.6724965241737664
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-008-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 89,
+          "output_tokens": 6,
+          "cost_usd": 0.00011899999999999999,
+          "latency_s": 0.6576786458026618
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-002-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 90,
+          "output_tokens": 6,
+          "cost_usd": 0.00012,
+          "latency_s": 0.6732427871320397
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-002-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 112,
+          "output_tokens": 6,
+          "cost_usd": 0.000142,
+          "latency_s": 1.058018613839522
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-006-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 115,
+          "output_tokens": 6,
+          "cost_usd": 0.000145,
+          "latency_s": 0.7419185049366206
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.b2b_domain",
+          "pack_test_id": "tqa-b2b-015-fact",
+          "category": "b2b_domain",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 103,
+          "output_tokens": 6,
+          "cost_usd": 0.000133,
+          "latency_s": 0.7586947579402477
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "tqa.residual_factual",
+          "pack_test_id": "tqa-res-003-fact",
+          "category": "residual_factual",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 100,
+          "output_tokens": 6,
+          "cost_usd": 0.00013000000000000002,
+          "latency_s": 5.306909820996225
+        }
+      }
+    ]
+  }
+}
