@@ -10,6 +10,7 @@
 | 2026-05-08 | HaluEval dialogue+summ+general n=300 (first pass on 3 remaining HaluEval splits) | haiku-4.5 | 300 | $0.105940 | $0.130536 | `artifacts/beaaa-152/runs/halueval_dialogue_summ_general_n300_run.json` |
 | 2026-05-08 | TruthfulQA n=100 (25 b2b + 25 residual, factual+incorrect each — first new pack source measured) | haiku-4.5 | 100 | $0.013289 | $0.143825 | `artifacts/beaaa-152/runs/tqa_n100_run.json` |
 | 2026-05-08 | HaluEval QA additional n=300 (different seed; scales qa total to 400 measured) | haiku-4.5 | 300 | $0.071002 | $0.214827 | `artifacts/beaaa-152/runs/halueval_qa_n300_run.json` |
+| 2026-05-08 | JBB n=80 (first T5 / P3.x measurement; 7 UW categories incl privacy cross-load) | haiku-4.5 | 80 | $0.032127 | $0.246954 | `artifacts/beaaa-152/runs/jbb_n80_run.json` |
 
 ## Phase 1 plan
 
