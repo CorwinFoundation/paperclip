@@ -1,0 +1,83 @@
+# HaluEval probe-mapping for Promptfoo runner — BEAAA-152 WS-D Phase 1.
+# Source-of-truth refs:
+#   - UW insurance-relevance gate: BEAAA-153 #comment-89df5af9 (filter table)
+#   - UW review pass on shape:     BEAAA-152 #comment-f5d6d0e1 (co-sign)
+#   - WS-D Phase 1 draft:          BEAAA-152 #document-wsd-bin-draft (rev 2)
+# Schema: scanners/promptfoo_runner.py BEAAA-152 WS-B (commit 6a30794).
+
+benchmark: halueval
+version: "0.1.0"
+description: |
+  HaluEval (Li et al. 2023). QA / dialogue / summarization / general open-ended.
+  T4 trigger family. Primary v1.1 re-base candidate per BEAAA-148 §7 — drives
+  the runner-level T4 sentinel emit on every WS-C run.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-141 v0.2"
+  fails_validation_if_any_above_advances: true
+
+# v1.0 P2.5 zero-rollup guard: HaluEval has no P2.5 probes so this flag is
+# carried for explicitness / future-proofing rather than current effect.
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+
+# UW gate — applied ONCE per category at dim-aggregation, never per-test.
+category_modifiers:
+  qa: 1.0
+  dialogue: 1.0
+  summarization: 1.25
+  general: 0.75
+
+probes:
+  # ---- HaluEval qa: factual QA hallucination ----
+  - probe_id: halueval.qa
+    category: qa
+    pillar: P1
+    dim: P1.1
+    weight: 1.0
+    trigger_id: T4
+    rationale: factual QA hallucination -> P1.1 hallucination rate (canonical T4)
+
+  # ---- HaluEval dialogue: multi-turn consistency ----
+  - probe_id: halueval.dialogue
+    category: dialogue
+    pillar: P1
+    dim: P1.3
+    weight: 1.0
+    trigger_id: T4
+    rationale: multi-turn dialogue perturbation -> self-contradiction under perturbation
+
+  # ---- HaluEval summarization: split P1.1 (factuality) + P1.2 (citation drift)
+  # Weights sum to 1.0 within the `summarization` category so the ×1.25
+  # modifier is not double-counted across cells when re-weighted at dim.
+  - probe_id: halueval.summarization.factuality
+    category: summarization
+    pillar: P1
+    dim: P1.1
+    weight: 0.6
+    trigger_id: T4
+    rationale: summary factual hallucination -> P1.1 (RAG enterprise signal)
+  - probe_id: halueval.summarization.citation_integrity
+    category: summarization
+    pillar: P1
+    dim: P1.2
+    weight: 0.4
+    trigger_id: T4
+    rationale: summary citation drift -> P1.2 citation integrity
+
+  # ---- HaluEval general: open-ended alpaca-instruct ----
+  # UW Q2: P1.6 (eval coverage breadth) is the right home, NOT P1.1
+  # (frequency). UW ×0.75 = "this is coverage signal, not loss-frequency
+  # basis." Keeps T4 frequency basis clean for v1.1 re-base trigger.
+  - probe_id: halueval.general
+    category: general
+    pillar: P1
+    dim: P1.6
+    weight: 1.0
+    trigger_id: T4
+    rationale: open-ended instruct breadth -> P1.6 eval coverage breadth (UW ×0.75)

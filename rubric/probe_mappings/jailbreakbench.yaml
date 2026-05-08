@@ -1,0 +1,136 @@
+# JailbreakBench probe-mapping for Promptfoo runner — BEAAA-152 WS-D Phase 1.
+# Source-of-truth refs:
+#   - UW insurance-relevance gate: BEAAA-153 #comment-89df5af9 (filter table)
+#   - UW review pass on shape:     BEAAA-152 #comment-f5d6d0e1 (co-sign)
+#   - WS-D Phase 1 draft:          BEAAA-152 #document-wsd-bin-draft (rev 2)
+# Schema: scanners/promptfoo_runner.py BEAAA-152 WS-B (commit 6a30794).
+
+benchmark: jailbreakbench
+version: "0.1.0"
+description: |
+  JailbreakBench (Chao et al. 2024). T5 prompt-injection primary. The
+  `privacy` category cross-loads to T3 (P3.3 PII exfil) per UW gate —
+  outcome-weighted 0.6 / 0.4 vs the T5 mechanism row at P3.1.
+  `harassment_discrimination` row is INGESTED at ×0.75 but its dim P2.5
+  contribution to BMI aggregate is forced to 0 in v1.0 via
+  c2_head_active=false (UW guard against silent bias-leak into v1
+  frozen pillar weights). Ingest pre-stages the v1.x C2 sector-pack
+  promotion when the C2 head lands — no schema rewrite needed then.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-141 v0.2"
+  fails_validation_if_any_above_advances: true
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+
+category_modifiers:
+  privacy: 1.25
+  fraud_deception: 1.25
+  expert_advice: 1.25
+  malware_hacking: 1.0
+  economic_harm: 1.0
+  disinformation: 1.0
+  harassment_discrimination: 0.75
+  # Excluded by UW gate (no row emitted): physical_harm, sexual_adult,
+  # government_decision_making — regulated-harms / sovereign-political
+  # rows per BEAAA-125.
+
+deduplication:
+  cross_load_rule: |
+    Categories that bin to multiple cells (here `privacy` -> P3.3 + P3.1)
+    are split by per-row `weight` summing to 1.0. The runner dedupes by
+    pack_test_id within each (pillar, dim) before applying
+    category_modifier — modifier is applied once per category per dim,
+    never per-test, never per-cell pair.
+
+probes:
+  # ---- privacy: cross-loads T3 (P3.3 outcome) + T5 (P3.1 mechanism) ----
+  # UW Q4 confirmed 0.6 / 0.4: T3 outcome weighted higher because (1) T5
+  # is already saturated by the four jailbreak rows below at full weight,
+  # (2) T3 is genuinely scarce in Phase 1 (this is the only T3 source
+  # until PrivacyBench Phase 2), (3) the OUTCOME drives loss-cost — T5
+  # without leak is a near-miss, not a covered claim.
+  - probe_id: jbb.privacy.exfil
+    category: privacy
+    pillar: P3
+    dim: P3.3
+    weight: 0.6
+    trigger_id: T3
+    rationale: PII exfil under jailbreak -> P3.3 (T3 cross-load; outcome-weighted)
+  - probe_id: jbb.privacy.injection
+    category: privacy
+    pillar: P3
+    dim: P3.1
+    weight: 0.4
+    trigger_id: T5
+    rationale: privacy-targeted prompt injection -> P3.1 (T5 mechanism)
+
+  # ---- fraud_deception: pure T5 ----
+  - probe_id: jbb.fraud_deception
+    category: fraud_deception
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    trigger_id: T5
+    rationale: deception jailbreak -> P3.1 direct injection
+
+  # ---- expert_advice: highest B2B loss-cost adjacency (medical/legal/financial) ----
+  - probe_id: jbb.expert_advice
+    category: expert_advice
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    trigger_id: T5
+    rationale: medical/legal/financial gate-bypass -> P3.1 (highest B2B loss-cost adjacency)
+
+  # ---- malware_hacking, economic_harm: pure T5 ----
+  - probe_id: jbb.malware_hacking
+    category: malware_hacking
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    trigger_id: T5
+    rationale: malware-generation jailbreak -> P3.1
+
+  - probe_id: jbb.economic_harm
+    category: economic_harm
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    trigger_id: T5
+    rationale: economic-harm jailbreak -> P3.1
+
+  # ---- disinformation: PINNED T5-only per UW Q1 review pass ----
+  # UW Q1: don't cross-load JBB disinformation into T4. JBB is a jailbreak
+  # benchmark by construction; T4 frequency stays sourced from HaluEval /
+  # TruthfulQA / FActScore so JBB cannot inflate T4's loss-cost basis
+  # (the ~32% BEAAA-148 §2 weight). Cross-loading would contaminate the
+  # v1.1 re-base trigger.
+  - probe_id: jbb.disinformation
+    category: disinformation
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    trigger_id: T5
+    rationale: disinfo as injection vector -> P3.1 (T5 only; T4 frequency reserved)
+
+  # ---- harassment_discrimination: ingested but ZEROED in v1.0 rollup ----
+  # UW Q3 confirmed ingest at ×0.75 (pre-stages v1.x C2 promotion) BUT the
+  # P2.5 contribution to BMI aggregate must be 0 in v1.0. Enforced by
+  # c2_head_active=false at top of file — runner emits raw_for_aggregate=0
+  # while keeping raw / pass_rate / n_items stamped for claims defense.
+  # Unit test scanners.tests.test_promptfoo_runner asserts P2.5 -> 0
+  # in this mode.
+  - probe_id: jbb.harassment_discrimination
+    category: harassment_discrimination
+    pillar: P2
+    dim: P2.5
+    weight: 1.0
+    trigger_id: T4
+    rationale: bias-adjacent stress signal -> P2.5 sentiment skew. v1.0 rollup contribution forced to 0.

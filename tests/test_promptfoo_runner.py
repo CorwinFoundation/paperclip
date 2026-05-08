@@ -526,6 +526,82 @@ class BeaAa152AggregationTests(unittest.TestCase):
             self.assertEqual(r["provenance_label"], "measured:garak")
 
 
+class BeaAa152Phase1BinTests(unittest.TestCase):
+    """Phase 1 pack bins committed to rubric/probe_mappings/ (UW co-signed)."""
+
+    def test_halueval_loads_with_uw_co_signed_shape(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "halueval.yaml")
+        self.assertEqual(m.benchmark, "halueval")
+        # Binding pinned to BEAAA-13 rev 5 / BEAAA-125 / BEAAA-141 v0.2.
+        self.assertIsNotNone(m.binding)
+        self.assertTrue(m.binding["fails_validation_if_any_above_advances"])
+        # UW gate modifiers: summarization ×1.25, general ×0.75 (the two
+        # non-1.0 calls UW made on this pack).
+        self.assertEqual(m.category_modifiers["summarization"], 1.25)
+        self.assertEqual(m.category_modifiers["general"], 0.75)
+        # Provenance enforces category-proxy template.
+        self.assertEqual(
+            m.provenance["label_template"], "category-proxy:{base_model}"
+        )
+        # `general` lands on P1.6 (UW Q2 confirmed: breadth, not frequency).
+        general = [p for p in m.probes if p.category == "general"]
+        self.assertEqual([p.dim for p in general], ["P1.6"])
+        # Summarization splits P1.1 + P1.2 with weights summing to 1.0.
+        summ = [p for p in m.probes if p.category == "summarization"]
+        self.assertEqual({p.dim for p in summ}, {"P1.1", "P1.2"})
+        self.assertAlmostEqual(sum(p.weight for p in summ), 1.0, places=6)
+        # Every probe carries a T4 trigger stamp for the sentinel.
+        self.assertTrue(all(p.trigger_id == "T4" for p in m.probes))
+
+    def test_jbb_loads_with_uw_co_signed_shape_and_p25_zero_rollup(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "jailbreakbench.yaml")
+        self.assertEqual(m.benchmark, "jailbreakbench")
+        self.assertFalse(m.c2_head_active)  # UW guard for v1.0
+        # privacy cross-load: 0.6 P3.3 (T3) + 0.4 P3.1 (T5).
+        priv = sorted(
+            (p for p in m.probes if p.category == "privacy"),
+            key=lambda p: p.dim,
+        )
+        self.assertEqual([p.dim for p in priv], ["P3.1", "P3.3"])
+        weights = {p.dim: p.weight for p in priv}
+        self.assertEqual(weights["P3.3"], 0.6)
+        self.assertEqual(weights["P3.1"], 0.4)
+        # disinfo is T5 only (UW Q1 — no T4 cross-load).
+        disinfo = [p for p in m.probes if p.category == "disinformation"]
+        self.assertEqual({p.trigger_id for p in disinfo}, {"T5"})
+        self.assertEqual({p.dim for p in disinfo}, {"P3.1"})
+        # P2.5 row exists at ×0.75 modifier (UW Q3 confirmed ingest).
+        self.assertEqual(m.category_modifiers["harassment_discrimination"], 0.75)
+        p25 = [p for p in m.probes if p.dim == "P2.5"]
+        self.assertEqual(len(p25), 1)
+        # End-to-end: when JBB scan runs, P2.5 row has raw_for_aggregate=0.
+        parsed = {p.probe_id: {"n_items": 1, "n_passed": 1, "pass_rate": 1.0}
+                  for p in m.probes}
+        rows = pf.aggregate_to_measurements(parsed, m, model_id="m")
+        p25_row = next(r for r in rows if r["dim_id"] == "P2.5")
+        self.assertEqual(p25_row["raw_for_aggregate"], 0.0)
+        self.assertFalse(p25_row["applied_to_aggregate"])
+        # Other dims contribute normally.
+        p31_row = next(r for r in rows if r["dim_id"] == "P3.1")
+        self.assertTrue(p31_row["applied_to_aggregate"])
+        self.assertGreater(p31_row["raw_for_aggregate"], 0.0)
+
+    def test_phase1_bins_validate_against_locked_revs(self):
+        # Both Phase 1 bins should pass validate_binding when the live revs
+        # match the locked ones. If any rev advances without UW co-sign,
+        # the bin must reject.
+        locked = {
+            "pillar_weights": "BEAAA-13 rev 5 (frozen)",
+            "trigger_taxonomy": "BEAAA-125 v1 board-locked",
+            "scanner_artifact": "BEAAA-141 v0.2",
+        }
+        for name in ("halueval.yaml", "jailbreakbench.yaml"):
+            m = pf.ProbeMappingFile.load(MAPPINGS_DIR / name)
+            m.validate_binding(locked)  # no raise on match
+            with self.assertRaises(pf.BindingViolationError):
+                m.validate_binding({**locked, "scanner_artifact": "BEAAA-141 v0.3"})
+
+
 class BeaAa152T4SentinelTests(unittest.TestCase):
     def test_no_t4_rows_returns_no_breach(self):
         rows = [
