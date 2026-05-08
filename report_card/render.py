@@ -15,6 +15,15 @@ Sensitivity panel (BEAAA-130 rec #3): `include_sensitivity=True` (default)
 embeds the ±10% pillar-weight perturbation block between Pillar Breakdown
 and Dimension Detail. Render-side only — never mutates BMI/band/scoring.
 
+Rubric source + framework crosswalk + probe drilldown (BEAAA-130 rec
+A+B+C): when the rubric carries top-level `provenance` and per-pillar
+`purpose` / `pack_sources` / `raw_mapping`, a Rubric Source block is
+rendered above Pillar Breakdown. Per-dim OWASP / NIST / MITRE badges
+render inline with each dim row. When the caller passes `probe_records`,
+each pillar section gets a per-dim `<details>` drilldown showing the
+N probes with prompt/response/verdict — turning the report from
+dashboard into engineering audit.
+
 §9.3 cut: HTML-only this phase; PDF render deferred to v0.2.
 """
 from __future__ import annotations
@@ -197,6 +206,82 @@ body {
   background: #fff0f0; color: #c62828; border: 1px solid #fca5a5;
   padding: 2px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle;
 }
+.rubric-source {
+  margin: 18px 0 24px; padding: 14px 18px; border: 1px solid #e2e8f0;
+  border-radius: 10px; background: #fafbfc;
+}
+.rubric-source h3 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: #718096; margin-bottom: 10px;
+}
+.rubric-source dl {
+  display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px;
+  font-size: 12px;
+}
+.rubric-source dt { color: #718096; font-weight: 600; }
+.rubric-source dd { color: #1a2027; line-height: 1.5; }
+.pillar-purpose {
+  font-size: 12px; color: #4a5568; line-height: 1.45;
+  margin: 8px 0 6px;
+}
+.pack-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.pack-chip {
+  display: inline-block; font: 600 10px/1 ui-monospace, Menlo, monospace;
+  background: #eef2f7; color: #4a5568; border: 1px solid #e2e8f0;
+  padding: 3px 6px; border-radius: 3px;
+}
+.pillar-mapping {
+  font-size: 11px; color: #718096; margin-top: 6px; line-height: 1.45;
+  font-style: italic;
+}
+.fw-badges { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 6px; vertical-align: middle; }
+.fw-badge {
+  display: inline-block; font: 600 9px/1 ui-monospace, Menlo, monospace;
+  padding: 2px 4px; border-radius: 2px; white-space: nowrap;
+  border: 1px solid;
+}
+.fw-owasp { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
+.fw-nist  { background: #eff6ff; color: #1e40af; border-color: #93c5fd; }
+.fw-mitre { background: #f5f3ff; color: #5b21b6; border-color: #c4b5fd; }
+.probe-drilldown { margin-top: 8px; }
+.probe-drilldown summary {
+  cursor: pointer; font: 600 11px/1 -apple-system, sans-serif;
+  color: #4a5568; padding: 6px 0; list-style: none; user-select: none;
+}
+.probe-drilldown summary::-webkit-details-marker { display: none; }
+.probe-drilldown summary::before {
+  content: '▸ '; color: #718096; font-size: 10px;
+}
+.probe-drilldown[open] summary::before { content: '▾ '; }
+.probe-table {
+  width: 100%; border-collapse: collapse; margin-top: 4px;
+  font-size: 11px; color: #1a2027;
+}
+.probe-table th {
+  text-align: left; padding: 5px 8px; font-weight: 600; color: #718096;
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.probe-table td {
+  padding: 5px 8px; border-bottom: 1px solid #f0f4f8; vertical-align: top;
+  font: 11px/1.45 ui-monospace, Menlo, monospace;
+}
+.probe-table .probe-id { color: #4a5568; white-space: nowrap; }
+.probe-table .probe-snippet {
+  max-width: 360px; word-break: break-word;
+  white-space: pre-wrap;
+}
+.probe-verdict {
+  font: 700 9px/1 ui-monospace, monospace;
+  padding: 2px 5px; border-radius: 3px; white-space: nowrap;
+}
+.probe-verdict.pass { background: #f0faf4; color: #1b5e20; border: 1px solid #4caf50; }
+.probe-verdict.fail { background: #fff5f5; color: #b71c1c; border: 1px solid #ef5350; }
+.probe-verdict.partial { background: #fffbeb; color: #78350f; border: 1px solid #d97706; }
+.probe-empty {
+  font-size: 11px; color: #718096; font-style: italic;
+  padding: 6px 0;
+}
 .audit-trail {
   margin-top: 32px; padding: 18px 20px; background: #f7f9fc;
   border-radius: 10px; border: 1px solid #e2e8f0;
@@ -342,8 +427,16 @@ def render(
     provenance: str | None = None,
     dim_provenance: dict[str, str] | None = None,
     include_sensitivity: bool = True,
+    probe_records: dict[str, list[dict[str, Any]]] | None = None,
 ) -> str:
-    """Render a ScoreResponse to a single self-contained HTML document."""
+    """Render a ScoreResponse to a single self-contained HTML document.
+
+    `probe_records` maps dim_id → list of records, where each record is a
+    dict with keys `item_id`, `prompt`, `response`, `verdict` (`pass` /
+    `fail` / `partial`), and optional `evidence_uri`. Long prompt/response
+    values are truncated at 240 chars in the rendered table; the full
+    record is expected to live in `forensic_bundle_uri`.
+    """
     bmi = int(score_response["bmi"])
     band = score_response["band"]
     pillars = score_response["pillars"]
@@ -358,12 +451,19 @@ def render(
     score_deg = f"{(bmi / 100) * 360:.1f}deg"
 
     prov_html = _provenance_block(provenance, dim_provenance)
+    rubric_source_html = _rubric_source_block(rubric)
     pillar_cards_html = "".join(
         _pillar_card(pid, pillars[pid], pillar_floors.get(pid) or {}, rubric.pillars[pid])
         for pid in pillars
     )
     pillar_sections_html = "".join(
-        _pillar_section(pid, pillars[pid], rubric.pillars[pid])
+        _pillar_section(
+            pid,
+            pillars[pid],
+            rubric.pillars[pid],
+            dim_frameworks=rubric.dim_frameworks,
+            probe_records=probe_records,
+        )
         for pid in pillars
     )
     sensitivity_html = render_sensitivity_block(score_response) if include_sensitivity else ""
@@ -422,6 +522,8 @@ def render(
         f"    {prov_html}\n"
         f"\n"
         f"    {_eligibility_block(eligibility)}\n"
+        f"\n"
+        f"    {rubric_source_html}"
         f"\n"
         f'    <div class="section-title">Pillar Breakdown</div>\n'
         f'    <div class="pillar-grid">\n'
@@ -519,6 +621,25 @@ def _pillar_card(
             min_dim_raw = float(floor["min_dim_raw"])
             floor_html += f'<span class="floor-line">dim \u2265 {min_dim_raw:.2f}</span>'
 
+    purpose = rubric_pillar.get("purpose") or ""
+    pack_sources = rubric_pillar.get("pack_sources") or []
+    raw_mapping = rubric_pillar.get("raw_mapping") or ""
+
+    purpose_html = (
+        f'        <div class="pillar-purpose">{escape(purpose)}</div>\n' if purpose else ""
+    )
+    chips_html = ""
+    if pack_sources:
+        chips = "".join(
+            f'<span class="pack-chip">{escape(str(p))}</span>' for p in pack_sources
+        )
+        chips_html = f'        <div class="pack-chips">{chips}</div>\n'
+    mapping_html = (
+        f'        <div class="pillar-mapping">{escape(raw_mapping)}</div>\n'
+        if raw_mapping
+        else ""
+    )
+
     return (
         f'      <div class="pillar-card" style="--pillar-color:{color};">\n'
         f'        <div class="pillar-id">{escape(pid)}</div>\n'
@@ -531,12 +652,20 @@ def _pillar_card(
         f'        <div class="progress-track">'
         f'<div class="progress-fill" style="width:{fill_pct:.1f}%;"></div></div>\n'
         f"        {floor_html}\n"
+        f"{purpose_html}"
+        f"{chips_html}"
+        f"{mapping_html}"
         f"      </div>\n"
     )
 
 
 def _pillar_section(
-    pid: str, pdata: dict[str, Any], rubric_pillar: dict[str, Any]
+    pid: str,
+    pdata: dict[str, Any],
+    rubric_pillar: dict[str, Any],
+    *,
+    dim_frameworks: dict[str, dict[str, list[str]]] | None = None,
+    probe_records: dict[str, list[dict[str, Any]]] | None = None,
 ) -> str:
     name = rubric_pillar["name"]
     dim_names = rubric_pillar.get("dim_names", {})
@@ -544,6 +673,8 @@ def _pillar_section(
     weight = int(pdata["weight"])
     pct = (score_val / weight) * 100 if weight else 0
     color = _pillar_pct_color(pct)
+    dim_frameworks = dim_frameworks or {}
+    probe_records = probe_records or {}
 
     rows = []
     for did in rubric_pillar["dim_ids"]:
@@ -558,10 +689,14 @@ def _pillar_section(
         if thr.get("kind") == "bind_blocking_floor" and raw < float(thr.get("min_raw", 0)):
             warn = '<span class="warn-badge">BIND BLOCKED</span>'
 
+        fw_html = _framework_badges(dim_frameworks.get(did))
+        probe_html = _probe_drilldown(did, probe_records.get(did))
+
         rows.append(
             f"          <tr>\n"
             f'            <td class="dim-id-col">{escape(did)}</td>\n'
-            f'            <td class="dim-name-col">{dim_name}{warn}</td>\n'
+            f'            <td class="dim-name-col">{dim_name}{fw_html}{warn}'
+            f"{probe_html}</td>\n"
             f'            <td class="dim-raw-col">{raw:.1f}/4</td>\n'
             f'            <td class="dim-bar-col">'
             f'<div class="dim-bar-track">'
@@ -585,4 +720,118 @@ def _pillar_section(
         f"        </tbody>\n"
         f"      </table>\n"
         f"    </div>\n"
+    )
+
+
+_FRAMEWORK_LABEL = {
+    "owasp_llm": ("OWASP", "fw-owasp"),
+    "nist_ai_rmf": ("NIST", "fw-nist"),
+    "mitre_atlas": ("MITRE", "fw-mitre"),
+}
+
+
+def _framework_badges(frameworks: dict[str, list[str]] | None) -> str:
+    if not frameworks:
+        return ""
+    badges: list[str] = []
+    # Stable order for reproducibility.
+    for key in ("owasp_llm", "nist_ai_rmf", "mitre_atlas"):
+        ids = frameworks.get(key) or []
+        if not ids:
+            continue
+        label, css = _FRAMEWORK_LABEL[key]
+        for fid in ids:
+            badges.append(
+                f'<span class="fw-badge {css}" title="{escape(label)} {escape(fid)}">'
+                f"{escape(fid)}</span>"
+            )
+    if not badges:
+        return ""
+    return '<span class="fw-badges">' + "".join(badges) + "</span>"
+
+
+_PROBE_TRUNC = 240
+
+
+def _trunc(text: str, n: int = _PROBE_TRUNC) -> str:
+    if not text:
+        return ""
+    if len(text) <= n:
+        return text
+    return text[: max(0, n - 1)] + "\u2026"
+
+
+def _probe_drilldown(dim_id: str, records: list[dict[str, Any]] | None) -> str:
+    if records is None:
+        return ""
+    if not records:
+        return (
+            f'<details class="probe-drilldown"><summary>Probe records '
+            f"({escape(dim_id)})</summary>"
+            f'<div class="probe-empty">No probe records attached for this dim.</div>'
+            f"</details>"
+        )
+    rows = []
+    for rec in records:
+        item_id = escape(str(rec.get("item_id", "")))
+        prompt = escape(_trunc(str(rec.get("prompt", ""))))
+        response = escape(_trunc(str(rec.get("response", ""))))
+        verdict_raw = str(rec.get("verdict", "")).lower()
+        verdict_class = (
+            "pass" if verdict_raw == "pass"
+            else "fail" if verdict_raw == "fail"
+            else "partial"
+        )
+        verdict_html = (
+            f'<span class="probe-verdict {verdict_class}">'
+            f"{escape(verdict_raw.upper() or '\u2014')}</span>"
+        )
+        rows.append(
+            f"          <tr>\n"
+            f'            <td class="probe-id">{item_id}</td>\n'
+            f'            <td class="probe-snippet">{prompt}</td>\n'
+            f'            <td class="probe-snippet">{response}</td>\n'
+            f"            <td>{verdict_html}</td>\n"
+            f"          </tr>\n"
+        )
+    n = len(records)
+    n_fail = sum(1 for r in records if str(r.get("verdict", "")).lower() == "fail")
+    return (
+        f'<details class="probe-drilldown">'
+        f'<summary>Probe records ({escape(dim_id)}) \u2014 {n} probe(s), '
+        f"{n_fail} failed</summary>"
+        f'<table class="probe-table">'
+        f"<thead><tr><th>Item</th><th>Prompt</th><th>Response</th>"
+        f"<th>Verdict</th></tr></thead>"
+        f'<tbody>{"".join(rows)}</tbody>'
+        f"</table>"
+        f"</details>"
+    )
+
+
+def _rubric_source_block(rubric: Rubric) -> str:
+    prov = rubric.provenance or {}
+    if not prov:
+        return ""
+    rows: list[str] = []
+    label_map = [
+        ("source_of_authority", "Source of authority"),
+        ("weight_authority", "Weight authority"),
+        ("raw_score_convention", "Raw score convention"),
+        ("governance", "Governance"),
+    ]
+    for key, label in label_map:
+        val = prov.get(key)
+        if not val:
+            continue
+        rows.append(
+            f"<dt>{escape(label)}</dt><dd>{escape(str(val))}</dd>"
+        )
+    if not rows:
+        return ""
+    return (
+        f'<div class="rubric-source">\n'
+        f"<h3>Rubric Source &amp; Methodology</h3>\n"
+        f'<dl>{"".join(rows)}</dl>\n'
+        f"</div>\n"
     )

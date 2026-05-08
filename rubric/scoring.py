@@ -43,6 +43,8 @@ class Rubric:
     pillars: dict[str, dict[str, Any]]
     dim_threshold_defaults: dict[str, dict[str, Any]]
     pillar_floors: dict[str, dict[str, Any]]
+    provenance: dict[str, str]
+    dim_frameworks: dict[str, dict[str, list[str]]]
 
     @classmethod
     def load(cls, path: str | Path) -> "Rubric":
@@ -50,10 +52,17 @@ class Rubric:
         pillars: dict[str, dict[str, Any]] = {}
         total_weight = 0
         seen_dims: set[str] = set()
+        dim_frameworks: dict[str, dict[str, list[str]]] = {}
         for pid, pdata in data["pillars"].items():
             weight = int(pdata["weight"])
             total_weight += weight
             dim_ids = [d["id"] for d in pdata["dimensions"]]
+            for d in pdata["dimensions"]:
+                fw = d.get("frameworks") or {}
+                if fw:
+                    dim_frameworks[d["id"]] = {
+                        k: list(v) for k, v in fw.items()
+                    }
             for did in dim_ids:
                 if did in seen_dims:
                     raise RubricError(f"duplicate dim id across pillars: {did}")
@@ -63,6 +72,9 @@ class Rubric:
                 "weight": weight,
                 "dim_ids": dim_ids,
                 "dim_names": {d["id"]: d["name"] for d in pdata["dimensions"]},
+                "purpose": pdata.get("purpose") or pdata.get("description") or "",
+                "pack_sources": list(pdata.get("pack_sources") or []),
+                "raw_mapping": pdata.get("raw_mapping") or "",
             }
         if total_weight != 100:
             raise RubricError(f"pillar weights sum to {total_weight}, expected 100")
@@ -73,12 +85,15 @@ class Rubric:
         for pid in pillars:
             dim_thr.setdefault(pid, dict(_DEFAULT_DIM_THRESHOLD))
             pillar_floors.setdefault(pid, {"min_pillar_score": 0, "rationale": "no floor declared"})
+        provenance = dict(data.get("provenance") or {})
         return cls(
             version=data["version"],
             locked_through=data["locked_through"],
             pillars=pillars,
             dim_threshold_defaults=dim_thr,
             pillar_floors=pillar_floors,
+            provenance=provenance,
+            dim_frameworks=dim_frameworks,
         )
 
     @property
