@@ -11,6 +11,10 @@ in the footer (snapshot_hash, forensic_bundle_uri, rubric_version).
 Provenance badge (BEAAA-130 rec #2): render() accepts optional `provenance`
 and `dim_provenance` kwargs; unset provenance renders a loud warning.
 
+Sensitivity panel (BEAAA-130 rec #3): `include_sensitivity=True` (default)
+embeds the ±10% pillar-weight perturbation block between Pillar Breakdown
+and Dimension Detail. Render-side only — never mutates BMI/band/scoring.
+
 §9.3 cut: HTML-only this phase; PDF render deferred to v0.2.
 """
 from __future__ import annotations
@@ -18,6 +22,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any
 
+from report_card.sensitivity import render_sensitivity_block
 from rubric.scoring import Rubric
 
 _BAND_COLOR = {
@@ -336,6 +341,7 @@ def render(
     *,
     provenance: str | None = None,
     dim_provenance: dict[str, str] | None = None,
+    include_sensitivity: bool = True,
 ) -> str:
     """Render a ScoreResponse to a single self-contained HTML document."""
     bmi = int(score_response["bmi"])
@@ -360,6 +366,7 @@ def render(
         _pillar_section(pid, pillars[pid], rubric.pillars[pid])
         for pid in pillars
     )
+    sensitivity_html = render_sensitivity_block(score_response) if include_sensitivity else ""
 
     age_warning = ""
     if age_days >= STALE_SCAN_DAYS:
@@ -420,6 +427,8 @@ def render(
         f'    <div class="pillar-grid">\n'
         f"{pillar_cards_html}"
         f"    </div>\n"
+        f"\n"
+        f"    {sensitivity_html}"
         f"\n"
         f'    <div class="section-title">Dimension Detail</div>\n'
         f"{pillar_sections_html}"
