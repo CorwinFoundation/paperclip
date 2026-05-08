@@ -43,15 +43,36 @@ class PromptfooRunnerError(RuntimeError):
     pass
 
 
+class BindingViolationError(PromptfooRunnerError):
+    """Raised when a bin's binding block does not match current artifact revs."""
+
+
 @dataclass(frozen=True)
 class ProbeMapping:
-    """Single probe-id -> (pillar, dim, weight) entry from a probe-mapping YAML."""
+    """Single probe-id -> (pillar, dim, weight) entry from a probe-mapping YAML.
+
+    `category` and `trigger_id` are BEAAA-152 WS-B additions. Both default
+    to "" so legacy bins (garak/harmbench/promptbench v0.x) keep loading
+    unchanged; new pack bins (HaluEval, JBB, etc.) carry the UW gate
+    category and the BEAAA-125 trigger taxonomy stamp per row.
+    """
 
     probe_id: str
     pillar: str
     dim: str
     weight: float
     rationale: str = ""
+    category: str = ""
+    trigger_id: str = ""
+
+
+# Legacy provenance default: matches pre-BEAAA-152 behavior so the existing
+# `measured:<benchmark>` flow into pipeline.provenance is unchanged for bins
+# without an explicit `provenance` block.
+_LEGACY_PROVENANCE: dict[str, str] = {
+    "label_template": "measured:{benchmark}",
+    "rule": "",
+}
 
 
 @dataclass(frozen=True)
@@ -59,13 +80,43 @@ class ProbeMappingFile:
     """Parsed probe-mapping YAML.
 
     `benchmark` is the provenance label stamped on emitted rows
-    (e.g. "garak", "harmbench"). It flows into pipeline.provenance as
-    `measured:<benchmark>`.
+    (e.g. "garak", "harmbench"). For legacy bins it flows into
+    pipeline.provenance as `measured:<benchmark>`. For BEAAA-152 pack
+    bins it's overridden by `provenance.label_template` (typically
+    `category-proxy:<base_model>`).
+
+    BEAAA-152 WS-B additions:
+    - `binding`: customer-artifact freeze block (UW guard A). Loader
+      requires `fails_validation_if_any_above_advances: True` when set.
+      `validate_binding(current_revs)` raises BindingViolationError if
+      any locked rev does not match.
+    - `c2_head_active`: UW guard for v1.0 P2.5 zero-rollup. Required
+      explicit when any P2.5 probe is in the bin. Defaults to True for
+      legacy bins (no P2.5 rows so no behavior change).
+    - `provenance`: label_template + rule. Defaults to legacy
+      `measured:<benchmark>` when absent.
+    - `category_modifiers`: UW gate values applied ONCE at dim-aggregation
+      per category. Empty dict = no modifier (×1.0 effective).
+    - `deduplication`: documentation only — runtime dedup is enforced
+      by load-time uniqueness on `(pillar, dim, probe_id)` and by the
+      category-grouped aggregation rule in `aggregate_to_measurements`.
     """
 
     benchmark: str
     version: str
     probes: list[ProbeMapping]
+    binding: dict[str, Any] | None = None
+    c2_head_active: bool = True
+    provenance: dict[str, str] = None  # type: ignore[assignment]
+    category_modifiers: dict[str, float] = None  # type: ignore[assignment]
+    deduplication: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        # dataclass(frozen=True) blocks normal assignment; use object.__setattr__
+        if self.provenance is None:
+            object.__setattr__(self, "provenance", dict(_LEGACY_PROVENANCE))
+        if self.category_modifiers is None:
+            object.__setattr__(self, "category_modifiers", {})
 
     @classmethod
     def load(cls, path: str | Path) -> "ProbeMappingFile":
@@ -76,11 +127,14 @@ class ProbeMappingFile:
             raise PromptfooRunnerError(f"{path}: `probes` must be a list")
         probes: list[ProbeMapping] = []
         seen: set[str] = set()
+        has_p25 = False
         for entry in data["probes"]:
             pid = entry["probe_id"]
             if pid in seen:
                 raise PromptfooRunnerError(f"{path}: duplicate probe_id {pid!r}")
             seen.add(pid)
+            if entry["dim"] == "P2.5":
+                has_p25 = True
             probes.append(
                 ProbeMapping(
                     probe_id=pid,
@@ -88,12 +142,65 @@ class ProbeMappingFile:
                     dim=entry["dim"],
                     weight=float(entry.get("weight", 1.0)),
                     rationale=str(entry.get("rationale", "")),
+                    category=str(entry.get("category", "")),
+                    trigger_id=str(entry.get("trigger_id", "")),
                 )
             )
+
+        binding = data.get("binding")
+        if binding is not None:
+            if not isinstance(binding, dict):
+                raise PromptfooRunnerError(f"{path}: `binding` must be a mapping")
+            if not binding.get("fails_validation_if_any_above_advances"):
+                raise PromptfooRunnerError(
+                    f"{path}: `binding.fails_validation_if_any_above_advances` "
+                    "must be true (UW guard A — fail-closed loader required)"
+                )
+
+        # c2_head_active is REQUIRED when any P2.5 probe is present (UW guard).
+        if "c2_head_active" in data:
+            c2_head_active = bool(data["c2_head_active"])
+        elif has_p25:
+            raise PromptfooRunnerError(
+                f"{path}: `c2_head_active` must be set explicitly when bin "
+                "contains P2.5 probes (UW guard — v1.0 must zero P2.5 rollup)"
+            )
+        else:
+            c2_head_active = True  # legacy default
+
+        provenance = data.get("provenance")
+        if provenance is not None:
+            if not isinstance(provenance, dict) or "label_template" not in provenance:
+                raise PromptfooRunnerError(
+                    f"{path}: `provenance` must be a mapping with "
+                    "`label_template` (e.g. `category-proxy:{base_model}`)"
+                )
+
+        category_modifiers = data.get("category_modifiers") or {}
+        if not isinstance(category_modifiers, dict):
+            raise PromptfooRunnerError(
+                f"{path}: `category_modifiers` must be a mapping"
+            )
+        # Every probe.category referenced must be covered by category_modifiers
+        # (or the bin uses no categories at all — legacy mode).
+        if category_modifiers:
+            referenced = {p.category for p in probes if p.category}
+            missing = referenced - set(category_modifiers.keys())
+            if missing:
+                raise PromptfooRunnerError(
+                    f"{path}: `category_modifiers` missing entries for "
+                    f"categories: {sorted(missing)}"
+                )
+
         return cls(
             benchmark=str(data["benchmark"]),
             version=str(data.get("version", "unknown")),
             probes=probes,
+            binding=binding,
+            c2_head_active=c2_head_active,
+            provenance=dict(provenance) if provenance else None,
+            category_modifiers={str(k): float(v) for k, v in category_modifiers.items()},
+            deduplication=data.get("deduplication"),
         )
 
     def by_dim(self) -> dict[str, list[ProbeMapping]]:
@@ -101,6 +208,36 @@ class ProbeMappingFile:
         for p in self.probes:
             grouped.setdefault(p.dim, []).append(p)
         return grouped
+
+    def validate_binding(self, current_revs: dict[str, str]) -> None:
+        """Fail closed if any locked customer-artifact rev has advanced.
+
+        UW guard A: `binding` block on a pack bin pins the revs that the
+        bin was co-signed against. If the live rev has moved forward
+        without re-co-signing the bin, raise so we never run a stale bin
+        against a newer customer artifact.
+
+        `current_revs` is a {key: rev_string} dict from the harness. Keys
+        match the `binding` block keys (pillar_weights, trigger_taxonomy,
+        scanner_artifact, ...). Comparison is exact string match — the
+        bin must be re-issued whenever any pinned artifact rev moves.
+        """
+        if self.binding is None:
+            return
+        for key, locked_rev in self.binding.items():
+            if key == "fails_validation_if_any_above_advances":
+                continue
+            current = current_revs.get(key)
+            if current is None:
+                # Not all binding keys must be supplied at every callsite,
+                # but if a caller passes a key explicitly it must match.
+                continue
+            if current != locked_rev:
+                raise BindingViolationError(
+                    f"binding violation on `{key}`: bin locked at "
+                    f"{locked_rev!r} but current is {current!r}. Re-co-sign "
+                    "the bin (UW + Actuary) before continuing."
+                )
 
 
 def _pass_rate_to_raw(rate: float) -> float:
@@ -176,57 +313,192 @@ def aggregate_to_measurements(
     mapping: ProbeMappingFile,
     *,
     model_id: str,
+    base_model: str | None = None,
 ) -> list[dict[str, Any]]:
     """Aggregate per-probe pass-rates into one measurement row per dim.
 
     For each dim the probe-mapping covers, dim raw is the weighted mean of
-    probe pass-rates mapped through `_pass_rate_to_raw` on the aggregate.
-    Probes with zero rows in `parsed` (e.g. probe disabled at scan time)
-    are skipped — but the per-probe trace records them as `skipped` so the
-    caller can detect missing coverage.
+    probe pass-rates mapped through `_pass_rate_to_raw`. Probes with zero
+    rows in `parsed` (e.g. probe disabled at scan time) are skipped —
+    but the per-probe trace records them as `skipped`.
+
+    BEAAA-152 WS-B additions:
+    - Category modifier (`category_modifiers[probe.category]`) is applied
+      once per category at dim-aggregation: probes are grouped by category
+      within the dim, per-category aggregate rate is multiplied by its
+      modifier, then re-weighted into the dim total. Modifier is NEVER
+      applied per-probe-row (UW's "applied once at dim-aggregation").
+    - When `mapping.c2_head_active` is False AND `dim_id == "P2.5"`, the
+      row gets `applied_to_aggregate=False` and `raw_for_aggregate=0.0`.
+      The `raw` and `pass_rate` fields stay populated so the row is still
+      stamped + persisted (data is not dropped — only its contribution to
+      the BMI aggregate score is forced to 0 in v1.0).
+    - Provenance label (`provenance.label_template`) is formatted with
+      `{benchmark}` and `{base_model}` and stamped on each row as
+      `provenance_label`. `base_model` defaults to `model_id` if not
+      passed explicitly.
+    - Per-row `category` and `trigger_id` are stamped where the bin
+      provides them; both default to "" for legacy bins.
     """
     out: list[dict[str, Any]] = []
     grouped = mapping.by_dim()
+    cat_mods = mapping.category_modifiers
+    base = base_model if base_model is not None else model_id
+    label_template = mapping.provenance.get(
+        "label_template", _LEGACY_PROVENANCE["label_template"]
+    )
+    provenance_label = label_template.format(
+        benchmark=mapping.benchmark, base_model=base
+    )
+
     for dim_id in sorted(grouped):
-        weighted_rate_sum = 0.0
-        weight_total = 0.0
+        # Group probes within this dim by category so the modifier is
+        # applied ONCE per category (UW gate framing).
+        per_cat: dict[str, list[ProbeMapping]] = {}
+        for p in grouped[dim_id]:
+            per_cat.setdefault(p.category, []).append(p)
+
         n_items_total = 0
         n_passed_total = 0
         trace: list[dict[str, Any]] = []
-        for probe in grouped[dim_id]:
-            stats = parsed.get(probe.probe_id)
-            if not stats:
+        cat_breakdown: list[dict[str, Any]] = []
+
+        # Compute the per-category aggregate rate, then apply modifier
+        # and re-weight into the dim total.
+        dim_weighted_modified_sum = 0.0
+        dim_weight_total = 0.0
+        category_set: set[str] = set()
+        trigger_set: set[str] = set()
+
+        for cat, probes in per_cat.items():
+            cat_rate_num = 0.0
+            cat_weight = 0.0
+            for probe in probes:
+                stats = parsed.get(probe.probe_id)
+                if not stats:
+                    trace.append({
+                        "probe_id": probe.probe_id,
+                        "weight": probe.weight,
+                        "category": probe.category,
+                        "trigger_id": probe.trigger_id,
+                        "skipped": True,
+                        "reason": "no rows in promptfoo output",
+                    })
+                    continue
+                n_items_total += int(stats["n_items"])
+                n_passed_total += int(stats["n_passed"])
+                cat_rate_num += probe.weight * float(stats["pass_rate"])
+                cat_weight += probe.weight
+                if probe.category:
+                    category_set.add(probe.category)
+                if probe.trigger_id:
+                    trigger_set.add(probe.trigger_id)
                 trace.append({
                     "probe_id": probe.probe_id,
                     "weight": probe.weight,
-                    "skipped": True,
-                    "reason": "no rows in promptfoo output",
+                    "category": probe.category,
+                    "trigger_id": probe.trigger_id,
+                    "n_items": stats["n_items"],
+                    "n_passed": stats["n_passed"],
+                    "pass_rate": stats["pass_rate"],
                 })
+            if cat_weight == 0:
                 continue
-            n_items_total += int(stats["n_items"])
-            n_passed_total += int(stats["n_passed"])
-            weighted_rate_sum += probe.weight * float(stats["pass_rate"])
-            weight_total += probe.weight
-            trace.append({
-                "probe_id": probe.probe_id,
-                "weight": probe.weight,
-                "n_items": stats["n_items"],
-                "n_passed": stats["n_passed"],
-                "pass_rate": stats["pass_rate"],
+            cat_rate = cat_rate_num / cat_weight
+            cat_mod = cat_mods.get(cat, 1.0) if cat else 1.0
+            cat_breakdown.append({
+                "category": cat,
+                "pass_rate": cat_rate,
+                "applied_category_modifier": cat_mod,
+                "weight": cat_weight,
             })
-        agg_rate = (weighted_rate_sum / weight_total) if weight_total > 0 else 0.0
+            dim_weighted_modified_sum += cat_rate * cat_mod * cat_weight
+            dim_weight_total += cat_weight
+
+        agg_rate = (
+            dim_weighted_modified_sum / dim_weight_total
+            if dim_weight_total > 0 else 0.0
+        )
+
+        # c2_head_active gate: P2.5 contributes 0 to BMI aggregate in v1.0
+        # while data is still emitted. UW guard for v1 frozen pillar weights.
+        applied_to_aggregate = not (dim_id == "P2.5" and not mapping.c2_head_active)
+        raw = _pass_rate_to_raw(agg_rate)
+        raw_for_aggregate = raw if applied_to_aggregate else 0.0
+
         row = {
             "dim_id": dim_id,
             "benchmark": mapping.benchmark,
             "model_id": model_id,
+            "base_model": base,
+            "provenance_label": provenance_label,
             "n_items": n_items_total,
             "n_passed": n_passed_total,
             "pass_rate": agg_rate,
-            "raw": _pass_rate_to_raw(agg_rate),
+            "raw": raw,
+            "raw_for_aggregate": raw_for_aggregate,
+            "applied_to_aggregate": applied_to_aggregate,
+            "categories": sorted(category_set),
+            "trigger_ids": sorted(trigger_set),
+            "category_breakdown": cat_breakdown,
             "trace": trace,
         }
         out.append(row)
     return out
+
+
+# T4 baseline frequency from BEAAA-148 §7 — v1.1 pricing re-base trigger
+# fires when measured T4 frequency drifts ±30% from this anchor.
+T4_BASELINE_FREQ = 0.30
+T4_SENTINEL_THRESHOLD = 0.30
+
+
+def compute_t4_sentinel(
+    rows: list[dict[str, Any]],
+    *,
+    baseline: float = T4_BASELINE_FREQ,
+    threshold: float = T4_SENTINEL_THRESHOLD,
+) -> dict[str, Any]:
+    """Emit the BEAAA-148 §7 v1.1 re-base sentinel.
+
+    UW guard B: every WS-C run on a BEAAA-152 pack bin must surface
+    T4 aggregate frequency, the delta vs the 0.30 baseline, the threshold,
+    and a breach boolean. Wired into runs log + BEAAA-150 handback packet
+    so a pricing-re-base event is board-visible from day 1.
+
+    `T4_aggregate_freq` is the weighted-mean pass-rate across all measurement
+    rows whose `trigger_ids` include "T4". When no T4 rows are present
+    `T4_aggregate_freq` is None and `sentinel_breached` is False (no signal,
+    no breach).
+    """
+    weighted = 0.0
+    weight_total = 0.0
+    for r in rows:
+        trigger_ids = r.get("trigger_ids") or []
+        if "T4" not in trigger_ids:
+            continue
+        n_items = float(r.get("n_items", 0) or 0)
+        if n_items <= 0:
+            continue
+        weighted += float(r.get("pass_rate", 0.0)) * n_items
+        weight_total += n_items
+    if weight_total == 0:
+        return {
+            "T4_aggregate_freq": None,
+            "delta_vs_baseline": None,
+            "baseline": baseline,
+            "sentinel_threshold": threshold,
+            "sentinel_breached": False,
+        }
+    t4_freq = weighted / weight_total
+    delta = t4_freq - baseline
+    return {
+        "T4_aggregate_freq": t4_freq,
+        "delta_vs_baseline": delta,
+        "baseline": baseline,
+        "sentinel_threshold": threshold,
+        "sentinel_breached": abs(delta) > threshold,
+    }
 
 
 def _run_promptfoo_subprocess(
@@ -272,15 +544,23 @@ def run_scan(
     work_dir: str | Path | None = None,
     binary: str = "promptfoo",
     subprocess_runner: Any = None,
+    base_model: str | None = None,
+    current_revs: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """End-to-end scan: invoke promptfoo, parse JSON, aggregate to measurements.
 
     `subprocess_runner` is a callable with the same shape as
     `_run_promptfoo_subprocess` — tests inject a fake one so no Node /
     promptfoo install is required. Default = the real subprocess wrapper.
+
+    `current_revs` (BEAAA-152 WS-B): when supplied and the bin has a
+    `binding` block, the bin is validated before the scan kicks off
+    (fail-closed loader — UW guard A). Pass {} or None to skip.
     """
     cfg = Path(config_path)
     mapping = ProbeMappingFile.load(probe_mapping_path)
+    if current_revs:
+        mapping.validate_binding(current_revs)
     work = Path(work_dir) if work_dir else cfg.parent
     work.mkdir(parents=True, exist_ok=True)
     output_path = work / f"promptfoo_results_{mapping.benchmark}.json"
@@ -292,7 +572,9 @@ def run_scan(
         )
     raw_json = json.loads(output_path.read_text())
     parsed = parse_promptfoo_results(raw_json)
-    return aggregate_to_measurements(parsed, mapping, model_id=target_model_id)
+    return aggregate_to_measurements(
+        parsed, mapping, model_id=target_model_id, base_model=base_model
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
