@@ -1,0 +1,5419 @@
+{
+  "version": 3,
+  "_run_meta": {
+    "probe_mapping": "rubric/probe_mappings/halueval.yaml",
+    "dataset": "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json",
+    "base_model": "haiku-4.5",
+    "model_id": "claude-haiku-4-5-20251001",
+    "max_spend_usd": 0.5,
+    "max_items": 300,
+    "actual_items_run": 300,
+    "actual_spend_usd": 0.10594,
+    "dry_run": false,
+    "started_at": "2026-05-08T13:19:27.054504+00:00"
+  },
+  "results": {
+    "results": [
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-046",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 177,
+          "output_tokens": 6,
+          "cost_usd": 0.000207,
+          "latency_s": 0.79838413791731
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-067",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 244,
+          "output_tokens": 6,
+          "cost_usd": 0.000274,
+          "latency_s": 1.0047086598351598
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-080",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 114,
+          "output_tokens": 6,
+          "cost_usd": 0.000144,
+          "latency_s": 1.7984260111115873
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-029",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 175,
+          "output_tokens": 6,
+          "cost_usd": 0.000205,
+          "latency_s": 0.7410650439560413
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-043-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 204,
+          "output_tokens": 8,
+          "cost_usd": 0.000244,
+          "latency_s": 0.6835390529595315
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-006-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 517,
+          "output_tokens": 8,
+          "cost_usd": 0.000557,
+          "latency_s": 0.799680083990097
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-011-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 525,
+          "output_tokens": 6,
+          "cost_usd": 0.0005549999999999999,
+          "latency_s": 1.2528282899875194
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-019-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 500,
+          "output_tokens": 8,
+          "cost_usd": 0.00054,
+          "latency_s": 1.558887547114864
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-020-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 515,
+          "output_tokens": 8,
+          "cost_usd": 0.000555,
+          "latency_s": 0.8115991230588406
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-007-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 586,
+          "output_tokens": 7,
+          "cost_usd": 0.000621,
+          "latency_s": 4.355610786005855
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-003",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 262,
+          "output_tokens": 6,
+          "cost_usd": 0.00029200000000000005,
+          "latency_s": 0.6679546791128814
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-025-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 198,
+          "output_tokens": 6,
+          "cost_usd": 0.00022799999999999999,
+          "latency_s": 0.6678876320365816
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-023",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 202,
+          "output_tokens": 6,
+          "cost_usd": 0.000232,
+          "latency_s": 0.6458009970374405
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-024-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 205,
+          "output_tokens": 6,
+          "cost_usd": 0.000235,
+          "latency_s": 0.6434570020064712
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-036",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 6,
+          "cost_usd": 0.00020899999999999998,
+          "latency_s": 0.6463520741090178
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-020-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 477,
+          "output_tokens": 8,
+          "cost_usd": 0.000517,
+          "latency_s": 0.6616999171674252
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-022-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 491,
+          "output_tokens": 8,
+          "cost_usd": 0.000531,
+          "latency_s": 0.7224511608947068
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-028-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 211,
+          "output_tokens": 8,
+          "cost_usd": 0.00025100000000000003,
+          "latency_s": 0.8674356259871274
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-021-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 560,
+          "output_tokens": 8,
+          "cost_usd": 0.0006,
+          "latency_s": 0.715099629946053
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-038-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 217,
+          "output_tokens": 8,
+          "cost_usd": 0.000257,
+          "latency_s": 0.6630643389653414
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-007-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 586,
+          "output_tokens": 8,
+          "cost_usd": 0.000626,
+          "latency_s": 0.7219580500386655
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-003-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 204,
+          "output_tokens": 8,
+          "cost_usd": 0.000244,
+          "latency_s": 0.7978279339149594
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-018-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 471,
+          "output_tokens": 6,
+          "cost_usd": 0.000501,
+          "latency_s": 1.0685251168906689
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-039-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 197,
+          "output_tokens": 8,
+          "cost_usd": 0.000237,
+          "latency_s": 0.7183121170382947
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-024",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 303,
+          "output_tokens": 6,
+          "cost_usd": 0.000333,
+          "latency_s": 0.7552511380054057
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-002",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 290,
+          "output_tokens": 6,
+          "cost_usd": 0.00032,
+          "latency_s": 0.6739178760908544
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-007-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 545,
+          "output_tokens": 6,
+          "cost_usd": 0.000575,
+          "latency_s": 0.6771571740973741
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-010",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 185,
+          "output_tokens": 6,
+          "cost_usd": 0.000215,
+          "latency_s": 0.7914488099049777
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-015-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 523,
+          "output_tokens": 8,
+          "cost_usd": 0.000563,
+          "latency_s": 1.1963232781272382
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-008",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 152,
+          "output_tokens": 6,
+          "cost_usd": 0.000182,
+          "latency_s": 0.7464762839954346
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-031-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 186,
+          "output_tokens": 8,
+          "cost_usd": 0.000226,
+          "latency_s": 0.8538502620067447
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-017",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 219,
+          "output_tokens": 6,
+          "cost_usd": 0.00024900000000000004,
+          "latency_s": 0.7560734930448234
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-022-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 207,
+          "output_tokens": 8,
+          "cost_usd": 0.000247,
+          "latency_s": 0.7158902361989021
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-076",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 152,
+          "output_tokens": 6,
+          "cost_usd": 0.000182,
+          "latency_s": 1.639053073944524
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-045",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 158,
+          "output_tokens": 6,
+          "cost_usd": 0.000188,
+          "latency_s": 0.7120939202141017
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-022",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 306,
+          "output_tokens": 6,
+          "cost_usd": 0.00033600000000000004,
+          "latency_s": 1.0828054579906166
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-013-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 500,
+          "output_tokens": 6,
+          "cost_usd": 0.00053,
+          "latency_s": 1.502718348056078
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-006-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 204,
+          "output_tokens": 8,
+          "cost_usd": 0.000244,
+          "latency_s": 0.7891118999104947
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-023-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 480,
+          "output_tokens": 8,
+          "cost_usd": 0.0005200000000000001,
+          "latency_s": 0.6402779230847955
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-028",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 171,
+          "output_tokens": 6,
+          "cost_usd": 0.000201,
+          "latency_s": 0.7385542679112405
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-037-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 186,
+          "output_tokens": 8,
+          "cost_usd": 0.000226,
+          "latency_s": 0.7807212870102376
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-070",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 156,
+          "output_tokens": 6,
+          "cost_usd": 0.000186,
+          "latency_s": 0.6277460940182209
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-008-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 506,
+          "output_tokens": 8,
+          "cost_usd": 0.000546,
+          "latency_s": 1.6198155141901225
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-006-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 576,
+          "output_tokens": 8,
+          "cost_usd": 0.000616,
+          "latency_s": 0.7264466190245003
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-009-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 505,
+          "output_tokens": 6,
+          "cost_usd": 0.000535,
+          "latency_s": 3.6268837100360543
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-028-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 228,
+          "output_tokens": 8,
+          "cost_usd": 0.000268,
+          "latency_s": 1.5802054239902645
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-001",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 192,
+          "output_tokens": 6,
+          "cost_usd": 0.000222,
+          "latency_s": 0.6328510839957744
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-015-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 486,
+          "output_tokens": 6,
+          "cost_usd": 0.000516,
+          "latency_s": 0.8051353271584958
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-072",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 161,
+          "output_tokens": 6,
+          "cost_usd": 0.000191,
+          "latency_s": 0.7876471760682762
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-012-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 564,
+          "output_tokens": 8,
+          "cost_usd": 0.000604,
+          "latency_s": 0.8937052439432591
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-085",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 240,
+          "output_tokens": 6,
+          "cost_usd": 0.00027,
+          "latency_s": 0.6407996900379658
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-000-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 427,
+          "output_tokens": 8,
+          "cost_usd": 0.000467,
+          "latency_s": 0.7233749281149358
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-009-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 310,
+          "output_tokens": 8,
+          "cost_usd": 0.00035,
+          "latency_s": 0.8355064869392663
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-002-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 474,
+          "output_tokens": 6,
+          "cost_usd": 0.000504,
+          "latency_s": 0.722735864110291
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-007-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 186,
+          "output_tokens": 6,
+          "cost_usd": 0.000216,
+          "latency_s": 0.8296376729849726
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-006-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 207,
+          "output_tokens": 6,
+          "cost_usd": 0.000237,
+          "latency_s": 0.6744400530587882
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-029-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 215,
+          "output_tokens": 8,
+          "cost_usd": 0.000255,
+          "latency_s": 0.6975170958321542
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-041",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 276,
+          "output_tokens": 6,
+          "cost_usd": 0.000306,
+          "latency_s": 0.7526612910442054
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-011",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 148,
+          "output_tokens": 7,
+          "cost_usd": 0.000183,
+          "latency_s": 0.9288210389204323
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-097",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 121,
+          "output_tokens": 6,
+          "cost_usd": 0.000151,
+          "latency_s": 0.7010928068775684
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-043-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 203,
+          "output_tokens": 8,
+          "cost_usd": 0.000243,
+          "latency_s": 1.973628057166934
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-024-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 535,
+          "output_tokens": 8,
+          "cost_usd": 0.000575,
+          "latency_s": 0.7799298849422485
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-038",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 395,
+          "output_tokens": 6,
+          "cost_usd": 0.00042500000000000003,
+          "latency_s": 0.6248742919415236
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-014",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 217,
+          "output_tokens": 6,
+          "cost_usd": 0.000247,
+          "latency_s": 2.2844889669213444
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-016-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 565,
+          "output_tokens": 8,
+          "cost_usd": 0.000605,
+          "latency_s": 0.6829583130311221
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-014-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 588,
+          "output_tokens": 7,
+          "cost_usd": 0.000623,
+          "latency_s": 0.7162909910548478
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-026-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 275,
+          "output_tokens": 8,
+          "cost_usd": 0.000315,
+          "latency_s": 0.8159385758917779
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-053",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 284,
+          "output_tokens": 6,
+          "cost_usd": 0.00031400000000000004,
+          "latency_s": 0.6917329172138125
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-001-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 524,
+          "output_tokens": 8,
+          "cost_usd": 0.000564,
+          "latency_s": 0.7094998469110578
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-049-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 208,
+          "output_tokens": 6,
+          "cost_usd": 0.00023799999999999998,
+          "latency_s": 0.7263862208928913
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-042",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 181,
+          "output_tokens": 6,
+          "cost_usd": 0.000211,
+          "latency_s": 0.7962070719804615
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-045-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 242,
+          "output_tokens": 6,
+          "cost_usd": 0.000272,
+          "latency_s": 0.6310851259622723
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-035",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 237,
+          "output_tokens": 6,
+          "cost_usd": 0.000267,
+          "latency_s": 0.6035279240459204
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-020-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 230,
+          "output_tokens": 8,
+          "cost_usd": 0.00027,
+          "latency_s": 0.9063672949559987
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-021-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 560,
+          "output_tokens": 8,
+          "cost_usd": 0.0006,
+          "latency_s": 0.7576342688407749
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-010-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 500,
+          "output_tokens": 8,
+          "cost_usd": 0.00054,
+          "latency_s": 2.233694309834391
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-017-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 522,
+          "output_tokens": 6,
+          "cost_usd": 0.000552,
+          "latency_s": 0.6744520550128073
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-018-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 198,
+          "output_tokens": 8,
+          "cost_usd": 0.00023799999999999998,
+          "latency_s": 0.758489373838529
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-064",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 231,
+          "output_tokens": 6,
+          "cost_usd": 0.000261,
+          "latency_s": 0.6910320641472936
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-019-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 598,
+          "output_tokens": 7,
+          "cost_usd": 0.000633,
+          "latency_s": 0.8917709779925644
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-018",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 264,
+          "output_tokens": 6,
+          "cost_usd": 0.00029400000000000004,
+          "latency_s": 1.3874128579627723
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-012-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 247,
+          "output_tokens": 8,
+          "cost_usd": 0.000287,
+          "latency_s": 0.7068048871587962
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-035-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 208,
+          "output_tokens": 6,
+          "cost_usd": 0.00023799999999999998,
+          "latency_s": 0.980988129042089
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-040-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 224,
+          "output_tokens": 7,
+          "cost_usd": 0.000259,
+          "latency_s": 0.6579135269857943
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-013-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 528,
+          "output_tokens": 7,
+          "cost_usd": 0.000563,
+          "latency_s": 0.6702468069270253
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-036-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 214,
+          "output_tokens": 8,
+          "cost_usd": 0.000254,
+          "latency_s": 0.78854338102974
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-011-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 525,
+          "output_tokens": 6,
+          "cost_usd": 0.0005549999999999999,
+          "latency_s": 0.8736440038774163
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-047",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 135,
+          "output_tokens": 6,
+          "cost_usd": 0.000165,
+          "latency_s": 0.6729340699966997
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-012-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 533,
+          "output_tokens": 8,
+          "cost_usd": 0.000573,
+          "latency_s": 0.9407672588713467
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-033-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 202,
+          "output_tokens": 8,
+          "cost_usd": 0.000242,
+          "latency_s": 0.8175314329564571
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-094",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 224,
+          "output_tokens": 6,
+          "cost_usd": 0.000254,
+          "latency_s": 0.6347900649998337
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-018-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 477,
+          "output_tokens": 6,
+          "cost_usd": 0.000507,
+          "latency_s": 0.773904801113531
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-026",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 297,
+          "output_tokens": 6,
+          "cost_usd": 0.00032700000000000003,
+          "latency_s": 0.6953335320577025
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-037",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 150,
+          "output_tokens": 8,
+          "cost_usd": 0.00018999999999999998,
+          "latency_s": 0.9408991541713476
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-069",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 185,
+          "output_tokens": 6,
+          "cost_usd": 0.000215,
+          "latency_s": 0.7373427629936486
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-002-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 474,
+          "output_tokens": 6,
+          "cost_usd": 0.000504,
+          "latency_s": 0.6872230090666562
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-018-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 471,
+          "output_tokens": 6,
+          "cost_usd": 0.000501,
+          "latency_s": 0.7888386370614171
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-037-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 185,
+          "output_tokens": 6,
+          "cost_usd": 0.000215,
+          "latency_s": 0.6647358038462698
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-001-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 524,
+          "output_tokens": 8,
+          "cost_usd": 0.000564,
+          "latency_s": 0.9076064929831773
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-059",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 302,
+          "output_tokens": 6,
+          "cost_usd": 0.00033200000000000005,
+          "latency_s": 0.7613840149715543
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-048-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 224,
+          "output_tokens": 8,
+          "cost_usd": 0.000264,
+          "latency_s": 0.8918452099896967
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-066",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 225,
+          "output_tokens": 6,
+          "cost_usd": 0.000255,
+          "latency_s": 0.6096905039157718
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-007-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 545,
+          "output_tokens": 6,
+          "cost_usd": 0.000575,
+          "latency_s": 0.8158658079337329
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-005",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 256,
+          "output_tokens": 6,
+          "cost_usd": 0.000286,
+          "latency_s": 0.8210161819588393
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-012-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 533,
+          "output_tokens": 8,
+          "cost_usd": 0.000573,
+          "latency_s": 0.9175153800752014
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-013-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 304,
+          "output_tokens": 8,
+          "cost_usd": 0.000344,
+          "latency_s": 0.7738162798341364
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-033-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 196,
+          "output_tokens": 6,
+          "cost_usd": 0.000226,
+          "latency_s": 0.7478661180939525
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-020-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 262,
+          "output_tokens": 8,
+          "cost_usd": 0.000302,
+          "latency_s": 0.7501083579845726
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-093",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 291,
+          "output_tokens": 6,
+          "cost_usd": 0.00032100000000000005,
+          "latency_s": 0.7215962260961533
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-039-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 186,
+          "output_tokens": 6,
+          "cost_usd": 0.000216,
+          "latency_s": 0.6878243079409003
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-031",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 314,
+          "output_tokens": 6,
+          "cost_usd": 0.000344,
+          "latency_s": 0.7295080809853971
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-034",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 235,
+          "output_tokens": 6,
+          "cost_usd": 0.000265,
+          "latency_s": 0.8598878881894052
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-014-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 533,
+          "output_tokens": 6,
+          "cost_usd": 0.000563,
+          "latency_s": 0.7599347389768809
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-012",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 192,
+          "output_tokens": 6,
+          "cost_usd": 0.000222,
+          "latency_s": 0.7388823030050844
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-009",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 213,
+          "output_tokens": 6,
+          "cost_usd": 0.000243,
+          "latency_s": 0.611844991100952
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-082",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 173,
+          "output_tokens": 6,
+          "cost_usd": 0.000203,
+          "latency_s": 0.6642814509104937
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-003-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 516,
+          "output_tokens": 8,
+          "cost_usd": 0.000556,
+          "latency_s": 0.8951476749498397
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-033",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 181,
+          "output_tokens": 6,
+          "cost_usd": 0.000211,
+          "latency_s": 0.6584527648519725
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-011-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 568,
+          "output_tokens": 7,
+          "cost_usd": 0.000603,
+          "latency_s": 0.6223454119171947
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-014-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 533,
+          "output_tokens": 6,
+          "cost_usd": 0.000563,
+          "latency_s": 0.6284621160011739
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-001-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 175,
+          "output_tokens": 6,
+          "cost_usd": 0.000205,
+          "latency_s": 0.861889008898288
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-051",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 213,
+          "output_tokens": 6,
+          "cost_usd": 0.000243,
+          "latency_s": 0.6832758809905499
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-045-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 295,
+          "output_tokens": 7,
+          "cost_usd": 0.00033,
+          "latency_s": 0.6615196238271892
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-018-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 477,
+          "output_tokens": 6,
+          "cost_usd": 0.000507,
+          "latency_s": 0.8388602209743112
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-021-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 551,
+          "output_tokens": 8,
+          "cost_usd": 0.0005909999999999999,
+          "latency_s": 0.9148924918845296
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-077",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 6,
+          "cost_usd": 0.000248,
+          "latency_s": 0.7228301470167935
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-016-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 565,
+          "output_tokens": 8,
+          "cost_usd": 0.000605,
+          "latency_s": 1.2549778239335865
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-008-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 296,
+          "output_tokens": 8,
+          "cost_usd": 0.000336,
+          "latency_s": 0.7828571910504252
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-004-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 193,
+          "output_tokens": 8,
+          "cost_usd": 0.000233,
+          "latency_s": 0.7412944980897009
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-046-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 214,
+          "output_tokens": 8,
+          "cost_usd": 0.000254,
+          "latency_s": 0.6882188979070634
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-022-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 483,
+          "output_tokens": 8,
+          "cost_usd": 0.000523,
+          "latency_s": 0.71932028606534
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-041-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 164,
+          "output_tokens": 8,
+          "cost_usd": 0.000204,
+          "latency_s": 0.6718683920335025
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-096",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 282,
+          "output_tokens": 6,
+          "cost_usd": 0.00031200000000000005,
+          "latency_s": 0.6402431861497462
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-040",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 299,
+          "output_tokens": 6,
+          "cost_usd": 0.00032900000000000003,
+          "latency_s": 0.5984144199173898
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-009-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 505,
+          "output_tokens": 6,
+          "cost_usd": 0.000535,
+          "latency_s": 0.6151966811157763
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-000-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 442,
+          "output_tokens": 8,
+          "cost_usd": 0.000482,
+          "latency_s": 0.6401082801166922
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-030",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 285,
+          "output_tokens": 6,
+          "cost_usd": 0.000315,
+          "latency_s": 0.7041574860922992
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-013-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 316,
+          "output_tokens": 8,
+          "cost_usd": 0.000356,
+          "latency_s": 0.6854113331064582
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-040-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 198,
+          "output_tokens": 8,
+          "cost_usd": 0.00023799999999999998,
+          "latency_s": 0.5788452310953289
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-010-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 516,
+          "output_tokens": 6,
+          "cost_usd": 0.0005459999999999999,
+          "latency_s": 0.6167941179592162
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-089",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 185,
+          "output_tokens": 6,
+          "cost_usd": 0.000215,
+          "latency_s": 4.422819333849475
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-042-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 172,
+          "output_tokens": 6,
+          "cost_usd": 0.000202,
+          "latency_s": 0.6358395998831838
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-000-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 442,
+          "output_tokens": 8,
+          "cost_usd": 0.000482,
+          "latency_s": 0.6760958328377455
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-012-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 255,
+          "output_tokens": 8,
+          "cost_usd": 0.000295,
+          "latency_s": 0.6806134679354727
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-016-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 156,
+          "output_tokens": 6,
+          "cost_usd": 0.000186,
+          "latency_s": 0.656698415055871
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-022-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 483,
+          "output_tokens": 6,
+          "cost_usd": 0.000513,
+          "latency_s": 0.6871831009630114
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-011-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 203,
+          "output_tokens": 6,
+          "cost_usd": 0.000233,
+          "latency_s": 0.7087500048801303
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-019-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 598,
+          "output_tokens": 7,
+          "cost_usd": 0.000633,
+          "latency_s": 0.6071571588981897
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-044-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 189,
+          "output_tokens": 8,
+          "cost_usd": 0.000229,
+          "latency_s": 0.694747552042827
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-002-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 169,
+          "output_tokens": 8,
+          "cost_usd": 0.00020899999999999998,
+          "latency_s": 0.7596161519177258
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-079",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 227,
+          "output_tokens": 6,
+          "cost_usd": 0.000257,
+          "latency_s": 0.6970368309412152
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-038-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 214,
+          "output_tokens": 8,
+          "cost_usd": 0.000254,
+          "latency_s": 0.7369293461088091
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-024-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 533,
+          "output_tokens": 7,
+          "cost_usd": 0.000568,
+          "latency_s": 0.9474329389631748
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-003-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 202,
+          "output_tokens": 8,
+          "cost_usd": 0.000242,
+          "latency_s": 4.730437119025737
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-039",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 199,
+          "output_tokens": 8,
+          "cost_usd": 0.000239,
+          "latency_s": 0.647934036096558
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-023-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 480,
+          "output_tokens": 8,
+          "cost_usd": 0.0005200000000000001,
+          "latency_s": 0.6106668831780553
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-007",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 175,
+          "output_tokens": 6,
+          "cost_usd": 0.000205,
+          "latency_s": 0.6311594871804118
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-081",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 255,
+          "output_tokens": 6,
+          "cost_usd": 0.00028500000000000004,
+          "latency_s": 0.7112098098732531
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-032",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 138,
+          "output_tokens": 6,
+          "cost_usd": 0.000168,
+          "latency_s": 1.133298868080601
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-005-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 545,
+          "output_tokens": 8,
+          "cost_usd": 0.000585,
+          "latency_s": 0.6755017770919949
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-025",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 180,
+          "output_tokens": 6,
+          "cost_usd": 0.00021,
+          "latency_s": 0.6309912509750575
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-098",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 212,
+          "output_tokens": 8,
+          "cost_usd": 0.000252,
+          "latency_s": 0.6327102880459279
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-035-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 208,
+          "output_tokens": 8,
+          "cost_usd": 0.000248,
+          "latency_s": 0.6543067230377346
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-015-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 213,
+          "output_tokens": 8,
+          "cost_usd": 0.000253,
+          "latency_s": 0.6463234161492437
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-009-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 627,
+          "output_tokens": 8,
+          "cost_usd": 0.000667,
+          "latency_s": 0.8087624730542302
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-049",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 229,
+          "output_tokens": 8,
+          "cost_usd": 0.00026900000000000003,
+          "latency_s": 0.9824181131552905
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-017-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 565,
+          "output_tokens": 8,
+          "cost_usd": 0.000605,
+          "latency_s": 1.1524168020114303
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-001-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 522,
+          "output_tokens": 8,
+          "cost_usd": 0.000562,
+          "latency_s": 0.6476211668923497
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-010-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 500,
+          "output_tokens": 8,
+          "cost_usd": 0.00054,
+          "latency_s": 0.6533365931827575
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-048-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 226,
+          "output_tokens": 6,
+          "cost_usd": 0.000256,
+          "latency_s": 0.6399041479453444
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-032-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 238,
+          "output_tokens": 8,
+          "cost_usd": 0.00027800000000000004,
+          "latency_s": 1.5406346558593214
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-041-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 163,
+          "output_tokens": 6,
+          "cost_usd": 0.000193,
+          "latency_s": 0.6022916429210454
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-049-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 209,
+          "output_tokens": 8,
+          "cost_usd": 0.00024900000000000004,
+          "latency_s": 0.6747503450606018
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-002-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 509,
+          "output_tokens": 7,
+          "cost_usd": 0.000544,
+          "latency_s": 0.661568891024217
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-000-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 427,
+          "output_tokens": 8,
+          "cost_usd": 0.000467,
+          "latency_s": 0.751980853965506
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-006-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 576,
+          "output_tokens": 8,
+          "cost_usd": 0.000616,
+          "latency_s": 0.7169325870927423
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-065",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 171,
+          "output_tokens": 8,
+          "cost_usd": 0.000211,
+          "latency_s": 0.6473486099857837
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-003-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 501,
+          "output_tokens": 8,
+          "cost_usd": 0.000541,
+          "latency_s": 0.6126901488751173
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-090",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 117,
+          "output_tokens": 6,
+          "cost_usd": 0.000147,
+          "latency_s": 0.5918838158249855
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-030-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 8,
+          "cost_usd": 0.00025800000000000004,
+          "latency_s": 0.684923566877842
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-014-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 588,
+          "output_tokens": 8,
+          "cost_usd": 0.000628,
+          "latency_s": 1.0425672209821641
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-095",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 331,
+          "output_tokens": 6,
+          "cost_usd": 0.00036100000000000005,
+          "latency_s": 0.7020932429004461
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-000-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 187,
+          "output_tokens": 8,
+          "cost_usd": 0.000227,
+          "latency_s": 0.6341571258381009
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-044-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 187,
+          "output_tokens": 6,
+          "cost_usd": 0.000217,
+          "latency_s": 0.6191696499008685
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-017-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 192,
+          "output_tokens": 8,
+          "cost_usd": 0.000232,
+          "latency_s": 1.9367114650085568
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-047-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 170,
+          "output_tokens": 8,
+          "cost_usd": 0.00021,
+          "latency_s": 0.6813670110423118
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-021",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 298,
+          "output_tokens": 6,
+          "cost_usd": 0.000328,
+          "latency_s": 1.9546402748674154
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-008-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 506,
+          "output_tokens": 8,
+          "cost_usd": 0.000546,
+          "latency_s": 1.5046608899720013
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-017-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 522,
+          "output_tokens": 8,
+          "cost_usd": 0.000562,
+          "latency_s": 0.7928188710939139
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-009-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 229,
+          "output_tokens": 6,
+          "cost_usd": 0.000259,
+          "latency_s": 0.7411373141221702
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-025-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 8,
+          "cost_usd": 0.00025800000000000004,
+          "latency_s": 0.6784937509801239
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-019-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 220,
+          "output_tokens": 8,
+          "cost_usd": 0.00026000000000000003,
+          "latency_s": 1.9709771238267422
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-029-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 203,
+          "output_tokens": 8,
+          "cost_usd": 0.000243,
+          "latency_s": 0.708074948983267
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-010-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 516,
+          "output_tokens": 6,
+          "cost_usd": 0.0005459999999999999,
+          "latency_s": 1.8277676871512085
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-061",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 138,
+          "output_tokens": 6,
+          "cost_usd": 0.000168,
+          "latency_s": 0.6643081200309098
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-005-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 175,
+          "output_tokens": 8,
+          "cost_usd": 0.000215,
+          "latency_s": 2.1003825801890343
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-026-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 248,
+          "output_tokens": 6,
+          "cost_usd": 0.00027800000000000004,
+          "latency_s": 1.3402326731011271
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-099",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 153,
+          "output_tokens": 6,
+          "cost_usd": 0.000183,
+          "latency_s": 0.5767761128954589
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-048",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 258,
+          "output_tokens": 6,
+          "cost_usd": 0.000288,
+          "latency_s": 0.5738122269976884
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-014-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 181,
+          "output_tokens": 8,
+          "cost_usd": 0.000221,
+          "latency_s": 1.9008873600978404
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-073",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 278,
+          "output_tokens": 6,
+          "cost_usd": 0.000308,
+          "latency_s": 0.5985774779692292
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-000",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 244,
+          "output_tokens": 6,
+          "cost_usd": 0.000274,
+          "latency_s": 4.553193631814793
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-021-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 551,
+          "output_tokens": 8,
+          "cost_usd": 0.0005909999999999999,
+          "latency_s": 0.727323638042435
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-087",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 390,
+          "output_tokens": 8,
+          "cost_usd": 0.00043,
+          "latency_s": 0.7060203200671822
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-010-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 8,
+          "cost_usd": 0.00025800000000000004,
+          "latency_s": 0.6270175699610263
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-021-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 8,
+          "cost_usd": 0.00025800000000000004,
+          "latency_s": 0.6477120448835194
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-058",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 124,
+          "output_tokens": 6,
+          "cost_usd": 0.000154,
+          "latency_s": 0.6156581549439579
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-006-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 517,
+          "output_tokens": 8,
+          "cost_usd": 0.000557,
+          "latency_s": 0.7552151668351144
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-018-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 200,
+          "output_tokens": 8,
+          "cost_usd": 0.00024,
+          "latency_s": 0.785347490105778
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-004-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 579,
+          "output_tokens": 8,
+          "cost_usd": 0.000619,
+          "latency_s": 1.9144509709440172
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-055",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 185,
+          "output_tokens": 6,
+          "cost_usd": 0.000215,
+          "latency_s": 0.6573347810190171
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-013-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 528,
+          "output_tokens": 8,
+          "cost_usd": 0.000568,
+          "latency_s": 2.1449626421090215
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-017-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 565,
+          "output_tokens": 7,
+          "cost_usd": 0.0006,
+          "latency_s": 0.6538746519945562
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-024-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 535,
+          "output_tokens": 8,
+          "cost_usd": 0.000575,
+          "latency_s": 0.6593216338660568
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-023-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 229,
+          "output_tokens": 8,
+          "cost_usd": 0.00026900000000000003,
+          "latency_s": 2.10099367890507
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-019",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 233,
+          "output_tokens": 8,
+          "cost_usd": 0.000273,
+          "latency_s": 0.6779450518079102
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-004",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 197,
+          "output_tokens": 6,
+          "cost_usd": 0.000227,
+          "latency_s": 0.863657901994884
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-005-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 494,
+          "output_tokens": 8,
+          "cost_usd": 0.000534,
+          "latency_s": 1.9732197260018438
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-086",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 157,
+          "output_tokens": 6,
+          "cost_usd": 0.000187,
+          "latency_s": 0.797739963978529
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-022-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 200,
+          "output_tokens": 8,
+          "cost_usd": 0.00024,
+          "latency_s": 0.6881099478341639
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-016-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 603,
+          "output_tokens": 8,
+          "cost_usd": 0.000643,
+          "latency_s": 1.9644751839805394
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-005-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 494,
+          "output_tokens": 8,
+          "cost_usd": 0.000534,
+          "latency_s": 0.7129958819132298
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-042-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 174,
+          "output_tokens": 8,
+          "cost_usd": 0.000214,
+          "latency_s": 1.9712126348167658
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-083",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 166,
+          "output_tokens": 6,
+          "cost_usd": 0.000196,
+          "latency_s": 0.6771724519785494
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-071",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 245,
+          "output_tokens": 6,
+          "cost_usd": 0.000275,
+          "latency_s": 0.6942038759589195
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-063",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 420,
+          "output_tokens": 8,
+          "cost_usd": 0.00046,
+          "latency_s": 2.0477062980644405
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-001-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 522,
+          "output_tokens": 8,
+          "cost_usd": 0.000562,
+          "latency_s": 0.7548819710500538
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-020-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 477,
+          "output_tokens": 8,
+          "cost_usd": 0.000517,
+          "latency_s": 1.4530392941087484
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-017-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 200,
+          "output_tokens": 8,
+          "cost_usd": 0.00024,
+          "latency_s": 0.6645873510278761
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-014-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 176,
+          "output_tokens": 8,
+          "cost_usd": 0.000216,
+          "latency_s": 2.0578252989798784
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-034-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 201,
+          "output_tokens": 8,
+          "cost_usd": 0.000241,
+          "latency_s": 0.7229842729866505
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-008-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 265,
+          "output_tokens": 6,
+          "cost_usd": 0.000295,
+          "latency_s": 1.356365182902664
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-047-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 176,
+          "output_tokens": 8,
+          "cost_usd": 0.000216,
+          "latency_s": 0.6640160158276558
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-074",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 400,
+          "output_tokens": 6,
+          "cost_usd": 0.00043000000000000004,
+          "latency_s": 1.8990002910140902
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-056",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 224,
+          "output_tokens": 6,
+          "cost_usd": 0.000254,
+          "latency_s": 0.6815663159359246
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-023-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 263,
+          "output_tokens": 8,
+          "cost_usd": 0.000303,
+          "latency_s": 2.1522273698356003
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-015",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 151,
+          "output_tokens": 6,
+          "cost_usd": 0.000181,
+          "latency_s": 1.922475228086114
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-006",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 177,
+          "output_tokens": 6,
+          "cost_usd": 0.000207,
+          "latency_s": 0.6139075991231948
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-003-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 501,
+          "output_tokens": 8,
+          "cost_usd": 0.000541,
+          "latency_s": 0.8251222670078278
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-004-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 189,
+          "output_tokens": 8,
+          "cost_usd": 0.000229,
+          "latency_s": 0.7128647258505225
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-001-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 163,
+          "output_tokens": 6,
+          "cost_usd": 0.000193,
+          "latency_s": 0.6895186160691082
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-054",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 225,
+          "output_tokens": 6,
+          "cost_usd": 0.000255,
+          "latency_s": 1.8792017211671919
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-091",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 192,
+          "output_tokens": 6,
+          "cost_usd": 0.000222,
+          "latency_s": 0.7236430740449578
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-084",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 145,
+          "output_tokens": 6,
+          "cost_usd": 0.000175,
+          "latency_s": 1.9317571721039712
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-013-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 500,
+          "output_tokens": 6,
+          "cost_usd": 0.00053,
+          "latency_s": 0.6719048451632261
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-050",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 155,
+          "output_tokens": 6,
+          "cost_usd": 0.000185,
+          "latency_s": 0.7029196030925959
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-078",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 266,
+          "output_tokens": 6,
+          "cost_usd": 0.00029600000000000004,
+          "latency_s": 1.8358661059755832
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-004-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 493,
+          "output_tokens": 6,
+          "cost_usd": 0.0005229999999999999,
+          "latency_s": 0.734881476033479
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-019-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 222,
+          "output_tokens": 8,
+          "cost_usd": 0.000262,
+          "latency_s": 1.9506665219087154
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-015-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 486,
+          "output_tokens": 6,
+          "cost_usd": 0.000516,
+          "latency_s": 0.6400097098667175
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-024-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 533,
+          "output_tokens": 7,
+          "cost_usd": 0.000568,
+          "latency_s": 1.9311208380386233
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-020-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 515,
+          "output_tokens": 8,
+          "cost_usd": 0.000555,
+          "latency_s": 0.7187149748206139
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-044",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 363,
+          "output_tokens": 6,
+          "cost_usd": 0.000393,
+          "latency_s": 1.1584953959099948
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-008-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 501,
+          "output_tokens": 8,
+          "cost_usd": 0.000541,
+          "latency_s": 0.729418717790395
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-027-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 220,
+          "output_tokens": 6,
+          "cost_usd": 0.00025,
+          "latency_s": 1.831102438038215
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-022-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 491,
+          "output_tokens": 8,
+          "cost_usd": 0.000531,
+          "latency_s": 1.4505316158756614
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-075",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 242,
+          "output_tokens": 8,
+          "cost_usd": 0.000282,
+          "latency_s": 1.848999778041616
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-068",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 169,
+          "output_tokens": 6,
+          "cost_usd": 0.00019899999999999999,
+          "latency_s": 0.8226613940205425
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-043",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 266,
+          "output_tokens": 8,
+          "cost_usd": 0.000306,
+          "latency_s": 0.7012486490420997
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-009-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 627,
+          "output_tokens": 8,
+          "cost_usd": 0.000667,
+          "latency_s": 0.679865371901542
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-030-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 212,
+          "output_tokens": 6,
+          "cost_usd": 0.000242,
+          "latency_s": 2.070562971988693
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-008-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 501,
+          "output_tokens": 6,
+          "cost_usd": 0.000531,
+          "latency_s": 0.6656186040490866
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-005-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 545,
+          "output_tokens": 8,
+          "cost_usd": 0.000585,
+          "latency_s": 0.7474211549852043
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-003-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 516,
+          "output_tokens": 8,
+          "cost_usd": 0.000556,
+          "latency_s": 1.9510177471674979
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-092",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 166,
+          "output_tokens": 6,
+          "cost_usd": 0.000196,
+          "latency_s": 0.9062072180677205
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-088",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 147,
+          "output_tokens": 6,
+          "cost_usd": 0.000177,
+          "latency_s": 0.7332085419911891
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-000-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 188,
+          "output_tokens": 8,
+          "cost_usd": 0.00022799999999999999,
+          "latency_s": 2.117424964904785
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-031-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 203,
+          "output_tokens": 7,
+          "cost_usd": 0.00023799999999999998,
+          "latency_s": 1.2892791349440813
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-062",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 125,
+          "output_tokens": 6,
+          "cost_usd": 0.000155,
+          "latency_s": 0.827179562067613
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-052",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 379,
+          "output_tokens": 6,
+          "cost_usd": 0.000409,
+          "latency_s": 0.7127555599436164
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-027-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 227,
+          "output_tokens": 8,
+          "cost_usd": 0.000267,
+          "latency_s": 1.9490638170391321
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-004-fact-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 493,
+          "output_tokens": 6,
+          "cost_usd": 0.0005229999999999999,
+          "latency_s": 0.6563855959102511
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-015-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 212,
+          "output_tokens": 8,
+          "cost_usd": 0.000252,
+          "latency_s": 0.7106474870815873
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-011-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 203,
+          "output_tokens": 8,
+          "cost_usd": 0.000243,
+          "latency_s": 1.9351412190590054
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-021-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 200,
+          "output_tokens": 8,
+          "cost_usd": 0.00024,
+          "latency_s": 0.7063987660221756
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-060",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 218,
+          "output_tokens": 6,
+          "cost_usd": 0.000248,
+          "latency_s": 2.038748947205022
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-005-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 178,
+          "output_tokens": 8,
+          "cost_usd": 0.00021799999999999999,
+          "latency_s": 0.8512358220759779
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-024-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 222,
+          "output_tokens": 8,
+          "cost_usd": 0.000262,
+          "latency_s": 0.6987865860573947
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-020",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 269,
+          "output_tokens": 6,
+          "cost_usd": 0.000299,
+          "latency_s": 2.0426270780153573
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-016-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 179,
+          "output_tokens": 8,
+          "cost_usd": 0.00021899999999999998,
+          "latency_s": 0.6589860748499632
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-036-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 239,
+          "output_tokens": 8,
+          "cost_usd": 0.000279,
+          "latency_s": 0.7033400060608983
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-016",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 132,
+          "output_tokens": 7,
+          "cost_usd": 0.000167,
+          "latency_s": 2.177370202029124
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-004-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 579,
+          "output_tokens": 8,
+          "cost_usd": 0.000619,
+          "latency_s": 0.7195407720282674
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-016-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 603,
+          "output_tokens": 8,
+          "cost_usd": 0.000643,
+          "latency_s": 0.7136364520993084
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-012-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 564,
+          "output_tokens": 8,
+          "cost_usd": 0.000604,
+          "latency_s": 2.1784030529670417
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-013",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 250,
+          "output_tokens": 6,
+          "cost_usd": 0.00028000000000000003,
+          "latency_s": 0.7018798450008035
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-002-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 509,
+          "output_tokens": 7,
+          "cost_usd": 0.000544,
+          "latency_s": 0.6674565779976547
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-015-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 523,
+          "output_tokens": 7,
+          "cost_usd": 0.000558,
+          "latency_s": 1.741194176953286
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-023-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 474,
+          "output_tokens": 8,
+          "cost_usd": 0.000514,
+          "latency_s": 0.699406421976164
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-046-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 206,
+          "output_tokens": 6,
+          "cost_usd": 0.000236,
+          "latency_s": 1.8646094449795783
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-027",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 222,
+          "output_tokens": 6,
+          "cost_usd": 0.000252,
+          "latency_s": 0.6971883000805974
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.general",
+          "pack_test_id": "general-057",
+          "category": "general",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 150,
+          "output_tokens": 8,
+          "cost_usd": 0.00018999999999999998,
+          "latency_s": 2.084319300018251
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-002-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 180,
+          "output_tokens": 8,
+          "cost_usd": 0.00022,
+          "latency_s": 0.7112512369640172
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-019-fact-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 500,
+          "output_tokens": 8,
+          "cost_usd": 0.00054,
+          "latency_s": 0.6804586490616202
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.factuality",
+          "pack_test_id": "summ-023-hall-fac",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 474,
+          "output_tokens": 8,
+          "cost_usd": 0.000514,
+          "latency_s": 1.9307175651192665
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-007-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 207,
+          "output_tokens": 8,
+          "cost_usd": 0.000247,
+          "latency_s": 0.7322085509076715
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.summarization.citation_integrity",
+          "pack_test_id": "summ-011-hall-cit",
+          "category": "summarization",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 568,
+          "output_tokens": 7,
+          "cost_usd": 0.000603,
+          "latency_s": 1.8959209630265832
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-010-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": false,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 210,
+          "output_tokens": 8,
+          "cost_usd": 0.00025,
+          "latency_s": 0.7980024351272732
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-032-fact",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "FACTUAL"
+        },
+        "_meta": {
+          "input_tokens": 220,
+          "output_tokens": 8,
+          "cost_usd": 0.00026000000000000003,
+          "latency_s": 0.7542500551789999
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.dialogue",
+          "pack_test_id": "dialogue-034-hall",
+          "category": "dialogue",
+          "trigger_id": "T4"
+        },
+        "success": true,
+        "response": {
+          "output": "HALLUCINATED"
+        },
+        "_meta": {
+          "input_tokens": 215,
+          "output_tokens": 8,
+          "cost_usd": 0.000255,
+          "latency_s": 1.369114130968228
+        }
+      }
+    ]
+  }
+}

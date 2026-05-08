@@ -7,6 +7,7 @@
 |---|---|---|---|---|---|---|
 | 2026-05-08 | HaluEval QA smoke (key sanity + wiring) | haiku-4.5 | 5 | $0.000549 | $0.000549 | `artifacts/beaaa-152/runs/halueval_smoke_run.json` |
 | 2026-05-08 | HaluEval QA n=100 (first real measurement, n=50 source × 2) | haiku-4.5 | 100 | $0.024047 | $0.024596 | `artifacts/beaaa-152/runs/halueval_qa_n100_run.json` |
+| 2026-05-08 | HaluEval dialogue+summ+general n=300 (first pass on 3 remaining HaluEval splits) | haiku-4.5 | 300 | $0.105940 | $0.130536 | `artifacts/beaaa-152/runs/halueval_dialogue_summ_general_n300_run.json` |
 
 ## Phase 1 plan
 

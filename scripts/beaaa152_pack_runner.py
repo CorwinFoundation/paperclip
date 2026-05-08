@@ -67,7 +67,7 @@ class CallResult:
     error: str | None = None
 
 
-def _judge_halueval_qa(
+def _judge_halueval_item(
     client: anthropic.Anthropic,
     *,
     model_id: str,
@@ -169,7 +169,7 @@ def run_pack(
                 break
             t0 = time.perf_counter()
             try:
-                ok, predicted, msg = _judge_halueval_qa(
+                ok, predicted, msg = _judge_halueval_item(
                     client, model_id=model_id, item=it,
                 )
                 cost = _cost_for(msg.usage, base_model)
