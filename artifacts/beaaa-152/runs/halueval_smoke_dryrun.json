@@ -1,0 +1,69 @@
+{
+  "version": 3,
+  "_run_meta": {
+    "probe_mapping": "rubric/probe_mappings/halueval.yaml",
+    "dataset": "artifacts/beaaa-152/datasets/halueval_smoke.json",
+    "base_model": "haiku-4.5",
+    "model_id": "claude-haiku-4-5-20251001",
+    "max_spend_usd": 0.0,
+    "max_items": 5,
+    "actual_items_run": 5,
+    "actual_spend_usd": 0.0,
+    "dry_run": true,
+    "started_at": "2026-05-08T08:53:18.837517+00:00"
+  },
+  "results": {
+    "results": [
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "smoke-qa-001"
+        },
+        "success": true,
+        "response": {
+          "output": "(dry-run)"
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "smoke-qa-002"
+        },
+        "success": true,
+        "response": {
+          "output": "(dry-run)"
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "smoke-qa-003"
+        },
+        "success": true,
+        "response": {
+          "output": "(dry-run)"
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "smoke-qa-004"
+        },
+        "success": true,
+        "response": {
+          "output": "(dry-run)"
+        }
+      },
+      {
+        "vars": {
+          "probe_id": "halueval.qa",
+          "pack_test_id": "smoke-qa-005"
+        },
+        "success": true,
+        "response": {
+          "output": "(dry-run)"
+        }
+      }
+    ]
+  }
+}

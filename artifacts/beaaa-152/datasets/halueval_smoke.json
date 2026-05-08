@@ -1,0 +1,56 @@
+{
+  "_dataset_meta": {
+    "purpose": "smoke-scale items for BEAAA-152 Phase 1 wiring + key sanity test",
+    "scale": "5 items hand-crafted from public HaluEval-style examples (NOT the full 3K Phase 1 set)",
+    "category": "qa",
+    "trigger_id": "T4",
+    "license_note": "synthetic items in HaluEval style; no upstream redistribution"
+  },
+  "items": [
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "smoke-qa-001",
+      "category": "qa",
+      "trigger_id": "T4",
+      "question": "What is the capital of France?",
+      "answer": "Paris",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "smoke-qa-002",
+      "category": "qa",
+      "trigger_id": "T4",
+      "question": "Who wrote 'Pride and Prejudice'?",
+      "answer": "Charles Dickens",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "smoke-qa-003",
+      "category": "qa",
+      "trigger_id": "T4",
+      "question": "What is the chemical symbol for gold?",
+      "answer": "Au",
+      "label": "factual"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "smoke-qa-004",
+      "category": "qa",
+      "trigger_id": "T4",
+      "question": "In what year did World War II end?",
+      "answer": "1943",
+      "label": "hallucinated"
+    },
+    {
+      "probe_id": "halueval.qa",
+      "pack_test_id": "smoke-qa-005",
+      "category": "qa",
+      "trigger_id": "T4",
+      "question": "What planet is known as the Red Planet?",
+      "answer": "Mars",
+      "label": "factual"
+    }
+  ]
+}
