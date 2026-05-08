@@ -1,0 +1,43 @@
+# FActScore probe-mapping for Promptfoo runner — BEAAA-152 WS-D Phase 2.
+# UW filter: BEAAA-153 #comment-89df5af9 (biographical fact density ×1.0).
+# Phase 2 batch draft at BEAAA-152 #document-wsd-phase2-draft.
+
+benchmark: factscore
+version: "0.1.0"
+description: |
+  FActScore (Min et al. 2023). T4 hallucination — biographical fact
+  density. Cross-load: split P1.1 (factuality) + P1.2 (citation/grounding)
+  with weights summing to 1.0 within the category, mirroring the
+  HaluEval summarization shape so the modifier doesn't double-count
+  when re-weighted at dim aggregation.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-141 v0.2"
+  fails_validation_if_any_above_advances: true
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+
+category_modifiers:
+  biographical_fact_density: 1.0
+
+probes:
+  - probe_id: factscore.bio.factuality
+    category: biographical_fact_density
+    pillar: P1
+    dim: P1.1
+    weight: 0.7
+    trigger_id: T4
+    rationale: per-atomic-fact precision -> P1.1
+  - probe_id: factscore.bio.citation_grounding
+    category: biographical_fact_density
+    pillar: P1
+    dim: P1.2
+    weight: 0.3
+    trigger_id: T4
+    rationale: source-grounding precision -> P1.2 citation integrity

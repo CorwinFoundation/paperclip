@@ -602,6 +602,149 @@ class BeaAa152Phase1BinTests(unittest.TestCase):
                 m.validate_binding({**locked, "scanner_artifact": "BEAAA-141 v0.3"})
 
 
+class BeaAa152Phase2BinTests(unittest.TestCase):
+    """Phase 2 pack bins committed to rubric/probe_mappings/.
+
+    Same UW guard set as Phase 1 — `binding` block fail-closed, explicit
+    `c2_head_active`, `category-proxy:{base_model}` provenance, every
+    probe stamped with `category` + `trigger_id`. UW review pass on
+    contents (PrivacyBench cross-loads, Garak/PromptInject overlap)
+    can revise via PR; binding block ensures stale revs reject.
+    """
+
+    LOCKED_REVS = {
+        "pillar_weights": "BEAAA-13 rev 5 (frozen)",
+        "trigger_taxonomy": "BEAAA-125 v1 board-locked",
+        "scanner_artifact": "BEAAA-141 v0.2",
+    }
+
+    PHASE2_FILES = [
+        "truthfulqa.yaml",
+        "factscore.yaml",
+        "privacybench.yaml",
+        "advbench.yaml",
+        "promptinject.yaml",
+        "garak_beaaa152.yaml",
+    ]
+
+    def test_all_phase2_bins_load_with_uw_guard_set(self):
+        for name in self.PHASE2_FILES:
+            with self.subTest(bin=name):
+                m = pf.ProbeMappingFile.load(MAPPINGS_DIR / name)
+                # binding block present + fails-closed flag set
+                self.assertIsNotNone(m.binding, f"{name}: missing binding")
+                self.assertTrue(
+                    m.binding["fails_validation_if_any_above_advances"],
+                    f"{name}: fails_validation flag not set",
+                )
+                # provenance template uses category-proxy
+                self.assertEqual(
+                    m.provenance["label_template"],
+                    "category-proxy:{base_model}",
+                    f"{name}: wrong provenance template",
+                )
+                # c2_head_active explicit (false) per UW v1.0 guard
+                self.assertFalse(
+                    m.c2_head_active,
+                    f"{name}: c2_head_active should be False in v1.0",
+                )
+                # Every probe carries category + trigger_id
+                for p in m.probes:
+                    self.assertNotEqual(p.category, "", f"{name}: {p.probe_id} missing category")
+                    self.assertNotEqual(p.trigger_id, "", f"{name}: {p.probe_id} missing trigger_id")
+                # validate_binding passes on locked revs, rejects on advance
+                m.validate_binding(self.LOCKED_REVS)
+                with self.assertRaises(pf.BindingViolationError):
+                    m.validate_binding({**self.LOCKED_REVS, "scanner_artifact": "BEAAA-141 v0.3"})
+
+    def test_truthfulqa_b2b_uplift_applied_at_dim_aggregation(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "truthfulqa.yaml")
+        # b2b_domain at 1.0 pass, residual at 0.5 pass.
+        # b2b ×1.25 → 1.0*1.25*1.0=1.25, residual ×1.0 → 0.5*1.0*1.0=0.5
+        # dim_rate = (1.25 + 0.5) / 2 = 0.875 (would be 0.75 without uplift)
+        parsed = {
+            "tqa.b2b_domain":        {"n_items": 100, "n_passed": 100, "pass_rate": 1.0},
+            "tqa.residual_factual":  {"n_items": 100, "n_passed": 50,  "pass_rate": 0.5},
+        }
+        rows = pf.aggregate_to_measurements(parsed, m, model_id="m", base_model="haiku-4.5")
+        p11 = next(r for r in rows if r["dim_id"] == "P1.1")
+        self.assertAlmostEqual(p11["pass_rate"], 0.875, places=4)
+        # Both categories surface in the breakdown
+        cats = {b["category"]: b["applied_category_modifier"]
+                for b in p11["category_breakdown"]}
+        self.assertEqual(cats, {"b2b_domain": 1.25, "residual_factual": 1.0})
+
+    def test_factscore_split_p11_p12_sum_to_unit_within_category(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "factscore.yaml")
+        bio = [p for p in m.probes if p.category == "biographical_fact_density"]
+        # Split sums to 1.0 so the modifier doesn't double-count when
+        # re-weighted at dim aggregation across the two cells.
+        self.assertAlmostEqual(sum(p.weight for p in bio), 1.0, places=6)
+        self.assertEqual({p.dim for p in bio}, {"P1.1", "P1.2"})
+
+    def test_privacybench_cross_load_weights_default(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "privacybench.yaml")
+        # Direct PII pure 1.0 P3.3, no cross-load.
+        direct = [p for p in m.probes if p.category == "direct_pii_regurgitation"]
+        self.assertEqual([(p.dim, p.weight) for p in direct], [("P3.3", 1.0)])
+        # Indirect inference: 0.6 P3.3 (T3 outcome) / 0.4 P1.1 (T4 mechanism)
+        indirect = sorted(
+            (p for p in m.probes if p.category == "indirect_pii_inference"),
+            key=lambda p: p.dim,
+        )
+        self.assertEqual(
+            [(p.dim, p.weight, p.trigger_id) for p in indirect],
+            [("P1.1", 0.4, "T4"), ("P3.3", 0.6, "T3")],
+        )
+        # Jailbreak-targeted PII: 0.6 P3.3 / 0.4 P3.1 (mirrors JBB.privacy)
+        jb = sorted(
+            (p for p in m.probes if p.category == "jailbreak_targeted_pii"),
+            key=lambda p: p.dim,
+        )
+        self.assertEqual(
+            [(p.dim, p.weight, p.trigger_id) for p in jb],
+            [("P3.1", 0.4, "T5"), ("P3.3", 0.6, "T3")],
+        )
+
+    def test_advbench_pinned_t5_only(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "advbench.yaml")
+        # Pinned T5 only — T4 frequency basis stays sourced from
+        # HaluEval / TruthfulQA / FActScore per UW Q1 framing.
+        self.assertEqual({p.trigger_id for p in m.probes}, {"T5"})
+        self.assertEqual({p.dim for p in m.probes}, {"P3.1"})
+
+    def test_promptinject_direct_vs_indirect_split(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "promptinject.yaml")
+        direct = [p for p in m.probes if p.category == "direct_injection"]
+        indirect = [p for p in m.probes if p.category == "indirect_injection"]
+        self.assertEqual([(p.dim, p.weight) for p in direct], [("P3.1", 1.0)])
+        self.assertEqual([(p.dim, p.weight) for p in indirect], [("P3.2", 1.0)])
+
+    def test_garak_beaaa152_extends_legacy_with_p25_zero_rollup(self):
+        m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "garak_beaaa152.yaml")
+        self.assertEqual(m.benchmark, "garak_beaaa152")
+        # Distinct benchmark keeps it separate from legacy garak.yaml
+        # so the existing pipeline integration (measured:garak) stays
+        # unchanged.
+        self.assertNotEqual(m.benchmark, "garak")
+        # Bias-adjacent rows present at ×0.75 modifier
+        for cat in ("realtoxicityprompts", "topics"):
+            self.assertEqual(m.category_modifiers[cat], 0.75)
+        # P2.5 rows present
+        p25 = [p for p in m.probes if p.dim == "P2.5"]
+        self.assertGreater(len(p25), 0)
+        # End-to-end: P2.5 row gets raw_for_aggregate=0 in v1.0 mode
+        parsed = {p.probe_id: {"n_items": 1, "n_passed": 1, "pass_rate": 1.0}
+                  for p in m.probes}
+        rows = pf.aggregate_to_measurements(parsed, m, model_id="m", base_model="haiku-4.5")
+        p25_row = next(r for r in rows if r["dim_id"] == "P2.5")
+        self.assertEqual(p25_row["raw_for_aggregate"], 0.0)
+        self.assertFalse(p25_row["applied_to_aggregate"])
+        # All-pack provenance stamps category-proxy on every dim
+        for r in rows:
+            self.assertEqual(r["provenance_label"], "category-proxy:haiku-4.5")
+
+
 class BeaAa152T4SentinelTests(unittest.TestCase):
     def test_no_t4_rows_returns_no_breach(self):
         rows = [

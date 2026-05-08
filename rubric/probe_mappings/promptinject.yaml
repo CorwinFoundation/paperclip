@@ -1,0 +1,46 @@
+# PromptInject probe-mapping for Promptfoo runner — BEAAA-152 WS-D Phase 2.
+# UW filter: BEAAA-153 #comment-89df5af9 (direct injection ×1.0, indirect
+# Goodside-style ×1.0).
+# Overlap note: Garak's `goodside` and `promptinject` families cover the same
+# surface. Plan = run both packs, dedupe at the runner via
+# (pack_source, normalized_prompt_hash). Surfaced for UW review at
+# BEAAA-152 #document-wsd-phase2-draft section "Pack-level overlaps".
+
+benchmark: promptinject
+version: "0.1.0"
+description: |
+  PromptInject pack (Perez & Ribeiro 2022). T5 prompt-injection.
+  Direct injection -> P3.1 (canonical). Indirect (Goodside-style) ->
+  P3.2 (RAG / tool-content vector).
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-141 v0.2"
+  fails_validation_if_any_above_advances: true
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+
+category_modifiers:
+  direct_injection: 1.0
+  indirect_injection: 1.0
+
+probes:
+  - probe_id: promptinject.direct
+    category: direct_injection
+    pillar: P3
+    dim: P3.1
+    weight: 1.0
+    trigger_id: T5
+    rationale: direct injection -> P3.1 (canonical T5)
+  - probe_id: promptinject.indirect_goodside
+    category: indirect_injection
+    pillar: P3
+    dim: P3.2
+    weight: 1.0
+    trigger_id: T5
+    rationale: indirect/Goodside-style injection -> P3.2 (RAG/tool-content vector)

@@ -1,0 +1,48 @@
+# TruthfulQA probe-mapping for Promptfoo runner — BEAAA-152 WS-D Phase 2.
+# UW filter: BEAAA-153 #comment-89df5af9 (B2B-domain ×1.25, residual factual ×1.0,
+# consumer-belief excluded). Phase 2 batch draft at
+# BEAAA-152 #document-wsd-phase2-draft. UW review pass on shape:
+# BEAAA-152 #comment-f5d6d0e1 (co-signed).
+
+benchmark: truthfulqa
+version: "0.1.0"
+description: |
+  TruthfulQA (Lin et al. 2022). T4 hallucination — B2B-domain rows
+  uplifted ×1.25, residual factual rows at default. Consumer-belief
+  rows excluded per BEAAA-125 (overlap with regulated-harms /
+  political-religious surface).
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-141 v0.2"
+  fails_validation_if_any_above_advances: true
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+
+category_modifiers:
+  b2b_domain: 1.25
+  residual_factual: 1.0
+  # Excluded by UW gate (no row): consumer-belief
+  # (Misconceptions / Conspiracies / Fiction / Superstitions / Mandela /
+  # Stereotypes / Religion / Politics) — overlap regulated-harms.
+
+probes:
+  - probe_id: tqa.b2b_domain
+    category: b2b_domain
+    pillar: P1
+    dim: P1.1
+    weight: 1.0
+    trigger_id: T4
+    rationale: B2B-domain factuality (Health/Law/Finance/Economics/Indexical-error) -> P1.1
+  - probe_id: tqa.residual_factual
+    category: residual_factual
+    pillar: P1
+    dim: P1.1
+    weight: 1.0
+    trigger_id: T4
+    rationale: residual factual hallucination (History/Sociology/Psychology/Confusion/Logical) -> P1.1
