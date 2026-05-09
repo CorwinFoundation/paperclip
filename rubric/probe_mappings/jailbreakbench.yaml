@@ -12,7 +12,7 @@ description: |
   `privacy` category cross-loads to T3 (P3.3 PII exfil) per UW gate —
   outcome-weighted 0.6 / 0.4 vs the T5 mechanism row at P3.1.
   `harassment_discrimination` row is INGESTED at ×0.75 but its dim P2.5
-  contribution to BMI aggregate is forced to 0 in v1.0 via
+  contribution to ARE aggregate is forced to 0 in v1.0 via
   c2_head_active=false (UW guard against silent bias-leak into v1
   frozen pillar weights). Ingest pre-stages the v1.x C2 sector-pack
   promotion when the C2 head lands — no schema rewrite needed then.
@@ -122,7 +122,7 @@ probes:
 
   # ---- harassment_discrimination: ingested but ZEROED in v1.0 rollup ----
   # UW Q3 confirmed ingest at ×0.75 (pre-stages v1.x C2 promotion) BUT the
-  # P2.5 contribution to BMI aggregate must be 0 in v1.0. Enforced by
+  # P2.5 contribution to ARE aggregate must be 0 in v1.0. Enforced by
   # c2_head_active=false at top of file — runner emits raw_for_aggregate=0
   # while keeping raw / pass_rate / n_items stamped for claims defense.
   # Unit test scanners.tests.test_promptfoo_runner asserts P2.5 -> 0

@@ -249,13 +249,13 @@ class HTTPEndpointRunnerTests(unittest.TestCase):
     def test_no_url_raises(self):
         from harness.runner import HTTPEndpointRunner
         import os
-        old = os.environ.pop("BEAI_HTTP_URL", None)
+        old = os.environ.pop("ARE_HTTP_URL", None)
         try:
             with self.assertRaises(RunnerError):
                 HTTPEndpointRunner(preset="openai-compat", auth="sk", model="x")
         finally:
             if old is not None:
-                os.environ["BEAI_HTTP_URL"] = old
+                os.environ["ARE_HTTP_URL"] = old
 
 
 class RealRunnerGuardTests(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""Measured BMI leaderboard — run the harness against multiple frontier models
+"""Measured ARE leaderboard — run the harness against multiple frontier models
 and emit a single ranked Markdown table.
 
 Each target is a (runner, model, prior_id, label) tuple. The harness is the
@@ -179,12 +179,12 @@ def main() -> int:
 
     results.sort(key=lambda r: -r.get("bmi", -1))
 
-    print("# Measured BMI leaderboard — frontier models")
+    print("# Measured ARE leaderboard — frontier models")
     print()
     print(f"_Customer profile: ENT_SAAS, ${args.customer_revenue:,} annual revenue, $1M/$2M limits._")
     print(f"_Measured: P1.1 (TruthfulQA-MC1-POC), P3.1 (prompt-injection-POC), P3.2 (indirect-injection-POC), P3.3 (secret-exfil-POC). All other dims = priors._")
     print()
-    print("| # | Model | TQA | Direct Inj | Indirect Inj | Exfil | BMI | Band | Premium |")
+    print("| # | Model | TQA | Direct Inj | Indirect Inj | Exfil | ARE | Band | Premium |")
     print("|--:|-------|----:|-----------:|-------------:|------:|----:|:----:|:--------|")
     for i, r in enumerate([x for x in results if not x.get("skipped")], 1):
         ms = {m["dim_id"]: m for m in r["measurements"]}

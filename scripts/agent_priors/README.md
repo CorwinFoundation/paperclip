@@ -1,7 +1,7 @@
 # Directional priors for real AI agents
 
 **These are priors, not measurements.** Each file estimates 0–4 raw scores
-per BMI dim from public information (model cards, vendor trust portals,
+per ARE dim from public information (model cards, vendor trust portals,
 published benchmarks, public red-teaming reports). They are intended for
 prioritization — *which agents would we want to scan first as pilot
 targets?* — not for binding, pricing, or any contract decision.

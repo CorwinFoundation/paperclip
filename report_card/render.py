@@ -13,7 +13,7 @@ and `dim_provenance` kwargs; unset provenance renders a loud warning.
 
 Sensitivity panel (BEAAA-130 rec #3): `include_sensitivity=True` (default)
 embeds the ±10% pillar-weight perturbation block between Pillar Breakdown
-and Dimension Detail. Render-side only — never mutates BMI/band/scoring.
+and Dimension Detail. Render-side only — never mutates ARE/band/scoring.
 
 Rubric source + framework crosswalk + probe drilldown (BEAAA-130 rec
 A+B+C): when the rubric carries top-level `provenance` and per-pillar
@@ -512,7 +512,7 @@ def render(
         f'<html lang="en">\n'
         f"<head>\n"
         f'<meta charset="utf-8" />\n'
-        f"<title>BMI Report Card \u2014 {escape(band['display'])} ({bmi}/100)</title>\n"
+        f"<title>Report Card \u2014 {escape(band['display'])} ({bmi}/100)</title>\n"
         f"<style>{_STYLE}</style>\n"
         f"</head>\n"
         f"<body>\n"
@@ -520,8 +520,8 @@ def render(
         f'  <div class="report-accent"></div>\n'
         f'  <div class="report-header">\n'
         f"    <div>\n"
-        f'      <div class="report-brand">BEAI Insurance</div>\n'
-        f'      <div class="report-title">BEAI Maturity Index \u2014 Report Card</div>\n'
+        f'      <div class="report-brand">ARE Insurance</div>\n'
+        f'      <div class="report-title">Agent Risk Exposure \u2014 Report Card</div>\n'
         f"    </div>\n"
         f'    <div class="report-meta">\n'
         f"      Scored: {scored_at}<br>\n"

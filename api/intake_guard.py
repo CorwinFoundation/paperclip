@@ -1,7 +1,7 @@
 """BEAAA-22 §3 hosted-eval-only intake guard (Task D).
 
 v0.1 accepts evidence only when each dim entry carries provenance proving it was
-produced by the BEAI hosted eval runner. Self-reported / customer-uploaded
+produced by the ARE hosted eval runner. Self-reported / customer-uploaded
 results are rejected — that policy is enforced at the API edge so the scoring
 engine never sees unverified raw scores.
 """

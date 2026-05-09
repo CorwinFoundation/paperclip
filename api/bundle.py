@@ -23,7 +23,7 @@ class BundleError(ValueError):
 
 
 def _signing_key() -> bytes:
-    raw = os.environ.get("BMI_BUNDLE_SIGNING_KEY")
+    raw = os.environ.get("ARE_BUNDLE_SIGNING_KEY")
     return raw.encode("utf-8") if raw else _DEFAULT_KEY
 
 

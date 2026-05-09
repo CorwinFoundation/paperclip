@@ -1,4 +1,4 @@
-# bmi-scanner runtime + dev dependencies — pinned for reproducibility.
+# are-scanner runtime + dev dependencies — pinned for reproducibility.
 # Source of truth for promptfoo (Node, npm) + garak (Python) versions
 # the scoring overlay is calibrated against (BEAAA-106).
 #

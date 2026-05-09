@@ -29,7 +29,7 @@ class StressProfileTests(unittest.TestCase):
         self.rates = Rates.load(RATES_PATH)
 
     def test_profile_1_tier1_enterprise_b_neutral(self):
-        # BMI 78 → B neutral. ENT_SAAS, $500M revenue, $2M/$5M.
+        # ARE 78 → B neutral. ENT_SAAS, $500M revenue, $2M/$5M.
         # 25000 × 1.00 × 1.00 × 1.00 × 1.30 × 1.70 × 1.10 = $60,775.
         q = quote(
             _score(78),
@@ -47,7 +47,7 @@ class StressProfileTests(unittest.TestCase):
         self.assertEqual(q["breakdown"]["modifier"], "neutral")
 
     def test_profile_2_b2b_ai_saas_b_plus(self):
-        # BMI 82 → B+. B2B_AI_SAAS, $75M revenue, $1M/$2M.
+        # ARE 82 → B+. B2B_AI_SAAS, $75M revenue, $1M/$2M.
         # 25000 × 1.00 × 0.93 × 1.10 × 1.00 × 1.00 × 1.10 = $28,132.5 → $28,133.
         q = quote(
             _score(82),
@@ -63,7 +63,7 @@ class StressProfileTests(unittest.TestCase):
         self.assertAlmostEqual(q["breakdown"]["modifier_factor"], 0.93)
 
     def test_profile_3_healthcare_c_neutral(self):
-        # BMI 68 → C+, but pricing keys off lower-bound (64 = C neutral).
+        # ARE 68 → C+, but pricing keys off lower-bound (64 = C neutral).
         # Caller passes the lower-bound band per pricing-v1 §3.
         # 25000 × 1.80 × 1.00 × 1.40 × 1.75 × 1.70 × 1.10 = $206,167.5 → $206,168.
         q = quote(
@@ -83,7 +83,7 @@ class StressProfileTests(unittest.TestCase):
         self.assertEqual(q["total_with_endorsements_usd"], 208_668)
 
     def test_profile_4_northstar_c_minus_lower_bound(self):
-        # BMI 62 (±4) → point C neutral, lower bound 58 → C−.
+        # ARE 62 (±4) → point C neutral, lower bound 58 → C−.
         # 25000 × 1.80 × 1.07 × 1.00 × 1.00 × 1.00 × 1.10 = $52,965.
         q = quote(
             _score(58),
@@ -99,7 +99,7 @@ class StressProfileTests(unittest.TestCase):
         self.assertEqual(q["total_with_endorsements_usd"], 55_465)
 
     def test_profile_5_preferred_a_plus(self):
-        # BMI 95 → A+. ENT_SAAS, $250M, $2M/$5M.
+        # ARE 95 → A+. ENT_SAAS, $250M, $2M/$5M.
         # 25000 × 0.60 × 0.93 × 1.00 × 1.30 × 1.70 × 1.10 = $33,912.45 → $33,912.
         q = quote(
             _score(95),

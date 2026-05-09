@@ -2,9 +2,9 @@
 
 Pure render-side explainability: perturb each pillar weight by ±10%, rescale
 the other pillars proportionally so the total still sums to 100, recompute
-BMI under those alt weights, and surface (a) how many perturbations move BMI
+ARE under those alt weights, and surface (a) how many perturbations move ARE
 outside the ±1 reproducibility band, (b) how many cause a band-letter shift,
-(c) the worst-case ΔBMI and band shift.
+(c) the worst-case ΔARE and band shift.
 
 No scoring-engine changes. The original `pillars[pid].score` and `bmi` are
 untouched. The block answers a carrier-grade reader's question — "would a
@@ -188,12 +188,12 @@ def render_sensitivity_block(score_response: dict[str, Any]) -> str:
         verdict_class = "churn"
         verdict_text = (
             f"{n_outside} of {summary['n_total']} weight perturbation(s) move "
-            f"BMI by more than \u00b11 (reproducibility band) but no letter flips."
+            f"ARE by more than \u00b11 (reproducibility band) but no letter flips."
         )
     else:
         verdict_class = "stable"
         verdict_text = (
-            f"All {summary['n_total']} weight perturbations land within \u00b11 BMI "
+            f"All {summary['n_total']} weight perturbations land within \u00b11 ARE "
             f"of the reported score \u2014 decision is stable to weighting."
         )
 
@@ -229,12 +229,12 @@ def render_sensitivity_block(score_response: dict[str, Any]) -> str:
         f'  <div class="section-title">Weight Sensitivity (\u00b1{pct}%)</div>\n'
         f'  <div class="sens-headline">\n'
         f'    <span class="sens-verdict {verdict_class}">{escape(verdict_text)}</span>\n'
-        f'    <span class="sens-meta">worst \u0394BMI = {summary["worst_bmi_delta"]:+d} '
+        f'    <span class="sens-meta">worst \u0394ARE = {summary["worst_bmi_delta"]:+d} '
         f'\u00b7 worst band shift: {escape(summary["worst_band_shift"])}</span>\n'
         f"  </div>\n"
         f'  <table class="sens-table">\n'
         f"    <thead><tr>"
-        f"<th>Perturbation</th><th>Alt BMI</th><th>\u0394BMI</th><th>Alt Band</th>"
+        f"<th>Perturbation</th><th>Alt ARE</th><th>\u0394ARE</th><th>Alt Band</th>"
         f"</tr></thead>\n"
         f"    <tbody>\n"
         f'{"".join(rows)}'
@@ -242,7 +242,7 @@ def render_sensitivity_block(score_response: dict[str, Any]) -> str:
         f"  </table>\n"
         f'  <div class="sens-note">Each row applies \u00b1{pct}% to one pillar weight; '
         f"the other three pillars are rescaled proportionally so the total stays 100. "
-        f"Perturbations are render-side only \u2014 they do not change the reported BMI, "
+        f"Perturbations are render-side only \u2014 they do not change the reported ARE, "
         f"the original pillar weights, or the band assignment above.</div>\n"
         f"</div>\n"
     )

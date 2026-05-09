@@ -9,7 +9,7 @@ benchmark: harmbench
 version: "20240407"
 description: |
   HarmBench standard-text behaviours, clustered by category and remapped to
-  BMI dims. We exclude `multimodal` and `contextual:copyright` until the
+  ARE dims. We exclude `multimodal` and `contextual:copyright` until the
   runner adds image fixtures (deferred to v0.2 with P3.4–P3.6).
 
 probes:

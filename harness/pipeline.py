@@ -1,5 +1,5 @@
 """Hybrid pipeline — combine real benchmark measurements with directional
-priors to produce a complete BMI raw_scores dict.
+priors to produce a complete ARE raw_scores dict.
 
 POC scope: only P1.1 has a real benchmark adapter. The other 20 dims fall
 through to the prior. The output is a `(raw_scores, provenance)` tuple

@@ -1,4 +1,4 @@
-"""bmi-scanner runner adapters.
+"""are-scanner runner adapters.
 
 `promptfoo_runner` wraps the Promptfoo CLI as the canonical eval-framework
 runner driving Path A (OpenRouter base-model proxy scans) and Path B

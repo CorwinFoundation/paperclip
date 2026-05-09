@@ -1,6 +1,6 @@
 """Pricing v1 quote engine — applies BEAAA-10 pricing-v1 §1 formula.
 
-Annual Premium = BaseRate × BMIBandFactor × ModifierFactor × SectorFactor
+Annual Premium = BaseRate × AREBandFactor × ModifierFactor × SectorFactor
                  × RevenueFactor × LimitFactor × Aggregate
 
 Endorsements are additive and computed separately (§8). Remediation is

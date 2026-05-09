@@ -214,7 +214,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         self.assertIsNone(quote_body["breakdown"]["pillar_floors"])
 
     def test_pricing_math_unchanged_by_v011_additive_fields(self):
-        # Same Profile-1 BMI 78 / B neutral / ENT_SAAS / $500M / $2M-$5M shape
+        # Same Profile-1 ARE 78 / B neutral / ENT_SAAS / $500M / $2M-$5M shape
         # the existing pricing tests assert at $60,775. v0.1.1 must not move it.
         score_body = {
             "bmi": 78,

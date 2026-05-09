@@ -64,7 +64,7 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(out["forensic_bundle_uri"], "https://bundles.local/test")
         self.assertEqual(out["rubric_version"], self.rubric.version)
         self.assertEqual(set(out["pillars"]), {"P1", "P2", "P3", "P4"})
-        self.assertEqual(out["band"]["display"], "D+")  # BMI 50 = D+
+        self.assertEqual(out["band"]["display"], "D+")  # ARE 50 = D+
         self.assertEqual(out["band"]["bands_version"], "1.0")
 
     def test_missing_snapshot_hash_raises(self):
@@ -118,7 +118,7 @@ class SyntheticFixtureTests(unittest.TestCase):
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)
         # Synthetic profile: strong P1, mid P2, weak P3, mid-low P4.
-        # Hand-computed: P1=23.33, P2=9.58, P3=8.75, P4=6.56 → 48.22 → BMI 48.
+        # Hand-computed: P1=23.33, P2=9.58, P3=8.75, P4=6.56 → 48.22 → ARE 48.
         self.assertEqual(out["bmi"], 48)
         # Spot-check that P3 (weak adversarial) scores low relative to weight.
         self.assertLess(out["pillars"]["P3"]["score"], out["pillars"]["P3"]["weight"] / 2)

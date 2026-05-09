@@ -1,4 +1,4 @@
-"""BMI band assignment — 12-band (A/B/C/D × ±) v1.0 FROZEN 2026-04-30.
+"""ARE band assignment — 12-band (A/B/C/D × ±) v1.0 FROZEN 2026-04-30.
 
 Source authority: BEAAA-57 band-cuts-spec v1.0 + pricing-v1 §3 (BEAAA-10 rev 2).
 
@@ -56,7 +56,7 @@ class Band:
 
 
 def assign_band(bmi: int) -> Band:
-    """Map a 0–100 BMI integer to its 12-band assignment."""
+    """Map a 0–100 ARE integer to its 12-band assignment."""
     if not isinstance(bmi, int):
         raise BandError(f"bmi must be int, got {type(bmi).__name__}")
     if not 0 <= bmi <= 100:

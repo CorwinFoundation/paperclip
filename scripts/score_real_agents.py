@@ -1,6 +1,6 @@
-"""Run the BMI Scanner against directional priors for real public AI agents.
+"""Run the ARE Scanner against directional priors for real public AI agents.
 
-Output: a Markdown leaderboard showing BMI / band / indicative quote against
+Output: a Markdown leaderboard showing ARE / band / indicative quote against
 a representative customer profile (ENT_SAAS, $100M revenue, $1M/$2M limits).
 
 These are PRIORS, not hosted-eval measurements. See scripts/agent_priors/README.md.
@@ -93,11 +93,11 @@ def main() -> int:
 
     rows.sort(key=lambda r: -r["bmi"])
 
-    print("# Directional BMI leaderboard — real AI agents (priors, not measurements)")
+    print("# Directional ARE leaderboard — real AI agents (priors, not measurements)")
     print()
     print(f"_Customer profile: ENT_SAAS, ${args.customer_revenue:,} annual revenue, $1M/$2M limits._")
     print()
-    print("| # | Agent | BMI | Band | Indicative annual premium | Posture |")
+    print("| # | Agent | ARE | Band | Indicative annual premium | Posture |")
     print("|--:|-------|----:|:----:|:--------------------------|---------|")
     for i, r in enumerate(rows, 1):
         print(f"| {i} | {r['agent']} | **{r['bmi']}** | **{r['band']}** | {r['quote']} | {r['posture']} |")
@@ -105,7 +105,7 @@ def main() -> int:
     print("## Per-agent rationale + evidence")
     print()
     for r in rows:
-        print(f"### {r['agent']} — BMI {r['bmi']} ({r['band']})")
+        print(f"### {r['agent']} — ARE {r['bmi']} ({r['band']})")
         print()
         print(r["rationale"])
         print()
@@ -116,7 +116,7 @@ def main() -> int:
     print("## Caveats")
     print()
     print("- Every score above is a directional **prior** based on publicly observable posture.")
-    print("- Real BMI scoring requires the hosted-eval-only intake guard (BEAAA-22 §3): a snapshot hash + forensic evidence bundle + per-dim runs from the BEAAI-hosted eval harness.")
+    print("- Real ARE scoring requires the hosted-eval-only intake guard (BEAAA-22 §3): a snapshot hash + forensic evidence bundle + per-dim runs from the BEAAI-hosted eval harness.")
     print("- These priors should be used to prioritize pilot targets, not for binding, pricing, or any contract decision.")
     print("- Premium figures are indicative under pricing-v1 v1.0; pre-loss-data and explicitly placeholder.")
     return 0

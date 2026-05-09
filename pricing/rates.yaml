@@ -1,6 +1,6 @@
 # Pricing v1 rate tables — frozen 2026-04-30 (BEAAA-10 pricing-v1 §2-§8).
 # Encoded directly from the doc; quote.py applies the formula.
-# Annual Premium = BaseRate × BMIBandFactor × ModifierFactor × SectorFactor × RevenueFactor × LimitFactor × Aggregate
+# Annual Premium = BaseRate × AREBandFactor × ModifierFactor × SectorFactor × RevenueFactor × LimitFactor × Aggregate
 
 version: "1.0"
 frozen_at: "2026-04-30"

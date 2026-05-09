@@ -1,7 +1,7 @@
 """Scan-vs-prior-scan diff — BEAAA-130 rec E.
 
 Given the current ScoreResponse and a prior ScoreResponse for the same
-agent, compute per-dim and BMI-level deltas. Render a small "What changed
+agent, compute per-dim and ARE-level deltas. Render a small "What changed
 since last scan" block. Pure analysis + render — never mutates either side.
 
 Closes the customer-CTO gripe that quarterly re-scans without diff lose
@@ -177,7 +177,7 @@ def render_diff_block(diff: dict[str, Any]) -> str:
         f'<div class="diff-block">\n'
         f'  <div class="section-title">Change Since Last Scan</div>\n'
         f'  <div class="diff-headline">\n'
-        f'    <span class="diff-bmi">\u0394BMI {delta_str}</span>'
+        f'    <span class="diff-bmi">\u0394ARE {delta_str}</span>'
         f"{band_shift_html}\n"
         f'    <span class="diff-meta">prior scan: {prior_scored_at}</span>\n'
         f"  </div>\n"

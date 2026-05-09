@@ -65,7 +65,7 @@ class ScoreHandlerTests(unittest.TestCase):
             body["forensic_bundle_uri"].rsplit("/", 1)[-1]
         ))
         self.assertEqual(set(body["pillars"]), {"P1", "P2", "P3", "P4"})
-        # BMI 50 → D+ (decline + remediation): letter D, modifier +.
+        # ARE 50 → D+ (decline + remediation): letter D, modifier +.
         self.assertEqual(body["band"]["letter"], "D")
         self.assertEqual(body["band"]["modifier"], "+")
         self.assertEqual(body["band"]["display"], "D+")

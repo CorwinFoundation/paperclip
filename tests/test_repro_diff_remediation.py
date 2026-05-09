@@ -122,8 +122,8 @@ class ScanDiffComputeTests(unittest.TestCase):
         self.assertEqual(deltas, sorted(deltas, reverse=True))
 
     def test_band_letter_change_flagged(self):
-        prior = _baseline_score(seed_offset=-1.5)  # lower BMI
-        cur = _baseline_score(seed_offset=+1.5)    # higher BMI
+        prior = _baseline_score(seed_offset=-1.5)  # lower ARE
+        cur = _baseline_score(seed_offset=+1.5)    # higher ARE
         diff = compute_diff(cur, prior)
         # Likely letter change between low and high; at minimum modifier change
         self.assertTrue(
@@ -138,7 +138,7 @@ class ScanDiffRenderTests(unittest.TestCase):
         html = render(out, rubric, prior_score_response=prior)
         self.assertIn("Change Since Last Scan", html)
         self.assertIn('<div class="diff-block">', html)
-        self.assertIn("\u0394BMI", html)
+        self.assertIn("\u0394ARE", html)
 
     def test_block_omitted_when_no_prior(self):
         out, rubric = _baseline_with_rubric()

@@ -27,7 +27,7 @@ def create_app(
     bundles: BundleStore | None = None,
     rates: Rates | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="BMI Scanner ⇄ Underwriter API", version="0.2.0")
+    app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="0.2.0")
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.bundles = bundles or BundleStore()
     app.state.rates = rates or Rates.load(RATES_PATH)

@@ -1,6 +1,6 @@
-"""BMI Scanner v0.1 deterministic scoring engine.
+"""ARE Scanner v0.1 deterministic scoring engine.
 
-Loads rubric YAML, accepts per-dim raw scores (0-4), produces BMI(0-100)
+Loads rubric YAML, accepts per-dim raw scores (0-4), produces ARE(0-100)
 plus per-pillar/per-dim breakdown matching api/openapi.yaml ScoreResponse.
 
 Red-line invariants enforced here (BEAAA-29 non-negotiable):

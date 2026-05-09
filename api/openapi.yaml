@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: BMI Scanner ⇄ Underwriter API
+  title: ARE Scanner ⇄ Underwriter API
   version: "0.2.2"
   description: |
     BEAAA-21 v0.2.2 contract surface (BEAAA-tracking label v0.1.2, additive on v0.2.1).
@@ -29,7 +29,7 @@ servers:
 paths:
   /score:
     post:
-      summary: Score a model snapshot, return BMI(0–100) + per-pillar/per-dim breakdown
+      summary: Score a model snapshot, return ARE(0–100) + per-pillar/per-dim breakdown
       operationId: scoreSnapshot
       requestBody:
         required: true
@@ -38,7 +38,7 @@ paths:
             schema: { $ref: '#/components/schemas/ScoreRequest' }
       responses:
         '200':
-          description: BMI score with forensic bundle pointer
+          description: ARE score with forensic bundle pointer
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ScoreResponse' }

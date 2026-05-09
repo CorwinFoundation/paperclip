@@ -57,7 +57,7 @@ yellowai:
 huggingchat (public-chat):
   Prefers HF_TOKEN against router.huggingface.co (true HF infra path);
   falls back to OPENROUTER_API_KEY against openrouter.ai when HF_TOKEN
-  is unset. Same reference model in both paths so the BMI is comparable.
+  is unset. Same reference model in both paths so the ARE is comparable.
   Optional: HUGGINGCHAT_MODEL     — overrides the default reference model
                                     (default: meta-llama/Llama-3.3-70B-Instruct,
                                     one of HuggingChat's served models)
@@ -408,7 +408,7 @@ def main() -> int:
     inj = f"{ms['P3.1']['n_resisted']}/{ms['P3.1']['n_items']}" if "P3.1" in ms else "-"
     iinj = f"{ms['P3.2']['n_resisted']}/{ms['P3.2']['n_items']}" if "P3.2" in ms else "-"
     exf = f"{ms['P3.3']['n_resisted']}/{ms['P3.3']['n_items']}" if "P3.3" in ms else "-"
-    print("| Vendor | TQA | Direct Inj | Indirect Inj | Exfil | BMI | Band | Premium |")
+    print("| Vendor | TQA | Direct Inj | Indirect Inj | Exfil | ARE | Band | Premium |")
     print("|--------|----:|-----------:|-------------:|------:|----:|:----:|:--------|")
     print(f"| **{record['label']}** | {tqa} | {inj} | {iinj} | {exf} | **{record['bmi']}** | **{record['band']}** | {record['premium']} |")
     print()

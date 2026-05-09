@@ -1,4 +1,4 @@
-"""Render a BMI Report Card HTML from a JSON eval_outputs file.
+"""Render a Report Card HTML from a JSON eval_outputs file.
 
 Lets non-engineers (CSO, CMO, CBDO, board) generate a board-quality report
 card without touching the API. Useful for pilot LOI binders ([BEAAA-50])
@@ -65,7 +65,7 @@ def main() -> int:
 
     verdict = evaluate_bind_eligibility(score_response)
     band = score_response["band"]
-    print(f"BMI={score_response['bmi']} band={band['display']} verdict={'BIND' if verdict['eligible'] else 'NO BIND'}")
+    print(f"ARE={score_response['bmi']} band={band['display']} verdict={'BIND' if verdict['eligible'] else 'NO BIND'}")
     if not verdict["eligible"]:
         for r in verdict["reasons"]:
             print(f"  - {r}")

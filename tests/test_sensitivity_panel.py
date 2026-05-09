@@ -89,7 +89,7 @@ class SensitivityComputeTests(unittest.TestCase):
 
     def test_flat_normalized_means_zero_bmi_delta(self):
         """If every pillar normalized score is identical, weight reshuffles
-        cannot move BMI — the weighted average is invariant to weight."""
+        cannot move ARE — the weighted average is invariant to weight."""
         out, _ = _flat_score(raw=2.0)
         sens = compute_sensitivity(out)
         for p in sens["perturbations"]:
@@ -176,7 +176,7 @@ class SensitivityIntegrationTests(unittest.TestCase):
         self.assertNotIn("sens-block", html)
 
     def test_bmi_and_band_unchanged_after_sensitivity_added(self):
-        """Ensure render with sensitivity does not swap reported BMI/band."""
+        """Ensure render with sensitivity does not swap reported ARE/band."""
         out, rubric = _baseline()
         html = render(out, rubric)
         self.assertIn(f"{out['bmi']}", html)

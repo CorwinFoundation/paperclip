@@ -1,4 +1,4 @@
-"""BEAAA-130 demo run — BMI Scanner v0.1 against Pi.ai (Inflection AI).
+"""BEAAA-130 demo run — ARE Scanner v0.1 against Pi.ai (Inflection AI).
 
 Single-pass priors-based scan with phase-by-phase wall-clock timing so the
 board can see the process, time, and current outputs end-to-end. No live
@@ -47,7 +47,7 @@ def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     trace: list[str] = []
     header = [
-        "BMI Scanner v0.1 — BEAAA-130 demo run",
+        "ARE Scanner v0.1 — BEAAA-130 demo run",
         f"  target:        Pi (Inflection AI) — pi.ai consumer chat",
         f"  scan mode:     directional priors (no live HTTP — pi.ai blocks scrapers)",
         f"  rubric:        {RUBRIC_PATH.name} (4 pillars, 21 active dims, weights 35/20/30/15)",
@@ -92,7 +92,7 @@ def main() -> int:
         scored_at=datetime.now(timezone.utc),
     )
     (OUT_DIR / "scan_pi_ai_score.json").write_text(json.dumps(score_resp, indent=2, default=str))
-    t = _phase(t, f"scored                    (BMI={score_resp['bmi']}, band={score_resp['band']['display']})", trace)
+    t = _phase(t, f"scored                    (ARE={score_resp['bmi']}, band={score_resp['band']['display']})", trace)
 
     # phase 5 — quote (or referral)
     rates = Rates.load(RATES_PATH)
@@ -138,7 +138,7 @@ def main() -> int:
         "RESULTS",
         "=" * 60,
         f"  Target:           Pi (Inflection AI)",
-        f"  BMI:              {score_resp['bmi']} / 100",
+        f"  ARE:              {score_resp['bmi']} / 100",
         f"  Band:             {score_resp['band']['display']}",
         f"  Posture:          {score_resp['band']['posture']}",
         f"  Pillar scores:    P1={score_resp['pillars']['P1']['score']:.2f}/35   "
@@ -153,7 +153,7 @@ def main() -> int:
             summary.append(f"     reason: {r}")
     summary += [
         "",
-        f"  Total wall-clock: {total_ms:.1f} ms (priors → BMI → quote → report card)",
+        f"  Total wall-clock: {total_ms:.1f} ms (priors → ARE → quote → report card)",
         "",
         "Artifacts:",
         f"  {(OUT_DIR / 'scan_pi_ai_eval_outputs.json').relative_to(REPO)}",

@@ -1,4 +1,4 @@
-"""BEAAA-130 follow-up — BMI Scanner v0.1 against HuggingChat (huggingface.co/chat).
+"""BEAAA-130 follow-up — ARE Scanner v0.1 against HuggingChat (huggingface.co/chat).
 
 Picked because it is a *publicly-open* AI agent the board can actually load
 in a browser and interact with — no login required for anonymous chat. That
@@ -55,7 +55,7 @@ def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     trace: list[str] = []
     header = [
-        "BMI Scanner v0.1 — BEAAA-130 follow-up run",
+        "ARE Scanner v0.1 — BEAAA-130 follow-up run",
         f"  target:        {TARGET_NAME}",
         f"  public url:    {TARGET_URL}  (board can interact directly — no login)",
         f"  scan mode:     {SCAN_MODE}",
@@ -97,7 +97,7 @@ def main() -> int:
         scored_at=datetime.now(timezone.utc),
     )
     (OUT_DIR / "scan_huggingchat_score.json").write_text(json.dumps(score_resp, indent=2, default=str))
-    t = _phase(t, f"scored                    (BMI={score_resp['bmi']}, band={score_resp['band']['display']})", trace)
+    t = _phase(t, f"scored                    (ARE={score_resp['bmi']}, band={score_resp['band']['display']})", trace)
 
     rates = Rates.load(RATES_PATH)
     customer = {
@@ -141,7 +141,7 @@ def main() -> int:
         "=" * 60,
         f"  Target:           {TARGET_NAME}",
         f"  Public URL:       {TARGET_URL}",
-        f"  BMI:              {score_resp['bmi']} / 100",
+        f"  ARE:              {score_resp['bmi']} / 100",
         f"  Band:             {score_resp['band']['display']}",
         f"  Posture:          {score_resp['band']['posture']}",
         f"  Pillar scores:    P1={score_resp['pillars']['P1']['score']:.2f}/35   "
@@ -156,7 +156,7 @@ def main() -> int:
             summary.append(f"     reason: {r}")
     summary += [
         "",
-        f"  Total wall-clock: {total_ms:.1f} ms (priors → BMI → quote → report card)",
+        f"  Total wall-clock: {total_ms:.1f} ms (priors → ARE → quote → report card)",
         "",
         "Artifacts:",
         f"  {(OUT_DIR / 'scan_huggingchat_eval_outputs.json').relative_to(REPO)}",

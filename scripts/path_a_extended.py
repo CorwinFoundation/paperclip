@@ -151,7 +151,7 @@ def main() -> int:
     print()
     print(f"_Customer profile: ENT_SAAS, ${args.customer_revenue:,} annual revenue, $1M/$2M limits._")
     print()
-    print("| # | Model | TQA | Inject | Exfil | BMI | Band | Premium |")
+    print("| # | Model | TQA | Inject | Exfil | ARE | Band | Premium |")
     print("|--:|-------|----:|------:|-----:|----:|:----:|:--------|")
     for i, r in enumerate([x for x in results if not x.get("skipped")], 1):
         ms = {m["dim_id"]: m for m in r["measurements"]}

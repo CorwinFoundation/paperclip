@@ -470,20 +470,20 @@ class VoiceflowRunner(ModelRunner):
 class HTTPEndpointRunner(ModelRunner):
     """Generic HTTP-endpoint runner — scan any deployed AI surface.
 
-    The canonical BMI-Scanner customer flow:
+    The canonical ARE-Scanner customer flow:
       1. Customer signs scanning agreement (BEAAA-22 §3 hosted-eval-only intake).
       2. Customer provides endpoint URL + auth token.
-      3. We point this runner at it; the harness produces a BMI for THEIR
+      3. We point this runner at it; the harness produces a ARE for THEIR
          deployed agent — including their system prompt, RAG, tool calls,
          post-processing — not for the underlying base model.
 
     Configuration via constructor or env vars:
-      BEAI_HTTP_URL              — endpoint URL (POST)
-      BEAI_HTTP_AUTH             — full Authorization header value (e.g. 'Bearer xxxx', 'xi-api-key xxxx')
-      BEAI_HTTP_REQUEST_TEMPLATE — JSON body template; '{prompt}' is substituted
-      BEAI_HTTP_RESPONSE_PATH    — dotted path to text in response (e.g. 'choices[0].message.content')
-      BEAI_HTTP_HEADERS_JSON     — optional extra headers as JSON object
-      BEAI_HTTP_LABEL            — label shown in model_id() (e.g. 'elevenlabs:my-voice-agent')
+      ARE_HTTP_URL              — endpoint URL (POST)
+      ARE_HTTP_AUTH             — full Authorization header value (e.g. 'Bearer xxxx', 'xi-api-key xxxx')
+      ARE_HTTP_REQUEST_TEMPLATE — JSON body template; '{prompt}' is substituted
+      ARE_HTTP_RESPONSE_PATH    — dotted path to text in response (e.g. 'choices[0].message.content')
+      ARE_HTTP_HEADERS_JSON     — optional extra headers as JSON object
+      ARE_HTTP_LABEL            — label shown in model_id() (e.g. 'elevenlabs:my-voice-agent')
 
     Presets exist for common shapes (openai-compat, anthropic-compat, elevenlabs-convai).
     """
@@ -526,25 +526,25 @@ class HTTPEndpointRunner(ModelRunner):
         preset: str | None = None,
         timeout_s: float = 30.0,
     ):
-        self._url = url or os.environ.get("BEAI_HTTP_URL", "")
+        self._url = url or os.environ.get("ARE_HTTP_URL", "")
         if not self._url:
-            raise RunnerError("BEAI_HTTP_URL not set (or pass url=...)")
+            raise RunnerError("ARE_HTTP_URL not set (or pass url=...)")
         preset_cfg = self.PRESETS.get(preset, {}) if preset else {}
         self._request_template = (
             request_template
-            or os.environ.get("BEAI_HTTP_REQUEST_TEMPLATE")
+            or os.environ.get("ARE_HTTP_REQUEST_TEMPLATE")
             or preset_cfg.get("request_template")
         )
         self._response_path = (
             response_path
-            or os.environ.get("BEAI_HTTP_RESPONSE_PATH")
+            or os.environ.get("ARE_HTTP_RESPONSE_PATH")
             or preset_cfg.get("response_path")
         )
         if not self._request_template or not self._response_path:
             raise RunnerError(
                 "request_template + response_path required (set via constructor, env, or preset)"
             )
-        env_headers = os.environ.get("BEAI_HTTP_HEADERS_JSON", "")
+        env_headers = os.environ.get("ARE_HTTP_HEADERS_JSON", "")
         env_extra = _json.loads(env_headers) if env_headers else {}
         self._extra_headers = {
             **preset_cfg.get("extra_headers", {}),
@@ -553,13 +553,13 @@ class HTTPEndpointRunner(ModelRunner):
         }
         auth_header = preset_cfg.get("auth_header", "Authorization")
         auth_prefix = preset_cfg.get("auth_prefix", "Bearer ")
-        token = auth or os.environ.get("BEAI_HTTP_AUTH", "")
+        token = auth or os.environ.get("ARE_HTTP_AUTH", "")
         if token and not token.startswith(auth_prefix):
             self._extra_headers[auth_header] = f"{auth_prefix}{token}"
         elif token:
             self._extra_headers[auth_header] = token
         self._model = model
-        self._label = label or os.environ.get("BEAI_HTTP_LABEL", f"http:{self._url}")
+        self._label = label or os.environ.get("ARE_HTTP_LABEL", f"http:{self._url}")
         self._timeout_s = timeout_s
 
     def model_id(self) -> str:

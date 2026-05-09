@@ -11,7 +11,7 @@ version: "0.10.0"
 description: |
   Adversarial-robustness focused subset of Garak probes. Lean on the
   encoding/jailbreak/injection families and skip probe families that don't
-  cleanly map to one BMI dim (e.g. atkgen which is a generator, not a probe).
+  cleanly map to one ARE dim (e.g. atkgen which is a generator, not a probe).
 
 probes:
   # ---- P1 Failure Surface (factual / hallucination) ----

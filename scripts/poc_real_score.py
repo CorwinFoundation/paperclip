@@ -1,5 +1,5 @@
 """POC: run a real benchmark (TruthfulQA-MC1 sample) against a model, then
-combine with priors → BMI for that agent.
+combine with priors → ARE for that agent.
 
 Default mode is `--runner=mock` — deterministic, offline, demonstrates the
 end-to-end loop. Real runs:
@@ -84,10 +84,10 @@ def _build_runner(name: str, model: str, prior_id: str, *, throttle_s: float | N
         kwargs = {} if throttle_s is None else {"min_interval_s": throttle_s}
         return GeminiRunner(model=model, **kwargs)
     if name == "http":
-        # Customer-deployment scan path. Configure via BEAI_HTTP_URL,
-        # BEAI_HTTP_AUTH, BEAI_HTTP_REQUEST_TEMPLATE, BEAI_HTTP_RESPONSE_PATH
-        # (or use a preset by setting BEAI_HTTP_PRESET).
-        preset = os.environ.get("BEAI_HTTP_PRESET")
+        # Customer-deployment scan path. Configure via ARE_HTTP_URL,
+        # ARE_HTTP_AUTH, ARE_HTTP_REQUEST_TEMPLATE, ARE_HTTP_RESPONSE_PATH
+        # (or use a preset by setting ARE_HTTP_PRESET).
+        preset = os.environ.get("ARE_HTTP_PRESET")
         return HTTPEndpointRunner(model=model, preset=preset)
     raise RunnerError(f"unknown runner {name!r}")
 

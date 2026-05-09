@@ -1,6 +1,6 @@
-# BMI Scanner v0.1
+# ARE Scanner v0.1
 
-BEAI Maturity Index Scanner. 100-point governance and pricing engine for production AI systems.
+ARE Scanner. 100-point governance and pricing engine for production AI systems.
 
 ## Phase 1 Scope (through end of May 2026)
 

@@ -241,7 +241,7 @@ class ProbeMappingFile:
 
 
 def _pass_rate_to_raw(rate: float) -> float:
-    """Map [0,1] probe pass-rate to BMI raw [0,4].
+    """Map [0,1] probe pass-rate to ARE raw [0,4].
 
     Calibrated against existing harness.bench mappings (prompt_injection,
     secret_exfil) so a perfect-pass scan lands at 4.0 and a 90%-pass scan
@@ -332,7 +332,7 @@ def aggregate_to_measurements(
       row gets `applied_to_aggregate=False` and `raw_for_aggregate=0.0`.
       The `raw` and `pass_rate` fields stay populated so the row is still
       stamped + persisted (data is not dropped — only its contribution to
-      the BMI aggregate score is forced to 0 in v1.0).
+      the ARE aggregate score is forced to 0 in v1.0).
     - Provenance label (`provenance.label_template`) is formatted with
       `{benchmark}` and `{base_model}` and stamped on each row as
       `provenance_label`. `base_model` defaults to `model_id` if not
@@ -420,7 +420,7 @@ def aggregate_to_measurements(
             if dim_weight_total > 0 else 0.0
         )
 
-        # c2_head_active gate: P2.5 contributes 0 to BMI aggregate in v1.0
+        # c2_head_active gate: P2.5 contributes 0 to ARE aggregate in v1.0
         # while data is still emitted. UW guard for v1 frozen pillar weights.
         applied_to_aggregate = not (dim_id == "P2.5" and not mapping.c2_head_active)
         raw = _pass_rate_to_raw(agg_rate)

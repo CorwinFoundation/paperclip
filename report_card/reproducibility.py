@@ -1,7 +1,7 @@
 """Reproducibility band — BEAAA-130 rec D.
 
 Aggregates N replicate ScoreResponses (re-runs of the same probe set against
-the same agent) into a per-dim and BMI-level confidence band. Pure analysis
+the same agent) into a per-dim and ARE-level confidence band. Pure analysis
 + render — operator decides which run is the primary; this module never
 mutates it. Closes the customer-CTO gripe that the sensitivity panel covers
 *weight*-side uncertainty but not *measurement*-side noise.
@@ -141,19 +141,19 @@ def render_reproducibility_block(reproducibility: dict[str, Any]) -> str:
     if bmi_min == bmi_max:
         verdict_class = "repro-stable"
         verdict_text = (
-            f"BMI is identical across all {n} replicates "
-            f"\u2014 measurement noise is below 1 BMI point."
+            f"ARE is identical across all {n} replicates "
+            f"\u2014 measurement noise is below 1 ARE point."
         )
     elif bmi_max - bmi_min <= 2:
         verdict_class = "repro-stable"
         verdict_text = (
-            f"BMI varies by {bmi_max - bmi_min} point(s) across {n} replicates "
+            f"ARE varies by {bmi_max - bmi_min} point(s) across {n} replicates "
             f"\u2014 within the \u00b11 reproducibility band."
         )
     else:
         verdict_class = "repro-flag"
         verdict_text = (
-            f"BMI varies by {bmi_max - bmi_min} point(s) across {n} replicates "
+            f"ARE varies by {bmi_max - bmi_min} point(s) across {n} replicates "
             f"\u2014 measurement noise exceeds the \u00b11 reproducibility band."
         )
 
@@ -185,7 +185,7 @@ def render_reproducibility_block(reproducibility: dict[str, Any]) -> str:
         f'<div class="repro-block">\n'
         f'  <div class="section-title">Reproducibility (n={n})</div>\n'
         f'  <div class="repro-headline">\n'
-        f'    <span class="repro-bmi-band">BMI {bmi_min}\u2013{bmi_max} '
+        f'    <span class="repro-bmi-band">ARE {bmi_min}\u2013{bmi_max} '
         f'<span class="ci">(median {bmi_median:.0f} \u00b1 {half_width:.1f}, '
         f"\u03c3={bmi_stdev:.2f})</span></span>\n"
         f'    <span class="{verdict_class}">{escape(verdict_text)}</span>\n'

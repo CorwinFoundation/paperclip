@@ -1,7 +1,7 @@
-# BMI Scanner Rubric — v0.1.2 (additive on v0.1.1, 2026-04-30)
+# ARE Scanner Rubric — v0.1.2 (additive on v0.1.1, 2026-04-30)
 # Source of truth: BEAAA-8 WS1. Weights frozen via BEAAA-19; bands via BEAAA-57.
 # 4 pillars, 24 dimensions total. Each dim scored 0–4. Pillar score = weighted dim mean × pillar weight.
-# BMI(0–100) = sum of pillar scores. 12-band (A/B/C/D × ±) assignment via rubric/bands.py.
+# ARE(0–100) = sum of pillar scores. 12-band (A/B/C/D × ±) assignment via rubric/bands.py.
 #
 # v0.1.1 additive (BEAAA-70, shipped 2026-04-29):
 #  - dim_threshold_defaults: per-pillar default applied_threshold per DimensionEvidence
@@ -26,7 +26,7 @@ locked_through: "2026-04-30"
 provenance:
   source_of_authority: "BEAAA-8 WS1 (rubric draft) → BEAAA-22 §4 (UW data policy) → BEAAA-19 (weight freeze) → BEAAA-57 (12-band cuts v1.0)"
   weight_authority: "UW co-signed; frozen 2026-04-30; locked through v1.0 reinsurance baseline 2026-05-09"
-  raw_score_convention: "0–4 per dim, scored deterministically by rubric/scoring.py. Pillar score = mean(dim raws) / 4 × pillar weight. BMI = sum(pillar scores), 0–100, rounded to int."
+  raw_score_convention: "0–4 per dim, scored deterministically by rubric/scoring.py. Pillar score = mean(dim raws) / 4 × pillar weight. ARE = sum(pillar scores), 0–100, rounded to int."
   governance: "Weight changes require UW + Actuary co-sign + version bump (rubric/bands.py BANDS_VERSION)."
 
 pillars:

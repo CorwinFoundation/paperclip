@@ -36,7 +36,7 @@ class RenderCardCLITests(unittest.TestCase):
             self.assertIn("<!DOCTYPE html>", html)
             self.assertIn("NO BIND", html)
             stdout = result.stdout
-            self.assertIn("BMI=", stdout)
+            self.assertIn("ARE=", stdout)
             self.assertIn("verdict=NO BIND", stdout)
             self.assertIn("weak-link", stdout)
 
