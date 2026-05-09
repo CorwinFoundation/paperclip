@@ -82,6 +82,16 @@ def score_handler(
         dim_id: {"raw": entry["raw"], "evidence_uri": entry.get("evidence_uri", "")}
         for dim_id, entry in eval_outputs.items()
     }
+    # v0.2.3 (BEAAA-21, UW co-signed 2026-05-09): pull caller-asserted hints
+    # off the request and the optional model_versions attestation off the
+    # snapshot. corpus_version is the harness-actual stamp; in hosted-eval
+    # intake mode the caller asserts it (the hosted runner ran the pack), so
+    # the request value is treated as authoritative. Mismatch surfacing in
+    # diagnostics is exercised by callers that pass both a server-actual and
+    # a client-asserted value (covered in tests/test_v0_2_3_additive.py).
+    client_corpus_version = body.get("corpus_version")
+    client_seed = body.get("seed")
+    snapshot_model_versions = snapshot.get("model_versions") or None
     try:
         result = score(
             rubric,
@@ -89,6 +99,9 @@ def score_handler(
             snapshot_hash=snapshot["snapshot_hash"],
             forensic_bundle_uri=forensic_bundle_uri,
             scored_at=scored_at,
+            corpus_version=client_corpus_version,
+            seed=client_seed,
+            model_versions=snapshot_model_versions,
         )
     except ScoringError as exc:
         raise HandlerError(422, f"scoring rejected: {exc}") from exc

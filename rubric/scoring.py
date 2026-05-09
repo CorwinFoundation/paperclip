@@ -130,11 +130,30 @@ def score(
     snapshot_hash: str,
     forensic_bundle_uri: str,
     scored_at: datetime | None = None,
+    # v0.2.3 additive (BEAAA-21, UW co-signed 2026-05-09):
+    scanner_version: str | None = None,
+    corpus_version: str | None = None,
+    seed: int | None = None,
+    model_versions: dict[str, str] | None = None,
+    client_corpus_version: str | None = None,
+    client_seed: int | None = None,
 ) -> dict[str, Any]:
     """Score eval outputs against rubric.
 
     eval_outputs: { dim_id: { "raw": float in [0,4], "evidence_uri": str } }
     Returns ScoreResponse-shaped dict (see api/openapi.yaml).
+
+    v0.2.3 inputs (all optional for back-compat with v0.2.2 callers):
+      - scanner_version, corpus_version, seed, model_versions: server-derived
+        forensic stamps (UW amendments A + B). Defaults: scanner_version
+        falls back to scanners.SCANNER_VERSION; seed falls back to
+        scanners.DEFAULT_SEED (42); corpus_version is left absent unless
+        supplied (no synthesis).
+      - client_corpus_version, client_seed: caller-asserted hints (request-
+        side). Mismatch with the server-actual values surfaces in
+        ScoreResponse.diagnostics (codes corpus_version_mismatch,
+        seed_overridden) so the bundle records the disagreement without
+        rejecting the scan.
     """
     if not snapshot_hash:
         raise ScoringError("snapshot_hash required (red line)")
@@ -175,7 +194,39 @@ def score(
 
     bmi_int = int(round(bmi_total))
     scored_at = scored_at or datetime.now(timezone.utc)
-    return {
+
+    # v0.2.3: server-derived forensic stamps (UW amendments A + B).
+    # Imported lazily so the scoring module remains import-cheap and so
+    # tests can monkey-patch SCANNER_VERSION without circular imports.
+    from scanners import DEFAULT_SEED, SCANNER_VERSION
+    actual_scanner_version = scanner_version or SCANNER_VERSION
+    actual_seed = seed if seed is not None else DEFAULT_SEED
+
+    diagnostics: list[dict[str, Any]] = []
+    # corpus_version_mismatch: caller asserted a corpus that differs from
+    # what the harness ran. Stamp the actual value, surface the disagreement.
+    if client_corpus_version is not None and corpus_version is not None and client_corpus_version != corpus_version:
+        diagnostics.append({
+            "code": "corpus_version_mismatch",
+            "message": "caller-asserted corpus_version disagrees with the harness pack manifest",
+            "detail": {
+                "caller_asserted": client_corpus_version,
+                "actual": corpus_version,
+            },
+        })
+    # seed_overridden: caller asserted a seed that differs from what
+    # the harness used (e.g. pack-locked seed).
+    if client_seed is not None and client_seed != actual_seed:
+        diagnostics.append({
+            "code": "seed_overridden",
+            "message": "caller-asserted seed disagrees with the harness seed",
+            "detail": {
+                "caller_asserted": client_seed,
+                "actual": actual_seed,
+            },
+        })
+
+    response: dict[str, Any] = {
         "bmi": bmi_int,
         "band": band_to_dict(assign_band(bmi_int)),
         "pillars": pillars_out,
@@ -191,4 +242,17 @@ def score(
         #   report card read the same numbers without re-loading the rubric.
         "scan_evidence_age_days": 0,
         "pillar_floors": {pid: dict(spec) for pid, spec in rubric.pillar_floors.items()},
+        # v0.2.3 additive: required forensic stamps + optional model_versions
+        # mirror + diagnostics. scanner_version is REQUIRED on the response;
+        # corpus_version + seed are REQUIRED for new scans (server-stamped).
+        "scanner_version": actual_scanner_version,
+        "corpus_version": corpus_version if corpus_version is not None else "",
+        "seed": actual_seed,
     }
+    if model_versions:
+        response["model_versions"] = dict(model_versions)
+    else:
+        response["model_versions"] = None
+    if diagnostics:
+        response["diagnostics"] = diagnostics
+    return response

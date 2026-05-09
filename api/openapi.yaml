@@ -1,18 +1,18 @@
 openapi: 3.0.3
 info:
   title: ARE Scanner ⇄ Underwriter API
-  version: "0.2.2"
+  version: "0.2.3"
   description: |
-    BEAAA-21 v0.2.2 contract surface (BEAAA-tracking label v0.1.2, additive on v0.2.1).
+    BEAAA-21 v0.2.3 contract surface (BEAAA-tracking label v0.1.2, additive on v0.2.2).
     Authoritative for Phase 1 pricing v1 and claims forensic spine. Snapshot
     integrity and forensic_bundle_uri are red lines (any mode).
 
-    v0.2.1 additive fields (BEAAA-70, ship before 2026-05-09 v1.0 contract lock):
+    v0.2.1 additive fields (BEAAA-70, shipped before 2026-05-09 v1.0 contract lock):
       - ScoreResponse.pillars[Pn].dimensions[did].applied_threshold (DimensionEvidence)
       - ScoreResponse.scan_evidence_age_days
       - ScoreResponse.pillar_floors
 
-    v0.2.2 additive fields (BEAAA-71, ship before 2026-05-09 v1.0 contract lock):
+    v0.2.2 additive fields (BEAAA-71, shipped before 2026-05-09 v1.0 contract lock):
       - applied_threshold.kind enum gains "warranty_trigger" (§2.5 class 2 —
         per-dim post-bind warranty; breach fires warranty_excl_*). v0.1.2 ships
         the enum value only; no dims are auto-relabeled. Existing v0.1.1-bound
@@ -23,7 +23,48 @@ info:
         Belt-and-suspenders: P3 holds jailbreak / prompt-injection / tool-use
         exploit / PII-extraction dims where one ruined dim is exploitable
         regardless of aggregate. Optional; absence preserves v0.1.1 semantics.
-    All v0.2.2 changes are non-breaking and optional for older clients.
+
+    v0.2.3 additive fields (BEAAA-21 contract patch, UW co-sign 2026-05-09,
+    Option C widen plan b15f0f68; aligns with AGENTS.md replay-determinism
+    requirement that every score output carries scanner_version, corpus_version,
+    model_versions, seed):
+      - ScoreRequest.snapshot.model_versions (optional). Map of role→version
+        for multi-model agents (e.g. {"router": "gpt-4o-2025-03-01",
+        "generator": "claude-3-7-sonnet@1.0"}). When present, the
+        canonicalization of snapshot_hash MUST include model_versions
+        (preimage extension); when absent, the canonicalization MUST reduce
+        bytes-for-bytes to the v0.2.2 hash so single-model snapshots replay
+        identically across the v0.2.2↔v0.2.3 server matrix. See §9.9 of the
+        api-contract-v0 doc for the canonical recipe.
+      - ScoreRequest.corpus_version (optional, caller-asserted hint). Format
+        "<pack>@<version>[+<pack>@<version>...]" e.g.
+        "halueval-qa@1.0+jbb@1.0+advbench@1.0". The server compares to what
+        the harness actually ran; mismatches surface in
+        ScoreResponse.diagnostics.
+      - ScoreRequest.seed (optional, caller-asserted hint). RNG seed for
+        stochastic eval. Default 42 if omitted.
+      - ScoreResponse.scanner_version (REQUIRED, always populated). ARE
+        Scanner build version that produced this score. Forensic stamp;
+        same posture as rubric_version.
+      - ScoreResponse.corpus_version (REQUIRED, always populated; new
+        scans only). Eval-pack snapshot the harness actually ran. Server-
+        derived from the pack runner manifest regardless of whether the
+        request asserted a value.
+      - ScoreResponse.seed (REQUIRED, always populated; new scans only).
+        Server-stamped RNG seed actually used (default 42 when request
+        omits). Required for byte-identical replay.
+      - ScoreResponse.model_versions (optional, nullable). Server mirror
+        of snapshot.model_versions. Null ⇒ single-model scan covered by
+        named_model.model_id + provider_model_id + model_hash.
+      - ScoreResponse.diagnostics (optional). Array of structured warnings
+        the server raised against the request — e.g. caller-asserted
+        corpus_version disagreed with the actual pack manifest.
+    All v0.2.3 changes are non-breaking on the wire and optional for older
+    clients reading newer responses (extra fields are ignored). The required-
+    on-response stamps are server obligations, not client constraints — they
+    guarantee that any v0.2.3 ScoreResponse carries a complete forensic record.
+    The §3 closed pricing read schema is unchanged by v0.2.3 (forensic/replay
+    fields, not pricing variables); pricing-v1 spreadsheet does not need re-stub.
 servers:
   - url: https://scanner.beai.local/v0
 paths:
@@ -93,14 +134,61 @@ components:
             model_id: { type: string }
             model_version: { type: string }
             prompt_version: { type: string }
-            snapshot_hash: { type: string, description: "SHA-256 over model+prompt+config; integrity red line" }
+            snapshot_hash:
+              type: string
+              description: |
+                SHA-256 over model+prompt+config; integrity red line. For
+                v0.2.3 multi-model scans (snapshot.model_versions present),
+                the canonical preimage MUST include model_versions; for
+                single-model scans (model_versions absent), the
+                canonicalization MUST reduce bytes-for-bytes to the v0.2.2
+                preimage so v0.2.2 ↔ v0.2.3 replay-via-snapshot-hash holds.
+                See api-contract-v0 §9.9 for the canonical recipe and
+                scanner.snapshot_hash.canonicalize for the reference impl.
+            model_versions:
+              type: object
+              additionalProperties: { type: string }
+              description: |
+                v0.2.3 additive (BEAAA-21). Optional. Multi-model agent
+                attestation: map of role→version (e.g. {"router":
+                "gpt-4o-2025-03-01", "generator": "claude-3-7-sonnet@1.0"}).
+                When present, snapshot_hash canonicalization MUST include
+                this map; when absent, single-model semantics from
+                model_id + model_version + provider_model_id + model_hash
+                are authoritative.
+        corpus_version:
+          type: string
+          description: |
+            v0.2.3 additive (BEAAA-21). Optional caller-asserted hint:
+            eval-pack corpus snapshot the caller expects to run. Format
+            "<pack>@<version>[+<pack>@<version>...]" e.g.
+            "halueval-qa@1.0+jbb@1.0+advbench@1.0". The server compares
+            to the actual pack runner manifest; mismatches surface in
+            ScoreResponse.diagnostics. The response stamps the actual
+            corpus_version regardless of whether the request asserted one.
+        seed:
+          type: integer
+          description: |
+            v0.2.3 additive (BEAAA-21). Optional caller-asserted hint:
+            RNG seed the caller expects the harness to use for stochastic
+            eval. Default 42 when omitted. Server stamps the actual seed
+            into the response for byte-identical replay.
         eval_outputs:
           type: object
           description: "Hosted-eval-only intake (v0.1). Per-dim scored evidence."
           additionalProperties: { type: object }
     ScoreResponse:
       type: object
-      required: [bmi, band, pillars, forensic_bundle_uri, scored_at, snapshot_hash]
+      required:
+        - bmi
+        - band
+        - pillars
+        - forensic_bundle_uri
+        - scored_at
+        - snapshot_hash
+        - scanner_version    # v0.2.3 amendment A — required forensic stamp
+        - corpus_version     # v0.2.3 amendment B — required for new scans
+        - seed               # v0.2.3 amendment B — required for new scans
       properties:
         bmi: { type: integer, minimum: 0, maximum: 100 }
         band: { $ref: '#/components/schemas/Band' }
@@ -144,6 +232,69 @@ components:
                   eligibility. Currently used on P3 only (= 1.5). Absence ⇒
                   no per-dim floor at the pillar layer (v0.1.1 semantics).
               rationale: { type: string }
+        scanner_version:
+          type: string
+          example: "0.2.3"
+          description: |
+            v0.2.3 additive (BEAAA-21, UW amendment A). REQUIRED on every
+            ScoreResponse. ARE Scanner build version that produced this
+            score. Always populated; non-negotiable forensic stamp (same
+            posture as rubric_version). Independent from rubric.version —
+            scanner_version is the build, rubric_version is the scoring
+            rules. Reinsurance review reads a bundle missing
+            scanner_version as defective evidence; better to fail
+            validation than ship a partial record.
+        corpus_version:
+          type: string
+          example: "halueval-qa@1.0+jbb@1.0+advbench@1.0"
+          description: |
+            v0.2.3 additive (BEAAA-21, UW amendment B). REQUIRED on every
+            new-scan ScoreResponse. Eval-pack corpus snapshot identifier
+            the harness ACTUALLY ran; format
+            "<pack>@<version>[+<pack>@<version>...]". Server-derived from
+            the pack runner manifest regardless of whether the request
+            asserted a value. If the request asserted a value that does
+            not match, the server still stamps the actual one and surfaces
+            the mismatch in diagnostics.
+        seed:
+          type: integer
+          example: 42
+          description: |
+            v0.2.3 additive (BEAAA-21, UW amendment B). REQUIRED on every
+            new-scan ScoreResponse. RNG seed actually used by the harness
+            (default 42 if request omitted). Server-stamped for byte-
+            identical replay.
+        model_versions:
+          type: object
+          additionalProperties: { type: string }
+          nullable: true
+          description: |
+            v0.2.3 additive (BEAAA-21). Optional. Server mirror of
+            snapshot.model_versions when present. Null ⇒ single-model
+            scan; the existing named_model.model_id + provider_model_id
+            + model_hash already cover the attestation.
+        diagnostics:
+          type: array
+          description: |
+            v0.2.3 additive (BEAAA-21, UW amendment B follow-on).
+            Optional structured warnings the server raised against the
+            request. Empty/absent ⇒ no warnings. Diagnostic codes
+            currently in use:
+              - "corpus_version_mismatch" — caller-asserted
+                corpus_version disagrees with the actual pack manifest;
+                response stamps the actual value.
+              - "seed_overridden" — caller-asserted seed disagrees with
+                what the harness ran (e.g. pack-locked seed override);
+                response stamps the actual value.
+            Additional codes may be added additively in future minor
+            revisions; older clients MUST ignore unknown codes.
+          items:
+            type: object
+            required: [code, message]
+            properties:
+              code: { type: string }
+              message: { type: string }
+              detail: { type: object, additionalProperties: true }
     Band:
       type: object
       description: "12-band assignment (A/B/C/D × ±) per BEAAA-57 v1.0 frozen 2026-04-30."
