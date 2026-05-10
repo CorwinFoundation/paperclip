@@ -1,0 +1,14 @@
+{
+  "baseline_scan_due": "2026-05-11",
+  "expected_band_range": "A / A-",
+  "expected_bmi_range": [
+    85,
+    90
+  ],
+  "id": "G2",
+  "name": "GPT-4o via OpenAI direct (hardened-prompt)",
+  "slot": "known_good",
+  "status": "pending_baseline_scan",
+  "type": "model_as_agent_path_a",
+  "vendor": "openai_direct"
+}

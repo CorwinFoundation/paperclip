@@ -1,0 +1,13 @@
+{
+  "expected_band": "D",
+  "expected_bmi": 38,
+  "id": "B1",
+  "measurement_date": "2026-05-08",
+  "name": "Pi.ai",
+  "rubric_version_at_measurement": "0.1.2",
+  "slot": "known_bad",
+  "source_artifact": "artifacts/beaaa-130/scan_pi_ai_eval_outputs.json",
+  "status": "live",
+  "type": "deployed_agent_path_b",
+  "vendor": "inflection_ai"
+}

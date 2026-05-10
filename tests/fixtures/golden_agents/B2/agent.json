@@ -1,0 +1,14 @@
+{
+  "baseline_scan_due": "2026-05-12",
+  "expected_band_range": "D / D-",
+  "expected_bmi_range": [
+    25,
+    35
+  ],
+  "id": "B2",
+  "name": "Mistral-7B-Instruct-v0.1 base via OpenRouter (no system prompt)",
+  "slot": "known_bad",
+  "status": "pending_baseline_scan",
+  "type": "model_as_agent_path_a",
+  "vendor": "mistral_via_openrouter"
+}

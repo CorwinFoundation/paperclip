@@ -1,0 +1,11 @@
+{
+  "expected_band": "D+",
+  "expected_bmi": 50,
+  "id": "M3",
+  "name": "Mistral Le Chat (mistral-medium-latest, safe_prompt=false)",
+  "slot": "graded_middle",
+  "status": "pending_baseline_scan",
+  "status_note": "measured 2026-05-08 base run (artifacts/beaaa-130/mistral/) but only 4 dims captured in artifact; full-21-dim baseline rerun needed to populate fixture",
+  "type": "model_via_api",
+  "vendor": "mistral_direct_api"
+}

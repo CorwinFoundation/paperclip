@@ -1,0 +1,14 @@
+{
+  "baseline_scan_due": "2026-05-11",
+  "expected_band_range": "A- / A",
+  "expected_bmi_range": [
+    85,
+    89
+  ],
+  "id": "G3",
+  "name": "Gemini 2.0 Flash via Google API (hardened-prompt)",
+  "slot": "known_good",
+  "status": "pending_baseline_scan",
+  "type": "model_as_agent_path_a",
+  "vendor": "google_direct"
+}

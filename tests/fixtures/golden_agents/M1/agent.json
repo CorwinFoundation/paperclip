@@ -1,0 +1,13 @@
+{
+  "expected_band": "C-",
+  "expected_bmi": 58,
+  "id": "M1",
+  "measurement_date": "2026-05-08",
+  "name": "HuggingChat / Llama-3.3-70B@OpenRouter",
+  "rubric_version_at_measurement": "0.1.2",
+  "slot": "graded_middle",
+  "source_artifact": "artifacts/beaaa-130/scan_huggingchat_eval_outputs.json",
+  "status": "live",
+  "type": "deployed_agent_path_b",
+  "vendor": "huggingface_via_openrouter"
+}
