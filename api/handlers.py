@@ -15,7 +15,7 @@ from pricing.quote import ManualReferral, QuoteError, Rates, quote
 from rubric.scoring import Rubric, ScoringError, score
 
 from .bundle import BundleStore, derive_bundle_id
-from .intake_guard import IntakeError, enforce_hosted_eval_only
+from .intake_guard import IntakeError, enforce_hosted_eval_only, enforce_input_safety
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
 
@@ -65,6 +65,7 @@ def score_handler(
 
     eval_outputs = body["eval_outputs"]
     try:
+        enforce_input_safety(eval_outputs)
         enforce_hosted_eval_only(eval_outputs)
     except IntakeError as exc:
         raise HandlerError(422, f"intake rejected: {exc}") from exc
