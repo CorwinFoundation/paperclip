@@ -1,0 +1,112 @@
+# P4.2 Model/Prompt Version Control — BEAAA-200 Track 4 P4 attestation.
+#
+# Source-of-truth refs:
+#   - Track 4 spec: BEAAA-200 #document-p4-attestation-ingest-spec §3.2
+#   - Parent: BEAAA-194 (Track 4 of 5-track ARE gap closure)
+#   - Rubric dim: rubric.yaml P4.2 "Model/prompt version control"
+#   - Status: scaffold v0.1.0 — HUW/UW co-design pending
+
+benchmark: p4_version_control
+version: "0.1.0"
+status: "scaffold — HUW/UW co-design pending; evidence-tier scale per BEAAA-200"
+description: |
+  Customer attests model + prompt version control posture: registry,
+  pin policy, change-control gates, rollback support. Evidence: change-log
+  link, structured last-3-releases manifest, pin policy doc. Scanner
+  optionally cross-verifies a prompt_sha256 against a probe response from
+  the live agent (tier 4).
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-200 Track 4"
+  cross_ref:
+    - "BEAAA-200 attestation evidence-tier scale"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "attestation"
+  rule: "raw = evidence_tier; same canonical 0-4 ladder as BEAAA-200 §1.1"
+
+applicability:
+  fires_when: { always: true }
+  rationale: |
+    Version-control attestation always applies. No attestation -> raw=0.
+
+schema:
+  type: object
+  required:
+    - version_registry
+    - pin_policy
+    - prompt_change_control
+    - model_change_control
+    - rollback_to_prior_supported
+    - attestation_statement
+  properties:
+    version_registry:
+      type: string
+      enum: [external_managed, internal_git, internal_other, none]
+    pin_policy:
+      type: string
+      enum: [pinned_per_release, pinned_per_call, latest_floating, no_policy]
+    prompt_change_control:
+      type: string
+      enum: [pr_review_required, single_approver, no_control]
+    model_change_control:
+      type: string
+      enum: [pr_review_required, single_approver, no_control]
+    rollback_to_prior_supported:
+      type: boolean
+    evidence:
+      type: object
+      properties:
+        change_log_link:
+          type: string
+          description: "Link to git history / CMDB / changelog."
+        last_3_releases:
+          type: array
+          minItems: 0
+          items:
+            type: object
+            required: [release_id, deployed_at, model_id, prompt_sha256]
+            properties:
+              release_id: { type: string }
+              deployed_at: { type: string, format: date-time }
+              model_id: { type: string }
+              prompt_sha256: { type: string }
+        pin_policy_doc: { type: string }
+    attestation_statement:
+      type: string
+      maxLength: 500
+
+evidence_tiers:
+  0: { name: "absent", raw: 0.0,
+       gate: "no_attestation OR (version_registry==none AND pin_policy==latest_floating AND any_change_control==no_control)" }
+  1: { name: "claimed", raw: 1.0,
+       gate: "registry_named_not_none AND no_change_log_link AND no_last_3_releases",
+       cap_rationale: "BEAAA-200 §1.2 tamper-resistance cap" }
+  2: { name: "documented", raw: 2.0,
+       gate: "registry_named_not_none AND change_log_link_present AND pin_policy_doc_present" }
+  3: { name: "operationalized", raw: 3.0,
+       gate: "tier_2_floor AND pin_policy in {pinned_per_release, pinned_per_call} AND prompt_change_control != no_control AND len(last_3_releases) >= 3 AND newest_deployed_at within 90 days" }
+  4: { name: "tested+verified", raw: 4.0,
+       gate: "tier_3_floor AND scanner_resolves_prompt_sha256_from_last_3_releases_on_live_agent" }
+
+raw_mapping:
+  derivation: "raw = max tier whose gate evaluates true"
+  clamp: [0.0, 4.0]
+
+uw_cosign_items:
+  - "tier 3 release-recency window (currently 90 days)"
+  - "tier 3 last_3_releases minimum count"
+  - "tier 4 live-resolution semantics — what counts as a successful prompt_sha256 match"
+
+probes:
+  - probe_id: p4_version_control.attestation
+    pillar: P4
+    dim: P4.2
+    weight: 1.0
+    trigger_id: T4
+    rationale: customer attestation of model+prompt version-control discipline -> P4.2

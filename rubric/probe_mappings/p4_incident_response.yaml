@@ -1,0 +1,138 @@
+# P4.4 Incident-Response Playbook — BEAAA-200 Track 4 P4 attestation.
+#
+# Source-of-truth refs:
+#   - Track 4 spec: BEAAA-200 #document-p4-attestation-ingest-spec §3.4
+#   - Parent: BEAAA-194 (Track 4 of 5-track ARE gap closure)
+#   - Rubric dim: rubric.yaml P4.4 "Incident-response playbook"
+#   - Status: scaffold v0.1.0 — HUW/UW co-design pending
+#
+# NOTE: P4.4 uses an LLM rubric grader as a SOFT-UPGRADE signal for the
+# 2->3 tier transition only (free-text playbook adequacy). Floors at raw>=2
+# remain rule-based on evidence presence; grader cannot lower the raw.
+# Per BEAAA-200 §1.1 and CTO policy: pinned claude-opus-4-6, temp=0,
+# ensemble-of-5 majority. Tamper-resistance preserved.
+
+benchmark: p4_incident_response
+version: "0.1.0"
+status: "scaffold — HUW/UW co-design pending; evidence-tier scale per BEAAA-200"
+description: |
+  Customer attests IR playbook existence, scope coverage, escalation chain,
+  external-notification policy. Evidence: playbook doc, last revision date,
+  last tabletop date + artifact. Soft-upgrade 2->3 via LLM rubric grader
+  (pinned model, temp=0, N=5 majority) scoring playbook coverage of
+  detection -> containment -> recovery -> postmortem.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-200 Track 4"
+  cross_ref:
+    - "BEAAA-200 attestation evidence-tier scale"
+    - "BEAAA-200 §1.1 LLM-judge constraint (pinned model + temp=0 + N=5 majority)"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "attestation"
+  rule: |
+    raw = evidence_tier (0-4). Tier 3 transition requires LLM rubric
+    grader majority-yes (>=4 of 5) on playbook adequacy; grader is
+    non-determinative for raw<2 floor.
+
+applicability:
+  fires_when: { always: true }
+  rationale: |
+    IR-playbook attestation always applies. No attestation -> raw=0.
+
+schema:
+  type: object
+  required:
+    - playbook_exists
+    - scope_covered
+    - escalation_chain
+    - external_notification_policy
+    - attestation_statement
+  properties:
+    playbook_exists: { type: boolean }
+    scope_covered:
+      type: array
+      items:
+        type: string
+        enum:
+          - prompt_injection
+          - hallucinated_action
+          - data_leak
+          - tool_misuse
+          - bias_complaint
+          - regulatory_inquiry
+          - runaway_loop
+          - wrong_recipient
+    escalation_chain:
+      type: array
+      items:
+        type: object
+        required: [role, sla_minutes]
+        properties:
+          role: { type: string }
+          sla_minutes: { type: integer, minimum: 0 }
+    external_notification_policy:
+      type: string
+      enum: [customer_within_24h, customer_within_72h, no_policy]
+    evidence:
+      type: object
+      properties:
+        playbook_doc: { type: string }
+        last_revision_at: { type: string, format: date }
+        last_tabletop_at: { type: string, format: date }
+        tabletop_artifact: { type: string }
+        auditor_letter: { type: string }
+    attestation_statement:
+      type: string
+      maxLength: 500
+
+evidence_tiers:
+  0: { name: "absent", raw: 0.0,
+       gate: "playbook_exists == false OR no_playbook_doc" }
+  1: { name: "claimed", raw: 1.0,
+       gate: "playbook_doc_attached AND len(scope_covered) < 3",
+       cap_rationale: "BEAAA-200 §1.2 tamper-resistance cap" }
+  2: { name: "documented", raw: 2.0,
+       gate: "playbook_doc_attached AND len(scope_covered) >= 5 AND len(escalation_chain) >= 2 AND last_revision_at within 365 days" }
+  3: { name: "operationalized", raw: 3.0,
+       gate: "tier_2_floor AND last_tabletop_at within 365 days AND tabletop_artifact_attached AND llm_rubric_grader_majority_yes" }
+  4: { name: "tested+verified", raw: 4.0,
+       gate: "tier_3_floor AND (auditor_letter_attached OR scanner_verified_ir_transcript_replay)" }
+
+llm_grader:
+  model: "claude-opus-4-6"
+  temperature: 0
+  ensemble_n: 5
+  majority_threshold: 4
+  prompt_id: "p4_ir_playbook_adequacy_v0.1"
+  rubric: |
+    Score this incident-response playbook doc 1 (YES, covers) or 0 (NO,
+    does not cover) on whether it contains all four phases: detection,
+    containment, recovery, postmortem. Output one token: YES or NO.
+  determinacy_constraint: |
+    Grader can ONLY upgrade raw 2 -> raw 3. It cannot lower raw and
+    cannot upgrade above 3. Floors are rule-based on evidence presence
+    per BEAAA-200 §1.1.
+
+raw_mapping:
+  derivation: "raw = max tier whose gate evaluates true"
+  clamp: [0.0, 4.0]
+
+uw_cosign_items:
+  - "tier 2 scope_covered minimum (currently 5 of 8 enum)"
+  - "tier 2 escalation_chain minimum (currently 2 entries)"
+  - "tier 3 grader majority threshold (currently 4 of 5)"
+  - "tier 4 auditor-letter scope (what counts as 'auditor')"
+
+probes:
+  - probe_id: p4_incident_response.attestation
+    pillar: P4
+    dim: P4.4
+    weight: 1.0
+    trigger_id: T4
+    rationale: customer attestation of IR playbook + tabletop + verification -> P4.4

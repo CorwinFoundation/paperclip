@@ -1,0 +1,98 @@
+# P4.5 Eval Re-Run Cadence — BEAAA-200 Track 4 P4 attestation.
+#
+# Source-of-truth refs:
+#   - Track 4 spec: BEAAA-200 #document-p4-attestation-ingest-spec §3.5
+#   - Parent: BEAAA-194 (Track 4 of 5-track ARE gap closure)
+#   - Rubric dim: rubric.yaml P4.5 "Eval re-run cadence"
+#   - Cross-ref: BEAAA-197 P1.6 eval_coverage_ledger (single source of cadence facts)
+#   - Status: scaffold v0.1.0 — HUW Q6 dependence (P4.5 derived vs independent)
+#
+# P4.5 DERIVES from the P1.6 eval_coverage_ledger to avoid double-asking the
+# customer (BEAAA-200 §1.3). Only NEW customer-facing field is an optional
+# written cadence policy doc link. If HUW chooses "independent" for Q6 at
+# 5/15 lock, schema gains new structured fields and tier gates shift.
+
+benchmark: p4_eval_cadence
+version: "0.1.0"
+status: "scaffold — HUW Q6 dependence (derived vs independent); evidence-tier per BEAAA-200"
+description: |
+  Customer-eval re-run cadence, scored against P1.6 ledger contents.
+  Inputs:
+    (1) BEAAA-197 eval_coverage_ledger (already submitted under P1.6)
+    (2) Optional new field: cadence policy doc link
+  Tier ladder counts distinct families with last_run_date inside successively
+  tighter windows (365 -> 180 -> 90 -> 30 days). Tier 4 additionally requires
+  P1.6 sample-replay divergence <= 5pp on the families that have evidence.
+  Divergence > 10pp on ANY family caps P4.5 raw at 2.0 (spec drift = governance
+  failure regardless of cadence).
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-200 Track 4"
+  cross_ref:
+    - "BEAAA-200 attestation evidence-tier scale"
+    - "BEAAA-197 P1.6 eval_coverage_ledger schema (canonical source)"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "attestation"
+  rule: |
+    raw = evidence_tier from P1.6 ledger family-recency counts; divergence
+    cap (raw <= 2.0) fires on any family >10pp claimed-vs-replayed gap.
+
+applicability:
+  fires_when: { always: true }
+  rationale: |
+    Eval-cadence attestation always applies. No ledger -> raw=0.
+
+# Only NEW field beyond the P1.6 ledger. UW form copy may rephrase.
+schema:
+  type: object
+  required:
+    - attestation_statement
+  properties:
+    policy_doc_link:
+      type: string
+      description: "Link to written cadence policy. Optional."
+    attestation_statement:
+      type: string
+      maxLength: 500
+
+evidence_tiers:
+  0: { name: "absent", raw: 0.0,
+       gate: "no_ledger_submitted OR n_families_run_within_365d == 0" }
+  1: { name: "claimed", raw: 1.0,
+       gate: "n_families_run_within_365d >= 1 AND no_policy_doc_link",
+       cap_rationale: "BEAAA-200 §1.2 tamper-resistance cap" }
+  2: { name: "documented", raw: 2.0,
+       gate: "policy_doc_link_present AND n_families_run_within_180d >= 3" }
+  3: { name: "operationalized", raw: 3.0,
+       gate: "tier_2_floor AND n_families_run_within_90d >= 6" }
+  4: { name: "tested+verified", raw: 4.0,
+       gate: "tier_3_floor AND n_families_run_within_30d >= 10 AND p1_6_sample_replay_divergence_le_5pp" }
+
+# Divergence cap (sibling of tier ladder; clamps down the max).
+divergence_modifier:
+  source: "BEAAA-197 P1.6 ledger sample-replay results"
+  cap_when_any_family_divergence_gt_10pp: 2.0
+  rationale: "spec drift = governance failure regardless of cadence; mirrors BEAAA-197 verification_modifier divergence_gt_10pp -1.5 logic"
+
+raw_mapping:
+  derivation: "raw = min(tier_from_ladder, divergence_modifier.cap_if_triggered)"
+  clamp: [0.0, 4.0]
+
+uw_cosign_items:
+  - "tier 4 30-day window for >=10 families (may be too tight for small customers)"
+  - "divergence cap at raw 2.0 — confirm not too punitive"
+  - "Q6: P4.5 derived from P1.6 (current) vs independent attestation (alternative)"
+
+probes:
+  - probe_id: p4_eval_cadence.attestation
+    pillar: P4
+    dim: P4.5
+    weight: 1.0
+    trigger_id: T4
+    rationale: customer-attested eval cadence derived from P1.6 ledger + optional policy doc -> P4.5

@@ -1,0 +1,100 @@
+# P4.6 Owner Accountability Matrix — BEAAA-200 Track 4 P4 attestation.
+#
+# Source-of-truth refs:
+#   - Track 4 spec: BEAAA-200 #document-p4-attestation-ingest-spec §3.6
+#   - Parent: BEAAA-194 (Track 4 of 5-track ARE gap closure)
+#   - Rubric dim: rubric.yaml P4.6 "Owner accountability matrix"
+#   - Status: scaffold v0.1.0 — HUW/UW co-design pending
+
+benchmark: p4_owner_matrix
+version: "0.1.0"
+status: "scaffold — HUW/UW co-design pending; evidence-tier scale per BEAAA-200"
+description: |
+  Customer attests named owners for 5 roles: executive sponsor, deployment
+  owner, model owner, on-call responder, compliance owner. Evidence:
+  RACI doc, review log. Tier 4 requires review cadence kept within
+  cadence_days.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-200 Track 4"
+  cross_ref:
+    - "BEAAA-200 attestation evidence-tier scale"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "attestation"
+  rule: "raw = evidence_tier; same canonical 0-4 ladder as BEAAA-200 §1.1"
+
+applicability:
+  fires_when: { always: true }
+  rationale: |
+    Owner-matrix attestation always applies. No attestation -> raw=0.
+
+schema:
+  type: object
+  required:
+    - roles
+    - succession_policy
+    - attestation_statement
+  properties:
+    roles:
+      type: array
+      minItems: 0
+      items:
+        type: object
+        required: [role_id, named_person]
+        properties:
+          role_id:
+            type: string
+            enum: [executive_sponsor, deployment_owner, model_owner, on_call_responder, compliance_owner]
+          named_person: { type: boolean }
+          accountable_decisions:
+            type: string
+            description: "Free-form scope of accountability."
+    succession_policy:
+      type: string
+      enum: [named_backup, team_rota, no_policy]
+    review_cadence_days: { type: integer, minimum: 0 }
+    last_reviewed_at:    { type: string, format: date }
+    evidence:
+      type: object
+      properties:
+        raci_doc: { type: string }
+        review_log: { type: string }
+    attestation_statement:
+      type: string
+      maxLength: 500
+
+evidence_tiers:
+  0: { name: "absent", raw: 0.0,
+       gate: "no_raci_doc OR named_person==false_count >= 3" }
+  1: { name: "claimed", raw: 1.0,
+       gate: "named_person_count >= 4 AND no_raci_doc",
+       cap_rationale: "BEAAA-200 §1.2 tamper-resistance cap" }
+  2: { name: "documented", raw: 2.0,
+       gate: "all_5_roles_named AND raci_doc_present" }
+  3: { name: "operationalized", raw: 3.0,
+       gate: "tier_2_floor AND succession_policy in {named_backup, team_rota} AND last_reviewed_at within 365 days" }
+  4: { name: "tested+verified", raw: 4.0,
+       gate: "tier_3_floor AND review_cadence_days <= 180 AND last_reviewed_at within review_cadence_days" }
+
+raw_mapping:
+  derivation: "raw = max tier whose gate evaluates true"
+  clamp: [0.0, 4.0]
+
+uw_cosign_items:
+  - "role enum (5 currently — exec sponsor / deploy / model / on-call / compliance)"
+  - "tier 4 review_cadence_days ceiling (currently 180 days)"
+  - "succession_policy whitelist for tier 3"
+
+probes:
+  - probe_id: p4_owner_matrix.attestation
+    pillar: P4
+    dim: P4.6
+    weight: 1.0
+    trigger_id: T4
+    rationale: customer attestation of named-owner accountability matrix -> P4.6

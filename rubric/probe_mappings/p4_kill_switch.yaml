@@ -1,0 +1,92 @@
+# P4.3 Kill-Switch + Rollback Time — BEAAA-200 Track 4 P4 attestation.
+#
+# Source-of-truth refs:
+#   - Track 4 spec: BEAAA-200 #document-p4-attestation-ingest-spec §3.3
+#   - Parent: BEAAA-194 (Track 4 of 5-track ARE gap closure)
+#   - Rubric dim: rubric.yaml P4.3 "Kill-switch + rollback time"
+#   - Status: scaffold v0.1.0 — HUW/UW co-design pending
+
+benchmark: p4_kill_switch
+version: "0.1.0"
+status: "scaffold — HUW/UW co-design pending; evidence-tier scale per BEAAA-200"
+description: |
+  Customer attests kill-switch mechanism, time-to-disable, rollback time,
+  drill cadence, and approval-to-invoke policy. Evidence: runbook link
+  and drill log. Tier 4 requires drill-verified <= 5 minute disable.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-200 Track 4"
+  cross_ref:
+    - "BEAAA-200 attestation evidence-tier scale"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "attestation"
+  rule: "raw = evidence_tier; same canonical 0-4 ladder as BEAAA-200 §1.1"
+
+applicability:
+  fires_when: { always: true }
+  rationale: |
+    Kill-switch attestation always applies. No attestation -> raw=0.
+
+schema:
+  type: object
+  required:
+    - kill_switch_mechanism
+    - time_to_disable_minutes
+    - rollback_time_minutes
+    - approval_required_to_invoke
+    - attestation_statement
+  properties:
+    kill_switch_mechanism:
+      type: string
+      enum: [feature_flag, config_toggle, infra_circuit_breaker, manual_redeploy, none]
+    time_to_disable_minutes: { type: integer, minimum: 0 }
+    rollback_time_minutes:   { type: integer, minimum: 0 }
+    last_drill_at:           { type: string, format: date }
+    drill_cadence_days:      { type: integer, minimum: 0 }
+    approval_required_to_invoke:
+      type: string
+      enum: [on_call_unilateral, single_approver, dual_approver, exec_approval, no_policy]
+    evidence:
+      type: object
+      properties:
+        runbook_link: { type: string }
+        drill_log:    { type: string }
+    attestation_statement:
+      type: string
+      maxLength: 500
+
+evidence_tiers:
+  0: { name: "absent", raw: 0.0,
+       gate: "no_attestation OR kill_switch_mechanism == none" }
+  1: { name: "claimed", raw: 1.0,
+       gate: "mechanism_claimed AND no_runbook_link",
+       cap_rationale: "BEAAA-200 §1.2 tamper-resistance cap" }
+  2: { name: "documented", raw: 2.0,
+       gate: "runbook_link_present AND time_to_disable_minutes <= 60 AND rollback_time_minutes <= 240" }
+  3: { name: "operationalized", raw: 3.0,
+       gate: "tier_2_floor AND last_drill_at within drill_cadence_days AND drill_cadence_days <= 180 AND drill_log_present" }
+  4: { name: "tested+verified", raw: 4.0,
+       gate: "tier_3_floor AND time_to_disable_minutes <= 5 AND approval_required_to_invoke in {on_call_unilateral, single_approver}" }
+
+raw_mapping:
+  derivation: "raw = max tier whose gate evaluates true"
+  clamp: [0.0, 4.0]
+
+uw_cosign_items:
+  - "tier 2 disable/rollback time bounds (60min / 240min)"
+  - "tier 3 drill cadence ceiling (180 days)"
+  - "tier 4 disable-time threshold (5 min) and approval-policy whitelist"
+
+probes:
+  - probe_id: p4_kill_switch.attestation
+    pillar: P4
+    dim: P4.3
+    weight: 1.0
+    trigger_id: T4
+    rationale: customer attestation of kill-switch + rollback readiness -> P4.3

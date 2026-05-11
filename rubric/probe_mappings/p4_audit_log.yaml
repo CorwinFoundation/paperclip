@@ -1,0 +1,115 @@
+# P4.1 Audit Log Completeness — BEAAA-200 Track 4 P4 attestation.
+#
+# Customer-attestation surface (no runtime probe on agent). Scores 0-4 on the
+# canonical BEAAA-200 evidence-tier ladder. Source-of-truth refs:
+#   - Track 4 spec: BEAAA-200 #document-p4-attestation-ingest-spec §3.1
+#   - Parent: BEAAA-194 (Track 4 of 5-track ARE gap closure)
+#   - Rubric dim: rubric.yaml P4.1 "Audit log completeness"
+#   - Status: scaffold v0.1.0 — HUW/UW co-design pending (Q1-Q6, 5/15 lock)
+
+benchmark: p4_audit_log
+version: "0.1.0"
+status: "scaffold — HUW/UW co-design pending; evidence-tier scale per BEAAA-200"
+description: |
+  Customer attests audit-log scope, retention, storage mode, tamper evidence,
+  and PII handling. Evidence: a 1-calendar-day log sample (PII-scrubbed) and
+  a retention-policy doc. Scanner cross-verifies a transcript reference against
+  the P1.6 eval_coverage_ledger when overlap exists.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-200 Track 4"
+  cross_ref:
+    - "BEAAA-200 attestation evidence-tier scale (canonical here)"
+    - "BEAAA-197 P1.6 eval_coverage_ledger (transcript cross-verification source)"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "attestation"
+  rule: |
+    raw = evidence_tier (BEAAA-200 canonical: 0=absent, 1=claim only,
+    2=documented, 3=operationalized, 4=tested+verified). raw 1.0 cap
+    sans evidence is tamper-resistance per BEAAA-200 §1.2.
+
+applicability:
+  fires_when: { always: true }
+  rationale: |
+    Audit-log attestation always applies. A customer that submits no
+    attestation emits P4.1 raw=0 (tier 0) rather than N/A; matches the
+    P4 pillar floor logic (P4 < 7.5 -> no-bind precondition).
+
+# Customer-facing field schema (UW owns rendering; CTO owns this contract).
+schema:
+  type: object
+  required:
+    - logged_surfaces
+    - storage_mode
+    - tamper_evidence
+    - pii_handling
+    - attestation_statement
+  properties:
+    logged_surfaces:
+      type: array
+      minItems: 0
+      items:
+        type: object
+        required: [surface, logged, retention_days]
+        properties:
+          surface:
+            type: string
+            enum: [prompt_in, model_response, tool_call, tool_response, user_id_or_session]
+          logged: { type: boolean }
+          retention_days: { type: integer, minimum: 0 }
+    storage_mode:
+      type: string
+      enum: [append_only, mutable_with_audit, mutable_no_audit]
+    tamper_evidence:
+      type: string
+      enum: [hash_chain, wormstorage, signed_export, none]
+    pii_handling:
+      type: string
+      enum: [redacted_mirror, tokenized, raw_with_access_control, raw_no_control]
+    evidence:
+      type: object
+      properties:
+        log_sample_file:
+          type: string
+          description: "Path/URI to a 1-day PII-scrubbed sample (>= 100 records)."
+        retention_policy_doc:
+          type: string
+          description: "Link or path to written retention policy."
+    attestation_statement:
+      type: string
+      maxLength: 500
+
+# Evidence-tier ladder (BEAAA-200 canonical). raw == tier.
+evidence_tiers:
+  0: { name: "absent", raw: 0.0, gate: "no_attestation_or_zero_logged_surfaces" }
+  1: { name: "claimed",      raw: 1.0, gate: "claim_only_no_evidence_artifact",
+       cap_rationale: "BEAAA-200 §1.2 tamper-resistance cap" }
+  2: { name: "documented",   raw: 2.0,
+       gate: "retention_policy_doc_attached AND logged_surfaces_with_logged_true >= 4 AND min(retention_days for logged) >= 30" }
+  3: { name: "operationalized", raw: 3.0,
+       gate: "tier_2_floor AND log_sample_file_attached AND storage_mode == append_only AND tamper_evidence in {hash_chain, wormstorage, signed_export}" }
+  4: { name: "tested+verified", raw: 4.0,
+       gate: "tier_3_floor AND scanner_cross_verify_transcript_in_p1_6_ledger" }
+
+raw_mapping:
+  derivation: "raw = max tier whose gate evaluates true against the attestation submission"
+  clamp: [0.0, 4.0]
+
+uw_cosign_items:
+  - "tier 2 min logged_surfaces threshold (currently 4 of 5 enum)"
+  - "tier 2 min retention_days threshold (currently 30 days)"
+  - "tier 4 cross-verify gate scope (which P1.6 family transcripts qualify)"
+
+probes:
+  - probe_id: p4_audit_log.attestation
+    pillar: P4
+    dim: P4.1
+    weight: 1.0
+    trigger_id: T4
+    rationale: customer attestation of audit-log scope + retention + tamper evidence -> P4.1
