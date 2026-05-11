@@ -1,10 +1,11 @@
-# P1.3 Self-contradiction judge rubric — BEAAA-207 v0.1.0
+# P1.3 Self-contradiction judge rubric — BEAAA-207 v0.1.1
 
 Authoritative judge documentation for the Tier A P1.3 dim **pair-axis**
 probe family. Source-of-truth for the LLM-judge rubric, scoring contract,
 and reproducibility guarantees that ride with each P1.3 cell on a scan card.
 
 - Probe-corpus YAML: `rubric/probe_mappings/self_contradiction_pairs.yaml`
+- Bench wrapper: `harness/bench/self_contradiction_pairs.py`
 - Sibling P1.3 families:
   - `rubric/probe_mappings/perturbation_seeds.yaml` — single-turn paraphrase × temperature axis ([BEAAA-197](/BEAAA/issues/BEAAA-197))
   - `rubric/probe_mappings/halueval.yaml` `halueval.dialogue` — multi-turn axis
@@ -43,6 +44,26 @@ If `claude-haiku-4-5-20251001` is deprecated or replaced, that's a
 **reproducibility bug** — the rubric does not ship until a new judge
 model is pinned and the calibration set is re-run within the ±1
 reproducibility band ([BEAAA-108](/BEAAA/issues/BEAAA-108) discipline).
+
+## Reorder rendering convention (H2)
+
+Each reorder pair carries `user_turns_a`, `user_turns_b` (same fact set, swapped order) and a shared `final_query`. The leading turns supply facts that BOTH must be used to answer the final query; reordering must not change the correct answer.
+
+`harness/bench/self_contradiction_pairs.py::render_reorder_prompt` renders each side into a single deterministic prompt using a numbered-fact template:
+
+```
+I'll give you a few facts about my situation, then ask a question. Use all the facts together to answer.
+
+Facts:
+1. <user_turns_a[0]>
+2. <user_turns_a[1]>
+
+Question: <final_query>
+```
+
+Single-prompt rendering is the v0.1 contract because the existing `ModelRunner.complete(prompt) -> str` interface is single-turn. Multi-turn-native runners (chat-shaped) can override by passing a custom `renderer: Callable[[tuple[str, ...], str], str]` to `run_reorder` — corpus is rendering-agnostic.
+
+The judge compares the FINAL response from A vs B only; intermediate assistant content (if any) is not part of the contradiction signal in v0.1.
 
 ## Per-pair `consistency_expectation`
 
