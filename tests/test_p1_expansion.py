@@ -470,5 +470,72 @@ class EvalLedgerTests(unittest.TestCase):
         self.assertEqual(result["raw"], 2.0)
 
 
+# ---------------- BEAAA-197 5/13 — expanded scanner wiring ----------------
+
+class ExpandedScannerWiringTests(unittest.TestCase):
+    """Smoke-test the unified scan_lawconnect_expanded scanner (mock-only).
+
+    Verifies the import surface + that mock-judge / mock-subject path
+    exercises each dim's run() entry-point without network.
+    """
+
+    def setUp(self):
+        # Lazy-import: the scripts directory must be on path
+        scripts_dir = REPO / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import scan_lawconnect_expanded as sle  # noqa: F401
+
+        self.sle = sle
+
+    def test_make_subject_returns_mock_when_requested(self):
+        for surface in ("atticus", "ailawyer", "matter_types"):
+            r = self.sle.make_subject(surface, mock=True)
+            self.assertTrue(r.model_id().startswith("mock:"), surface)
+
+    def test_make_judge_returns_mock_when_requested(self):
+        j = self.sle.make_judge(mock=True)
+        self.assertTrue(j.model_id().startswith("mock:"))
+
+    def test_mock_judge_responder_handles_citation_format(self):
+        out = self.sle._mock_judge_responder("PLAUSIBILITY: foo Axis 1 ...")
+        self.assertIn("PLAUSIBILITY:", out)
+        self.assertIn("SEMANTIC:", out)
+
+    def test_mock_judge_responder_handles_clustering_format(self):
+        # Emulate the perturbation judge prompt shape (RESPONSE <i>: BUCKET <id>).
+        prompt = (
+            "Reply with RESPONSE <index>: BUCKET <id> lines.\n\n"
+            "[Response 1] foo\n[Response 2] bar\n[Response 3] baz"
+        )
+        out = self.sle._mock_judge_responder(prompt)
+        # Should emit one bucket assignment per response detected
+        self.assertEqual(out.count("RESPONSE"), 3)
+
+    def test_p1_5_loader_strips_trailing_confidence_for_match(self):
+        # Build a tiny calibration item via the YAML loader and verify the
+        # accept-substring check strips a trailing float before matching.
+        import tempfile
+        yaml_text = """corpus:
+  version: "0.1.0"
+  match_mode: substring_ci
+  n_total: 1
+  difficulty_split: { easy: 1 }
+  items:
+    - { id: cc.test.001, difficulty: easy, category: geography,
+        prompt: "What is the capital of France?",
+        accept_substrings: ["Paris"] }
+"""
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+            fh.write(yaml_text)
+            path = Path(fh.name)
+        items = self.sle._load_calibration_items(path, limit=None)
+        self.assertEqual(len(items), 1)
+        # Trailing float should be stripped before match
+        self.assertTrue(items[0].correct_check("The capital is Paris.\n0.9"))
+        # Reject when substring missing
+        self.assertFalse(items[0].correct_check("I don't know.\n0.1"))
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
