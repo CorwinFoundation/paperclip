@@ -18,6 +18,14 @@ httpx==0.27.2
 # stays valid (probe ids drift between minor releases).
 garak==0.10.0
 
+# --- dual-runner (BEAAA-218) ---
+# Inspect AI — second eval framework adopted per BEAAA-212 OSS survey
+# (MIT, zero spend). Drives scanners/inspect_runner.py alongside the
+# Promptfoo path. Phase-1 = in-process data-model round-trip; phase-2
+# (BEAAA-198 follow-up) swaps in a native eval() call with a custom
+# ModelAPI. Pin so dual-runner smoke output is reproducible across CI.
+inspect-ai==0.3.220
+
 # --- model SDKs (lazy-imported by harness/runner.py adapters) ---
 anthropic==0.39.0
 openai==1.54.4
