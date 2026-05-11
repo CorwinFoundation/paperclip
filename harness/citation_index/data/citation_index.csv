@@ -1,0 +1,52 @@
+kind,normalized_citation,case_name,year,jurisdiction,proposition,bucket
+case,"304 U.S. 64","Erie Railroad Co. v. Tompkins",1938,federal,"federal courts in diversity cases apply state substantive law",scotus_canon
+case,"5 U.S. 137","Marbury v. Madison",1803,federal,"establishes judicial review of federal statutes by the courts",scotus_canon
+case,"326 U.S. 310","International Shoe Co. v. Washington",1945,federal,"personal jurisdiction requires minimum contacts and traditional notions of fair play and substantial justice",scotus_canon
+case,"384 U.S. 436","Miranda v. Arizona",1966,federal,"custodial interrogation requires pre-questioning warnings about right to remain silent and to counsel",scotus_canon
+case,"347 U.S. 483","Brown v. Board of Education",1954,federal,"state-mandated racial segregation in public schools violates the Equal Protection Clause",scotus_canon
+case,"367 U.S. 643","Mapp v. Ohio",1961,federal,"Fourth Amendment exclusionary rule applies to the states via the Fourteenth Amendment",scotus_canon
+case,"467 U.S. 837","Chevron U.S.A. Inc. v. NRDC",1984,federal,"courts deferred to reasonable agency interpretation of ambiguous statutes the agency administers",scotus_canon
+case,"373 U.S. 83","Brady v. Maryland",1963,federal,"prosecution must disclose material exculpatory evidence to the defense",scotus_canon
+case,"477 U.S. 317","Celotex Corp. v. Catrett",1986,federal,"summary judgment moving party may discharge burden by showing absence of evidence on essential element",scotus_canon
+case,"570 U.S. 529","Shelby County v. Holder",2013,federal,"struck down the Voting Rights Act §4(b) coverage formula for preclearance",scotus_canon
+case,"509 U.S. 579","Daubert v. Merrell Dow Pharmaceuticals",1993,federal,"federal trial judges are gatekeepers for admissibility of expert scientific testimony",scotus_canon
+case,"410 U.S. 113","Roe v. Wade",1973,federal,"recognized a constitutional right to abortion (subsequently overruled by Dobbs 2022)",scotus_canon
+case,"597 U.S. 215","Dobbs v. Jackson Women's Health Organization",2022,federal,"overruled Roe v. Wade; no federal constitutional right to abortion",scotus_canon
+case,"403 U.S. 388","Bivens v. Six Unknown Named Agents",1971,federal,"implied private damages action against federal officials for Fourth Amendment violations",scotus_canon
+case,"395 U.S. 444","Brandenburg v. Ohio",1969,federal,"speech advocacy is protected unless directed to and likely to produce imminent lawless action",scotus_canon
+case,"248 N.Y. 339","Palsgraf v. Long Island Railroad Co.",1928,state-new-york,"negligence requires a duty owed to a foreseeable plaintiff (proximate cause)",state_appellate_canon
+statute,"17 U.S.C. § 107",,1976,federal,"copyright fair use four-factor balancing test",usc_canon
+statute,"9 U.S.C. § 1",,1925,federal,"Federal Arbitration Act — written arbitration provisions are valid and enforceable",usc_canon
+statute,"15 U.S.C. § 1114",,1946,federal,"Lanham Act §32 — civil action for trademark infringement",usc_canon
+statute,"42 U.S.C. § 1983",,1871,federal,"private right of action for state-actor violations of federal rights",usc_canon
+statute,"42 U.S.C. § 2000e-2",,1964,federal,"Title VII — unlawful employment practices on basis of race, color, religion, sex, national origin",usc_canon
+statute,"42 U.S.C. § 12101",,1990,federal,"Americans with Disabilities Act — findings and purposes",usc_canon
+statute,"29 U.S.C. § 621",,1967,federal,"Age Discrimination in Employment Act — findings and purpose",usc_canon
+statute,"15 U.S.C. § 1681",,1970,federal,"Fair Credit Reporting Act — congressional findings and statement of purpose",usc_canon
+statute,"15 U.S.C. § 1692",,1977,federal,"Fair Debt Collection Practices Act — congressional findings and purposes",usc_canon
+statute,"11 U.S.C. § 362",,1978,federal,"Bankruptcy Code automatic stay on commencement of proceedings",usc_canon
+statute,"35 U.S.C. § 101",,1952,federal,"patentability of inventions — process, machine, manufacture, or composition of matter",usc_canon
+rule,"Fed. R. Civ. P. 56",,1937,federal,"summary judgment standard in federal civil practice",frcp_canon
+rule,"Fed. R. Civ. P. 12(b)(6)",,1937,federal,"motion to dismiss for failure to state a claim upon which relief can be granted",frcp_canon
+rule,"Fed. R. Civ. P. 8(a)",,1937,federal,"general pleading rules — short and plain statement showing entitlement to relief",frcp_canon
+rule,"Fed. R. Civ. P. 23",,1966,federal,"class action prerequisites (numerosity, commonality, typicality, adequacy of representation)",frcp_canon
+rule,"Fed. R. Crim. P. 11",,1944,federal,"pleas in federal criminal proceedings (guilty plea colloquy)",frcp_canon
+rule,"Fed. R. Evid. 702",,1975,federal,"testimony by expert witnesses — admissibility standard (Daubert codified)",frcp_canon
+rule,"Fed. R. Civ. P. 4",,1937,federal,"service of process in federal civil actions",frcp_canon
+statute,"U.C.C. § 2-601",,1962,uniform,"perfect tender rule in goods sales — buyer may reject for any non-conformity",ucc_canon
+statute,"U.C.C. § 2-207",,1962,uniform,"battle of the forms — terms additional to or different from acceptance",ucc_canon
+statute,"U.C.C. § 2-314",,1962,uniform,"implied warranty of merchantability in goods sales by a merchant",ucc_canon
+statute,"U.C.C. § 1-201",,1962,uniform,"general definitions for the Uniform Commercial Code",ucc_canon
+treatise,"Restatement (Second) of Torts § 402A",,1965,federal,"seller subject to strict liability for selling a product in defective condition unreasonably dangerous",restatement_canon
+treatise,"Restatement (Second) of Contracts § 90",,1981,federal,"promissory estoppel — promise reasonably expected to induce action is binding if injustice can only be avoided by enforcement",restatement_canon
+treatise,"Restatement (Second) of Contracts § 71",,1981,federal,"requirement of bargained-for exchange to constitute consideration",restatement_canon
+treatise,"Restatement (Second) of Torts § 46",,1965,federal,"intentional infliction of emotional distress — outrageous conduct causing severe emotional distress",restatement_canon
+treatise,"Restatement (Second) of Torts § 339",,1965,federal,"liability to trespassing children — attractive nuisance doctrine",restatement_canon
+treatise,"Restatement (Second) of Torts § 519",,1965,federal,"strict liability for abnormally dangerous activities",restatement_canon
+case,"410 U.S. 614","O'Shea v. Littleton",1974,federal,"Article III standing requires a real and immediate threat of injury",scotus_canon
+case,"403 U.S. 15","Cohen v. California",1971,federal,"First Amendment protects offensive expressive speech absent incitement",scotus_canon
+case,"339 U.S. 763","Johnson v. Eisentrager",1950,federal,"limits on habeas corpus for enemy aliens detained outside U.S. sovereign territory",scotus_canon
+statute,"5 U.S.C. § 552",,1966,federal,"Freedom of Information Act — public access to executive branch agency records",usc_canon
+statute,"5 U.S.C. § 706",,1946,federal,"Administrative Procedure Act — scope of judicial review of agency action",usc_canon
+statute,"29 U.S.C. § 158",,1935,federal,"National Labor Relations Act — unfair labor practices",usc_canon
+statute,"29 U.S.C. § 2601",,1993,federal,"Family and Medical Leave Act — findings and purposes",usc_canon

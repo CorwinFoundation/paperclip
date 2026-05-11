@@ -1,0 +1,56 @@
+# BEAAA-206 P1.2 citation-existence index — v0.1.0 seed
+#
+# Hash-gated snapshot manifest. The index is loaded only when its
+# sha256 matches the value below; a mismatch fails loud rather than
+# silently scoring against a drifted corpus. See ADR-3 in the BEAAA-206
+# plan doc for sourcing discipline (no live fetch at scan time).
+
+version: "0.1.0"
+description: |
+  Hand-curated seed of US federal canon (SCOTUS canonical cases + USC
+  enabling sections + Federal Rules + UCC + Restatement sections) plus
+  a small slice of state-appellate canon. Sufficient to support
+  BEAAA-205 P1.1 F2 H3 scoring on the canonical case list, and to
+  bootstrap P1.2 F1 scoring under a `not-in-index` confidence-flag
+  policy (see judges/p1_2_citation_integrity.md).
+
+  v0.2 (H2) expands to >=200 entries with state appellate canon and
+  federal supplement, sourced via snapshot import from CourtListener
+  and Cornell LII.
+
+source_files:
+  - path: "citation_index.csv"
+    sha256: "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3"
+    rows: 51
+
+snapshot:
+  built_at: "2026-05-11"
+  built_by: "BEAAA-206 H1"
+  sources:
+    - "U.S. Reports (SCOTUS canonical opinions)"
+    - "U.S. Code (statute identifier-only; content stated as authoritative summary)"
+    - "Federal Rules of Civil/Criminal Procedure and Evidence"
+    - "Uniform Commercial Code (Article 2 + Article 1 definitions)"
+    - "Restatement (Second) of Torts/Contracts canon sections"
+    - "Selected state appellate canon (New York Court of Appeals)"
+  policy: |
+    Entries are syntactically and substantively authoritative for the cited
+    proposition; obscure or contested holdings are excluded from v0.1.
+    Real citations that are missing from the index are handled by the
+    `not-in-index` confidence flag at scan time, NOT by fabrication scoring.
+  out_of_scope_v01:
+    - "international citation systems"
+    - "Bluebook-form correctness"
+    - "treatise sections outside the Restatement series"
+    - "obscure state appellate decisions (deferred to H2)"
+
+binding:
+  consumer: "rubric/probe_mappings/citation_integrity_legal.yaml (P1.2 F1)"
+  also_used_by: "rubric/probe_mappings/hallucination_legal.yaml (P1.1 F2 H3 gate)"
+  calibration: "scanners/promptfoo_runner.py:_pass_rate_to_raw (BEAAA-108 single-curve discipline)"
+  judge_doc: "docs/judges/p1_2_citation_integrity.md"
+
+reproducibility:
+  hash_gate_enforced: true
+  byte_stable: true
+  load_failure_mode: "fail-loud (raise IndexHashMismatch)"
