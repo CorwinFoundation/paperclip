@@ -36,6 +36,37 @@ from report_card.reproducibility import render_reproducibility_block
 from report_card.sensitivity import render_sensitivity_block
 from rubric.scoring import Rubric
 
+# BEAAA-221: audit-trail placeholder tokens that prior scan scripts wrote
+# directly into snapshot_hash / forensic_bundle_uri. Reject at render time
+# so future vendor scans cannot ship cards with literal placeholders.
+# Real customer attachment URLs never contain "no-bundle" / "beaai.local"
+# / "not-a-real-snapshot"; tests use distinct fixture values
+# (sha256:test, https://bundles.local/...). Catch-all guard, vendor-agnostic.
+_AUDIT_PLACEHOLDER_SNAPSHOT_TOKENS = ("not-a-real-snapshot",)
+_AUDIT_PLACEHOLDER_BUNDLE_TOKENS = ("no-bundle", "beaai.local")
+
+
+class AuditPlaceholderError(ValueError):
+    """Raised when the report card would emit placeholder audit-trail values."""
+
+
+def _assert_no_audit_placeholders(snapshot_hash: str, forensic_bundle_uri: str) -> None:
+    for tok in _AUDIT_PLACEHOLDER_SNAPSHOT_TOKENS:
+        if tok in snapshot_hash:
+            raise AuditPlaceholderError(
+                f"Refusing to render report card with placeholder snapshot_hash "
+                f"{snapshot_hash!r} (matched token {tok!r}). See BEAAA-221: pass "
+                "a real sha256 over the canonical run JSON."
+            )
+    for tok in _AUDIT_PLACEHOLDER_BUNDLE_TOKENS:
+        if tok in forensic_bundle_uri:
+            raise AuditPlaceholderError(
+                f"Refusing to render report card with placeholder forensic_bundle_uri "
+                f"{forensic_bundle_uri!r} (matched token {tok!r}). See BEAAA-221: "
+                "pass a real attachment URL (e.g. /api/attachments/{id}/content)."
+            )
+
+
 _BAND_COLOR = {
     "A": "#2e7d32",
     "B": "#1565c0",
@@ -460,6 +491,13 @@ def render(
     values are truncated at 240 chars in the rendered table; the full
     record is expected to live in `forensic_bundle_uri`.
     """
+    # BEAAA-221: audit-trail hygiene — block placeholder values from ever
+    # reaching a rendered card. Applies to every caller, not just Syllable.
+    _assert_no_audit_placeholders(
+        score_response["snapshot_hash"],
+        score_response["forensic_bundle_uri"],
+    )
+
     bmi = int(score_response["bmi"])
     band = score_response["band"]
     pillars = score_response["pillars"]

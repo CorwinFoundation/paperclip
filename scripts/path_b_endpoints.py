@@ -7,6 +7,7 @@ connector slate added on BEAAA-130:
   - voiceflow        — Voiceflow general-runtime interact API     (customer-deployment)
   - rasa             — Rasa Pro / Rasa OSS REST channel webhook   (customer-deployment)
   - yellowai         — Yellow.ai integrations chat API            (customer-deployment)
+  - syllable         — Syllable apichat webchat API               (customer-deployment)
   - huggingchat      — HuggingChat reference model (HF router,    (PUBLIC-CHAT — category-proxy)
                        falls back to OpenRouter when HF_TOKEN
                        is unset)
@@ -21,6 +22,7 @@ shape pre-baked. To run a scan, set the vendor-specific env vars below
     python3 scripts/path_b_endpoints.py --vendor voiceflow
     python3 scripts/path_b_endpoints.py --vendor rasa
     python3 scripts/path_b_endpoints.py --vendor yellowai
+    python3 scripts/path_b_endpoints.py --vendor syllable
     python3 scripts/path_b_endpoints.py --vendor huggingchat
     python3 scripts/path_b_endpoints.py --vendor openai-compat --model meta-llama/llama-3.3-70b-instruct
 
@@ -54,6 +56,21 @@ yellowai:
   Optional: YELLOWAI_USER_ID    — defaults to a fixed scan-session id
   Endpoint: POST https://cloud.yellow.ai/api/integrations/chat
 
+syllable:
+  Optional: SYLLABLE_CLIENT_ID_KEY — Syllable-Client-Id-Key header
+                                     (default: showcase demo agent key
+                                     extracted from public webchat HTML)
+  Optional: SYLLABLE_HOST_KEY      — Syllable-Host-Key header
+                                     (default: https://syllable.ai)
+  Optional: SYLLABLE_LABEL         — readable label suffix
+                                     (default: meridian-insurance-claims)
+  Endpoint shape:
+    POST https://apichat.syllable.cloud/api/v1/chats/start_session  ->  { id }
+    POST https://apichat.syllable.cloud/api/v1/chats/send_message
+         { session_id, message }                                    ->  reply
+  Auth: none — both header keys are public webchat demo keys (no
+        customer credentials). Insurance-claims showcase agent.
+
 huggingchat (public-chat):
   Prefers HF_TOKEN against router.huggingface.co (true HF infra path);
   falls back to OPENROUTER_API_KEY against openrouter.ai when HF_TOKEN
@@ -85,6 +102,7 @@ Exit codes
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -110,7 +128,13 @@ _load_dotenv(REPO / ".env")
 
 from harness.bench import indirect_injection, prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
-from harness.runner import BotpressChatRunner, HTTPEndpointRunner, RunnerError, VoiceflowRunner  # noqa: E402
+from harness.runner import (  # noqa: E402
+    BotpressChatRunner,
+    HTTPEndpointRunner,
+    RunnerError,
+    SyllableRunner,
+    VoiceflowRunner,
+)
 from pricing.quote import ManualReferral, Rates, quote  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 
@@ -217,6 +241,24 @@ def _build_yellowai() -> HTTPEndpointRunner:
     )
 
 
+def _build_syllable() -> SyllableRunner:
+    """Syllable.cloud public webchat API (apichat.syllable.cloud).
+
+    Both keys are public (extracted from the published webchat HTML +
+    iframe handshake). Defaults target the Syllable showcase insurance-claims
+    agent ("Jordan from Meridian Insurance"), confirmed live from this host
+    in BEAAA-217.
+    """
+    client_id_key = os.environ.get("SYLLABLE_CLIENT_ID_KEY", "hlw3qyTAx5inYzm2")
+    host_key = os.environ.get("SYLLABLE_HOST_KEY", "https://syllable.ai")
+    label_suffix = os.environ.get("SYLLABLE_LABEL", "meridian-insurance-claims")
+    return SyllableRunner(
+        client_id_key=client_id_key,
+        host_key=host_key,
+        label=f"syllable:{label_suffix}",
+    )
+
+
 def _build_huggingchat(model_override: str | None = None) -> tuple[HTTPEndpointRunner, str]:
     """Public-Chat preset for HuggingChat reference model (BEAAA-130).
 
@@ -289,11 +331,141 @@ VENDOR_BUILDERS = {
     "voiceflow": (_build_voiceflow, "voiceflow_demo"),
     "rasa": (_build_rasa, "rasa_demo"),
     "yellowai": (_build_yellowai, "yellowai_demo"),
+    "syllable": (_build_syllable, "syllable_demo"),
     "huggingchat": (_build_huggingchat, "huggingchat"),
     "openai-compat": (_build_openai_compatible, "anthropic_claude"),
 }
 
 PUBLIC_CHAT_VENDORS = {"huggingchat", "openai-compat"}
+
+# BEAAA-221: forensic_bundle_uri default for runs that have not yet been
+# uploaded as a Paperclip attachment. Distinct from the historical
+# "no-bundle" placeholder so the render-time guard can still reject the
+# legacy sentinel while allowing pre-upload artifacts to be written to
+# disk.
+_FORENSIC_BUNDLE_PENDING = "pending-attachment-upload"
+
+# Substrings the render-time audit guard rejects (matched in
+# report_card.render.render). Mirrored here so we can reject card output
+# at the CLI level too, before write.
+_PLACEHOLDER_SNAPSHOT_TOKEN = "not-a-real-snapshot"
+_PLACEHOLDER_BUNDLE_TOKEN = "no-bundle"
+
+
+def _canonical_payload(*, vendor: str, label: str, provenance: str,
+                       prior_id: str, eval_outputs: dict,
+                       rubric_version: str) -> bytes:
+    """Return the canonical JSON byte string that snapshot_hash hashes.
+
+    Excludes time-varying fields (scored_at) and the hash/uri pair itself
+    so the same agent + same scanner version + same priors yields the
+    same hash run-over-run. Sorted keys + compact separators give us a
+    stable byte-form across Python versions.
+    """
+    canon = {
+        "vendor": vendor,
+        "label": label,
+        "provenance": provenance,
+        "prior_id": prior_id,
+        "eval_outputs": eval_outputs,
+        "rubric_version": rubric_version,
+    }
+    return json.dumps(canon, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _compute_snapshot_hash(*, vendor: str, label: str, provenance: str,
+                           prior_id: str, eval_outputs: dict,
+                           rubric_version: str) -> str:
+    payload = _canonical_payload(
+        vendor=vendor, label=label, provenance=provenance,
+        prior_id=prior_id, eval_outputs=eval_outputs,
+        rubric_version=rubric_version,
+    )
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def _render_only(args) -> int:
+    """BEAAA-221: render the card from a saved run artifact (no live scan).
+
+    Used after uploading the artifact as a Paperclip attachment so the card
+    snapshot_hash matches the canonical content of the bundle URL points at.
+    """
+    if not args.card_out:
+        print("--render-only requires --card-out", file=sys.stderr)
+        return 2
+    if not args.forensic_bundle:
+        print("--render-only requires --forensic-bundle <attachment-url>", file=sys.stderr)
+        return 2
+    bundle_uri = args.forensic_bundle
+    if (_PLACEHOLDER_BUNDLE_TOKEN in bundle_uri
+            or "beaai.local" in bundle_uri
+            or _PLACEHOLDER_SNAPSHOT_TOKEN in bundle_uri):
+        print(
+            f"--forensic-bundle {bundle_uri!r} matches a legacy placeholder "
+            "pattern; refusing to emit.", file=sys.stderr,
+        )
+        return 2
+
+    artifact_path = Path(args.runs_dir) / f"{args.vendor}.json"
+    if not artifact_path.exists():
+        print(f"no saved run artifact at {artifact_path}; run a live scan first",
+              file=sys.stderr)
+        return 2
+    record = json.loads(artifact_path.read_text())
+    eval_outputs = record.get("eval_outputs")
+    if eval_outputs is None:
+        print(f"{artifact_path} predates BEAAA-221 (no eval_outputs); re-run scan",
+              file=sys.stderr)
+        return 2
+
+    rubric = Rubric.load(RUBRIC_PATH)
+    # Recompute the snapshot_hash from canonical inputs; must match the saved
+    # one. If it doesn't, the artifact was tampered with (or a rubric/version
+    # bump invalidated the cached hash) — fail loud rather than ship a card
+    # whose hash diverges from the bundle.
+    recomputed = _compute_snapshot_hash(
+        vendor=record["vendor"],
+        label=record["label"],
+        provenance=record["provenance"],
+        prior_id=record["prior_id"],
+        eval_outputs=eval_outputs,
+        rubric_version=rubric.version,
+    )
+    if recomputed != record.get("snapshot_hash"):
+        print(
+            f"snapshot_hash mismatch: artifact={record.get('snapshot_hash')!r} "
+            f"recomputed={recomputed!r}. Refusing to render — re-run scan.",
+            file=sys.stderr,
+        )
+        return 2
+
+    scored_at = datetime.fromisoformat(record["scored_at"])
+    result = score(
+        rubric, eval_outputs,
+        snapshot_hash=recomputed,
+        forensic_bundle_uri=bundle_uri,
+        scored_at=scored_at,
+    )
+
+    from report_card.render import render  # noqa: E402  (lazy)
+    Path(args.card_out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.card_out).write_text(
+        render(
+            result, rubric,
+            provenance=record["provenance"],
+            dim_provenance=record.get("dim_provenance"),
+        )
+    )
+    # Update artifact in place with the now-known bundle URL so subsequent
+    # rehydrations carry the real value, not "pending-attachment-upload".
+    record["forensic_bundle_uri"] = bundle_uri
+    artifact_path.write_text(json.dumps(record, indent=2))
+    print(f"# Path B — {record['vendor']} (render-only, BEAAA-221)")
+    print(f"_BMI: **{record['bmi']}** band: **{record['band']}** "
+          f"snapshot: `{recomputed}`_")
+    print(f"_Bundle: {bundle_uri}_")
+    print(f"_Card: {args.card_out}_")
+    return 0
 
 
 def main() -> int:
@@ -309,7 +481,26 @@ def main() -> int:
     parser.add_argument("--runs-dir", default="/tmp/path_b_runs")
     parser.add_argument("--card-out", default=None,
                         help="if set, also render the report-card HTML to this path")
+    parser.add_argument("--forensic-bundle", default=None,
+                        help="forensic_bundle_uri to emit in the report card "
+                             "and run artifact. Required when --card-out is "
+                             "set. Must be a real attachment URL (typically "
+                             "/api/attachments/{id}/content); legacy "
+                             "'no-bundle' / 'beaai.local' placeholders are "
+                             "rejected. Without --card-out, the run artifact "
+                             "records 'pending-attachment-upload'.")
+    parser.add_argument("--render-only", action="store_true",
+                        help="Skip the live scan and render the card from the "
+                             "saved run artifact at <runs-dir>/<vendor>.json. "
+                             "Use this after uploading the artifact as an "
+                             "attachment so the card's snapshot_hash matches "
+                             "the bundle's content (BEAAA-221 audit-trail "
+                             "consistency). Requires --card-out and "
+                             "--forensic-bundle.")
     args = parser.parse_args()
+
+    if args.render_only:
+        return _render_only(args)
 
     builder, default_prior = VENDOR_BUILDERS[args.vendor]
     prior_id = args.prior_id or default_prior
@@ -356,10 +547,48 @@ def main() -> int:
         d: {"raw": r, "evidence_uri": f"https://path-b.beaai.local/{args.vendor}/{d}"}
         for d, r in raw_scores.items()
     }
+
+    # BEAAA-221: real snapshot_hash = sha256 over canonical run inputs.
+    snapshot_hash = _compute_snapshot_hash(
+        vendor=args.vendor,
+        label=runner.model_id(),
+        provenance=provenance,
+        prior_id=prior_id,
+        eval_outputs=eval_outputs,
+        rubric_version=rubric.version,
+    )
+
+    # forensic_bundle_uri: real attachment URL when emitting a card; the
+    # pre-upload artifact records the pending marker (no placeholder).
+    if args.forensic_bundle is not None:
+        bundle_uri = args.forensic_bundle
+        if (_PLACEHOLDER_BUNDLE_TOKEN in bundle_uri
+                or "beaai.local" in bundle_uri
+                or _PLACEHOLDER_SNAPSHOT_TOKEN in bundle_uri):
+            print(
+                f"--forensic-bundle {bundle_uri!r} matches a legacy placeholder "
+                "pattern; refusing to emit. Pass a real attachment URL "
+                "(see BEAAA-221).",
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        if args.card_out:
+            print(
+                "--card-out requires --forensic-bundle <real-attachment-url> "
+                "(see BEAAA-221). The card cannot ship with placeholder audit "
+                "values. Run the scan first without --card-out, upload the "
+                "run artifact as an issue attachment, then re-run with "
+                "--card-out and --forensic-bundle /api/attachments/<id>/content.",
+                file=sys.stderr,
+            )
+            return 2
+        bundle_uri = _FORENSIC_BUNDLE_PENDING
+
     result = score(
         rubric, eval_outputs,
-        snapshot_hash=f"sha256:path-b-{args.vendor}-not-a-real-snapshot",
-        forensic_bundle_uri=f"https://path-b.beaai.local/{args.vendor}/no-bundle",
+        snapshot_hash=snapshot_hash,
+        forensic_bundle_uri=bundle_uri,
         scored_at=scored_at,
     )
     try:
@@ -377,11 +606,22 @@ def main() -> int:
         "label": runner.model_id(),
         "provenance": provenance,
         "prior_id": prior_id,
+        "rubric_version": rubric.version,
+        "snapshot_hash": snapshot_hash,
+        "forensic_bundle_uri": bundle_uri,
+        "scored_at": scored_at.isoformat(),
         "bmi": result["bmi"],
         "band": result["band"]["display"],
         "posture": result["band"]["posture"],
         "premium": premium_str,
         "status": status,
+        # BEAAA-221: persist the canonical inputs so the card can be re-rendered
+        # post-upload (--render-only) without re-running the live scan. The
+        # snapshot_hash above is sha256 over (vendor, label, provenance,
+        # prior_id, eval_outputs, rubric_version) — all of which are saved
+        # here, so a re-render reproduces the same hash by construction.
+        "eval_outputs": eval_outputs,
+        "dim_provenance": dim_provenance,
         "measurements": [
             {"dim_id": m["dim_id"], "raw": m["raw"], **{k: m[k] for k in m if k.startswith("n_") or k.endswith("_rate")}}
             for m in measurements

@@ -1,0 +1,17 @@
+{
+  "id": "syllable_demo",
+  "display_name": "Syllable showcase insurance-claims agent (Meridian / Jordan, no governance disclosure)",
+  "rationale": "Vendor-neutral conservative prior for the Syllable.ai public showcase insurance-claims agent (BEAAA-217/219). This is a voice-channel vendor scanned via its text-plane apichat surface; the deployer (Syllable demo) has not disclosed governance posture, RAG provenance, eval coverage, on-call posture, or incident-response process for the production deployments behind this surface. Treat all non-measured dims as 'undisclosed = below-average' baseline, matching the voiceflow_demo / botpress_demo priors used for the BEAAA-92 v2.1 vendor slate. Override with a customer-specific prior the moment Syllable signs the BEAAA-22 §3 hosted-eval intake.",
+  "evidence_links": [
+    "https://syllable.ai/",
+    "https://webchat.syllable.cloud/",
+    "https://apichat.syllable.cloud/",
+    "BEAAA-217: voice-surface feasibility confirmed apichat.syllable.cloud is a public text plane for the showcase insurance-claims agent"
+  ],
+  "raw_scores": {
+    "P1.1": 2.0, "P1.2": 1.5, "P1.3": 2.0, "P1.4": 1.5, "P1.5": 1.5, "P1.6": 2.0,
+    "P2.1": 1.5, "P2.2": 1.5, "P2.3": 1.5, "P2.4": 1.5, "P2.5": 1.5, "P2.6": 1.5,
+    "P3.1": 2.0, "P3.2": 1.5, "P3.3": 2.0,
+    "P4.1": 1.5, "P4.2": 1.5, "P4.3": 1.5, "P4.4": 1.5, "P4.5": 1.5, "P4.6": 1.5
+  }
+}

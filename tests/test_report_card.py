@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
-from report_card.render import evaluate_bind_eligibility, render
+from report_card.render import AuditPlaceholderError, evaluate_bind_eligibility, render
 from rubric.scoring import Rubric, score
 
 REPO = Path(__file__).resolve().parents[1]
@@ -86,6 +86,27 @@ class ReportCardRenderTests(unittest.TestCase):
         html = render(out, rubric)
         self.assertNotIn("<script>alert(1)</script>", html)
         self.assertIn("&lt;script&gt;", html)
+
+    def test_rejects_placeholder_snapshot_hash(self):
+        """BEAAA-221: render-time guard against legacy 'not-a-real-snapshot' literal."""
+        out, rubric = _baseline_score()
+        out["snapshot_hash"] = "sha256:path-b-syllable-not-a-real-snapshot"
+        with self.assertRaises(AuditPlaceholderError) as ctx:
+            render(out, rubric)
+        self.assertIn("not-a-real-snapshot", str(ctx.exception))
+
+    def test_rejects_placeholder_forensic_bundle_no_bundle(self):
+        out, rubric = _baseline_score()
+        out["forensic_bundle_uri"] = "https://path-b.beaai.local/syllable/no-bundle"
+        with self.assertRaises(AuditPlaceholderError):
+            render(out, rubric)
+
+    def test_rejects_placeholder_forensic_bundle_beaai_local_any_path(self):
+        """Even a non-no-bundle path under beaai.local fails (catch-all)."""
+        out, rubric = _baseline_score()
+        out["forensic_bundle_uri"] = "https://wrapper.beaai.local/huggingchat-web/anything"
+        with self.assertRaises(AuditPlaceholderError):
+            render(out, rubric)
 
     def test_bind_blocked_warning_renders_when_p1_dim_below_floor(self):
         rubric = Rubric.load(RUBRIC_PATH)

@@ -467,6 +467,109 @@ class VoiceflowRunner(ModelRunner):
         return "\n".join(text_chunks)
 
 
+class SyllableRunner(ModelRunner):
+    """Syllable.cloud public webchat API runner — apichat.syllable.cloud.
+
+    Two-step protocol per turn:
+
+      POST /api/v1/chats/start_session  -> { id }            (also returns the
+                                                              agent's greeting,
+                                                              which we discard)
+      POST /api/v1/chats/send_message   -> { message: { message: str, ... } }
+
+    The Syllable showcase agent (insurance-claims persona, BEAAA-217/219) gates
+    headers on a public `Syllable-Client-Id-Key` extracted from the published
+    webchat HTML. There is no per-customer auth — the surface is a public demo.
+
+    Each prompt opens a fresh session so multi-turn state cannot bleed across
+    scan items (Syllable keys conversation state on session_id; the session
+    timeout is ~10m). Session creation cost is a single extra HTTP call per
+    prompt, which we accept for clean scan independence.
+    """
+
+    DEFAULT_BASE_URL = "https://apichat.syllable.cloud"
+    DEFAULT_ORIGIN = "https://webchat.syllable.cloud"
+
+    def __init__(self, *, client_id_key: str, host_key: str,
+                 base_url: str = DEFAULT_BASE_URL,
+                 origin: str = DEFAULT_ORIGIN,
+                 label: str | None = None,
+                 timeout_s: float = 30.0):
+        if not client_id_key or not host_key:
+            raise RunnerError("SyllableRunner requires client_id_key and host_key")
+        self._client_id_key = client_id_key
+        self._host_key = host_key
+        self._base = base_url.rstrip("/")
+        self._origin = origin
+        self._label = label or f"syllable:{client_id_key[:8]}"
+        self._timeout_s = timeout_s
+
+    def model_id(self) -> str:
+        return self._label
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Syllable-Client-Id-Key": self._client_id_key,
+            "Syllable-Host-Key": self._host_key,
+            "Origin": self._origin,
+        }
+
+    def complete(self, prompt: str) -> str:
+        try:
+            import httpx  # type: ignore
+        except ImportError as exc:
+            raise RunnerError("httpx not installed; pip install httpx") from exc
+        headers = self._headers()
+        try:
+            r = httpx.post(
+                f"{self._base}/api/v1/chats/start_session",
+                headers=headers, json={}, timeout=self._timeout_s,
+            )
+        except Exception as exc:
+            raise RunnerError(f"syllable start_session request failed: {exc}") from exc
+        if r.status_code >= 400:
+            raise RunnerError(
+                f"syllable start_session HTTP {r.status_code}: {r.text[:300]}"
+            )
+        try:
+            session = r.json()
+        except ValueError as exc:
+            raise RunnerError(
+                f"syllable start_session response not JSON: {r.text[:300]}"
+            ) from exc
+        session_id = session.get("id")
+        if not session_id:
+            raise RunnerError(
+                f"syllable start_session missing id: {str(session)[:300]}"
+            )
+        try:
+            r = httpx.post(
+                f"{self._base}/api/v1/chats/send_message",
+                headers=headers,
+                json={"session_id": session_id, "message": prompt},
+                timeout=self._timeout_s,
+            )
+        except Exception as exc:
+            raise RunnerError(f"syllable send_message request failed: {exc}") from exc
+        if r.status_code >= 400:
+            raise RunnerError(
+                f"syllable send_message HTTP {r.status_code}: {r.text[:300]}"
+            )
+        try:
+            body = r.json()
+        except ValueError as exc:
+            raise RunnerError(
+                f"syllable send_message response not JSON: {r.text[:300]}"
+            ) from exc
+        msg = body.get("message")
+        if isinstance(msg, dict):
+            text = msg.get("message")
+            if isinstance(text, str):
+                return text
+        return ""
+
+
 class HTTPEndpointRunner(ModelRunner):
     """Generic HTTP-endpoint runner — scan any deployed AI surface.
 
