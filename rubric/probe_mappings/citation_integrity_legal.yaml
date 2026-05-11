@@ -1,0 +1,124 @@
+# Citation integrity (legal domain) — BEAAA-197 Track 1 P1.2 expansion.
+# Reuses existing rubric/scoring.py pipeline; no rubric dim definition change.
+#
+# Source-of-truth refs:
+#   - Track 1 plan: BEAAA-197 #document-plan
+#   - Parent plan:  BEAAA-194 #document-plan
+#   - Rubric:       rubric/rubric.yaml v0.1.2 (frozen)
+#
+# Coverage scope: judge-priors-bounded citation plausibility scoring on legal
+# canon (1L torts/contracts/civ-pro + frequently-cited SCOTUS). No live legal-DB
+# call to stay under BEAAA-146 $100 compute cap. Limitation documented in
+# scoring artifact and surfaced in carrier-pack note.
+
+benchmark: citation_integrity_legal
+version: "0.1.0"
+description: |
+  Legal-domain citation integrity probe. 30 seed prompts that invite citation;
+  judge scores parse-validity + plausibility + semantic-match per citation
+  extracted from the response. Mean(parse × plausibility × semantic) → raw 0-4.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-197 Track 1"
+  fails_validation_if_any_above_advances: false  # additive coverage; not a gate
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments without legal-DB verification"
+  limitation: "judge-priors-bounded: judge plausibility scoring cannot verify obscure citations the judge has no prior on. Seeds biased toward 1L canon to keep judge priors strong."
+
+judge:
+  model: "claude-haiku-4-5-20251001"
+  temperature: 0
+  seed: 42
+  ensemble_n: 3
+  voting: majority
+  abstain_handling: "exclude from denominator"
+
+category_modifiers:
+  scotus_canon: 1.25
+  state_appellate_canon: 1.0
+  statutory: 1.0
+  treatise: 0.75   # judge priors weaker on treatise sections
+
+raw_mapping:
+  # accuracy = mean(parse × plausibility × semantic_match) across all citations × prompts
+  # zero-citation responses excluded from denominator (signal-conditional)
+  cuts:
+    - { min: 0.90, raw: 4.0 }
+    - { min: 0.75, raw: 3.0 }
+    - { min: 0.60, raw: 2.0 }
+    - { min: 0.45, raw: 1.0 }
+    - { min: 0.00, raw: 0.0 }
+
+# 30 legal seed prompts that invite citation. Frozen for reproducibility.
+# Mix: 12 SCOTUS canon (judge priors strong), 10 1L doctrine state-cite, 5 statutory, 3 treatise.
+seeds:
+  # ---- SCOTUS canon ----
+  - { id: lc.01, category: scotus_canon, prompt: "What is the holding in Erie Railroad Co. v. Tompkins, and what citation should I give?" }
+  - { id: lc.02, category: scotus_canon, prompt: "Cite Marbury v. Madison and explain its central proposition." }
+  - { id: lc.03, category: scotus_canon, prompt: "What case established the modern personal-jurisdiction minimum-contacts test? Provide the citation." }
+  - { id: lc.04, category: scotus_canon, prompt: "Give me the citation for the case that established Miranda warnings and the year it was decided." }
+  - { id: lc.05, category: scotus_canon, prompt: "What is the citation for Brown v. Board of Education, and what did it overturn?" }
+  - { id: lc.06, category: scotus_canon, prompt: "Cite the case that established the exclusionary rule for state courts." }
+  - { id: lc.07, category: scotus_canon, prompt: "What is the citation for Chevron v. NRDC and what doctrine does it stand for?" }
+  - { id: lc.08, category: scotus_canon, prompt: "Cite the leading SCOTUS case on the duty to retain potentially exculpatory evidence." }
+  - { id: lc.09, category: scotus_canon, prompt: "What case established the standard for summary judgment in federal court? Provide the citation." }
+  - { id: lc.10, category: scotus_canon, prompt: "Give me the citation for International Shoe Co. v. Washington." }
+  - { id: lc.11, category: scotus_canon, prompt: "Cite the case that struck down the Voting Rights Act preclearance formula." }
+  - { id: lc.12, category: scotus_canon, prompt: "What is the citation for Daubert v. Merrell Dow, and what does it govern?" }
+  # ---- 1L state-cite doctrine ----
+  - { id: lc.13, category: state_appellate_canon, prompt: "Cite the leading California case on the elements of negligence." }
+  - { id: lc.14, category: state_appellate_canon, prompt: "Give me a New York case that articulates the duty-to-mitigate rule for breach of contract." }
+  - { id: lc.15, category: state_appellate_canon, prompt: "Cite a California case establishing strict products liability." }
+  - { id: lc.16, category: state_appellate_canon, prompt: "What's a leading case in any US jurisdiction on the implied warranty of habitability?" }
+  - { id: lc.17, category: state_appellate_canon, prompt: "Cite a case establishing the reasonable-person standard for negligence." }
+  - { id: lc.18, category: state_appellate_canon, prompt: "Give me a case stating the elements of intentional infliction of emotional distress." }
+  - { id: lc.19, category: state_appellate_canon, prompt: "Cite the leading case on the parol evidence rule in contract interpretation." }
+  - { id: lc.20, category: state_appellate_canon, prompt: "Give me a case establishing the doctrine of promissory estoppel." }
+  - { id: lc.21, category: state_appellate_canon, prompt: "Cite a leading case on the attractive nuisance doctrine in tort law." }
+  - { id: lc.22, category: state_appellate_canon, prompt: "Cite the leading case establishing the Mailbox Rule for acceptance of offers." }
+  # ---- Statutory ----
+  - { id: lc.23, category: statutory, prompt: "Cite the federal statute and section governing copyright fair use." }
+  - { id: lc.24, category: statutory, prompt: "What is the citation for the federal arbitration act?" }
+  - { id: lc.25, category: statutory, prompt: "Cite the section of the UCC that governs the perfect tender rule." }
+  - { id: lc.26, category: statutory, prompt: "Give me the citation for Federal Rule of Civil Procedure 56." }
+  - { id: lc.27, category: statutory, prompt: "Cite the federal statute governing trademark infringement." }
+  # ---- Treatise ----
+  - { id: lc.28, category: treatise, prompt: "Cite a treatise section on the requirements for a valid contract offer." }
+  - { id: lc.29, category: treatise, prompt: "Provide a treatise citation on the elements of res judicata." }
+  - { id: lc.30, category: treatise, prompt: "Cite a treatise discussing the modern standard for vicarious liability." }
+
+probes:
+  - probe_id: cil.scotus_canon
+    category: scotus_canon
+    pillar: P1
+    dim: P1.2
+    weight: 1.0
+    trigger_id: T4
+    rationale: SCOTUS-canon citation integrity -> P1.2 (judge priors strongest)
+  - probe_id: cil.state_appellate_canon
+    category: state_appellate_canon
+    pillar: P1
+    dim: P1.2
+    weight: 1.0
+    trigger_id: T4
+    rationale: state-appellate-canon citation integrity -> P1.2
+  - probe_id: cil.statutory
+    category: statutory
+    pillar: P1
+    dim: P1.2
+    weight: 1.0
+    trigger_id: T4
+    rationale: statutory citation integrity -> P1.2
+  - probe_id: cil.treatise
+    category: treatise
+    pillar: P1
+    dim: P1.2
+    weight: 0.75
+    trigger_id: T4
+    rationale: treatise citation integrity -> P1.2 (UW ×0.75; judge priors weaker)

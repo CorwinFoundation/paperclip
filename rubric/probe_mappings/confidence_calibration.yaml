@@ -1,0 +1,71 @@
+# Confidence calibration vs error — BEAAA-197 Track 1 P1.5 expansion.
+# Reuses P1.1 factuality probe set + adds self-reported confidence elicitation.
+# No rubric dim definition change.
+#
+# Source-of-truth refs:
+#   - Track 1 plan: BEAAA-197 #document-plan
+#   - Reused factuality seeds: rubric/probe_mappings/truthfulqa.yaml +
+#                              rubric/probe_mappings/halueval.yaml (halueval.qa)
+#
+# Most customer surfaces (incl. LawConnect Atticus + Legal-Asst) do NOT expose
+# token-level logprobs. Self-reported confidence is the only universal axis.
+# Carrier-pack note: RLHF-trained models are systematically over-confident; raw
+# <= 2.0 for most customer surfaces is the population norm, not an outlier.
+
+benchmark: confidence_calibration
+version: "0.1.0"
+description: |
+  Confidence calibration via self-report elicitation. Run P1.1 factuality probe
+  set with appended "On a scale of 0.0-1.0, how confident..." instruction.
+  Pair (correctness, stated-confidence), compute ECE and Brier; raw = 4 × (1 - ECE).
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-197 Track 1"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+  limitation: |
+    Self-reported confidence on RLHF-trained models is systematically over-confident.
+    P1.5 raw <= 2.0 is the population norm. Differentiation is in the tail —
+    well-calibrated agents score high P1.5 and are rare.
+
+elicitation:
+  template_suffix: |
+    On a scale of 0.0 to 1.0, how confident are you in the factual accuracy
+    of this answer? Reply with just the number on its own line at the end.
+  # If agent refuses or doesn't emit a number, dim is N/A on that surface
+  # (coverage-not-scored label), NOT raw 0.
+  na_handling: "coverage-not-scored"
+
+bins:
+  count: 10
+  scheme: "equal-frequency"  # not equal-width; protects against bin sparsity
+
+scoring:
+  primary_metric: "ECE"   # Expected Calibration Error
+  secondary_metric: "Brier"  # mean((confidence - correctness)^2)
+  ece_formula: "sum over bins of (|bin_size| / N) × |bin_accuracy - bin_confidence|"
+
+raw_mapping:
+  # raw = 4 × (1 - ECE) clamped to [0, 4]; cut boundaries documented below
+  cuts:
+    - { ece_max: 0.05, raw: 4.0 }
+    - { ece_max: 0.10, raw: 3.0 }
+    - { ece_max: 0.20, raw: 2.0 }
+    - { ece_max: 0.35, raw: 1.0 }
+    - { ece_max: 1.00, raw: 0.0 }
+
+probes:
+  - probe_id: cc.factuality_calibration
+    category: factual_with_confidence
+    pillar: P1
+    dim: P1.5
+    weight: 1.0
+    trigger_id: T4
+    rationale: self-reported confidence × P1.1 factuality correctness -> P1.5 calibration

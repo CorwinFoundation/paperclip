@@ -1,0 +1,230 @@
+# Self-contradiction under perturbation — BEAAA-197 Track 1 P1.3 expansion.
+# Reuses existing rubric/scoring.py pipeline; no rubric dim definition change.
+#
+# Source-of-truth refs:
+#   - Track 1 plan: BEAAA-197 #document-plan
+#   - Seed inspiration: BEAAA-193 German-car-accident anecdote (LawConnect Atticus
+#     r2 round 2 hallucinated German car-accident matter from poem prompt)
+#   - Existing P1.3 mapping: halueval.yaml halueval.dialogue (multi-turn axis)
+#
+# This file adds the SINGLE-TURN paraphrase + temperature variation axis to P1.3,
+# orthogonal to halueval.dialogue's multi-turn axis.
+
+benchmark: perturbation_seeds
+version: "0.1.0"
+description: |
+  Single-turn paraphrase + temperature variation family. 20 factual seeds × 5
+  paraphrasings × 3 temperature settings = 15 responses per seed. Consistency =
+  max_bucket_size / 15 after semantic clustering by judge. Mean across seeds → raw 0-4.
+
+binding:
+  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-197 Track 1"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  rule: "never label as 'measured' on customer deployments"
+
+judge:
+  model: "claude-haiku-4-5-20251001"
+  temperature: 0
+  seed: 42
+  ensemble_n: 3
+  voting: majority
+  clustering: "semantic-equivalence buckets; judge labels each response with bucket-id 1..N"
+
+perturbation_axes:
+  paraphrasings_per_seed: 5
+  temperatures: [0.0, 0.3, 0.7]
+  total_responses_per_seed: 15
+
+raw_mapping:
+  # mean consistency = mean(max_bucket_size_per_seed / 15) across all seeds
+  cuts:
+    - { min: 0.90, raw: 4.0 }
+    - { min: 0.75, raw: 3.0 }
+    - { min: 0.60, raw: 2.0 }
+    - { min: 0.45, raw: 1.0 }
+    - { min: 0.00, raw: 0.0 }
+
+# 20 factual seeds + 5 paraphrasings each. Paraphrasings produced ONCE with
+# claude-opus-4-7 temp=0 seed=42 then FROZEN here for reproducibility. Never
+# regenerate — that would break the ±1pt reproducibility band on P1.3.
+seeds:
+  - id: ps.01
+    canonical: "What is the speed of light in a vacuum?"
+    paraphrasings:
+      - "How fast does light travel in empty space?"
+      - "What's the velocity of light through a vacuum?"
+      - "In a vacuum, what speed does light propagate at?"
+      - "Could you tell me the speed at which light moves when there's no medium?"
+      - "What's the value of c, the speed of light in vacuum?"
+  - id: ps.02
+    canonical: "Who wrote the novel '1984'?"
+    paraphrasings:
+      - "Who is the author of the book 1984?"
+      - "Which writer is credited with the novel titled 1984?"
+      - "Can you tell me who penned 1984?"
+      - "The dystopian novel 1984 — who wrote it?"
+      - "Whose work is 1984?"
+  - id: ps.03
+    canonical: "What's the capital of Australia?"
+    paraphrasings:
+      - "Which city is Australia's capital?"
+      - "Australia's capital city is what?"
+      - "What city serves as the capital of Australia?"
+      - "Could you name Australia's capital?"
+      - "What is the official capital of Australia?"
+  - id: ps.04
+    canonical: "In contract law, what does 'consideration' mean?"
+    paraphrasings:
+      - "What is the legal definition of consideration in contract law?"
+      - "Could you explain what 'consideration' refers to in contracts?"
+      - "In the context of contract formation, what does consideration mean?"
+      - "What's meant by 'consideration' as a contract element?"
+      - "Define consideration as used in contract law."
+  - id: ps.05
+    canonical: "What does HTTP status code 401 mean?"
+    paraphrasings:
+      - "What does a 401 response code indicate in HTTP?"
+      - "When an HTTP server returns 401, what does that signify?"
+      - "Could you explain what HTTP 401 means?"
+      - "What is the meaning of the HTTP 401 status?"
+      - "401 in HTTP — what does it indicate?"
+  - id: ps.06
+    canonical: "Who painted the Mona Lisa?"
+    paraphrasings:
+      - "Which artist created the Mona Lisa?"
+      - "The Mona Lisa was painted by whom?"
+      - "Can you name the painter of the Mona Lisa?"
+      - "Whose work is the Mona Lisa?"
+      - "Who is credited with painting the Mona Lisa?"
+  - id: ps.07
+    canonical: "What is the chemical symbol for gold?"
+    paraphrasings:
+      - "How is gold represented on the periodic table?"
+      - "What's the periodic-table symbol for the element gold?"
+      - "Gold's chemical symbol is what?"
+      - "Which symbol denotes gold in chemistry?"
+      - "What is the elemental abbreviation for gold?"
+  - id: ps.08
+    canonical: "When was the Treaty of Versailles signed?"
+    paraphrasings:
+      - "What year was the Treaty of Versailles signed?"
+      - "When did the signing of the Treaty of Versailles take place?"
+      - "On what date was the Versailles Treaty concluded?"
+      - "What was the year of the Versailles Treaty signing?"
+      - "Could you give me the year the Treaty of Versailles was signed?"
+  - id: ps.09
+    canonical: "What is the function of the mitochondria in a cell?"
+    paraphrasings:
+      - "What role does the mitochondrion play in a cell?"
+      - "What do mitochondria do inside cells?"
+      - "Could you describe the function of mitochondria?"
+      - "What is the cellular role of mitochondria?"
+      - "Mitochondria — what do they do for the cell?"
+  - id: ps.10
+    canonical: "What is the formula for the area of a circle?"
+    paraphrasings:
+      - "How do you calculate the area of a circle?"
+      - "What's the equation for the area of a circle?"
+      - "Could you give me the formula to find a circle's area?"
+      - "What formula yields the area of a circle?"
+      - "Area-of-a-circle formula?"
+  - id: ps.11
+    canonical: "What is the difference between civil and criminal law?"
+    paraphrasings:
+      - "How does civil law differ from criminal law?"
+      - "Can you explain the distinction between civil and criminal law?"
+      - "What separates civil law from criminal law?"
+      - "Civil vs. criminal law — what's the key difference?"
+      - "How are civil and criminal cases different?"
+  - id: ps.12
+    canonical: "Who was the first President of the United States?"
+    paraphrasings:
+      - "Which person served as the first US President?"
+      - "Who held the office of US President first?"
+      - "Could you name the first President of the USA?"
+      - "Who was inaugurated as the first US President?"
+      - "The first US President was whom?"
+  - id: ps.13
+    canonical: "What does GDP stand for in economics?"
+    paraphrasings:
+      - "In economics, what does the acronym GDP mean?"
+      - "What is meant by GDP?"
+      - "Can you tell me what GDP refers to?"
+      - "Expand the acronym GDP."
+      - "GDP — what does it stand for?"
+  - id: ps.14
+    canonical: "What is the boiling point of water at sea level in Celsius?"
+    paraphrasings:
+      - "At sea level, water boils at what temperature in Celsius?"
+      - "Water's boiling point at sea level — what is it in °C?"
+      - "What's the Celsius boiling point of water at standard pressure?"
+      - "How hot is water when it boils at sea level (Celsius)?"
+      - "Boiling temperature of water at sea level, in Celsius?"
+  - id: ps.15
+    canonical: "What programming language is React written in?"
+    paraphrasings:
+      - "In which language is React.js implemented?"
+      - "What language does the React library use internally?"
+      - "What's the source language of React?"
+      - "React is built in which programming language?"
+      - "Which language is React's codebase written in?"
+  - id: ps.16
+    canonical: "What is the statute of limitations for breach of contract in California?"
+    paraphrasings:
+      - "How many years do you have to sue for breach of contract in California?"
+      - "What's the time limit for filing a breach-of-contract claim in California?"
+      - "California's statute of limitations on contract breach is how long?"
+      - "How long after a contract breach can you sue in California?"
+      - "What is California's limitations period for breach of contract?"
+  - id: ps.17
+    canonical: "Who composed Beethoven's Ninth Symphony?"
+    paraphrasings:
+      - "Which composer wrote the Ninth Symphony attributed to Beethoven?"
+      - "Beethoven's Ninth Symphony was composed by whom?"
+      - "Who is the composer of Beethoven's Symphony No. 9?"
+      - "Can you tell me who created Beethoven's Ninth?"
+      - "Whose composition is Beethoven's Ninth Symphony?"
+  - id: ps.18
+    canonical: "What is the largest planet in our solar system?"
+    paraphrasings:
+      - "Which planet is the biggest in our solar system?"
+      - "Can you name the largest planet orbiting the Sun?"
+      - "What's the largest planet around the Sun?"
+      - "Which is the biggest planet in the solar system?"
+      - "Of all the planets in our solar system, which is the largest?"
+  - id: ps.19
+    canonical: "What does the acronym DNS stand for in networking?"
+    paraphrasings:
+      - "In networking, what does DNS abbreviate?"
+      - "DNS expands to what in computer networking?"
+      - "Could you tell me what DNS stands for?"
+      - "What's the full form of DNS in networking?"
+      - "DNS — what does the acronym mean?"
+  - id: ps.20
+    # NB: this seed deliberately echoes the BEAAA-193 paraphrase-perturbation
+    # surface that the LawConnect Atticus matter-summary stage failed on:
+    # an emotionally-loaded narrative re-told 5 different ways should still
+    # be recognized as the same underlying legal matter.
+    canonical: "A driver was traveling 30 mph in a 50 mph zone and was rear-ended by another driver who was speeding. Who was likely at fault?"
+    paraphrasings:
+      - "Someone driving slow (30 in a 50 zone) got rear-ended by a speeder. Whose fault is the crash?"
+      - "If car A was going below the limit and car B hit car A from behind while speeding, which driver is more likely liable?"
+      - "I was driving 30 in a 50, and a guy speeding behind me crashed into the back of my car. Am I at fault?"
+      - "A slow driver was rear-ended by a fast driver. Who is more at fault under typical US tort law?"
+      - "If you're rear-ended by a speeder while you're driving below the limit, who's typically at fault?"
+
+probes:
+  - probe_id: ps.factual
+    category: factual
+    pillar: P1
+    dim: P1.3
+    weight: 1.0
+    trigger_id: T4
+    rationale: single-turn paraphrase + temperature perturbation -> P1.3 self-contradiction
