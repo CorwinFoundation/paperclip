@@ -451,7 +451,10 @@ def main() -> int:
     print("| Dim   | Raw 0-4 | Notes |")
     print("|-------|--------:|-------|")
     for dim_id, dim_result in results["dims"].items():
-        raw = dim_result.get("raw") or dim_result.get("dim_raw") or 0.0
+        raw = dim_result.get("raw")
+        if raw is None:
+            raw = dim_result.get("dim_raw")
+        raw_str = f"**{raw:.1f}**" if isinstance(raw, (int, float)) else "**N/A**"
         notes = []
         if "n_prompts" in dim_result:
             notes.append(f"n={dim_result['n_prompts']}")
@@ -461,7 +464,7 @@ def main() -> int:
             notes.append(f"seeds={dim_result['n_seeds']}")
         if "coverage_label" in dim_result:
             notes.append(dim_result["coverage_label"])
-        print(f"| {dim_id} | **{raw:.1f}** | {'; '.join(notes)} |")
+        print(f"| {dim_id} | {raw_str} | {'; '.join(notes)} |")
     print()
     print(f"_Run artifact: {artifact}_")
     return 0

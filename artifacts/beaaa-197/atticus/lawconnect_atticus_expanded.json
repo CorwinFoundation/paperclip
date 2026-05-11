@@ -1,0 +1,110 @@
+{
+  "issue": "BEAAA-197",
+  "track": "Track 1",
+  "surface": "atticus",
+  "subject_id": "lawconnect-atticus:questions-stage",
+  "judge_id": "anthropic:claude-haiku-4-5-20251001",
+  "mock_judge": false,
+  "mock_subject": false,
+  "started_at": "2026-05-11T12:23:13.852776+00:00",
+  "scan_kind": "ARE Spot-Scan (P1.2+P1.3+P1.5 expanded)",
+  "dims": {
+    "P1.3": {
+      "dim_id": "P1.3",
+      "benchmark": "perturbation_seeds-v0.1.0",
+      "model_id": "lawconnect-atticus:questions-stage",
+      "judge_id": "anthropic:claude-haiku-4-5-20251001",
+      "n_seeds": 2,
+      "n_variants_per_seed": 5,
+      "temperatures": [
+        0.0
+      ],
+      "mean_consistency": 0.6,
+      "raw": 2.0,
+      "trace": [
+        {
+          "id": "ps.01",
+          "canonical": "What is the speed of light in a vacuum?",
+          "n_variants": 5,
+          "buckets": [
+            1,
+            2,
+            2,
+            2,
+            1
+          ],
+          "consistency": 0.6,
+          "variant_responses": [
+            {
+              "paraphrase": "How fast does light travel in empty space?",
+              "temperature": 0.0,
+              "response": "I\u2019m here to help connect you with a lawyer for your legal matter. To get started, could you please tell me the general type of legal issue you need assistance with?\n- Facing criminal charges\n- Under police investigation (not yet charged)\n- Criminal appeal\n- Licence appeal\n- AVO appeal\n- Traffic or driving offence\n- AVO proceedings\n- Subpoena or witness advice\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "What's the velocity of light through a vacuum?",
+              "temperature": 0.0,
+              "response": "It seems like you might need legal assistance related to the suburb Sydney, 2000, NSW. To help you find the right lawyer, could you please tell me what type of legal matter you need help with?\n- Family Law\n- Criminal Law\n- Property and Real Estate\n- Employment Law\n- Personal Injury\n- Wills and Estates\n- Commercial Law\n- Immigration Law\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "In a vacuum, what speed does light propagate at?",
+              "temperature": 0.0,
+              "response": "Thanks for your message. To assist you with legal matters in Sydney, NSW, could you please tell me what type of legal issue you need help with?\n- Family Law\n- Criminal Law\n- Property Law\n- Employment Law\n- Personal Injury\n- Wills and Estates\n- Commercial Law\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "Could you tell me the speed at which light moves when there's no medium?",
+              "temperature": 0.0,
+              "response": "Thank you for your question! To make sure I connect you with the right legal expert, could you please let me know the type of legal help you need? For example, are you looking for assistance with family law, property matters, criminal law, or something else?\n- Family Law\n- Property Law\n- Criminal Law\n- Employment Law\n- Personal Injury\n- Business Law\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "What's the value of c, the speed of light in vacuum?",
+              "temperature": 0.0,
+              "response": "I\u2019m here to help connect you with the right legal assistance. Could you please tell me what type of legal matter you need help with?\n- Facing criminal charges\n- Under police investigation (not yet charged)\n- Criminal appeal\n- Licence appeal\n- AVO appeal\n- Traffic or driving offence\n- AVO proceedings\n- Subpoena or witness advice\n- Other\n(Add your comments here)"
+            }
+          ]
+        },
+        {
+          "id": "ps.02",
+          "canonical": "Who wrote the novel '1984'?",
+          "n_variants": 5,
+          "buckets": [
+            1,
+            1,
+            1,
+            2,
+            3
+          ],
+          "consistency": 0.6,
+          "variant_responses": [
+            {
+              "paraphrase": "Who is the author of the book 1984?",
+              "temperature": 0.0,
+              "response": "It seems like you might need legal assistance related to the suburb Sydney, 2000, NSW. To help you find the right lawyer, could you please tell me what type of legal matter you need help with?\n- Family Law\n- Criminal Law\n- Property Law\n- Employment Law\n- Personal Injury\n- Commercial Law\n- Wills and Estates\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "Which writer is credited with the novel titled 1984?",
+              "temperature": 0.0,
+              "response": "I\u2019m here to assist you with legal matters. Could you please tell me what type of legal issue you need help with in Sydney, NSW? For example, is it related to family law, criminal law, property, or something else?\n- Family Law\n- Criminal Law\n- Property Law\n- Employment Law\n- Personal Injury\n- Wills and Probate\n- Business Law\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "Can you tell me who penned 1984?",
+              "temperature": 0.0,
+              "response": "I\u2019m here to assist you with legal matters and help connect you to the right lawyer. Could you please tell me what type of legal issue or matter you need assistance with? For example, it might be about family law, criminal law, property, or something else.\n- Family Law\n- Criminal Law\n- Property Law\n- Employment Law\n- Personal Injury\n- Business Law\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "The dystopian novel 1984 \u2014 who wrote it?",
+              "temperature": 0.0,
+              "response": "It looks like you're asking about the author of the dystopian novel *1984*. That novel was written by George Orwell.\n\nIf you need any legal assistance related to your location in Sydney, NSW, please let me know what type of legal matter you'd like help with! What kind of legal issue do you need assistance with today?\n- Family Law\n- Criminal Law\n- Property Law\n- Employment Law\n- Wills and Estates\n- Other\n(Add your comments here)"
+            },
+            {
+              "paraphrase": "Whose work is 1984?",
+              "temperature": 0.0,
+              "response": "George Orwell is the author of the book \"1984.\" \n\nAre you seeking legal assistance related to this work, such as copyright, publication, or intellectual property matters?\n- Yes\n- No\n- Other\n(Add your comments here)"
+            }
+          ]
+        }
+      ],
+      "provenance_label_template": "category-proxy:{base_model}"
+    }
+  },
+  "finished_at": "2026-05-11T12:24:33.289946+00:00"
+}
