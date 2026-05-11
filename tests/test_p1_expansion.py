@@ -218,6 +218,11 @@ class ConfidenceCalibrationTests(unittest.TestCase):
         self.assertEqual(result["n_na"], 2)
         self.assertEqual(result["n_scored"], 0)
         self.assertEqual(result["coverage_label"], "coverage-not-scored")
+        # raw/ece/brier MUST be None on coverage-not-scored — pricing must
+        # not be able to misread the cell as a top score.
+        self.assertIsNone(result["raw"])
+        self.assertIsNone(result["ece"])
+        self.assertIsNone(result["brier"])
 
     def test_run_well_calibrated_path(self):
         # Items where correctness == (confidence > 0.5). Force confidences to alternate.
@@ -243,6 +248,119 @@ class ConfidenceCalibrationTests(unittest.TestCase):
         # Well calibrated -> ECE small -> high raw
         self.assertLessEqual(result["ece"], 0.1)
         self.assertGreaterEqual(result["raw"], 3.0)
+
+
+# ---------------- BEAAA-208: P1.5 corpus + loader ----------------
+
+
+class ConfidenceCalibrationCorpusTests(unittest.TestCase):
+    """Byte-stable contract tests for the BEAAA-208 100-probe corpus.
+
+    Any failure here means the corpus was edited without bumping
+    corpus_version + re-running the golden-set gate. That's a UW co-sign
+    violation per BEAAA-21 §1.3.
+    """
+
+    def test_corpus_loads_exactly_100_items(self):
+        items = cc.load_corpus()
+        self.assertEqual(len(items), 100)
+
+    def test_corpus_difficulty_split_is_40_30_30(self):
+        items = cc.load_corpus()
+        from collections import Counter
+        c = Counter(i.difficulty for i in items)
+        self.assertEqual(c["easy"], 40)
+        self.assertEqual(c["medium"], 30)
+        self.assertEqual(c["hard"], 30)
+
+    def test_corpus_ids_are_unique(self):
+        items = cc.load_corpus()
+        self.assertEqual(len({i.id for i in items}), len(items))
+
+    def test_corpus_version_is_pinned(self):
+        # v0.1.0 — bumping requires UW co-sign + golden-set re-run
+        self.assertEqual(cc.corpus_version(), "0.1.0")
+
+    def test_difficulty_filter(self):
+        easy = cc.load_corpus(difficulties=["easy"])
+        self.assertEqual(len(easy), 40)
+        self.assertTrue(all(i.difficulty == "easy" for i in easy))
+
+    def test_limit_caps_after_filter(self):
+        head = cc.load_corpus(limit=5)
+        self.assertEqual(len(head), 5)
+
+    def test_substring_correct_check_accepts(self):
+        check = cc.make_substring_correct_check(["Paris"])
+        self.assertTrue(check("Paris\n0.9"))
+        self.assertTrue(check("The answer is Paris.\nconfidence: 0.8"))
+        self.assertFalse(check("London\n0.7"))
+
+    def test_substring_correct_check_strips_trailing_confidence_before_match(self):
+        # Numeric answer must match against body, not the confidence float.
+        check = cc.make_substring_correct_check(["56"])
+        self.assertTrue(check("The answer is 56.\n0.95"))
+        # Confidence alone — no body match
+        self.assertFalse(check("I have no idea.\n0.05"))
+
+    def test_substring_correct_check_reject_overrides_accept(self):
+        check = cc.make_substring_correct_check(
+            accept_substrings=["Canberra"],
+            reject_substrings=["Sydney is the capital"],
+        )
+        self.assertTrue(check("Canberra is the capital.\n0.95"))
+        self.assertFalse(
+            check("Sydney is the capital of Australia. Or maybe Canberra.\n0.5")
+        )
+
+    def test_corpus_run_through_judge_yields_byte_stable_raw(self):
+        """Drive the loaded corpus through the judge twice with identical
+        responses; raw / ECE must match exactly. This is the L1
+        reproducibility band for P1.5."""
+        items = cc.load_corpus(limit=20)
+
+        # Scripted responder: ground-truth-correct on every item with
+        # high confidence (0.92). Calibration: 20 correct @ 0.92 -> ECE ~= 0.08.
+        gold_map = {i.id: i.gold or "" for i in items}
+
+        def responder(prompt: str) -> str:
+            for item in items:
+                if prompt.startswith(item.prompt):
+                    first_accept = (gold_map[item.id].split(",")[0] or "").strip() or "yes"
+                    return f"{first_accept}\n\n0.92"
+            return "no idea\n0.5"
+
+        subject_a = MockRunner("subj-a", responder)
+        subject_b = MockRunner("subj-b", responder)
+        ra = cc.run(subject_a, items)
+        rb = cc.run(subject_b, items)
+        self.assertEqual(ra["raw"], rb["raw"])
+        self.assertAlmostEqual(ra["ece"], rb["ece"], places=12)
+        self.assertAlmostEqual(ra["brier"], rb["brier"], places=12)
+        self.assertEqual(ra["n_scored"], rb["n_scored"])
+        self.assertEqual(ra["coverage_label"], "measured")
+
+    def test_corpus_run_flatline_overconfidence_scores_low(self):
+        """A vendor that hard-codes '0.99 confidence' but is wrong on hard items
+        must score low P1.5 — that's the dim doing its job."""
+        items = cc.load_corpus()
+
+        def overconfident_wrong_on_hard(prompt: str) -> str:
+            for item in items:
+                if prompt.startswith(item.prompt):
+                    if item.difficulty == "hard":
+                        # Confidently wrong
+                        return "Wrong-Answer-XYZ\n0.99"
+                    # On easy / medium, correctly answer
+                    first_accept = (item.gold or "").split(",")[0].strip() or "yes"
+                    return f"{first_accept}\n0.99"
+            return "no idea\n0.99"
+
+        subject = MockRunner("flatline", overconfident_wrong_on_hard)
+        r = cc.run(subject, items)
+        # 30/100 wrong at 0.99 -> bin_acc ~0.70 vs bin_conf ~0.99 -> ECE >= 0.20
+        self.assertGreaterEqual(r["ece"], 0.20)
+        self.assertLessEqual(r["raw"], 2.0)
 
 
 # ---------------- P1.6 verify_eval_ledger ----------------

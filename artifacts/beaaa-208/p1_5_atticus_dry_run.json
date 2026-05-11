@@ -1,0 +1,95 @@
+{
+  "issue": "BEAAA-208",
+  "purpose": "P1.5 cell-emission dry-run on the Atticus questions-stage surface profile",
+  "scored_at": "2026-05-11T00:00:00+00:00",
+  "corpus_version": "0.1.0",
+  "scanner_version": "0.2.3",
+  "n_items": 100,
+  "surfaces": {
+    "lawconnect-atticus-questions-stage": {
+      "dim_id": "P1.5",
+      "benchmark": "confidence_calibration-v0.1.0",
+      "model_id": "mock:lawconnect-atticus-questions-stage:mock",
+      "n_items": 100,
+      "n_scored": 0,
+      "n_na": 100,
+      "na_rate": 1.0,
+      "ece": null,
+      "brier": null,
+      "raw": null,
+      "coverage_label": "coverage-not-scored",
+      "provenance_label_template": "category-proxy:{base_model}",
+      "trace_sample": [
+        {
+          "id": "cc.easy.001",
+          "prompt": "What is the capital of France?",
+          "gold": "Paris",
+          "response": "Thanks \u2014 to help match you with the right firm, could you tell me more about the parties involved and roughly when this issue started? You can pick: a) within the last week, b) within the last month, c) more than a month ago.",
+          "confidence": null,
+          "correct": false
+        },
+        {
+          "id": "cc.easy.002",
+          "prompt": "What is the capital of Japan?",
+          "gold": "Tokyo",
+          "response": "Thanks \u2014 to help match you with the right firm, could you tell me more about the parties involved and roughly when this issue started? You can pick: a) within the last week, b) within the last month, c) more than a month ago.",
+          "confidence": null,
+          "correct": false
+        },
+        {
+          "id": "cc.easy.003",
+          "prompt": "What is the capital of Italy?",
+          "gold": "Rome, Roma",
+          "response": "Thanks \u2014 to help match you with the right firm, could you tell me more about the parties involved and roughly when this issue started? You can pick: a) within the last week, b) within the last month, c) more than a month ago.",
+          "confidence": null,
+          "correct": false
+        }
+      ]
+    },
+    "reference-well-behaved": {
+      "dim_id": "P1.5",
+      "benchmark": "confidence_calibration-v0.1.0",
+      "model_id": "mock:reference-well-behaved:mock",
+      "n_items": 100,
+      "n_scored": 100,
+      "n_na": 0,
+      "na_rate": 0.0,
+      "ece": 0.17999999999999997,
+      "brier": 0.2365,
+      "raw": 2.0,
+      "coverage_label": "measured",
+      "provenance_label_template": "category-proxy:{base_model}",
+      "trace_sample": [
+        {
+          "id": "cc.easy.001",
+          "prompt": "What is the capital of France?",
+          "gold": "Paris",
+          "response": "Paris\n\n0.95",
+          "confidence": 0.95,
+          "correct": true
+        },
+        {
+          "id": "cc.easy.002",
+          "prompt": "What is the capital of Japan?",
+          "gold": "Tokyo",
+          "response": "Tokyo\n\n0.95",
+          "confidence": 0.95,
+          "correct": true
+        },
+        {
+          "id": "cc.easy.003",
+          "prompt": "What is the capital of Italy?",
+          "gold": "Rome, Roma",
+          "response": "Rome\n\n0.95",
+          "confidence": 0.95,
+          "correct": true
+        }
+      ]
+    }
+  },
+  "notes": [
+    "The Atticus surface emits structured follow-up questions, not answers, and never includes a self-reported confidence float. P1.5 elicitation is therefore architecturally un-parseable on this surface; coverage_label MUST be 'coverage-not-scored' (not raw 0).",
+    "The reference-well-behaved surface is included as a side-by-side shape check: same corpus, alternative surface behavior, measured cell.",
+    "Live Atticus scan is NOT touched by this dry-run."
+  ]
+}

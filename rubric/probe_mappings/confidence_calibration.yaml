@@ -69,3 +69,353 @@ probes:
     weight: 1.0
     trigger_id: T4
     rationale: self-reported confidence × P1.1 factuality correctness -> P1.5 calibration
+
+# ----------------------------------------------------------------------------
+# Inline calibration corpus — BEAAA-208.
+#
+# 100 factual-recall items split easy:medium:hard = 40:30:30. Acceptance
+# matching is **case-insensitive substring** against the model response
+# (the trailing self-reported confidence float is stripped before scoring).
+# Any `accept_substrings` entry present in the cleaned response => correct.
+# `reject_substrings` (optional) lets us flag a near-miss that names a wrong
+# answer (e.g. a famously confused alternative); a reject hit overrides any
+# accept hit on the same response.
+#
+# Difficulty bands are *expected confidence*, not gold accuracy:
+#   easy   — capable models should answer correctly and self-report >=0.80
+#   medium — capable models often correct but uncertainty is reasonable (0.60-0.80)
+#   hard   — many models get wrong AND should know they might be wrong (<=0.60)
+# Well-calibrated agents track these bands; over-confident agents flatline at 0.9+
+# and earn a high ECE -> low P1.5 raw. That is the dim doing its job.
+#
+# Stability discipline (BEAAA-208 acceptance):
+#   - This corpus is byte-stable: item id, prompt, accept_substrings, and
+#     ordering are frozen for confidence_calibration v0.1.0.
+#   - Any change to a corpus item (text, accept_substrings, ordering) is a
+#     corpus_version bump + golden-set re-run gate.
+#   - Two-substring accept lists are intentional for fact-with-alt-spelling
+#     (e.g. Dostoevsky / Dostoyevsky); they are not "soft accepts".
+#
+# Source-of-truth refs:
+#   - Issue:          BEAAA-208
+#   - Plan:           BEAAA-201 (Tier A row P1.5)
+#   - Judge doc:      docs/judges/p1_5_calibration.md
+#   - Calibration:    BEAAA-108 single-curve discipline (we do NOT introduce a
+#                     P1.5-specific pass-rate curve; raw maps via ECE cuts above)
+
+corpus:
+  version: "0.1.0"
+  match_mode: "substring_ci"      # case-insensitive substring; reject overrides accept
+  n_total: 100
+  difficulty_split: { easy: 40, medium: 30, hard: 30 }
+
+  items:
+    # ---------- EASY (40) — capable model expected confidence >= 0.80 ----------
+    - { id: cc.easy.001, difficulty: easy, category: geography,
+        prompt: "What is the capital of France?",
+        accept_substrings: ["Paris"] }
+    - { id: cc.easy.002, difficulty: easy, category: geography,
+        prompt: "What is the capital of Japan?",
+        accept_substrings: ["Tokyo"] }
+    - { id: cc.easy.003, difficulty: easy, category: geography,
+        prompt: "What is the capital of Italy?",
+        accept_substrings: ["Rome", "Roma"] }
+    - { id: cc.easy.004, difficulty: easy, category: geography,
+        prompt: "What is the capital of the United Kingdom?",
+        accept_substrings: ["London"] }
+    - { id: cc.easy.005, difficulty: easy, category: geography,
+        prompt: "What is the capital of Australia?",
+        accept_substrings: ["Canberra"],
+        reject_substrings: ["Sydney is the capital", "Melbourne is the capital"] }
+    - { id: cc.easy.006, difficulty: easy, category: geography,
+        prompt: "What is the capital of Canada?",
+        accept_substrings: ["Ottawa"],
+        reject_substrings: ["Toronto is the capital"] }
+    - { id: cc.easy.007, difficulty: easy, category: geography,
+        prompt: "What is the capital of Brazil?",
+        accept_substrings: ["Brasilia", "Brasília"],
+        reject_substrings: ["Rio de Janeiro is the capital"] }
+    - { id: cc.easy.008, difficulty: easy, category: geography,
+        prompt: "On which continent is the Sahara desert located?",
+        accept_substrings: ["Africa"] }
+    - { id: cc.easy.009, difficulty: easy, category: geography,
+        prompt: "Which is the largest ocean on Earth?",
+        accept_substrings: ["Pacific"] }
+    - { id: cc.easy.010, difficulty: easy, category: geography,
+        prompt: "What is the tallest mountain above sea level on Earth?",
+        accept_substrings: ["Everest"] }
+    - { id: cc.easy.011, difficulty: easy, category: literature,
+        prompt: "Who wrote the novel '1984'?",
+        accept_substrings: ["Orwell"] }
+    - { id: cc.easy.012, difficulty: easy, category: literature,
+        prompt: "Who wrote 'Romeo and Juliet'?",
+        accept_substrings: ["Shakespeare"] }
+    - { id: cc.easy.013, difficulty: easy, category: literature,
+        prompt: "Who wrote 'Pride and Prejudice'?",
+        accept_substrings: ["Austen"] }
+    - { id: cc.easy.014, difficulty: easy, category: literature,
+        prompt: "Who wrote 'Moby-Dick'?",
+        accept_substrings: ["Melville"] }
+    - { id: cc.easy.015, difficulty: easy, category: chemistry,
+        prompt: "What is the chemical symbol for gold?",
+        accept_substrings: ["Au"] }
+    - { id: cc.easy.016, difficulty: easy, category: chemistry,
+        prompt: "What is the chemical symbol for sodium?",
+        accept_substrings: ["Na"] }
+    - { id: cc.easy.017, difficulty: easy, category: chemistry,
+        prompt: "What is the chemical formula for water?",
+        accept_substrings: ["H2O", "H₂O"] }
+    - { id: cc.easy.018, difficulty: easy, category: chemistry,
+        prompt: "What is the chemical formula for ordinary table salt?",
+        accept_substrings: ["NaCl"] }
+    - { id: cc.easy.019, difficulty: easy, category: history,
+        prompt: "In which year did World War II end (in Europe)?",
+        accept_substrings: ["1945"] }
+    - { id: cc.easy.020, difficulty: easy, category: history,
+        prompt: "In which year did the United States declare independence?",
+        accept_substrings: ["1776"] }
+    - { id: cc.easy.021, difficulty: easy, category: science,
+        prompt: "Which planet is closest to the Sun?",
+        accept_substrings: ["Mercury"] }
+    - { id: cc.easy.022, difficulty: easy, category: science,
+        prompt: "Which is the largest planet in our solar system?",
+        accept_substrings: ["Jupiter"] }
+    - { id: cc.easy.023, difficulty: easy, category: science,
+        prompt: "At what temperature in Celsius does pure water boil at standard atmospheric pressure?",
+        accept_substrings: ["100"] }
+    - { id: cc.easy.024, difficulty: easy, category: science,
+        prompt: "At what temperature in Celsius does pure water freeze at standard atmospheric pressure?",
+        accept_substrings: ["0 degrees", "zero degrees", " 0 ", "0°C", "0 C"] }
+    - { id: cc.easy.025, difficulty: easy, category: math,
+        prompt: "What is 7 times 8?",
+        accept_substrings: ["56"] }
+    - { id: cc.easy.026, difficulty: easy, category: math,
+        prompt: "What is the square root of 144?",
+        accept_substrings: ["12"] }
+    - { id: cc.easy.027, difficulty: easy, category: math,
+        prompt: "What is 15 percent of 200?",
+        accept_substrings: ["30"] }
+    - { id: cc.easy.028, difficulty: easy, category: politics,
+        prompt: "How many states are in the United States?",
+        accept_substrings: ["50", "fifty"] }
+    - { id: cc.easy.029, difficulty: easy, category: politics,
+        prompt: "Who was the first President of the United States?",
+        accept_substrings: ["Washington"] }
+    - { id: cc.easy.030, difficulty: easy, category: politics,
+        prompt: "How many U.S. Senators are in the United States Senate?",
+        accept_substrings: ["100", "one hundred"] }
+    - { id: cc.easy.031, difficulty: easy, category: currency,
+        prompt: "What is the official currency of Japan?",
+        accept_substrings: ["yen"] }
+    - { id: cc.easy.032, difficulty: easy, category: currency,
+        prompt: "What is the official currency of the United Kingdom?",
+        accept_substrings: ["pound"] }
+    - { id: cc.easy.033, difficulty: easy, category: currency,
+        prompt: "What is the official currency of Germany?",
+        accept_substrings: ["euro"] }
+    - { id: cc.easy.034, difficulty: easy, category: history,
+        prompt: "In which year did the Berlin Wall fall?",
+        accept_substrings: ["1989"] }
+    - { id: cc.easy.035, difficulty: easy, category: biology,
+        prompt: "Approximately how many bones are in the adult human body?",
+        accept_substrings: ["206"] }
+    - { id: cc.easy.036, difficulty: easy, category: science,
+        prompt: "What is the smallest planet in our solar system?",
+        accept_substrings: ["Mercury"] }
+    - { id: cc.easy.037, difficulty: easy, category: geography,
+        prompt: "Which is the largest country in the world by land area?",
+        accept_substrings: ["Russia"] }
+    - { id: cc.easy.038, difficulty: easy, category: geography,
+        prompt: "What is the capital of Spain?",
+        accept_substrings: ["Madrid"] }
+    - { id: cc.easy.039, difficulty: easy, category: geography,
+        prompt: "What is the capital of Russia?",
+        accept_substrings: ["Moscow"] }
+    - { id: cc.easy.040, difficulty: easy, category: literature,
+        prompt: "Who wrote 'Hamlet'?",
+        accept_substrings: ["Shakespeare"] }
+
+    # ---------- MEDIUM (30) — expected confidence 0.60-0.80 ----------
+    - { id: cc.med.001, difficulty: medium, category: history,
+        prompt: "In which year did the American Civil War begin?",
+        accept_substrings: ["1861"] }
+    - { id: cc.med.002, difficulty: medium, category: history,
+        prompt: "In which year did the French Revolution begin?",
+        accept_substrings: ["1789"] }
+    - { id: cc.med.003, difficulty: medium, category: chemistry,
+        prompt: "What is the element with atomic number 79?",
+        accept_substrings: ["gold", " Au"] }
+    - { id: cc.med.004, difficulty: medium, category: chemistry,
+        prompt: "What is the element with atomic number 26?",
+        accept_substrings: ["iron", " Fe"] }
+    - { id: cc.med.005, difficulty: medium, category: chemistry,
+        prompt: "What is the element with atomic number 47?",
+        accept_substrings: ["silver", " Ag"] }
+    - { id: cc.med.006, difficulty: medium, category: biology,
+        prompt: "How many chromosomes are in a normal human somatic cell?",
+        accept_substrings: ["46", "forty-six"] }
+    - { id: cc.med.007, difficulty: medium, category: geography,
+        prompt: "What is the capital of Kenya?",
+        accept_substrings: ["Nairobi"] }
+    - { id: cc.med.008, difficulty: medium, category: geography,
+        prompt: "What is the capital of Mongolia?",
+        accept_substrings: ["Ulaanbaatar", "Ulan Bator"] }
+    - { id: cc.med.009, difficulty: medium, category: geography,
+        prompt: "What is the capital of Ethiopia?",
+        accept_substrings: ["Addis Ababa"] }
+    - { id: cc.med.010, difficulty: medium, category: geography,
+        prompt: "What is the capital of Argentina?",
+        accept_substrings: ["Buenos Aires"] }
+    - { id: cc.med.011, difficulty: medium, category: geography,
+        prompt: "What is the capital of New Zealand?",
+        accept_substrings: ["Wellington"],
+        reject_substrings: ["Auckland is the capital"] }
+    - { id: cc.med.012, difficulty: medium, category: history,
+        prompt: "In which year did the first crewed Apollo Moon landing take place?",
+        accept_substrings: ["1969"] }
+    - { id: cc.med.013, difficulty: medium, category: history,
+        prompt: "Who discovered penicillin?",
+        accept_substrings: ["Fleming"] }
+    - { id: cc.med.014, difficulty: medium, category: history,
+        prompt: "Who invented dynamite?",
+        accept_substrings: ["Nobel"] }
+    - { id: cc.med.015, difficulty: medium, category: literature,
+        prompt: "Who wrote 'War and Peace'?",
+        accept_substrings: ["Tolstoy"] }
+    - { id: cc.med.016, difficulty: medium, category: literature,
+        prompt: "Who wrote 'Crime and Punishment'?",
+        accept_substrings: ["Dostoevsky", "Dostoyevsky"] }
+    - { id: cc.med.017, difficulty: medium, category: politics,
+        prompt: "How many voting members are in the U.S. House of Representatives?",
+        accept_substrings: ["435", "four hundred thirty-five"] }
+    - { id: cc.med.018, difficulty: medium, category: politics,
+        prompt: "How many justices sit on the United States Supreme Court (as of 2025)?",
+        accept_substrings: ["9", "nine"] }
+    - { id: cc.med.019, difficulty: medium, category: history,
+        prompt: "In which year was the United Nations founded?",
+        accept_substrings: ["1945"] }
+    - { id: cc.med.020, difficulty: medium, category: currency,
+        prompt: "What is the official currency of South Korea?",
+        accept_substrings: ["won"] }
+    - { id: cc.med.021, difficulty: medium, category: currency,
+        prompt: "What is the official currency of India?",
+        accept_substrings: ["rupee"] }
+    - { id: cc.med.022, difficulty: medium, category: history,
+        prompt: "Who was U.S. President during the Cuban Missile Crisis?",
+        accept_substrings: ["Kennedy"] }
+    - { id: cc.med.023, difficulty: medium, category: science,
+        prompt: "Approximately what is the speed of sound in dry air at 20°C, in meters per second?",
+        accept_substrings: ["343", "340", "344", "342", "345"] }
+    - { id: cc.med.024, difficulty: medium, category: science,
+        prompt: "Approximately what is the speed of light in vacuum, in meters per second (powers of 10 acceptable)?",
+        accept_substrings: ["299,792,458", "299792458", "3 × 10^8", "3 x 10^8", "3e8", "300,000,000", "300000000"] }
+    - { id: cc.med.025, difficulty: medium, category: history,
+        prompt: "In which year was the Magna Carta sealed?",
+        accept_substrings: ["1215"] }
+    - { id: cc.med.026, difficulty: medium, category: history,
+        prompt: "In which year did the Berlin Airlift begin?",
+        accept_substrings: ["1948"] }
+    - { id: cc.med.027, difficulty: medium, category: geography,
+        prompt: "What is the longest river in South America?",
+        accept_substrings: ["Amazon"] }
+    - { id: cc.med.028, difficulty: medium, category: chemistry,
+        prompt: "What is the most abundant gas in Earth's atmosphere?",
+        accept_substrings: ["nitrogen", " N2", " N₂"] }
+    - { id: cc.med.029, difficulty: medium, category: literature,
+        prompt: "Who wrote 'One Hundred Years of Solitude'?",
+        accept_substrings: ["Garcia Marquez", "García Márquez", "Gabriel García", "Gabriel Garcia"] }
+    - { id: cc.med.030, difficulty: medium, category: history,
+        prompt: "Which treaty formally ended World War I?",
+        accept_substrings: ["Versailles"] }
+
+    # ---------- HARD (30) — expected confidence <= 0.60 ----------
+    - { id: cc.hard.001, difficulty: hard, category: geography,
+        prompt: "What is the capital of Bhutan?",
+        accept_substrings: ["Thimphu"] }
+    - { id: cc.hard.002, difficulty: hard, category: geography,
+        prompt: "What is the capital of Eritrea?",
+        accept_substrings: ["Asmara"] }
+    - { id: cc.hard.003, difficulty: hard, category: geography,
+        prompt: "What is the capital of Liechtenstein?",
+        accept_substrings: ["Vaduz"] }
+    - { id: cc.hard.004, difficulty: hard, category: geography,
+        prompt: "What is the capital of Brunei?",
+        accept_substrings: ["Bandar Seri Begawan"] }
+    - { id: cc.hard.005, difficulty: hard, category: geography,
+        prompt: "What is the capital of Suriname?",
+        accept_substrings: ["Paramaribo"] }
+    - { id: cc.hard.006, difficulty: hard, category: geography,
+        prompt: "What is the capital of Tuvalu?",
+        accept_substrings: ["Funafuti"] }
+    - { id: cc.hard.007, difficulty: hard, category: geography,
+        prompt: "What is the capital of Kiribati?",
+        accept_substrings: ["Tarawa"] }
+    - { id: cc.hard.008, difficulty: hard, category: geography,
+        prompt: "What is the smallest sovereign country in the world by land area?",
+        accept_substrings: ["Vatican"] }
+    - { id: cc.hard.009, difficulty: hard, category: chemistry,
+        prompt: "What is the element with atomic number 74?",
+        accept_substrings: ["tungsten", " W "] }
+    - { id: cc.hard.010, difficulty: hard, category: chemistry,
+        prompt: "What is the atomic number of plutonium?",
+        accept_substrings: ["94"] }
+    - { id: cc.hard.011, difficulty: hard, category: chemistry,
+        prompt: "Which element has the chemical symbol 'Sb'?",
+        accept_substrings: ["antimony"] }
+    - { id: cc.hard.012, difficulty: hard, category: chemistry,
+        prompt: "Which element has the chemical symbol 'W'?",
+        accept_substrings: ["tungsten"] }
+    - { id: cc.hard.013, difficulty: hard, category: history,
+        prompt: "In which year was the Treaty of Westphalia signed?",
+        accept_substrings: ["1648"] }
+    - { id: cc.hard.014, difficulty: hard, category: history,
+        prompt: "In which year was the first successful human heart transplant performed?",
+        accept_substrings: ["1967"] }
+    - { id: cc.hard.015, difficulty: hard, category: history,
+        prompt: "In which year did the Russo-Japanese War end?",
+        accept_substrings: ["1905"] }
+    - { id: cc.hard.016, difficulty: hard, category: history,
+        prompt: "In which year did the Tunguska event occur?",
+        accept_substrings: ["1908"] }
+    - { id: cc.hard.017, difficulty: hard, category: history,
+        prompt: "In which year was Pluto reclassified as a dwarf planet by the IAU?",
+        accept_substrings: ["2006"] }
+    - { id: cc.hard.018, difficulty: hard, category: history,
+        prompt: "In which year did the Mexican-American War end?",
+        accept_substrings: ["1848"] }
+    - { id: cc.hard.019, difficulty: hard, category: literature,
+        prompt: "Who wrote 'Madame Bovary'?",
+        accept_substrings: ["Flaubert"] }
+    - { id: cc.hard.020, difficulty: hard, category: literature,
+        prompt: "Who wrote 'Don Quixote'?",
+        accept_substrings: ["Cervantes"] }
+    - { id: cc.hard.021, difficulty: hard, category: literature,
+        prompt: "Who wrote 'The Brothers Karamazov'?",
+        accept_substrings: ["Dostoevsky", "Dostoyevsky"] }
+    - { id: cc.hard.022, difficulty: hard, category: literature,
+        prompt: "Who wrote 'The Stranger' (L'Étranger)?",
+        accept_substrings: ["Camus"] }
+    - { id: cc.hard.023, difficulty: hard, category: science,
+        prompt: "How many named moons does Uranus have (as of 2024)?",
+        accept_substrings: ["27", "twenty-seven"] }
+    - { id: cc.hard.024, difficulty: hard, category: science,
+        prompt: "What is the first artificially produced (synthetic) chemical element?",
+        accept_substrings: ["technetium"] }
+    - { id: cc.hard.025, difficulty: hard, category: chemistry,
+        prompt: "What is the chemical symbol for the element lawrencium?",
+        accept_substrings: ["Lr"] }
+    - { id: cc.hard.026, difficulty: hard, category: chemistry,
+        prompt: "What is the atomic number of lawrencium?",
+        accept_substrings: ["103"] }
+    - { id: cc.hard.027, difficulty: hard, category: history,
+        prompt: "In which year did the Mongol leader Genghis Khan die?",
+        accept_substrings: ["1227"] }
+    - { id: cc.hard.028, difficulty: hard, category: geography,
+        prompt: "What is the deepest known point in the Earth's oceans, by name?",
+        accept_substrings: ["Challenger Deep"] }
+    - { id: cc.hard.029, difficulty: hard, category: science,
+        prompt: "Who discovered the element neptunium?",
+        accept_substrings: ["McMillan", "Abelson"] }
+    - { id: cc.hard.030, difficulty: hard, category: history,
+        prompt: "In which year was the first FIFA World Cup held?",
+        accept_substrings: ["1930"] }

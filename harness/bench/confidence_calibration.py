@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
+import yaml
+
 from harness.runner import ModelRunner
 
 
@@ -41,6 +43,114 @@ class CalibrationItem:
     correct_check: Callable[[str], bool]
     # Optional: a free-text gold answer for trace transparency. Not used for scoring.
     gold: str | None = None
+    # Optional metadata carried through to the trace for diagnostic stratification.
+    difficulty: str | None = None
+    category: str | None = None
+
+
+# Lines that look like a self-reported confidence: an optional label followed
+# by a 0..1 float on the trailing line(s). Used to strip the confidence tail
+# before substring matching so a confidence string can't pattern-match a
+# correctness keyword (e.g. ".5" -> "5" matching a numeric answer).
+_RE_STRIP_CONFIDENCE_TAIL = re.compile(
+    r"(?:\n|^)\s*(?:confidence\s*[:=]\s*)?-?\d*\.?\d+\s*$",
+    re.IGNORECASE,
+)
+
+
+def _strip_trailing_confidence(response: str) -> str:
+    """Remove a trailing self-reported-confidence float / labelled line from `response`.
+
+    Idempotent; safe on responses with no trailing float.
+    """
+    body = response.rstrip()
+    # Strip up to two trailing lines that look like confidence (number alone,
+    # or "confidence: 0.9"). We do not strip more than that — beyond that
+    # we'd risk eating part of the answer.
+    for _ in range(2):
+        m = _RE_STRIP_CONFIDENCE_TAIL.search(body)
+        if not m:
+            break
+        body = body[: m.start()].rstrip()
+    return body
+
+
+def make_substring_correct_check(
+    accept_substrings: Sequence[str],
+    reject_substrings: Sequence[str] = (),
+) -> Callable[[str], bool]:
+    """Build a `correct_check` callable: case-insensitive substring match
+    against the response with the trailing self-confidence line stripped.
+
+    A `reject_substrings` hit overrides any accept hit on the same response.
+    Returns False on empty accept list (defensive — the corpus should always
+    provide at least one accept string).
+    """
+    accepts = [s.casefold() for s in accept_substrings if s]
+    rejects = [s.casefold() for s in reject_substrings if s]
+
+    def _check(response: str) -> bool:
+        body = _strip_trailing_confidence(response).casefold()
+        if any(r in body for r in rejects):
+            return False
+        return any(a in body for a in accepts)
+
+    return _check
+
+
+# Default location of the byte-stable corpus YAML.
+_DEFAULT_CORPUS_PATH = Path(__file__).resolve().parents[2] / "rubric" / "probe_mappings" / "confidence_calibration.yaml"
+
+
+def load_corpus(
+    path: str | Path | None = None,
+    *,
+    difficulties: Sequence[str] | None = None,
+    limit: int | None = None,
+) -> list[CalibrationItem]:
+    """Load the inline P1.5 corpus from `rubric/probe_mappings/confidence_calibration.yaml`.
+
+    Returns CalibrationItem with substring-based correct_check closures. The
+    order of items in the YAML is preserved (byte-stable corpus_version
+    discipline — re-ordering bumps corpus_version).
+
+    Args:
+        path: corpus YAML path override (test injection).
+        difficulties: optional filter, e.g. ["easy", "medium"]; default = all.
+        limit: optional cap (applied AFTER difficulty filter, before return).
+    """
+    src = Path(path) if path is not None else _DEFAULT_CORPUS_PATH
+    data = yaml.safe_load(src.read_text())
+    items_raw = data.get("corpus", {}).get("items", [])
+    out: list[CalibrationItem] = []
+    for it in items_raw:
+        diff = it.get("difficulty")
+        if difficulties is not None and diff not in difficulties:
+            continue
+        accept = it.get("accept_substrings") or []
+        reject = it.get("reject_substrings") or []
+        if not accept:
+            raise ValueError(f"corpus item {it.get('id')!r} has empty accept_substrings")
+        out.append(
+            CalibrationItem(
+                id=str(it["id"]),
+                prompt=str(it["prompt"]),
+                correct_check=make_substring_correct_check(accept, reject),
+                gold=", ".join(accept) if accept else None,
+                difficulty=diff,
+                category=it.get("category"),
+            )
+        )
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+
+def corpus_version(path: str | Path | None = None) -> str:
+    """Return the corpus version string declared in the YAML. Used for provenance pinning."""
+    src = Path(path) if path is not None else _DEFAULT_CORPUS_PATH
+    data = yaml.safe_load(src.read_text())
+    return str(data.get("corpus", {}).get("version", "unknown"))
 
 
 def parse_confidence(response: str) -> float | None:
@@ -162,9 +272,22 @@ def run(
             on_progress(idx, len(items), record)
     ece = compute_ece(pairs, n_bins=n_bins)
     brier = compute_brier(pairs)
-    raw = _ece_to_raw(ece, cuts)
     n_scored = len(pairs)
     na_rate = n_na / len(items) if items else 0.0
+    coverage_label = "coverage-not-scored" if na_rate > 0.5 else "measured"
+    # When coverage_label is "coverage-not-scored" the (ece, brier, raw)
+    # numbers are artifacts of empty `pairs` (ECE on no pairs is 0, which
+    # would otherwise map to raw 4.0). Suppress them so a downstream
+    # pricing consumer cannot misread the cell as a top score on a
+    # surface that never emitted confidence in the first place.
+    if coverage_label == "coverage-not-scored":
+        ece_out: float | None = None
+        brier_out: float | None = None
+        raw_out: float | None = None
+    else:
+        ece_out = ece
+        brier_out = brier
+        raw_out = _ece_to_raw(ece, cuts)
     return {
         "dim_id": "P1.5",
         "benchmark": "confidence_calibration-v0.1.0",
@@ -173,10 +296,10 @@ def run(
         "n_scored": n_scored,
         "n_na": n_na,
         "na_rate": na_rate,
-        "ece": ece,
-        "brier": brier,
-        "raw": raw,
-        "coverage_label": "coverage-not-scored" if na_rate > 0.5 else "measured",
+        "ece": ece_out,
+        "brier": brier_out,
+        "raw": raw_out,
+        "coverage_label": coverage_label,
         "trace": trace,
         "provenance_label_template": "category-proxy:{base_model}",
     }
