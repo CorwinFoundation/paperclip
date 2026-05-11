@@ -1,4 +1,4 @@
-# P1.2 Citation-integrity judge rubric — BEAAA-206 v0.2.0
+# P1.2 Citation-integrity judge rubric — BEAAA-206 v0.2.1
 
 Authoritative judge documentation for the Tier A P1.2 dim. Source-of-truth
 for the LLM-judge rubric, scoring contract, and reproducibility guarantees
@@ -145,15 +145,20 @@ calibration curve** (BEAAA-108) — no per-dim curve is introduced.
 
 **Inconclusive family handling.**
 
-- A family is **inconclusive** if `n_available_probes < 10` after
-  applicability filtering OR if `status == "corpus-pending-expansion"`.
+- A family is **inconclusive** if `n_available_probes < 10` (after
+  filtering responses with zero citations for F1) OR if the caller
+  passes `f1_status_override="inconclusive"`.
 - If exactly one family is conclusive, `dim_pass_rate = that family's pass_rate`
   (no renormalization needed — the missing family contributes nothing).
-- In v0.2.0 **H1**, F1 is corpus-pending-H2 and emits `inconclusive`.
-  Dim score therefore collapses to F2_pass_rate.
-- **The Atticus dry-run at H3 MUST gate cell emission on both families
-  being conclusive.** A cell emitted with only F2 conclusive is a v0.2
-  H1 dev signal, not a customer-scan-ready measurement.
+- In v0.2.0 H1, F1 was corpus-pending-H2 and forced inconclusive by
+  default; dim score collapsed to F2_pass_rate. In v0.2.1 (H2) F1 runs
+  through the citation-index lookup judge path by default, and both
+  families normally contribute to the 60/40 mix.
+- **The Atticus dry-run at H3 MUST still gate cell emission on both
+  families being conclusive.** A cell emitted with only one family
+  conclusive (e.g. agent never produces citations → F1 zero-citation
+  inconclusive) is a degenerate signal, not a customer-scan-ready
+  measurement.
 
 ## Reproducibility guarantees
 

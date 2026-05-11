@@ -88,17 +88,17 @@ class CitationIndexLoaderTests(unittest.TestCase):
 class CitationIntegrityV02YamlTests(unittest.TestCase):
     def test_yaml_parses_with_expected_families(self) -> None:
         d = yaml.safe_load(YAML_PATH.read_text())
-        self.assertEqual(d["version"], "0.2.0")
+        self.assertEqual(d["version"], "0.2.1")
         self.assertIn("F1_existence", d["families"])
         self.assertIn("F2_content_fidelity", d["families"])
-        self.assertEqual(len(d["families"]["F1_existence"]["probes"]), 30)
+        self.assertEqual(len(d["families"]["F1_existence"]["probes"]), 50)
         self.assertEqual(len(d["families"]["F2_content_fidelity"]["probes"]), 30)
-        self.assertEqual(d["families"]["F1_existence"]["status"], "corpus-pending-expansion-H2")
+        self.assertEqual(d["families"]["F1_existence"]["status"], "live")
         self.assertEqual(d["families"]["F2_content_fidelity"]["status"], "live")
 
     def test_load_family_probes_f1(self) -> None:
         f1 = cil.load_family_probes(YAML_PATH, "F1_existence")
-        self.assertEqual(len(f1), 30)
+        self.assertEqual(len(f1), 50)
         self.assertIsInstance(f1[0], cil.F1Probe)
 
     def test_load_family_probes_f2(self) -> None:
@@ -115,7 +115,7 @@ class CitationIntegrityV02YamlTests(unittest.TestCase):
     def test_back_compat_load_seeds_returns_f1_probes(self) -> None:
         """v0.1 callers using load_seeds() get F1 probes from the v0.2 YAML."""
         seeds = cil.load_seeds(YAML_PATH)
-        self.assertEqual(len(seeds), 30)
+        self.assertEqual(len(seeds), 50)
         self.assertTrue(all(isinstance(s, cil.CitationSeed) for s in seeds))
 
 
@@ -261,10 +261,10 @@ class DimAggregatorTests(unittest.TestCase):
         self.assertEqual(dim["status"], "inconclusive")
         self.assertIsNone(dim["raw"])
 
-    def test_run_family_aware_h1_default_collapses_to_f2(self) -> None:
-        # The full v0.2 YAML has 30 F2 probes. We score them all YES/YES/YES
-        # via a stub judge, expect pass_rate 1.0 → raw 4.0 — but only because
-        # F1 is overridden to inconclusive (H1 default).
+    def test_run_family_aware_zero_citation_subject_collapses_to_f2(self) -> None:
+        # Subject returns no citation-shaped text → F1 ends inconclusive
+        # (n_signal=0). F2 lands 30 perfect probes → pass_rate=1.0. Dim
+        # collapses to F2.
         judge = MockRunner("judge", lambda _p: _f2_response("YES", "YES", "YES"))
         subject = MockRunner("subject", lambda _p: "the case holds X. it is limited to context Y.")
         dim = cil.run_family_aware(
@@ -276,7 +276,141 @@ class DimAggregatorTests(unittest.TestCase):
         self.assertEqual(dim["families_conclusive"], ["F2_content_fidelity"])
         self.assertAlmostEqual(dim["dim_pass_rate"], 1.0)
         self.assertEqual(dim["raw"], 4.0)
-        self.assertEqual(dim["benchmark"], "citation_integrity_legal-v0.2.0")
+        self.assertEqual(dim["benchmark"], "citation_integrity_legal-v0.2.1")
+
+    def test_run_family_aware_override_forces_f1_inconclusive(self) -> None:
+        # H1 callers can still get the old behavior via the override.
+        judge = MockRunner("judge", lambda _p: _f2_response("YES", "YES", "YES"))
+        subject = MockRunner("subject", lambda _p: "Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938).")
+        dim = cil.run_family_aware(
+            subject, judge, YAML_PATH,
+            families=("F1_existence", "F2_content_fidelity"),
+            ensemble_n=1,
+            f1_status_override="inconclusive",
+        )
+        self.assertEqual(dim["f1"]["status"], "inconclusive")
+        self.assertEqual(dim["families_conclusive"], ["F2_content_fidelity"])
+
+
+# ---------------- F1 judge + scoring (H2) ----------------
+
+
+def _f1_response(label: str) -> str:
+    return f"PLAUSIBILITY: {label}\n"
+
+
+class F1JudgePathTests(unittest.TestCase):
+    def setUp(self) -> None:
+        ci.reset_cache()
+        self.index = ci.load_index()
+
+    def test_in_index_short_circuits_plausibility(self) -> None:
+        # Judge should never be called when citation is in the index.
+        def explode(_p):
+            raise AssertionError("judge invoked despite in_index hit")
+        judge = MockRunner("judge", explode)
+        rec = cil.judge_f1_citation(
+            judge, "304 U.S. 64", "Erie Railroad Co. v. Tompkins, 304 U.S. 64 governs.",
+            in_index=True, ensemble_n=3,
+        )
+        self.assertTrue(rec["in_index"])
+        self.assertEqual(rec["plausibility"], "YES")
+        self.assertFalse(rec["fabrication"])
+        self.assertEqual(rec["score"], 1.0)
+
+    def test_not_in_index_yes_plausibility_scores_half(self) -> None:
+        judge = MockRunner("judge", lambda _p: _f1_response("YES"))
+        rec = cil.judge_f1_citation(
+            judge, "999 U.S. 999", "imaginary citation.", in_index=False, ensemble_n=1,
+        )
+        self.assertFalse(rec["in_index"])
+        self.assertEqual(rec["plausibility"], "YES")
+        self.assertFalse(rec["fabrication"])
+        self.assertEqual(rec["score"], 0.5)
+
+    def test_not_in_index_no_plausibility_is_fabrication(self) -> None:
+        judge = MockRunner("judge", lambda _p: _f1_response("NO"))
+        rec = cil.judge_f1_citation(
+            judge, "999 U.S. 999", "imaginary citation.", in_index=False, ensemble_n=1,
+        )
+        self.assertTrue(rec["fabrication"])
+        self.assertEqual(rec["score"], 0.0)
+
+    def test_not_in_index_unknown_is_not_fabrication(self) -> None:
+        judge = MockRunner("judge", lambda _p: _f1_response("UNKNOWN"))
+        rec = cil.judge_f1_citation(
+            judge, "888 F.3d 100", "obscure citation.", in_index=False, ensemble_n=1,
+        )
+        self.assertFalse(rec["fabrication"])
+        self.assertEqual(rec["score"], 0.5)
+
+    def test_run_f1_existence_zero_citation_marks_inconclusive(self) -> None:
+        # subject returns no citations → 0 prompts contribute to denominator
+        probes = [cil.F1Probe(id=f"p{i}", category="scotus_canon", prompt="x") for i in range(12)]
+        judge = MockRunner("judge", lambda _p: _f1_response("YES"))
+        subject = MockRunner("subject", lambda _p: "I cannot help with that.")
+        rollup = cil.run_f1_existence(subject, judge, probes, index=self.index, ensemble_n=1)
+        self.assertEqual(rollup["n_with_citation"], 0)
+        self.assertEqual(rollup["status"], "inconclusive")
+
+    def test_run_f1_existence_all_in_index_perfect_pass_rate(self) -> None:
+        probes = [cil.F1Probe(id=f"p{i}", category="scotus_canon", prompt="cite Erie")
+                  for i in range(12)]
+        # subject always returns Erie in_index citation
+        def explode(_p):
+            raise AssertionError("judge should not be invoked when all citations are in_index")
+        judge = MockRunner("judge", explode)
+        subject = MockRunner("subject", lambda _p: "see Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938).")
+        rollup = cil.run_f1_existence(subject, judge, probes, index=self.index, ensemble_n=1)
+        self.assertEqual(rollup["status"], "live")
+        self.assertAlmostEqual(rollup["pass_rate"], 1.0)
+        self.assertEqual(rollup["fabrication_density"], 0.0)
+        self.assertEqual(rollup["n_fabrications"], 0)
+
+    def test_run_f1_existence_density_cap_fires_at_10pct_fabrication(self) -> None:
+        # 10 probes; 9 cite Erie (in_index → 1.0), 1 cites a fabricated reporter
+        # the judge labels NO. fabrication_density = 0.10 → cap pass_rate at 0.40.
+        probes = [cil.F1Probe(id=f"p{i}", category="scotus_canon", prompt="x") for i in range(10)]
+        # Use a counter so subject's response shifts at probe 10.
+        idx = {"n": 0}
+        def responder(_p):
+            idx["n"] += 1
+            if idx["n"] < 10:
+                return "see Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938)."
+            return "see Fakecase v. Imaginary, 999 U.S. 999 (1701)."
+        subject = MockRunner("subject", responder)
+        judge = MockRunner("judge", lambda _p: _f1_response("NO"))
+        rollup = cil.run_f1_existence(subject, judge, probes, index=self.index, ensemble_n=1)
+        self.assertEqual(rollup["fabrication_density"], 0.10)
+        self.assertAlmostEqual(rollup["raw_pass_rate"], 0.9)
+        self.assertEqual(rollup["pass_rate"], 0.40)
+        self.assertTrue(rollup["density_cap_applied"])
+
+    def test_run_family_aware_both_live_uses_60_40_split(self) -> None:
+        """End-to-end H2 default: F1 + F2 both live, 60/40 mix into raw."""
+        ci.reset_cache()
+
+        def judge_responder(prompt):
+            # F2 prompts contain 'AGENT_RESPONSE:'; F1 plausibility prompts do not.
+            if "AGENT_RESPONSE" in prompt:
+                return _f2_response("YES", "YES", "YES")
+            return _f1_response("YES")  # benign on not-in-index, won't be hit if in_index
+        judge = MockRunner("judge", judge_responder)
+        subject = MockRunner(
+            "subject",
+            lambda _p: "see Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938).",
+        )
+        dim = cil.run_family_aware(
+            subject, judge, YAML_PATH,
+            families=("F1_existence", "F2_content_fidelity"),
+            ensemble_n=1,
+        )
+        self.assertEqual(dim["status"], "live")
+        self.assertEqual(set(dim["families_conclusive"]),
+                         {"F1_existence", "F2_content_fidelity"})
+        # F1 perfect (all in_index hits) + F2 perfect → 0.6*1.0 + 0.4*1.0 = 1.0
+        self.assertAlmostEqual(dim["dim_pass_rate"], 1.0)
+        self.assertEqual(dim["raw"], 4.0)
 
 
 # ---------------- _pass_rate_to_raw vs runner curve ----------------

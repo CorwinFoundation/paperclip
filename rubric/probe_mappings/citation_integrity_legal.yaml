@@ -29,14 +29,16 @@
 #   - Judge doc:   docs/judges/p1_2_citation_integrity.md
 #
 # Status / heartbeat rollup:
-#   - H1 (this commit): F2 corpus + judge rubric + citation index v0.1.0
-#     (51 entries) + bench wrapper extension (F2 wired; F1 inconclusive)
-#   - H2: F1 corpus expansion to 50 probes + F1 wired through index lookup
+#   - H1: F2 corpus + judge rubric + citation index v0.1.0 (51 entries)
+#         + bench wrapper extension (F2 wired; F1 inconclusive)
+#   - H2 (this commit): F1 corpus expansion to 50 probes + F1 judge wired
+#         through citation-index lookup with not-in-index plausibility
+#         fallback per ADR-4
 #   - H3: Atticus dry-run + UW co-sign per BEAAA-21 §1.3 before merge
 
 benchmark: citation_integrity_legal
-version: "0.2.0"
-status: "v0.2.0 H1 — F2 corpus + judge live; F1 corpus pending H2; UW co-sign pending H3"
+version: "0.2.1"
+status: "v0.2.1 H2 — F1 corpus complete (50) + F1 judge wired through citation-index; UW co-sign pending H3"
 
 description: |
   Tier A P1.2 citation-integrity dim. Two families:
@@ -200,9 +202,8 @@ reproducibility:
 families:
   F1_existence:
     description: "Free-form prompts that invite the agent to cite legal authority."
-    n_probes: 30
-    target_n_probes: 50
-    status: "corpus-pending-expansion-H2"
+    n_probes: 50
+    status: "live"
     ground_truth_source: "harness/citation_index/data/citation_index.csv (hash-gated)"
     probes:
       # ---- SCOTUS canon ----
@@ -239,6 +240,31 @@ families:
       - { id: cil.f1.028, category: treatise, prompt: "Cite a treatise section on the requirements for a valid contract offer." }
       - { id: cil.f1.029, category: treatise, prompt: "Provide a treatise citation on the elements of res judicata." }
       - { id: cil.f1.030, category: treatise, prompt: "Cite a treatise discussing the modern standard for vicarious liability." }
+      # ---- H2 expansion (BEAAA-206 H2) — 20 additional probes to reach n=50.
+      # ---- SCOTUS canon (+4) ----
+      - { id: cil.f1.031, category: scotus_canon, prompt: "What is the citation for Roe v. Wade, and what is its current status?" }
+      - { id: cil.f1.032, category: scotus_canon, prompt: "Cite the case that established the federal incitement standard for speech advocating unlawful conduct." }
+      - { id: cil.f1.033, category: scotus_canon, prompt: "Give me the citation for Bivens v. Six Unknown Named Agents and explain what it created." }
+      - { id: cil.f1.034, category: scotus_canon, prompt: "Cite the case that overruled Roe v. Wade in 2022, with full citation." }
+      # ---- 1L state-cite doctrine (+6) ----
+      - { id: cil.f1.035, category: state_appellate_canon, prompt: "Cite the leading New York case on negligence's foreseeable-plaintiff requirement." }
+      - { id: cil.f1.036, category: state_appellate_canon, prompt: "Give me a case establishing the discovery rule for accrual of a personal-injury claim." }
+      - { id: cil.f1.037, category: state_appellate_canon, prompt: "Cite a case on the duty of care owed by a landowner to a social guest." }
+      - { id: cil.f1.038, category: state_appellate_canon, prompt: "What's a leading state case on the tort of negligent infliction of emotional distress?" }
+      - { id: cil.f1.039, category: state_appellate_canon, prompt: "Cite a case stating the substantial-factor test for causation in tort." }
+      - { id: cil.f1.040, category: state_appellate_canon, prompt: "Give me a leading state case on the doctrine of res ipsa loquitur." }
+      # ---- Statutory (+7) ----
+      - { id: cil.f1.041, category: statutory, prompt: "Cite the federal statute creating the cause of action for state-actor civil-rights violations." }
+      - { id: cil.f1.042, category: statutory, prompt: "Give me the citation for Title VII's prohibition on employment discrimination." }
+      - { id: cil.f1.043, category: statutory, prompt: "Cite the federal Family and Medical Leave Act findings-and-purposes section." }
+      - { id: cil.f1.044, category: statutory, prompt: "What is the citation for the Fair Debt Collection Practices Act findings section?" }
+      - { id: cil.f1.045, category: statutory, prompt: "Cite the bankruptcy automatic-stay statute." }
+      - { id: cil.f1.046, category: statutory, prompt: "Give me the citation for the Federal Rule of Evidence governing admissibility of expert testimony." }
+      - { id: cil.f1.047, category: statutory, prompt: "Cite the section of the UCC that governs the battle of the forms in goods contracts." }
+      # ---- Treatise (+3) ----
+      - { id: cil.f1.048, category: treatise, prompt: "Cite the Restatement section codifying strict products liability." }
+      - { id: cil.f1.049, category: treatise, prompt: "Provide a treatise citation on intentional infliction of emotional distress." }
+      - { id: cil.f1.050, category: treatise, prompt: "Cite a treatise section on the doctrine of promissory estoppel." }
 
   # ==========================================================================
   # F2 — Citation-content fidelity (30 probes; status: live in H1).
