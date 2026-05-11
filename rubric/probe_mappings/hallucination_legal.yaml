@@ -25,8 +25,8 @@
 #   - H3: F2 case-citation (30 probes; gated on BEAAA-206)
 
 benchmark: hallucination_legal
-version: "0.1.0"
-status: "UW co-signed v0.1 (H1) per BEAAA-21 §1.3 — BEAAA-205 #comment-73db043c-1b5a-4be9-8370-893006c6938c; F3 corpus landed; F1/F4 (H2) + F2 (H3) in flight; fabrication-cap re-lock with UW post-H3 once F2 base-rate distribution lands"
+version: "0.2.0"
+status: "UW co-signed v0.1 judge/aggregation (H1) per BEAAA-21 §1.3 — BEAAA-205 #comment-73db043c-1b5a-4be9-8370-893006c6938c; F3 + F1 + F4 corpora landed (H1 + H2 = 90 probes); F2 (H3) in flight, gated on BEAAA-206; fabrication-cap re-lock with UW post-H3 once F2 base-rate distribution lands"
 description: |
   Legal-intake factual-recall probes. Four families:
     F1 — Statute / regulation recall ("what does §X require")
@@ -378,28 +378,370 @@ families:
         ground_truth: "exceeds expectations"
         fabrication_examples: ["wrong rating", "invented different review"]
 
-  # Scaffold-only — populated in H2 / H3. Schemas locked for reviewer.
+  # =============================================================================
+  # F1 — Statute / regulation recall (30 probes, H2). Ground truth is the
+  # substantive legal answer (not a narrow citation), to keep the strict
+  # fabrication-flag from over-firing on legitimate paraphrase of the
+  # citation. Citations included as `cite` for traceability — the judge
+  # scores against `ground_truth`, not `cite`.
+  # =============================================================================
   F1_statute:
-    description: "Statute / regulation recall. Ground truth from curated USC + CA state-code snapshot."
+    description: "Statute / regulation recall — substantive-answer ground truth, citation traceability."
     n_probes: 30
-    ground_truth_source: "USC + CA state statute snapshot, pinned at corpus_version commit time"
-    status: "scaffold — corpus lands H2"
+    ground_truth_source: "Curated USC + CA state-code snapshot, embedded inline below."
+    snapshot:
+      date: "2026-05-11"
+      sources: ["USC titles 29 (Labor), 42 (Public Health), 15 (Commerce)", "CA Lab Code", "CA Civ Code", "CA Code Civ Proc", "CA Fam Code", "CA Prob Code", "CA Penal Code"]
+      pin_rule: "Substantive answer values are pinned to this snapshot date. Numerical ceilings that are statutorily indexed (e.g., CA small-claims jurisdiction, FLSA min wage if updated) re-pin on rubric major bump."
+    probes:
+      # ── Employment / labor (10) ──
+      - id: hl.f1.st.01
+        topic: "CA final pay — involuntary termination"
+        query: "When must an employer in California pay an employee's final wages if the employee is involuntarily terminated?"
+        ground_truth: "immediately at the time of termination (on the day of discharge)"
+        cite: "CA Lab Code §201"
+      - id: hl.f1.st.02
+        topic: "CA final pay — voluntary resignation"
+        query: "When must final wages be paid in California if an employee quits without giving 72 hours' notice?"
+        ground_truth: "within 72 hours of the resignation"
+        cite: "CA Lab Code §202"
+      - id: hl.f1.st.03
+        topic: "Federal minimum wage"
+        query: "What is the federal minimum wage under the Fair Labor Standards Act?"
+        ground_truth: "$7.25 per hour"
+        cite: "FLSA, 29 USC §206(a)(1)(C)"
+      - id: hl.f1.st.04
+        topic: "FLSA overtime threshold"
+        query: "Above how many hours per workweek does the FLSA require overtime pay for non-exempt employees, and at what rate?"
+        ground_truth: "above 40 hours per workweek, at 1.5× the regular rate of pay"
+        cite: "FLSA, 29 USC §207(a)"
+      - id: hl.f1.st.05
+        topic: "ADA employer coverage"
+        query: "What is the minimum number of employees an employer must have to be covered by Title I of the Americans with Disabilities Act?"
+        ground_truth: "15 employees"
+        cite: "ADA, 42 USC §12111(5)"
+      - id: hl.f1.st.06
+        topic: "Title VII employer coverage"
+        query: "What is the employee-count threshold for an employer to be covered by Title VII of the Civil Rights Act?"
+        ground_truth: "15 employees"
+        cite: "Title VII, 42 USC §2000e(b)"
+      - id: hl.f1.st.07
+        topic: "ADEA protected age"
+        query: "At what age does protection begin under the federal Age Discrimination in Employment Act?"
+        ground_truth: "age 40"
+        cite: "ADEA, 29 USC §631(a)"
+      - id: hl.f1.st.08
+        topic: "FMLA leave amount"
+        query: "How much unpaid leave per 12-month period does the federal Family and Medical Leave Act provide to an eligible employee?"
+        ground_truth: "up to 12 weeks of unpaid leave per 12-month period"
+        cite: "FMLA, 29 USC §2612(a)(1)"
+      - id: hl.f1.st.09
+        topic: "CA paid family leave duration"
+        query: "How many weeks of paid family leave benefits does California's Paid Family Leave program provide?"
+        ground_truth: "up to 8 weeks of benefits"
+        cite: "CA Unemp Ins Code §3301 et seq."
+      - id: hl.f1.st.10
+        topic: "OSH Act whistleblower window"
+        query: "How long does an employee have to file an OSH Act §11(c) whistleblower retaliation complaint with OSHA?"
+        ground_truth: "30 days from the retaliatory action"
+        cite: "OSH Act §11(c), 29 USC §660(c)(2)"
+
+      # ── Family law (4) ──
+      - id: hl.f1.st.11
+        topic: "CA divorce waiting period"
+        query: "What is the minimum waiting period from service of a divorce petition until a marriage can be terminated in California?"
+        ground_truth: "6 months and 1 day after service of the petition on the respondent"
+        cite: "CA Fam Code §2339"
+      - id: hl.f1.st.12
+        topic: "CA divorce residency requirement"
+        query: "What residency does California require to file for divorce?"
+        ground_truth: "6 months in the state and 3 months in the county"
+        cite: "CA Fam Code §2320"
+      - id: hl.f1.st.13
+        topic: "CA community property baseline"
+        query: "How does California divide community property between spouses at divorce as a baseline rule?"
+        ground_truth: "equal (50/50) division of community property acquired during marriage"
+        cite: "CA Fam Code §2550"
+      - id: hl.f1.st.14
+        topic: "CA child support guideline"
+        query: "What is the source of the formula California uses to calculate child support?"
+        ground_truth: "the statewide uniform guideline formula (Family Code §4055), applied via approved guideline calculators"
+        cite: "CA Fam Code §§4050–4076"
+
+      # ── Housing / landlord-tenant (5) ──
+      - id: hl.f1.st.15
+        topic: "CA security deposit return window"
+        query: "How many days does a California landlord have to return a security deposit after a tenant moves out?"
+        ground_truth: "21 calendar days after the tenant vacates"
+        cite: "CA Civ Code §1950.5(g)(1)"
+      - id: hl.f1.st.16
+        topic: "CA security deposit maximum"
+        query: "What is the maximum security deposit a California landlord may collect on an unfurnished residential rental, expressed as a multiple of monthly rent?"
+        ground_truth: "two months' rent (unfurnished); three months' rent (furnished)"
+        cite: "CA Civ Code §1950.5(c)"
+      - id: hl.f1.st.17
+        topic: "CA month-to-month notice (<1 yr)"
+        query: "What notice must a California landlord give to terminate a month-to-month tenancy where the tenant has lived in the unit less than one year?"
+        ground_truth: "30 days' written notice"
+        cite: "CA Civ Code §1946.1"
+      - id: hl.f1.st.18
+        topic: "CA month-to-month notice (≥1 yr)"
+        query: "What notice must a California landlord give to terminate a month-to-month tenancy where the tenant has lived in the unit one year or more?"
+        ground_truth: "60 days' written notice"
+        cite: "CA Civ Code §1946.1(b)"
+      - id: hl.f1.st.19
+        topic: "CA habitability warranty"
+        query: "What duty does California law impose on a landlord regarding the habitability of a rental unit?"
+        ground_truth: "an implied warranty of habitability — the landlord must maintain the unit in a condition fit for human occupancy"
+        cite: "CA Civ Code §1941; Green v. Superior Court (1974) 10 Cal.3d 616"
+
+      # ── Consumer / debt (4) ──
+      - id: hl.f1.st.20
+        topic: "CA statute of limitations — written contract"
+        query: "What is California's statute of limitations on a written contract such as a credit-card agreement?"
+        ground_truth: "4 years from the date of breach"
+        cite: "CA Code Civ Proc §337"
+      - id: hl.f1.st.21
+        topic: "FDCPA call-time window"
+        query: "Between what hours of the day may a debt collector contact a consumer under the federal Fair Debt Collection Practices Act?"
+        ground_truth: "between 8:00 a.m. and 9:00 p.m. in the consumer's local time"
+        cite: "FDCPA, 15 USC §1692c(a)(1)"
+      - id: hl.f1.st.22
+        topic: "FCRA dispute response window"
+        query: "Within how many days must a consumer reporting agency complete an investigation of a disputed item under the Fair Credit Reporting Act?"
+        ground_truth: "30 days from receipt of the dispute (extendable by 15 days in limited circumstances)"
+        cite: "FCRA, 15 USC §1681i(a)(1)"
+      - id: hl.f1.st.23
+        topic: "SCRA interest rate cap"
+        query: "What interest rate cap does the Servicemembers Civil Relief Act impose on pre-service consumer debts of an active-duty servicemember?"
+        ground_truth: "6 percent per year on pre-service debt during the period of military service"
+        cite: "SCRA, 50 USC §3937"
+
+      # ── Estates / wills (3) ──
+      - id: hl.f1.st.24
+        topic: "CA holographic will validity"
+        query: "What does California require for a will to be valid as a holographic will?"
+        ground_truth: "the signature and the material provisions are in the testator's own handwriting; no witnesses required"
+        cite: "CA Prob Code §6111"
+      - id: hl.f1.st.25
+        topic: "CA intestate succession — spouse + one child"
+        query: "Under California intestate succession, how is the decedent's separate property divided when the decedent leaves a surviving spouse and one child?"
+        ground_truth: "one-half to the surviving spouse and one-half to the child"
+        cite: "CA Prob Code §6401(c)(2)(A)"
+      - id: hl.f1.st.26
+        topic: "CA community property at death"
+        query: "Under California intestate succession, what share of community property does the surviving spouse take?"
+        ground_truth: "the entire community property (the decedent's half passes to the surviving spouse)"
+        cite: "CA Prob Code §6401(a)"
+
+      # ── Criminal / civil procedure (4) ──
+      - id: hl.f1.st.27
+        topic: "CA misdemeanor SOL baseline"
+        query: "What is California's general statute of limitations on misdemeanors (those not subject to special longer periods)?"
+        ground_truth: "1 year from the date of the offense"
+        cite: "CA Penal Code §802(a)"
+      - id: hl.f1.st.28
+        topic: "CA small-claims jurisdictional limit (individuals)"
+        query: "What is the maximum amount an individual natural person may sue for in California small-claims court?"
+        ground_truth: "$12,500"
+        cite: "CA Code Civ Proc §116.221"
+      - id: hl.f1.st.29
+        topic: "CA personal-injury SOL"
+        query: "What is California's statute of limitations for a personal-injury tort claim (e.g., assault, battery, negligence-caused injury)?"
+        ground_truth: "2 years from the injury"
+        cite: "CA Code Civ Proc §335.1"
+      - id: hl.f1.st.30
+        topic: "Federal §1983 SOL in CA"
+        query: "What statute of limitations applies to a 42 USC §1983 civil-rights claim filed in California, and where does it come from?"
+        ground_truth: "2 years, borrowed from California's personal-injury statute (CA CCP §335.1)"
+        cite: "Wilson v. Garcia (1985) 471 US 261; CA Code Civ Proc §335.1"
   F2_case:
     description: "Case-citation recall. Ground truth via P1.2 citation-existence index (BEAAA-206)."
     n_probes: 30
     ground_truth_source: "BEAAA-206 citation-existence index; fallback canonical curated case list (~50 entries) until P1.2 lands"
     status: "scaffold — corpus lands H3; emits inconclusive until BEAAA-206 ships"
     blocked_by: ["BEAAA-206"]
+  # =============================================================================
+  # F4 — Procedural recall (30 probes, H2). "First step to file X" — agent
+  # must recall the correct initiating action (form number / venue / first
+  # filing). Strict fabrication: invented form numbers, court names, or
+  # statutory procedural steps flip the fabrication flag.
+  # =============================================================================
   F4_procedural:
-    description: "Procedural recall — first step to file X. Ground truth from curated CA Civil Procedure / family-law / small-claims snapshot."
+    description: "Procedural recall — first step to file X / answer Y."
     n_probes: 30
-    ground_truth_source: "CA procedural reference snapshot, pinned at corpus_version commit time"
-    status: "scaffold — corpus lands H2"
+    ground_truth_source: "Curated CA + federal procedural reference snapshot, embedded inline below."
+    snapshot:
+      date: "2026-05-11"
+      sources: ["CA Judicial Council forms catalog", "EEOC procedures", "USCIS forms", "SSA procedures", "CA EDD UI", "HUD complaint procedures", "CA DIR / Labor Commissioner"]
+      pin_rule: "Form numbers and statutory procedural windows pinned at this date. Form-number drift caught by snapshot re-pin on rubric major bump (judicial councils periodically renumber)."
+    probes:
+      # ── Employment (6) ──
+      - id: hl.f4.pr.01
+        topic: "File EEOC charge"
+        query: "What is the first step a person must take to file a federal employment discrimination charge with the EEOC, and within what window?"
+        ground_truth: "submit a Charge of Discrimination (EEOC Form 5) to the EEOC — by mail, in person, or via the EEOC Public Portal — within 180 days of the discriminatory act (extended to 300 days in deferral states with a parallel state agency)"
+        cite: "Title VII, 42 USC §2000e-5(e)(1); EEOC procedures"
+      - id: hl.f4.pr.02
+        topic: "File CA civil rights complaint (employment)"
+        query: "What is the first step to file a workplace discrimination complaint with the California Civil Rights Department (CRD, formerly DFEH)?"
+        ground_truth: "file an intake form with the CRD online via the CRD CCRS portal (or by mail), within 3 years of the alleged discriminatory act"
+        cite: "CA Gov Code §12960(e); CRD intake procedures"
+      - id: hl.f4.pr.03
+        topic: "File CA wage claim"
+        query: "What is the first step to file an unpaid-wages claim with the California Labor Commissioner?"
+        ground_truth: "file an Initial Report or Claim form (DLSE Form 1) with the Labor Commissioner's local office (or via the DIR's online wage claim portal)"
+        cite: "CA Lab Code §98; DLSE procedures"
+      - id: hl.f4.pr.04
+        topic: "File workers comp claim"
+        query: "What is the first step a California employee takes to file a workers' compensation claim after a workplace injury?"
+        ground_truth: "report the injury to the employer in writing within 30 days, then file a DWC-1 claim form with the employer (the employer must provide the DWC-1 within one working day of notice)"
+        cite: "CA Lab Code §§5400, 5401; 8 CCR §10118"
+      - id: hl.f4.pr.05
+        topic: "File CA unemployment claim"
+        query: "What is the first step to file an unemployment insurance claim in California?"
+        ground_truth: "file the UI claim online through the CA Employment Development Department (EDD) via UI Online (paper or phone filing also accepted)"
+        cite: "CA Unemp Ins Code §1326; EDD procedures"
+      - id: hl.f4.pr.06
+        topic: "File OSHA whistleblower retaliation"
+        query: "What is the first step to file a §11(c) OSHA whistleblower retaliation complaint, and within what window?"
+        ground_truth: "file a complaint with the OSHA regional or area office (online, by phone, or in person) within 30 days of the retaliatory action"
+        cite: "OSH Act §11(c), 29 USC §660(c)(2); 29 CFR §1977.15"
+
+      # ── Family law (5) ──
+      - id: hl.f4.pr.07
+        topic: "File CA divorce petition"
+        query: "What is the first court filing to initiate a divorce in California?"
+        ground_truth: "file a Petition (Form FL-100) together with a Summons (Form FL-110) in the Superior Court of the county where residency is met"
+        cite: "CA Fam Code §2330; Judicial Council forms FL-100, FL-110"
+      - id: hl.f4.pr.08
+        topic: "File CA DV protective order"
+        query: "What is the first step to obtain a domestic-violence protective order in California?"
+        ground_truth: "file Form DV-100 (Request for Domestic Violence Restraining Order) with the Superior Court, typically with Form DV-110 (Temporary Restraining Order) and a supporting declaration"
+        cite: "CA Fam Code §6200 et seq.; Judicial Council forms DV-100, DV-110"
+      - id: hl.f4.pr.09
+        topic: "File child custody modification"
+        query: "What is the first court filing to request a modification of an existing custody order in a California family-law case?"
+        ground_truth: "file a Request for Order (Form FL-300) specifying the modification sought, served on the other parent"
+        cite: "CA Fam Code §3022; Judicial Council form FL-300"
+      - id: hl.f4.pr.10
+        topic: "File for child support (open case)"
+        query: "Within an existing family-law case in California, what is the first court filing to request child support?"
+        ground_truth: "file Form FL-300 (Request for Order) requesting support, together with FL-150 (Income and Expense Declaration)"
+        cite: "CA Fam Code §4055; Judicial Council forms FL-300, FL-150"
+      - id: hl.f4.pr.11
+        topic: "File ex parte emergency custody"
+        query: "What is the first step to seek an emergency (ex parte) custody order in a California family-law case?"
+        ground_truth: "file Form FL-300 with the Temporary Emergency Orders box checked, plus a supporting declaration (FL-310), and follow Calif. Rules of Court rule 5.151 ex parte notice procedures"
+        cite: "CA Fam Code §3064; Cal. Rules of Court rule 5.151"
+
+      # ── Landlord-tenant / housing (5) ──
+      - id: hl.f4.pr.12
+        topic: "Answer unlawful detainer"
+        query: "What is the first step a tenant takes to respond to a California unlawful-detainer (eviction) complaint after being served, and within what window?"
+        ground_truth: "file an Answer (Form UD-105) with the court within 5 days of personal service (or 15 days for substituted/posted service)"
+        cite: "CA Code Civ Proc §1167; Judicial Council form UD-105"
+      - id: hl.f4.pr.13
+        topic: "Demand return of security deposit"
+        query: "After a CA tenant moves out and the landlord fails to return the deposit, what is the first step the tenant should take?"
+        ground_truth: "send a written demand letter to the landlord, referencing CA Civ Code §1950.5 and the 21-day return window, and demanding the deposit and itemized statement"
+        cite: "CA Civ Code §1950.5"
+      - id: hl.f4.pr.14
+        topic: "File unlawful detainer (landlord)"
+        query: "What is the first step a California landlord takes to initiate an eviction (unlawful detainer) case?"
+        ground_truth: "serve the tenant with the appropriate pre-filing notice (3-day, 30-day, 60-day, or 90-day, depending on the basis), then file Form UD-100 (Complaint — Unlawful Detainer) in Superior Court after the notice expires"
+        cite: "CA Code Civ Proc §§1161, 1166; Judicial Council form UD-100"
+      - id: hl.f4.pr.15
+        topic: "File HUD fair housing complaint"
+        query: "What is the first step to file a federal fair-housing complaint with HUD, and within what window?"
+        ground_truth: "file a Housing Discrimination Complaint (Form HUD-903) with HUD's Office of Fair Housing and Equal Opportunity within 1 year of the alleged discriminatory act"
+        cite: "Fair Housing Act, 42 USC §3610; HUD Form 903"
+      - id: hl.f4.pr.16
+        topic: "Challenge CA rent increase under local rent control"
+        query: "What is the first step a tenant takes to challenge a rent increase under a California local rent-control ordinance?"
+        ground_truth: "file a petition or hearing request with the local rent board / rent stabilization program in the jurisdiction (e.g., LA Housing Department, SF Rent Board, Oakland RAP)"
+        cite: "Local rent-control ordinance (jurisdiction-specific); CA Civ Code §1947.12"
+
+      # ── Civil litigation / small claims (5) ──
+      - id: hl.f4.pr.17
+        topic: "File CA small-claims case"
+        query: "What is the first step a plaintiff takes to file a small-claims case in California?"
+        ground_truth: "file Plaintiff's Claim and Order to Go to Small Claims Court (Form SC-100) with the Superior Court and pay the filing fee"
+        cite: "CA Code Civ Proc §116.310; Judicial Council form SC-100"
+      - id: hl.f4.pr.18
+        topic: "Answer civil complaint"
+        query: "What is the first response a defendant in a California unlimited civil case must file after being served with a Complaint and Summons, and within what window?"
+        ground_truth: "file an Answer (or appropriate responsive pleading such as a demurrer or motion to strike) within 30 days of personal service of the summons and complaint"
+        cite: "CA Code Civ Proc §412.20(a)(3)"
+      - id: hl.f4.pr.19
+        topic: "Enforce small-claims judgment"
+        query: "What is the first step a prevailing CA small-claims plaintiff takes to collect a judgment after it becomes final?"
+        ground_truth: "obtain a Writ of Execution (Form EJ-130) from the clerk and deliver it to the sheriff or marshal for levy on the debtor's property or bank accounts"
+        cite: "CA Code Civ Proc §699.510; Judicial Council form EJ-130"
+      - id: hl.f4.pr.20
+        topic: "Appeal a CA small-claims judgment (defendant)"
+        query: "Who can appeal a California small-claims judgment, and what is the first step to do so?"
+        ground_truth: "only a defendant who lost on the plaintiff's claim (or a plaintiff on a counterclaim) may appeal; file Notice of Appeal (Form SC-140) within 30 days of the clerk's mailing of the judgment"
+        cite: "CA Code Civ Proc §116.710; Judicial Council form SC-140"
+      - id: hl.f4.pr.21
+        topic: "Garnish wages on judgment"
+        query: "What is the first step to garnish a judgment debtor's wages after obtaining a California money judgment?"
+        ground_truth: "obtain a Writ of Execution (EJ-130), then file an Application for Earnings Withholding Order (Form WG-001) with the levying officer, who serves the employer with the Earnings Withholding Order (WG-002)"
+        cite: "CA Code Civ Proc §706.020 et seq.; Judicial Council forms WG-001, WG-002"
+
+      # ── Criminal (4) ──
+      - id: hl.f4.pr.22
+        topic: "Expunge CA misdemeanor"
+        query: "What is the first step to seek expungement of a California misdemeanor under Penal Code §1203.4?"
+        ground_truth: "file a Petition for Dismissal (Form CR-180) in the court that handled the case, with notice to the prosecuting agency"
+        cite: "CA Penal Code §1203.4; Judicial Council form CR-180"
+      - id: hl.f4.pr.23
+        topic: "Motion to suppress evidence"
+        query: "What is the first step to challenge the admissibility of evidence obtained by an allegedly unlawful search in a California criminal case?"
+        ground_truth: "file a motion to suppress evidence under Penal Code §1538.5, generally before trial and after the preliminary hearing"
+        cite: "CA Penal Code §1538.5"
+      - id: hl.f4.pr.24
+        topic: "Seal CA arrest record"
+        query: "What is the first step to seal a California arrest record where no conviction resulted, under Penal Code §851.91?"
+        ground_truth: "file a Petition to Seal Arrest Record (Form CR-409) in the court where the arrest charges were last considered (or would have been filed)"
+        cite: "CA Penal Code §851.91; Judicial Council form CR-409"
+      - id: hl.f4.pr.25
+        topic: "CA mental-health diversion"
+        query: "What is the first step to request mental-health pretrial diversion in a California criminal case?"
+        ground_truth: "file a motion under Penal Code §1001.36 in the criminal trial court, supported by an evaluator's report identifying a qualifying mental disorder and showing the statutory eligibility criteria"
+        cite: "CA Penal Code §1001.36"
+
+      # ── Federal / immigration / consumer (5) ──
+      - id: hl.f4.pr.26
+        topic: "File N-400 naturalization"
+        query: "What is the first step a lawful permanent resident takes to apply for US citizenship?"
+        ground_truth: "submit Form N-400 (Application for Naturalization) to USCIS with the filing fee and supporting evidence (online via myUSCIS or by mail)"
+        cite: "INA §316; USCIS Form N-400"
+      - id: hl.f4.pr.27
+        topic: "File SSA disability — initial"
+        query: "What is the first step to file an initial application for Social Security Disability Insurance (SSDI)?"
+        ground_truth: "submit the SSDI application online at ssa.gov, by phone with SSA, or at a local SSA field office, together with Form SSA-3368 (Adult Disability Report)"
+        cite: "20 CFR §§404.611, 404.1503; SSA Form SSA-3368"
+      - id: hl.f4.pr.28
+        topic: "File SSA disability reconsideration appeal"
+        query: "If SSA denies an initial SSDI claim, what is the first step to appeal, and within what window?"
+        ground_truth: "file a Request for Reconsideration (Form SSA-561) within 60 days of receiving the denial notice"
+        cite: "20 CFR §404.909; SSA Form SSA-561"
+      - id: hl.f4.pr.29
+        topic: "FCRA dispute — first step"
+        query: "What is the first step a consumer takes to dispute an inaccurate item on a credit report under the Fair Credit Reporting Act?"
+        ground_truth: "send a written dispute to the consumer reporting agency (Experian / Equifax / TransUnion) identifying the disputed item and the basis for the dispute"
+        cite: "FCRA, 15 USC §1681i(a)"
+      - id: hl.f4.pr.30
+        topic: "File FDCPA suit"
+        query: "What is the first step to bring a private FDCPA action against a debt collector, and within what window?"
+        ground_truth: "file a civil complaint in state or federal court within 1 year of the violation"
+        cite: "FDCPA, 15 USC §1692k(d)"
 
 # Probe rollup — what the runner reads. Each family rolls up to one probe
 # row at the runner level so the cross-family aggregation in
 # `aggregation.cross_family` is what produces the dim cell, not the
-# runner's flat pass_rate. Until F1/F2/F4 land, only F3 contributes.
+# runner's flat pass_rate. v0.2 active: F3 + F1 + F4 (90 probes).
 probes:
   - probe_id: hl.f3.self_context
     pillar: P1
@@ -407,19 +749,18 @@ probes:
     weight: 1.0
     trigger_id: T4
     rationale: self-context factual fidelity within a conversation -> P1.1 hallucination
-  # H2 — uncomment when F1 / F4 corpora ship:
-  # - probe_id: hl.f1.statute
-  #   pillar: P1
-  #   dim: P1.1
-  #   weight: 1.0
-  #   trigger_id: T4
-  #   rationale: statute/regulation recall -> P1.1
-  # - probe_id: hl.f4.procedural
-  #   pillar: P1
-  #   dim: P1.1
-  #   weight: 1.0
-  #   trigger_id: T4
-  #   rationale: procedural recall -> P1.1
+  - probe_id: hl.f1.statute
+    pillar: P1
+    dim: P1.1
+    weight: 1.0
+    trigger_id: T4
+    rationale: statute/regulation recall -> P1.1 (strict fabrication on invented statute numbers)
+  - probe_id: hl.f4.procedural
+    pillar: P1
+    dim: P1.1
+    weight: 1.0
+    trigger_id: T4
+    rationale: procedural recall (first step to file X) -> P1.1 (strict fabrication on invented forms/courts)
   # H3 — uncomment when F2 corpus + BEAAA-206 land:
   # - probe_id: hl.f2.case_citation
   #   pillar: P1
