@@ -9,22 +9,30 @@ customer-attestation surface scored against structured fields + evidence
 artifacts. See BEAAA-200 #document-p4-attestation-ingest-spec for the spec
 of record.
 
+v0.1-LOCKED 2026-05-11 — incorporates HUW (BEAAA-213 Q2/Q4/Q6) +
+UW (BEAAA-214 Q1/Q3/Q5) co-design answers:
+
+- Q1: ACCOUNTABILITY_LITERAL_TEMPLATE with {Customer Org} + {attested_at}
+  placeholders; boldfaced checkbox `accountability_checked: true` required.
+- Q2: SIGNATURE_MODE enum on envelope; per-dim tier caps enforced;
+  ingest REJECTS (not silently downgrades) when claimed tier exceeds
+  signature_mode allowance.
+- Q3: review_state machine — per-dim ceiling applies on top of evidence
+  ladder (raw_self_report=2, reviewed=3, verified=4, rejected=0,
+  disputed=hold). Overlay path optional via --review-state.
+- Q4: material_change_log envelope array (audit trail; no scoring gate).
+- Q5: form_variant enum (short_v0 | full_v0); short_v0 caps all dims at
+  tier 2 regardless of evidence.
+- Q6: regression_escalation enum on P4.5 (informational caps raw 2.0;
+  soft_block caps 3.0; hard_block/auto_rollback allows 4.0).
+
 Usage:
     python3 scripts/score_p4_attestation.py \\
         --form path/to/customer_attestation.yaml \\
         [--ledger path/to/p1_6_ledger.yaml] \\
         [--evidence-root path/to/evidence_files/] \\
+        [--review-state path/to/review_state_overlay.yaml] \\
         [--out artifacts/beaaa-200/{surface}/p4_attestation.json]
-
-The scorer is OFFLINE by default. Tier 4 gates that require live agent
-verification (P4.2 prompt_sha256 resolution, P4.1 transcript cross-verify,
-P4.4 IR transcript replay) return tier 3 in offline mode unless evidence
-files are supplied via --evidence-root. The LLM rubric grader on P4.4 is
-stubbed by default; pass --grader-mode=replay to enable it (pinned model
-per the YAML llm_grader block).
-
-Outputs JSON with per-dim raw + tier + which gate triggered + evidence_refs
-so claims defense can replay every point.
 """
 from __future__ import annotations
 
@@ -32,6 +40,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +64,58 @@ DIM_TO_YAML = {
 P4_WEIGHT = 15
 DIM_COUNT = 6
 SPEC_VERSION = "0.1.0"
+
+# v0.1-LOCKED Q5 — form variants.
+FORM_VARIANT_TIER_CAP = {
+    "short_v0": 2,  # Bronze: caps tier 2 regardless of evidence
+    "full_v0": 4,   # Silver/Gold: full tier-4 reachable
+}
+
+# v0.1-LOCKED Q2 — signature_mode -> max permitted tier.
+SIGNATURE_MODE_TIER_CAP = {
+    "none": 0,
+    "notarized_email": 2,
+    "pki_escrow": 3,
+    "pki_escrow_plus_third_party": 4,
+}
+SIGNATURE_MODES = tuple(SIGNATURE_MODE_TIER_CAP.keys())
+
+# v0.1-LOCKED Q3 — review_state -> max permitted tier.
+REVIEW_STATE_TIER_CAP = {
+    "raw_self_report": 2,
+    "reviewed": 3,
+    "verified": 4,
+    "rejected": 0,
+    "disputed": 4,  # hold prior score; cap doesn't constrain
+}
+REVIEW_STATES = tuple(REVIEW_STATE_TIER_CAP.keys())
+
+# v0.1-LOCKED Q6 — regression_escalation -> max raw on P4.5.
+REGRESSION_ESCALATION_CAP = {
+    "informational": 2.0,
+    "soft_block": 3.0,
+    "hard_block": 4.0,
+    "auto_rollback": 4.0,
+}
+REGRESSION_ESCALATIONS = tuple(REGRESSION_ESCALATION_CAP.keys())
+
+# v0.1-LOCKED Q1 — accountability literal template (boldfaced checkbox in UI).
+# {Customer Org} resolves at form-load from customer_id; {attested_at} at submit.
+# Scorer validates the shape via regex (placeholders are wildcards).
+ACCOUNTABILITY_LITERAL_TEMPLATE = (
+    "I am authorized to make these attestations on behalf of {Customer Org} "
+    "as a duly authorized representative, and I understand that BEA will rely "
+    "on them in underwriting and at claim. I confirm that the supporting "
+    "evidence attached is true and complete to the best of my knowledge as of "
+    "{attested_at}."
+)
+_ACCOUNTABILITY_REGEX = re.compile(
+    r"^I am authorized to make these attestations on behalf of .+ "
+    r"as a duly authorized representative, and I understand that BEA will rely "
+    r"on them in underwriting and at claim\. I confirm that the supporting "
+    r"evidence attached is true and complete to the best of my knowledge as of "
+    r".+\.$"
+)
 
 
 @dataclass
@@ -109,8 +170,23 @@ def _evidence_ref(kind: str, value: Any, *, evidence_root: Path | None = None) -
 
 # ---------- top-level form validation ----------
 
-REQUIRED_TOP_FIELDS = ["version", "customer_id", "agent_id", "attested_at", "attested_by", "signature_block", "dims"]
-ACCOUNTABILITY_LITERAL = "I have authority to bind on these attestations."
+REQUIRED_TOP_FIELDS = [
+    "version",
+    "customer_id",
+    "agent_id",
+    "attested_at",
+    "attested_by",
+    "signature_block",
+    "form_variant",     # v0.1-LOCKED Q5
+    "dims",
+]
+
+
+def _accountability_text_valid(text: str | None) -> bool:
+    """Q1 — accept the canonical literal template with placeholders substituted."""
+    if not text:
+        return False
+    return bool(_ACCOUNTABILITY_REGEX.match(text.strip()))
 
 
 def validate_form(form: dict[str, Any]) -> list[str]:
@@ -120,18 +196,38 @@ def validate_form(form: dict[str, Any]) -> list[str]:
             errors.append(f"missing required field: {field_name}")
     if form.get("version") and form["version"] != SPEC_VERSION:
         errors.append(f"version_not_supported: form is {form['version']!r}, scorer is {SPEC_VERSION!r}")
+
     by = form.get("attested_by") or {}
-    if by.get("accountability") != ACCOUNTABILITY_LITERAL:
-        errors.append("attested_by.accountability missing required literal")
+    # Q1: literal text must match the canonical template (Customer Org + attested_at substituted).
+    if not _accountability_text_valid(by.get("accountability")):
+        errors.append("attested_by.accountability does not match Q1 canonical literal template")
+    # Q1: boldfaced checkbox must be true.
+    if by.get("accountability_checked") is not True:
+        errors.append("attested_by.accountability_checked must be true (Q1 checkbox gate)")
     if not (by.get("email") and by.get("name") and by.get("title")):
         errors.append("attested_by.{name,title,email} all required")
+
+    # Q5: form_variant enum.
+    fv = form.get("form_variant")
+    if fv is not None and fv not in FORM_VARIANT_TIER_CAP:
+        errors.append(f"form_variant must be one of {sorted(FORM_VARIANT_TIER_CAP)}; got {fv!r}")
+
+    # Q2: signature_block must carry a signature_mode enum.
+    sig = form.get("signature_block")
+    if isinstance(sig, dict):
+        smode = sig.get("signature_mode")
+        if smode not in SIGNATURE_MODE_TIER_CAP:
+            errors.append(f"signature_block.signature_mode must be one of {sorted(SIGNATURE_MODE_TIER_CAP)}; got {smode!r}")
+    elif sig is None:
+        errors.append("signature_block required (envelope object with signature_mode)")
+    # legacy: a bare string signature is rejected at v0.1-LOCKED (was permitted in pre-lock scaffold)
+    elif isinstance(sig, str):
+        errors.append("signature_block must be an object with signature_mode (v0.1-LOCKED Q2)")
+
     dims = form.get("dims") or {}
     expected_keys = {k.replace(".", "_") for k in DIM_TO_YAML}
     missing_dims = sorted(expected_keys - set(dims))
     for k in missing_dims:
-        # absence is allowed (scores as tier 0), but the parent must at least exist
-        # in the dict as a sentinel. Otherwise downstream readers can't tell whether
-        # the customer reviewed-and-declined vs. simply skipped.
         errors.append(f"dims.{k} missing — set to {{}} or null to attest absent")
     return errors
 
@@ -399,6 +495,13 @@ def _score_p4_5(
     policy_doc = block.get("policy_doc_link")
     if policy_doc:
         refs.append({"kind": "policy_doc_link", "value": policy_doc})
+    # Q6: regression_escalation (informational caps raw 2.0; soft_block 3.0; hard_block/auto_rollback 4.0)
+    regression_escalation = block.get("regression_escalation")
+    if regression_escalation is not None and regression_escalation not in REGRESSION_ESCALATION_CAP:
+        notes.append(f"regression_escalation_invalid_value={regression_escalation!r}")
+        regression_escalation = None
+    if regression_escalation:
+        refs.append({"kind": "regression_escalation", "value": regression_escalation})
 
     if not ledger:
         return DimResult("P4.5", 0, 0.0, "no_ledger_submitted", evidence_refs=refs)
@@ -460,6 +563,15 @@ def _score_p4_5(
 
     final_tier = min(ladder_tier, cap_tier) if cap_tier is not None else ladder_tier
     cap_applied = "P4.5 divergence_modifier (>10pp on any family)" if cap_tier is not None and cap_tier < ladder_tier else None
+
+    # Q6 — regression_escalation cap (informational caps raw 2.0; soft_block 3.0; hard_block/auto_rollback 4.0)
+    if regression_escalation:
+        regression_cap = REGRESSION_ESCALATION_CAP[regression_escalation]
+        if float(final_tier) > regression_cap:
+            final_tier = int(regression_cap)
+            cap_applied = f"P4.5 regression_escalation={regression_escalation} caps raw {regression_cap}"
+            notes.append(f"regression_escalation_cap_triggered={regression_escalation}")
+
     gate = {
         4: "tier_4_30d_ge_10_divergence_le_5pp",
         3: "tier_3_90d_ge_6",
@@ -534,6 +646,67 @@ DIM_SCORERS: dict[str, Callable[..., DimResult]] = {
 
 # ---------- top-level scorer ----------
 
+class SignatureModeInsufficient(Exception):
+    """Raised when a dim's attained tier exceeds the cap allowed by signature_mode (Q2)."""
+
+    def __init__(self, payload: dict[str, Any]):
+        self.payload = payload
+        super().__init__(payload.get("error", "signature_mode_insufficient_for_attained_tier"))
+
+
+def _apply_review_state_cap(result: DimResult, state: str | None, state_meta: dict[str, Any] | None) -> DimResult:
+    """Q3 — clamp a dim's tier/raw by review_state ceiling and stamp metadata."""
+    if state is None:
+        state = "raw_self_report"
+    if state not in REVIEW_STATE_TIER_CAP:
+        result.notes.append(f"review_state_invalid={state!r}_defaulting_raw_self_report")
+        state = "raw_self_report"
+
+    state_meta = state_meta or {}
+    review_state_block = {
+        "state": state,
+        "reviewed_by": state_meta.get("reviewed_by"),
+        "reviewed_at": state_meta.get("reviewed_at"),
+        "verified_by": state_meta.get("verified_by"),
+        "verified_at": state_meta.get("verified_at"),
+        "reject_reason": state_meta.get("reject_reason"),
+        "dispute_payload_ref": state_meta.get("dispute_payload_ref"),
+    }
+    result.evidence_refs.append({"kind": "review_state", "value": review_state_block})
+
+    if state == "rejected":
+        result.tier = 0
+        result.raw = 0.0
+        result.cap_applied = "review_state=rejected drops dim to raw 0.0"
+        result.gate_triggered = "review_state_rejected"
+        return result
+
+    ceiling = REVIEW_STATE_TIER_CAP[state]
+    if result.tier > ceiling:
+        prior_tier = result.tier
+        result.tier = ceiling
+        result.raw = float(ceiling)
+        prior_cap = result.cap_applied
+        msg = f"review_state={state} caps tier at {ceiling} (was {prior_tier})"
+        result.cap_applied = msg if not prior_cap else f"{prior_cap}; {msg}"
+        result.notes.append(f"review_state_cap_triggered={state}")
+    return result
+
+
+def _apply_form_variant_cap(result: DimResult, variant: str) -> DimResult:
+    """Q5 — short_v0 caps all dims at tier 2; full_v0 is the no-op identity."""
+    ceiling = FORM_VARIANT_TIER_CAP.get(variant, 4)
+    if result.tier > ceiling:
+        prior_tier = result.tier
+        result.tier = ceiling
+        result.raw = float(ceiling)
+        prior_cap = result.cap_applied
+        msg = f"form_variant={variant} caps tier at {ceiling} (was {prior_tier})"
+        result.cap_applied = msg if not prior_cap else f"{prior_cap}; {msg}"
+        result.notes.append(f"form_variant_cap_triggered={variant}")
+    return result
+
+
 def score_form(
     form: dict[str, Any],
     *,
@@ -542,28 +715,75 @@ def score_form(
     evidence_root: Path | None = None,
     grader: Callable[[str], bool] | None = None,
     now: dt.date | None = None,
+    review_state_overlay: dict[str, dict[str, Any]] | None = None,
+    raise_on_signature_insufficient: bool = False,
 ) -> dict[str, Any]:
+    """Score a P4 attestation form.
+
+    review_state_overlay: optional dict of dim_id -> {"state": ..., **state_meta}.
+    raise_on_signature_insufficient: when True, raises SignatureModeInsufficient instead of
+        embedding the error in the response. Pipeline callers should pass True;
+        report-writers should pass False to surface the rejection inline.
+    """
     now = now or dt.date.today()
     dims_block = form.get("dims") or {}
+    form_variant = form.get("form_variant") or "full_v0"
+    sig = form.get("signature_block") or {}
+    signature_mode = sig.get("signature_mode") if isinstance(sig, dict) else None
+    overlay = review_state_overlay or {}
 
     results: dict[str, DimResult] = {}
-    # P4.1
     results["P4.1"] = _score_p4_1(dims_block.get("P4_1") or {}, evidence_root=evidence_root)
-    # P4.2
     results["P4.2"] = _score_p4_2(dims_block.get("P4_2") or {}, evidence_root=evidence_root, now=now)
-    # P4.3
     results["P4.3"] = _score_p4_3(dims_block.get("P4_3") or {}, evidence_root=evidence_root, now=now)
-    # P4.4
     results["P4.4"] = _score_p4_4(dims_block.get("P4_4") or {}, evidence_root=evidence_root, now=now, grader=grader)
-    # P4.5
     results["P4.5"] = _score_p4_5(
         dims_block.get("P4_5") or {},
         ledger=ledger,
         ledger_replay_divergence=ledger_replay_divergence,
         now=now,
     )
-    # P4.6
     results["P4.6"] = _score_p4_6(dims_block.get("P4_6") or {}, evidence_root=evidence_root, now=now)
+
+    # Cap order (BEAAA-213/214 v0.1-LOCKED):
+    #   1. Q5 form_variant — at-ingest claim ceiling (short_v0 attests to <=tier 2 only)
+    #   2. Q2 signature_mode — reject if claimed tier exceeds permitted signature cap
+    #   3. Q3 review_state — post-ingest operator workflow gate (raw_self_report -> reviewed -> verified)
+
+    # Q5 — apply form_variant ceiling (global, on the "claimed" tier the customer is attesting to)
+    for r in results.values():
+        _apply_form_variant_cap(r, form_variant)
+
+    # Q2 — signature_mode check against the claimed (post-form-variant) tier.
+    # Bronze short_v0 caps claims at tier 2, so notarized_email satisfies Bronze by construction.
+    sig_cap = SIGNATURE_MODE_TIER_CAP.get(signature_mode, 0)
+    insufficient = [r for r in results.values() if r.tier > sig_cap]
+    if insufficient:
+        payload = {
+            "error": "signature_mode_insufficient_for_attained_tier",
+            "signature_mode": signature_mode,
+            "signature_mode_tier_cap": sig_cap,
+            "offending_dims": [
+                {"dim_id": r.dim_id, "claimed_tier": r.tier, "gate": r.gate_triggered}
+                for r in insufficient
+            ],
+            "rationale": "BEAAA-213 Q2 — claimed tier (post-form-variant) exceeds permitted cap for submitted signature_mode; reject rather than silently downgrade.",
+        }
+        if raise_on_signature_insufficient:
+            raise SignatureModeInsufficient(payload)
+        return {
+            "spec_version": SPEC_VERSION,
+            "rejected": True,
+            "rejection_reason": payload,
+            "customer_id": form.get("customer_id"),
+            "agent_id": form.get("agent_id"),
+            "attested_at": form.get("attested_at"),
+        }
+
+    # Q3 — apply review_state ceiling (per-dim, post-ingest workflow gate)
+    for dim_id, r in results.items():
+        ov = overlay.get(dim_id) or overlay.get(dim_id.replace(".", "_")) or {}
+        _apply_review_state_cap(r, ov.get("state"), ov)
 
     # Pillar score = mean(raw) / 4.0 * 15.0
     raws = [r.raw for r in results.values()]
@@ -575,6 +795,9 @@ def score_form(
         "customer_id": form.get("customer_id"),
         "agent_id": form.get("agent_id"),
         "attested_at": form.get("attested_at"),
+        "form_variant": form_variant,
+        "signature_mode": signature_mode,
+        "material_change_log": form.get("material_change_log") or [],
         "pillar": "P4",
         "pillar_score": pillar_score,
         "pillar_weight": P4_WEIGHT,
@@ -603,6 +826,8 @@ def main() -> int:
     parser.add_argument("--form", required=True, help="Path to customer-submitted P4 attestation YAML")
     parser.add_argument("--ledger", default=None, help="Path to P1.6 eval_coverage_ledger YAML (for P4.5)")
     parser.add_argument("--evidence-root", default=None, help="Directory root for evidence files")
+    parser.add_argument("--review-state", default=None,
+                        help="Optional review-state overlay YAML (Q3: dim_id -> {state, reviewed_by, ...})")
     parser.add_argument("--out", default=None, help="Optional output JSON path")
     parser.add_argument("--grader-mode", default="stub", choices=["stub", "stub-yes", "stub-no"],
                         help="P4.4 grader stub mode (stub=disabled, stub-yes=force pass, stub-no=force fail)")
@@ -618,6 +843,7 @@ def main() -> int:
 
     ledger = _load_yaml(Path(args.ledger)) if args.ledger else None
     evidence_root = Path(args.evidence_root) if args.evidence_root else None
+    review_state_overlay = _load_yaml(Path(args.review_state)) if args.review_state else None
     grader: Callable[[str], bool] | None
     if args.grader_mode == "stub-yes":
         grader = lambda _body: True  # noqa: E731
@@ -626,7 +852,8 @@ def main() -> int:
     else:
         grader = None
 
-    result = score_form(form, ledger=ledger, evidence_root=evidence_root, grader=grader)
+    result = score_form(form, ledger=ledger, evidence_root=evidence_root, grader=grader,
+                        review_state_overlay=review_state_overlay)
     text = json.dumps(result, indent=2, default=str)
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)

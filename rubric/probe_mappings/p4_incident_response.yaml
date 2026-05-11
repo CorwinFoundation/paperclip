@@ -14,7 +14,7 @@
 
 benchmark: p4_incident_response
 version: "0.1.0"
-status: "scaffold — HUW/UW co-design pending; evidence-tier scale per BEAAA-200"
+status: "v0.1-LOCKED 2026-05-11 (HUW BEAAA-213 + UW BEAAA-214); evidence-tier scale per BEAAA-200"
 description: |
   Customer attests IR playbook existence, scope coverage, escalation chain,
   external-notification policy. Evidence: playbook doc, last revision date,

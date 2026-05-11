@@ -24,6 +24,15 @@ sys.path.insert(0, str(REPO))
 from scripts import score_p4_attestation as p4  # noqa: E402
 
 
+CANONICAL_ACCOUNTABILITY = (
+    "I am authorized to make these attestations on behalf of Acme Corp "
+    "as a duly authorized representative, and I understand that BEA will rely "
+    "on them in underwriting and at claim. I confirm that the supporting "
+    "evidence attached is true and complete to the best of my knowledge as of "
+    "2026-05-11T00:00:00Z."
+)
+
+
 def _form(**overrides):
     base = {
         "version": p4.SPEC_VERSION,
@@ -34,9 +43,14 @@ def _form(**overrides):
             "name": "J. Doe",
             "title": "Head of AI",
             "email": "jdoe@example.com",
-            "accountability": p4.ACCOUNTABILITY_LITERAL,
+            "accountability": CANONICAL_ACCOUNTABILITY,
+            "accountability_checked": True,
         },
-        "signature_block": "sha256:deadbeef",
+        "signature_block": {
+            "signature_mode": "pki_escrow_plus_third_party",
+            "signature_sha256": "deadbeef",
+        },
+        "form_variant": "full_v0",
         "dims": {},
     }
     base.update(overrides)
@@ -54,7 +68,24 @@ class FormValidationTests(unittest.TestCase):
         form = _form(dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
         form["attested_by"]["accountability"] = "I agree."
         errors = p4.validate_form(form)
-        self.assertIn("attested_by.accountability missing required literal", errors)
+        self.assertTrue(any("Q1 canonical literal template" in e for e in errors))
+
+    def test_unchecked_accountability_checkbox_rejected(self):
+        form = _form(dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
+        form["attested_by"]["accountability_checked"] = False
+        errors = p4.validate_form(form)
+        self.assertTrue(any("accountability_checked" in e for e in errors))
+
+    def test_accountability_template_matches_with_substituted_placeholders(self):
+        # Different customer + timestamp values still satisfy the regex.
+        text = (
+            "I am authorized to make these attestations on behalf of Globex Pty Ltd "
+            "as a duly authorized representative, and I understand that BEA will rely "
+            "on them in underwriting and at claim. I confirm that the supporting "
+            "evidence attached is true and complete to the best of my knowledge as of "
+            "2026-06-01T12:34:56Z."
+        )
+        self.assertTrue(p4._accountability_text_valid(text))
 
     def test_wrong_spec_version_rejected(self):
         form = _form(version="9.9.9", dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
@@ -499,23 +530,92 @@ class TopLevelAggregationTests(unittest.TestCase):
         self.assertEqual(out["pillar_score"], 0.0)
         self.assertFalse(out["bind_eligible_on_pillar"])
 
-    def test_all_4s_pillar_score_15(self):
-        # Build a form where every dim scores tier 4.
+    def test_all_4s_pillar_score_with_verified_review_state(self):
+        # Build a fully-evidenced form + verified review_state overlay so every dim can reach
+        # its highest evidence tier. Offline P4.1/P4.2 still floor at 3; P4.3-P4.6 hit 4.
         now = dt.date(2026, 5, 11)
-        ledger = {
-            "customer_id": "cust-001",
-            "attested_at": "2026-05-11T00:00:00Z",
-            "families": [
-                {"family_id": f"family_{i}", "probe_count": 50, "last_run_date": "2026-05-01", "pass_rate": 0.9}
-                for i in range(10)
-            ],
-        }
-        divergence = {f"family_{i}": 0.01 for i in range(10)}
-        # P4.1 will stay at 3 in offline mode (no cross-verify evidence file)
-        # P4.2 will stay at 3 in offline mode (no live agent)
-        # P4.3 / P4.4 / P4.6 can hit 4 with right inputs and stub grader.
-        # P4.5 will hit 4 with the ledger + low divergence.
+        form = _all_tier4_form(form_variant="full_v0", signature_mode="pki_escrow_plus_third_party")
+        # P4.5 with auto_rollback regression_escalation is already set in _all_tier4_form
+        form["dims"]["P4_5"]["regression_escalation"] = "auto_rollback"
+        overlay = {dim: {"state": "verified", "verified_by": "scanner_replay", "verified_at": "2026-05-10"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        out = p4.score_form(
+            form,
+            ledger=_full_tier4_ledger(),
+            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+            grader=lambda _b: True,
+            review_state_overlay=overlay,
+            now=now,
+        )
+        # Offline mode: P4.1=3, P4.2=3, P4.3=4, P4.4=4, P4.5=4, P4.6=4 -> mean 3.667 -> 13.75
+        self.assertEqual(out["dims"]["P4.1"]["tier"], 3)
+        self.assertEqual(out["dims"]["P4.2"]["tier"], 3)
+        self.assertEqual(out["dims"]["P4.3"]["tier"], 4)
+        self.assertEqual(out["dims"]["P4.4"]["tier"], 4)
+        self.assertEqual(out["dims"]["P4.5"]["tier"], 4)
+        self.assertEqual(out["dims"]["P4.6"]["tier"], 4)
+        self.assertAlmostEqual(out["pillar_score"], 13.75, places=2)
+        self.assertTrue(out["bind_eligible_on_pillar"])
+
+    def test_pillar_floor_bind_eligibility(self):
+        # Half tier 2, half tier 0 -> mean 1.0 -> pillar 3.75 -> NO BIND
         form = _form(dims={
+            "P4_1": {
+                "logged_surfaces": [
+                    {"surface": s, "logged": True, "retention_days": 90}
+                    for s in ("prompt_in", "model_response", "tool_call", "tool_response")
+                ],
+                "storage_mode": "mutable_with_audit",
+                "tamper_evidence": "none",
+                "evidence": {"retention_policy_doc": "policy.md"},
+            },
+            "P4_2": {},
+            "P4_3": {},
+            "P4_4": {},
+            "P4_5": {},
+            "P4_6": {},
+        })
+        out = p4.score_form(form)
+        self.assertFalse(out["bind_eligible_on_pillar"])
+
+
+# ---------------- YAML schemas load + structure ----------------
+
+class YamlSchemaTests(unittest.TestCase):
+    def test_all_6_yamls_load_and_have_evidence_tiers(self):
+        for dim_id, filename in p4.DIM_TO_YAML.items():
+            path = p4.PROBE_MAPPINGS / filename
+            self.assertTrue(path.exists(), f"missing schema: {filename}")
+            data = yaml.safe_load(path.read_text())
+            self.assertTrue(data["status"].startswith("v0.1-LOCKED"), f"{filename} not v0.1-LOCKED")
+            self.assertIn("evidence_tiers", data, f"{filename} missing evidence_tiers")
+            tiers = data["evidence_tiers"]
+            self.assertEqual(set(tiers.keys()), {0, 1, 2, 3, 4}, f"{filename} tier keys wrong")
+            self.assertIn("cap_rationale", tiers[1], f"{filename} tier 1 missing cap_rationale")
+            probes = data["probes"]
+            self.assertEqual(probes[0]["pillar"], "P4", f"{filename} probe not on P4")
+            self.assertEqual(probes[0]["dim"], dim_id, f"{filename} dim mismatch")
+
+    def test_p4_eval_cadence_carries_regression_escalation(self):
+        data = yaml.safe_load((p4.PROBE_MAPPINGS / "p4_eval_cadence.yaml").read_text())
+        props = data["schema"]["properties"]
+        self.assertIn("regression_escalation", props)
+        self.assertEqual(
+            set(props["regression_escalation"]["enum"]),
+            {"informational", "soft_block", "hard_block", "auto_rollback"},
+        )
+        self.assertIn("regression_escalation_cap", data)
+
+
+# ---------- v0.1-LOCKED test fixtures (full-tier-4 form) ----------
+
+def _all_tier4_form(*, form_variant: str = "full_v0",
+                    signature_mode: str = "pki_escrow_plus_third_party") -> dict:
+    """Build a form where every dim reaches the highest tier it can reach offline."""
+    return _form(
+        form_variant=form_variant,
+        signature_block={"signature_mode": signature_mode, "signature_sha256": "abc"},
+        dims={
             "P4_1": {
                 "logged_surfaces": [
                     {"surface": s, "logged": True, "retention_days": 90}
@@ -559,10 +659,10 @@ class TopLevelAggregationTests(unittest.TestCase):
                     "last_revision_at": "2026-03-01",
                     "last_tabletop_at": "2026-02-01",
                     "tabletop_artifact": "tabletop.md",
-                    "auditor_letter": "auditor.pdf",  # tier 4
+                    "auditor_letter": "auditor.pdf",
                 },
             },
-            "P4_5": {"policy_doc_link": "cadence.md"},
+            "P4_5": {"policy_doc_link": "cadence.md", "regression_escalation": "auto_rollback"},
             "P4_6": {
                 "roles": [{"role_id": rid, "named_person": True}
                           for rid in ("executive_sponsor", "deployment_owner", "model_owner", "on_call_responder", "compliance_owner")],
@@ -571,60 +671,260 @@ class TopLevelAggregationTests(unittest.TestCase):
                 "last_reviewed_at": "2026-04-01",
                 "evidence": {"raci_doc": "raci.md", "review_log": "review.md"},
             },
-        })
-        out = p4.score_form(form, ledger=ledger, ledger_replay_divergence=divergence,
-                            grader=lambda _b: True, now=now)
-        # Offline mode: P4.1=3, P4.2=3, P4.3=4, P4.4=4, P4.5=4, P4.6=4 -> mean 3.667 -> 13.75
-        self.assertEqual(out["dims"]["P4.1"]["tier"], 3)
-        self.assertEqual(out["dims"]["P4.2"]["tier"], 3)
-        self.assertEqual(out["dims"]["P4.3"]["tier"], 4)
-        self.assertEqual(out["dims"]["P4.4"]["tier"], 4)
+        },
+    )
+
+
+def _full_tier4_ledger() -> dict:
+    return {
+        "customer_id": "cust-001",
+        "attested_at": "2026-05-11T00:00:00Z",
+        "families": [
+            {"family_id": f"family_{i}", "probe_count": 50, "last_run_date": "2026-05-01", "pass_rate": 0.9}
+            for i in range(10)
+        ],
+    }
+
+
+# ---------------- Q2 signature_mode tier rejection ----------------
+
+class Q2SignatureModeTests(unittest.TestCase):
+    NOW = dt.date(2026, 5, 11)
+
+    def test_form_with_string_signature_block_rejected_at_validation(self):
+        form = _form(dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
+        form["signature_block"] = "sha256:deadbeef"
+        errors = p4.validate_form(form)
+        self.assertTrue(any("signature_mode" in e for e in errors))
+
+    def test_unknown_signature_mode_rejected_at_validation(self):
+        form = _form(dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
+        form["signature_block"] = {"signature_mode": "blood_oath"}
+        errors = p4.validate_form(form)
+        self.assertTrue(any("signature_block.signature_mode must be one of" in e for e in errors))
+
+    def test_notarized_email_rejects_when_evidence_lands_tier_3(self):
+        form = _all_tier4_form(signature_mode="notarized_email")
+        out = p4.score_form(form, ledger=_full_tier4_ledger(),
+                            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+                            grader=lambda _b: True, now=self.NOW)
+        self.assertTrue(out.get("rejected"))
+        self.assertEqual(out["rejection_reason"]["error"], "signature_mode_insufficient_for_attained_tier")
+        offending = out["rejection_reason"]["offending_dims"]
+        self.assertTrue(any(d["claimed_tier"] >= 3 for d in offending))
+
+    def test_pki_escrow_allows_tier_3_but_not_tier_4(self):
+        form = _all_tier4_form(signature_mode="pki_escrow")
+        # P4.3, P4.4, P4.5, P4.6 land at tier 4 with full evidence + tier4 grader -> reject
+        out = p4.score_form(form, ledger=_full_tier4_ledger(),
+                            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+                            grader=lambda _b: True, now=self.NOW)
+        self.assertTrue(out.get("rejected"))
+
+    def test_pki_escrow_plus_third_party_allows_full_tier_4(self):
+        form = _all_tier4_form(signature_mode="pki_escrow_plus_third_party")
+        out = p4.score_form(form, ledger=_full_tier4_ledger(),
+                            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+                            grader=lambda _b: True, now=self.NOW)
+        self.assertFalse(out.get("rejected"))
+
+    def test_none_signature_rejects_anything_above_tier_0(self):
+        form = _form(form_variant="full_v0",
+                     signature_block={"signature_mode": "none"},
+                     dims={"P4_1": {
+                         "logged_surfaces": [
+                             {"surface": s, "logged": True, "retention_days": 90}
+                             for s in ("prompt_in", "model_response", "tool_call", "tool_response")
+                         ],
+                         "storage_mode": "append_only",
+                         "tamper_evidence": "none",
+                         "evidence": {"retention_policy_doc": "policy.md"},
+                     }, "P4_2": {}, "P4_3": {}, "P4_4": {}, "P4_5": {}, "P4_6": {}})
+        out = p4.score_form(form, now=self.NOW)
+        self.assertTrue(out.get("rejected"))
+
+    def test_raise_on_signature_insufficient_flag(self):
+        form = _all_tier4_form(signature_mode="notarized_email")
+        with self.assertRaises(p4.SignatureModeInsufficient):
+            p4.score_form(form, ledger=_full_tier4_ledger(),
+                          ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+                          grader=lambda _b: True, now=self.NOW,
+                          raise_on_signature_insufficient=True)
+
+
+# ---------------- Q3 review_state machine ----------------
+
+class Q3ReviewStateTests(unittest.TestCase):
+    NOW = dt.date(2026, 5, 11)
+
+    def _full_form(self):
+        return _all_tier4_form()
+
+    def _full_inputs(self):
+        return dict(
+            ledger=_full_tier4_ledger(),
+            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+            grader=lambda _b: True,
+            now=self.NOW,
+        )
+
+    def test_no_overlay_defaults_to_raw_self_report_caps_tier_2(self):
+        out = p4.score_form(self._full_form(), **self._full_inputs())
+        # All dims should be capped at tier 2 by default review_state
+        for dim_id, dim in out["dims"].items():
+            self.assertLessEqual(dim["tier"], 2, f"{dim_id} not capped at tier 2")
+            self.assertTrue(any(ref.get("kind") == "review_state" for ref in dim["evidence_refs"]),
+                            f"{dim_id} missing review_state ref")
+
+    def test_reviewed_overlay_unlocks_tier_3(self):
+        overlay = {dim: {"state": "reviewed", "reviewed_by": "uw_op_1", "reviewed_at": "2026-05-10"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        out = p4.score_form(self._full_form(), review_state_overlay=overlay, **self._full_inputs())
+        # Should now land at tier 3 (since most evidence supports tier 4, signature is PKI+third_party).
+        # Wait — review_state=reviewed caps at 3. So min(evidence_tier, 3).
+        # P4.5 with auto_rollback can reach tier 4 from evidence; capped to 3 by reviewed.
+        for dim_id, dim in out["dims"].items():
+            self.assertLessEqual(dim["tier"], 3, f"{dim_id} not capped at tier 3")
+
+    def test_verified_overlay_unlocks_tier_4(self):
+        overlay = {dim: {"state": "verified", "verified_by": "scanner_replay", "verified_at": "2026-05-10"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        out = p4.score_form(self._full_form(), review_state_overlay=overlay, **self._full_inputs())
+        # Now top-end dims can reach 4
         self.assertEqual(out["dims"]["P4.5"]["tier"], 4)
-        self.assertEqual(out["dims"]["P4.6"]["tier"], 4)
-        # mean = (3+3+4+4+4+4)/6 = 22/6 = 3.6667; pillar = 3.6667/4*15 = 13.75
-        self.assertAlmostEqual(out["pillar_score"], 13.75, places=2)
+
+    def test_rejected_overlay_drops_to_0(self):
+        overlay = {"P4.5": {"state": "rejected", "reject_reason": "fabricated ledger"}}
+        out = p4.score_form(self._full_form(), review_state_overlay=overlay, **self._full_inputs())
+        self.assertEqual(out["dims"]["P4.5"]["tier"], 0)
+        self.assertEqual(out["dims"]["P4.5"]["raw"], 0.0)
+
+    def test_disputed_overlay_does_not_clamp_below_tier_4(self):
+        overlay = {dim: {"state": "disputed", "dispute_payload_ref": "huw_ticket_1"}
+                   for dim in ("P4.5",)}
+        out = p4.score_form(self._full_form(), review_state_overlay=overlay, **self._full_inputs())
+        # disputed = hold; ceiling at 4 (no clamp below evidence)
+        self.assertEqual(out["dims"]["P4.5"]["tier"], 4)
+
+    def test_review_state_metadata_round_trips(self):
+        overlay = {"P4.1": {
+            "state": "reviewed",
+            "reviewed_by": "uw_op_42",
+            "reviewed_at": "2026-05-10T12:00:00Z",
+            "verified_by": None,
+        }}
+        out = p4.score_form(self._full_form(), review_state_overlay=overlay, **self._full_inputs())
+        refs = out["dims"]["P4.1"]["evidence_refs"]
+        rs_ref = next(r for r in refs if r["kind"] == "review_state")
+        self.assertEqual(rs_ref["value"]["reviewed_by"], "uw_op_42")
+        self.assertEqual(rs_ref["value"]["state"], "reviewed")
+
+
+# ---------------- Q4 material_change_log envelope ----------------
+
+class Q4MaterialChangeLogTests(unittest.TestCase):
+    NOW = dt.date(2026, 5, 11)
+
+    def test_material_change_log_round_trips(self):
+        form = _form(
+            form_variant="short_v0",
+            signature_block={"signature_mode": "notarized_email"},
+            material_change_log=[
+                {"trigger_kind": "base_model_swap", "fired_at": "2026-04-15",
+                 "prior_attestation_id": "att-001", "narrative": "Moved from Claude 3 to Claude 4."},
+            ],
+            dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML},
+        )
+        out = p4.score_form(form, now=self.NOW)
+        self.assertEqual(len(out["material_change_log"]), 1)
+        self.assertEqual(out["material_change_log"][0]["trigger_kind"], "base_model_swap")
+
+
+# ---------------- Q5 form_variant cap ----------------
+
+class Q5FormVariantTests(unittest.TestCase):
+    NOW = dt.date(2026, 5, 11)
+
+    def _inputs(self):
+        return dict(
+            ledger=_full_tier4_ledger(),
+            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+            grader=lambda _b: True,
+            now=self.NOW,
+        )
+
+    def test_short_v0_caps_every_dim_at_tier_2(self):
+        # Use verified review_state so review_state doesn't cap, only form_variant does.
+        overlay = {dim: {"state": "verified", "verified_by": "scanner_replay"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        form = _all_tier4_form(form_variant="short_v0", signature_mode="notarized_email")
+        out = p4.score_form(form, review_state_overlay=overlay, **self._inputs())
+        self.assertFalse(out.get("rejected"))
+        for dim_id, dim in out["dims"].items():
+            self.assertEqual(dim["tier"], 2, f"{dim_id} not capped at tier 2 by short_v0")
+
+    def test_short_v0_bronze_pillar_score_exactly_floor(self):
+        overlay = {dim: {"state": "verified", "verified_by": "scanner_replay"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        form = _all_tier4_form(form_variant="short_v0", signature_mode="notarized_email")
+        out = p4.score_form(form, review_state_overlay=overlay, **self._inputs())
+        # Bronze short-form full = mean(2,2,2,2,2,2)/4*15 = 7.5 = pillar floor (binds)
+        self.assertEqual(out["pillar_score"], 7.5)
         self.assertTrue(out["bind_eligible_on_pillar"])
 
-    def test_pillar_floor_bind_eligibility(self):
-        # Half tier 2, half tier 0 -> mean 1.0 -> pillar 3.75 -> NO BIND
-        form = _form(dims={
-            "P4_1": {
-                "logged_surfaces": [
-                    {"surface": s, "logged": True, "retention_days": 90}
-                    for s in ("prompt_in", "model_response", "tool_call", "tool_response")
-                ],
-                "storage_mode": "mutable_with_audit",
-                "tamper_evidence": "none",
-                "evidence": {"retention_policy_doc": "policy.md"},
-            },
-            "P4_2": {},
-            "P4_3": {},
-            "P4_4": {},
-            "P4_5": {},
-            "P4_6": {},
-        })
-        out = p4.score_form(form)
-        self.assertFalse(out["bind_eligible_on_pillar"])
+    def test_full_v0_does_not_cap(self):
+        overlay = {dim: {"state": "verified", "verified_by": "scanner_replay"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        form = _all_tier4_form(form_variant="full_v0", signature_mode="pki_escrow_plus_third_party")
+        out = p4.score_form(form, review_state_overlay=overlay, **self._inputs())
+        # P4.5 should reach tier 4
+        self.assertEqual(out["dims"]["P4.5"]["tier"], 4)
 
 
-# ---------------- YAML schemas load + structure ----------------
+# ---------------- Q6 regression_escalation cap ----------------
 
-class YamlSchemaTests(unittest.TestCase):
-    def test_all_6_yamls_load_and_have_evidence_tiers(self):
-        for dim_id, filename in p4.DIM_TO_YAML.items():
-            path = p4.PROBE_MAPPINGS / filename
-            self.assertTrue(path.exists(), f"missing schema: {filename}")
-            data = yaml.safe_load(path.read_text())
-            self.assertEqual(data["status"][:8], "scaffold", f"{filename} not scaffold-tagged")
-            self.assertIn("evidence_tiers", data, f"{filename} missing evidence_tiers")
-            tiers = data["evidence_tiers"]
-            self.assertEqual(set(tiers.keys()), {0, 1, 2, 3, 4}, f"{filename} tier keys wrong")
-            # Tier 1 must have tamper-resistance cap rationale
-            self.assertIn("cap_rationale", tiers[1], f"{filename} tier 1 missing cap_rationale")
-            # Each must have a probes entry mapping to its pillar/dim
-            probes = data["probes"]
-            self.assertEqual(probes[0]["pillar"], "P4", f"{filename} probe not on P4")
-            self.assertEqual(probes[0]["dim"], dim_id, f"{filename} dim mismatch")
+class Q6RegressionEscalationTests(unittest.TestCase):
+    NOW = dt.date(2026, 5, 11)
+
+    def _base_ledger_tier_4_inputs(self):
+        return dict(
+            ledger=_full_tier4_ledger(),
+            ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+        )
+
+    def test_informational_caps_p4_5_at_raw_2(self):
+        r = p4._score_p4_5({"policy_doc_link": "p.md", "regression_escalation": "informational"},
+                           now=self.NOW, **self._base_ledger_tier_4_inputs())
+        self.assertEqual(r.tier, 2)
+        self.assertIn("informational", (r.cap_applied or ""))
+
+    def test_soft_block_caps_p4_5_at_raw_3(self):
+        r = p4._score_p4_5({"policy_doc_link": "p.md", "regression_escalation": "soft_block"},
+                           now=self.NOW, **self._base_ledger_tier_4_inputs())
+        self.assertEqual(r.tier, 3)
+        self.assertIn("soft_block", (r.cap_applied or ""))
+
+    def test_hard_block_allows_raw_4(self):
+        r = p4._score_p4_5({"policy_doc_link": "p.md", "regression_escalation": "hard_block"},
+                           now=self.NOW, **self._base_ledger_tier_4_inputs())
+        self.assertEqual(r.tier, 4)
+
+    def test_auto_rollback_allows_raw_4(self):
+        r = p4._score_p4_5({"policy_doc_link": "p.md", "regression_escalation": "auto_rollback"},
+                           now=self.NOW, **self._base_ledger_tier_4_inputs())
+        self.assertEqual(r.tier, 4)
+
+    def test_invalid_regression_escalation_logged_in_notes(self):
+        r = p4._score_p4_5({"policy_doc_link": "p.md", "regression_escalation": "panic_button"},
+                           now=self.NOW, **self._base_ledger_tier_4_inputs())
+        self.assertTrue(any("regression_escalation_invalid_value" in n for n in r.notes))
+
+    def test_regression_cap_does_not_lift_below_ladder(self):
+        # ladder lands at tier 1 (ledger present but no policy doc) -> hard_block can't lift it
+        ledger = _full_tier4_ledger()
+        r = p4._score_p4_5({"regression_escalation": "hard_block"},
+                           ledger=ledger, now=self.NOW)
+        self.assertEqual(r.tier, 1)
 
 
 if __name__ == "__main__":

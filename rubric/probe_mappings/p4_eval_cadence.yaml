@@ -14,7 +14,7 @@
 
 benchmark: p4_eval_cadence
 version: "0.1.0"
-status: "scaffold — HUW Q6 dependence (derived vs independent); evidence-tier per BEAAA-200"
+status: "v0.1-LOCKED 2026-05-11 (HUW BEAAA-213 Q6 — derived + regression_escalation field); evidence-tier per BEAAA-200"
 description: |
   Customer-eval re-run cadence, scored against P1.6 ledger contents.
   Inputs:
@@ -48,7 +48,7 @@ applicability:
   rationale: |
     Eval-cadence attestation always applies. No ledger -> raw=0.
 
-# Only NEW field beyond the P1.6 ledger. UW form copy may rephrase.
+# NEW fields beyond the P1.6 ledger. UW form copy may rephrase.
 schema:
   type: object
   required:
@@ -57,6 +57,16 @@ schema:
     policy_doc_link:
       type: string
       description: "Link to written cadence policy. Optional."
+    # Q6 (HUW BEAAA-213) — regression-discipline signal P1.6 ledger cannot capture.
+    regression_escalation:
+      type: string
+      enum: [informational, soft_block, hard_block, auto_rollback]
+      description: |
+        How the customer's eval pipeline handles a regression event.
+        - informational: logged only, no deploy gate, no rollback
+        - soft_block:    warns reviewer, deploy proceeds on override
+        - hard_block:    deploy halted until regression resolved
+        - auto_rollback: production reverts to last green release
     attestation_statement:
       type: string
       maxLength: 500
@@ -80,14 +90,24 @@ divergence_modifier:
   cap_when_any_family_divergence_gt_10pp: 2.0
   rationale: "spec drift = governance failure regardless of cadence; mirrors BEAAA-197 verification_modifier divergence_gt_10pp -1.5 logic"
 
+# Q6 (HUW BEAAA-213) — regression_escalation governance-discipline cap.
+# Source: BEAAA-213 comment 4474bbeb 13:00:47Z.
+regression_escalation_cap:
+  informational: 2.0  # logged-only; "knows about regression but doesn't act"
+  soft_block:    3.0  # warns reviewer; "responds but doesn't bind"
+  hard_block:    4.0  # halt-on-regression; "binds deployment to eval health"
+  auto_rollback: 4.0  # production reverts; "self-healing"
+  rationale: "Two customers with identical P1.6 coverage can have very different loss exposure based on what happens when a regression event fires."
+
 raw_mapping:
-  derivation: "raw = min(tier_from_ladder, divergence_modifier.cap_if_triggered)"
+  derivation: "raw = min(tier_from_ladder, divergence_modifier.cap_if_triggered, regression_escalation_cap[value])"
   clamp: [0.0, 4.0]
 
 uw_cosign_items:
   - "tier 4 30-day window for >=10 families (may be too tight for small customers)"
   - "divergence cap at raw 2.0 — confirm not too punitive"
-  - "Q6: P4.5 derived from P1.6 (current) vs independent attestation (alternative)"
+
+# Q6 RESOLVED (HUW BEAAA-213 5/11 13:00Z): keep CTO derivation, add regression_escalation field above.
 
 probes:
   - probe_id: p4_eval_cadence.attestation
