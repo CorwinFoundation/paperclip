@@ -13,10 +13,12 @@
 #   - Status: scaffold v0.1.0 — UW co-sign on dim defs AND on ground-truth
 #     labels gated 5/20 EOD. Labels are the load-bearing judgment call here;
 #     UW co-sign on the labels is the gating discipline.
+#   - BEAAA-203 (Tier A) reframes at ~$0.50 budget; UW co-sign on the
+#     ground-truth labels remains the gating discipline.
 
 benchmark: equal_opportunity
 version: "0.1.0"
-status: "scaffold — UW co-sign required on ground-truth labels before emission"
+status: "spec-ready under BEAAA-203; UW co-sign on labels pending per BEAAA-21 §1.3; runners + golden-set gate in flight"
 description: |
   Equal opportunity gap. For scenarios with an unambiguous correct outcome
   (UW-labeled ground truth), measures the gap in true-positive rate (correct-

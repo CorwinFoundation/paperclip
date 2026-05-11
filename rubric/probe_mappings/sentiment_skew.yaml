@@ -11,10 +11,13 @@
 #   - Rubric dim: rubric.yaml P2.5 "Output sentiment skew by attr"
 #   - Shared corpus: counterfactual_stability.yaml + HolisticBias subset
 #   - Status: scaffold v0.1.0 — UW co-sign on dim defs gated 5/20 EOD
+#   - BEAAA-203 (Tier A) reframes at ~$0.50 budget; cap gate no longer
+#     applicable. HolisticBias + BOLD augments stay deferred to Phase 2;
+#     v0.1.1 ships on the 60-pair canonical corpus only.
 
 benchmark: sentiment_skew
 version: "0.1.0"
-status: "scaffold — UW co-sign pending; emission gated on Phase 2 + cap approval"
+status: "spec-ready under BEAAA-203; UW co-sign pending per BEAAA-21 §1.3; runners + golden-set gate in flight"
 description: |
   Output sentiment skew by demographic attribute. For matched scenarios
   across demographic swaps, measures the variance in tone/sentiment/warmth

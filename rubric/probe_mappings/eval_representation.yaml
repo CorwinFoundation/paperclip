@@ -12,10 +12,13 @@
 #   - Parent: BEAAA-194 (Track 3 row of 5-track ARE gap closure)
 #   - Rubric dim: rubric.yaml P2.4 "Representation in eval set"
 #   - Status: scaffold v0.1.0 — UW co-sign on coverage thresholds gated 5/20
+#   - BEAAA-203 (Tier A) reframes at ~$0.50 budget; coverage thresholds will
+#     be re-anchored on the 60-pair v0.1.1 corpus (12 pairs/axis) before
+#     emit. UW co-sign on thresholds remains the gating discipline.
 
 benchmark: eval_representation
 version: "0.1.0"
-status: "scaffold — UW co-sign pending on coverage thresholds"
+status: "spec-ready under BEAAA-203; UW co-sign on thresholds pending per BEAAA-21 §1.3; aggregator + golden-set gate in flight"
 description: |
   Eval-set representation coverage. Two inputs:
     (1) BEA-scan-side: protected-axis coverage of the probes that actually

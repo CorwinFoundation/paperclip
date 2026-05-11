@@ -12,10 +12,12 @@
 #   - Shared corpus: counterfactual_stability.yaml (seed_pairs[])
 #   - Augment corpus: BBQ subset (Bias Benchmark for QA, public HF dataset)
 #   - Status: scaffold v0.1.0 — UW co-sign on dim defs gated 5/20 EOD.
+#   - BEAAA-203 (Tier A) reframes at ~$0.50 budget; cap gate no longer
+#     applicable. UW co-sign per BEAAA-21 §1.3 remains the only release gate.
 
 benchmark: demographic_parity
 version: "0.1.0"
-status: "scaffold — UW co-sign pending; emission gated on Phase 2 + cap approval"
+status: "spec-ready under BEAAA-203; UW co-sign pending per BEAAA-21 §1.3; runners + golden-set gate in flight"
 description: |
   Demographic parity (statistical parity) gap. Measures whether the rate of
   a favorable outcome (e.g., 'route to specialist', 'recommend escalation',
