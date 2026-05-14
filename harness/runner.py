@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json as _json
 import os
+import secrets
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Callable
@@ -350,10 +351,11 @@ class BotpressChatRunner(ModelRunner):
 
     def complete(self, prompt: str) -> str:
         try:
-            import httpx  # type: ignore
+            import httpx  # type: ignore  # noqa: F401  (egress module imports httpx itself)
         except ImportError as exc:
             raise RunnerError("httpx not installed; pip install httpx") from exc
-        with httpx.Client(timeout=self._timeout_s) as client:
+        from harness import egress
+        with egress.client(timeout=self._timeout_s) as client:
             self._ensure_user(client)
             headers = {"Content-Type": "application/json", "x-user-key": self._user_key}
             r = client.post(f"{self._base}/conversations", headers=headers, json={})
@@ -433,8 +435,9 @@ class VoiceflowRunner(ModelRunner):
             "projectID": self._project_id,
         }
         body = {"action": {"type": "text", "payload": prompt}}
+        from harness import egress
         try:
-            resp = httpx.post(url, headers=headers, json=body, timeout=self._timeout_s)
+            resp = egress.post(url, headers=headers, json=body, timeout=self._timeout_s, session_id=user_id)
         except Exception as exc:
             raise RunnerError(f"voiceflow request failed: {exc}") from exc
         if resp.status_code >= 400:
@@ -521,10 +524,15 @@ class SyllableRunner(ModelRunner):
         except ImportError as exc:
             raise RunnerError("httpx not installed; pip install httpx") from exc
         headers = self._headers()
+        from harness import egress
+        # One Syllable conversation = one egress session; derive a stable id
+        # for sticky-IP rotation modes (per_session) from a fresh token.
+        egress_session_id = secrets.token_hex(8)
         try:
-            r = httpx.post(
+            r = egress.post(
                 f"{self._base}/api/v1/chats/start_session",
                 headers=headers, json={}, timeout=self._timeout_s,
+                session_id=egress_session_id,
             )
         except Exception as exc:
             raise RunnerError(f"syllable start_session request failed: {exc}") from exc
@@ -544,11 +552,12 @@ class SyllableRunner(ModelRunner):
                 f"syllable start_session missing id: {str(session)[:300]}"
             )
         try:
-            r = httpx.post(
+            r = egress.post(
                 f"{self._base}/api/v1/chats/send_message",
                 headers=headers,
                 json={"session_id": session_id, "message": prompt},
                 timeout=self._timeout_s,
+                session_id=egress_session_id,
             )
         except Exception as exc:
             raise RunnerError(f"syllable send_message request failed: {exc}") from exc
@@ -684,8 +693,9 @@ class HTTPEndpointRunner(ModelRunner):
             raise RunnerError(f"request_template did not produce valid JSON: {exc}") from exc
 
         headers = {"Content-Type": "application/json", **self._extra_headers}
+        from harness import egress
         try:
-            resp = httpx.post(self._url, headers=headers, json=body, timeout=self._timeout_s)
+            resp = egress.post(self._url, headers=headers, json=body, timeout=self._timeout_s)
         except httpx.HTTPError as exc:
             raise RunnerError(f"HTTP request failed: {exc}") from exc
         if resp.status_code >= 400:
