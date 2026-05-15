@@ -1,0 +1,36 @@
+{
+  "issue": "BEAAA-334",
+  "started_at": "2026-05-14T20:15:41.449575+00:00",
+  "proxy_enabled": false,
+  "proxy_rotate": "",
+  "ac_threshold_lift": "2/3 walls must NOT be walled with proxy ON",
+  "results": [
+    {
+      "wall": "bland",
+      "family": "cloud-IP edge refusal (Tier 1)",
+      "url": "https://api.bland.ai/v1/me",
+      "status": 403,
+      "elapsed_ms": 403.0,
+      "body_excerpt": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Error B-1 - Access Denied</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            line-height: 1.6;\n            ",
+      "walled": true,
+      "wall_indicator": "status==403",
+      "error": null
+    },
+    {
+      "wall": "casetext",
+      "family": "cloud-IP edge refusal (Tier 1)",
+      "url": "https://www.casetext.com/",
+      "status": 403,
+      "elapsed_ms": 107.2,
+      "body_excerpt": "<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</title><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=Edge\"><meta name=\"robots\" content=\"noindex,nofollow\"><meta name=\"viewport\" content=\"width=device-width,initial-scal",
+      "walled": true,
+      "wall_indicator": "status==403",
+      "error": null
+    }
+  ],
+  "walled_count": 2,
+  "not_walled_count": 0,
+  "lift": "0/2",
+  "passes_ac": false,
+  "finished_at": "2026-05-14T20:15:41.960454+00:00"
+}
