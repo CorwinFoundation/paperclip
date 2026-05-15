@@ -261,6 +261,106 @@ def probe_chatlab_loop(n_sessions: int = 50, pacing_s: float = 2.0, timeout: flo
     }
 
 
+def _fmt_ms(v: float | int | None) -> str:
+    return f"{v} ms" if v is not None else "—"
+
+
+def _result_by_wall(record: dict) -> dict[str, dict]:
+    return {r["wall"]: r for r in record.get("results", [])}
+
+
+def render_compare_markdown(baseline: dict, proxied: dict) -> str:
+    """Render an AC #4-ready markdown comparison between a baseline (proxy OFF)
+    run and a proxied (proxy ON) run. Wall-by-wall lift + latency delta.
+
+    Vendor cost / ToS / recommendation are placeholder sections — fill in by
+    hand from the actual signup before posting the POC report.
+    """
+    bs = _result_by_wall(baseline)
+    ps = _result_by_wall(proxied)
+    walls = ["bland", "casetext", "chatlab"]
+    lines: list[str] = []
+    lines.append("## BEAAA-334 — Residential-proxy POC report (AC #4)")
+    lines.append("")
+    lines.append(f"- baseline_run: started {baseline.get('started_at')}, "
+                 f"lift `{baseline.get('lift','?')}`, proxy_enabled={baseline.get('proxy_enabled')}")
+    lines.append(f"- proxied_run: started {proxied.get('started_at')}, "
+                 f"lift `{proxied.get('lift','?')}`, proxy_enabled={proxied.get('proxy_enabled')}, "
+                 f"passes_ac={proxied.get('passes_ac')}")
+    lines.append("")
+    lines.append("### Per-wall comparison")
+    lines.append("")
+    lines.append("| Wall | Family | Baseline | Proxied | Lift | Latency (B → P) |")
+    lines.append("|---|---|---|---|---|---|")
+    for w in walls:
+        b = bs.get(w)
+        p = ps.get(w)
+        if not b and not p:
+            continue
+        family = (b or p).get("family", "—")
+        b_state = ("walled" if b and b.get("walled") else
+                   ("NOT walled" if b else "—"))
+        p_state = ("walled" if p and p.get("walled") else
+                   ("NOT walled" if p else "—"))
+        lift_state = (
+            "yes" if (b and b.get("walled") and p and not p.get("walled"))
+            else ("no — still walled" if (p and p.get("walled"))
+                  else ("not measurable — baseline not walled" if (b and not b.get("walled"))
+                        else "—"))
+        )
+        if w == "chatlab":
+            # ChatLab metric is empty_rate, not elapsed_ms (loop, not single call).
+            b_metric = (f"empty_rate={b.get('empty_rate')}, refused={b.get('refused_count','?')}"
+                        if b else "—")
+            p_metric = (f"empty_rate={p.get('empty_rate')}, refused={p.get('refused_count','?')}"
+                        if p else "—")
+            lat_cell = f"{b_metric} → {p_metric}"
+        else:
+            lat_cell = f"{_fmt_ms(b.get('elapsed_ms') if b else None)} → {_fmt_ms(p.get('elapsed_ms') if p else None)}"
+        lines.append(f"| `{w}` | {family} | {b_state} | {p_state} | {lift_state} | {lat_cell} |")
+    lines.append("")
+    lines.append(f"**Headline lift:** {proxied.get('lift','?')} walls cleared with proxy ON "
+                 f"(AC #3 gate: ≥ 2/3). **`passes_ac = {proxied.get('passes_ac')}`**")
+    lines.append("")
+    lines.append("### Vendor cost (fill in from signup)")
+    lines.append("")
+    lines.append("- Vendor: _Decodo (Smartproxy) — primary pick per BLUF_")
+    lines.append("- Plan: _PAYG, $X/GB at signup tier_")
+    lines.append("- Spend to gate-clear: _$X.XX out of $200 POC cap_")
+    lines.append("- Projected ongoing if approved: _$X/mo at expected scan volume_")
+    lines.append("")
+    lines.append("### Latency overhead (computed from baseline / proxied elapsed_ms above)")
+    lines.append("")
+    bland_b = bs.get("bland", {}).get("elapsed_ms")
+    bland_p = ps.get("bland", {}).get("elapsed_ms")
+    cs_b = bs.get("casetext", {}).get("elapsed_ms")
+    cs_p = ps.get("casetext", {}).get("elapsed_ms")
+    if bland_b and bland_p:
+        lines.append(f"- Bland.ai overhead: +{round(bland_p - bland_b, 1)} ms "
+                     f"({round((bland_p / bland_b - 1) * 100, 1)}%)")
+    if cs_b and cs_p:
+        lines.append(f"- Casetext overhead: +{round(cs_p - cs_b, 1)} ms "
+                     f"({round((cs_p / cs_b - 1) * 100, 1)}%)")
+    lines.append("")
+    lines.append("### ToS posture (fill in from vendor AUP read at signup)")
+    lines.append("")
+    lines.append("- AUP excerpt covering QA / security-testing usage: _quote here_")
+    lines.append("- Counsel-glance via BEAAA-10: _outcome / pending_")
+    lines.append("- Carve-outs or explicit forbids: _none observed | list_")
+    lines.append("")
+    lines.append("### Recommendation")
+    lines.append("")
+    lines.append("- **Keep / Discard:** _fill in_")
+    lines.append("- **Rollback posture:** `BEAAA_RESI_PROXY_URL` unset = default OFF; "
+                 "no calibration or runtime impact when disabled.")
+    lines.append("- **Reproducibility band re-verification (AC #5):** "
+                 "_attach N=5 golden-set delta against pre-proxy baseline; "
+                 "if any golden moves > 1 ARE point, release blocks per cto-os.md._")
+    lines.append("")
+    lines.append("— CTO (88e68019)")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="BEAAA-334 3-wall regression probe")
     parser.add_argument("--out", default="/tmp/beaaa334_walls.json",
@@ -271,6 +371,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="Seconds between ChatLab sessions (default 2.0 per AC)")
     parser.add_argument("--skip-chatlab", action="store_true",
                         help="Skip the ChatLab session loop (faster smoke run)")
+    parser.add_argument("--compare-baseline", default=None,
+                        help="Path to a prior --out JSON (proxy OFF). Emits an AC #4 "
+                             "report-ready markdown comparison.")
+    parser.add_argument("--report-md", default=None,
+                        help="Path for the markdown POC report. Defaults to --out path "
+                             "with `_report.md` suffix when --compare-baseline is set.")
     args = parser.parse_args(argv)
 
     out_path = Path(args.out)
@@ -331,6 +437,13 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n  lift = {record['lift']} | proxy_enabled={record['proxy_enabled']}"
           f" | passes_ac={record['passes_ac']}", flush=True)
     print(f"  wrote {out_path}", flush=True)
+
+    if args.compare_baseline:
+        baseline = json.loads(Path(args.compare_baseline).read_text())
+        report_md_path = Path(args.report_md) if args.report_md else out_path.with_suffix(".report.md")
+        report_md_path.write_text(render_compare_markdown(baseline, record))
+        print(f"  wrote {report_md_path}", flush=True)
+
     return 0
 
 
