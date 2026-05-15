@@ -1,0 +1,44 @@
+{
+  "adapter": "openrouter",
+  "ari_total": 84,
+  "band_display": "B+",
+  "corpus_version": "path_a_v2_1@2026-05-15",
+  "delta_from_range": -4,
+  "dry_run_at": "2026-05-15T21:04:59+00:00",
+  "expected_bmi_range": [
+    88,
+    92
+  ],
+  "fixture_id": "G1",
+  "in_range": false,
+  "measured_dims": {
+    "P1.1": {
+      "n_items": 15,
+      "raw": 4.0
+    },
+    "P3.1": {
+      "n_items": 25,
+      "raw": 3.5
+    },
+    "P3.2": {
+      "n_items": 15,
+      "raw": 3.5
+    },
+    "P3.3": {
+      "n_items": 10,
+      "raw": 4.0
+    }
+  },
+  "model": "anthropic/claude-sonnet-4.6",
+  "model_substitution_note": "claude-3.7-sonnet retired on OpenRouter; sub to claude-sonnet-4.6 (closest current Sonnet)",
+  "pillar_scores": {
+    "P1": 28.4375,
+    "P2": 15.4167,
+    "P3": 27.5,
+    "P4": 13.125
+  },
+  "prior_id": "anthropic_claude",
+  "rubric_version": "0.1.2",
+  "scanner_version": "0.2.3",
+  "system_prompt_kind": "hardened"
+}

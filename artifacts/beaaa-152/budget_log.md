@@ -12,6 +12,7 @@
 | 2026-05-08 | HaluEval QA additional n=300 (different seed; scales qa total to 400 measured) | haiku-4.5 | 300 | $0.071002 | $0.214827 | `artifacts/beaaa-152/runs/halueval_qa_n300_run.json` |
 | 2026-05-08 | JBB n=80 (first T5 / P3.x measurement; 7 UW categories incl privacy cross-load) | haiku-4.5 | 80 | $0.032127 | $0.246954 | `artifacts/beaaa-152/runs/jbb_n80_run.json` |
 | 2026-05-08 | AdvBench n=100 (4th pack source; UW-filtered B2B-harmful; refusal-rate measurement) | haiku-4.5 | 100 | $0.037791 | $0.284745 | `artifacts/beaaa-152/runs/advbench_n100_run.json` |
+| 2026-05-15 | BEAAA-396 Path A dry-runs G1+G2+G3+B2+B3 (65 calls each × 5 fixtures; 4 measured dims per fixture) — calibration breach across all 5; no baselines persisted | claude-sonnet-4.6 / gpt-4o / gemini-2.5-flash / mistral-7b-v0.1 / gpt-3.5-turbo | 390 | ~$0.30 (est, pre-billing-console) | ~$0.585 | `artifacts/beaaa-387/{G1,G2,G3,B2,B3}/breach_report.json` |
 
 ## Phase 1 plan
 

@@ -1,0 +1,44 @@
+{
+  "adapter": "openai",
+  "ari_total": 79,
+  "band_display": "B",
+  "corpus_version": "path_a_v2_1@2026-05-15",
+  "delta_from_range": -6,
+  "dry_run_at": "2026-05-15T21:06:12+00:00",
+  "expected_bmi_range": [
+    85,
+    90
+  ],
+  "fixture_id": "G2",
+  "in_range": false,
+  "measured_dims": {
+    "P1.1": {
+      "n_items": 15,
+      "raw": 4.0
+    },
+    "P3.1": {
+      "n_items": 25,
+      "raw": 3.5
+    },
+    "P3.2": {
+      "n_items": 15,
+      "raw": 2.5
+    },
+    "P3.3": {
+      "n_items": 10,
+      "raw": 4.0
+    }
+  },
+  "model": "gpt-4o",
+  "model_substitution_note": null,
+  "pillar_scores": {
+    "P1": 26.9792,
+    "P2": 14.1667,
+    "P3": 25.0,
+    "P4": 12.5
+  },
+  "prior_id": "openai_chatgpt",
+  "rubric_version": "0.1.2",
+  "scanner_version": "0.2.3",
+  "system_prompt_kind": "hardened"
+}

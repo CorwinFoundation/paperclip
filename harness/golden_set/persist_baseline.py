@@ -99,6 +99,95 @@ def persist_from_locked_fixture(fixture_id: str) -> dict[str, Any]:
     return sidecar
 
 
+def persist_from_live_path_a(
+    fixture_id: str,
+    *,
+    eval_outputs: dict[str, Any],
+    model_versions: dict[str, str],
+    corpus_version: str,
+    seed: int,
+    system_prompt_sha256: str | None = None,
+    expected_bmi_range: tuple[int, int] | list[int] | None = None,
+    sdk_versions: dict[str, str] | None = None,
+    seed_accepted: bool = True,
+    source_artifact: str | None = None,
+    internal_only: bool = False,
+) -> dict[str, Any]:
+    """Live-Path-A baseline persistence.
+
+    Scores `eval_outputs` produced from a fresh live-API probe run (4 measured
+    dims + 17 prior-derived) under v0.2.3, asserts the ARE total falls inside
+    `expected_bmi_range` (else raises — calibration breach), and writes the
+    full set of fixture-promotion artifacts:
+
+      - artifacts/beaaa-387/{fid}/baseline.json
+      - artifacts/beaaa-387/{fid}/baseline_metadata.json
+      - artifacts/beaaa-387/{fid}/eval_outputs.json    (copy for traceability)
+      - tests/fixtures/golden_agents/{fid}/eval_outputs.json
+      - tests/fixtures/golden_agents/{fid}/expected_score.json
+
+    Caller is responsible for the agent.json flip (status -> live) — that
+    sequencing is intentional so a failed run does not half-promote the
+    fixture.
+    """
+    fdir = FIXTURES / fixture_id
+    agent = _load_json(fdir / "agent.json")
+
+    rubric = Rubric.load(RUBRIC_PATH)
+    actual = score(
+        rubric, eval_outputs,
+        snapshot_hash=DETERMINISTIC_SNAPSHOT_HASH,
+        forensic_bundle_uri=f"https://golden.local/{fixture_id}",
+        scored_at=DETERMINISTIC_SCORED_AT,
+        scanner_version=None,  # fall through to scanners.SCANNER_VERSION (0.2.3)
+        corpus_version=corpus_version,
+        seed=seed,
+        model_versions=model_versions,
+    )
+
+    if expected_bmi_range is not None:
+        lo, hi = int(expected_bmi_range[0]), int(expected_bmi_range[1])
+        if not (lo <= actual["bmi"] <= hi):
+            raise RuntimeError(
+                f"{fixture_id}: calibration breach — ARE total {actual['bmi']} "
+                f"outside expected_bmi_range [{lo}, {hi}]. Supreme Law: pause + "
+                "co-sign with Underwriter before persisting."
+            )
+
+    out_dir = BASELINES / fixture_id
+    _write_json(out_dir / "baseline.json", actual)
+    _write_json(out_dir / "eval_outputs.json", eval_outputs)
+
+    # File eval_outputs.json + expected_score.json into the fixture dir so the
+    # L1 deterministic gate (tests.test_golden_agents) picks up the promotion.
+    _write_json(fdir / "eval_outputs.json", eval_outputs)
+    _write_json(fdir / "expected_score.json", actual)
+
+    sidecar = {
+        "fixture_id": fixture_id,
+        "lock_source": "live_path_a",
+        "locked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "scanner_version": actual.get("scanner_version"),
+        "rubric_version": actual.get("rubric_version"),
+        "corpus_version": actual.get("corpus_version", corpus_version),
+        "seed": actual.get("seed"),
+        "seed_accepted_by_vendor": seed_accepted,
+        "model_versions": dict(model_versions),
+        "sdk_versions": dict(sdk_versions or {}),
+        "ari_total": actual["bmi"],
+        "band_display": actual["band"]["display"],
+        "expected_bmi_range": list(expected_bmi_range) if expected_bmi_range else None,
+        "agent_metadata": agent,
+        "source_artifact": source_artifact,
+    }
+    if system_prompt_sha256:
+        sidecar["system_prompt_sha256"] = system_prompt_sha256
+    if internal_only:
+        sidecar["internal_only"] = True
+    _write_json(out_dir / "baseline_metadata.json", sidecar)
+    return sidecar
+
+
 def update_manifest(entries: dict[str, dict[str, Any]]) -> Path:
     """Merge new baseline-state entries into artifacts/beaaa-387/manifest.json.
 

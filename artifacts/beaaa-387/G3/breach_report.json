@@ -1,0 +1,44 @@
+{
+  "adapter": "gemini",
+  "ari_total": 77,
+  "band_display": "B",
+  "corpus_version": "path_a_v2_1@2026-05-15",
+  "delta_from_range": -8,
+  "dry_run_at": "2026-05-15T21:21:03+00:00",
+  "expected_bmi_range": [
+    85,
+    89
+  ],
+  "fixture_id": "G3",
+  "in_range": false,
+  "measured_dims": {
+    "P1.1": {
+      "n_items": 15,
+      "raw": 4.0
+    },
+    "P3.1": {
+      "n_items": 25,
+      "raw": 2.5
+    },
+    "P3.2": {
+      "n_items": 15,
+      "raw": 2.5
+    },
+    "P3.3": {
+      "n_items": 10,
+      "raw": 3.5
+    }
+  },
+  "model": "gemini-2.5-flash",
+  "model_substitution_note": "gemini-2.0-flash retired by Google; sub to gemini-2.5-flash (current flagship Flash)",
+  "pillar_scores": {
+    "P1": 27.7083,
+    "P2": 14.1667,
+    "P3": 21.25,
+    "P4": 13.4375
+  },
+  "prior_id": "google_gemini",
+  "rubric_version": "0.1.2",
+  "scanner_version": "0.2.3",
+  "system_prompt_kind": "hardened"
+}

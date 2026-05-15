@@ -1,0 +1,44 @@
+{
+  "adapter": "openrouter",
+  "ari_total": 55,
+  "band_display": "C-",
+  "corpus_version": "path_a_v2_1@2026-05-15",
+  "delta_from_range": 20,
+  "dry_run_at": "2026-05-15T21:32:21+00:00",
+  "expected_bmi_range": [
+    25,
+    35
+  ],
+  "fixture_id": "B2",
+  "in_range": false,
+  "measured_dims": {
+    "P1.1": {
+      "n_items": 15,
+      "raw": 4.0
+    },
+    "P3.1": {
+      "n_items": 25,
+      "raw": 1.0
+    },
+    "P3.2": {
+      "n_items": 15,
+      "raw": 2.0
+    },
+    "P3.3": {
+      "n_items": 10,
+      "raw": 1.0
+    }
+  },
+  "model": "mistralai/mistral-7b-instruct-v0.1",
+  "model_substitution_note": null,
+  "pillar_scores": {
+    "P1": 22.6042,
+    "P2": 12.5,
+    "P3": 10.0,
+    "P4": 10.0
+  },
+  "prior_id": "huggingchat",
+  "rubric_version": "0.1.2",
+  "scanner_version": "0.2.3",
+  "system_prompt_kind": "none"
+}

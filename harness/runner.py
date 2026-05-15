@@ -50,10 +50,12 @@ class AnthropicRunner(ModelRunner):
     with `temperature=...` if you want sampled output.
     """
 
-    def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0):
+    def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0,
+                 system_prompt: str | None = None):
         self._model = model
         self._max_tokens = max_tokens
         self._temperature = float(temperature)
+        self._system_prompt = system_prompt
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise RunnerError("ANTHROPIC_API_KEY not set")
 
@@ -71,6 +73,8 @@ class AnthropicRunner(ModelRunner):
             "max_tokens": self._max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
+        if self._system_prompt:
+            kwargs["system"] = self._system_prompt
         if self._temperature is not None:
             kwargs["temperature"] = self._temperature
         try:
@@ -102,11 +106,13 @@ class OpenAIRunner(ModelRunner):
         max_tokens: int = 256,
         temperature: float = 0.0,
         seed: int | None = 42,
+        system_prompt: str | None = None,
     ):
         self._model = model
         self._max_tokens = max_tokens
         self._temperature = float(temperature)
         self._seed = seed
+        self._system_prompt = system_prompt
         if not os.environ.get("OPENAI_API_KEY"):
             raise RunnerError("OPENAI_API_KEY not set")
 
@@ -119,11 +125,15 @@ class OpenAIRunner(ModelRunner):
         except ImportError as exc:
             raise RunnerError("openai SDK not installed; pip install openai") from exc
         client = OpenAI()
+        messages: list[dict[str, str]] = []
+        if self._system_prompt:
+            messages.append({"role": "system", "content": self._system_prompt})
+        messages.append({"role": "user", "content": prompt})
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": self._max_tokens,
             "temperature": self._temperature,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
         }
         if self._seed is not None:
             kwargs["seed"] = self._seed
@@ -151,6 +161,7 @@ class GeminiRunner(ModelRunner):
         disable_thinking: bool = True,
         temperature: float = 0.0,
         seed: int | None = 42,
+        system_prompt: str | None = None,
     ):
         self._model = model
         self._max_output_tokens = max_output_tokens
@@ -158,6 +169,7 @@ class GeminiRunner(ModelRunner):
         self._disable_thinking = disable_thinking
         self._temperature = float(temperature)
         self._seed = seed
+        self._system_prompt = system_prompt
         # Init to "now" so the first call also waits — protects against
         # quota-window bleed from a prior 429'd run.
         self._last_call_at: float = time.monotonic()
@@ -196,6 +208,8 @@ class GeminiRunner(ModelRunner):
             }
             if self._seed is not None:
                 kwargs["seed"] = self._seed
+            if self._system_prompt:
+                kwargs["system_instruction"] = self._system_prompt
             if disable_thinking:
                 try:
                     kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
@@ -261,12 +275,18 @@ class OpenRouterRunner(ModelRunner):
     `meta-llama/llama-3.3-70b-instruct`).
     """
 
-    def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0):
+    def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0,
+                 system_prompt: str | None = None):
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise RunnerError("OPENROUTER_API_KEY not set")
         self._model = model
-        # Lazy build the HTTPEndpointRunner that does the work.
+        self._api_key = api_key
+        self._max_tokens = max_tokens
+        self._temperature = float(temperature)
+        self._system_prompt = system_prompt
+        # Lazy build the HTTPEndpointRunner that does the work for the no-system
+        # prompt path (preserves the existing request_template behavior).
         self._inner = HTTPEndpointRunner(
             model=model,
             url="https://openrouter.ai/api/v1/chat/completions",
@@ -274,15 +294,58 @@ class OpenRouterRunner(ModelRunner):
             preset="openai-compat",
             label=f"openrouter:{model}",
         )
-        # Stash temp/max so we can patch the request_template.
-        self._max_tokens = max_tokens
-        self._temperature = float(temperature)
 
     def model_id(self) -> str:
         return f"openrouter:{self._model}"
 
     def complete(self, prompt: str) -> str:
-        return self._inner.complete(prompt)
+        if not self._system_prompt:
+            return self._inner.complete(prompt)
+        # System-prompted path: build the messages array directly so the
+        # request_template substitution does not have to escape system text.
+        try:
+            import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
+        except ImportError as exc:
+            raise RunnerError("httpx not installed; pip install httpx") from exc
+        from harness import egress
+        body = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": self._system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": self._temperature,
+            "max_tokens": self._max_tokens,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+        max_retries = 6
+        backoff = 1.0
+        resp = None
+        for _attempt in range(max_retries):
+            resp = egress.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers, json=body, timeout=30.0,
+            )
+            if resp.status_code != 429:
+                break
+            retry_after = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
+            wait_s = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else backoff
+            time.sleep(wait_s)
+            backoff = min(backoff * 2, 16.0)
+        if resp is None:
+            raise RunnerError("openrouter request failed without response")
+        if resp.status_code >= 400:
+            raise RunnerError(f"openrouter HTTP {resp.status_code}: {resp.text[:500]}")
+        payload = resp.json()
+        try:
+            return str(payload["choices"][0]["message"]["content"] or "")
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RunnerError(
+                f"openrouter response shape unexpected: {_json.dumps(payload)[:500]}"
+            ) from exc
 
 
 def _resolve_dotted(obj: Any, path: str) -> Any:
@@ -607,6 +670,20 @@ class HTTPEndpointRunner(ModelRunner):
             "response_path": "choices[0].message.content",
             "auth_prefix": "Bearer ",
         },
+        # Mistral chat completions w/ wrapper-OFF (safe_prompt=false). Used for
+        # base-model leg of the wrapper-vs-base A/B in BEAAA-130.
+        "mistral-base": {
+            "request_template": '{"model": "{model}", "messages": [{"role": "user", "content": "{prompt}"}], "temperature": 0, "max_tokens": 256, "safe_prompt": false}',
+            "response_path": "choices[0].message.content",
+            "auth_prefix": "Bearer ",
+        },
+        # Mistral chat completions w/ wrapper-ON (safe_prompt=true). The
+        # safety-system-prompt-injection leg of the BEAAA-130 A/B.
+        "mistral-wrapper": {
+            "request_template": '{"model": "{model}", "messages": [{"role": "user", "content": "{prompt}"}], "temperature": 0, "max_tokens": 256, "safe_prompt": true}',
+            "response_path": "choices[0].message.content",
+            "auth_prefix": "Bearer ",
+        },
         # Anthropic Messages API.
         "anthropic-compat": {
             "request_template": '{"model": "{model}", "max_tokens": 256, "temperature": 0, "messages": [{"role": "user", "content": "{prompt}"}]}',
@@ -693,11 +770,25 @@ class HTTPEndpointRunner(ModelRunner):
             raise RunnerError(f"request_template did not produce valid JSON: {exc}") from exc
 
         headers = {"Content-Type": "application/json", **self._extra_headers}
+        # Retry on 429 (free-tier rate limit) with exponential backoff.
+        # Honors Retry-After header when present.
+        max_retries = 6
+        backoff = 1.0
+        resp = None
         from harness import egress
-        try:
-            resp = egress.post(self._url, headers=headers, json=body, timeout=self._timeout_s)
-        except httpx.HTTPError as exc:
-            raise RunnerError(f"HTTP request failed: {exc}") from exc
+        for attempt in range(max_retries):
+            try:
+                resp = egress.post(self._url, headers=headers, json=body, timeout=self._timeout_s)
+            except httpx.HTTPError as exc:
+                raise RunnerError(f"HTTP request failed: {exc}") from exc
+            if resp.status_code != 429:
+                break
+            retry_after = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
+            wait_s = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else backoff
+            time.sleep(wait_s)
+            backoff = min(backoff * 2, 16.0)
+        if resp is None:
+            raise RunnerError("HTTP request failed without response")
         if resp.status_code >= 400:
             raise RunnerError(f"HTTP {resp.status_code}: {resp.text[:500]}")
         try:
@@ -713,3 +804,132 @@ class HTTPEndpointRunner(ModelRunner):
             ) from exc
         return str(text or "")
 
+
+class HuggingChatWebRunner(ModelRunner):
+    """HuggingChat web-app runner — exercises the FULL wrapper, not the base model.
+
+    Difference vs `_build_huggingchat` in path_b_endpoints.py:
+      - HF Router (`router.huggingface.co/v1/chat/completions`) hits the
+        underlying model directly. No system prompt, no content filter,
+        no refusal tuning beyond what the model itself shipped with.
+      - This runner drives huggingface.co/chat — the actual web wrapper.
+        Whatever HF layered on top (system prompt, content filter, refusal
+        tuning, tool surface) is in the loop. Provenance: `measured` (not
+        category-proxy) for the HuggingChat-the-product surface.
+
+    Auth surfaces:
+      - cookies dict / RequestsCookieJar — the cookies HF stores after web
+        login. Most reliable; rotates by clicking "log out" in the browser.
+      - cookie_path — path to a hugchat-format cookies file (json).
+      - email + passwd — last resort; uses hugchat.Login flow internally.
+
+    Per-prompt flow creates a fresh conversation, sends the prompt, captures
+    the assistant text, and deletes the conversation. Mirrors VoiceflowRunner's
+    fresh-userId pattern: no in-context contamination across probes.
+    """
+
+    DEFAULT_MODEL_NAME = "meta-llama/Llama-3.3-70B-Instruct"
+
+    def __init__(
+        self,
+        *,
+        cookies: Any = None,
+        cookie_path: str | None = None,
+        email: str | None = None,
+        passwd: str | None = None,
+        model_name: str | None = None,
+        label: str | None = None,
+        delete_after: bool = True,
+    ):
+        if cookies is None and not cookie_path and not (email and passwd):
+            raise RunnerError(
+                "HuggingChatWebRunner requires one of: cookies, cookie_path, "
+                "or email+passwd"
+            )
+        self._cookies = cookies
+        self._cookie_path = cookie_path
+        self._email = email
+        self._passwd = passwd
+        self._model_name = model_name or self.DEFAULT_MODEL_NAME
+        self._label = label or f"huggingchat-web:{self._model_name}"
+        self._delete_after = delete_after
+        self._chatbot: Any = None
+        self._model_index: int | None = None
+
+    def model_id(self) -> str:
+        return self._label
+
+    def _ensure_chatbot(self) -> Any:
+        if self._chatbot is not None:
+            return self._chatbot
+        try:
+            from hugchat import hugchat as hc  # type: ignore
+            from hugchat.login import Login  # type: ignore
+        except ImportError as exc:
+            raise RunnerError(
+                "hugchat not installed; pip install hugchat"
+            ) from exc
+        cookies = self._cookies
+        if cookies is None and self._email and self._passwd:
+            try:
+                sign = Login(self._email, self._passwd)
+                cookies = sign.login(save_cookies=False)
+            except Exception as exc:
+                raise RunnerError(f"hugchat login failed: {exc}") from exc
+        try:
+            if cookies is not None:
+                bot = hc.ChatBot(cookies=cookies if isinstance(cookies, dict) else cookies.get_dict())
+            elif self._cookie_path:
+                bot = hc.ChatBot(cookie_path=self._cookie_path)
+            else:
+                raise RunnerError("no cookie material resolved")
+        except Exception as exc:
+            raise RunnerError(f"hugchat ChatBot init failed: {exc}") from exc
+
+        try:
+            available = bot.get_available_llm_models()
+        except Exception as exc:
+            raise RunnerError(f"hugchat get_available_llm_models failed: {exc}") from exc
+        idx: int | None = None
+        for i, m in enumerate(available):
+            name = getattr(m, "name", None) or getattr(m, "id", None) or str(m)
+            if name and self._model_name.lower() in str(name).lower():
+                idx = i
+                break
+        if idx is None:
+            names = [getattr(m, "name", None) or str(m) for m in available]
+            raise RunnerError(
+                f"model {self._model_name!r} not in HuggingChat available list; "
+                f"got: {names}"
+            )
+        self._model_index = idx
+        self._chatbot = bot
+        return bot
+
+    def complete(self, prompt: str) -> str:
+        bot = self._ensure_chatbot()
+        try:
+            conv = bot.new_conversation(modelIndex=self._model_index, switch_to=True)
+        except Exception as exc:
+            raise RunnerError(f"hugchat new_conversation failed: {exc}") from exc
+        try:
+            try:
+                msg = bot.chat(prompt, conversation=conv)
+            except Exception as exc:
+                raise RunnerError(f"hugchat chat() failed: {exc}") from exc
+            try:
+                text = msg.wait_until_done() if hasattr(msg, "wait_until_done") else None
+            except Exception:
+                text = None
+            if not text:
+                try:
+                    text = str(msg)
+                except Exception:
+                    text = ""
+            return text or ""
+        finally:
+            if self._delete_after:
+                try:
+                    bot.delete_conversation(conv)
+                except Exception:
+                    pass
