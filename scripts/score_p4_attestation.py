@@ -60,8 +60,14 @@ DIM_TO_YAML = {
     "P4.6": "p4_owner_matrix.yaml",
 }
 
-# P4 pillar weight (rubric.yaml v0.1.2, locked).
-P4_WEIGHT = 15
+# P4 pillar weight + bind-eligibility floor are sourced from rubric.yaml so this
+# script never diverges from rubric/scoring.py + report_card/render.py on the
+# same eval evidence (BEAAA-406, closing UW (operational) BEAAA-401 §Q3 ask;
+# %-preserve anchor locked by HoUW BEAAA-400 2026-05-15).
+_RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
+_RUBRIC = yaml.safe_load(_RUBRIC_PATH.read_text())
+P4_WEIGHT = _RUBRIC["pillars"]["P4"]["weight"]
+P4_PILLAR_FLOOR = _RUBRIC["pillar_floors"]["P4"]["min_pillar_score"]
 DIM_COUNT = 6
 SPEC_VERSION = "0.1.0"
 
@@ -785,7 +791,7 @@ def score_form(
         ov = overlay.get(dim_id) or overlay.get(dim_id.replace(".", "_")) or {}
         _apply_review_state_cap(r, ov.get("state"), ov)
 
-    # Pillar score = mean(raw) / 4.0 * 15.0
+    # Pillar score = mean(raw) / 4.0 * P4_WEIGHT (rubric-sourced; v1.0 = 25)
     raws = [r.raw for r in results.values()]
     pillar_raw_mean = sum(raws) / DIM_COUNT if DIM_COUNT else 0.0
     pillar_score = round(pillar_raw_mean / 4.0 * P4_WEIGHT, 3)
@@ -801,8 +807,8 @@ def score_form(
         "pillar": "P4",
         "pillar_score": pillar_score,
         "pillar_weight": P4_WEIGHT,
-        "pillar_floor": 7.5,  # rubric.yaml v0.1.2 pillar_floors.P4
-        "bind_eligible_on_pillar": pillar_score >= 7.5,
+        "pillar_floor": P4_PILLAR_FLOOR,
+        "bind_eligible_on_pillar": pillar_score >= P4_PILLAR_FLOOR,
         "dim_count": DIM_COUNT,
         "dims": {
             r.dim_id: {

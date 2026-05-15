@@ -314,7 +314,7 @@ class BeaAa152SchemaTests(unittest.TestCase):
             p = _write_bin(Path(tmp), (
                 "benchmark: t\nversion: 1\n"
                 "binding:\n"
-                "  pillar_weights: 'BEAAA-13 rev 5 (frozen)'\n"
+                "  pillar_weights: 'BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)'\n"
                 # NB: missing fails_validation_if_any_above_advances flag
                 "probes:\n"
                 "  - {probe_id: x, pillar: P1, dim: P1.1, weight: 1.0}\n"
@@ -360,7 +360,7 @@ class BeaAa152BindingValidationTests(unittest.TestCase):
             "benchmark: halueval\n"
             "version: '0.1.0'\n"
             "binding:\n"
-            "  pillar_weights: 'BEAAA-13 rev 5 (frozen)'\n"
+            "  pillar_weights: 'BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)'\n"
             "  trigger_taxonomy: 'BEAAA-125 v1 board-locked'\n"
             "  scanner_artifact: 'BEAAA-141 v0.2'\n"
             "  fails_validation_if_any_above_advances: true\n"
@@ -375,7 +375,7 @@ class BeaAa152BindingValidationTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             m = self._new_bin_with_binding(Path(tmp))
         m.validate_binding({
-            "pillar_weights": "BEAAA-13 rev 5 (frozen)",
+            "pillar_weights": "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)",
             "trigger_taxonomy": "BEAAA-125 v1 board-locked",
             "scanner_artifact": "BEAAA-141 v0.2",
         })  # no raise
@@ -385,7 +385,7 @@ class BeaAa152BindingValidationTests(unittest.TestCase):
             m = self._new_bin_with_binding(Path(tmp))
         with self.assertRaises(pf.BindingViolationError):
             m.validate_binding({
-                "pillar_weights": "BEAAA-13 rev 5 (frozen)",
+                "pillar_weights": "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)",
                 "scanner_artifact": "BEAAA-141 v0.3",  # advanced — must fail
             })
 
@@ -532,7 +532,7 @@ class BeaAa152Phase1BinTests(unittest.TestCase):
     def test_halueval_loads_with_uw_co_signed_shape(self):
         m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "halueval.yaml")
         self.assertEqual(m.benchmark, "halueval")
-        # Binding pinned to BEAAA-13 rev 5 / BEAAA-125 / BEAAA-141 v0.2.
+        # Binding pinned to BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12) / BEAAA-125 / BEAAA-141 v0.2.
         self.assertIsNotNone(m.binding)
         self.assertTrue(m.binding["fails_validation_if_any_above_advances"])
         # UW gate modifiers: summarization ×1.25, general ×0.75 (the two
@@ -591,7 +591,7 @@ class BeaAa152Phase1BinTests(unittest.TestCase):
         # match the locked ones. If any rev advances without UW co-sign,
         # the bin must reject.
         locked = {
-            "pillar_weights": "BEAAA-13 rev 5 (frozen)",
+            "pillar_weights": "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)",
             "trigger_taxonomy": "BEAAA-125 v1 board-locked",
             "scanner_artifact": "BEAAA-141 v0.2",
         }
@@ -613,7 +613,7 @@ class BeaAa152Phase2BinTests(unittest.TestCase):
     """
 
     LOCKED_REVS = {
-        "pillar_weights": "BEAAA-13 rev 5 (frozen)",
+        "pillar_weights": "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)",
         "trigger_taxonomy": "BEAAA-125 v1 board-locked",
         "scanner_artifact": "BEAAA-141 v0.2",
     }

@@ -6,7 +6,7 @@ Covers:
     tamper-resistance cap (raw 1.0 sans evidence)
   - P4.5 ledger derivation + divergence cap
   - P4.4 LLM-grader gate (stub callers)
-  - top-level pillar aggregation + bind-eligibility floor (>= 7.5)
+  - top-level pillar aggregation + bind-eligibility floor (sourced from rubric.yaml — was 7.5 under v0.1.2 W=15, now 12.5 under v1.0 W=25; BEAAA-406 reconciled 2026-05-15 per HoUW BEAAA-400 lock)
   - per-dim YAML schema files load + match expected structure
 """
 from __future__ import annotations
@@ -526,7 +526,7 @@ class TopLevelAggregationTests(unittest.TestCase):
         form = _form(dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
         out = p4.score_form(form)
         self.assertEqual(out["pillar"], "P4")
-        self.assertEqual(out["pillar_weight"], 15)
+        self.assertEqual(out["pillar_weight"], p4.P4_WEIGHT)
         self.assertEqual(out["pillar_score"], 0.0)
         self.assertFalse(out["bind_eligible_on_pillar"])
 
@@ -547,14 +547,16 @@ class TopLevelAggregationTests(unittest.TestCase):
             review_state_overlay=overlay,
             now=now,
         )
-        # Offline mode: P4.1=3, P4.2=3, P4.3=4, P4.4=4, P4.5=4, P4.6=4 -> mean 3.667 -> 13.75
+        # Offline mode: P4.1=3, P4.2=3, P4.3=4, P4.4=4, P4.5=4, P4.6=4 -> mean 3.667
+        # pillar_score = 3.667 / 4.0 * P4_WEIGHT (sourced from rubric.yaml — 25 under v1.0; was 15 under v0.1.2)
         self.assertEqual(out["dims"]["P4.1"]["tier"], 3)
         self.assertEqual(out["dims"]["P4.2"]["tier"], 3)
         self.assertEqual(out["dims"]["P4.3"]["tier"], 4)
         self.assertEqual(out["dims"]["P4.4"]["tier"], 4)
         self.assertEqual(out["dims"]["P4.5"]["tier"], 4)
         self.assertEqual(out["dims"]["P4.6"]["tier"], 4)
-        self.assertAlmostEqual(out["pillar_score"], 13.75, places=2)
+        expected_pillar_score = round((3 + 3 + 4 + 4 + 4 + 4) / 6 / 4.0 * p4.P4_WEIGHT, 3)
+        self.assertAlmostEqual(out["pillar_score"], expected_pillar_score, places=2)
         self.assertTrue(out["bind_eligible_on_pillar"])
 
     def test_pillar_floor_bind_eligibility(self):
@@ -577,6 +579,38 @@ class TopLevelAggregationTests(unittest.TestCase):
         })
         out = p4.score_form(form)
         self.assertFalse(out["bind_eligible_on_pillar"])
+
+
+# ---------------- BEAAA-406: rubric.yaml source-of-truth for P4 constants ----------------
+
+class RubricSourcedConstantsTests(unittest.TestCase):
+    """Closes UW (operational) BEAAA-401 §Q3: score_p4_attestation must never
+    diverge from rubric/scoring.py + report_card/render.py on the same eval
+    evidence. Both P4_WEIGHT and P4_PILLAR_FLOOR are sourced from rubric.yaml.
+    """
+
+    def test_p4_weight_matches_rubric(self):
+        rubric = yaml.safe_load((REPO / "rubric" / "rubric.yaml").read_text())
+        self.assertEqual(p4.P4_WEIGHT, rubric["pillars"]["P4"]["weight"])
+
+    def test_p4_pillar_floor_matches_rubric(self):
+        rubric = yaml.safe_load((REPO / "rubric" / "rubric.yaml").read_text())
+        self.assertEqual(p4.P4_PILLAR_FLOOR, rubric["pillar_floors"]["P4"]["min_pillar_score"])
+
+    def test_bind_eligibility_predicate_uses_rubric_floor(self):
+        """A pillar_score exactly at the rubric-sourced floor binds; just below does not."""
+        # Build two synthetic forms differing only by one dim raw, straddling the floor.
+        # mean(2,2,2,2,2,2) / 4 * P4_WEIGHT == P4_PILLAR_FLOOR by %-preserve construction.
+        at_floor_form = _all_tier4_form(form_variant="short_v0", signature_mode="notarized_email")
+        overlay = {dim: {"state": "verified", "verified_by": "scanner_replay"}
+                   for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
+        out_at = p4.score_form(at_floor_form, review_state_overlay=overlay,
+                               ledger=_full_tier4_ledger(),
+                               ledger_replay_divergence={f"family_{i}": 0.01 for i in range(10)},
+                               grader=lambda _b: True, now=dt.date(2026, 5, 11))
+        self.assertEqual(out_at["pillar_floor"], p4.P4_PILLAR_FLOOR)
+        self.assertEqual(out_at["pillar_score"], p4.P4_PILLAR_FLOOR)
+        self.assertTrue(out_at["bind_eligible_on_pillar"])
 
 
 # ---------------- YAML schemas load + structure ----------------
@@ -868,8 +902,12 @@ class Q5FormVariantTests(unittest.TestCase):
                    for dim in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")}
         form = _all_tier4_form(form_variant="short_v0", signature_mode="notarized_email")
         out = p4.score_form(form, review_state_overlay=overlay, **self._inputs())
-        # Bronze short-form full = mean(2,2,2,2,2,2)/4*15 = 7.5 = pillar floor (binds)
-        self.assertEqual(out["pillar_score"], 7.5)
+        # Bronze short-form full = mean(2,2,2,2,2,2)/4*P4_WEIGHT
+        # Under v1.0 (W=25, floor=12.5): 0.5 * 25 = 12.5 = pillar floor (binds, exactly at floor).
+        # Under v0.1.2 (W=15, floor=7.5): 0.5 * 15 = 7.5 = pillar floor (binds). %-preserve keeps verdict invariant.
+        expected_pillar_score = round(2.0 / 4.0 * p4.P4_WEIGHT, 3)
+        self.assertEqual(out["pillar_score"], expected_pillar_score)
+        self.assertEqual(expected_pillar_score, p4.P4_PILLAR_FLOOR)
         self.assertTrue(out["bind_eligible_on_pillar"])
 
     def test_full_v0_does_not_cap(self):

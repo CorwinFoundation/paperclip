@@ -118,8 +118,10 @@ class SyntheticFixtureTests(unittest.TestCase):
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)
         # Synthetic profile: strong P1, mid P2, weak P3, mid-low P4.
-        # Hand-computed: P1=23.33, P2=9.58, P3=8.75, P4=6.56 → 48.22 → ARE 48.
-        self.assertEqual(out["bmi"], 48)
+        # Under rubric v1.0 (25/25/25/25 per BEAAA-21 §pillars Founder-locked 2026-05-12):
+        # P1=16.67, P2=11.98, P3=7.29, P4=10.94 → 46.87 → ARE 47.
+        # (v0.1.2 prior was 48 under 35/20/30/15.)
+        self.assertEqual(out["bmi"], 47)
         # Spot-check that P3 (weak adversarial) scores low relative to weight.
         self.assertLess(out["pillars"]["P3"]["score"], out["pillars"]["P3"]["weight"] / 2)
 

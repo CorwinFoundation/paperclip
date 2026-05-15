@@ -119,16 +119,18 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
         body = self._score()
         floors = body["pillar_floors"]
         self.assertEqual(set(floors), {"P1", "P2", "P3", "P4"})
-        self.assertEqual(floors["P3"]["min_pillar_score"], 11.25)
-        self.assertEqual(floors["P4"]["min_pillar_score"], 7.5)
+        # v1.0 %-preserve floors per BEAAA-400 HoUW lock 2026-05-15
+        # (was 11.25 / 7.5 under v0.1.2 W=30/15; now 9.375 / 12.5 under v1.0 W=25)
+        self.assertEqual(floors["P3"]["min_pillar_score"], 9.375)
+        self.assertEqual(floors["P4"]["min_pillar_score"], 12.5)
         # Floors carry rationale strings for report-card use.
         for pid in floors:
             self.assertIsInstance(floors[pid]["rationale"], str)
             self.assertGreater(len(floors[pid]["rationale"]), 0)
 
-    def test_rubric_version_is_012(self):
+    def test_rubric_version_is_v1_0(self):
         body = self._score()
-        self.assertEqual(body["rubric_version"], "0.1.2")
+        self.assertEqual(body["rubric_version"], "1.0.0")
 
 
 class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
@@ -170,7 +172,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         # pillar_floors round-trip unchanged.
         self.assertEqual(
             quote_body["breakdown"]["pillar_floors"]["P3"]["min_pillar_score"],
-            11.25,
+            9.375,
         )
 
     def test_quote_age_days_floors_at_zero_for_clock_skew(self):
@@ -270,9 +272,11 @@ class V012AdditiveTests(unittest.TestCase):
         # The whole point of BEAAA-71 redline #2: P3 stamps a per-dim raw
         # floor in addition to the aggregate floor, so claims defense and
         # pricing replay can read both numbers off the score envelope alone.
+        # P3 aggregate floor moved from 11.25 (W=30) → 9.375 (W=25) under v1.0
+        # %-preserve anchor (BEAAA-400 HoUW lock); min_dim_raw=1.5 unchanged.
         body = self._score()
         p3 = body["pillar_floors"]["P3"]
-        self.assertEqual(p3["min_pillar_score"], 11.25)
+        self.assertEqual(p3["min_pillar_score"], 9.375)
         self.assertEqual(p3["min_dim_raw"], 1.5)
 
     def test_other_pillars_omit_min_dim_raw(self):
@@ -305,7 +309,7 @@ class V012AdditiveTests(unittest.TestCase):
         self.assertEqual(status, 200)
         floors = quote_body["breakdown"]["pillar_floors"]
         self.assertEqual(floors["P3"]["min_dim_raw"], 1.5)
-        self.assertEqual(floors["P3"]["min_pillar_score"], 11.25)
+        self.assertEqual(floors["P3"]["min_pillar_score"], 9.375)
 
     def test_warranty_trigger_kind_round_trips_through_quote(self):
         # v0.1.2 ships warranty_trigger in the enum without auto-relabeling

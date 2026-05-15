@@ -17,7 +17,7 @@ description: |
   the live agent (tier 4).
 
 binding:
-  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  pillar_weights: "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)"
   trigger_taxonomy: "BEAAA-125 v1 board-locked"
   scanner_artifact: "BEAAA-200 Track 4"
   cross_ref:

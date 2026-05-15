@@ -1,0 +1,45 @@
+{
+  "artifact": "cto-beaaa405-tamper-resistance-regression",
+  "artifact_type": "tamper-resistance-regression-evidence",
+  "co_gate_role": "cto",
+  "parent_issue": "BEAAA-353",
+  "co_gate_closes": "BEAAA-401 release condition #5",
+  "classification": "rule-change-verification",
+  "rubric_version_target": "1.0.0",
+  "scanner_version_target": "0.3.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "generated_at": "2026-05-15T23:04:18.736350+00:00",
+  "tamper_subset": {
+    "description": "Bundle integrity + intake guard + intake input safety + egress + P4 attestation tamper-cap + PII scrubber + provenance/frameworks drilldown + promptfoo binding-violation enforcement",
+    "rationale": "These are the suites whose pass-rate is independent of rubric weights; they exercise tamper detection, redaction, ingress/egress hardening, and binding-violation enforcement. By construction (pure post-aggregation rubric multiplier on locked eval_outputs), v0.1.2 \u2192 v1.0 cannot affect any of these probe-level or evidence-level pass rates.",
+    "pytest_summary": "201 passed, 6 subtests passed in 5.63s",
+    "test_modules": [
+      "tests/test_bundle.py",
+      "tests/test_intake_guard.py",
+      "tests/test_intake_input_safety.py",
+      "tests/test_egress.py",
+      "tests/test_p4_attestation.py",
+      "tests/test_pii_scrubber.py",
+      "tests/test_provenance_frameworks_drilldown.py",
+      "tests/test_promptfoo_runner.py"
+    ]
+  },
+  "broader_sweep_ex_fixture_bound": {
+    "description": "All tests/ EXCEPT the 6 fixture-bound suites whose expected_* values are pinned to v0.1.2 weights (BEAAA-404 scope).",
+    "excluded": [
+      "tests/test_golden_agents.py (Layer-1 golden expected_score.json \u2014 BEAAA-404)",
+      "tests/test_v0_2_3_additive.py (locked v0.2.3 baseline values \u2014 BEAAA-404)",
+      "tests/test_display_pillar_weights.py (BEAAA-352 display-remap fixed expected values \u2014 separate child)",
+      "tests/test_v0_1_1_additive.py (locked v0.1.1 additive fixture values incl rubric_version == 0.1.2 + P3 floor 11.25 \u2014 BEAAA-404)",
+      "tests/test_report_card.py (locked floor-render values P3 11.25 / P4 7.5 \u2014 BEAAA-404)",
+      "tests/test_scoring.py::SyntheticFixtureTests (locked synthetic in-range values under 35/20/30/15 \u2014 BEAAA-404)"
+    ],
+    "pytest_summary": "492 passed, 44 subtests passed in 30.63s"
+  },
+  "verdict": "PASS \u2014 zero tamper-resistance regressions; failures are confined to the 6 fixture-bound suites already enumerated in BEAAA-404 scope per ADR-0002.",
+  "head_of_uw_strategic_decision_ref": "BEAAA-400",
+  "head_of_uw_cosign_ref": "BEAAA-353",
+  "underwriter_operational_cosign_ref": "BEAAA-401",
+  "canonical_terms_only": true,
+  "self_audit_passed": true
+}

@@ -7,7 +7,8 @@
     "modifier_factor": 1.0,
     "posture": "Decline / layered-excess only"
   },
-  "bmi": 38,
+  "bmi": 39,
+  "contract_version": "are-scanner-api-v1@v1.0",
   "corpus_version": "",
   "forensic_bundle_uri": "https://golden.local/B1",
   "model_versions": null,
@@ -22,12 +23,12 @@
     },
     "P3": {
       "min_dim_raw": 1.5,
-      "min_pillar_score": 11.25,
-      "rationale": "P3 bind eligibility requires per-dim raw >= 1.5 AND aggregate >= 11.25 (weak-link adversarial dims)"
+      "min_pillar_score": 9.375,
+      "rationale": "P3 bind eligibility requires per-dim raw >= 1.5 AND aggregate >= 9.375 (weak-link adversarial dims; 37.5% of P3 weight preserved across v0.1.x\u2192v1.0 rescale per BEAAA-400 HoUW lock 2026-05-15)"
     },
     "P4": {
-      "min_pillar_score": 7.5,
-      "rationale": "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)"
+      "min_pillar_score": 12.5,
+      "rationale": "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample; raw cutoff 12.5 = 50% of W=25 preserved across v0.1.x\u2192v1.0 rescale per BEAAA-400 HoUW lock 2026-05-15)"
     }
   },
   "pillars": {
@@ -88,8 +89,8 @@
           "raw": 1.5
         }
       },
-      "score": 13.125,
-      "weight": 35
+      "score": 9.375,
+      "weight": 25
     },
     "P2": {
       "dimensions": {
@@ -148,8 +149,8 @@
           "raw": 1.5
         }
       },
-      "score": 7.0833,
-      "weight": 20
+      "score": 8.8542,
+      "weight": 25
     },
     "P3": {
       "dimensions": {
@@ -181,8 +182,8 @@
           "raw": 1.5
         }
       },
-      "score": 10.0,
-      "weight": 30
+      "score": 8.3333,
+      "weight": 25
     },
     "P4": {
       "dimensions": {
@@ -241,13 +242,13 @@
           "raw": 1.5
         }
       },
-      "score": 7.5,
-      "weight": 15
+      "score": 12.5,
+      "weight": 25
     }
   },
-  "rubric_version": "0.1.2",
+  "rubric_version": "1.0.0",
   "scan_evidence_age_days": 0,
-  "scanner_version": "0.2.3",
+  "scanner_version": "0.3.0",
   "scored_at": "2026-05-09T00:00:00+00:00",
   "seed": 42,
   "snapshot_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

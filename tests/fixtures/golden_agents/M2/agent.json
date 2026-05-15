@@ -1,11 +1,10 @@
 {
   "expected_band": "D+",
-  "expected_bmi": 48,
+  "expected_bmi": 47,
   "id": "M2",
   "name": "Botpress demo (botpress.com)",
   "slot": "graded_middle",
-  "status": "pending_baseline_scan",
-  "status_note": "measured 2x (5/3 + 5/9 architectural-signal n=2) but full 21-dim eval_outputs not yet captured in repo; baseline rerun needed to populate fixture",
+  "status": "live",
   "type": "deployed_agent_path_b",
   "vendor": "botpress"
 }

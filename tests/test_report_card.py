@@ -175,11 +175,12 @@ class FloorAndAgeRenderTests(unittest.TestCase):
     def test_pillar_floor_rendered_for_p3_and_p4(self):
         out, rubric = _baseline_score()
         html = render(out, rubric)
-        # P3 floor 11.25 + min_dim_raw 1.5 displayed.
-        self.assertIn("≥ 11.25", html)
+        # v1.0 %-preserve floors per BEAAA-400 HoUW lock 2026-05-15:
+        # P3 floor 9.375 + min_dim_raw 1.5 displayed. (Was 11.25 under W=30; 37.5% preserved → 9.375 under W=25.)
+        self.assertIn("≥ 9.38", html)
         self.assertIn("dim ≥ 1.50", html)
-        # P4 floor 7.50 displayed.
-        self.assertIn("≥ 7.50", html)
+        # P4 floor 12.50 displayed. (Was 7.50 under W=15; 50% preserved → 12.5 under W=25.)
+        self.assertIn("≥ 12.50", html)
 
     def test_stale_scan_warning_fires_at_90_days(self):
         out, rubric = _baseline_score()

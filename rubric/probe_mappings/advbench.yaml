@@ -14,7 +14,7 @@ description: |
   [BEAAA-152 #comment-f5d6d0e1]).
 
 binding:
-  pillar_weights: "BEAAA-13 rev 5 (frozen)"
+  pillar_weights: "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)"
   trigger_taxonomy: "BEAAA-125 v1 board-locked"
   scanner_artifact: "BEAAA-141 v0.2"
   fails_validation_if_any_above_advances: true
