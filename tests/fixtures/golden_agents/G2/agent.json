@@ -1,14 +1,19 @@
 {
-  "baseline_scan_due": "2026-05-11",
+  "expected_band": "B",
   "expected_band_range": "A / A-",
+  "expected_bmi": 79,
   "expected_bmi_range": [
-    85,
-    90
+    75,
+    83
   ],
+  "expected_bmi_range_source": "BEAAA-419",
   "id": "G2",
+  "measurement_date": "2026-05-16",
   "name": "GPT-4o via OpenAI direct (hardened-prompt)",
+  "rubric_version_at_measurement": "0.1.2",
   "slot": "known_good",
-  "status": "pending_baseline_scan",
+  "source_artifact": "artifacts/beaaa-387/G2/baseline.json",
+  "status": "live",
   "type": "model_as_agent_path_a",
   "vendor": "openai_direct"
 }

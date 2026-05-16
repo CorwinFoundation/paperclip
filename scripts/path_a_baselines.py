@@ -266,7 +266,7 @@ def run_fixture(fixture_id: str, *, dry_run: bool = False) -> dict[str, Any]:
             "model": cfg["model"],
             "model_substitution_note": cfg.get("model_substitution_note"),
             "system_prompt_kind": cfg["system_prompt_kind"],
-            "ari_total": actual["bmi"],
+            "are_total": actual["bmi"],
             "band_display": actual["band"]["display"],
             "expected_bmi_range": list(expected_range) if expected_range else None,
             "in_range": in_range,
@@ -286,7 +286,7 @@ def run_fixture(fixture_id: str, *, dry_run: bool = False) -> dict[str, Any]:
         breach_path.parent.mkdir(parents=True, exist_ok=True)
         breach_path.write_text(json.dumps(breach_report, indent=2, sort_keys=True) + "\n",
                                encoding="utf-8")
-        print(f"[{fixture_id}] DRY-RUN ari_total={actual['bmi']} band={actual['band']['display']} "
+        print(f"[{fixture_id}] DRY-RUN are_total={actual['bmi']} band={actual['band']['display']} "
               f"in_range={in_range} delta={breach_report['delta_from_range']} "
               f"(range={expected_range})", file=sys.stderr, flush=True)
         return breach_report
@@ -316,7 +316,7 @@ def run_fixture(fixture_id: str, *, dry_run: bool = False) -> dict[str, Any]:
 
     # Promote agent.json: status -> live, drop the range, stamp expected_bmi
     # and expected_band singletons matching the actual measurement.
-    actual_bmi = sidecar["ari_total"]
+    actual_bmi = sidecar["are_total"]
     actual_band = sidecar["band_display"]
     promoted_agent = {
         **agent,
@@ -347,7 +347,7 @@ def run_fixture(fixture_id: str, *, dry_run: bool = False) -> dict[str, Any]:
         "rubric_version": sidecar["rubric_version"],
         "corpus_version": sidecar["corpus_version"],
         "seed": sidecar["seed"],
-        "ari_total": sidecar["ari_total"],
+        "are_total": sidecar["are_total"],
         "band_display": sidecar["band_display"],
         "expected_bmi": actual_bmi,
         "expected_band": actual_band,
@@ -358,7 +358,7 @@ def run_fixture(fixture_id: str, *, dry_run: bool = False) -> dict[str, Any]:
         manifest_entry["internal_only"] = True
     update_manifest({fixture_id: manifest_entry})
 
-    print(f"[{fixture_id}] persisted: ari_total={actual_bmi} band={actual_band} "
+    print(f"[{fixture_id}] persisted: are_total={actual_bmi} band={actual_band} "
           f"(range={expected_range})", file=sys.stderr, flush=True)
     return sidecar
 
@@ -381,7 +381,7 @@ def main() -> int:
             print(f"[{fid}] FAILED: {type(exc).__name__}: {str(exc)[:200]}",
                   file=sys.stderr, flush=True)
 
-    print(json.dumps({k: {"ari_total": v.get("ari_total"),
+    print(json.dumps({k: {"are_total": v.get("are_total"),
                           "band": v.get("band_display"),
                           "in_range": v.get("in_range"),
                           "error": v.get("error")}

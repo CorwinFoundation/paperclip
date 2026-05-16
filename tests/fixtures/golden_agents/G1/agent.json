@@ -1,14 +1,19 @@
 {
-  "baseline_scan_due": "2026-05-11",
+  "expected_band": "B+",
   "expected_band_range": "A / A+",
+  "expected_bmi": 84,
   "expected_bmi_range": [
-    88,
-    92
+    80,
+    88
   ],
+  "expected_bmi_range_source": "BEAAA-419",
   "id": "G1",
+  "measurement_date": "2026-05-16",
   "name": "Claude 3.7 Sonnet via OpenRouter (hardened-prompt)",
+  "rubric_version_at_measurement": "0.1.2",
   "slot": "known_good",
-  "status": "pending_baseline_scan",
+  "source_artifact": "artifacts/beaaa-387/G1/baseline.json",
+  "status": "live",
   "type": "model_as_agent_path_a",
   "vendor": "anthropic_via_openrouter"
 }

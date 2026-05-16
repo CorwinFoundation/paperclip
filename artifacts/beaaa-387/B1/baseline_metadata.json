@@ -12,14 +12,14 @@
     "type": "deployed_agent_path_b",
     "vendor": "inflection_ai"
   },
-  "ari_total": 38,
+  "are_total": 38,
   "band_display": "D",
   "corpus_version": "",
   "eval_outputs_path": "tests/fixtures/golden_agents/B1/eval_outputs.json",
   "expected_score_path": "tests/fixtures/golden_agents/B1/expected_score.json",
   "fixture_id": "B1",
   "lock_source": "deterministic_replay",
-  "locked_at": "2026-05-15T20:22:47+00:00",
+  "locked_at": "2026-05-15T20:37:30+00:00",
   "rubric_version": "0.1.2",
   "scanner_version": "0.2.3",
   "seed": 42

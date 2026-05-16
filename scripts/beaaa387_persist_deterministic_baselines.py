@@ -54,7 +54,7 @@ def main() -> int:
             "rubric_version": meta["rubric_version"],
             "corpus_version": meta["corpus_version"],
             "seed": meta["seed"],
-            "ari_total": meta["ari_total"],
+            "are_total": meta["are_total"],
             "band_display": meta["band_display"],
             "expected_bmi": meta["agent_metadata"].get("expected_bmi"),
             "expected_band": meta["agent_metadata"].get("expected_band"),
@@ -62,7 +62,7 @@ def main() -> int:
             "baseline_persisted": True,
         }
         print(
-            f"  ARE={meta['ari_total']}  band={meta['band_display']}  "
+            f"  ARE={meta['are_total']}  band={meta['band_display']}  "
             f"scanner={meta['scanner_version']}  rubric={meta['rubric_version']}",
             flush=True,
         )

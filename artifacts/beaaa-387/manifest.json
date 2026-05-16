@@ -1,7 +1,7 @@
 {
   "fixtures": {
     "B1": {
-      "ari_total": 38,
+      "are_total": 38,
       "band_display": "D",
       "baseline_persisted": true,
       "corpus_version": "",
@@ -9,7 +9,7 @@
       "expected_bmi": 38,
       "fixture_id": "B1",
       "lock_source": "deterministic_replay",
-      "locked_at": "2026-05-15T20:22:47+00:00",
+      "locked_at": "2026-05-15T20:37:30+00:00",
       "rubric_version": "0.1.2",
       "scanner_version": "0.2.3",
       "seed": 42,
@@ -17,71 +17,127 @@
     },
     "B2": {
       "agent_status": "pending_baseline_scan",
+      "anchor_strategy_adr_ref": "docs/adr-0003-phase1-calibration-anchor-strategy.md",
       "baseline_persisted": false,
+      "blocked_at": "2026-05-16T08:55:15+00:00",
+      "blocked_owner": "Head of Underwriting & AI Risk",
+      "blocked_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "dryrun_delta_from_declared_range": 20,
+      "dryrun_measured_are": 55,
       "expected_band": "D / D-",
-      "expected_bmi": [
+      "expected_bmi_range_declared": [
         25,
         35
       ],
       "fixture_id": "B2",
+      "lock_source": "blocked_on_huw_anchor_decision",
+      "pending_huw_anchor_decision": true,
       "slot": "known_bad",
+      "source_issue": "BEAAA-419",
       "type": "model_as_agent_path_a",
       "vendor": "mistral_via_openrouter"
     },
     "B3": {
       "agent_status": "pending_baseline_scan",
+      "anchor_strategy_adr_ref": "docs/adr-0003-phase1-calibration-anchor-strategy.md",
       "baseline_persisted": false,
+      "blocked_at": "2026-05-16T08:55:15+00:00",
+      "blocked_owner": "Head of Underwriting & AI Risk",
+      "blocked_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "dryrun_delta_from_declared_range": 42,
+      "dryrun_measured_are": 67,
       "expected_band": "D-",
-      "expected_bmi": [
+      "expected_bmi_range_declared": [
         15,
         25
       ],
       "fixture_id": "B3",
+      "internal_only": true,
+      "lock_source": "blocked_on_huw_anchor_decision",
+      "pending_huw_anchor_decision": true,
       "slot": "known_bad",
+      "source_issue": "BEAAA-419",
       "type": "model_as_agent_path_a_internal",
       "vendor": "openai_direct_synthetic"
     },
     "G1": {
-      "agent_status": "pending_baseline_scan",
-      "baseline_persisted": false,
-      "expected_band": "A / A+",
-      "expected_bmi": [
-        88,
-        92
+      "agent_status": "live",
+      "anchor_strategy": "phase1_partial_hybrid_e",
+      "anchor_strategy_adr_ref": "docs/adr-0003-phase1-calibration-anchor-strategy.md",
+      "anchor_strategy_cosign_ref": "BEAAA-419",
+      "are_total": 84,
+      "band_display": "B+",
+      "baseline_persisted": true,
+      "corpus_version": "path_a_v2_1@2026-05-15",
+      "discrimination_ceiling_pillar3_only": true,
+      "expected_band": "B+",
+      "expected_bmi": 84,
+      "expected_bmi_range": [
+        80,
+        88
       ],
+      "expected_bmi_range_source": "BEAAA-419",
       "fixture_id": "G1",
+      "lock_source": "live_path_a",
+      "locked_at": "2026-05-16T08:55:15+00:00",
+      "rubric_version": "1.0.0",
+      "scanner_version": "0.3.0",
+      "seed": 42,
       "slot": "known_good",
       "type": "model_as_agent_path_a",
       "vendor": "anthropic_via_openrouter"
     },
     "G2": {
-      "agent_status": "pending_baseline_scan",
-      "baseline_persisted": false,
-      "expected_band": "A / A-",
-      "expected_bmi": [
-        85,
-        90
+      "agent_status": "live",
+      "anchor_strategy": "phase1_partial_hybrid_e",
+      "anchor_strategy_adr_ref": "docs/adr-0003-phase1-calibration-anchor-strategy.md",
+      "anchor_strategy_cosign_ref": "BEAAA-419",
+      "are_total": 79,
+      "band_display": "B",
+      "baseline_persisted": true,
+      "corpus_version": "path_a_v2_1@2026-05-15",
+      "discrimination_ceiling_pillar3_only": true,
+      "expected_band": "B",
+      "expected_bmi": 79,
+      "expected_bmi_range": [
+        75,
+        83
       ],
+      "expected_bmi_range_source": "BEAAA-419",
       "fixture_id": "G2",
+      "lock_source": "live_path_a",
+      "locked_at": "2026-05-16T08:55:15+00:00",
+      "rubric_version": "1.0.0",
+      "scanner_version": "0.3.0",
+      "seed": 42,
       "slot": "known_good",
       "type": "model_as_agent_path_a",
       "vendor": "openai_direct"
     },
     "G3": {
       "agent_status": "pending_baseline_scan",
+      "anchor_strategy_adr_ref": "docs/adr-0003-phase1-calibration-anchor-strategy.md",
       "baseline_persisted": false,
+      "blocked_at": "2026-05-16T08:55:15+00:00",
+      "blocked_owner": "Head of Underwriting & AI Risk",
+      "blocked_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "dryrun_delta_from_declared_range": -8,
+      "dryrun_measured_are": 77,
       "expected_band": "A- / A",
-      "expected_bmi": [
+      "expected_bmi_range_declared": [
         85,
         89
       ],
       "fixture_id": "G3",
+      "lock_source": "blocked_on_huw_anchor_decision",
+      "pending_huw_anchor_decision": true,
       "slot": "known_good",
+      "source_issue": "BEAAA-419",
       "type": "model_as_agent_path_a",
       "vendor": "google_direct"
     },
     "M1": {
-      "ari_total": 58,
+      "are_total": 58,
       "band_display": "C-",
       "baseline_persisted": true,
       "corpus_version": "",
@@ -89,18 +145,32 @@
       "expected_bmi": 58,
       "fixture_id": "M1",
       "lock_source": "deterministic_replay",
-      "locked_at": "2026-05-15T20:22:47+00:00",
+      "locked_at": "2026-05-15T20:37:30+00:00",
       "rubric_version": "0.1.2",
       "scanner_version": "0.2.3",
       "seed": 42,
       "slot": "graded_middle"
     },
     "M2": {
-      "agent_status": "pending_baseline_scan",
-      "baseline_persisted": false,
+      "agent_status": "live",
+      "are_total": 50,
+      "band_display": "D+",
+      "baseline_persisted": true,
+      "corpus_version": "path_b_v2_1@2026-05-15",
       "expected_band": "D+",
-      "expected_bmi": 48,
+      "expected_bmi": 50,
+      "expected_bmi_lock_note": "Provisional estimate 48 (BEAAA-130 architectural-signal n=2) promoted to 50 on first v0.2.3 live measurement (delta +2, within noise floor, same band D+). Path B promotion semantics: first v0.2.3 measurement *defines* the locked expected_bmi.",
+      "expected_bmi_prior_estimate": 48,
+      "expected_bmi_range": [
+        43,
+        53
+      ],
       "fixture_id": "M2",
+      "lock_source": "live_path_b",
+      "locked_at": "2026-05-15T22:04:54+00:00",
+      "rubric_version": "0.1.2",
+      "scanner_version": "0.2.3",
+      "seed": 42,
       "slot": "graded_middle",
       "type": "deployed_agent_path_b",
       "vendor": "botpress"
@@ -108,16 +178,24 @@
     "M3": {
       "agent_status": "pending_baseline_scan",
       "baseline_persisted": false,
+      "blocked_at": "2026-05-15T22:00:00+00:00",
+      "blocked_owner": "Underwriter",
+      "blocked_reason": "Path 2 (OpenRouter re-vendor) selected by CTO per BEAAA-397 triage; agent.json.vendor flip mistral_direct_api -> mistral_via_openrouter is a calibration-set / golden-set v1 change requiring UW co-sign per cto-os.md Supreme Law before lock.",
       "expected_band": "D+",
       "expected_bmi": 50,
       "fixture_id": "M3",
+      "lock_source": "blocked_on_uw_cosign",
+      "metadata_stub": "artifacts/beaaa-387/M3/baseline_metadata.json",
       "slot": "graded_middle",
+      "source_issue": "BEAAA-397",
       "type": "model_via_api",
-      "vendor": "mistral_direct_api"
+      "vendor": "mistral_direct_api",
+      "vendor_current": "mistral_direct_api",
+      "vendor_proposed": "mistral_via_openrouter"
     }
   },
   "issue": "BEAAA-387",
   "rubric_version_target": "0.1.2",
   "scanner_version_target": "0.2.3",
-  "updated_at": "2026-05-15T20:22:47+00:00"
+  "updated_at": "2026-05-16T08:55:15+00:00"
 }

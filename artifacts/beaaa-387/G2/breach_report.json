@@ -1,6 +1,6 @@
 {
   "adapter": "openai",
-  "ari_total": 79,
+  "are_total": 79,
   "band_display": "B",
   "corpus_version": "path_a_v2_1@2026-05-15",
   "delta_from_range": -6,

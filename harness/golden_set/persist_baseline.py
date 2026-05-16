@@ -19,7 +19,7 @@ Two lock sources are supported:
                           G1-G3, B2, B3, M2, M3 — owned by BEAAA-387b/c.
 
 A manifest at `artifacts/beaaa-387/manifest.json` indexes all 9 fixtures with
-their lock state, scanner_version, rubric_version, ari_total, and expected
+their lock state, scanner_version, rubric_version, are_total, and expected
 range. The CTO Friday status reads from this manifest for §2/§3/§5.
 """
 from __future__ import annotations
@@ -89,7 +89,7 @@ def persist_from_locked_fixture(fixture_id: str) -> dict[str, Any]:
         "rubric_version": actual.get("rubric_version"),
         "corpus_version": actual.get("corpus_version", ""),
         "seed": actual.get("seed"),
-        "ari_total": actual["bmi"],
+        "are_total": actual["bmi"],
         "band_display": actual["band"]["display"],
         "agent_metadata": agent,
         "expected_score_path": str((fdir / "expected_score.json").relative_to(REPO)),
@@ -112,6 +112,7 @@ def persist_from_live_path_a(
     seed_accepted: bool = True,
     source_artifact: str | None = None,
     internal_only: bool = False,
+    anchor_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Live-Path-A baseline persistence.
 
@@ -174,7 +175,7 @@ def persist_from_live_path_a(
         "seed_accepted_by_vendor": seed_accepted,
         "model_versions": dict(model_versions),
         "sdk_versions": dict(sdk_versions or {}),
-        "ari_total": actual["bmi"],
+        "are_total": actual["bmi"],
         "band_display": actual["band"]["display"],
         "expected_bmi_range": list(expected_bmi_range) if expected_bmi_range else None,
         "agent_metadata": agent,
@@ -184,6 +185,90 @@ def persist_from_live_path_a(
         sidecar["system_prompt_sha256"] = system_prompt_sha256
     if internal_only:
         sidecar["internal_only"] = True
+    if anchor_metadata:
+        sidecar.update(anchor_metadata)
+    _write_json(out_dir / "baseline_metadata.json", sidecar)
+    return sidecar
+
+
+def persist_from_live_path_b(
+    fixture_id: str,
+    *,
+    eval_outputs: dict[str, Any],
+    vendor: str,
+    endpoint_label: str,
+    prior_id: str,
+    corpus_version: str,
+    seed: int,
+    expected_bmi_range: tuple[int, int] | list[int] | None = None,
+    sdk_versions: dict[str, str] | None = None,
+    source_artifact: str | None = None,
+    tamper_resistance_notes: str | None = None,
+) -> dict[str, Any]:
+    """Live-Path-B baseline persistence — deployed customer-facing agents.
+
+    Parallels `persist_from_live_path_a` but for Path B fixtures (M2 Botpress,
+    others under BEAAA-68). Path B has no fixed model_version (deployment-
+    side opaque), so the locked metadata records the endpoint label + prior_id
+    + vendor instead. Tamper-resistance notes (per cto-os.md adversarial-input
+    principle) are required when the deployed agent could inject scanner-
+    context tokens into responses.
+
+    Side effects mirror Path A: writes baseline.json + baseline_metadata.json
+    + eval_outputs.json under artifacts/beaaa-387/{fid}/, AND files
+    eval_outputs.json + expected_score.json into the fixture dir so the L1
+    deterministic gate picks up the promotion. Caller flips agent.json status.
+    """
+    fdir = FIXTURES / fixture_id
+    agent = _load_json(fdir / "agent.json")
+
+    rubric = Rubric.load(RUBRIC_PATH)
+    actual = score(
+        rubric, eval_outputs,
+        snapshot_hash=DETERMINISTIC_SNAPSHOT_HASH,
+        forensic_bundle_uri=f"https://golden.local/{fixture_id}",
+        scored_at=DETERMINISTIC_SCORED_AT,
+        scanner_version=None,
+        corpus_version=corpus_version,
+        seed=seed,
+        model_versions=None,  # Path B: model opaque behind deployment
+    )
+
+    if expected_bmi_range is not None:
+        lo, hi = int(expected_bmi_range[0]), int(expected_bmi_range[1])
+        if not (lo <= actual["bmi"] <= hi):
+            raise RuntimeError(
+                f"{fixture_id}: calibration breach — ARE total {actual['bmi']} "
+                f"outside expected_bmi_range [{lo}, {hi}]. Supreme Law: pause + "
+                "co-sign with Underwriter before persisting."
+            )
+
+    out_dir = BASELINES / fixture_id
+    _write_json(out_dir / "baseline.json", actual)
+    _write_json(out_dir / "eval_outputs.json", eval_outputs)
+    _write_json(fdir / "eval_outputs.json", eval_outputs)
+    _write_json(fdir / "expected_score.json", actual)
+
+    sidecar = {
+        "fixture_id": fixture_id,
+        "lock_source": "live_path_b",
+        "locked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "scanner_version": actual.get("scanner_version"),
+        "rubric_version": actual.get("rubric_version"),
+        "corpus_version": actual.get("corpus_version", corpus_version),
+        "seed": actual.get("seed"),
+        "vendor": vendor,
+        "endpoint_label": endpoint_label,
+        "prior_id": prior_id,
+        "sdk_versions": dict(sdk_versions or {}),
+        "are_total": actual["bmi"],
+        "band_display": actual["band"]["display"],
+        "expected_bmi_range": list(expected_bmi_range) if expected_bmi_range else None,
+        "agent_metadata": agent,
+        "source_artifact": source_artifact,
+    }
+    if tamper_resistance_notes:
+        sidecar["tamper_resistance_notes"] = tamper_resistance_notes
     _write_json(out_dir / "baseline_metadata.json", sidecar)
     return sidecar
 
@@ -238,6 +323,6 @@ def fixture_lock_state(fixture_id: str) -> dict[str, Any]:
         exp = _load_json(expected)
         state["scanner_version"] = exp.get("scanner_version")
         state["rubric_version"] = exp.get("rubric_version")
-        state["ari_total"] = exp.get("bmi")
+        state["are_total"] = exp.get("bmi")
         state["band_display"] = (exp.get("band") or {}).get("display")
     return state
