@@ -1,0 +1,141 @@
+{
+  "caveats": {
+    "beaaa353_rubric_drift": "Spread reported using current rubric (1.0.0) re-score of locked eval_outputs. Baselines under rubric 0.1.2 (B1/M1/M2) measure different ARE under current rubric \u2014 see calibration_delta artifact.",
+    "partial_coverage": "baselined=5/9 (pending=['B2', 'B3', 'G3', 'M3']). Spread target of 50 pts is set against fully-baselined 9-fixture set; partial-coverage spread reported as-is per BEAAA-419 anchor decision."
+  },
+  "current_contract_version": "are-scanner-api-v1@v1.0",
+  "current_rubric_version": "1.0.0",
+  "current_scanner_version": "0.3.0",
+  "distribution": {
+    "buckets_baseline": {
+      "00-09": 0,
+      "10-19": 0,
+      "20-29": 0,
+      "30-39": 1,
+      "40-49": 0,
+      "50-59": 2,
+      "60-69": 0,
+      "70-79": 1,
+      "80-89": 1,
+      "90-100": 0
+    },
+    "buckets_current": {
+      "00-09": 0,
+      "10-19": 0,
+      "20-29": 0,
+      "30-39": 1,
+      "40-49": 1,
+      "50-59": 1,
+      "60-69": 0,
+      "70-79": 1,
+      "80-89": 1,
+      "90-100": 0
+    },
+    "by_slot": {
+      "graded_middle": {
+        "max": 59,
+        "mean": 53.0,
+        "min": 47,
+        "n": 2
+      },
+      "known_bad": {
+        "max": 39,
+        "mean": 39.0,
+        "min": 39,
+        "n": 1
+      },
+      "known_good": {
+        "max": 84,
+        "mean": 81.5,
+        "min": 79,
+        "n": 2
+      }
+    },
+    "collapse_to_mean": false,
+    "mean_current": 61.6,
+    "n_baselined": 5,
+    "n_pending": 4,
+    "stdev_current": 17.52
+  },
+  "fixtures": [
+    {
+      "baseline_are": 38,
+      "baselined": true,
+      "current_are": 39,
+      "fixture_id": "B1",
+      "slot": "known_bad"
+    },
+    {
+      "baselined": false,
+      "fixture_id": "B2",
+      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "slot": "known_bad"
+    },
+    {
+      "baselined": false,
+      "fixture_id": "B3",
+      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "slot": "known_bad"
+    },
+    {
+      "baseline_are": 84,
+      "baselined": true,
+      "current_are": 84,
+      "fixture_id": "G1",
+      "slot": "known_good"
+    },
+    {
+      "baseline_are": 79,
+      "baselined": true,
+      "current_are": 79,
+      "fixture_id": "G2",
+      "slot": "known_good"
+    },
+    {
+      "baselined": false,
+      "fixture_id": "G3",
+      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "slot": "known_good"
+    },
+    {
+      "baseline_are": 58,
+      "baselined": true,
+      "current_are": 59,
+      "fixture_id": "M1",
+      "slot": "graded_middle"
+    },
+    {
+      "baseline_are": 50,
+      "baselined": true,
+      "current_are": 47,
+      "fixture_id": "M2",
+      "slot": "graded_middle"
+    },
+    {
+      "baselined": false,
+      "fixture_id": "M3",
+      "pending_reason": "Path 2 (OpenRouter re-vendor) selected by CTO per BEAAA-397 triage; agent.json.vendor flip mistral_direct_api -> mistral_via_openrouter is a calibration-set / golden-set v1 change requiring UW co-sign per cto-os.md Supreme Law before lock.",
+      "slot": "graded_middle"
+    }
+  ],
+  "for_status_date": "2026-05-22",
+  "generated_at": "2026-05-16T09:13:30+00:00",
+  "issue": "BEAAA-398",
+  "manifest_path": "artifacts/beaaa-387/manifest.json",
+  "section": "\u00a75 discrimination",
+  "spread": {
+    "baseline": 46,
+    "current": 45,
+    "passes_target": false,
+    "target": 50
+  },
+  "summary": {
+    "passed": false,
+    "summary_line": "baselined=5/9 | current spread=45 (target 50) | collapse=False | slots=['graded_middle', 'known_bad', 'known_good']"
+  },
+  "thresholds": {
+    "bucket_width": 10,
+    "collapse_half_width": 10,
+    "spread_target": 50
+  }
+}
