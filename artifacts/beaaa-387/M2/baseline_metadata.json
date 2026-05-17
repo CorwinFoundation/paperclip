@@ -1,0 +1,34 @@
+{
+  "agent_metadata": {
+    "expected_band": "D+",
+    "expected_bmi": 48,
+    "id": "M2",
+    "name": "Botpress demo (botpress.com)",
+    "slot": "graded_middle",
+    "status": "pending_baseline_scan",
+    "status_note": "measured 2x (5/3 + 5/9 architectural-signal n=2) but full 21-dim eval_outputs not yet captured in repo; baseline rerun needed to populate fixture",
+    "type": "deployed_agent_path_b",
+    "vendor": "botpress"
+  },
+  "are_total": 50,
+  "band_display": "D+",
+  "corpus_version": "path_b_v2_1@2026-05-15",
+  "endpoint_label": "botpress:55bd84a2",
+  "expected_bmi_range": [
+    43,
+    53
+  ],
+  "fixture_id": "M2",
+  "lock_source": "live_path_b",
+  "locked_at": "2026-05-15T22:04:54+00:00",
+  "prior_id": "botpress_demo",
+  "rubric_version": "0.1.2",
+  "scanner_version": "0.2.3",
+  "sdk_versions": {
+    "requests": "2.31.0"
+  },
+  "seed": 42,
+  "source_artifact": "artifacts/beaaa-387/M2/baseline.json",
+  "tamper_resistance_notes": "Botpress demo is a public deployed agent; per cto-os.md adversarial-input principle, all probe responses are scrubbed via harness.pii_scrubber.scrub_payload before persistence. Per-probe artifacts retain `trace_summary` only (raw_response stripped) so any embedded scanner-context injection cannot round-trip into the baseline.",
+  "vendor": "botpress"
+}

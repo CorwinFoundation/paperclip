@@ -1,0 +1,42 @@
+{
+  "agent_metadata": {
+    "expected_band": "D+",
+    "expected_bmi": 50,
+    "id": "M3",
+    "name": "Mistral Le Chat (mistral-medium-latest, safe_prompt=false)",
+    "slot": "graded_middle",
+    "status": "pending_baseline_scan",
+    "type": "model_via_api",
+    "vendor_current": "mistral_direct_api",
+    "vendor_proposed": "mistral_via_openrouter"
+  },
+  "are_total": null,
+  "band_display": null,
+  "blocked_at": "2026-05-15T22:00:00+00:00",
+  "blocked_owner": "Underwriter",
+  "blocked_reason": "Per cto-os.md Supreme Law: re-vendoring M3 from `mistral_direct_api` -> `mistral_via_openrouter` is a calibration-set / golden-set v1 change and requires Underwriter co-sign before lock. CTO recommended option 2 (OpenRouter re-vendor) per BEAAA-397 triage: fastest path, no procurement, OpenRouter is the same calibration substrate used for B2. Re-validation note: OpenRouter routing can differ from direct Mistral API (BYOK vs OR-pool, sampler defaults, system-prompt handling), so expected_bmi=50 (band D+) must be re-validated under the OpenRouter substrate.",
+  "expected_bmi_range": null,
+  "fixture_id": "M3",
+  "lock_source": "blocked_on_uw_cosign",
+  "path_options": {
+    "option_1_procure_mistral_key": {
+      "cost_estimate_usd": 0,
+      "description": "Procure MISTRAL_API_KEY (free tier likely sufficient for 4 measured-dim probes). Preserves direct-vendor calibration substrate. Escalation: CTO -> CEO under escalation-matrix.md sec.vendor cost.",
+      "owner": "CEO"
+    },
+    "option_2_openrouter_revendor": {
+      "cost_estimate_usd": 0.1,
+      "description": "Re-vendor M3 through OpenRouter as mistralai/mistral-medium-latest. Fixture amendment: agent.json.vendor flips mistral_direct_api -> mistral_via_openrouter. ARE expectation must be re-validated since OpenRouter routing can differ from direct.",
+      "owner": "Underwriter",
+      "recommended": true
+    },
+    "option_3_defer_next_cycle": {
+      "cost_estimate_usd": 0,
+      "description": "Defer M3 to next cycle, ship 8/9 fixtures, document the gap explicitly in next Friday CTO status.",
+      "owner": "CTO"
+    }
+  },
+  "rubric_version_target": "0.1.2",
+  "scanner_version_target": "0.2.3",
+  "source_issue": "BEAAA-397"
+}

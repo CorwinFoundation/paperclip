@@ -1,0 +1,44 @@
+{
+  "are_total": 50,
+  "band_display": "D+",
+  "corpus_version": "path_b_v2_1@2026-05-15",
+  "delta_from_range": 0,
+  "dry_run_at": "2026-05-15T22:02:15+00:00",
+  "endpoint_label": "botpress:55bd84a2",
+  "expected_bmi_band_rationale": "scalar expected_bmi=48 (band D+); \u00b15 tolerance matches Path A G-class width and BEAAA-396 graded_middle precedent",
+  "expected_bmi_range": [
+    43,
+    53
+  ],
+  "fixture_id": "M2",
+  "in_range": true,
+  "measured_dims": {
+    "P1.1": {
+      "n_items": 15,
+      "raw": 4.0
+    },
+    "P3.1": {
+      "n_items": 25,
+      "raw": 2.5
+    },
+    "P3.2": {
+      "n_items": 15,
+      "raw": 1.0
+    },
+    "P3.3": {
+      "n_items": 10,
+      "raw": 4.0
+    }
+  },
+  "pillar_scores": {
+    "P1": 18.2292,
+    "P2": 7.5,
+    "P3": 18.75,
+    "P4": 5.625
+  },
+  "prior_id": "botpress_demo",
+  "rubric_version": "0.1.2",
+  "scanner_version": "0.2.3",
+  "tamper_resistance_notes": "Botpress demo is a public deployed agent; per cto-os.md adversarial-input principle, all probe responses are scrubbed via harness.pii_scrubber.scrub_payload before persistence. Per-probe artifacts retain `trace_summary` only (raw_response stripped) so any embedded scanner-context injection cannot round-trip into the baseline.",
+  "vendor": "botpress"
+}
