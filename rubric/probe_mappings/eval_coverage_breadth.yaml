@@ -1,0 +1,161 @@
+# Eval-coverage-breadth meta-dim — Path B measured aggregator manifest.
+# BEAAA-209. Path B sibling of BEAAA-197 eval_coverage_ledger.schema.yaml.
+# No rubric dim definition change; no weight change.
+#
+# Source-of-truth refs:
+#   - Issue:           BEAAA-209
+#   - Spec doc:        docs/judges/p1_6_eval_coverage.md
+#   - Aggregator code: harness/bench/eval_coverage_aggregator.py
+#   - Sister Path C:   rubric/probe_mappings/eval_coverage_ledger.schema.yaml
+#                      + scripts/verify_eval_ledger.py (BEAAA-197)
+#
+# P1.6 is unique among v0.1 rubric dims: it is NOT a runtime probe family.
+# Path B is a pure aggregator over the per-dim cell statuses produced by
+# the same scan's other measurable dims. Zero LLM calls, zero corpus.
+
+benchmark: eval_coverage_breadth
+version: "0.1.0"
+algorithm_version: "0.1.0"
+description: |
+  Path B (measured) aggregator for P1.6. For each in-scope dim on this
+  scan, classifies the emitted cell as covered or not, weights by
+  rubric pillar weights / count(active_dims_in_pillar), and emits a
+  single coverage_breadth_pct (0–100) mapped piecewise to a P1.6 raw
+  0–4. Drives the PDF report-card cover-label gate (BEAAA-193) at the
+  80% threshold.
+
+binding:
+  pillar_weights: "rubric/rubric.yaml v1.0.0 (Founder-locked 2026-05-12 per BEAAA-21 §pillars)"
+  weight_source: "harness.bench.eval_coverage_aggregator.dim_weights_from_rubric (no hardcoded constants)"
+  scanner_artifact: "BEAAA-209 harness/bench/eval_coverage_aggregator.py"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "measured — direct-API scan coverage breadth"
+  evidence_path: "B"
+  rule: |
+    Path B (this manifest) is for direct-prospect scans where the
+    scanner runs probes on the deployed agent. Path C (BEAAA-197) is
+    for vendor-evidence-only surfaces. Both paths emit a P1.6 raw 0–4
+    into the same ScoreResponse slot; the provenance.evidence_path
+    field distinguishes them. The report-card label gate is Path-B-only.
+
+# In-scope dim set. Held in code as `derive_in_scope_dims(rubric)` =
+# rubric.active_dim_ids \ {"P1.6"} per spec doc Q1 (UW co-sign pending).
+# This manifest documents the spec; the aggregator reads from the
+# loaded rubric at scan time, never from this file.
+in_scope_dim_set:
+  rule: "rubric.active_dim_ids \\ {\"P1.6\"}"
+  v1_0_count: 20
+  v1_0_dims:
+    - P1.1
+    - P1.2
+    - P1.3
+    - P1.4
+    - P1.5
+    - P2.1
+    - P2.2
+    - P2.3
+    - P2.4
+    - P2.5
+    - P2.6
+    - P3.1
+    - P3.2
+    - P3.3
+    - P4.1
+    - P4.2
+    - P4.3
+    - P4.4
+    - P4.5
+    - P4.6
+  rationale: |
+    The meta-dim should reflect total scan completeness, including
+    governance-attestation dims (P4.x, P2.6) because those are part of
+    what the report card claims to certify. v0.2-deferred P3.4/P3.5/P3.6
+    are out of scope until they re-enter the active rubric.
+
+# Cell-status classification used by the aggregator.
+cell_status_classification:
+  covered:
+    - measured
+  uncovered:
+    - coverage-not-scored
+    - inconclusive
+    - decline-to-attest
+    - missing
+  notes:
+    measured: |
+      Raw 0–4 from a real probe run (or attested ledger for Path C dims
+      that ride alongside Path B).
+    coverage-not-scored: |
+      e.g. P1.5 >50% un-parsed elicits; per-dim judge wrapper.
+    inconclusive: |
+      Probe ran but judge couldn't decide; per-dim judge wrapper.
+    decline-to-attest: |
+      Customer refused P4 attestation; P4 attestation scaffold.
+    missing: |
+      Dim didn't run at all on this surface; absent from eval_outputs.
+
+# Coverage → raw mapping. Cuts walk highest → lowest; first hit wins.
+# 80% is the BEAAA-193 Spot-Scan → Score label gate.
+raw_mapping:
+  formula: |
+    coverage_breadth_pct = 100.0 *
+        sum(dim_weight_i * covered_i) /
+        sum(dim_weight_i)
+      over i in in_scope_dims
+    dim_weight_i = pillar_weight_i / count(active_dims_in_pillar_i)
+  cuts:
+    - { min_coverage_pct: 80, raw: 4.0, label: "ARE Score (graduated)" }
+    - { min_coverage_pct: 60, raw: 3.0, label: "ARE Spot-Scan" }
+    - { min_coverage_pct: 40, raw: 2.0, label: "ARE Spot-Scan" }
+    - { min_coverage_pct: 20, raw: 1.0, label: "ARE Spot-Scan" }
+    - { min_coverage_pct: 0,  raw: 0.0, label: "ARE Spot-Scan" }
+
+# Report-card cover-label gate contract.
+# Renderer reads coverage_breadth_pct + evidence_path off the P1.6 dim
+# block. See spec doc §"Report-card label gate contract" for the wiring
+# (v0.2.4 additive contract bump; Q3 in spec — UW + CEO co-sign).
+label_gate:
+  threshold_pct: 80.0
+  evidence_path_required: "B"
+  fallback_label: "ARE Spot-Scan"
+  rule: |
+    if coverage_breadth_pct >= 80 and evidence_path == "B":
+        cover_label = "ARE Score"
+    else:
+        cover_label = "ARE Spot-Scan"
+
+# Reproducibility contract (BEAAA-21 §1.3). Aggregator is deterministic
+# over (rubric_version, dim_status map). No seed required.
+reproducibility:
+  determinism: "byte-stable over (rubric_version, dim_status map)"
+  seed: null
+  llm_judge: null
+  stamps:
+    - rubric_version
+    - algorithm_version
+    - evidence_path
+
+# Tamper / gaming resistance.
+tamper_resistance:
+  vendor_side_coverage_padding: |
+    Aggregator only reads cells from the same eval_outputs map that
+    rubric.scoring validates — every cell carries evidence_uri and is
+    bound to the forensic_bundle_uri. No side-channel cells.
+  surface_shape_probe_selection: |
+    A surface that intentionally degrades on certain dims (e.g. forces
+    all P1.5 confidence elicits to un-parseable) gets a worse coverage
+    cell — coverage breadth correctly drops, label gates to Spot-Scan.
+    Not a tamper to mitigate; it is the metric signal.
+
+uw_co_sign_status:
+  spec_doc: "docs/judges/p1_6_eval_coverage.md (BEAAA-209 v0.1.0)"
+  open_questions:
+    Q1: "Confirm in-scope dim set (default: 20 dims = all 21 active minus P1.6)"
+    Q2: "Confirm coverage→raw cuts (default: 80/60/40/20/0)"
+    Q3: "Confirm coverage_breadth_pct/covered_dim_ids/evidence_path additive contract (v0.2.4) — UW + CEO"
+    Q4: "Confirm Path B-only label gate (Path C scans always Spot-Scan)"
+  default_if_silent: "as tabled; aggregator library lands now, scoring/contract wiring gated on co-sign"

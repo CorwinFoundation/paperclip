@@ -1,4 +1,13 @@
-# P1.6 Eval-coverage-breadth meta-dim — BEAAA-209 v0.1.0 (DRAFT — UW co-sign pending)
+# P1.6 Eval-coverage-breadth meta-dim — BEAAA-209 v0.1.0
+
+> **Status (2026-05-17):** Phase 1 aggregator library + manifest landed
+> (`harness/bench/eval_coverage_aggregator.py`,
+> `rubric/probe_mappings/eval_coverage_breadth.yaml`,
+> `tests/test_eval_coverage_aggregator.py` — 22/22 green; 666 full-suite
+> tests still green so byte-stable golden-set gate is preserved). Phase 2
+> integration (scoring pipeline wiring + v0.2.4 contract bump + renderer
+> label gate) is gated on UW co-sign of Q1/Q2/Q4 below (and UW+CEO for
+> Q3). See implementation sequencing at end of doc.
 
 Authoritative spec for the Tier A P1.6 dim as a **measured-cell coverage
 meta-aggregator**. P1.6 is the only dim in v0.1 that does not run probes:
@@ -211,20 +220,27 @@ P1.6 has two distinct attack vectors:
 
 ## Implementation sequencing
 
-Blocked by [BEAAA-205](/BEAAA/issues/BEAAA-205),
-[BEAAA-206](/BEAAA/issues/BEAAA-206),
-[BEAAA-207](/BEAAA/issues/BEAAA-207),
-[BEAAA-208](/BEAAA/issues/BEAAA-208),
-[BEAAA-203](/BEAAA/issues/BEAAA-203). Aggregator cannot be golden-tested
-without at least one full sweep of Tier A measurable cells.
+All upstream blockers cleared 2026-05-17 (BEAAA-205/206/207/208/203 ✓).
 
-1. UW co-signs Q1–Q4.
-2. Aggregator lands under `harness/bench/eval_coverage_aggregator.py`
+**Phase 1 — library landing (this commit, no co-sign needed):**
+1. ✅ Aggregator under `harness/bench/eval_coverage_aggregator.py`
    (matches existing `harness/bench/*.py` convention).
-3. Manifest entry under `rubric/probe_mappings/eval_coverage_breadth.yaml`
+2. ✅ Manifest entry under `rubric/probe_mappings/eval_coverage_breadth.yaml`
    (Path B sibling of `eval_coverage_ledger.schema.yaml`).
-4. Response-shape additive bump to v0.2.4 in
-   `api/openapi.yaml` + `rubric/scoring.py`.
-5. Report-card renderer reads new field and applies label gate.
-6. Dry-run on Atticus, LawConnect, Voiceflow v0.2-cut surface.
-7. Byte-stable golden-set L1 + L2 gate.
+3. ✅ Unit tests under `tests/test_eval_coverage_aggregator.py` (22/22).
+4. ✅ Full-suite tests still green (666 pass) — byte-stable golden-set
+   gate preserved because nothing in scoring.py / pipeline.py changed.
+
+**Phase 2 — integration (gated on UW co-sign of Q1–Q4):**
+5. UW co-signs Q1/Q2/Q4; UW + CEO co-sign Q3 (additive contract bump).
+6. Wire aggregator into the harness emit path so the P1.6 cell is
+   populated from `harness.bench.eval_coverage_aggregator.run(...)`
+   alongside existing dim measurements (mirrors `harness/p2_emit.py`).
+7. Additive contract bump to v0.2.4 in `api/openapi.yaml` +
+   `rubric/scoring.py` so `coverage_breadth_pct` / `covered_dim_ids` /
+   `evidence_path` propagate from input cell to `ScoreResponse.P1.6`.
+8. Report-card renderer reads new field and applies label gate
+   (`harness.bench.eval_coverage_aggregator.label_for(...)`).
+9. Dry-run on Atticus, LawConnect, Voiceflow v0.2-cut surface.
+10. Byte-stable golden-set L1 + L2 gate; aggregator must reproduce the
+    same P1.6 cell across N=5 runs on every golden.
