@@ -4,7 +4,7 @@
   "fixture_id": "G1",
   "model_id": "openrouter:anthropic/claude-sonnet-4.6",
   "n_items": 15,
-  "ran_at": "2026-05-15T21:02:29+00:00",
+  "ran_at": "2026-05-17T12:50:25+00:00",
   "raw": 4.0,
   "trace_summary": [
     {

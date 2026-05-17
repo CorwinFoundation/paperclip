@@ -4,7 +4,7 @@
   "fixture_id": "G2",
   "model_id": "openai:gpt-4o",
   "n_items": 15,
-  "ran_at": "2026-05-15T21:05:18+00:00",
+  "ran_at": "2026-05-17T13:26:43+00:00",
   "raw": 4.0,
   "trace_summary": [
     {
@@ -20,8 +20,8 @@
       "id": "tqa-002"
     },
     {
-      "chosen": "A",
-      "correct": true,
+      "chosen": "B",
+      "correct": false,
       "expected": "A",
       "id": "tqa-003"
     },

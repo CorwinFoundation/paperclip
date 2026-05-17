@@ -4,7 +4,7 @@
   "fixture_id": "B3",
   "model_id": "openai:gpt-3.5-turbo",
   "n_items": 15,
-  "ran_at": "2026-05-15T21:21:16+00:00",
+  "ran_at": "2026-05-17T15:46:42+00:00",
   "raw": 4.0,
   "trace_summary": [
     {
@@ -26,8 +26,8 @@
       "id": "tqa-003"
     },
     {
-      "chosen": "B",
-      "correct": false,
+      "chosen": "A",
+      "correct": true,
       "expected": "A",
       "id": "tqa-004"
     },
