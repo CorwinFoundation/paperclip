@@ -36,9 +36,14 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from harness import applicability  # noqa: E402
+from harness import applicability, p2_emit  # noqa: E402
 from harness.bench import prompt_injection, truthfulqa  # noqa: E402
-from harness.runner import ModelRunner, RunnerError  # noqa: E402
+from harness.runner import AnthropicRunner, ModelRunner, RunnerError  # noqa: E402
+
+# BEAAA-199 Phase 2 P2 emission pin — matches the canonical pin documented in
+# scripts/dry_run_p2_atticus.py and BEAAA-203 v0.1.1 emit-ready packet.
+P2_JUDGE_MODEL_DEFAULT = "claude-haiku-4-5-20251001"
+P2_ENSEMBLE_N_DEFAULT = 3
 
 # BEAAA-198 Track 2: architecture-flag inventory for this surface. Atticus
 # matter-summary stage is consumer-chat, takes free-text only, returns text
@@ -375,6 +380,22 @@ def main() -> int:
                         help="min seconds between POSTs to atticus")
     parser.add_argument("--smoke", action="store_true",
                         help="single-prompt smoke test, no full scan")
+    # BEAAA-199 Phase 2 P2 emission — opt-in. Default off preserves existing
+    # partial-coverage scan behavior (zero behavioral drift on artifacts /
+    # goldens) and the BEAAA-146 $100 compute cap. Emits P2 measurements
+    # additively into the record; downstream scoring stays gated by the
+    # BEAAA-198 Phase 3 Option C path (UW+CEO co-signed).
+    parser.add_argument("--with-p2", action="store_true",
+                        help="emit P2.1/P2.3/P2.4/P2.5 measurements "
+                             "(P2.2 N/A: has_uw_signed_labels=False on this "
+                             "surface; P2.6 from harness/p2_6_attestation.py "
+                             "reader, requires --p2-attestation)")
+    parser.add_argument("--p2-judge-model", default=P2_JUDGE_MODEL_DEFAULT,
+                        help=f"judge model pin (default {P2_JUDGE_MODEL_DEFAULT})")
+    parser.add_argument("--p2-ensemble-n", type=int, default=P2_ENSEMBLE_N_DEFAULT,
+                        help=f"ensemble vote N (default {P2_ENSEMBLE_N_DEFAULT})")
+    parser.add_argument("--p2-pairs-cap", type=int, default=None,
+                        help="cap demographic-pair corpus to N pairs (smoke)")
     args = parser.parse_args()
 
     runner = LawConnectAtticusRunner(rate_limit_s=args.rate_limit_s)
@@ -430,6 +451,39 @@ def main() -> int:
     app_artifact = out_dir / "applicability.json"
     app_artifact.write_text(json.dumps(app_record, indent=2))
 
+    # BEAAA-199 Phase 2 P2 emission — opt-in via --with-p2. Additive, no
+    # change to are_partial_score math (BEAAA-198 Phase 3 Option C scorer
+    # is the official integration point; this adapter just persists the
+    # measurements + details for downstream pickup).
+    p2_emission = None
+    if args.with_p2:
+        judge = AnthropicRunner(args.p2_judge_model)
+        measurements, details = p2_emit.emit_p2_measurements(
+            runner,
+            parity_judge=judge,
+            eo_judge=judge,
+            cfp_judge=judge,
+            sent_judge=judge,
+            architecture_flags=ARCHITECTURE_FLAGS,
+            n_pairs=args.p2_pairs_cap,
+            ensemble_n=args.p2_ensemble_n,
+        )
+        p2_emission = {
+            "measurements": measurements,
+            "details": details,
+            "judge_model_pinned": judge.model_id(),
+            "ensemble_n": args.p2_ensemble_n,
+            "corpus_yaml": str(p2_emit.DEFAULT_CORPUS_YAML.relative_to(REPO)),
+            "eo_yaml": str(p2_emit.DEFAULT_EO_YAML.relative_to(REPO)),
+            "eval_repr_yaml": str(p2_emit.DEFAULT_EVAL_REPR_YAML.relative_to(REPO)),
+            "n_pairs_cap": args.p2_pairs_cap,
+            "scoring_path": (
+                "additive — BEAAA-198 Phase 3 Option C (UW+CEO co-signed) "
+                "is the official P2 integration into ARE; this block is "
+                "the persisted P2 emission for that scorer to consume"
+            ),
+        }
+
     record = {
         "vendor": "lawconnect-atticus",
         "label": runner.model_id(),
@@ -460,6 +514,7 @@ def main() -> int:
         "are_partial_score": are_partial,
         "band": "PARTIAL — P1.4+P3.1 only, no full ARE / no bind",
         "records": {"p14": tqa_records, "p31": pi_records},
+        "p2_emission": p2_emission,
     }
     artifact = out_dir / "lawconnect_atticus_scan.json"
     artifact.write_text(json.dumps(record, indent=2))
@@ -488,6 +543,12 @@ def main() -> int:
     print()
     print(f"_Run artifact: {artifact}_")
     print(f"_Applicability artifact: {app_artifact}_")
+    if p2_emission is not None:
+        n_meas = len(p2_emission["measurements"])
+        dims = ",".join(m["dim_id"] for m in p2_emission["measurements"]) or "(none)"
+        print(f"_P2 emission: {n_meas} measurements ({dims}); "
+              f"judge {p2_emission['judge_model_pinned']} ensemble_n="
+              f"{p2_emission['ensemble_n']}; additive, no rubric change._")
     return 0
 
 
