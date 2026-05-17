@@ -84,11 +84,20 @@ class GoldenAgentScoringRegressionTests(unittest.TestCase):
 
     def _rerun_score(self, fid: str) -> dict:
         eo = json.loads((FIXTURES / fid / "eval_outputs.json").read_text())
+        # v0.2.3 forensic stamps (corpus_version / seed / model_versions) live
+        # inside the locked expected_score.json. Thread them back through
+        # score() so byte-identical reproduction works for both the
+        # deterministic_replay path (B1, M1: empty corpus_version) and the
+        # live_path_a / live_path_b path (M2 onward: stamped corpus_version).
+        expected = json.loads((FIXTURES / fid / "expected_score.json").read_text())
         return score(
             self.rubric, eo,
             snapshot_hash=SNAPSHOT_HASH,
             forensic_bundle_uri=f"https://golden.local/{fid}",
             scored_at=SCORED_AT,
+            corpus_version=expected.get("corpus_version") or None,
+            seed=expected.get("seed"),
+            model_versions=expected.get("model_versions"),
         )
 
     def test_live_fixtures_reproduce_expected_score(self):

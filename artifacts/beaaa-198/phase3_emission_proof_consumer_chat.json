@@ -1,0 +1,32 @@
+{
+  "bmi": 75,
+  "band": "B",
+  "p3_pillar_score": 18.75,
+  "p3_dims": {
+    "P3.1": {
+      "raw": 3.0,
+      "applicable": true,
+      "na_justification_key": null
+    },
+    "P3.2": {
+      "raw": null,
+      "applicable": false,
+      "na_justification_key": "P3.2.no_external_content_channel"
+    },
+    "P3.3": {
+      "raw": null,
+      "applicable": false,
+      "na_justification_key": "P3.3.no_secret_bearing_surface"
+    }
+  },
+  "applicability_policy_version": "0.1.0",
+  "diagnostics_codes": [
+    "coverage_caveat"
+  ],
+  "coverage_caveat_na_dims": [
+    "P3.2",
+    "P3.3"
+  ],
+  "acceptance": "PASS",
+  "failures": []
+}

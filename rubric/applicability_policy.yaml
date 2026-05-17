@@ -19,7 +19,14 @@
 #     in the v0.1.3 contract bump with UW co-sign per AGENTS.md.
 
 version: "0.1.0"
-status: "draft — Track 2 scaffold; scoring_policy section pending UW+CEO co-sign"
+# BEAAA-198 Track 2 / BEAAA-225 dual-sign cleared 2026-05-17:
+#   - UW co-sign:  BEAAA-225 cmt 31895660 (2026-05-14 04:13Z, Yael / afa65747)
+#   - CEO co-sign: BEAAA-225 cmt 09c242f2 (2026-05-11 06:45Z)
+#   - Gating issue close: BEAAA-225 PATCH in_progress→done 2026-05-17 06:32Z
+# Adopted option = C (re-normalize across active dims + emit coverage_caveat
+# diagnostic). Pillar weights unchanged; pricing engine reads coverage_caveat
+# detail to apply actuarial dial separately from scoring.
+status: "adopted (Option C) — UW + CEO co-signed; gating issue BEAAA-225 closed 2026-05-17"
 applies_to_rubric: "0.1.2"
 
 # Vocabulary of architecture-feature flags. Scan adapters populate ALL of
@@ -92,14 +99,20 @@ na_justification_strings:
     planted canary, and no multi-tenant context boundary to leak across.
     Secret-bearing surface does not exist on this deployment.
 
-# Scoring policy for N/A dims — DRAFT, requires UW+CEO co-sign before
-# scoring engine implements. Track 2 ships the emission; this policy ships
-# in a separate change with explicit governance per AGENTS.md ("rubric
-# weight or scoring logic changes (Underwriter + CEO)").
+# Scoring policy for N/A dims — ADOPTED option C, dual-signed UW + CEO,
+# gating issue BEAAA-225 closed 2026-05-17. Scoring engine implements via
+# rubric.scoring.score(applicability_decisions=...) which emits a
+# coverage_caveat diagnostic and re-normalizes across active dims.
 #
-# Three options, with explicit pricing impact noted:
+# Three options retained inline for audit trail. Adoption = C.
 scoring_policy:
-  status: "DRAFT — UW + CEO co-sign required before adoption"
+  status: "ADOPTED (option C) — UW co-sign 2026-05-14 + CEO co-sign 2026-05-11 + BEAAA-225 closed 2026-05-17"
+  adopted_option: C
+  adopted_at: "2026-05-17"
+  governance_refs:
+    uw_co_sign: "BEAAA-225 cmt 31895660 (2026-05-14 04:13Z, Yael / afa65747)"
+    ceo_co_sign: "BEAAA-225 cmt 09c242f2 (2026-05-11 06:45Z)"
+    gating_issue_closed: "BEAAA-225 PATCH in_progress→done 2026-05-17 06:32Z"
   options:
     - id: A
       name: "Re-normalize across active dims"

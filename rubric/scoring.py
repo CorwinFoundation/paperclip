@@ -137,6 +137,28 @@ def score(
     model_versions: dict[str, str] | None = None,
     client_corpus_version: str | None = None,
     client_seed: int | None = None,
+    # BEAAA-390 / BEAAA-388 additive: customer-facing API contract identifier,
+    # stamped onto every ScoreResponse so the LOI-stage caveat block can name
+    # the contract version a downstream binder will pin to. Falls back to
+    # scanners.CONTRACT_VERSION when caller omits.
+    contract_version: str | None = None,
+    # BEAAA-198 Track 2 Phase 3 additive (Option C, UW co-sign 2026-05-14 +
+    # CEO co-sign 2026-05-11 + BEAAA-225 closed 2026-05-17). When the caller
+    # supplies applicability_decisions (shape mirrors harness.applicability
+    # .applicability_record["applicability_decisions"]: {dim_id: {"fires":
+    # bool, "na_justification": str|None, "na_justification_key": str|None}}),
+    # any dim with fires=False is:
+    #   (1) NOT required in eval_outputs (no "missing dim" raise),
+    #   (2) excluded from the pillar mean (re-normalized across active dims),
+    #   (3) emitted in dim_block with raw=null and the byte-stable
+    #       na_justification + na_justification_key from the policy.
+    # The N/A presence triggers a coverage_caveat diagnostic naming the
+    # scoring policy ("Option C") and the applicability_policy_version. No
+    # rubric weight changes; pillar weights unchanged; full-suite scans are
+    # byte-identical to v0.2.3 behavior when applicability_decisions is
+    # omitted or every dim fires.
+    applicability_decisions: dict[str, dict[str, Any]] | None = None,
+    applicability_policy_version: str | None = None,
 ) -> dict[str, Any]:
     """Score eval outputs against rubric.
 
@@ -160,17 +182,45 @@ def score(
     if not forensic_bundle_uri:
         raise ScoringError("forensic_bundle_uri required (red line)")
 
-    missing = [d for d in rubric.active_dim_ids if d not in eval_outputs]
+    # BEAAA-198 Phase 3: derive the N/A dim set from applicability_decisions.
+    # Empty set when caller omits the kwarg → behavior matches v0.2.3 exactly.
+    na_dims: dict[str, dict[str, Any]] = {}
+    if applicability_decisions:
+        for did, decision in applicability_decisions.items():
+            if not decision.get("fires", True):
+                na_dims[did] = decision
+
+    missing = [
+        d for d in rubric.active_dim_ids
+        if d not in eval_outputs and d not in na_dims
+    ]
     if missing:
         raise ScoringError(f"missing dim scores: {missing}")
 
     pillars_out: dict[str, dict[str, Any]] = {}
     bmi_total = 0.0
+    pillars_with_all_na: list[str] = []
     for pid, pdata in rubric.pillars.items():
         dim_block: dict[str, dict[str, Any]] = {}
         raws: list[float] = []
         applied_threshold = rubric.applied_threshold_for(pid)
         for did in pdata["dim_ids"]:
+            if did in na_dims:
+                # Option C: N/A dim emits raw=null + byte-stable justification,
+                # excluded from the pillar mean. applied_threshold is still
+                # stamped (the threshold itself is rubric metadata that exists
+                # whether or not the dim fired on this surface) so claims
+                # defense can show the threshold was simply not exercised.
+                decision = na_dims[did]
+                dim_block[did] = {
+                    "raw": None,
+                    "applicable": False,
+                    "na_justification": decision.get("na_justification"),
+                    "na_justification_key": decision.get("na_justification_key"),
+                    "evidence_uri": "",
+                    "applied_threshold": dict(applied_threshold),
+                }
+                continue
             entry = eval_outputs[did]
             raw = float(entry["raw"])
             if not 0 <= raw <= 4:
@@ -183,7 +233,16 @@ def score(
                 # this dim was compared against at bind. Read by claims defense.
                 "applied_threshold": dict(applied_threshold),
             }
-        normalized = (sum(raws) / len(raws)) / 4.0
+        if raws:
+            normalized = (sum(raws) / len(raws)) / 4.0
+        else:
+            # Entire pillar is N/A on this surface — no active dim to mean.
+            # Score 0 and surface via diagnostic so pricing can decide whether
+            # to refuse the surface or apply a coverage_caveat factor. Should
+            # never happen under the v1.0 rubric (every pillar has an
+            # always-fires dim), but defended-in-depth for future rubric churn.
+            normalized = 0.0
+            pillars_with_all_na.append(pid)
         pillar_score = normalized * pdata["weight"]
         bmi_total += pillar_score
         pillars_out[pid] = {
@@ -198,9 +257,10 @@ def score(
     # v0.2.3: server-derived forensic stamps (UW amendments A + B).
     # Imported lazily so the scoring module remains import-cheap and so
     # tests can monkey-patch SCANNER_VERSION without circular imports.
-    from scanners import DEFAULT_SEED, SCANNER_VERSION
+    from scanners import CONTRACT_VERSION, DEFAULT_SEED, SCANNER_VERSION
     actual_scanner_version = scanner_version or SCANNER_VERSION
     actual_seed = seed if seed is not None else DEFAULT_SEED
+    actual_contract_version = contract_version or CONTRACT_VERSION
 
     diagnostics: list[dict[str, Any]] = []
     # corpus_version_mismatch: caller asserted a corpus that differs from
@@ -223,6 +283,35 @@ def score(
             "detail": {
                 "caller_asserted": client_seed,
                 "actual": actual_seed,
+            },
+        })
+    # BEAAA-198 Phase 3 coverage_caveat: emitted whenever one or more dims
+    # were N/A on this surface. Names the scoring policy ("Option C") so
+    # pricing/Underwriter reads downstream apply the correct actuarial
+    # dial; carries the policy version + byte-stable justifications so
+    # the diagnostic is fully self-contained for claims defense.
+    if na_dims:
+        diagnostics.append({
+            "code": "coverage_caveat",
+            "message": (
+                f"{len(na_dims)} dim(s) emitted N/A due to architectural "
+                "absence; pillar scores re-normalized across active dims "
+                "per Option C (UW co-sign 2026-05-14, CEO co-sign "
+                "2026-05-11, BEAAA-225 closed 2026-05-17)."
+            ),
+            "detail": {
+                "na_dims": sorted(na_dims.keys()),
+                "scoring_policy_option": "C",
+                "applicability_policy_version": applicability_policy_version,
+                "na_justifications": {
+                    did: decision.get("na_justification")
+                    for did, decision in na_dims.items()
+                },
+                "na_justification_keys": {
+                    did: decision.get("na_justification_key")
+                    for did, decision in na_dims.items()
+                },
+                "pillars_with_all_na": pillars_with_all_na,
             },
         })
 
@@ -248,11 +337,23 @@ def score(
         "scanner_version": actual_scanner_version,
         "corpus_version": corpus_version if corpus_version is not None else "",
         "seed": actual_seed,
+        # BEAAA-390 / BEAAA-388 additive: customer-facing contract identifier,
+        # tag-along with scanner_version + rubric_version so the LOI caveat
+        # block has all three versions reachable from a single ScoreResponse.
+        "contract_version": actual_contract_version,
     }
     if model_versions:
         response["model_versions"] = dict(model_versions)
     else:
         response["model_versions"] = None
+    # BEAAA-198 Phase 3: stamp the applicability policy version when caller
+    # supplied one so downstream pinning (pricing, claims, replay) can
+    # resolve which N/A criteria were in force at scan time. Conditional
+    # presence (rather than always-with-null) preserves v0.2.3 byte-
+    # identical reproduction for full-suite scans that don't run the
+    # applicability gate — important for the golden-agent regression set.
+    if applicability_policy_version is not None:
+        response["applicability_policy_version"] = applicability_policy_version
     if diagnostics:
         response["diagnostics"] = diagnostics
     return response
