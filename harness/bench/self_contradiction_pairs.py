@@ -12,9 +12,9 @@ we aggregate to pass_rate and map through scanners/promptfoo_runner.py's
 _pass_rate_to_raw curve (BEAAA-108 single-curve discipline).
 
 Heartbeat status:
-  - H1 (BEAAA-207): YAML scaffold + paraphrase corpus + judge spec + judge doc
-  - H2 (this commit): reorder corpus + this bench wrapper (paraphrase + reorder)
-  - H3: add-irrelevant corpus + Atticus dry-run + golden-set gate + UW co-sign
+  - H1 (ba80b55): YAML scaffold + paraphrase corpus + judge spec + judge doc
+  - H2 (58b6cde): reorder corpus + this bench wrapper (paraphrase + reorder)
+  - H3 (this commit): add-irrelevant corpus + run_add_irrelevant + UW co-sign packet
 
 Source: rubric/probe_mappings/self_contradiction_pairs.yaml.
 Judge: docs/judges/p1_3_self_contradiction.md.
@@ -81,6 +81,15 @@ class ReorderPair:
     final_query: str
 
 
+@dataclass(frozen=True)
+class AddIrrelevantPair:
+    id: str
+    consistency_expectation: ConsistencyExpectation
+    domain: str
+    prompt_a: str
+    prompt_b: str
+
+
 def load_paraphrase_pairs(yaml_path: str | Path) -> list[ParaphrasePair]:
     data = yaml.safe_load(Path(yaml_path).read_text())
     out: list[ParaphrasePair] = []
@@ -109,6 +118,22 @@ def load_reorder_pairs(yaml_path: str | Path) -> list[ReorderPair]:
                 user_turns_a=tuple(p["user_turns_a"]),
                 user_turns_b=tuple(p["user_turns_b"]),
                 final_query=p["final_query"],
+            )
+        )
+    return out
+
+
+def load_add_irrelevant_pairs(yaml_path: str | Path) -> list[AddIrrelevantPair]:
+    data = yaml.safe_load(Path(yaml_path).read_text())
+    out: list[AddIrrelevantPair] = []
+    for p in data.get("add_irrelevant_pairs", []):
+        out.append(
+            AddIrrelevantPair(
+                id=p["id"],
+                consistency_expectation=p["consistency_expectation"],
+                domain=p["domain"],
+                prompt_a=p["prompt_a"],
+                prompt_b=p["prompt_b"],
             )
         )
     return out
@@ -383,24 +408,73 @@ def run_reorder(
     }
 
 
+def run_add_irrelevant(
+    subject: ModelRunner,
+    judge: ModelRunner,
+    pairs: list[AddIrrelevantPair],
+    *,
+    ensemble_n: int = 3,
+    on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
+    """Run the add-irrelevant-context family. prompt_b carries unrelated filler
+    before the same final question; an order-stable agent answers prompt_b the
+    same way as prompt_a. Filler text is bland by design — adversarial
+    perturbations live under P3.x, not P1.3.
+    """
+    per_pair: list[dict[str, Any]] = []
+    for idx, pair in enumerate(pairs, 1):
+        resp_a = subject.complete(pair.prompt_a)
+        resp_b = subject.complete(pair.prompt_b)
+        verdict = judge_pair(
+            judge,
+            pair.consistency_expectation,
+            resp_a,
+            resp_b,
+            underlying_question=pair.prompt_a,
+            ensemble_n=ensemble_n,
+        )
+        record = {
+            "id": pair.id,
+            "perturbation_type": "add_irrelevant",
+            "consistency_expectation": pair.consistency_expectation,
+            "domain": pair.domain,
+            "label": verdict["label"],
+            "votes": verdict["votes"],
+            "prompt_a": pair.prompt_a,
+            "prompt_b": pair.prompt_b,
+            "response_a": resp_a,
+            "response_b": resp_b,
+            "judge_raw": verdict["ensemble_raw"],
+        }
+        per_pair.append(record)
+        if on_progress is not None:
+            on_progress(idx, len(pairs), record)
+    agg = _aggregate(per_pair)
+    return {
+        "family": "add_irrelevant",
+        **agg,
+        "trace": per_pair,
+    }
+
+
 def run(
     subject: ModelRunner,
     judge: ModelRunner,
     yaml_path: str | Path,
     *,
-    families: tuple[str, ...] = ("paraphrase", "reorder"),
+    families: tuple[str, ...] = ("paraphrase", "reorder", "add_irrelevant"),
     ensemble_n: int = 3,
     on_progress: Callable[[str, int, int, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Top-level dim runner. v0.1.1 ships paraphrase + reorder; add_irrelevant lands at H3.
+    """Top-level dim runner. v0.1.2 ships all three families: paraphrase, reorder, add_irrelevant.
 
     Returns a dim rollup:
       {
         "dim_id": "P1.3",
-        "benchmark": "self_contradiction_pairs-v0.1.1",
-        "families": {"paraphrase": {...}, "reorder": {...}},
-        "dim_pass_rate": <float | None>,
-        "dim_raw": <float | None>,
+        "benchmark": "self_contradiction_pairs-v0.1.2",
+        "families": {"paraphrase": {...}, "reorder": {...}, "add_irrelevant": {...}},
+        "pair_axis_pass_rate": <float | None>,
+        "pair_axis_raw": <float | None>,
         ...
       }
     """
@@ -431,7 +505,19 @@ def run(
                 else None
             ),
         )
-    # add_irrelevant: queued for H3. Loader + runner stubs land with that corpus.
+    if "add_irrelevant" in families:
+        pairs_ai = load_add_irrelevant_pairs(yaml_path)
+        out_families["add_irrelevant"] = run_add_irrelevant(
+            subject,
+            judge,
+            pairs_ai,
+            ensemble_n=ensemble_n,
+            on_progress=(
+                (lambda i, n, r: on_progress("add_irrelevant", i, n, r))
+                if on_progress is not None
+                else None
+            ),
+        )
 
     # Pair-axis family aggregate: equal-weight mean across families that emitted ok.
     ok_rates = [
@@ -448,7 +534,7 @@ def run(
         status = "inconclusive"
     return {
         "dim_id": "P1.3",
-        "benchmark": "self_contradiction_pairs-v0.1.1",
+        "benchmark": "self_contradiction_pairs-v0.1.2",
         "model_id": subject.model_id(),
         "judge_id": judge.model_id(),
         "families": out_families,

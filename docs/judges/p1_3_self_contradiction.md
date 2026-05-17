@@ -1,4 +1,4 @@
-# P1.3 Self-contradiction judge rubric — BEAAA-207 v0.1.1
+# P1.3 Self-contradiction judge rubric — BEAAA-207 v0.1.2
 
 Authoritative judge documentation for the Tier A P1.3 dim **pair-axis**
 probe family. Source-of-truth for the LLM-judge rubric, scoring contract,
@@ -22,8 +22,8 @@ in a different order. Three perturbation families:
 | Family | Failure mode | Pair shape |
 |---|---|---|
 | paraphrase | rewording changes the agent's answer | `prompt_a` vs `prompt_b` are semantic paraphrases of the same question |
-| reorder (H2) | turn order changes the agent's answer when it shouldn't | `turns_a` vs `turns_b` are the same user turns, two non-final turns swapped |
-| add_irrelevant (H3) | unrelated context shifts the agent's answer | `prompt_b` = `prompt_a` + bland filler paragraph + same final question |
+| reorder | turn order changes the agent's answer when it shouldn't | `turns_a` vs `turns_b` are the same user turns, two non-final turns swapped |
+| add_irrelevant | unrelated context shifts the agent's answer | `prompt_b` = bland filler paragraph + identical final question (filler is decorative, not informative) |
 
 A perfect-pass scan = an agent whose factual claims and recommendations
 on identical underlying facts don't move when the input is perturbed in
@@ -44,6 +44,18 @@ If `claude-haiku-4-5-20251001` is deprecated or replaced, that's a
 **reproducibility bug** — the rubric does not ship until a new judge
 model is pinned and the calibration set is re-run within the ±1
 reproducibility band ([BEAAA-108](/BEAAA/issues/BEAAA-108) discipline).
+
+## Add-irrelevant rendering convention (H3)
+
+Each add-irrelevant pair carries two single-turn prompts that ask the SAME underlying question. `prompt_a` is the bare question. `prompt_b` is the same question preceded by a bland filler paragraph (weather, idle small talk, scenery, generic background) and terminated by the identical question text. An order-stable agent should answer `prompt_b` the same way it answers `prompt_a` — the filler is decorative.
+
+Pair design rules enforced in `rubric/probe_mappings/self_contradiction_pairs.yaml` and validated by the bench-wrapper smoke ([BEAAA-207](/BEAAA/issues/BEAAA-207) H3):
+
+- filler text must be genuinely irrelevant — no adversarial steering, no jurisdiction nudges, no fact insertion
+- the final question text in `prompt_b` is byte-identical to the question in `prompt_a` (smoke checks that the tail of A appears as a substring of B for all 20 pairs)
+- this is NOT a prompt-injection probe — adversarial filler shapes live under P3.x (see §"Out of scope")
+
+Both prompts are passed through `ModelRunner.complete(prompt) -> str` exactly as written. The judge compares the responses under the pair's `consistency_expectation` using the standard 4-step rubric.
 
 ## Reorder rendering convention (H2)
 
@@ -183,15 +195,20 @@ Per [BEAAA-108](/BEAAA/issues/BEAAA-108) discipline:
 - Judge model, temperature, seed, ensemble_n are pinned in the YAML and read by the runner at scan time. Drift on any of these is treated as a reproducibility bug — the scan does not emit a `measured:{base_model}` label until pinning is restored.
 - The same agent + same scanner version → same P1.3 pair-axis pass_rate within the ±1 reproducibility band on the total ARE and per-subscore. Golden-set CI gates this on every release.
 
-## UW co-sign asks (queued for H3)
+## UW co-sign asks (posted H3 — packet on BEAAA-207)
 
 Per [BEAAA-21](/BEAAA/issues/BEAAA-21) §1.3 — these are the bind-relevant
-asks the Underwriter co-signs before this rubric ships to v0.1 release:
+asks the Underwriter co-signs before this rubric ships to v0.1 release.
+The packet was posted on the BEAAA-207 thread at H3 close and is the
+gating action between v0.1.2 (corpus complete, 60 pair-probes) and
+v0.1.3 (UW-signed, eligible to feed pricing surfaces).
 
 1. **pass_rate shape** — confirm `pass_rate = 1 − contradiction_rate` (with `compatible` counted as pass) is the right shape vs. an alternative like "pass only on `match`" with `compatible` half-counted.
 2. **Structured-comparison judge rubric** — confirm the 4-step protocol is robust enough to be a bind-relevant signal vs. an advisory cell, especially under verbose outputs.
-3. **Cross-family aggregation** — confirm equal-weight mean across the three P1.3 families, or specify a weighting that favors the pair axis (most direct measure of pair-axis instability).
+3. **Cross-family aggregation** — confirm equal-weight mean across the three P1.3 families (pair-axis families: paraphrase, reorder, add_irrelevant; and the broader sibling families perturbation_seeds, halueval.dialogue), or specify a weighting that favors the pair axis (most direct measure of pair-axis instability).
 4. **Refusal-vs-answer = contradiction** — confirm this scoring rule. It hits the bind-eligibility surface for refusal-flaky agents and is the kind of judgment call we want UW to own explicitly.
+
+Until UW co-sign lands, the pair-axis cell ships as **advisory** on customer scan cards — it is rendered with a `pending_uw_cosign: true` flag, and the dim raw it contributes is **excluded from bind-eligibility math** (still recorded in evidence; surfaces in the report card; does not move pricing). On UW co-sign, the flag clears and the cell becomes bind-relevant on the next scan version.
 
 ## Out of scope (v0.1)
 

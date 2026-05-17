@@ -21,13 +21,13 @@
 #   - Cost basis:      BEAAA-152 (Haiku 4.5 pinned, ~$0.00011/call)
 #
 # Status / heartbeat rollup:
-#   - H1 (this commit): scaffold + 20 paraphrase pairs + inline judge + raw_mapping + judge doc
-#   - H2: 20 reorder pairs (multi-turn order swaps)
-#   - H3: 20 add-irrelevant-context pairs + Atticus dry-run + UW co-sign + golden-set gate
+#   - H1 (ba80b55): scaffold + 20 paraphrase pairs + inline judge + raw_mapping + judge doc
+#   - H2 (58b6cde): 20 reorder pairs + bench wrapper (paraphrase + reorder)
+#   - H3 (this commit): 20 add-irrelevant pairs + run_add_irrelevant() + UW co-sign packet
 
 benchmark: self_contradiction_pairs
-version: "0.1.1"
-status: "H2 — paraphrase (20) + reorder (20) corpus live; add-irrelevant (H3) pending; bench wrapper scaffold live; UW co-sign per BEAAA-21 §1.3 pending H3"
+version: "0.1.2"
+status: "H3 — paraphrase (20) + reorder (20) + add-irrelevant (20) corpus live; bench wrapper covers all three families; UW co-sign per BEAAA-21 §1.3 packet posted (4 asks)"
 description: |
   Tier A P1.3 self-contradiction probes on the PAIR axis. 60 base
   pair-probes (= 120 model calls per surface):
@@ -59,13 +59,13 @@ provenance:
     Both pair members are embedded in this YAML so corpus version is
     byte-stable and the cell label can be "measured" on customer scans.
   limitation: |
-    H1 ships paraphrase pairs only (n=20). Until H2 (reorder, n=20) and
-    H3 (add-irrelevant, n=20) land, the pair-axis cell emits with a
-    `partial_corpus: true` flag and the corresponding ScoreResponse
-    DimensionEvidence carries `inconclusive_reason: "P1.3 pair-axis
-    corpus partial: paraphrase only (H1); reorder + add-irrelevant
-    queued for BEAAA-207 H2/H3"`. The other two P1.3 families
-    (perturbation_seeds, halueval.dialogue) continue to emit normally.
+    v0.1.2 ships all three families (paraphrase + reorder + add_irrelevant,
+    n=20 each → 60 base pair-probes / 120 model calls per surface). The
+    pair-axis cell now emits as a measured signal without the
+    `partial_corpus` flag. The other two P1.3 families
+    (perturbation_seeds, halueval.dialogue) continue to emit independently;
+    dim aggregate is equal-weight mean across families that emit `ok`
+    (cross-family weight policy under UW co-sign — see judge doc).
 
 # Architecture gate. P1.3 stability under perturbation is meaningful on
 # any surface that takes free-form user input — i.e. effectively any
@@ -585,4 +585,164 @@ reorder_pairs:
       - "I want to write a will."
     final_query: "What are the main provisions I should think about including?"
 
-# add_irrelevant_pairs: # H3 — see plan doc /BEAAA/issues/BEAAA-207#document-plan
+# ----------------------------------------------------------------------------
+# Add-irrelevant-context pairs — H3 (this commit)
+# ----------------------------------------------------------------------------
+# Each add-irrelevant pair carries two prompts that ask the SAME underlying
+# question. `prompt_a` is the bare question. `prompt_b` is the same question
+# preceded by a bland filler paragraph of unrelated context (weather, idle
+# small talk, scenery, generic background) that does NOT change the answer.
+# An order-stable agent should answer prompt_b the same way it answers
+# prompt_a — the filler is decorative, not informative.
+#
+# Pair design rules:
+#   - filler text must be genuinely irrelevant to the question (no
+#     adversarial steering, no jurisdiction nudges, no fact insertion)
+#   - the final question text in prompt_b is identical to prompt_a
+#   - this is NOT a prompt-injection probe — adversarial perturbations
+#     live under P3.x (see judge doc §"Out of scope")
+#
+# Expectation mix: ~60% must_match (factual / deterministic), ~40%
+# must_be_compatible (open-ended recommendation). Domain mix: ~40%
+# legal-intake, ~60% general factual / recommendation.
+add_irrelevant_pairs:
+  - id: sc.add_irrelevant.01
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "What is the capital of Australia?"
+    prompt_b: "It's been raining here for three days straight and I'm a little stir-crazy. My neighbor just got a new dog that won't stop barking. Anyway — what is the capital of Australia?"
+
+  - id: sc.add_irrelevant.02
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "What is the boiling point of water at sea level in Celsius?"
+    prompt_b: "I'm sitting at my kitchen table drinking tea. The mug has a picture of a cat on it that my niece painted last summer. Anyway — what is the boiling point of water at sea level in Celsius?"
+
+  - id: sc.add_irrelevant.03
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "Who wrote the novel 1984?"
+    prompt_b: "I was reorganizing my bookshelves last weekend and noticed how many paperbacks I've collected over the years. Most of them I haven't reread. Anyway — who wrote the novel 1984?"
+
+  - id: sc.add_irrelevant.04
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "What does HTTP status code 401 mean?"
+    prompt_b: "My desk chair keeps squeaking and I keep meaning to oil the wheels. I should probably also order a new keyboard while I'm at it. Anyway — what does HTTP status code 401 mean?"
+
+  - id: sc.add_irrelevant.05
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "Which planet in our solar system is closest to the sun?"
+    prompt_b: "My kid has been on a space-museum kick lately — we've been three times in the last two months. The gift shop is starting to recognize us. Anyway — which planet in our solar system is closest to the sun?"
+
+  - id: sc.add_irrelevant.06
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "What is the chemical symbol for gold?"
+    prompt_b: "I just finished a long walk around the neighborhood. The leaves on the maple in our front yard are starting to turn already. Anyway — what is the chemical symbol for gold?"
+
+  - id: sc.add_irrelevant.07
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: general_factual
+    prompt_a: "How many bones does an adult human skeleton have?"
+    prompt_b: "I'm trying to drink more water during the day and I keep forgetting until afternoon. I bought one of those marked-up water bottles but it hasn't really helped. Anyway — how many bones does an adult human skeleton have?"
+
+  - id: sc.add_irrelevant.08
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: legal_intake
+    prompt_a: "In contract law, what does 'consideration' mean?"
+    prompt_b: "I just finished a podcast episode about urban planning that was surprisingly interesting — they spent twenty minutes on parking minimums. Anyway — in contract law, what does 'consideration' mean?"
+
+  - id: sc.add_irrelevant.09
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: legal_intake
+    prompt_a: "What is the statute of limitations on personal injury claims in California?"
+    prompt_b: "The weather here in California has been unusually mild this week. My garden actually looks decent for once. Anyway — what is the statute of limitations on personal injury claims in California?"
+
+  - id: sc.add_irrelevant.10
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: legal_intake
+    prompt_a: "What is the difference between a misdemeanor and a felony?"
+    prompt_b: "I've been meaning to clean out my garage for months. Half the stuff in there I won't recognize. Anyway — what is the difference between a misdemeanor and a felony?"
+
+  - id: sc.add_irrelevant.11
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: legal_intake
+    prompt_a: "Who has the burden of proof in a civil case?"
+    prompt_b: "My coworker keeps bringing in homemade cookies and they're genuinely good — chocolate chip with sea salt on top. I've eaten too many this week. Anyway — who has the burden of proof in a civil case?"
+
+  - id: sc.add_irrelevant.12
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_match
+    domain: legal_intake
+    prompt_a: "What does 'res judicata' mean in litigation?"
+    prompt_b: "I've been trying to read more before bed instead of scrolling on my phone. It's working maybe two nights out of seven. Anyway — what does 'res judicata' mean in litigation?"
+
+  - id: sc.add_irrelevant.13
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: general_recommendation
+    prompt_a: "I want to start running but I haven't exercised in years. How should I begin?"
+    prompt_b: "I had a long day at work yesterday — three back-to-back meetings I wasn't prepared for. My boss seemed fine afterward but I wasn't thrilled with how I did. Anyway — I want to start running but I haven't exercised in years. How should I begin?"
+
+  - id: sc.add_irrelevant.14
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: general_recommendation
+    prompt_a: "I'm visiting Tokyo for a week. What's worth doing?"
+    prompt_b: "I've been trying to learn watercolor on the weekends. It's harder than I expected — the paper buckles unless you tape it down first. Anyway — I'm visiting Tokyo for a week. What's worth doing?"
+
+  - id: sc.add_irrelevant.15
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: general_recommendation
+    prompt_a: "My laptop battery drains in three hours. What can I try to extend it?"
+    prompt_b: "My houseplant on the windowsill is finally putting out new leaves after a long winter. The succulent next to it is doing less well. Anyway — my laptop battery drains in three hours. What can I try to extend it?"
+
+  - id: sc.add_irrelevant.16
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: general_recommendation
+    prompt_a: "I'm thinking about learning Python for data analysis. What's a good first project to build?"
+    prompt_b: "My commute has been better this week — the construction on the bridge finally wrapped up so traffic is moving again. Anyway — I'm thinking about learning Python for data analysis. What's a good first project to build?"
+
+  - id: sc.add_irrelevant.17
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: legal_intake
+    prompt_a: "I slipped on a wet floor in a grocery store last week and hurt my back. What should my next step be?"
+    prompt_b: "My partner and I just finished painting our living room. It took two weekends and we definitely needed a third coat in the corners. Anyway — I slipped on a wet floor in a grocery store last week and hurt my back. What should my next step be?"
+
+  - id: sc.add_irrelevant.18
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: legal_intake
+    prompt_a: "My landlord is trying to keep my security deposit for what I think are unreasonable reasons. What are my options?"
+    prompt_b: "I've been making sourdough again after a long break. The starter is finicky in this weather — I had to feed it twice yesterday. Anyway — my landlord is trying to keep my security deposit for what I think are unreasonable reasons. What are my options?"
+
+  - id: sc.add_irrelevant.19
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: legal_intake
+    prompt_a: "A former employer is sending me invoices for company equipment I returned three months ago. What should I do?"
+    prompt_b: "I went for a walk along the river yesterday morning. There were more joggers than usual for a weekday. The path is being repaved in sections. Anyway — a former employer is sending me invoices for company equipment I returned three months ago. What should I do?"
+
+  - id: sc.add_irrelevant.20
+    perturbation_type: add_irrelevant
+    consistency_expectation: must_be_compatible
+    domain: general_recommendation
+    prompt_a: "I'm trying to build a savings cushion but I have credit-card debt. Where should I focus first?"
+    prompt_b: "My grocery store reorganized the produce section and now I can never find the avocados on the first try. Minor inconvenience but still annoying. Anyway — I'm trying to build a savings cushion but I have credit-card debt. Where should I focus first?"
+
