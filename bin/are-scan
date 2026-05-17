@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""bin/are-scan — externalised ARE Scanner CLI (BEAAA-464).
+
+A thin wrapper over the in-agent scoring stack (`harness/cli_runner.py` →
+`rubric.scoring.score`). Same rubric, same scoring math, same forensic
+stamps. The CLI exists so scans can be invoked outside an agent run —
+from CI, from external machines via tunnel, from internal scripts.
+
+Reproducibility contract (inherited from `agents/cto-os.md` Supreme Law and
+`contracts/are-scanner-api-v1.md@v1.0` Hard guarantee #1): same agent_id
++ same input artifacts + same scanner_version + same corpus_version +
+same seed → byte-identical JSON output (and ARE total / pillar subscores
+within ±1 across replicates).
+
+Exit codes (per BEAAA-464 spec):
+    0    Scan clean.
+    1    evidence_refs incomplete (refuse-to-quote condition).
+    2    Invalid inputs (bad JSON, missing dim, raw out of [0,4], path
+         traversal, oversize file, malformed agent_id, ...).
+    3    Scanner internal error (unexpected exception).
+
+Tamper-resistance posture: all inputs are treated as adversarial. No
+shell-out, no symlink follow-through outside --input-dir, every read is
+size-bounded (10MB/file), agent_id is regex-restricted.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import traceback
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
+
+from harness.cli_runner import (  # noqa: E402
+    CliEvidenceError,
+    CliInputError,
+    run_scan,
+)
+from scanners import SCANNER_VERSION  # noqa: E402
+
+DEFAULT_RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
+
+EXIT_OK = 0
+EXIT_EVIDENCE_INCOMPLETE = 1
+EXIT_INVALID_INPUTS = 2
+EXIT_INTERNAL_ERROR = 3
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="bin/are-scan",
+        description=(
+            "Run an ARE scan from the command line (BEAAA-464). Reads "
+            "input artifacts from a directory, delegates scoring to the "
+            "shared rubric/scoring engine, and writes the contract-shaped "
+            "JSON Output to stdout (or --out)."
+        ),
+        epilog=(
+            "Input directory convention (per "
+            "`contracts/are-scanner-api-v1.md@v1.0` Input section):\n"
+            "  eval_results.json              required (per-dim raw scores + evidence URIs)\n"
+            "  system_prompt.txt              optional, treated as confidential\n"
+            "  tool_inventory.json            optional list of tool objects\n"
+            "  policy_attestations.json       optional governance attestation object\n"
+            "  governance_attestations.json   optional governance attestation object\n"
+            "  model_versions.json            optional {primary, judges[]}\n"
+            "  scanner_invocation_context.json  optional {purpose, requested_pillars[]}\n\n"
+            "Exit codes:\n"
+            "  0  clean\n"
+            "  1  evidence_refs incomplete (refuse-to-quote)\n"
+            "  2  invalid inputs\n"
+            "  3  scanner internal error\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--agent", required=True, dest="agent_id",
+        help="Agent identifier. Must match ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+    )
+    parser.add_argument(
+        "--version", default=SCANNER_VERSION,
+        help=(
+            "Scanner build version asserted by the caller. Compared "
+            "against the live scanner version; mismatch → exit 2. "
+            f"(default: live {SCANNER_VERSION})"
+        ),
+    )
+    parser.add_argument(
+        "--seed", type=int, required=True,
+        help="Integer RNG seed. Stamped into the JSON output (required for replay).",
+    )
+    parser.add_argument(
+        "--corpus", default=None,
+        help="Corpus semver pin (e.g. 0.1.1). Stamped into the JSON output.",
+    )
+    parser.add_argument(
+        "--input-dir", default=None,
+        help=(
+            "Directory containing the input artifacts. "
+            "Default: ./inputs/<agent-id>/"
+        ),
+    )
+    parser.add_argument(
+        "--out", default=None,
+        help="Write JSON output to this path instead of stdout.",
+    )
+    parser.add_argument(
+        "--rubric", default=str(DEFAULT_RUBRIC_PATH),
+        help=f"Override rubric YAML path (default: {DEFAULT_RUBRIC_PATH.relative_to(REPO)}).",
+    )
+    parser.add_argument(
+        "--scored-at", default=None,
+        help=(
+            "Override scored_at timestamp (ISO-8601). Used by the "
+            "reproducibility smoke test to assert byte-identical output "
+            "across replicates. Default: current UTC time."
+        ),
+    )
+    return parser
+
+
+def _emit(payload: dict, out_path: str | None) -> None:
+    text = json.dumps(payload, indent=2, sort_keys=True, default=str)
+    if out_path:
+        target = Path(out_path)
+        # The output directory itself is allowed to exist anywhere the
+        # caller can write — this is operator-controlled, not agent-
+        # controlled, so no symlink check.
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text + "\n")
+    else:
+        sys.stdout.write(text + "\n")
+        sys.stdout.flush()
+
+
+def _parse_scored_at(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError as exc:
+        raise CliInputError(f"--scored-at not ISO-8601: {raw!r}") from exc
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+
+    if args.version != SCANNER_VERSION:
+        sys.stderr.write(
+            f"are-scan: --version {args.version!r} != live scanner "
+            f"version {SCANNER_VERSION!r}; refusing scan (the in-agent "
+            "stack is the source of truth — bump --version or check out "
+            "the requested scanner build).\n"
+        )
+        return EXIT_INVALID_INPUTS
+
+    input_dir = (
+        Path(args.input_dir) if args.input_dir
+        else Path("inputs") / args.agent_id
+    )
+
+    try:
+        scored_at = _parse_scored_at(args.scored_at)
+        result = run_scan(
+            agent_id=args.agent_id,
+            input_dir=input_dir,
+            seed=args.seed,
+            corpus_version=args.corpus,
+            rubric_path=Path(args.rubric),
+            scored_at=scored_at,
+        )
+    except CliInputError as exc:
+        sys.stderr.write(f"are-scan: invalid input: {exc}\n")
+        return EXIT_INVALID_INPUTS
+    except CliEvidenceError as exc:
+        sys.stderr.write(f"are-scan: refuse-to-quote: {exc}\n")
+        # Still emit the partial result so the operator can see what
+        # dims tripped the gate. Write to stderr so stdout stays
+        # machine-parseable when --out is absent.
+        return EXIT_EVIDENCE_INCOMPLETE
+    except Exception as exc:  # noqa: BLE001 — boundary handler
+        sys.stderr.write(f"are-scan: internal error: {exc}\n")
+        sys.stderr.write(traceback.format_exc())
+        return EXIT_INTERNAL_ERROR
+
+    _emit(result, args.out)
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    sys.exit(main())
