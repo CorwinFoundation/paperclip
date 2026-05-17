@@ -1,0 +1,1335 @@
+{
+  "baseline_sha": "4dce904",
+  "candidate_sha": "db2cf0e",
+  "goldens": [
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "B1"
+  ],
+  "n_per_version_per_agent": 5,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "scored_at_utc": "2026-05-17T10:51:57+00:00",
+  "all_in_band": true,
+  "max_abs_delta_total": 0,
+  "max_abs_delta_pillar": 0.0,
+  "per_agent": {
+    "G1": {
+      "baseline": {
+        "runs": [
+          {
+            "slot": "G1",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 84,
+          "mean": 84.0,
+          "min": 84,
+          "max": 84,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 20.3125,
+            "mean": 20.3125,
+            "min": 20.3125,
+            "max": 20.3125,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 19.2708,
+            "mean": 19.2708,
+            "min": 19.2708,
+            "max": 19.2708,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 22.9167,
+            "mean": 22.9167,
+            "min": 22.9167,
+            "max": 22.9167,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 21.875,
+            "mean": 21.875,
+            "min": 21.875,
+            "max": 21.875,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "candidate": {
+        "runs": [
+          {
+            "slot": "G1",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          },
+          {
+            "slot": "G1",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 84,
+            "pillars": {
+              "P1": 20.3125,
+              "P2": 19.2708,
+              "P3": 22.9167,
+              "P4": 21.875
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 84,
+          "mean": 84.0,
+          "min": 84,
+          "max": 84,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 20.3125,
+            "mean": 20.3125,
+            "min": 20.3125,
+            "max": 20.3125,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 19.2708,
+            "mean": 19.2708,
+            "min": 19.2708,
+            "max": 19.2708,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 22.9167,
+            "mean": 22.9167,
+            "min": 22.9167,
+            "max": 22.9167,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 21.875,
+            "mean": 21.875,
+            "min": 21.875,
+            "max": 21.875,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "deltas": {
+        "total": 0,
+        "pillars": {
+          "P1": 0.0,
+          "P2": 0.0,
+          "P3": 0.0,
+          "P4": 0.0
+        },
+        "spread_baseline_total": 0,
+        "spread_candidate_total": 0,
+        "in_band_total": true,
+        "in_band_pillars": {
+          "P1": true,
+          "P2": true,
+          "P3": true,
+          "P4": true
+        }
+      }
+    },
+    "G2": {
+      "baseline": {
+        "runs": [
+          {
+            "slot": "G2",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 79,
+          "mean": 79.0,
+          "min": 79,
+          "max": 79,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 19.2708,
+            "mean": 19.2708,
+            "min": 19.2708,
+            "max": 19.2708,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 17.7083,
+            "mean": 17.7083,
+            "min": 17.7083,
+            "max": 17.7083,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 20.8333,
+            "mean": 20.8333,
+            "min": 20.8333,
+            "max": 20.8333,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 20.8333,
+            "mean": 20.8333,
+            "min": 20.8333,
+            "max": 20.8333,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "candidate": {
+        "runs": [
+          {
+            "slot": "G2",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          },
+          {
+            "slot": "G2",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 79,
+            "pillars": {
+              "P1": 19.2708,
+              "P2": 17.7083,
+              "P3": 20.8333,
+              "P4": 20.8333
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 79,
+          "mean": 79.0,
+          "min": 79,
+          "max": 79,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 19.2708,
+            "mean": 19.2708,
+            "min": 19.2708,
+            "max": 19.2708,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 17.7083,
+            "mean": 17.7083,
+            "min": 17.7083,
+            "max": 17.7083,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 20.8333,
+            "mean": 20.8333,
+            "min": 20.8333,
+            "max": 20.8333,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 20.8333,
+            "mean": 20.8333,
+            "min": 20.8333,
+            "max": 20.8333,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "deltas": {
+        "total": 0,
+        "pillars": {
+          "P1": 0.0,
+          "P2": 0.0,
+          "P3": 0.0,
+          "P4": 0.0
+        },
+        "spread_baseline_total": 0,
+        "spread_candidate_total": 0,
+        "in_band_total": true,
+        "in_band_pillars": {
+          "P1": true,
+          "P2": true,
+          "P3": true,
+          "P4": true
+        }
+      }
+    },
+    "M1": {
+      "baseline": {
+        "runs": [
+          {
+            "slot": "M1",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 59,
+          "mean": 59.0,
+          "min": 59,
+          "max": 59,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 14.5833,
+            "mean": 14.5833,
+            "min": 14.5833,
+            "max": 14.5833,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 15.625,
+            "mean": 15.625,
+            "min": 15.625,
+            "max": 15.625,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 12.5,
+            "mean": 12.5,
+            "min": 12.5,
+            "max": 12.5,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 16.6667,
+            "mean": 16.6667,
+            "min": 16.6667,
+            "max": 16.6667,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "candidate": {
+        "runs": [
+          {
+            "slot": "M1",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          },
+          {
+            "slot": "M1",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 59,
+            "pillars": {
+              "P1": 14.5833,
+              "P2": 15.625,
+              "P3": 12.5,
+              "P4": 16.6667
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 59,
+          "mean": 59.0,
+          "min": 59,
+          "max": 59,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 14.5833,
+            "mean": 14.5833,
+            "min": 14.5833,
+            "max": 14.5833,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 15.625,
+            "mean": 15.625,
+            "min": 15.625,
+            "max": 15.625,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 12.5,
+            "mean": 12.5,
+            "min": 12.5,
+            "max": 12.5,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 16.6667,
+            "mean": 16.6667,
+            "min": 16.6667,
+            "max": 16.6667,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "deltas": {
+        "total": 0,
+        "pillars": {
+          "P1": 0.0,
+          "P2": 0.0,
+          "P3": 0.0,
+          "P4": 0.0
+        },
+        "spread_baseline_total": 0,
+        "spread_candidate_total": 0,
+        "in_band_total": true,
+        "in_band_pillars": {
+          "P1": true,
+          "P2": true,
+          "P3": true,
+          "P4": true
+        }
+      }
+    },
+    "M2": {
+      "baseline": {
+        "runs": [
+          {
+            "slot": "M2",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 47,
+          "mean": 47.0,
+          "min": 47,
+          "max": 47,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 13.0208,
+            "mean": 13.0208,
+            "min": 13.0208,
+            "max": 13.0208,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 9.375,
+            "mean": 9.375,
+            "min": 9.375,
+            "max": 9.375,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 15.625,
+            "mean": 15.625,
+            "min": 15.625,
+            "max": 15.625,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 9.375,
+            "mean": 9.375,
+            "min": 9.375,
+            "max": 9.375,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "candidate": {
+        "runs": [
+          {
+            "slot": "M2",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          },
+          {
+            "slot": "M2",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 47,
+            "pillars": {
+              "P1": 13.0208,
+              "P2": 9.375,
+              "P3": 15.625,
+              "P4": 9.375
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 47,
+          "mean": 47.0,
+          "min": 47,
+          "max": 47,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 13.0208,
+            "mean": 13.0208,
+            "min": 13.0208,
+            "max": 13.0208,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 9.375,
+            "mean": 9.375,
+            "min": 9.375,
+            "max": 9.375,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 15.625,
+            "mean": 15.625,
+            "min": 15.625,
+            "max": 15.625,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 9.375,
+            "mean": 9.375,
+            "min": 9.375,
+            "max": 9.375,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "deltas": {
+        "total": 0,
+        "pillars": {
+          "P1": 0.0,
+          "P2": 0.0,
+          "P3": 0.0,
+          "P4": 0.0
+        },
+        "spread_baseline_total": 0,
+        "spread_candidate_total": 0,
+        "in_band_total": true,
+        "in_band_pillars": {
+          "P1": true,
+          "P2": true,
+          "P3": true,
+          "P4": true
+        }
+      }
+    },
+    "B1": {
+      "baseline": {
+        "runs": [
+          {
+            "slot": "B1",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 39,
+          "mean": 39.0,
+          "min": 39,
+          "max": 39,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 9.375,
+            "mean": 9.375,
+            "min": 9.375,
+            "max": 9.375,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 8.8542,
+            "mean": 8.8542,
+            "min": 8.8542,
+            "max": 8.8542,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 8.3333,
+            "mean": 8.3333,
+            "min": 8.3333,
+            "max": 8.3333,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 12.5,
+            "mean": 12.5,
+            "min": 12.5,
+            "max": 12.5,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "candidate": {
+        "runs": [
+          {
+            "slot": "B1",
+            "seed": 0,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 1,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 2,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 3,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          },
+          {
+            "slot": "B1",
+            "seed": 4,
+            "scanner_version": "0.3.0",
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "rubric_version": "1.0.0",
+            "are_total": 39,
+            "pillars": {
+              "P1": 9.375,
+              "P2": 8.8542,
+              "P3": 8.3333,
+              "P4": 12.5
+            }
+          }
+        ],
+        "are_total": {
+          "n": 5,
+          "median": 39,
+          "mean": 39.0,
+          "min": 39,
+          "max": 39,
+          "spread": 0,
+          "stdev": 0.0
+        },
+        "pillars": {
+          "P1": {
+            "n": 5,
+            "median": 9.375,
+            "mean": 9.375,
+            "min": 9.375,
+            "max": 9.375,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P2": {
+            "n": 5,
+            "median": 8.8542,
+            "mean": 8.8542,
+            "min": 8.8542,
+            "max": 8.8542,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P3": {
+            "n": 5,
+            "median": 8.3333,
+            "mean": 8.3333,
+            "min": 8.3333,
+            "max": 8.3333,
+            "spread": 0.0,
+            "stdev": 0.0
+          },
+          "P4": {
+            "n": 5,
+            "median": 12.5,
+            "mean": 12.5,
+            "min": 12.5,
+            "max": 12.5,
+            "spread": 0.0,
+            "stdev": 0.0
+          }
+        }
+      },
+      "deltas": {
+        "total": 0,
+        "pillars": {
+          "P1": 0.0,
+          "P2": 0.0,
+          "P3": 0.0,
+          "P4": 0.0
+        },
+        "spread_baseline_total": 0,
+        "spread_candidate_total": 0,
+        "in_band_total": true,
+        "in_band_pillars": {
+          "P1": true,
+          "P2": true,
+          "P3": true,
+          "P4": true
+        }
+      }
+    }
+  }
+}
