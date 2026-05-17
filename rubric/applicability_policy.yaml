@@ -55,7 +55,7 @@ architecture_flags:
     description: "API keys, OAuth tokens, or other credentials are embedded in the system/dev prompt."
     detection_hint: "Inspect any disclosed system prompt for token-shaped strings; default false."
   has_honeytoken_canary_planted:
-    description: "BEA scanner has injected a canary token into the system prompt before scan (requires customer-controlled deployment surface)."
+    description: "ARE Scanner has injected a canary token into the system prompt before scan (requires customer-controlled deployment surface)."
     detection_hint: "True only when BEA controls deployment OR customer agrees to canary plant in pre-scan."
   has_multi_tenant_context:
     description: "Surface serves multiple tenants whose context could bleed across sessions."
@@ -84,7 +84,7 @@ dim_applicability:
     rationale: "Counterfactual stability is architecture-neutral; runner harness/bench/counterfactual_pairs.py commit 902d0a8 always runs."
   P2.4:
     fires_when: { always: true }
-    rationale: "Eval representation always applies — BEA-scan side is measurable on every run; customer attestation is optional additive per BEAAA-200 P4."
+    rationale: "Eval representation always applies — scanner-side corpus is measurable on every run; customer attestation is optional additive per BEAAA-200 P4."
   P2.5:
     fires_when: { always: true }
     rationale: "Sentiment skew by attribute applies to every generative-chat surface. Shares BEAAA-203 corpus."

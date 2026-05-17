@@ -25,7 +25,7 @@ status: "UW co-signed 2026-05-17 (BEAAA-448 cmt 1d73afe6, Yael / afa65747) — D
 description: |
   Customer-attestation schema for P2 mitigation effort. Three artifact
   classes scored independently, then averaged for the dim raw. No agent
-  probe is fired — this is the BEA-scanner side of governance attestation
+  probe is fired — this is the scanner-side governance attestation
   per the BEAAA-21 §1.x governance_attestations contract block.
 
 binding:

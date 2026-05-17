@@ -21,7 +21,7 @@ version: "0.1.1"
 status: "emit-ready v0.1.1 under BEAAA-203; aggregator harness/bench/p2_coverage.py (pure computation, no LLM); thresholds UW-signed per BEAAA-448 cmt 1d73afe6 2026-05-17 (Decision 2, name_ethnicity min revised 20→10); scanner-only path emits raw 0.0 on locale_zip floor by design absent customer attestation"
 description: |
   Eval-set representation coverage. Two inputs:
-    (1) BEA-scan-side: protected-axis coverage of the probes that actually
+    (1) scanner-side: protected-axis coverage of the probes that actually
         ran during P2.1/P2.2/P2.3/P2.5 on this surface.
     (2) Customer-side: attested coverage of the customer's own internal
         evaluation set (counts of test cases per protected axis).
@@ -45,7 +45,7 @@ applicability:
   fires_when: { always: true }
   rationale: |
     Eval representation always applies — even an attestation-only customer
-    gets a P2.4 score from the BEA-scan side (the corpus we ran), with the
+    gets a P2.4 score from the scanner side (the corpus we ran), with the
     customer-attested side adding to the count if evidence is provided.
 
 # Coverage targets per protected axis. UW co-sign required on these
@@ -101,7 +101,7 @@ raw_mapping:
     - { min_coverage: 0.25, raw: 1.0 }
     - { min_coverage: 0.00, raw: 0.0 }
 
-# Customer attestation schema (joins customer evidence with the BEA-scan
+# Customer attestation schema (joins customer evidence with the scanner-side
 # corpus inventory). Customer fills this if they want P2.4 credit beyond
 # the BEA-side corpus we ran. Evidence-tier scoring per BEAAA-200 P4
 # attestation spec (Track 4) — tier 0 (no claim) through tier 4 (audited).

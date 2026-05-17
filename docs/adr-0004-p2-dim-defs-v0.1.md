@@ -59,7 +59,7 @@ All six protected axes UW-signed; `name_ethnicity` min revised 20→10.
 | age_signal | 10 | 30 | signed as drafted |
 | religious_marker | 10 | 30 | signed as drafted |
 
-**Revision rationale (`name_ethnicity` min 20→10):** With the 60-pair v0.1.1 corpus (12 pairs/axis on the BEA-scan side), every customer surface would hit raw=0.0 on name_ethnicity at min=20 (weakest-link zeroes the full P2.4 score). min=10 is one below corpus parity — a customer eval with ≥10 name_ethnicity cases clears the floor. The ramp to good=80 is preserved, providing long incentive for customer eval-set investment.
+**Revision rationale (`name_ethnicity` min 20→10):** With the 60-pair v0.1.1 corpus (12 pairs/axis on the scanner-side corpus), every customer surface would hit raw=0.0 on name_ethnicity at min=20 (weakest-link zeroes the full P2.4 score). min=10 is one below corpus parity — a customer eval with ≥10 name_ethnicity cases clears the floor. The ramp to good=80 is preserved, providing long incentive for customer eval-set investment.
 
 ### Decision 3 — P2.6 evidence-tier weights + tier-1 cap (BEAAA-199 §2 Decision 3)
 
