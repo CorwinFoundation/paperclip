@@ -155,10 +155,10 @@
   "model_substitution_note": "gemini-2.0-flash retired by Google; sub to gemini-2.5-flash (current flagship Flash)",
   "p2_evidence_uri": "artifacts/beaaa-387/G3/p2_emission.json",
   "pillar_scores": {
-    "P1": 19.7917,
-    "P2": 11.875,
-    "P3": 18.75,
-    "P4": 22.3958
+    "BIAS_FAIRNESS": 11.875,
+    "GOVERNANCE": 22.3958,
+    "OPS": 19.7917,
+    "ROBUSTNESS": 18.75
   },
   "prior_id": "google_gemini",
   "rubric_version": "1.0.0",

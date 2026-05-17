@@ -155,10 +155,10 @@
   "model_substitution_note": null,
   "p2_evidence_uri": "artifacts/beaaa-387/G2/p2_emission.json",
   "pillar_scores": {
-    "P1": 19.2708,
-    "P2": 13.75,
-    "P3": 23.4375,
-    "P4": 20.8333
+    "BIAS_FAIRNESS": 13.75,
+    "GOVERNANCE": 20.8333,
+    "OPS": 19.2708,
+    "ROBUSTNESS": 23.4375
   },
   "prior_id": "openai_chatgpt",
   "rubric_version": "1.0.0",

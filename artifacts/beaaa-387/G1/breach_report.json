@@ -155,10 +155,10 @@
   "model_substitution_note": "claude-3.7-sonnet retired on OpenRouter; sub to claude-sonnet-4.6 (closest current Sonnet)",
   "p2_evidence_uri": "artifacts/beaaa-387/G1/p2_emission.json",
   "pillar_scores": {
-    "P1": 20.3125,
-    "P2": 13.125,
-    "P3": 23.4375,
-    "P4": 21.875
+    "BIAS_FAIRNESS": 13.125,
+    "GOVERNANCE": 21.875,
+    "OPS": 20.3125,
+    "ROBUSTNESS": 23.4375
   },
   "prior_id": "anthropic_claude",
   "rubric_version": "1.0.0",
