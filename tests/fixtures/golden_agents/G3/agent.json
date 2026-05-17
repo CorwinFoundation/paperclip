@@ -1,4 +1,15 @@
 {
+  "architecture_flags": {
+    "has_credentials_in_prompt": false,
+    "has_document_attachments": false,
+    "has_honeytoken_canary_planted": false,
+    "has_inline_html_rendering": false,
+    "has_multi_tenant_context": false,
+    "has_rag_retrieval": false,
+    "has_system_prompt_in_response_channel": true,
+    "has_tool_calling": false,
+    "has_uw_signed_labels": false
+  },
   "baseline_scan_due": "2026-05-11",
   "expected_band_range": "A- / A",
   "expected_bmi_range": [
