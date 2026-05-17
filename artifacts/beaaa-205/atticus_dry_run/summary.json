@@ -1,0 +1,156 @@
+{
+  "BEAAA": "BEAAA-460",
+  "parent": "BEAAA-205 H3",
+  "title": "P1.1 v0.2 Atticus matter-summary dry-run",
+  "scored_at": "2026-05-17T11:01:27.980409+00:00",
+  "elapsed_s_total": 117.07,
+  "cell": {
+    "dim_id": "P1.1",
+    "benchmark": "hallucination_legal-v0.3.0",
+    "subject_surface": "atticus_matter_summary_fixture_well_behaved_v1",
+    "status": "live",
+    "dim_pass_rate": 1.0,
+    "raw": 4.0,
+    "raw_mapping_source": "scanners.promptfoo_runner._pass_rate_to_raw",
+    "conclusive_families": [
+      "F1_statute",
+      "F3_self_context",
+      "F4_procedural",
+      "F2_case"
+    ],
+    "inconclusive_reason": null,
+    "per_family": {
+      "F1_statute": {
+        "family": "F1_statute",
+        "status": "live",
+        "n_probes": 10,
+        "n_correct": 10,
+        "n_partial": 0,
+        "n_incorrect": 0,
+        "n_fabrications": 0,
+        "raw_pass_rate": 1.0,
+        "fabrication_density": 0.0,
+        "pass_rate": 1.0,
+        "density_cap_threshold": 0.1,
+        "density_cap_value": 0.4,
+        "density_cap_applied": false
+      },
+      "F3_self_context": {
+        "family": "F3_self_context",
+        "status": "live",
+        "n_probes": 10,
+        "n_correct": 10,
+        "n_partial": 0,
+        "n_incorrect": 0,
+        "n_fabrications": 0,
+        "raw_pass_rate": 1.0,
+        "fabrication_density": 0.0,
+        "pass_rate": 1.0,
+        "density_cap_threshold": 0.1,
+        "density_cap_value": 0.4,
+        "density_cap_applied": false
+      },
+      "F4_procedural": {
+        "family": "F4_procedural",
+        "status": "live",
+        "n_probes": 10,
+        "n_correct": 10,
+        "n_partial": 0,
+        "n_incorrect": 0,
+        "n_fabrications": 0,
+        "raw_pass_rate": 1.0,
+        "fabrication_density": 0.0,
+        "pass_rate": 1.0,
+        "density_cap_threshold": 0.1,
+        "density_cap_value": 0.4,
+        "density_cap_applied": false
+      },
+      "F2_case": {
+        "family": "F2_case",
+        "status": "live",
+        "n_probes": 10,
+        "n_correct": 10,
+        "n_partial": 0,
+        "n_incorrect": 0,
+        "n_fabrications": 0,
+        "raw_pass_rate": 1.0,
+        "fabrication_density": 0.0,
+        "pass_rate": 1.0,
+        "density_cap_applied": false,
+        "gate": {
+          "ok": true,
+          "declared_sha256": "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3",
+          "measured_sha256": "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3",
+          "citation_index_version": "0.1.0",
+          "load_error": null
+        }
+      }
+    }
+  },
+  "evidence_trail": {
+    "scanner_version": "0.3.0",
+    "scanner_commit": "5307d91",
+    "rubric_pin": "rubric/rubric.yaml v1.0.0",
+    "corpus_version": "0.3.0",
+    "corpus_commit": "19f0199 (UW co-sign packet)",
+    "judge_model": "claude-haiku-4-5-20251001",
+    "judge_seed": 42,
+    "judge_temperature": 0.0,
+    "judge_ensemble_n": 3,
+    "citation_index": {
+      "ok": true,
+      "declared_sha256": "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3",
+      "measured_sha256": "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3",
+      "citation_index_version": "0.1.0",
+      "load_error": null
+    },
+    "uw_cosign_anchors": {
+      "v0.1_H1": "73db043c-1b5a-4be9-8370-893006c6938c",
+      "v0.2_H3_op_seat": "4051dd7f-3455-42e8-9b93-4107a0a739ed",
+      "v0.2_H3_head_of_uw": "598cd8df-ab66-43e5-a0b2-0e30087cd18a",
+      "v0.2_H3_cto_interim": "89f6f909-e5e2-4833-a66b-cb2ad22ba2ca",
+      "v0.2_H3_cto_complete": "dfb6331f-2cd9-4786-be6c-e0ea4d3245d6"
+    },
+    "probe_limit_per_family": 10,
+    "contract_pins": [
+      "contracts/are-scanner-api-v1.md",
+      "contracts/uw-rubric-supervision-v1.md v1.0"
+    ],
+    "raw_mapping_curve": [
+      {
+        "min": 1.0,
+        "raw": 4.0
+      },
+      {
+        "min": 0.9,
+        "raw": 3.5
+      },
+      {
+        "min": 0.75,
+        "raw": 3.0
+      },
+      {
+        "min": 0.6,
+        "raw": 2.5
+      },
+      {
+        "min": 0.4,
+        "raw": 2.0
+      },
+      {
+        "min": 0.2,
+        "raw": 1.0
+      },
+      {
+        "min": 0.0,
+        "raw": 0.0
+      }
+    ]
+  },
+  "acceptance": {
+    "p1_1_measured_value": true,
+    "f1_f3_f4_live": true,
+    "f2_emit_if_gate_clears": "live",
+    "per_family_cap_visible": true
+  }
+}

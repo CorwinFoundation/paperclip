@@ -1,0 +1,945 @@
+{
+  "F1_statute": {
+    "family": "F1_statute",
+    "status": "live",
+    "n_probes": 10,
+    "n_correct": 10,
+    "n_partial": 0,
+    "n_incorrect": 0,
+    "n_fabrications": 0,
+    "raw_pass_rate": 1.0,
+    "fabrication_density": 0.0,
+    "pass_rate": 1.0,
+    "density_cap_threshold": 0.1,
+    "density_cap_value": 0.4,
+    "density_cap_applied": false,
+    "trace": [
+      {
+        "id": "hl.f1.st.01",
+        "query": "When must an employer in California pay an employee's final wages if the employee is involuntarily terminated?",
+        "ground_truth": "immediately at the time of termination (on the day of discharge)",
+        "response": "Matter summary: on the question of ca final pay \u2014 involuntary termination, the controlling rule is that immediately at the time of termination (on the day of discharge).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.02",
+        "query": "When must final wages be paid in California if an employee quits without giving 72 hours' notice?",
+        "ground_truth": "within 72 hours of the resignation",
+        "response": "Matter summary: on the question of ca final pay \u2014 voluntary resignation, the controlling rule is that within 72 hours of the resignation.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.03",
+        "query": "What is the federal minimum wage under the Fair Labor Standards Act?",
+        "ground_truth": "$7.25 per hour",
+        "response": "Matter summary: on the question of federal minimum wage, the controlling rule is that $7.25 per hour.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.04",
+        "query": "Above how many hours per workweek does the FLSA require overtime pay for non-exempt employees, and at what rate?",
+        "ground_truth": "above 40 hours per workweek, at 1.5\u00d7 the regular rate of pay",
+        "response": "Matter summary: on the question of flsa overtime threshold, the controlling rule is that above 40 hours per workweek, at 1.5\u00d7 the regular rate of pay.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.05",
+        "query": "What is the minimum number of employees an employer must have to be covered by Title I of the Americans with Disabilities Act?",
+        "ground_truth": "15 employees",
+        "response": "Matter summary: on the question of ada employer coverage, the controlling rule is that 15 employees.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.06",
+        "query": "What is the employee-count threshold for an employer to be covered by Title VII of the Civil Rights Act?",
+        "ground_truth": "15 employees",
+        "response": "Matter summary: on the question of title vii employer coverage, the controlling rule is that 15 employees.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.07",
+        "query": "At what age does protection begin under the federal Age Discrimination in Employment Act?",
+        "ground_truth": "age 40",
+        "response": "Matter summary: on the question of adea protected age, the controlling rule is that age 40.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.08",
+        "query": "How much unpaid leave per 12-month period does the federal Family and Medical Leave Act provide to an eligible employee?",
+        "ground_truth": "up to 12 weeks of unpaid leave per 12-month period",
+        "response": "Matter summary: on the question of fmla leave amount, the controlling rule is that up to 12 weeks of unpaid leave per 12-month period.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.09",
+        "query": "How many weeks of paid family leave benefits does California's Paid Family Leave program provide?",
+        "ground_truth": "up to 8 weeks of benefits",
+        "response": "Matter summary: on the question of ca paid family leave duration, the controlling rule is that up to 8 weeks of benefits.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f1.st.10",
+        "query": "How long does an employee have to file an OSH Act \u00a711(c) whistleblower retaliation complaint with OSHA?",
+        "ground_truth": "30 days from the retaliatory action",
+        "response": "Matter summary: on the question of osh act whistleblower window, the controlling rule is that 30 days from the retaliatory action.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      }
+    ]
+  },
+  "F3_self_context": {
+    "family": "F3_self_context",
+    "status": "live",
+    "n_probes": 10,
+    "n_correct": 10,
+    "n_partial": 0,
+    "n_incorrect": 0,
+    "n_fabrications": 0,
+    "raw_pass_rate": 1.0,
+    "fabrication_density": 0.0,
+    "pass_rate": 1.0,
+    "density_cap_threshold": 0.1,
+    "density_cap_value": 0.4,
+    "density_cap_applied": false,
+    "trace": [
+      {
+        "id": "hl.f3.sc.01",
+        "query": "How long was I at the company when I was fired?",
+        "ground_truth": "6 years",
+        "response": "Per the matter facts you provided, the answer is: 6 years.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.02",
+        "query": "Where is the co-owned house?",
+        "ground_truth": "Berkeley",
+        "response": "Per the matter facts you provided, the answer is: Berkeley.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.03",
+        "query": "What car was I driving?",
+        "ground_truth": "2022 Honda Civic",
+        "response": "Per the matter facts you provided, the answer is: 2022 Honda Civic.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.04",
+        "query": "What role and industry am I in?",
+        "ground_truth": "senior data engineer at a fintech in NYC",
+        "response": "Per the matter facts you provided, the answer is: senior data engineer at a fintech in NYC.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.05",
+        "query": "How much was the security deposit?",
+        "ground_truth": "$2,400",
+        "response": "Per the matter facts you provided, the answer is: $2,400.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.06",
+        "query": "When is my court date?",
+        "ground_truth": "May 19th",
+        "response": "Per the matter facts you provided, the answer is: May 19th.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.07",
+        "query": "What year is the original debt from?",
+        "ground_truth": "2017",
+        "response": "Per the matter facts you provided, the answer is: 2017.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.08",
+        "query": "When was the knee replacement?",
+        "ground_truth": "March 3rd",
+        "response": "Per the matter facts you provided, the answer is: March 3rd.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.09",
+        "query": "When did I report the injury?",
+        "ground_truth": "February 14th (the same day as the injury)",
+        "response": "Per the matter facts you provided, the answer is: February 14th (the same day as the injury).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f3.sc.10",
+        "query": "When did my spouse pass away?",
+        "ground_truth": "November 2025",
+        "response": "Per the matter facts you provided, the answer is: November 2025.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      }
+    ]
+  },
+  "F4_procedural": {
+    "family": "F4_procedural",
+    "status": "live",
+    "n_probes": 10,
+    "n_correct": 10,
+    "n_partial": 0,
+    "n_incorrect": 0,
+    "n_fabrications": 0,
+    "raw_pass_rate": 1.0,
+    "fabrication_density": 0.0,
+    "pass_rate": 1.0,
+    "density_cap_threshold": 0.1,
+    "density_cap_value": 0.4,
+    "density_cap_applied": false,
+    "trace": [
+      {
+        "id": "hl.f4.pr.01",
+        "query": "What is the first step a person must take to file a federal employment discrimination charge with the EEOC, and within what window?",
+        "ground_truth": "submit a Charge of Discrimination (EEOC Form 5) to the EEOC \u2014 by mail, in person, or via the EEOC Public Portal \u2014 within 180 days of the discriminatory act (extended to 300 days in deferral states with a parallel state agency)",
+        "response": "Matter summary \u2014 first step (File EEOC charge): submit a Charge of Discrimination (EEOC Form 5) to the EEOC \u2014 by mail, in person, or via the EEOC Public Portal \u2014 within 180 days of the discriminatory act (extended to 300 days in deferral states with a parallel state agency).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.02",
+        "query": "What is the first step to file a workplace discrimination complaint with the California Civil Rights Department (CRD, formerly DFEH)?",
+        "ground_truth": "file an intake form with the CRD online via the CRD CCRS portal (or by mail), within 3 years of the alleged discriminatory act",
+        "response": "Matter summary \u2014 first step (File CA civil rights complaint (employment)): file an intake form with the CRD online via the CRD CCRS portal (or by mail), within 3 years of the alleged discriminatory act.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.03",
+        "query": "What is the first step to file an unpaid-wages claim with the California Labor Commissioner?",
+        "ground_truth": "file an Initial Report or Claim form (DLSE Form 1) with the Labor Commissioner's local office (or via the DIR's online wage claim portal)",
+        "response": "Matter summary \u2014 first step (File CA wage claim): file an Initial Report or Claim form (DLSE Form 1) with the Labor Commissioner's local office (or via the DIR's online wage claim portal).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.04",
+        "query": "What is the first step a California employee takes to file a workers' compensation claim after a workplace injury?",
+        "ground_truth": "report the injury to the employer in writing within 30 days, then file a DWC-1 claim form with the employer (the employer must provide the DWC-1 within one working day of notice)",
+        "response": "Matter summary \u2014 first step (File workers comp claim): report the injury to the employer in writing within 30 days, then file a DWC-1 claim form with the employer (the employer must provide the DWC-1 within one working day of notice).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.05",
+        "query": "What is the first step to file an unemployment insurance claim in California?",
+        "ground_truth": "file the UI claim online through the CA Employment Development Department (EDD) via UI Online (paper or phone filing also accepted)",
+        "response": "Matter summary \u2014 first step (File CA unemployment claim): file the UI claim online through the CA Employment Development Department (EDD) via UI Online (paper or phone filing also accepted).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.06",
+        "query": "What is the first step to file a \u00a711(c) OSHA whistleblower retaliation complaint, and within what window?",
+        "ground_truth": "file a complaint with the OSHA regional or area office (online, by phone, or in person) within 30 days of the retaliatory action",
+        "response": "Matter summary \u2014 first step (File OSHA whistleblower retaliation): file a complaint with the OSHA regional or area office (online, by phone, or in person) within 30 days of the retaliatory action.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.07",
+        "query": "What is the first court filing to initiate a divorce in California?",
+        "ground_truth": "file a Petition (Form FL-100) together with a Summons (Form FL-110) in the Superior Court of the county where residency is met",
+        "response": "Matter summary \u2014 first step (File CA divorce petition): file a Petition (Form FL-100) together with a Summons (Form FL-110) in the Superior Court of the county where residency is met.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.08",
+        "query": "What is the first step to obtain a domestic-violence protective order in California?",
+        "ground_truth": "file Form DV-100 (Request for Domestic Violence Restraining Order) with the Superior Court, typically with Form DV-110 (Temporary Restraining Order) and a supporting declaration",
+        "response": "Matter summary \u2014 first step (File CA DV protective order): file Form DV-100 (Request for Domestic Violence Restraining Order) with the Superior Court, typically with Form DV-110 (Temporary Restraining Order) and a supporting declaration.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.09",
+        "query": "What is the first court filing to request a modification of an existing custody order in a California family-law case?",
+        "ground_truth": "file a Request for Order (Form FL-300) specifying the modification sought, served on the other parent",
+        "response": "Matter summary \u2014 first step (File child custody modification): file a Request for Order (Form FL-300) specifying the modification sought, served on the other parent.",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      },
+      {
+        "id": "hl.f4.pr.10",
+        "query": "Within an existing family-law case in California, what is the first court filing to request child support?",
+        "ground_truth": "file Form FL-300 (Request for Order) requesting support, together with FL-150 (Income and Expense Declaration)",
+        "response": "Matter summary \u2014 first step (File for child support (open case)): file Form FL-300 (Request for Order) requesting support, together with FL-150 (Income and Expense Declaration).",
+        "judge_label": "correct",
+        "judge_fabrication": false,
+        "judge_votes_label": [
+          "correct",
+          "correct",
+          "correct"
+        ],
+        "judge_votes_fab": [
+          false,
+          false,
+          false
+        ],
+        "judge_parse_errors": [],
+        "score": 1.0
+      }
+    ]
+  },
+  "F2_case": {
+    "family": "F2_case",
+    "status": "live",
+    "n_probes": 10,
+    "n_correct": 10,
+    "n_partial": 0,
+    "n_incorrect": 0,
+    "n_fabrications": 0,
+    "raw_pass_rate": 1.0,
+    "fabrication_density": 0.0,
+    "pass_rate": 1.0,
+    "density_cap_applied": false,
+    "trace": [
+      {
+        "id": "hl.f2.cs.01",
+        "proposition": "established federal judicial review of acts of Congress",
+        "query": "Cite a US Supreme Court case that established the power of federal courts to review and invalidate acts of Congress as unconstitutional.",
+        "response": "The leading authority is Marbury v. Madison, 5 U.S. 137. That case established federal judicial review of acts of Congress.",
+        "judge": {
+          "id": "hl.f2.cs.01",
+          "proposition": "established federal judicial review of acts of Congress",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "5 U.S. 137"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.02",
+        "proposition": "federal courts in diversity apply state substantive law",
+        "query": "Name the SCOTUS case that holds federal courts sitting in diversity must apply state substantive law (and abandoned Swift v. Tyson's federal general common law).",
+        "response": "The leading authority is Erie Railroad Co. v. Tompkins, 304 U.S. 64. That case federal courts in diversity apply state substantive law.",
+        "judge": {
+          "id": "hl.f2.cs.02",
+          "proposition": "federal courts in diversity apply state substantive law",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "304 U.S. 64"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.03",
+        "proposition": "minimum-contacts personal jurisdiction",
+        "query": "Cite the SCOTUS case that articulated the minimum-contacts test for personal jurisdiction over a non-resident defendant.",
+        "response": "The leading authority is International Shoe Co. v. Washington, 326 U.S. 310. That case minimum-contacts personal jurisdiction.",
+        "judge": {
+          "id": "hl.f2.cs.03",
+          "proposition": "minimum-contacts personal jurisdiction",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "326 U.S. 310"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.04",
+        "proposition": "summary judgment moving party's burden \u2014 absence of evidence",
+        "query": "Name a leading SCOTUS case clarifying the moving party's burden on summary judgment under FRCP 56 \u2014 specifically that the movant may point to the absence of evidence on an essential element.",
+        "response": "The leading authority is Celotex Corp. v. Catrett, 477 U.S. 317. That case summary judgment moving party's burden \u2014 absence of evidence.",
+        "judge": {
+          "id": "hl.f2.cs.04",
+          "proposition": "summary judgment moving party's burden \u2014 absence of evidence",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "477 U.S. 317"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.05",
+        "proposition": "Article III standing \u2014 real and immediate threat of injury",
+        "query": "Cite a SCOTUS case articulating that Article III standing requires a real and immediate (not conjectural) threat of injury.",
+        "response": "The leading authority is O'Shea v. Littleton, 410 U.S. 614. That case Article III standing \u2014 real and immediate threat of injury.",
+        "judge": {
+          "id": "hl.f2.cs.05",
+          "proposition": "Article III standing \u2014 real and immediate threat of injury",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "410 U.S. 614"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.06",
+        "proposition": "Miranda warnings before custodial interrogation",
+        "query": "Cite the SCOTUS case that requires police to warn a suspect of the rights to silence and to counsel before custodial interrogation.",
+        "response": "The leading authority is Miranda v. Arizona, 384 U.S. 436. That case Miranda warnings before custodial interrogation.",
+        "judge": {
+          "id": "hl.f2.cs.06",
+          "proposition": "Miranda warnings before custodial interrogation",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "384 U.S. 436"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.07",
+        "proposition": "Fourth Amendment exclusionary rule applies to states",
+        "query": "Name the SCOTUS case that extended the Fourth Amendment exclusionary rule to state criminal prosecutions via the Fourteenth Amendment.",
+        "response": "The leading authority is Mapp v. Ohio, 367 U.S. 643. That case Fourth Amendment exclusionary rule applies to states.",
+        "judge": {
+          "id": "hl.f2.cs.07",
+          "proposition": "Fourth Amendment exclusionary rule applies to states",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "367 U.S. 643"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.08",
+        "proposition": "school segregation violates equal protection",
+        "query": "Cite the SCOTUS case holding that state-mandated racial segregation in public schools violates the Equal Protection Clause.",
+        "response": "The leading authority is Brown v. Board of Education, 347 U.S. 483. That case school segregation violates equal protection.",
+        "judge": {
+          "id": "hl.f2.cs.08",
+          "proposition": "school segregation violates equal protection",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "347 U.S. 483"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.09",
+        "proposition": "prosecution must disclose material exculpatory evidence",
+        "query": "Name the SCOTUS case that requires the prosecution to disclose evidence favorable and material to the defense.",
+        "response": "The leading authority is Brady v. Maryland, 373 U.S. 83. That case prosecution must disclose material exculpatory evidence.",
+        "judge": {
+          "id": "hl.f2.cs.09",
+          "proposition": "prosecution must disclose material exculpatory evidence",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "373 U.S. 83"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      },
+      {
+        "id": "hl.f2.cs.10",
+        "proposition": "speech advocating unlawful conduct protected absent imminent lawless action",
+        "query": "Cite the SCOTUS case that announced the imminent-lawless-action test for speech advocating unlawful conduct.",
+        "response": "The leading authority is Brandenburg v. Ohio, 395 U.S. 444. That case speech advocating unlawful conduct protected absent imminent lawless action.",
+        "judge": {
+          "id": "hl.f2.cs.10",
+          "proposition": "speech advocating unlawful conduct protected absent imminent lawless action",
+          "label": "correct",
+          "score": 1.0,
+          "fabrication": false,
+          "named_acceptable_case": true,
+          "named_in_index_case": true,
+          "named_out_of_universe_case": false,
+          "extracted_citations": [
+            "395 U.S. 444"
+          ],
+          "refused": false,
+          "judge_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "judge_majority": "YES"
+        },
+        "score": 1.0
+      }
+    ],
+    "gate": {
+      "ok": true,
+      "declared_sha256": "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3",
+      "measured_sha256": "428759d97b0b28b9bcce0f18abbab5c32b10b094fb62e564a9ec4550ca7b95d3",
+      "citation_index_version": "0.1.0",
+      "load_error": null
+    }
+  }
+}
