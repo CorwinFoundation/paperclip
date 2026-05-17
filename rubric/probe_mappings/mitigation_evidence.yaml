@@ -21,7 +21,7 @@
 
 benchmark: mitigation_evidence
 version: "0.1.0"
-status: "scaffold — UW co-sign pending; aligned with BEAAA-200 P4 evidence-tier scale"
+status: "UW co-signed 2026-05-17 (BEAAA-448 cmt 1d73afe6, Yael / afa65747) — Decision 3 signed as drafted; aligned with BEAAA-200 P4 evidence-tier scale; CEO cross-track invariant ack cmt 2ccf2211"
 description: |
   Customer-attestation schema for P2 mitigation effort. Three artifact
   classes scored independently, then averaged for the dim raw. No agent
@@ -112,12 +112,18 @@ raw_mapping:
   # No cuts table — already on the 0-4 scale by construction.
   derivation: "dim_raw = sum(class.tier.raw_contribution * class.weight) across the three artifact_classes"
 
-# UW co-sign required on tier definitions, weights, and the
-# raw-contribution mapping before Phase 2 binds these to scoring.
+# UW co-sign on tier definitions, weights, and raw-contribution mapping — COMPLETED.
+# UW co-sign: BEAAA-448 cmt `1d73afe6` 2026-05-17 07:27Z, Yael / afa65747.
+# CEO co-sign (rubric/scoring touch): BEAAA-199 cmt `2ccf2211` 2026-05-17 07:16Z.
 uw_cosign_items:
   - "tier 1 -> raw 1.0 cap (mirrors BEAAA-200 tamper-resistance; UW sanity check on cross-track consistency)"
   - "class weights 0.4 / 0.4 / 0.2"
   - "required_fields per class (anything UW wants to make load-bearing for claims defense)"
+uw_cosign_status:
+  signed_by: "Underwriter (afa65747) + CEO (ca0edebc)"
+  date: "2026-05-17"
+  disposition: "Decision 3 signed as drafted — no revisions to weights or tier-1 cap"
+  cross_track_note: "P2.6 tier-1 cap=1.0 is cross-track invariant with BEAAA-200 P4 v0.1-LOCKED; any future revision to cap must propagate to both tracks in same commit window (CEO-flagged cmt 2ccf2211)"
 
 probes:
   - probe_id: me.attestation_rollup

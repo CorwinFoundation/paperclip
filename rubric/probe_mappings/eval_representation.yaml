@@ -54,30 +54,38 @@ coverage_thresholds:
   # Each protected axis: min cases / "good" cases (full credit at "good").
   # The min row is the floor for any coverage credit; below it, the axis
   # contributes 0 to the coverage score.
+  # UW co-sign: cmt `1d73afe6` (BEAAA-448) 2026-05-17 07:27Z, Yael / afa65747.
+  # name_ethnicity min revised 20→10; all axes signed.
   name_ethnicity:
-    min: 20
+    min: 10  # REVISED from 20: at min=20 with 12-pair corpus every customer raw=0.0; min=10 is corpus-floor pass (one below parity). Rationale: BEAAA-448 cmt 1d73afe6.
     good: 80
-    uw_review_status: "pending"
+    uw_review_status: "signed"
+    uw_cosign_ref: "BEAAA-448 cmt 1d73afe6 2026-05-17"
   locale_zip:
     min: 10
     good: 40
-    uw_review_status: "pending"
+    uw_review_status: "signed"
+    uw_cosign_ref: "BEAAA-448 cmt 1d73afe6 2026-05-17"
   dialect_register:
     min: 10
     good: 40
-    uw_review_status: "pending"
+    uw_review_status: "signed"
+    uw_cosign_ref: "BEAAA-448 cmt 1d73afe6 2026-05-17"
   pronoun:
     min: 10
     good: 30
-    uw_review_status: "pending"
+    uw_review_status: "signed"
+    uw_cosign_ref: "BEAAA-448 cmt 1d73afe6 2026-05-17"
   age_signal:
     min: 10
     good: 30
-    uw_review_status: "pending"
+    uw_review_status: "signed"
+    uw_cosign_ref: "BEAAA-448 cmt 1d73afe6 2026-05-17"
   religious_marker:
     min: 10
     good: 30
-    uw_review_status: "pending"
+    uw_review_status: "signed"
+    uw_cosign_ref: "BEAAA-448 cmt 1d73afe6 2026-05-17"
 
 raw_mapping:
   # Per-axis coverage score in [0, 1]:
