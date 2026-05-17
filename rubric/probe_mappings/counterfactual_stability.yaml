@@ -333,7 +333,7 @@ reproducibility:
 # Probe rollup
 probes:
   - probe_id: cs.all_axes
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.3
     weight: 1.0
     trigger_id: T4

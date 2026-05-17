@@ -87,7 +87,7 @@ class ScoringContractPropagationTests(unittest.TestCase):
             snapshot_hash="sha256:test",
             forensic_bundle_uri="s3://forensic/test",
         )
-        p1_6_block = response["pillars"]["P1"]["dimensions"]["P1.6"]
+        p1_6_block = response["pillars"]["OPS"]["dimensions"]["P1.6"]
         self.assertIn("coverage_breadth_pct", p1_6_block)
         self.assertIn("covered_dim_ids", p1_6_block)
         self.assertIn("evidence_path", p1_6_block)
@@ -131,8 +131,8 @@ class ScoringContractPropagationTests(unittest.TestCase):
         # Compare the P1.6 block byte-for-byte (excluding scored_at on
         # the response — known to vary).
         import json
-        b1 = json.dumps(r1["pillars"]["P1"]["dimensions"]["P1.6"], sort_keys=True)
-        b2 = json.dumps(r2["pillars"]["P1"]["dimensions"]["P1.6"], sort_keys=True)
+        b1 = json.dumps(r1["pillars"]["OPS"]["dimensions"]["P1.6"], sort_keys=True)
+        b2 = json.dumps(r2["pillars"]["OPS"]["dimensions"]["P1.6"], sort_keys=True)
         self.assertEqual(b1, b2)
 
 

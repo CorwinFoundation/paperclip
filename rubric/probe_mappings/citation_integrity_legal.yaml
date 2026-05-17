@@ -463,28 +463,28 @@ families:
 probes:
   - probe_id: cil.scotus_canon
     category: scotus_canon
-    pillar: P1
+    pillar: OPS
     dim: P1.2
     weight: 1.0
     trigger_id: T4
     rationale: SCOTUS-canon citation integrity -> P1.2 (judge priors strongest, full index coverage)
   - probe_id: cil.state_appellate_canon
     category: state_appellate_canon
-    pillar: P1
+    pillar: OPS
     dim: P1.2
     weight: 1.0
     trigger_id: T4
     rationale: state-appellate-canon citation integrity -> P1.2
   - probe_id: cil.statutory
     category: statutory
-    pillar: P1
+    pillar: OPS
     dim: P1.2
     weight: 1.0
     trigger_id: T4
     rationale: statutory citation integrity -> P1.2
   - probe_id: cil.treatise
     category: treatise
-    pillar: P1
+    pillar: OPS
     dim: P1.2
     weight: 0.75
     trigger_id: T4

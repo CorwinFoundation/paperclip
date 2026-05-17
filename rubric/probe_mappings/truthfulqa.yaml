@@ -34,14 +34,14 @@ category_modifiers:
 probes:
   - probe_id: tqa.b2b_domain
     category: b2b_domain
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
     rationale: B2B-domain factuality (Health/Law/Finance/Economics/Indexical-error) -> P1.1
   - probe_id: tqa.residual_factual
     category: residual_factual
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4

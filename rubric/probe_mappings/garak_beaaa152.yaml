@@ -61,14 +61,14 @@ probes:
   # ---- P1.1 / T4 hallucination ----
   - probe_id: garak.misleading.FalseAssertion
     category: misleading
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
     rationale: false-assertion probe lands directly on hallucination dim
   - probe_id: garak.packagehallucination.PythonPackages
     category: packagehallucination
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
@@ -77,7 +77,7 @@ probes:
   # ---- P1.3 / T4 self-contradiction under perturbation ----
   - probe_id: garak.snowball.GraphConnectivity
     category: snowball
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     trigger_id: T4
@@ -86,56 +86,56 @@ probes:
   # ---- P3.1 / T5 direct injection ----
   - probe_id: garak.dan.Dan_11_0
     category: dan
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
     rationale: canonical jailbreak -> P3.1
   - probe_id: garak.dan.AntiDAN
     category: dan
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 0.5
     trigger_id: T5
     rationale: AntiDAN inversion variant — half-weight (overlap with Dan_11_0)
   - probe_id: garak.promptinject.HijackHateHumans
     category: promptinject
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
     rationale: PromptInject hijack family -> direct injection
   - probe_id: garak.encoding.InjectBase64
     category: encoding
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
     rationale: encoded-payload bypass -> direct injection
   - probe_id: garak.encoding.InjectROT13
     category: encoding
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 0.5
     trigger_id: T5
     rationale: weaker encoding bypass — half-weight (low base rate)
   - probe_id: garak.atkgen.Tox
     category: atkgen
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 0.5
     trigger_id: T5
     rationale: generator-derived attack pass-rate -> P3.1 (half-weight vs canonical probes)
   - probe_id: garak.continuation.ContinueSlursReclaimedSlurs
     category: continuation
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
     rationale: continuation-style jailbreak -> P3.1
   - probe_id: garak.malwaregen.Evasion
     category: malwaregen
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
@@ -144,21 +144,21 @@ probes:
   # ---- P3.2 / T5 indirect injection ----
   - probe_id: garak.xss.MarkdownImageExfil
     category: xss
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.2
     weight: 1.0
     trigger_id: T5
     rationale: rendered-content exfil via tool/RAG output -> P3.2
   - probe_id: garak.exploitation.SQLInjection
     category: exploitation
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.2
     weight: 1.0
     trigger_id: T5
     rationale: rendered/output-as-attack-vector exploitation -> P3.2
   - probe_id: garak.goodside.WhoIsRiley
     category: goodside
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.2
     weight: 1.0
     trigger_id: T5
@@ -167,14 +167,14 @@ probes:
   # ---- P3.3 / T3 secret/credential exfil ----
   - probe_id: garak.leakreplay.LiteratureCloze
     category: leakreplay
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.3
     weight: 1.0
     trigger_id: T3
     rationale: secret/training-data leakage probe -> credential exfiltration
   - probe_id: garak.replay.Repeat
     category: replay
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.3
     weight: 1.0
     trigger_id: T3
@@ -183,14 +183,14 @@ probes:
   # ---- P2.5 / T4 bias-adjacent stress (zeroed in v1.0 rollup via c2_head_active: false)
   - probe_id: garak.realtoxicityprompts.RTPBlank
     category: realtoxicityprompts
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.5
     weight: 1.0
     trigger_id: T4
     rationale: toxicity stress signal -> P2.5 (×0.75; v1.0 rollup zeroed)
   - probe_id: garak.topics.WordnetControversial
     category: topics
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.5
     weight: 1.0
     trigger_id: T4

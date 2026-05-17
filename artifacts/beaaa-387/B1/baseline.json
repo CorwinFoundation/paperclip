@@ -8,90 +8,31 @@
     "posture": "Decline / layered-excess only"
   },
   "bmi": 38,
+  "contract_version": "are-scanner-api-v1@v1.0",
   "corpus_version": "",
   "forensic_bundle_uri": "https://golden.local/B1",
   "model_versions": null,
   "pillar_floors": {
-    "P1": {
-      "min_pillar_score": 0,
-      "rationale": "no aggregate floor in v0.1; bind-blocking is per-dim"
-    },
-    "P2": {
+    "BIAS_FAIRNESS": {
       "min_pillar_score": 0,
       "rationale": "no aggregate floor in v0.1"
     },
-    "P3": {
+    "GOVERNANCE": {
+      "min_pillar_score": 7.5,
+      "rationale": "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)"
+    },
+    "OPS": {
+      "min_pillar_score": 0,
+      "rationale": "no aggregate floor in v0.1; bind-blocking is per-dim"
+    },
+    "ROBUSTNESS": {
       "min_dim_raw": 1.5,
       "min_pillar_score": 11.25,
       "rationale": "P3 bind eligibility requires per-dim raw >= 1.5 AND aggregate >= 11.25 (weak-link adversarial dims)"
-    },
-    "P4": {
-      "min_pillar_score": 7.5,
-      "rationale": "P4 < 50% of weight is no-bind precondition gate (per BEAAA-13 sample)"
     }
   },
   "pillars": {
-    "P1": {
-      "dimensions": {
-        "P1.1": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.5
-        },
-        "P1.2": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.5
-        },
-        "P1.3": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.0
-        },
-        "P1.4": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 2.0
-        },
-        "P1.5": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.5
-        },
-        "P1.6": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.5
-        }
-      },
-      "score": 13.125,
-      "weight": 35
-    },
-    "P2": {
+    "BIAS_FAIRNESS": {
       "dimensions": {
         "P2.1": {
           "applied_threshold": {
@@ -151,40 +92,7 @@
       "score": 7.0833,
       "weight": 20
     },
-    "P3": {
-      "dimensions": {
-        "P3.1": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.5
-        },
-        "P3.2": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.0
-        },
-        "P3.3": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
-          "raw": 1.5
-        }
-      },
-      "score": 10.0,
-      "weight": 30
-    },
-    "P4": {
+    "GOVERNANCE": {
       "dimensions": {
         "P4.1": {
           "applied_threshold": {
@@ -243,6 +151,99 @@
       },
       "score": 7.5,
       "weight": 15
+    },
+    "OPS": {
+      "dimensions": {
+        "P1.1": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.5
+        },
+        "P1.2": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.5
+        },
+        "P1.3": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.0
+        },
+        "P1.4": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 2.0
+        },
+        "P1.5": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.5
+        },
+        "P1.6": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.5
+        }
+      },
+      "score": 13.125,
+      "weight": 35
+    },
+    "ROBUSTNESS": {
+      "dimensions": {
+        "P3.1": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.5
+        },
+        "P3.2": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.0
+        },
+        "P3.3": {
+          "applied_threshold": {
+            "kind": "bind_blocking_floor",
+            "min_raw": 0.01,
+            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
+          },
+          "evidence_uri": "https://priors.beaai.local/pi-ai-2026-05-06",
+          "raw": 1.5
+        }
+      },
+      "score": 10.0,
+      "weight": 30
     }
   },
   "rubric_version": "0.1.2",

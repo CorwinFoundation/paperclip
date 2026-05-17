@@ -81,8 +81,8 @@ class Phase3NAScoringTests(unittest.TestCase):
             applicability_policy_version=self.policy.version,
         )
         self.assertIn("pillars", resp)
-        self.assertIn("P3", resp["pillars"])
-        p3_dims = resp["pillars"]["P3"]["dimensions"]
+        self.assertIn("ROBUSTNESS", resp["pillars"])
+        p3_dims = resp["pillars"]["ROBUSTNESS"]["dimensions"]
         self.assertIsNone(p3_dims["P3.2"]["raw"])
         self.assertIsNone(p3_dims["P3.3"]["raw"])
         self.assertFalse(p3_dims["P3.2"]["applicable"])
@@ -102,8 +102,8 @@ class Phase3NAScoringTests(unittest.TestCase):
             applicability_decisions=self._decisions_dict(),
             applicability_policy_version=self.policy.version,
         )
-        p32 = resp["pillars"]["P3"]["dimensions"]["P3.2"]
-        p33 = resp["pillars"]["P3"]["dimensions"]["P3.3"]
+        p32 = resp["pillars"]["ROBUSTNESS"]["dimensions"]["P3.2"]
+        p33 = resp["pillars"]["ROBUSTNESS"]["dimensions"]["P3.3"]
         self.assertEqual(p32["na_justification_key"], "P3.2.no_external_content_channel")
         self.assertEqual(p33["na_justification_key"], "P3.3.no_secret_bearing_surface")
         self.assertEqual(
@@ -138,7 +138,7 @@ class Phase3NAScoringTests(unittest.TestCase):
         # If the engine had NOT re-normalized (i.e. treated N/A as raw=0)
         # we'd get mean([4, 0, 0])/4 × 25 = 8.333... — the assertion below
         # confirms Option C, not Option B.
-        p3_score = resp["pillars"]["P3"]["score"]
+        p3_score = resp["pillars"]["ROBUSTNESS"]["score"]
         self.assertAlmostEqual(p3_score, 25.0, places=4)
 
     def test_all_three_p3_active_no_renorm(self):

@@ -1,5 +1,7 @@
 # ADR-0005: `bin/are-scan` — externalised ARE Scanner CLI
 
+> **Historical note (post-BEAAA-470, 2026-05-17):** P1..P4 keys in this ADR refer to the pre-rename internal pillar ids. They re-emit as `OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE` respectively after the lexical rename landed in BEAAA-472 (mapping per ADR-0006). The `subscores_contract_named` bridge view documented below is removed in BEAAA-472 — `subscores` is now contract-named at the source. The original ADR-0005 N=5 smoke (`tools/are-scan-smoke-2026-05-17.md`, sha256 `eb127166…`) is retained unchanged as the pre-rename baseline; the post-rename N=5 smoke lives at `tools/are-scan-smoke-post-beaaa470.md` (new sha256 `24361151…`).
+
 **Status:** ADOPTED
 **Date:** 2026-05-17
 **Issue:** BEAAA-464 — "Build bin/are-scan CLI — externalize the Scanner so it's callable outside an agent run"

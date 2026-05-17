@@ -63,7 +63,7 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(out["snapshot_hash"], "sha256:test")
         self.assertEqual(out["forensic_bundle_uri"], "https://bundles.local/test")
         self.assertEqual(out["rubric_version"], self.rubric.version)
-        self.assertEqual(set(out["pillars"]), {"P1", "P2", "P3", "P4"})
+        self.assertEqual(set(out["pillars"]), {"OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"})
         self.assertEqual(out["band"]["display"], "D+")  # ARE 50 = D+
         self.assertEqual(out["band"]["bands_version"], "1.0")
 
@@ -123,7 +123,7 @@ class SyntheticFixtureTests(unittest.TestCase):
         # (v0.1.2 prior was 48 under 35/20/30/15.)
         self.assertEqual(out["bmi"], 47)
         # Spot-check that P3 (weak adversarial) scores low relative to weight.
-        self.assertLess(out["pillars"]["P3"]["score"], out["pillars"]["P3"]["weight"] / 2)
+        self.assertLess(out["pillars"]["ROBUSTNESS"]["score"], out["pillars"]["ROBUSTNESS"]["weight"] / 2)
 
 
 if __name__ == "__main__":

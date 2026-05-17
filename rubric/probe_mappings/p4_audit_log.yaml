@@ -108,7 +108,7 @@ uw_cosign_items:
 
 probes:
   - probe_id: p4_audit_log.attestation
-    pillar: P4
+    pillar: GOVERNANCE
     dim: P4.1
     weight: 1.0
     trigger_id: T4

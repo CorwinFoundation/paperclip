@@ -74,7 +74,7 @@ class ReportCardRenderTests(unittest.TestCase):
     def test_includes_every_pillar_and_dim(self):
         out, rubric = _baseline_score()
         html = render(out, rubric)
-        for pid in ("P1", "P2", "P3", "P4"):
+        for pid in ("OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"):
             self.assertIn(pid, html)
             self.assertIn(escape(rubric.pillars[pid]["name"]), html)
             for did in rubric.pillars[pid]["dim_ids"]:
@@ -148,7 +148,7 @@ class BindEligibilityTests(unittest.TestCase):
         )
         verdict = evaluate_bind_eligibility(out)
         self.assertFalse(verdict["eligible"])
-        self.assertTrue(any("P3 score" in r and "pillar_floor" in r for r in verdict["reasons"]))
+        self.assertTrue(any("ROBUSTNESS score" in r and "pillar_floor" in r for r in verdict["reasons"]))
 
     def test_clean_fixture_passes_all_floors(self):
         # P3 dims >= 1.5 + aggregate above 11.25; P4 lifted above 7.50 floor.

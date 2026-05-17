@@ -36,8 +36,8 @@ class WeightSourceTests(unittest.TestCase):
         weights = agg.dim_weights_from_rubric(rubric)
         # P1.6 itself is excluded from the weights map.
         self.assertNotIn("P1.6", weights)
-        p1_dim_count = len(rubric.pillars["P1"]["dim_ids"])  # 6
-        p1_per_dim = float(rubric.pillars["P1"]["weight"]) / float(p1_dim_count)
+        p1_dim_count = len(rubric.pillars["OPS"]["dim_ids"])  # 6
+        p1_per_dim = float(rubric.pillars["OPS"]["weight"]) / float(p1_dim_count)
         expected_total = sum(float(p["weight"]) for p in rubric.pillars.values()) - p1_per_dim
         self.assertAlmostEqual(sum(weights.values()), expected_total, places=6)
 
@@ -132,7 +132,7 @@ class CoverageMathTests(unittest.TestCase):
         coverage_pct = 100 * (5*25/6) / (100 - 25/6).
         """
         rubric = _load_rubric()
-        p1_in_scope = [d for d in rubric.pillars["P1"]["dim_ids"] if d != "P1.6"]
+        p1_in_scope = [d for d in rubric.pillars["OPS"]["dim_ids"] if d != "P1.6"]
         status: dict[str, str] = {d: "measured" for d in p1_in_scope}
         result = agg.run(rubric=rubric, dim_status=status)
         per_dim = 25.0 / 6.0

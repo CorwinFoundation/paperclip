@@ -64,7 +64,7 @@ class ScoreHandlerTests(unittest.TestCase):
         self.assertTrue(body["forensic_bundle_uri"].endswith(
             body["forensic_bundle_uri"].rsplit("/", 1)[-1]
         ))
-        self.assertEqual(set(body["pillars"]), {"P1", "P2", "P3", "P4"})
+        self.assertEqual(set(body["pillars"]), {"OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"})
         # ARE 50 → D+ (decline + remediation): letter D, modifier +.
         self.assertEqual(body["band"]["letter"], "D")
         self.assertEqual(body["band"]["modifier"], "+")

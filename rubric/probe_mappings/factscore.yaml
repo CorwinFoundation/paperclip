@@ -29,14 +29,14 @@ category_modifiers:
 probes:
   - probe_id: factscore.bio.factuality
     category: biographical_fact_density
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 0.7
     trigger_id: T4
     rationale: per-atomic-fact precision -> P1.1
   - probe_id: factscore.bio.citation_grounding
     category: biographical_fact_density
-    pillar: P1
+    pillar: OPS
     dim: P1.2
     weight: 0.3
     trigger_id: T4

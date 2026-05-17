@@ -39,26 +39,12 @@ _MAX_AGENT_ID_LEN = 128
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
 
-# Pillar id → contract subscore key. The internal rubric uses P1..P4
-# (Failure Surface / Bias & Fairness / Adversarial Robustness / Governance
-# & Operations); the contract document names GOVERNANCE / ROBUSTNESS /
-# BIAS_FAIRNESS / OPS. The two never agreed in v1.0 of the contract and
-# this CLI does NOT renumber the underlying scoring engine — it would
-# require a rubric/scoring change (pillar-weight Founder gate). Instead
-# `subscores` is emitted with BOTH the internal pillar id and the closest
-# contract name so the Underwriter can read either side and a follow-up
-# ticket can rationalise the naming without a flag day.
-#
-# Mapping rationale: P1 (Failure Surface / hallucination) is the dominant
-# loss-frequency pillar so it groups with the contract's ROBUSTNESS bucket
-# alongside P3. The combined "robustness" view is a derived 2-pillar sum;
-# pricing engine continues to read the per-internal-pillar subscore.
-_PILLAR_TO_CONTRACT = {
-    "P1": "ROBUSTNESS",        # Failure Surface (hallucination)
-    "P2": "BIAS_FAIRNESS",
-    "P3": "ROBUSTNESS",        # Adversarial Robustness
-    "P4": "GOVERNANCE_OPS",    # Governance & Operations (contract splits)
-}
+# Post-BEAAA-470: the rubric pillar keys are now the contract pillar names
+# directly (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE). `subscores`
+# emitted by this CLI is therefore contract-named at the source; the
+# `subscores_contract_named` ADR-0005 workaround is removed (was a
+# pre-rename bridge view that grouped P1+P3→ROBUSTNESS / P4→GOVERNANCE_OPS
+# under the old internal P1..P4 keys). See ADR-0006.
 
 
 class CliInputError(ValueError):
@@ -312,16 +298,11 @@ def _to_contract_output(
     """
     pillars = score_result.get("pillars", {})
     subscores: dict[str, float] = {}
-    contract_subscores: dict[str, float] = {}
     evidence_refs: list[dict[str, Any]] = []
     uncovered: list[str] = []
     for pid, pdata in pillars.items():
         pscore = float(pdata.get("score", 0.0))
         subscores[pid] = pscore
-        ckey = _PILLAR_TO_CONTRACT.get(pid, pid)
-        contract_subscores[ckey] = round(
-            contract_subscores.get(ckey, 0.0) + pscore, 4
-        )
         for dim_id, dim_block in pdata.get("dimensions", {}).items():
             if dim_block.get("applicable") is False or dim_block.get("raw") is None:
                 uncovered.append(dim_id)
@@ -382,7 +363,6 @@ def _to_contract_output(
         "agent_id": inputs.agent_id,
         "are_total": bmi,
         "subscores": {k: round(v, 4) for k, v in subscores.items()},
-        "subscores_contract_named": contract_subscores,
         "band_letter": band_letter,
         "confidence": confidence,
         "evidence_refs": evidence_refs,
@@ -412,13 +392,12 @@ def _to_contract_output(
             ),
             "scanner_invocation_context": inputs.scanner_invocation_context,
             "pillar_naming_note": (
-                "subscores keyed by internal rubric pillar ids (P1..P4); "
-                "subscores_contract_named groups them under the contract's "
-                "GOVERNANCE_OPS / ROBUSTNESS / BIAS_FAIRNESS labels. The "
-                "two are not 1:1 — internal P1 (Failure Surface) and P3 "
-                "(Adversarial Robustness) both fold into contract "
-                "ROBUSTNESS, and contract GOVERNANCE+OPS are jointly "
-                "internal P4. See ADR-0005."
+                "subscores keyed by contract pillar names "
+                "(OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE) per "
+                "are-scanner-api-v1@v1.0. Post-BEAAA-470 the internal "
+                "rubric keys match the contract names 1:1 — the "
+                "ADR-0005 subscores_contract_named bridge view is "
+                "removed. See ADR-0006."
             ),
         },
     })

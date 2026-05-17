@@ -17,39 +17,39 @@ description: |
 probes:
   # ---- P1.3 Self-contradiction / perturbation stability ----
   - probe_id: sst2:character
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     rationale: typo-level perturbation stability
   - probe_id: sst2:word
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     rationale: synonym/word-level perturbation
   - probe_id: sst2:sentence
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 0.75
     rationale: paraphrase stability — partial overlap with P1.5 confidence
   - probe_id: mnli:character
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     rationale: NLI typo robustness
   - probe_id: mnli:word
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     rationale: NLI word-level robustness
 
   # ---- P3.1 Semantic adversarial -> direct injection family ----
   - probe_id: sst2:semantic
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     rationale: semantic adversarial perturbation = adversarial-text injection
   - probe_id: mnli:semantic
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     rationale: NLI semantic adversarial — same family as sst2:semantic

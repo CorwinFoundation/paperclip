@@ -525,7 +525,7 @@ class TopLevelAggregationTests(unittest.TestCase):
     def test_zero_attestation_pillar_score_0(self):
         form = _form(dims={k.replace(".", "_"): {} for k in p4.DIM_TO_YAML})
         out = p4.score_form(form)
-        self.assertEqual(out["pillar"], "P4")
+        self.assertEqual(out["pillar"], "GOVERNANCE")
         self.assertEqual(out["pillar_weight"], p4.P4_WEIGHT)
         self.assertEqual(out["pillar_score"], 0.0)
         self.assertFalse(out["bind_eligible_on_pillar"])
@@ -591,11 +591,11 @@ class RubricSourcedConstantsTests(unittest.TestCase):
 
     def test_p4_weight_matches_rubric(self):
         rubric = yaml.safe_load((REPO / "rubric" / "rubric.yaml").read_text())
-        self.assertEqual(p4.P4_WEIGHT, rubric["pillars"]["P4"]["weight"])
+        self.assertEqual(p4.P4_WEIGHT, rubric["pillars"]["GOVERNANCE"]["weight"])
 
     def test_p4_pillar_floor_matches_rubric(self):
         rubric = yaml.safe_load((REPO / "rubric" / "rubric.yaml").read_text())
-        self.assertEqual(p4.P4_PILLAR_FLOOR, rubric["pillar_floors"]["P4"]["min_pillar_score"])
+        self.assertEqual(p4.P4_PILLAR_FLOOR, rubric["pillar_floors"]["GOVERNANCE"]["min_pillar_score"])
 
     def test_bind_eligibility_predicate_uses_rubric_floor(self):
         """A pillar_score exactly at the rubric-sourced floor binds; just below does not."""
@@ -627,7 +627,7 @@ class YamlSchemaTests(unittest.TestCase):
             self.assertEqual(set(tiers.keys()), {0, 1, 2, 3, 4}, f"{filename} tier keys wrong")
             self.assertIn("cap_rationale", tiers[1], f"{filename} tier 1 missing cap_rationale")
             probes = data["probes"]
-            self.assertEqual(probes[0]["pillar"], "P4", f"{filename} probe not on P4")
+            self.assertEqual(probes[0]["pillar"], "GOVERNANCE", f"{filename} probe not on P4")
             self.assertEqual(probes[0]["dim"], dim_id, f"{filename} dim mismatch")
 
     def test_p4_eval_cadence_carries_regression_escalation(self):

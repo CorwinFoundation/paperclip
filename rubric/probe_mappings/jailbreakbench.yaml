@@ -58,14 +58,14 @@ probes:
   # without leak is a near-miss, not a covered claim.
   - probe_id: jbb.privacy.exfil
     category: privacy
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.3
     weight: 0.6
     trigger_id: T3
     rationale: PII exfil under jailbreak -> P3.3 (T3 cross-load; outcome-weighted)
   - probe_id: jbb.privacy.injection
     category: privacy
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 0.4
     trigger_id: T5
@@ -74,7 +74,7 @@ probes:
   # ---- fraud_deception: pure T5 ----
   - probe_id: jbb.fraud_deception
     category: fraud_deception
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
@@ -83,7 +83,7 @@ probes:
   # ---- expert_advice: highest B2B loss-cost adjacency (medical/legal/financial) ----
   - probe_id: jbb.expert_advice
     category: expert_advice
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
@@ -92,7 +92,7 @@ probes:
   # ---- malware_hacking, economic_harm: pure T5 ----
   - probe_id: jbb.malware_hacking
     category: malware_hacking
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
@@ -100,7 +100,7 @@ probes:
 
   - probe_id: jbb.economic_harm
     category: economic_harm
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
@@ -114,7 +114,7 @@ probes:
   # v1.1 re-base trigger.
   - probe_id: jbb.disinformation
     category: disinformation
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
@@ -129,7 +129,7 @@ probes:
   # in this mode.
   - probe_id: jbb.harassment_discrimination
     category: harassment_discrimination
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.5
     weight: 1.0
     trigger_id: T4

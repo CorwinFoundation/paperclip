@@ -621,7 +621,7 @@ def _cover_label_from_p1_6(score_response: dict[str, Any]) -> tuple[str, dict[st
     without a Path-B aggregator pass) — anti-over-claim default.
     """
     from harness.bench.eval_coverage_aggregator import label_for
-    p1 = score_response.get("pillars", {}).get("P1", {})
+    p1 = score_response.get("pillars", {}).get("OPS", {})
     p1_6_block = p1.get("dimensions", {}).get("P1.6") or {}
     pct = p1_6_block.get("coverage_breadth_pct")
     path = p1_6_block.get("evidence_path")

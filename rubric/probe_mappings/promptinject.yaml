@@ -32,14 +32,14 @@ category_modifiers:
 probes:
   - probe_id: promptinject.direct
     category: direct_injection
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5
     rationale: direct injection -> P3.1 (canonical T5)
   - probe_id: promptinject.indirect_goodside
     category: indirect_injection
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.2
     weight: 1.0
     trigger_id: T5

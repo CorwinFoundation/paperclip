@@ -223,7 +223,7 @@ seeds:
 probes:
   - probe_id: ps.factual
     category: factual
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     trigger_id: T4

@@ -158,7 +158,7 @@ class RunScanTests(unittest.TestCase):
         # Supreme Law in-band-with-priors reproducibility check.
         self.assertEqual(result["bmi"], expected["bmi"])
         self.assertEqual(result["are_total"], expected["bmi"])
-        for pid in ("P1", "P2", "P3", "P4"):
+        for pid in ("OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"):
             self.assertAlmostEqual(
                 result["subscores"][pid],
                 expected["pillars"][pid]["score"],
@@ -166,13 +166,16 @@ class RunScanTests(unittest.TestCase):
             )
         # Output-shape additions must all be present (contract surface).
         for field in (
-            "are_total", "subscores", "subscores_contract_named", "band",
+            "are_total", "subscores", "band",
             "band_letter", "confidence", "evidence_refs",
             "uncovered_dimensions", "scanner_version", "corpus_version",
             "seed", "run_timestamp", "contract_version", "agent_id",
             "input_file_sha256s",
         ):
             self.assertIn(field, result, f"missing output field {field}")
+        # Post-BEAAA-470: the ADR-0005 subscores_contract_named bridge view
+        # is removed — `subscores` is contract-named at the source.
+        self.assertNotIn("subscores_contract_named", result)
         # Reproducibility stamps must round-trip.
         self.assertEqual(result["seed"], 42)
         self.assertEqual(result["corpus_version"], "0.1.1")
@@ -202,7 +205,7 @@ class RunScanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpd:
             d = self._setup_g1(Path(tmpd))
             totals: list[int] = []
-            subs: dict[str, list[float]] = {p: [] for p in ("P1", "P2", "P3", "P4")}
+            subs: dict[str, list[float]] = {p: [] for p in ("OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE")}
             for seed in range(5):
                 result = run_scan(
                     agent_id="G1",

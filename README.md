@@ -5,7 +5,7 @@ ARE Scanner. 100-point governance and pricing engine for production AI systems.
 ## Phase 1 Scope (through end of May 2026)
 
 - 4 pillars × 24 dimensions deterministic rubric (locked through 2026-04-28)
-- Draft pillar weights: P1=35, P2=20, P3=30, P4=15
+- Pillar weights (rubric 1.0.0, Founder-locked 2026-05-12): `OPS=25, BIAS_FAIRNESS=25, ROBUSTNESS=25, GOVERNANCE=25` (post-rename names per BEAAA-470 / ADR-0006; was `P1=35, P2=20, P3=30, P4=15` in v0.1.x draft)
 - BEAAA-21 v0.2 API contract to the Underwriter (`/score`, `/forensic_bundle`)
 - HTML-only Report Card render (BEAAA-13 rev 4 template)
 - Hosted-eval-only intake (no on-prem connector this phase)
@@ -50,7 +50,7 @@ echo "exit code: $?"            # 0 on a clean scan
 jq '.are_total, .band_letter, .subscores' /tmp/G1_scan.json
 # 84
 # "B+"
-# {"P1": 20.3125, "P2": 19.2708, "P3": 22.9167, "P4": 21.875}
+# {"OPS": 20.3125, "BIAS_FAIRNESS": 19.2708, "ROBUSTNESS": 22.9167, "GOVERNANCE": 21.875}
 ```
 
 ### Input directory layout
@@ -84,8 +84,9 @@ Per `agents/cto-os.md` Supreme Law and the Scanner contract Hard
 guarantee #1: same agent + same `scanner_version` + same `corpus_version`
 + same `model_versions` + same seed → `are_total` within ±1 and every
 subscore within ±1. With `--scored-at` pinned the CLI is byte-identical
-across replicates (spread = 0, strictly stronger than ±1). Smoke test:
-`tools/are-scan-smoke-2026-05-17.md`.
+across replicates (spread = 0, strictly stronger than ±1). Smoke tests:
+`tools/are-scan-smoke-post-beaaa470.md` (current — post-rename) +
+`tools/are-scan-smoke-2026-05-17.md` (pre-rename baseline, retained).
 
 ### Tamper resistance
 
@@ -94,12 +95,13 @@ no shell-out, no symlink follow-through outside `--input-dir`, 10 MiB
 per-file read cap, strict JSON validation. See ADR-0005 §"Tamper-
 resistance review" for the full table.
 
-### Contract pin and known gap
+### Contract pin
 
 The CLI emits the contract Output shape per
-`contracts/are-scanner-api-v1.md@v1.0`. The internal rubric pillar ids
-(P1..P4) do not line up 1:1 with the contract's GOVERNANCE / ROBUSTNESS
-/ BIAS_FAIRNESS / OPS labels — `subscores` is keyed by internal ids,
-`subscores_contract_named` re-groups them under the closest contract
-labels. Reconciling the two is a separate rubric/scoring change with
-its own approval gate. See ADR-0005 §"Known gap".
+`contracts/are-scanner-api-v1.md@v1.0`. The internal rubric pillar keys
+match the contract's pillar names 1:1 post-BEAAA-470 (rename per
+ADR-0006): `OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE`. The
+ADR-0005 `subscores_contract_named` bridge view is therefore removed
+— `subscores` is contract-named at the source. Dim ids (`P<n>.<m>`)
+stay verbatim and are intentionally orthogonal to the pillar-key
+namespace.

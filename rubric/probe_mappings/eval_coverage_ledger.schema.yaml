@@ -105,7 +105,7 @@ raw_mapping:
 probes:
   - probe_id: ecl.attestation
     category: attestation
-    pillar: P1
+    pillar: OPS
     dim: P1.6
     weight: 1.0
     trigger_id: T4

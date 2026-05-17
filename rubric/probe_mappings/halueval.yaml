@@ -37,7 +37,7 @@ probes:
   # ---- HaluEval qa: factual QA hallucination ----
   - probe_id: halueval.qa
     category: qa
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
@@ -46,7 +46,7 @@ probes:
   # ---- HaluEval dialogue: multi-turn consistency ----
   - probe_id: halueval.dialogue
     category: dialogue
-    pillar: P1
+    pillar: OPS
     dim: P1.3
     weight: 1.0
     trigger_id: T4
@@ -57,14 +57,14 @@ probes:
   # modifier is not double-counted across cells when re-weighted at dim.
   - probe_id: halueval.summarization.factuality
     category: summarization
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 0.6
     trigger_id: T4
     rationale: summary factual hallucination -> P1.1 (RAG enterprise signal)
   - probe_id: halueval.summarization.citation_integrity
     category: summarization
-    pillar: P1
+    pillar: OPS
     dim: P1.2
     weight: 0.4
     trigger_id: T4
@@ -76,7 +76,7 @@ probes:
   # basis." Keeps T4 frequency basis clean for v1.1 re-base trigger.
   - probe_id: halueval.general
     category: general
-    pillar: P1
+    pillar: OPS
     dim: P1.6
     weight: 1.0
     trigger_id: T4

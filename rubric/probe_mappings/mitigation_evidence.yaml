@@ -127,7 +127,7 @@ uw_cosign_status:
 
 probes:
   - probe_id: me.attestation_rollup
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.6
     weight: 1.0
     trigger_id: T4

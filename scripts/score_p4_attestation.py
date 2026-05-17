@@ -66,8 +66,8 @@ DIM_TO_YAML = {
 # %-preserve anchor locked by HoUW BEAAA-400 2026-05-15).
 _RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 _RUBRIC = yaml.safe_load(_RUBRIC_PATH.read_text())
-P4_WEIGHT = _RUBRIC["pillars"]["P4"]["weight"]
-P4_PILLAR_FLOOR = _RUBRIC["pillar_floors"]["P4"]["min_pillar_score"]
+P4_WEIGHT = _RUBRIC["pillars"]["GOVERNANCE"]["weight"]
+P4_PILLAR_FLOOR = _RUBRIC["pillar_floors"]["GOVERNANCE"]["min_pillar_score"]
 DIM_COUNT = 6
 SPEC_VERSION = "0.1.0"
 
@@ -804,7 +804,7 @@ def score_form(
         "form_variant": form_variant,
         "signature_mode": signature_mode,
         "material_change_log": form.get("material_change_log") or [],
-        "pillar": "P4",
+        "pillar": "GOVERNANCE",
         "pillar_score": pillar_score,
         "pillar_weight": P4_WEIGHT,
         "pillar_floor": P4_PILLAR_FLOOR,

@@ -96,7 +96,7 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
 
     def test_applied_threshold_p1_p3_are_bind_blocking(self):
         body = self._score()
-        for pid in ("P1", "P3"):
+        for pid in ("OPS", "ROBUSTNESS"):
             for did, dim in body["pillars"][pid]["dimensions"].items():
                 self.assertEqual(
                     dim["applied_threshold"]["kind"], "bind_blocking_floor",
@@ -106,7 +106,7 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
 
     def test_applied_threshold_p2_p4_are_advisory(self):
         body = self._score()
-        for pid in ("P2", "P4"):
+        for pid in ("BIAS_FAIRNESS", "GOVERNANCE"):
             for did, dim in body["pillars"][pid]["dimensions"].items():
                 self.assertEqual(dim["applied_threshold"]["kind"], "advisory", did)
                 self.assertEqual(dim["applied_threshold"]["min_raw"], 0.0)
@@ -118,11 +118,11 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
     def test_pillar_floors_present_with_known_p3_p4_values(self):
         body = self._score()
         floors = body["pillar_floors"]
-        self.assertEqual(set(floors), {"P1", "P2", "P3", "P4"})
+        self.assertEqual(set(floors), {"OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"})
         # v1.0 %-preserve floors per BEAAA-400 HoUW lock 2026-05-15
         # (was 11.25 / 7.5 under v0.1.2 W=30/15; now 9.375 / 12.5 under v1.0 W=25)
-        self.assertEqual(floors["P3"]["min_pillar_score"], 9.375)
-        self.assertEqual(floors["P4"]["min_pillar_score"], 12.5)
+        self.assertEqual(floors["ROBUSTNESS"]["min_pillar_score"], 9.375)
+        self.assertEqual(floors["GOVERNANCE"]["min_pillar_score"], 12.5)
         # Floors carry rationale strings for report-card use.
         for pid in floors:
             self.assertIsInstance(floors[pid]["rationale"], str)
@@ -171,7 +171,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         self.assertEqual(quote_body["breakdown"]["scan_evidence_age_days"], 37)
         # pillar_floors round-trip unchanged.
         self.assertEqual(
-            quote_body["breakdown"]["pillar_floors"]["P3"]["min_pillar_score"],
+            quote_body["breakdown"]["pillar_floors"]["ROBUSTNESS"]["min_pillar_score"],
             9.375,
         )
 
@@ -224,8 +224,8 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
             "scored_at": SCORED_AT.isoformat(),
             "scan_evidence_age_days": 0,
             "pillar_floors": {
-                "P1": {"min_pillar_score": 0, "rationale": "test"},
-                "P3": {"min_pillar_score": 11.25, "rationale": "test"},
+                "OPS": {"min_pillar_score": 0, "rationale": "test"},
+                "ROBUSTNESS": {"min_pillar_score": 11.25, "rationale": "test"},
             },
         }
         status, quote_body = quote_handler(
@@ -275,14 +275,14 @@ class V012AdditiveTests(unittest.TestCase):
         # P3 aggregate floor moved from 11.25 (W=30) → 9.375 (W=25) under v1.0
         # %-preserve anchor (BEAAA-400 HoUW lock); min_dim_raw=1.5 unchanged.
         body = self._score()
-        p3 = body["pillar_floors"]["P3"]
+        p3 = body["pillar_floors"]["ROBUSTNESS"]
         self.assertEqual(p3["min_pillar_score"], 9.375)
         self.assertEqual(p3["min_dim_raw"], 1.5)
 
     def test_other_pillars_omit_min_dim_raw(self):
         # P1/P2/P4 keep v0.1.1 semantics: no per-dim floor at the pillar layer.
         body = self._score()
-        for pid in ("P1", "P2", "P4"):
+        for pid in ("OPS", "BIAS_FAIRNESS", "GOVERNANCE"):
             self.assertNotIn(
                 "min_dim_raw", body["pillar_floors"][pid],
                 f"{pid} should not carry min_dim_raw in v0.1.2",
@@ -308,8 +308,8 @@ class V012AdditiveTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         floors = quote_body["breakdown"]["pillar_floors"]
-        self.assertEqual(floors["P3"]["min_dim_raw"], 1.5)
-        self.assertEqual(floors["P3"]["min_pillar_score"], 9.375)
+        self.assertEqual(floors["ROBUSTNESS"]["min_dim_raw"], 1.5)
+        self.assertEqual(floors["ROBUSTNESS"]["min_pillar_score"], 9.375)
 
     def test_warranty_trigger_kind_round_trips_through_quote(self):
         # v0.1.2 ships warranty_trigger in the enum without auto-relabeling
@@ -322,14 +322,14 @@ class V012AdditiveTests(unittest.TestCase):
             "scored_at": SCORED_AT.isoformat(),
             "scan_evidence_age_days": 0,
             "pillar_floors": {
-                "P3": {
+                "ROBUSTNESS": {
                     "min_pillar_score": 11.25,
                     "min_dim_raw": 1.5,
                     "rationale": "test",
                 },
             },
             "pillars": {
-                "P3": {
+                "ROBUSTNESS": {
                     "score": 18.0,
                     "weight": 30,
                     "dimensions": {
@@ -366,7 +366,7 @@ class V012AdditiveTests(unittest.TestCase):
         self.assertEqual(quote_body["annual_premium_usd"], 60_775)
         # min_dim_raw round-trips through the breakdown the same way.
         self.assertEqual(
-            quote_body["breakdown"]["pillar_floors"]["P3"]["min_dim_raw"],
+            quote_body["breakdown"]["pillar_floors"]["ROBUSTNESS"]["min_dim_raw"],
             1.5,
         )
 
@@ -380,8 +380,8 @@ class V012AdditiveTests(unittest.TestCase):
             "scored_at": SCORED_AT.isoformat(),
             "scan_evidence_age_days": 0,
             "pillar_floors": {
-                "P1": {"min_pillar_score": 0, "rationale": "test"},
-                "P3": {"min_pillar_score": 11.25, "min_dim_raw": 1.5, "rationale": "test"},
+                "OPS": {"min_pillar_score": 0, "rationale": "test"},
+                "ROBUSTNESS": {"min_pillar_score": 11.25, "min_dim_raw": 1.5, "rationale": "test"},
             },
         }
         status, quote_body = quote_handler(

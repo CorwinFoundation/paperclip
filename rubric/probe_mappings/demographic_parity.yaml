@@ -102,13 +102,13 @@ reproducibility:
 
 probes:
   - probe_id: dp.legal_intake_counterfactual
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.1
     weight: 0.7
     trigger_id: T4
     rationale: legal-intake counterfactual routing/recommendation parity -> P2.1
   - probe_id: dp.bbq_disambig
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.1
     weight: 0.3
     trigger_id: T4

@@ -219,10 +219,12 @@ components:
         pillars:
           type: object
           properties:
-            P1: { $ref: '#/components/schemas/PillarScore' }
-            P2: { $ref: '#/components/schemas/PillarScore' }
-            P3: { $ref: '#/components/schemas/PillarScore' }
-            P4: { $ref: '#/components/schemas/PillarScore' }
+            # Post-BEAAA-470 (ADR-0006): the pillar keys are the contract
+            # pillar names directly (1:1 lexical rename from legacy P1..P4).
+            OPS: { $ref: '#/components/schemas/PillarScore' }
+            BIAS_FAIRNESS: { $ref: '#/components/schemas/PillarScore' }
+            ROBUSTNESS: { $ref: '#/components/schemas/PillarScore' }
+            GOVERNANCE: { $ref: '#/components/schemas/PillarScore' }
         forensic_bundle_uri: { type: string, format: uri, description: "Signed pointer to frozen evidence; red line" }
         snapshot_hash: { type: string }
         scored_at: { type: string, format: date-time }
@@ -240,7 +242,9 @@ components:
           description: |
             v0.2.1 additive (BEAAA-70). Per-pillar minimum aggregate score for
             bind eligibility. Mirrors rubric.pillar_floors so pricing engine
-            and report card read identical numbers. Keys P1..P4.
+            and report card read identical numbers. Keys are the contract
+            pillar names (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE)
+            post-BEAAA-470 per ADR-0006.
           additionalProperties:
             type: object
             properties:

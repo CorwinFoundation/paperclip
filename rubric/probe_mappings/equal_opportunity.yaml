@@ -113,7 +113,7 @@ reproducibility:
 
 probes:
   - probe_id: eo.uw_labeled_subset
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.2
     weight: 1.0
     trigger_id: T4

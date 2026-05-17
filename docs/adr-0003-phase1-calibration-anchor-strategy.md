@@ -16,6 +16,8 @@ escalations_noted: ["Founder visibility per ARE-Scanner contract approval gates 
 
 # ADR-0003 — Path A v0.2.3 calibration anchor strategy: Phase-1 partial hybrid
 
+> **Historical note (post-BEAAA-470, 2026-05-17):** P1..P4 keys in this ADR refer to the pre-rename internal pillar ids. They re-emit as `OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE` respectively after the lexical rename landed in BEAAA-472 (mapping per ADR-0006). Dim ids (e.g. `P1.6`, `P3.1`) stay verbatim.
+
 | field | value |
 |---|---|
 | issue | [BEAAA-419](/BEAAA/issues/BEAAA-419) |

@@ -93,7 +93,7 @@ uw_cosign_items:
 
 probes:
   - probe_id: p4_owner_matrix.attestation
-    pillar: P4
+    pillar: GOVERNANCE
     dim: P4.6
     weight: 1.0
     trigger_id: T4

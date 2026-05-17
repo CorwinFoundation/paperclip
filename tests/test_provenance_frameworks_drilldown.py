@@ -38,7 +38,7 @@ class RubricMetadataLoadTests(unittest.TestCase):
 
     def test_pillars_carry_purpose_and_pack_sources(self):
         _, rubric = _baseline()
-        for pid in ("P1", "P2", "P3", "P4"):
+        for pid in ("OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"):
             entry = rubric.pillars[pid]
             self.assertTrue(entry.get("purpose"), f"{pid} purpose missing")
             self.assertIsInstance(entry.get("pack_sources"), list)

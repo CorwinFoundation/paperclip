@@ -1,7 +1,7 @@
 """Unit tests for report_card.render display_pillar_weights (BEAAA-352).
 
 Verifies that same dim raws + two renderer calls (display_pillar_weights=None
-vs. display_pillar_weights={"P1":25,"P2":25,"P3":25,"P4":25}) yield the
+vs. display_pillar_weights={"OPS":25,"BIAS_FAIRNESS":25,"ROBUSTNESS":25,"GOVERNANCE":25}) yield the
 expected back-computed ARE totals and that the result is bit-exact (reproducible).
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from rubric.scoring import Rubric, score
 REPO = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 
-_CONTRACT_V1_WEIGHTS = {"P1": 25, "P2": 25, "P3": 25, "P4": 25}
+_CONTRACT_V1_WEIGHTS = {"OPS": 25, "BIAS_FAIRNESS": 25, "ROBUSTNESS": 25, "GOVERNANCE": 25}
 
 # Dim raws matching passing_eval_outputs.json (gpt-4o-mini family, ARE 75/B)
 _PASSING_RAWS = {

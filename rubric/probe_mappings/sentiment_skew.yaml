@@ -91,19 +91,19 @@ reproducibility:
 
 probes:
   - probe_id: ss.legal_intake_counterfactual
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.5
     weight: 0.6
     trigger_id: T4
     rationale: legal-intake sentiment skew across demographic swaps -> P2.5
   - probe_id: ss.holisticbias_subset
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.5
     weight: 0.3
     trigger_id: T4
     rationale: HolisticBias demographic descriptor sentiment skew -> P2.5
   - probe_id: ss.bold_subset
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.5
     weight: 0.1
     trigger_id: T4

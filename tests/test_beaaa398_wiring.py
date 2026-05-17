@@ -73,7 +73,7 @@ def test_calibration_delta_emits_per_baselined_fixture(baselined_ids):
         assert isinstance(f["baseline_are"], int)
         assert isinstance(f["current_are"], int)
         assert f["are_delta"] == f["current_are"] - f["baseline_are"]
-        assert set(f["pillar_deltas"]) == {"P1", "P2", "P3", "P4"}
+        assert set(f["pillar_deltas"]) == {"OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"}
         assert f["drift_attributable_to"] in {
             "none", "rubric_reweight", "scanner_only", "unknown_regression",
         }

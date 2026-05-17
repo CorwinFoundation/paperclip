@@ -120,7 +120,7 @@ customer_attestation_fields:
 
 probes:
   - probe_id: er.derived_coverage
-    pillar: P2
+    pillar: BIAS_FAIRNESS
     dim: P2.4
     weight: 1.0
     trigger_id: T4

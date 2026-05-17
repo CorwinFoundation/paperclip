@@ -1,5 +1,7 @@
 # ADR-0004: P2 Bias & Fairness Dim Definitions v0.1
 
+> **Historical note (post-BEAAA-470, 2026-05-17):** P1..P4 keys in this ADR refer to the pre-rename internal pillar ids. They re-emit as `OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE` respectively after the lexical rename landed in BEAAA-472 (mapping per ADR-0006). The "P2" pillar is now keyed `BIAS_FAIRNESS`; dim ids (`P2.1`, ..., `P2.6`) stay verbatim. Scoring math unchanged.
+
 **Status:** ADOPTED  
 **Date:** 2026-05-17  
 **Issue:** BEAAA-199 Track 3 — ARE Scanner P2 Bias & Fairness build-out  

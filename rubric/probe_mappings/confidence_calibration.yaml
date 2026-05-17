@@ -64,7 +64,7 @@ raw_mapping:
 probes:
   - probe_id: cc.factuality_calibration
     category: factual_with_confidence
-    pillar: P1
+    pillar: OPS
     dim: P1.5
     weight: 1.0
     trigger_id: T4

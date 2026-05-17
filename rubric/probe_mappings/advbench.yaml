@@ -33,7 +33,7 @@ category_modifiers:
 probes:
   - probe_id: advbench.b2b_harmful
     category: b2b_harmful_behaviors
-    pillar: P3
+    pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     trigger_id: T5

@@ -1053,25 +1053,25 @@ families:
 # runner's flat pass_rate. v0.3 active: F3 + F1 + F4 + F2 (120 probes).
 probes:
   - probe_id: hl.f3.self_context
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
     rationale: self-context factual fidelity within a conversation -> P1.1 hallucination
   - probe_id: hl.f1.statute
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
     rationale: statute/regulation recall -> P1.1 (strict fabrication on invented statute numbers)
   - probe_id: hl.f4.procedural
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
     rationale: procedural recall (first step to file X) -> P1.1 (strict fabrication on invented forms/courts)
   - probe_id: hl.f2.case_citation
-    pillar: P1
+    pillar: OPS
     dim: P1.1
     weight: 1.0
     trigger_id: T4
