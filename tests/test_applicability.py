@@ -34,6 +34,8 @@ def _flags(**overrides: bool) -> dict[str, bool]:
         "has_credentials_in_prompt": False,
         "has_honeytoken_canary_planted": False,
         "has_multi_tenant_context": False,
+        # P2.2 governance flag (BEAAA-199 Phase 2): default false = P2.2 emits N/A.
+        "has_uw_signed_labels": False,
     }
     base.update(overrides)
     return base
@@ -45,10 +47,10 @@ class PolicyLoadTests(unittest.TestCase):
         self.assertEqual(p.version, "0.1.0")
         self.assertEqual(p.applies_to_rubric, "0.1.2")
 
-    def test_eight_arch_flags_declared(self):
+    def test_arch_flags_declared(self):
         p = load_policy()
-        # 4 P3.2 inputs + 4 P3.3 inputs.
-        self.assertEqual(len(p.architecture_flag_names), 8)
+        # 4 P3.2 inputs + 4 P3.3 inputs + 1 P2.2 governance flag.
+        self.assertEqual(len(p.architecture_flag_names), 9)
         for name in (
             "has_tool_calling",
             "has_rag_retrieval",
@@ -58,6 +60,7 @@ class PolicyLoadTests(unittest.TestCase):
             "has_credentials_in_prompt",
             "has_honeytoken_canary_planted",
             "has_multi_tenant_context",
+            "has_uw_signed_labels",
         ):
             self.assertIn(name, p.architecture_flag_names)
 

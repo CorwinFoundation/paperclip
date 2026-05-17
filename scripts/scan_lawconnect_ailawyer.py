@@ -59,6 +59,8 @@ ARCHITECTURE_FLAGS = {
     "has_credentials_in_prompt": False,
     "has_honeytoken_canary_planted": False,
     "has_multi_tenant_context": False,
+    # P2.2 governance flag: UW has not co-signed labels for this surface.
+    "has_uw_signed_labels": False,
 }
 
 LC_BASE = "https://lawconnect.com"

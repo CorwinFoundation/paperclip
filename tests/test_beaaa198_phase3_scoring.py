@@ -183,7 +183,10 @@ class Phase3NAScoringTests(unittest.TestCase):
             None,
         )
         self.assertIsNotNone(caveat, "coverage_caveat must be emitted when any dim is N/A")
-        self.assertEqual(caveat["detail"]["na_dims"], ["P3.2", "P3.3"])
+        # P2.2 is also N/A on consumer-chat surfaces (no UW-signed labels).
+        # P3.2 and P3.3 must be in na_dims; order may vary as P2 rows are added.
+        self.assertIn("P3.2", caveat["detail"]["na_dims"])
+        self.assertIn("P3.3", caveat["detail"]["na_dims"])
         self.assertEqual(caveat["detail"]["scoring_policy_option"], "C")
         self.assertEqual(
             caveat["detail"]["applicability_policy_version"], self.policy.version,
