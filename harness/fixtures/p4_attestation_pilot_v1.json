@@ -1,0 +1,107 @@
+{
+  "_metadata": {
+    "purpose": "BEAAA-200 Track 4 5/22 pilot — first end-to-end customer P4 attestation scored through the ARE pipeline.",
+    "spec_ref": "p4-attestation-ingest-spec v0.1-LOCKED (BEAAA-213 + BEAAA-214 co-design)",
+    "rubric_ref": "rubric/rubric.yaml v1.0.0 (P4 pillar weight = 25, floor = 12.5; sourced dynamically)",
+    "pilot_agent": "synthetic mid-tier SaaS customer ('AcmeBot v3'), pki_escrow_plus_third_party signature, full_v0 form, mixed tier-3/4 evidence",
+    "expected_tiers": {"P4.1": 3, "P4.2": 3, "P4.3": 4, "P4.4": 3, "P4.5": 3, "P4.6": 4},
+    "expected_pillar_raw_mean": 3.333,
+    "expected_pillar_score_v1_0": 20.833,
+    "bind_eligible_on_pillar": true,
+    "rationale": "Designed to span tier-3 (operationalized + evidence) and tier-4 (verified in cadence) without inflating to tier-4 on every dim. Demonstrates adapter success path through the full Q2 signature-mode + Q5 form-variant + Q3 review-state cap cascade."
+  },
+  "version": "0.1.0",
+  "customer_id": "pilot-acmebot-v3",
+  "agent_id": "acmebot-v3-prod",
+  "attested_at": "2026-05-22T12:00:00Z",
+  "attested_by": {
+    "name": "P. Riley",
+    "title": "Head of AI Governance, Acme Corp",
+    "email": "priley@acme.example",
+    "accountability": "I am authorized to make these attestations on behalf of Acme Corp as a duly authorized representative, and I understand that BEA will rely on them in underwriting and at claim. I confirm that the supporting evidence attached is true and complete to the best of my knowledge as of 2026-05-22T12:00:00Z.",
+    "accountability_checked": true
+  },
+  "signature_block": {
+    "signature_mode": "pki_escrow_plus_third_party",
+    "signature_sha256": "fixture-pilot-v1-sha256-pki-third-party"
+  },
+  "form_variant": "full_v0",
+  "material_change_log": [
+    {"event": "deployed_v3.4_prompt_pin", "occurred_at": "2026-04-15T00:00:00Z", "notes": "Prompt SHA rolled; logged + change-controlled."}
+  ],
+  "dims": {
+    "P4_1": {
+      "logged_surfaces": [
+        {"surface": "prompt_in", "logged": true, "retention_days": 180},
+        {"surface": "model_response", "logged": true, "retention_days": 180},
+        {"surface": "tool_call", "logged": true, "retention_days": 180},
+        {"surface": "tool_response", "logged": true, "retention_days": 180},
+        {"surface": "user_id_or_session", "logged": true, "retention_days": 180}
+      ],
+      "storage_mode": "append_only",
+      "tamper_evidence": "hash_chain",
+      "evidence": {
+        "retention_policy_doc": "policies/log_retention_v3.md",
+        "log_sample_file": "samples/audit_log_2026_05_15.jsonl"
+      }
+    },
+    "P4_2": {
+      "version_registry": "internal_git",
+      "pin_policy": "pinned_per_release",
+      "prompt_change_control": "pr_review_required",
+      "model_change_control": "pr_review_required",
+      "rollback_to_prior_supported": true,
+      "evidence": {
+        "change_log_link": "docs/change_log.md",
+        "pin_policy_doc": "docs/pin_policy.md",
+        "last_3_releases": [
+          {"release_id": "v3.4", "deployed_at": "2026-04-15", "model_id": "gpt-4.1-2025-03", "prompt_sha256": "pilot-prompt-sha-v3-4"},
+          {"release_id": "v3.3", "deployed_at": "2026-03-20", "model_id": "gpt-4.1-2025-03", "prompt_sha256": "pilot-prompt-sha-v3-3"},
+          {"release_id": "v3.2", "deployed_at": "2026-02-22", "model_id": "gpt-4.1-2025-03", "prompt_sha256": "pilot-prompt-sha-v3-2"}
+        ]
+      }
+    },
+    "P4_3": {
+      "kill_switch_mechanism": "feature_flag",
+      "time_to_disable_minutes": 4,
+      "rollback_time_minutes": 45,
+      "drill_cadence_days": 180,
+      "last_drill_at": "2026-03-10",
+      "approval_required_to_invoke": "on_call_unilateral",
+      "evidence": {"runbook_link": "runbooks/kill_switch.md", "drill_log": "drills/2026_03_drill.md"}
+    },
+    "P4_4": {
+      "playbook_exists": true,
+      "scope_covered": ["prompt_injection", "hallucinated_action", "data_leak", "tool_misuse", "regulatory_inquiry"],
+      "escalation_chain": [
+        {"role": "oncall", "sla_minutes": 15},
+        {"role": "eng_lead", "sla_minutes": 60},
+        {"role": "vp_eng", "sla_minutes": 240}
+      ],
+      "external_notification_policy": "customer_within_24h",
+      "evidence": {
+        "playbook_doc": "playbooks/ir_v2.md",
+        "last_revision_at": "2026-03-01",
+        "last_tabletop_at": "2026-02-01",
+        "tabletop_artifact": "tabletops/2026_02.md"
+      }
+    },
+    "P4_5": {
+      "policy_doc_link": "policies/eval_cadence_v2.md",
+      "regression_escalation": "soft_block"
+    },
+    "P4_6": {
+      "roles": [
+        {"role_id": "executive_sponsor", "named_person": true},
+        {"role_id": "deployment_owner", "named_person": true},
+        {"role_id": "model_owner", "named_person": true},
+        {"role_id": "on_call_responder", "named_person": true},
+        {"role_id": "compliance_owner", "named_person": true}
+      ],
+      "succession_policy": "named_backup",
+      "review_cadence_days": 180,
+      "last_reviewed_at": "2026-04-01",
+      "evidence": {"raci_doc": "raci/v2.md", "review_log": "reviews/2026_04.md"}
+    }
+  }
+}
