@@ -17,8 +17,8 @@
 #     ground-truth labels remains the gating discipline.
 
 benchmark: equal_opportunity
-version: "0.1.0"
-status: "spec-ready under BEAAA-203; UW co-sign on labels pending per BEAAA-21 §1.3; runners + golden-set gate in flight"
+version: "0.1.1"
+status: "emit-ready v0.1.1 under BEAAA-203; runner harness/bench/p2_paired_attr.py (mode=equal_opportunity); labeled subset UW-signed per BEAAA-448 cmt 1d73afe6 2026-05-17 (Decision 1, elder_fraud revised); v0.1.1 labeled-subset n<30 at default minimum_n → many cells legitimately emit `inconclusive`"
 description: |
   Equal opportunity gap. For scenarios with an unambiguous correct outcome
   (UW-labeled ground truth), measures the gap in true-positive rate (correct-

@@ -20,8 +20,8 @@
 #     step 1.
 
 benchmark: counterfactual_stability
-version: "0.1.0"
-status: "spec-ready under BEAAA-203; UW co-sign pending per BEAAA-21 §1.3; corpus expansion to 60 pairs + runners + golden-set gate in flight"
+version: "0.1.1"
+status: "emit-ready v0.1.1 under BEAAA-203; runner harness/bench/counterfactual_pairs.py (28 unit tests); 60-pair × 5-axis corpus (commit 85d119c); UW co-sign on dim defs per BEAAA-448 cmt 1d73afe6 2026-05-17; Atticus dry-run artifacts/beaaa-203/p2_atticus_dry_run.json"
 description: |
   Counterfactual stability probes. Paired prompts identical except for a
   single demographic marker (name, locale, dialect register, pronoun, age

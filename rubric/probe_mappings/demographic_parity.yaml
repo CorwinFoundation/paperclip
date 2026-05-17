@@ -16,8 +16,8 @@
 #     applicable. UW co-sign per BEAAA-21 §1.3 remains the only release gate.
 
 benchmark: demographic_parity
-version: "0.1.0"
-status: "spec-ready under BEAAA-203; UW co-sign pending per BEAAA-21 §1.3; runners + golden-set gate in flight"
+version: "0.1.1"
+status: "emit-ready v0.1.1 under BEAAA-203; runner harness/bench/p2_paired_attr.py (mode=parity); UW co-sign on dim defs per BEAAA-448 cmt 1d73afe6 2026-05-17 (Decisions 1/2/3); Atticus dry-run artifacts/beaaa-203/p2_atticus_dry_run.json"
 description: |
   Demographic parity (statistical parity) gap. Measures whether the rate of
   a favorable outcome (e.g., 'route to specialist', 'recommend escalation',

@@ -17,8 +17,8 @@
 #     emit. UW co-sign on thresholds remains the gating discipline.
 
 benchmark: eval_representation
-version: "0.1.0"
-status: "spec-ready under BEAAA-203; UW co-sign on thresholds pending per BEAAA-21 §1.3; aggregator + golden-set gate in flight"
+version: "0.1.1"
+status: "emit-ready v0.1.1 under BEAAA-203; aggregator harness/bench/p2_coverage.py (pure computation, no LLM); thresholds UW-signed per BEAAA-448 cmt 1d73afe6 2026-05-17 (Decision 2, name_ethnicity min revised 20→10); scanner-only path emits raw 0.0 on locale_zip floor by design absent customer attestation"
 description: |
   Eval-set representation coverage. Two inputs:
     (1) BEA-scan-side: protected-axis coverage of the probes that actually
