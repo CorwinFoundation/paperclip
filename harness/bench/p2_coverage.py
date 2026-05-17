@@ -4,7 +4,7 @@ Meta-dimension: scores the eval-set provenance itself rather than running
 new probes against the agent. Pure computation — no LLM calls, no
 ModelRunner. Reads:
 
-  (1) BEA-scanner-side: per-axis pair counts from the canonical 60-pair
+  (1) Scanner-side: per-axis pair counts from the canonical 60-pair
       counterfactual corpus (counterfactual_stability.yaml#seed_pairs),
       counted only on axes the scan actually ran.
   (2) Customer-attested: optional eval_set_inventory dict from the
