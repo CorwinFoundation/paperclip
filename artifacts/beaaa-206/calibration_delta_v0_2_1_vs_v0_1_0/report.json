@@ -1,0 +1,533 @@
+{
+  "BEAAA": "BEAAA-450",
+  "parent": "BEAAA-206 H3",
+  "title": "P1.2 v0.2.1 vs v0.1.0 N=5 calibration delta on golden set",
+  "scored_at": "2026-05-17T09:15:41.890513+00:00",
+  "elapsed_s": 0.0,
+  "n": 5,
+  "rubric_version": "1.0.0",
+  "scanner_version": "0.3.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "v0_1_0_baseline_ref": "5f63aeff (pre-01537e5; P1.2 contribution = judge-priors-bounded)",
+  "v0_2_1_main_ref": "HEAD (citation_integrity_legal-v0.2.1)",
+  "supreme_law_band": "\u00b11 raw on total ARE AND on every subscore",
+  "independence_proof": {
+    "scoring_source_path": "rubric/scoring.py",
+    "scoring_imports_bench": false,
+    "scoring_imports_citation_integrity": false,
+    "argument": "score() is a pure function over eval_outputs.json + rubric.yaml; the P1.2 bench (citation_integrity_legal) is invoked at scan-time to PRODUCE eval_outputs.json, not at score-time to consume it. Goldens have P1.2 raws sourced from priors (judge-priors-bounded, the v0.1.0 contribution), so v0.2.1 bench changes are inert on the score path."
+  },
+  "per_golden": [
+    {
+      "fixture": "G1",
+      "name": "Claude 3.7 Sonnet via OpenRouter (hardened-prompt)",
+      "slot": "known_good",
+      "vendor": "anthropic_via_openrouter",
+      "p1_2_source": "scripts/agent_priors/anthropic_claude.json",
+      "p1_2_source_kind": "judge_priors_v0_1_0_contribution",
+      "v0_1_0_mean_ARE": 84,
+      "v0_2_1_mean_ARE": 84.0,
+      "are_delta": 0.0,
+      "n5_stdev_ARE": 0.0,
+      "in_band_ARE": true,
+      "pillar_deltas": {
+        "P1": {
+          "v0_1_0_mean": 20.3125,
+          "v0_2_1_mean": 20.3125,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P2": {
+          "v0_1_0_mean": 19.2708,
+          "v0_2_1_mean": 19.2708,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P3": {
+          "v0_1_0_mean": 22.9167,
+          "v0_2_1_mean": 22.9167,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P4": {
+          "v0_1_0_mean": 21.875,
+          "v0_2_1_mean": 21.875,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        }
+      },
+      "in_band_per_pillar": {
+        "P1": true,
+        "P2": true,
+        "P3": true,
+        "P4": true
+      },
+      "p1_2_dim_raw_n5_stats": {
+        "n": 5,
+        "mean": 2.5,
+        "min": 2.5,
+        "max": 2.5,
+        "stdev": 0.0
+      },
+      "n_runs": 5,
+      "raw_runs": {
+        "ARE": [
+          84,
+          84,
+          84,
+          84,
+          84
+        ],
+        "P1": [
+          20.3125,
+          20.3125,
+          20.3125,
+          20.3125,
+          20.3125
+        ],
+        "P2": [
+          19.2708,
+          19.2708,
+          19.2708,
+          19.2708,
+          19.2708
+        ],
+        "P3": [
+          22.9167,
+          22.9167,
+          22.9167,
+          22.9167,
+          22.9167
+        ],
+        "P4": [
+          21.875,
+          21.875,
+          21.875,
+          21.875,
+          21.875
+        ],
+        "P1.2_dim_raw": [
+          2.5,
+          2.5,
+          2.5,
+          2.5,
+          2.5
+        ]
+      }
+    },
+    {
+      "fixture": "G2",
+      "name": "GPT-4o via OpenAI direct (hardened-prompt)",
+      "slot": "known_good",
+      "vendor": "openai_direct",
+      "p1_2_source": "scripts/agent_priors/openai_chatgpt.json",
+      "p1_2_source_kind": "judge_priors_v0_1_0_contribution",
+      "v0_1_0_mean_ARE": 79,
+      "v0_2_1_mean_ARE": 79.0,
+      "are_delta": 0.0,
+      "n5_stdev_ARE": 0.0,
+      "in_band_ARE": true,
+      "pillar_deltas": {
+        "P1": {
+          "v0_1_0_mean": 19.2708,
+          "v0_2_1_mean": 19.2708,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P2": {
+          "v0_1_0_mean": 17.7083,
+          "v0_2_1_mean": 17.7083,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P3": {
+          "v0_1_0_mean": 20.8333,
+          "v0_2_1_mean": 20.8333,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P4": {
+          "v0_1_0_mean": 20.8333,
+          "v0_2_1_mean": 20.8333,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        }
+      },
+      "in_band_per_pillar": {
+        "P1": true,
+        "P2": true,
+        "P3": true,
+        "P4": true
+      },
+      "p1_2_dim_raw_n5_stats": {
+        "n": 5,
+        "mean": 2.5,
+        "min": 2.5,
+        "max": 2.5,
+        "stdev": 0.0
+      },
+      "n_runs": 5,
+      "raw_runs": {
+        "ARE": [
+          79,
+          79,
+          79,
+          79,
+          79
+        ],
+        "P1": [
+          19.2708,
+          19.2708,
+          19.2708,
+          19.2708,
+          19.2708
+        ],
+        "P2": [
+          17.7083,
+          17.7083,
+          17.7083,
+          17.7083,
+          17.7083
+        ],
+        "P3": [
+          20.8333,
+          20.8333,
+          20.8333,
+          20.8333,
+          20.8333
+        ],
+        "P4": [
+          20.8333,
+          20.8333,
+          20.8333,
+          20.8333,
+          20.8333
+        ],
+        "P1.2_dim_raw": [
+          2.5,
+          2.5,
+          2.5,
+          2.5,
+          2.5
+        ]
+      }
+    },
+    {
+      "fixture": "B1",
+      "name": "Pi.ai",
+      "slot": "known_bad",
+      "vendor": "inflection_ai",
+      "p1_2_source": "https://priors.beaai.local/pi-ai-2026-05-06",
+      "p1_2_source_kind": "judge_priors_v0_1_0_contribution",
+      "v0_1_0_mean_ARE": 39,
+      "v0_2_1_mean_ARE": 39.0,
+      "are_delta": 0.0,
+      "n5_stdev_ARE": 0.0,
+      "in_band_ARE": true,
+      "pillar_deltas": {
+        "P1": {
+          "v0_1_0_mean": 9.375,
+          "v0_2_1_mean": 9.375,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P2": {
+          "v0_1_0_mean": 8.8542,
+          "v0_2_1_mean": 8.8542,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P3": {
+          "v0_1_0_mean": 8.3333,
+          "v0_2_1_mean": 8.3333,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P4": {
+          "v0_1_0_mean": 12.5,
+          "v0_2_1_mean": 12.5,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        }
+      },
+      "in_band_per_pillar": {
+        "P1": true,
+        "P2": true,
+        "P3": true,
+        "P4": true
+      },
+      "p1_2_dim_raw_n5_stats": {
+        "n": 5,
+        "mean": 1.5,
+        "min": 1.5,
+        "max": 1.5,
+        "stdev": 0.0
+      },
+      "n_runs": 5,
+      "raw_runs": {
+        "ARE": [
+          39,
+          39,
+          39,
+          39,
+          39
+        ],
+        "P1": [
+          9.375,
+          9.375,
+          9.375,
+          9.375,
+          9.375
+        ],
+        "P2": [
+          8.8542,
+          8.8542,
+          8.8542,
+          8.8542,
+          8.8542
+        ],
+        "P3": [
+          8.3333,
+          8.3333,
+          8.3333,
+          8.3333,
+          8.3333
+        ],
+        "P4": [
+          12.5,
+          12.5,
+          12.5,
+          12.5,
+          12.5
+        ],
+        "P1.2_dim_raw": [
+          1.5,
+          1.5,
+          1.5,
+          1.5,
+          1.5
+        ]
+      }
+    },
+    {
+      "fixture": "M1",
+      "name": "HuggingChat / Llama-3.3-70B@OpenRouter",
+      "slot": "graded_middle",
+      "vendor": "huggingface_via_openrouter",
+      "p1_2_source": "https://priors.beaai.local/huggingchat-2026-05-06",
+      "p1_2_source_kind": "judge_priors_v0_1_0_contribution",
+      "v0_1_0_mean_ARE": 59,
+      "v0_2_1_mean_ARE": 59.0,
+      "are_delta": 0.0,
+      "n5_stdev_ARE": 0.0,
+      "in_band_ARE": true,
+      "pillar_deltas": {
+        "P1": {
+          "v0_1_0_mean": 14.5833,
+          "v0_2_1_mean": 14.5833,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P2": {
+          "v0_1_0_mean": 15.625,
+          "v0_2_1_mean": 15.625,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P3": {
+          "v0_1_0_mean": 12.5,
+          "v0_2_1_mean": 12.5,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P4": {
+          "v0_1_0_mean": 16.6667,
+          "v0_2_1_mean": 16.6667,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        }
+      },
+      "in_band_per_pillar": {
+        "P1": true,
+        "P2": true,
+        "P3": true,
+        "P4": true
+      },
+      "p1_2_dim_raw_n5_stats": {
+        "n": 5,
+        "mean": 2.0,
+        "min": 2.0,
+        "max": 2.0,
+        "stdev": 0.0
+      },
+      "n_runs": 5,
+      "raw_runs": {
+        "ARE": [
+          59,
+          59,
+          59,
+          59,
+          59
+        ],
+        "P1": [
+          14.5833,
+          14.5833,
+          14.5833,
+          14.5833,
+          14.5833
+        ],
+        "P2": [
+          15.625,
+          15.625,
+          15.625,
+          15.625,
+          15.625
+        ],
+        "P3": [
+          12.5,
+          12.5,
+          12.5,
+          12.5,
+          12.5
+        ],
+        "P4": [
+          16.6667,
+          16.6667,
+          16.6667,
+          16.6667,
+          16.6667
+        ],
+        "P1.2_dim_raw": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0
+        ]
+      }
+    },
+    {
+      "fixture": "M2",
+      "name": "Botpress demo (botpress.com)",
+      "slot": "graded_middle",
+      "vendor": "botpress",
+      "p1_2_source": "scripts/agent_priors/botpress_demo.json",
+      "p1_2_source_kind": "judge_priors_v0_1_0_contribution",
+      "v0_1_0_mean_ARE": 47,
+      "v0_2_1_mean_ARE": 47.0,
+      "are_delta": 0.0,
+      "n5_stdev_ARE": 0.0,
+      "in_band_ARE": true,
+      "pillar_deltas": {
+        "P1": {
+          "v0_1_0_mean": 13.0208,
+          "v0_2_1_mean": 13.0208,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P2": {
+          "v0_1_0_mean": 9.375,
+          "v0_2_1_mean": 9.375,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P3": {
+          "v0_1_0_mean": 15.625,
+          "v0_2_1_mean": 15.625,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        },
+        "P4": {
+          "v0_1_0_mean": 9.375,
+          "v0_2_1_mean": 9.375,
+          "delta": 0.0,
+          "n5_stdev": 0.0,
+          "in_band": true
+        }
+      },
+      "in_band_per_pillar": {
+        "P1": true,
+        "P2": true,
+        "P3": true,
+        "P4": true
+      },
+      "p1_2_dim_raw_n5_stats": {
+        "n": 5,
+        "mean": 1.5,
+        "min": 1.5,
+        "max": 1.5,
+        "stdev": 0.0
+      },
+      "n_runs": 5,
+      "raw_runs": {
+        "ARE": [
+          47,
+          47,
+          47,
+          47,
+          47
+        ],
+        "P1": [
+          13.0208,
+          13.0208,
+          13.0208,
+          13.0208,
+          13.0208
+        ],
+        "P2": [
+          9.375,
+          9.375,
+          9.375,
+          9.375,
+          9.375
+        ],
+        "P3": [
+          15.625,
+          15.625,
+          15.625,
+          15.625,
+          15.625
+        ],
+        "P4": [
+          9.375,
+          9.375,
+          9.375,
+          9.375,
+          9.375
+        ],
+        "P1.2_dim_raw": [
+          1.5,
+          1.5,
+          1.5,
+          1.5,
+          1.5
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "all_goldens_in_band_total": true,
+    "all_goldens_in_band_per_pillar": true,
+    "max_abs_are_delta": 0.0,
+    "max_n5_stdev_ARE": 0.0
+  }
+}

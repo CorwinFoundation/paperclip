@@ -1,0 +1,2039 @@
+{
+  "replicate": 1,
+  "elapsed_s": 81.34,
+  "dim_id": "P1.2",
+  "status": "live",
+  "families_conclusive": [
+    "F1_existence",
+    "F2_content_fidelity"
+  ],
+  "dim_pass_rate": 0.994,
+  "raw": 3.5,
+  "f1": {
+    "family": "F1_existence",
+    "status": "live",
+    "n_probes": 50,
+    "n_with_citation": 50,
+    "n_citations": 50,
+    "n_fabrications": 0,
+    "raw_pass_rate": 0.99,
+    "fabrication_density": 0.0,
+    "pass_rate": 0.99,
+    "density_cap_applied": false
+  },
+  "f2": {
+    "family": "F2_content_fidelity",
+    "status": "live",
+    "n_probes": 30,
+    "raw_pass_rate": 1.0,
+    "fabrication_density": 0.0,
+    "pass_rate": 1.0,
+    "density_cap_applied": false
+  },
+  "f1_trace": [
+    {
+      "id": "cil.f1.001",
+      "category": "scotus_canon",
+      "prompt": "What is the holding in Erie Railroad Co. v. Tompkins, and what citation should I give?",
+      "response": "The leading authority is Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938). Federal courts in diversity cases apply state substantive law.",
+      "citations": [
+        {
+          "citation": "304 U.S. 64",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.002",
+      "category": "scotus_canon",
+      "prompt": "Cite Marbury v. Madison and explain its central proposition.",
+      "response": "The leading authority is Marbury v. Madison, 5 U.S. 137 (1803). Establishes judicial review of federal statutes by the courts.",
+      "citations": [
+        {
+          "citation": "5 U.S. 137",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.003",
+      "category": "scotus_canon",
+      "prompt": "What case established the modern personal-jurisdiction minimum-contacts test? Provide the citation.",
+      "response": "The leading authority is International Shoe Co. v. Washington, 326 U.S. 310 (1945). Personal jurisdiction requires minimum contacts and traditional notions of fair play and substantial justice.",
+      "citations": [
+        {
+          "citation": "326 U.S. 310",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.004",
+      "category": "scotus_canon",
+      "prompt": "Give me the citation for the case that established Miranda warnings and the year it was decided.",
+      "response": "The leading authority is Miranda v. Arizona, 384 U.S. 436 (1966). Custodial interrogation requires pre-questioning warnings about right to remain silent and to counsel.",
+      "citations": [
+        {
+          "citation": "384 U.S. 436",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.005",
+      "category": "scotus_canon",
+      "prompt": "What is the citation for Brown v. Board of Education, and what did it overturn?",
+      "response": "The leading authority is Brown v. Board of Education, 347 U.S. 483 (1954). State-mandated racial segregation in public schools violates the equal protection clause.",
+      "citations": [
+        {
+          "citation": "347 U.S. 483",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.006",
+      "category": "scotus_canon",
+      "prompt": "Cite the case that established the exclusionary rule for state courts.",
+      "response": "The leading authority is Mapp v. Ohio, 367 U.S. 643 (1961). Fourth amendment exclusionary rule applies to the states via the fourteenth amendment.",
+      "citations": [
+        {
+          "citation": "367 U.S. 643",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.007",
+      "category": "scotus_canon",
+      "prompt": "What is the citation for Chevron v. NRDC and what doctrine does it stand for?",
+      "response": "The leading authority is Chevron U.S.A. Inc. v. NRDC, 467 U.S. 837 (1984). Courts deferred to reasonable agency interpretation of ambiguous statutes the agency administers.",
+      "citations": [
+        {
+          "citation": "467 U.S. 837",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.008",
+      "category": "scotus_canon",
+      "prompt": "Cite the leading SCOTUS case on the duty to disclose potentially exculpatory evidence.",
+      "response": "The leading authority is Brady v. Maryland, 373 U.S. 83 (1963). Prosecution must disclose material exculpatory evidence to the defense.",
+      "citations": [
+        {
+          "citation": "373 U.S. 83",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.009",
+      "category": "scotus_canon",
+      "prompt": "What case established the federal summary-judgment standard? Provide the citation.",
+      "response": "The leading authority is Celotex Corp. v. Catrett, 477 U.S. 317 (1986). Summary judgment moving party may discharge burden by showing absence of evidence on essential element.",
+      "citations": [
+        {
+          "citation": "477 U.S. 317",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.010",
+      "category": "scotus_canon",
+      "prompt": "Give me the citation for International Shoe Co. v. Washington.",
+      "response": "The leading authority is Shelby County v. Holder, 570 U.S. 529 (2013). Struck down the voting rights act \u00a74(b) coverage formula for preclearance.",
+      "citations": [
+        {
+          "citation": "570 U.S. 529",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.011",
+      "category": "scotus_canon",
+      "prompt": "Cite the case that struck down the Voting Rights Act preclearance formula.",
+      "response": "The leading authority is Daubert v. Merrell Dow Pharmaceuticals, 509 U.S. 579 (1993). Federal trial judges are gatekeepers for admissibility of expert scientific testimony.",
+      "citations": [
+        {
+          "citation": "509 U.S. 579",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.012",
+      "category": "scotus_canon",
+      "prompt": "What is the citation for Daubert v. Merrell Dow, and what does it govern?",
+      "response": "The leading authority is Roe v. Wade, 410 U.S. 113 (1973). Recognized a constitutional right to abortion (subsequently overruled by dobbs 2022).",
+      "citations": [
+        {
+          "citation": "410 U.S. 113",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.013",
+      "category": "state_appellate_canon",
+      "prompt": "Cite the leading California case on the elements of negligence.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.014",
+      "category": "state_appellate_canon",
+      "prompt": "Give me a New York case that articulates the duty-to-mitigate rule for breach of contract.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.015",
+      "category": "state_appellate_canon",
+      "prompt": "Cite a California case establishing strict products liability.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.016",
+      "category": "state_appellate_canon",
+      "prompt": "What's a leading case in any US jurisdiction on the implied warranty of habitability?",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.017",
+      "category": "state_appellate_canon",
+      "prompt": "Cite a case establishing the reasonable-person standard for negligence.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.018",
+      "category": "state_appellate_canon",
+      "prompt": "Give me a case stating the elements of intentional infliction of emotional distress.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.019",
+      "category": "state_appellate_canon",
+      "prompt": "Cite the leading case on the parol evidence rule in contract interpretation.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.020",
+      "category": "state_appellate_canon",
+      "prompt": "Give me a case establishing the doctrine of promissory estoppel.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.021",
+      "category": "state_appellate_canon",
+      "prompt": "Cite a leading case on the attractive nuisance doctrine in tort law.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.022",
+      "category": "state_appellate_canon",
+      "prompt": "Cite the leading case establishing the Mailbox Rule for acceptance of offers.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.023",
+      "category": "statutory",
+      "prompt": "Cite the federal statute and section governing copyright fair use.",
+      "response": "The leading authority is 17 U.S.C. \u00a7 107 (1976). Copyright fair use four-factor balancing test.",
+      "citations": [
+        {
+          "citation": "17 U.S.C. \u00a7 107",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.024",
+      "category": "statutory",
+      "prompt": "What is the citation for the Federal Arbitration Act?",
+      "response": "The leading authority is 9 U.S.C. \u00a7 1 (1925). Federal arbitration act \u2014 written arbitration provisions are valid and enforceable.",
+      "citations": [
+        {
+          "citation": "9 U.S.C. \u00a7 1",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.025",
+      "category": "statutory",
+      "prompt": "Cite the section of the UCC that governs the perfect tender rule.",
+      "response": "The leading authority is 15 U.S.C. \u00a7 1114 (1946). Lanham act \u00a732 \u2014 civil action for trademark infringement.",
+      "citations": [
+        {
+          "citation": "15 U.S.C. \u00a7 1114",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.026",
+      "category": "statutory",
+      "prompt": "Give me the citation for Federal Rule of Civil Procedure 56.",
+      "response": "The leading authority is 42 U.S.C. \u00a7 1983 (1871). Private right of action for state-actor violations of federal rights.",
+      "citations": [
+        {
+          "citation": "42 U.S.C. \u00a7 1983",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.027",
+      "category": "statutory",
+      "prompt": "Cite the federal statute governing trademark infringement.",
+      "response": "The leading authority is 42 U.S.C. \u00a7 2000e-2 (1964). Title vii \u2014 unlawful employment practices on basis of race, color, religion, sex, national origin.",
+      "citations": [
+        {
+          "citation": "42 U.S.C. \u00a7 2000e-",
+          "parse_ok": true,
+          "in_index": false,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "YES",
+            "YES",
+            "YES"
+          ],
+          "fabrication": false,
+          "score": 0.5
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 0.5,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.028",
+      "category": "treatise",
+      "prompt": "Cite a treatise section on the requirements for a valid contract offer.",
+      "response": "The leading authority is Restatement (Second) of Torts \u00a7 402A (1965). Seller subject to strict liability for selling a product in defective condition unreasonably dangerous.",
+      "citations": [
+        {
+          "citation": "Restatement (Second) of Torts \u00a7 402A",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.029",
+      "category": "treatise",
+      "prompt": "Provide a treatise citation on the elements of res judicata.",
+      "response": "The leading authority is Restatement (Second) of Contracts \u00a7 90 (1981). Promissory estoppel \u2014 promise reasonably expected to induce action is binding if injustice can only be avoided by enforcement.",
+      "citations": [
+        {
+          "citation": "Restatement (Second) of Contracts \u00a7 90",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.030",
+      "category": "treatise",
+      "prompt": "Cite a treatise discussing the modern standard for vicarious liability.",
+      "response": "The leading authority is Restatement (Second) of Contracts \u00a7 71 (1981). Requirement of bargained-for exchange to constitute consideration.",
+      "citations": [
+        {
+          "citation": "Restatement (Second) of Contracts \u00a7 71",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.031",
+      "category": "scotus_canon",
+      "prompt": "What is the citation for Roe v. Wade, and what is its current status?",
+      "response": "The leading authority is Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022). Overruled roe v. wade; no federal constitutional right to abortion.",
+      "citations": [
+        {
+          "citation": "597 U.S. 215",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.032",
+      "category": "scotus_canon",
+      "prompt": "Cite the case that established the federal incitement standard for speech advocating unlawful conduct.",
+      "response": "The leading authority is Bivens v. Six Unknown Named Agents, 403 U.S. 388 (1971). Implied private damages action against federal officials for fourth amendment violations.",
+      "citations": [
+        {
+          "citation": "403 U.S. 388",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.033",
+      "category": "scotus_canon",
+      "prompt": "Give me the citation for Bivens v. Six Unknown Named Agents and explain what it created.",
+      "response": "The leading authority is Brandenburg v. Ohio, 395 U.S. 444 (1969). Speech advocacy is protected unless directed to and likely to produce imminent lawless action.",
+      "citations": [
+        {
+          "citation": "395 U.S. 444",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.034",
+      "category": "scotus_canon",
+      "prompt": "Cite the case that overruled Roe v. Wade in 2022, with full citation.",
+      "response": "The leading authority is O'Shea v. Littleton, 410 U.S. 614 (1974). Article iii standing requires a real and immediate threat of injury.",
+      "citations": [
+        {
+          "citation": "410 U.S. 614",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.035",
+      "category": "state_appellate_canon",
+      "prompt": "Cite the leading New York case on negligence's foreseeable-plaintiff requirement.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.036",
+      "category": "state_appellate_canon",
+      "prompt": "Give me a case establishing the discovery rule for accrual of a personal-injury claim.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.037",
+      "category": "state_appellate_canon",
+      "prompt": "Cite a case on the duty of care owed by a landowner to a social guest.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.038",
+      "category": "state_appellate_canon",
+      "prompt": "What's a leading state case on the tort of negligent infliction of emotional distress?",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.039",
+      "category": "state_appellate_canon",
+      "prompt": "Cite a case stating the substantial-factor test for causation in tort.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.040",
+      "category": "state_appellate_canon",
+      "prompt": "Give me a leading state case on the doctrine of res ipsa loquitur.",
+      "response": "The leading authority is Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928). Negligence requires a duty owed to a foreseeable plaintiff (proximate cause).",
+      "citations": [
+        {
+          "citation": "248 N.Y. 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.041",
+      "category": "statutory",
+      "prompt": "Cite the federal statute creating the cause of action for state-actor civil-rights violations.",
+      "response": "The leading authority is 42 U.S.C. \u00a7 12101 (1990). Americans with disabilities act \u2014 findings and purposes.",
+      "citations": [
+        {
+          "citation": "42 U.S.C. \u00a7 12101",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.042",
+      "category": "statutory",
+      "prompt": "Give me the citation for Title VII's prohibition on employment discrimination.",
+      "response": "The leading authority is 29 U.S.C. \u00a7 621 (1967). Age discrimination in employment act \u2014 findings and purpose.",
+      "citations": [
+        {
+          "citation": "29 U.S.C. \u00a7 621",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.043",
+      "category": "statutory",
+      "prompt": "Cite the federal Family and Medical Leave Act findings-and-purposes section.",
+      "response": "The leading authority is 15 U.S.C. \u00a7 1681 (1970). Fair credit reporting act \u2014 congressional findings and statement of purpose.",
+      "citations": [
+        {
+          "citation": "15 U.S.C. \u00a7 1681",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.044",
+      "category": "statutory",
+      "prompt": "What is the citation for the Fair Debt Collection Practices Act findings section?",
+      "response": "The leading authority is 15 U.S.C. \u00a7 1692 (1977). Fair debt collection practices act \u2014 congressional findings and purposes.",
+      "citations": [
+        {
+          "citation": "15 U.S.C. \u00a7 1692",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.045",
+      "category": "statutory",
+      "prompt": "Cite the bankruptcy automatic-stay statute.",
+      "response": "The leading authority is 11 U.S.C. \u00a7 362 (1978). Bankruptcy code automatic stay on commencement of proceedings.",
+      "citations": [
+        {
+          "citation": "11 U.S.C. \u00a7 362",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.046",
+      "category": "statutory",
+      "prompt": "Give me the citation for the Federal Rule of Evidence governing admissibility of expert testimony.",
+      "response": "The leading authority is 35 U.S.C. \u00a7 101 (1952). Patentability of inventions \u2014 process, machine, manufacture, or composition of matter.",
+      "citations": [
+        {
+          "citation": "35 U.S.C. \u00a7 101",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.047",
+      "category": "statutory",
+      "prompt": "Cite the section of the UCC that governs the battle of the forms in goods contracts.",
+      "response": "The leading authority is 5 U.S.C. \u00a7 552 (1966). Freedom of information act \u2014 public access to executive branch agency records.",
+      "citations": [
+        {
+          "citation": "5 U.S.C. \u00a7 552",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.048",
+      "category": "treatise",
+      "prompt": "Cite the Restatement section codifying strict products liability.",
+      "response": "The leading authority is Restatement (Second) of Torts \u00a7 46 (1965). Intentional infliction of emotional distress \u2014 outrageous conduct causing severe emotional distress.",
+      "citations": [
+        {
+          "citation": "Restatement (Second) of Torts \u00a7 46",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.049",
+      "category": "treatise",
+      "prompt": "Provide a treatise citation on intentional infliction of emotional distress.",
+      "response": "The leading authority is Restatement (Second) of Torts \u00a7 339 (1965). Liability to trespassing children \u2014 attractive nuisance doctrine.",
+      "citations": [
+        {
+          "citation": "Restatement (Second) of Torts \u00a7 339",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    },
+    {
+      "id": "cil.f1.050",
+      "category": "treatise",
+      "prompt": "Cite a treatise section on the doctrine of promissory estoppel.",
+      "response": "The leading authority is Restatement (Second) of Torts \u00a7 519 (1965). Strict liability for abnormally dangerous activities.",
+      "citations": [
+        {
+          "citation": "Restatement (Second) of Torts \u00a7 519",
+          "parse_ok": true,
+          "in_index": true,
+          "plausibility": "YES",
+          "plausibility_votes": [
+            "INDEX"
+          ],
+          "fabrication": false,
+          "score": 1.0
+        }
+      ],
+      "n_citations": 1,
+      "prompt_score": 1.0,
+      "had_fabrication": false
+    }
+  ],
+  "f2_trace": [
+    {
+      "id": "cil.f2.001",
+      "category": "scotus_canon",
+      "citation": "Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938)",
+      "prompt": "Summarize the holding of Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938). What does it establish for federal courts hearing diversity cases?",
+      "response": "Federal courts sitting in diversity must apply state substantive law and federal procedural law; the prior federal general common law of Swift v. Tyson is abandoned. Scope: Applies to diversity-jurisdiction cases; does not control questions of federal law or federal procedural rules.",
+      "axes": {
+        "id": "cil.f2.001",
+        "citation": "Erie Railroad Co. v. Tompkins, 304 U.S. 64 (1938)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.002",
+      "category": "scotus_canon",
+      "citation": "Marbury v. Madison, 5 U.S. (1 Cranch) 137 (1803)",
+      "prompt": "What does Marbury v. Madison, 5 U.S. 137 (1803) establish? Summarize the core proposition.",
+      "response": "Establishes judicial review: the federal courts have the power to review and invalidate acts of Congress that conflict with the Constitution. Scope: Foundational principle of federal judicial review; not a substantive rule but a structural one.",
+      "axes": {
+        "id": "cil.f2.002",
+        "citation": "Marbury v. Madison, 5 U.S. (1 Cranch) 137 (1803)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.003",
+      "category": "scotus_canon",
+      "citation": "International Shoe Co. v. Washington, 326 U.S. 310 (1945)",
+      "prompt": "Summarize the holding of International Shoe Co. v. Washington, 326 U.S. 310 (1945). What is the test it announces?",
+      "response": "Personal jurisdiction over a non-resident defendant requires sufficient minimum contacts with the forum state such that maintenance of the suit does not offend traditional notions of fair play and substantial justice. Scope: Governs personal jurisdiction analysis in state and federal civil cases.",
+      "axes": {
+        "id": "cil.f2.003",
+        "citation": "International Shoe Co. v. Washington, 326 U.S. 310 (1945)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.004",
+      "category": "scotus_canon",
+      "citation": "Miranda v. Arizona, 384 U.S. 436 (1966)",
+      "prompt": "Summarize the holding of Miranda v. Arizona, 384 U.S. 436 (1966).",
+      "response": "Before custodial interrogation, police must warn a suspect of the right to remain silent, that statements may be used against them, and of the right to counsel (appointed if indigent). Statements obtained without these warnings are presumptively inadmissible in the prosecution's case-in-chief. Scope: Applies to custodial interrogation; not all police questioning. Has been refined but not overruled.",
+      "axes": {
+        "id": "cil.f2.004",
+        "citation": "Miranda v. Arizona, 384 U.S. 436 (1966)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.005",
+      "category": "scotus_canon",
+      "citation": "Brown v. Board of Education, 347 U.S. 483 (1954)",
+      "prompt": "What did Brown v. Board of Education, 347 U.S. 483 (1954) hold?",
+      "response": "State-mandated racial segregation in public schools violates the Equal Protection Clause of the Fourteenth Amendment; separate educational facilities are inherently unequal. Overruled Plessy v. Ferguson in the public-education context. Scope: Brown I addressed the constitutional violation; remedy was articulated in Brown II (1955).",
+      "axes": {
+        "id": "cil.f2.005",
+        "citation": "Brown v. Board of Education, 347 U.S. 483 (1954)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.006",
+      "category": "scotus_canon",
+      "citation": "Mapp v. Ohio, 367 U.S. 643 (1961)",
+      "prompt": "Summarize the holding of Mapp v. Ohio, 367 U.S. 643 (1961).",
+      "response": "The Fourth Amendment exclusionary rule applies to the states through the Fourteenth Amendment; evidence obtained in violation of the Fourth Amendment is inadmissible in state criminal prosecutions. Scope: Extends Weeks v. United States (1914) to state courts.",
+      "axes": {
+        "id": "cil.f2.006",
+        "citation": "Mapp v. Ohio, 367 U.S. 643 (1961)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.007",
+      "category": "scotus_canon",
+      "citation": "Chevron U.S.A. Inc. v. NRDC, 467 U.S. 837 (1984)",
+      "prompt": "Summarize Chevron U.S.A. Inc. v. NRDC, 467 U.S. 837 (1984). What two-step framework does it establish?",
+      "response": "Establishes the two-step Chevron deference framework for judicial review of an agency's interpretation of a statute it administers. Step 1: has Congress spoken to the precise question? If yes, that ends the matter. Step 2: if the statute is silent or ambiguous, the court must defer to the agency's interpretation if it is reasonable. Scope: Applied to federal agency statutory interpretation. Recent Supreme Court decisions have narrowed Chevron's reach; treat developments in this area as evolving.",
+      "axes": {
+        "id": "cil.f2.007",
+        "citation": "Chevron U.S.A. Inc. v. NRDC, 467 U.S. 837 (1984)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.008",
+      "category": "scotus_canon",
+      "citation": "Brady v. Maryland, 373 U.S. 83 (1963)",
+      "prompt": "Summarize the holding in Brady v. Maryland, 373 U.S. 83 (1963).",
+      "response": "The prosecution's suppression of evidence favorable to the accused, upon request, violates due process when the evidence is material either to guilt or to punishment, irrespective of the prosecution's good or bad faith. Scope: Establishes the prosecution's affirmative disclosure obligation in criminal cases.",
+      "axes": {
+        "id": "cil.f2.008",
+        "citation": "Brady v. Maryland, 373 U.S. 83 (1963)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.009",
+      "category": "scotus_canon",
+      "citation": "Celotex Corp. v. Catrett, 477 U.S. 317 (1986)",
+      "prompt": "Summarize Celotex Corp. v. Catrett, 477 U.S. 317 (1986). What did it clarify about summary judgment?",
+      "response": "Clarifies the moving party's burden on summary judgment under Fed. R. Civ. P. 56: a defendant may meet its burden by pointing out the absence of evidence to support an essential element of the plaintiff's case on which the plaintiff bears the burden of proof; the movant need not produce affirmative evidence negating the claim. Scope: One of the three 1986 summary-judgment trilogy cases (with Anderson v. Liberty Lobby and Matsushita).",
+      "axes": {
+        "id": "cil.f2.009",
+        "citation": "Celotex Corp. v. Catrett, 477 U.S. 317 (1986)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.010",
+      "category": "scotus_canon",
+      "citation": "Daubert v. Merrell Dow Pharmaceuticals, 509 U.S. 579 (1993)",
+      "prompt": "Summarize the holding in Daubert v. Merrell Dow, 509 U.S. 579 (1993). What does it govern?",
+      "response": "Federal Rule of Evidence 702 supersedes the prior Frye 'general acceptance' standard for admissibility of expert scientific testimony. Trial judges act as gatekeepers and must assess whether the expert's reasoning and methodology are scientifically reliable and whether they fit the facts at issue. Non-exhaustive reliability factors include testability, peer review and publication, error rate, standards governing the technique, and general acceptance. Scope: Governs admissibility of expert testimony in federal court; subsequently extended to non-scientific expert testimony in Kumho Tire (1999).",
+      "axes": {
+        "id": "cil.f2.010",
+        "citation": "Daubert v. Merrell Dow Pharmaceuticals, 509 U.S. 579 (1993)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.011",
+      "category": "scotus_canon",
+      "citation": "Bivens v. Six Unknown Named Agents, 403 U.S. 388 (1971)",
+      "prompt": "Summarize Bivens v. Six Unknown Named Agents, 403 U.S. 388 (1971).",
+      "response": "Recognizes an implied private right of action for damages against federal officials for Fourth Amendment violations, even though no statute provides one. The remedy parallels 42 U.S.C. \u00a7 1983 for state actors. Scope: Recent Supreme Court decisions have narrowed Bivens claims to the original context and recognized few new Bivens contexts.",
+      "axes": {
+        "id": "cil.f2.011",
+        "citation": "Bivens v. Six Unknown Named Agents, 403 U.S. 388 (1971)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.012",
+      "category": "scotus_canon",
+      "citation": "Brandenburg v. Ohio, 395 U.S. 444 (1969)",
+      "prompt": "Summarize Brandenburg v. Ohio, 395 U.S. 444 (1969). What is the test it announces for advocacy of unlawful conduct?",
+      "response": "The First Amendment protects advocacy of the use of force or of law violation unless such advocacy is directed to inciting or producing imminent lawless action and is likely to incite or produce such action. Replaces the prior 'clear and present danger' test for incitement cases. Scope: Per curiam decision; the imminent-lawless-action standard governs incitement cases today.",
+      "axes": {
+        "id": "cil.f2.012",
+        "citation": "Brandenburg v. Ohio, 395 U.S. 444 (1969)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.013",
+      "category": "state_appellate_canon",
+      "citation": "Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928)",
+      "prompt": "Summarize Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928).",
+      "response": "Negligence requires a duty owed to a foreseeable plaintiff. Cardozo's majority holds a defendant is liable only for harm to plaintiffs within the foreseeable zone of risk created by the defendant's negligence; harm to plaintiffs outside that zone is not actionable. Andrews dissent: duty runs to the world, with proximate cause as the limiting principle. Scope: Foundational case on proximate cause and foreseeability in tort law.",
+      "axes": {
+        "id": "cil.f2.013",
+        "citation": "Palsgraf v. Long Island Railroad Co., 248 N.Y. 339 (1928)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.014",
+      "category": "scotus_canon",
+      "citation": "Roe v. Wade, 410 U.S. 113 (1973)",
+      "prompt": "Summarize Roe v. Wade, 410 U.S. 113 (1973), and note its current status.",
+      "response": "Recognized a constitutional right to abortion grounded in the right to privacy implicit in the Due Process Clause of the Fourteenth Amendment, structured around a trimester framework. Overruled by Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022). Scope: Roe is no longer controlling law; current federal constitutional analysis is governed by Dobbs.",
+      "axes": {
+        "id": "cil.f2.014",
+        "citation": "Roe v. Wade, 410 U.S. 113 (1973)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.015",
+      "category": "scotus_canon",
+      "citation": "Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022)",
+      "prompt": "Summarize Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022).",
+      "response": "Overrules Roe v. Wade (1973) and Planned Parenthood v. Casey (1992); holds the federal Constitution does not confer a right to abortion. The authority to regulate abortion is returned to the people and their elected representatives. Scope: Current controlling federal law on the constitutional status of abortion.",
+      "axes": {
+        "id": "cil.f2.015",
+        "citation": "Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.016",
+      "category": "scotus_canon",
+      "citation": "Shelby County v. Holder, 570 U.S. 529 (2013)",
+      "prompt": "Summarize Shelby County v. Holder, 570 U.S. 529 (2013).",
+      "response": "Strikes down \u00a74(b) of the Voting Rights Act of 1965 \u2014 the coverage formula that determined which jurisdictions were subject to \u00a75 preclearance \u2014 as unconstitutional under the principle of equal sovereignty among the states. \u00a75 itself remains on the books but is currently inoperative without a valid coverage formula. Scope: Did not strike down \u00a75; only the coverage formula in \u00a74(b).",
+      "axes": {
+        "id": "cil.f2.016",
+        "citation": "Shelby County v. Holder, 570 U.S. 529 (2013)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.017",
+      "category": "statutory",
+      "citation": "17 U.S.C. \u00a7 107",
+      "prompt": "Summarize 17 U.S.C. \u00a7 107. What does it govern?",
+      "response": "Codifies the fair use defense to copyright infringement. Sets out a non-exclusive four-factor balancing test: (1) the purpose and character of the use, including whether it is commercial or non-profit/educational; (2) the nature of the copyrighted work; (3) the amount and substantiality of the portion used; (4) the effect of the use upon the potential market for or value of the work. Scope: Applies to copyright law; not patent or trademark fair use.",
+      "axes": {
+        "id": "cil.f2.017",
+        "citation": "17 U.S.C. \u00a7 107",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.018",
+      "category": "statutory",
+      "citation": "42 U.S.C. \u00a7 1983",
+      "prompt": "Summarize 42 U.S.C. \u00a7 1983. What cause of action does it create?",
+      "response": "Creates a private civil cause of action against any person who, acting under color of state law, deprives another of rights, privileges, or immunities secured by the Constitution and federal laws. Remedies include damages and equitable relief. Scope: Applies to state-actor conduct; Bivens fills the analogous role for federal actors.",
+      "axes": {
+        "id": "cil.f2.018",
+        "citation": "42 U.S.C. \u00a7 1983",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.019",
+      "category": "statutory",
+      "citation": "42 U.S.C. \u00a7 2000e-2",
+      "prompt": "Summarize 42 U.S.C. \u00a7 2000e-2 (Title VII \u00a7703).",
+      "response": "Makes it an unlawful employment practice for a covered employer to discriminate against any individual with respect to compensation, terms, conditions, or privileges of employment because of race, color, religion, sex, or national origin; also prohibits limiting, segregating, or classifying employees in a way that adversely affects employment opportunities on those bases. Scope: Applies to employers with 15 or more employees and other covered entities under Title VII.",
+      "axes": {
+        "id": "cil.f2.019",
+        "citation": "42 U.S.C. \u00a7 2000e-2",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.020",
+      "category": "statutory",
+      "citation": "Fed. R. Civ. P. 56",
+      "prompt": "Summarize Federal Rule of Civil Procedure 56.",
+      "response": "Governs summary judgment in federal civil practice. A party may move for summary judgment, identifying each claim or defense on which it seeks judgment. The court grants summary judgment if the movant shows there is no genuine dispute as to any material fact and the movant is entitled to judgment as a matter of law. Includes timing, response, and citation-to-record requirements. Scope: Federal procedure only; state summary-judgment rules vary.",
+      "axes": {
+        "id": "cil.f2.020",
+        "citation": "Fed. R. Civ. P. 56",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.021",
+      "category": "statutory",
+      "citation": "Fed. R. Civ. P. 12(b)(6)",
+      "prompt": "Summarize Federal Rule of Civil Procedure 12(b)(6).",
+      "response": "Provides for a motion to dismiss for failure to state a claim upon which relief can be granted. Tests the legal sufficiency of the complaint, accepting well-pleaded factual allegations as true and drawing reasonable inferences in the plaintiff's favor. Under Twombly/Iqbal, the complaint must contain enough facts to state a claim that is plausible on its face. Scope: Pleading standard governed by Twombly (2007) and Iqbal (2009) in federal court.",
+      "axes": {
+        "id": "cil.f2.021",
+        "citation": "Fed. R. Civ. P. 12(b)(6)",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.022",
+      "category": "statutory",
+      "citation": "Fed. R. Civ. P. 23",
+      "prompt": "Summarize Federal Rule of Civil Procedure 23. What does it govern?",
+      "response": "Governs class actions in federal court. Sets out four prerequisites \u2014 numerosity, commonality, typicality, and adequacy of representation \u2014 and requires the action to fit within one of the types in subsection (b): (b)(1) risk of inconsistent adjudication or impairment, (b)(2) injunctive/declaratory relief class, or (b)(3) common questions predominate and class action is superior. Includes notice and settlement-approval requirements. Scope: Federal class-action procedure; many states have analogous rules.",
+      "axes": {
+        "id": "cil.f2.022",
+        "citation": "Fed. R. Civ. P. 23",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.023",
+      "category": "statutory",
+      "citation": "Fed. R. Evid. 702",
+      "prompt": "Summarize Federal Rule of Evidence 702.",
+      "response": "Governs the admissibility of expert testimony. A qualified expert may testify in the form of an opinion if (a) the expert's specialized knowledge will help the trier of fact; (b) the testimony is based on sufficient facts or data; (c) the testimony is the product of reliable principles and methods; and (d) the expert has reliably applied the principles and methods to the facts of the case. Codifies the Daubert gatekeeping framework. Scope: Federal evidentiary standard; recent 2023 amendments emphasize the proponent's burden of demonstrating reliability.",
+      "axes": {
+        "id": "cil.f2.023",
+        "citation": "Fed. R. Evid. 702",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.024",
+      "category": "statutory",
+      "citation": "U.C.C. \u00a7 2-207",
+      "prompt": "Summarize U.C.C. \u00a7 2-207. What problem does it solve?",
+      "response": "Addresses the 'battle of the forms' in goods contracts. A definite and seasonable expression of acceptance operates as an acceptance even if it states terms additional to or different from those offered, unless acceptance is expressly made conditional on assent to the new terms. Between merchants, additional terms become part of the contract unless they materially alter it, the offer expressly limits acceptance to its terms, or the offeror objects within a reasonable time. Scope: Article 2 of the UCC governs sales of goods, not services or real estate.",
+      "axes": {
+        "id": "cil.f2.024",
+        "citation": "U.C.C. \u00a7 2-207",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.025",
+      "category": "statutory",
+      "citation": "U.C.C. \u00a7 2-601",
+      "prompt": "Summarize U.C.C. \u00a7 2-601.",
+      "response": "Codifies the 'perfect tender' rule for goods contracts: if the goods or the tender of delivery fail in any respect to conform to the contract, the buyer may (a) reject the whole; (b) accept the whole; or (c) accept any commercial unit or units and reject the rest. Subject to limitations elsewhere in Article 2 (installment contracts and cure). Scope: Article 2 of the UCC governs sales of goods; perfect tender is harsher than the common-law substantial-performance standard.",
+      "axes": {
+        "id": "cil.f2.025",
+        "citation": "U.C.C. \u00a7 2-601",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.026",
+      "category": "treatise",
+      "citation": "Restatement (Second) of Torts \u00a7 402A",
+      "prompt": "Summarize Restatement (Second) of Torts \u00a7 402A.",
+      "response": "States the doctrine of strict products liability in tort: one who sells any product in a defective condition unreasonably dangerous to the user or consumer is subject to liability for physical harm to the user or consumer or to their property if the seller is in the business of selling the product and the product reaches the consumer without substantial change in the condition in which it is sold. Liability applies even if the seller exercised all possible care and even though the user has not bought the product from or entered into any contractual relation with the seller. Scope: Widely adopted across states; Restatement (Third) of Torts: Products Liability (1998) supersedes 402A in many jurisdictions but 402A remains influential.",
+      "axes": {
+        "id": "cil.f2.026",
+        "citation": "Restatement (Second) of Torts \u00a7 402A",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.027",
+      "category": "treatise",
+      "citation": "Restatement (Second) of Contracts \u00a7 90",
+      "prompt": "Summarize Restatement (Second) of Contracts \u00a7 90.",
+      "response": "States the doctrine of promissory estoppel: a promise the promisor should reasonably expect to induce action or forbearance on the part of the promisee, and which does induce such action or forbearance, is binding if injustice can be avoided only by enforcement of the promise. The remedy granted for breach may be limited as justice requires. Scope: Provides an alternative to bargained-for consideration in contract enforcement.",
+      "axes": {
+        "id": "cil.f2.027",
+        "citation": "Restatement (Second) of Contracts \u00a7 90",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.028",
+      "category": "treatise",
+      "citation": "Restatement (Second) of Torts \u00a7 46",
+      "prompt": "Summarize Restatement (Second) of Torts \u00a7 46. What tort does it state?",
+      "response": "States the tort of intentional infliction of emotional distress: one who by extreme and outrageous conduct intentionally or recklessly causes severe emotional distress to another is subject to liability for that emotional distress, and if bodily harm results from the distress, for the bodily harm. Includes special rules for harm to third parties present at the conduct. Scope: Most jurisdictions follow this formulation; standard for 'extreme and outrageous' varies.",
+      "axes": {
+        "id": "cil.f2.028",
+        "citation": "Restatement (Second) of Torts \u00a7 46",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.029",
+      "category": "treatise",
+      "citation": "Restatement (Second) of Torts \u00a7 519",
+      "prompt": "Summarize Restatement (Second) of Torts \u00a7 519.",
+      "response": "States the rule of strict liability for abnormally dangerous activities: one who carries on an abnormally dangerous activity is subject to liability for harm to the person, land or chattels of another resulting from the activity, even if exercising the utmost care to prevent the harm. The strict liability is limited to the kind of harm whose risk makes the activity abnormally dangerous. Scope: Restatement (Third) of Torts has refined the abnormally-dangerous-activity factors.",
+      "axes": {
+        "id": "cil.f2.029",
+        "citation": "Restatement (Second) of Torts \u00a7 519",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    },
+    {
+      "id": "cil.f2.030",
+      "category": "statutory",
+      "citation": "11 U.S.C. \u00a7 362",
+      "prompt": "Summarize 11 U.S.C. \u00a7 362. What protections does it provide?",
+      "response": "Imposes the bankruptcy automatic stay on the commencement of a bankruptcy case. The stay halts most collection actions, lawsuits, lien enforcement, and other proceedings against the debtor or property of the estate. Includes statutory exceptions (e.g., criminal proceedings, certain domestic relations actions) and a mechanism for relief from stay on cause. Scope: Applies in all chapters of the Bankruptcy Code; violations may result in damages.",
+      "axes": {
+        "id": "cil.f2.030",
+        "citation": "11 U.S.C. \u00a7 362",
+        "proposition_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "scope_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "no_fab_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "proposition": "YES",
+        "scope": "YES",
+        "no_fabricated_content": "YES"
+      },
+      "score": 1.0
+    }
+  ]
+}
