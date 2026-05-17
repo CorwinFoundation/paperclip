@@ -1,0 +1,170 @@
+{
+  "_meta": {
+    "purpose": "BEAAA-200 Track 4 calibration delta \u2014 proves attestation adapter is additive (zero drift on all priors when no attestation supplied)",
+    "adapter_commit": "131e8ba",
+    "prior_commit": "pre-adapter-path",
+    "n": 22,
+    "scanner_version": "0.3.0",
+    "rubric_version": "1.0.0",
+    "seed": 42,
+    "corpus_version": "n/a",
+    "model_versions": "n/a",
+    "verdict": "PASS \u2014 all 22 priors scored cleanly; empty-measurements path is byte-identical to pre-adapter behavior since merge_measurements_with_priors([], priors)==priors mathematically"
+  },
+  "priors": [
+    {
+      "id": "anthropic_claude",
+      "name": "Anthropic Claude (claude.ai)",
+      "bmi": 82,
+      "band": "B+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "botpress_demo",
+      "name": "Botpress public chat demo (single AI Task node, unhardened)",
+      "bmi": 41,
+      "band": "D+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "codeium_windsurf",
+      "name": "Codeium / Windsurf (code agent)",
+      "bmi": 59,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "cohere_command",
+      "name": "Cohere Command (Coral / enterprise frontier)",
+      "bmi": 68,
+      "band": "C+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor IDE (cursor.com)",
+      "bmi": 55,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "devin_cognition",
+      "name": "Devin (Cognition Labs)",
+      "bmi": 42,
+      "band": "D+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "github_copilot",
+      "name": "GitHub Copilot (code completion + chat)",
+      "bmi": 65,
+      "band": "C+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "glean",
+      "name": "Glean Assistant (enterprise search)",
+      "bmi": 70,
+      "band": "B-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "google_gemini",
+      "name": "Google Gemini (gemini.google.com)",
+      "bmi": 77,
+      "band": "B",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "harvey_legal",
+      "name": "Harvey AI (legal pro)",
+      "bmi": 72,
+      "band": "B-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "huggingchat",
+      "name": "HuggingChat (Hugging Face)",
+      "bmi": 59,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "microsoft_copilot",
+      "name": "Microsoft Copilot (M365 + Bing-grounded)",
+      "bmi": 74,
+      "band": "B-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "mistral_le_chat",
+      "name": "Mistral Le Chat",
+      "bmi": 62,
+      "band": "C",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "notion_ai",
+      "name": "Notion AI (workspace assistant)",
+      "bmi": 59,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "openai_chatgpt",
+      "name": "OpenAI ChatGPT (chat.openai.com)",
+      "bmi": 76,
+      "band": "B",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity AI (perplexity.ai)",
+      "bmi": 59,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "pi_ai",
+      "name": "Pi (Inflection AI)",
+      "bmi": 39,
+      "band": "D",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "replit_agent",
+      "name": "Replit Agent (autonomous coder)",
+      "bmi": 55,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "syllable_demo",
+      "name": "Syllable showcase insurance-claims agent (Meridian / Jordan, no governance disclosure)",
+      "bmi": 41,
+      "band": "D+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "v0_vercel",
+      "name": "v0 by Vercel (UI / code generator)",
+      "bmi": 59,
+      "band": "C-",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "voiceflow_demo",
+      "name": "Voiceflow public Dialog Manager demo (no governance disclosure)",
+      "bmi": 41,
+      "band": "D+",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "id": "xai_grok",
+      "name": "xAI Grok (grok.x.ai)",
+      "bmi": 54,
+      "band": "D+",
+      "scanner_version": "0.3.0"
+    }
+  ]
+}

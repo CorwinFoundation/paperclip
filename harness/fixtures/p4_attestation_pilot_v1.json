@@ -4,11 +4,12 @@
     "spec_ref": "p4-attestation-ingest-spec v0.1-LOCKED (BEAAA-213 + BEAAA-214 co-design)",
     "rubric_ref": "rubric/rubric.yaml v1.0.0 (P4 pillar weight = 25, floor = 12.5; sourced dynamically)",
     "pilot_agent": "synthetic mid-tier SaaS customer ('AcmeBot v3'), pki_escrow_plus_third_party signature, full_v0 form, mixed tier-3/4 evidence",
-    "expected_tiers": {"P4.1": 3, "P4.2": 3, "P4.3": 4, "P4.4": 3, "P4.5": 3, "P4.6": 4},
-    "expected_pillar_raw_mean": 3.333,
-    "expected_pillar_score_v1_0": 20.833,
-    "bind_eligible_on_pillar": true,
-    "rationale": "Designed to span tier-3 (operationalized + evidence) and tier-4 (verified in cadence) without inflating to tier-4 on every dim. Demonstrates adapter success path through the full Q2 signature-mode + Q5 form-variant + Q3 review-state cap cascade."
+    "expected_tiers_unreviewed": {"P4.1": 2, "P4.2": 2, "P4.3": 2, "P4.4": 2, "P4.5": 0, "P4.6": 2},
+    "note_review_state_cap": "All dims capped at tier 2 by default review_state=raw_self_report (BEAAA-214 Q3). P4.5=0 because no eval ledger. UW review upgrades state→reviewed/verified to unlock tier 3+.",
+    "expected_form_claimed_tiers": {"P4.1": 3, "P4.2": 3, "P4.3": 4, "P4.4": 3, "P4.6": 4},
+    "expected_pillar_score_unreviewed_v1_0": 10.417,
+    "bind_eligible_on_pillar_unreviewed": false,
+    "rationale": "Represents a freshly submitted, unreviewed self-attestation from a new enterprise customer. Scores reflect raw_self_report cap (tier 2 max) + no ledger (P4.5=0). Post-UW-review, tiers 3-4 unlock depending on evidence verification."
   },
   "version": "0.1.0",
   "customer_id": "pilot-acmebot-v3",
