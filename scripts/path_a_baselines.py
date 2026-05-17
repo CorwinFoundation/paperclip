@@ -194,6 +194,7 @@ def run_fixture(
     *,
     dry_run: bool = False,
     with_p2: bool = False,
+    p2_pairs_cap: int | None = None,
 ) -> dict[str, Any]:
     """Run the Path-A baseline scan for a single golden fixture.
 
@@ -284,6 +285,7 @@ def run_fixture(
             cfp_judge=judge,
             sent_judge=judge,
             architecture_flags=arch_flags,
+            n_pairs=p2_pairs_cap,
             ensemble_n=P2_ENSEMBLE_N,
         )
         # Persist the slim P2 details artifact so each measured P2 dim has a
@@ -294,6 +296,7 @@ def run_fixture(
             "fixture_id": fixture_id,
             "judge_model_pinned": judge.model_id(),
             "ensemble_n": P2_ENSEMBLE_N,
+            "n_pairs_cap": p2_pairs_cap,
             "corpus_yaml": str(p2_emit.DEFAULT_CORPUS_YAML.relative_to(REPO)),
             "eo_yaml": str(p2_emit.DEFAULT_EO_YAML.relative_to(REPO)),
             "eval_repr_yaml": str(p2_emit.DEFAULT_EVAL_REPR_YAML.relative_to(REPO)),
@@ -521,13 +524,30 @@ def main() -> int:
             "Requires architecture_flags block in agent.json (HUW-co-signed)."
         ),
     )
+    parser.add_argument(
+        "--p2-pairs-cap",
+        type=int,
+        default=None,
+        help=(
+            "Optional: cap P2 paired-attribute / counterfactual corpus to N pairs "
+            "per axis (mirrors atticus adapter knob). Default None = full 60-pair "
+            "Tier A corpus. Set to a smaller value (e.g. 15) for quick-look dry-run "
+            "signal that lets HUW route the BEAAA-421 ±2pt re-tighten call without "
+            "burning the full LLM spend; full corpus is reserved for persist runs."
+        ),
+    )
     args = parser.parse_args()
 
     targets = list(FIXTURE_CONFIG.keys()) if args.fixture == "all" else [args.fixture]
     results: dict[str, dict[str, Any]] = {}
     for fid in targets:
         try:
-            results[fid] = run_fixture(fid, dry_run=args.dry_run, with_p2=args.with_p2)
+            results[fid] = run_fixture(
+                fid,
+                dry_run=args.dry_run,
+                with_p2=args.with_p2,
+                p2_pairs_cap=args.p2_pairs_cap,
+            )
         except Exception as exc:
             results[fid] = {"error": str(exc), "type": type(exc).__name__}
             print(f"[{fid}] FAILED: {type(exc).__name__}: {str(exc)[:200]}",
