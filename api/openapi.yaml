@@ -1,9 +1,10 @@
 openapi: 3.0.3
 info:
   title: ARE Scanner ⇄ Underwriter API
-  version: "0.2.3"
+  version: "0.2.4"
   description: |
-    BEAAA-21 v0.2.3 contract surface (BEAAA-tracking label v0.1.2, additive on v0.2.2).
+    BEAAA-21 v0.2.4 contract surface (BEAAA-209 P1.6 Path B additive, board-
+    accepted 2026-05-17 interaction 205a1ea6 Q1-Q4 all YES; additive on v0.2.3).
     Authoritative for Phase 1 pricing v1 and claims forensic spine. Snapshot
     integrity and forensic_bundle_uri are red lines (any mode).
 
@@ -65,8 +66,31 @@ info:
     guarantee that any v0.2.3 ScoreResponse carries a complete forensic record.
     The §3 closed pricing read schema is unchanged by v0.2.3 (forensic/replay
     fields, not pricing variables); pricing-v1 spreadsheet does not need re-stub.
+
+    v0.2.4 additive fields (BEAAA-209 P1.6 Path B aggregator, UW+CEO co-sign
+    via board acceptance of interaction 205a1ea6 on 2026-05-17):
+      - DimensionEvidence.coverage_breadth_pct (optional, number 0–100).
+        Emitted on the P1.6 dim block by the Path B measured aggregator
+        (harness.bench.eval_coverage_aggregator). Drives the report-card
+        cover-label gate ("ARE Score" at ≥80; otherwise "ARE Spot-Scan")
+        per BEAAA-193. Absent on Path C (attested ledger) scans and on
+        every non-P1.6 dim.
+      - DimensionEvidence.covered_dim_ids (optional, array of dim-id
+        strings). Lists the in-scope dims whose cells were classified as
+        "measured" by the aggregator. Forensic evidence for the
+        coverage_breadth_pct value; supports byte-stable replay.
+      - DimensionEvidence.evidence_path (optional, "B" | "C"). Names
+        which P1.6 evidence path produced the cell. "B" = measured Path B
+        aggregator (this scan's other-dim cells); "C" = attested Path C
+        ledger (BEAAA-197 customer-submitted, sample-verified). The
+        report-card label gate is Path-B-only — a Path C scan always
+        renders as "ARE Spot-Scan" regardless of ledger size because
+        attestation evidence is governance, not measurement.
+    All v0.2.4 changes are non-breaking on the wire (additive optional
+    fields only; existing required keys unchanged). v0.2.3 clients can
+    read v0.2.4 responses by ignoring the three new optional fields.
 servers:
-  - url: https://scanner.beai.local/v0
+  - url: https://scanner.ifa.local/v0
 paths:
   /score:
     post:
@@ -264,6 +288,17 @@ components:
             new-scan ScoreResponse. RNG seed actually used by the harness
             (default 42 if request omitted). Server-stamped for byte-
             identical replay.
+        contract_version:
+          type: string
+          example: "are-scanner-api-v1@v1.0"
+          description: |
+            BEAAA-390 / BEAAA-388 additive. Customer-facing ARE Scanner API
+            contract identifier the score is being computed against. Stamped
+            on every ScoreResponse so the LOI-stage caveat block can name the
+            contract version that a downstream binder will pin to. Format
+            "<contract-file>@<version>"; bumped in lockstep with the
+            contracts/are-scanner-api-v1.md spec. Tag-along with
+            scanner_version + rubric_version per BEAAA-21 §forensic-stamps.
         model_versions:
           type: object
           additionalProperties: { type: string }
@@ -349,6 +384,34 @@ components:
                 relabel any v0.1.1-bound dims; reclassification happens via a
                 future rubric revision or explicit policy-schedule override.
             rationale: { type: string, description: "Source citation for the threshold (e.g. rubric §floor)" }
+        coverage_breadth_pct:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: |
+            v0.2.4 additive (BEAAA-209). Path B eval-coverage-breadth percentage
+            emitted on the P1.6 dim block only. Weighted fraction of in-scope dims
+            whose cells were classified "measured" by
+            harness.bench.eval_coverage_aggregator. Drives the BEAAA-193
+            report-card cover-label gate at 80% on Path B scans. Absent on Path C
+            scans and on every non-P1.6 dim.
+        covered_dim_ids:
+          type: array
+          items: { type: string }
+          description: |
+            v0.2.4 additive (BEAAA-209). List of in-scope dim_ids whose cells
+            the aggregator classified as "measured" when computing this dim's
+            coverage_breadth_pct. Forensic evidence for byte-stable replay.
+            Present only on the P1.6 dim block.
+        evidence_path:
+          type: string
+          enum: [B, C]
+          description: |
+            v0.2.4 additive (BEAAA-209). Names which P1.6 evidence path
+            produced this cell. "B" = measured Path B aggregator (BEAAA-209);
+            "C" = attested Path C ledger (BEAAA-197). The label gate is
+            Path-B-only — Path C scans always render "ARE Spot-Scan".
+            Present only on the P1.6 dim block.
     ForensicBundle:
       type: object
       required: [bundle_id, snapshot_hash, signed_manifest, evidence]

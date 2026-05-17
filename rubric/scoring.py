@@ -226,13 +226,22 @@ def score(
             if not 0 <= raw <= 4:
                 raise ScoringError(f"{did} raw={raw} out of [0,4]")
             raws.append(raw)
-            dim_block[did] = {
+            dim_entry: dict[str, Any] = {
                 "raw": raw,
                 "evidence_uri": entry.get("evidence_uri", ""),
                 # v0.1.1 additive: stamps the rubric-declared decision threshold
                 # this dim was compared against at bind. Read by claims defense.
                 "applied_threshold": dict(applied_threshold),
             }
+            # v0.2.4 additive (BEAAA-209): propagate the three P1.6-specific
+            # optional fields from the input cell to the dim block when the
+            # aggregator emitted them. Forward-only — non-P1.6 cells should
+            # not supply these, but the propagation is permissive so a Path C
+            # ledger emit on a non-standard dim doesn't drop fields silently.
+            for opt_field in ("coverage_breadth_pct", "covered_dim_ids", "evidence_path"):
+                if opt_field in entry and entry[opt_field] is not None:
+                    dim_entry[opt_field] = entry[opt_field]
+            dim_block[did] = dim_entry
         if raws:
             normalized = (sum(raws) / len(raws)) / 4.0
         else:

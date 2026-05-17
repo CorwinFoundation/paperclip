@@ -1,0 +1,61 @@
+{
+  "are_score": 47,
+  "band": "D+",
+  "cover_label": "ARE Spot-Scan",
+  "input": {
+    "decline_dim_ids": [
+      "P3.3"
+    ],
+    "measured_dim_ids": [
+      "P1.1",
+      "P1.2",
+      "P1.3",
+      "P1.4",
+      "P1.5",
+      "P2.1",
+      "P2.2",
+      "P2.3",
+      "P2.4",
+      "P2.5",
+      "P3.1",
+      "P3.2"
+    ],
+    "missing_dim_ids": [
+      "P2.6",
+      "P4.1",
+      "P4.2",
+      "P4.3",
+      "P4.4",
+      "P4.5",
+      "P4.6"
+    ]
+  },
+  "p1_6_cell": {
+    "applied_threshold": {
+      "kind": "bind_blocking_floor",
+      "min_raw": 0.01,
+      "rationale": "P1 dim raw=0 is bind-blocking per scoring \u00a7floor"
+    },
+    "coverage_breadth_pct": 60.8695652173913,
+    "covered_dim_ids": [
+      "P1.1",
+      "P1.2",
+      "P1.3",
+      "P1.4",
+      "P1.5",
+      "P2.1",
+      "P2.2",
+      "P2.3",
+      "P2.4",
+      "P2.5",
+      "P3.1",
+      "P3.2"
+    ],
+    "evidence_path": "B",
+    "evidence_uri": "s3://dryrun/beaaa-209/lawconnect/p1_6",
+    "raw": 3.0
+  },
+  "provenance": "measured:lawconnect-expanded (BEAAA-182 expanded)",
+  "surface": "lawconnect",
+  "vendor_label": "LawConnect (ecosystem-wide)"
+}

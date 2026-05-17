@@ -67,6 +67,31 @@ def _assert_no_audit_placeholders(snapshot_hash: str, forensic_bundle_uri: str) 
             )
 
 
+# BEAAA-390 / BEAAA-388. Single source of truth for the "About this score"
+# LOI-stage caveat that renders above the score band. Format-string with
+# three substitutions stamped from the ScoreResponse instance — never hard-
+# coded. v0.1 draft per BEAAA-388 description; CMO + Underwriter co-sign on
+# BEAAA-388 lands the final copy via a one-line swap of this constant.
+# grep guard: if you see the caveat copy duplicated anywhere else in the
+# repo, that is a bug — there must be exactly one occurrence (this one).
+CAVEAT_TEMPLATE = (
+    "**About this score**\n"
+    "\n"
+    "This ARE assessment uses our internal rubric version {rubric_version} "
+    "(in-flight), which weights the four risk pillars differently from the "
+    "customer-facing ARE Scanner API contract {contract_version} we are "
+    "locking. We are closing this gap in BEAAA-353 and will re-issue this "
+    "score under contract {contract_version} weights before any policy is "
+    "bound. The result you see is directionally accurate for an LOI-stage "
+    "assessment; the precise score may shift by a small number of points "
+    "under contract {contract_version} weights. We are disclosing this here "
+    "rather than after the fact.\n"
+    "\n"
+    "Rubric: v{rubric_version} (effective) \u00b7 Contract: {contract_version} "
+    "(target) \u00b7 Scanner build: {scanner_version}"
+)
+
+
 _BAND_COLOR = {
     "A": "#2e7d32",
     "B": "#1565c0",
@@ -102,6 +127,21 @@ body {
 .report-title { font-size: 15px; font-weight: 600; color: #1a2027; margin-top: 2px; }
 .report-meta { font-size: 12px; color: #718096; text-align: right; line-height: 1.6; }
 .report-body { padding: 28px 32px; }
+.caveat-block {
+  margin-bottom: 20px; padding: 14px 18px;
+  background: #fffbeb; border: 1.5px solid #d97706;
+  border-radius: 10px; color: #5b3a05;
+}
+.caveat-block h3 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: #78350f; margin-bottom: 8px;
+}
+.caveat-block p { font-size: 12px; line-height: 1.55; margin-bottom: 8px; }
+.caveat-block p:last-child { margin-bottom: 0; }
+.caveat-versions {
+  font: 600 11px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  color: #78350f; margin-top: 4px;
+}
 .hero {
   display: flex; align-items: center; gap: 28px; margin-bottom: 20px;
   padding: 22px 24px; background: #f7f9fc;
@@ -353,6 +393,79 @@ body {
 """
 
 
+def _audit_str(val: Any) -> str:
+    """Render a forensic-stamp value for the audit footer.
+
+    Returns the value's string form when present; renders an em-dash when the
+    field is None or empty. The four contract-required stamps (scanner_version,
+    corpus_version, seed, model_versions) are surfaced on the card so the
+    footer is the full, byte-stable projection of the are-scanner-api-v1.md
+    minimum-field set rather than a compressed stand-in.
+    """
+    if val is None:
+        return "\u2014"
+    s = str(val)
+    return s if s else "\u2014"
+
+
+def _format_model_versions(mv: dict[str, Any] | None) -> str:
+    if not mv:
+        return "\u2014"
+    primary = mv.get("primary")
+    judges = mv.get("judges") or []
+    parts: list[str] = []
+    if primary:
+        parts.append(f"primary={primary}")
+    if judges:
+        parts.append(f"judges={','.join(str(j) for j in judges)}")
+    return "; ".join(parts) if parts else "\u2014"
+
+
+def _caveat_block(score_response: dict[str, Any]) -> str:
+    """Render the LOI-stage caveat block from CAVEAT_TEMPLATE.
+
+    BEAAA-390 / BEAAA-388. Substitutes `rubric_version`, `contract_version`,
+    and `scanner_version` from the ScoreResponse — never hard-coded. Renders
+    above the hero score band. Format: heading + paragraphs + versions line.
+    """
+    rubric_version = _audit_str(score_response.get("rubric_version"))
+    contract_version = _audit_str(score_response.get("contract_version"))
+    scanner_version = _audit_str(score_response.get("scanner_version"))
+    body = CAVEAT_TEMPLATE.format(
+        rubric_version=rubric_version,
+        contract_version=contract_version,
+        scanner_version=scanner_version,
+    )
+    paragraphs = body.split("\n\n")
+    if not paragraphs:
+        return ""
+    head_para = paragraphs[0].strip()
+    # First paragraph is "**About this score**" — render as <h3>.
+    if head_para.startswith("**") and head_para.endswith("**"):
+        heading = escape(head_para[2:-2])
+    else:
+        heading = escape(head_para)
+    rest = paragraphs[1:]
+    # Last paragraph is the versions line; render as monospace strip.
+    versions_html = ""
+    body_paras = rest
+    if rest and rest[-1].lstrip().startswith("Rubric:"):
+        versions_html = (
+            f'<div class="caveat-versions">{escape(rest[-1].strip())}</div>'
+        )
+        body_paras = rest[:-1]
+    paras_html = "".join(
+        f"<p>{escape(p.strip())}</p>" for p in body_paras if p.strip()
+    )
+    return (
+        f'<div class="caveat-block">'
+        f"<h3>{heading}</h3>"
+        f"{paras_html}"
+        f"{versions_html}"
+        f"</div>"
+    )
+
+
 def _pillar_pct_color(pct: float) -> str:
     if pct >= 70:
         return "#2e7d32"
@@ -471,6 +584,52 @@ def evaluate_bind_eligibility(score_response: dict[str, Any]) -> dict[str, Any]:
     return {"eligible": not reasons, "reasons": reasons}
 
 
+def _compute_display_weighted(
+    pillars: dict[str, Any],
+    rubric: Rubric,
+    display_pillar_weights: dict[str, int],
+) -> tuple[int, dict[str, Any], dict[str, Any]]:
+    """Recompute pillar scores and ARE total using display_pillar_weights.
+
+    Presentation-layer remap: same dim raws, different pillar contributions.
+    Returns (display_bmi, display_band_dict, display_pillars).
+    """
+    from rubric.bands import assign_band, band_to_dict
+
+    total = 0.0
+    new_pillars: dict[str, Any] = {}
+    for pid, pdata in pillars.items():
+        disp_w = display_pillar_weights[pid]
+        raws = [float(pdata["dimensions"][did]["raw"]) for did in rubric.pillars[pid]["dim_ids"]]
+        display_score = (sum(raws) / len(raws)) / 4.0 * disp_w
+        total += display_score
+        new_pillars[pid] = dict(pdata)
+        new_pillars[pid]["score"] = round(display_score, 4)
+        new_pillars[pid]["weight"] = disp_w
+    new_bmi = int(round(total))
+    new_band = band_to_dict(assign_band(new_bmi))
+    return new_bmi, new_band, new_pillars
+
+
+def _cover_label_from_p1_6(score_response: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Report-card cover label per BEAAA-209 v0.2.4 (Path B label gate).
+
+    Reads coverage_breadth_pct + evidence_path off the P1.6 dim block
+    and resolves "ARE Score" vs "ARE Spot-Scan" via
+    eval_coverage_aggregator.label_for. Falls back to "ARE Spot-Scan"
+    when the v0.2.4 fields are absent (pre-v0.2.4 cards, Path C scans
+    without a Path-B aggregator pass) — anti-over-claim default.
+    """
+    from harness.bench.eval_coverage_aggregator import label_for
+    p1 = score_response.get("pillars", {}).get("P1", {})
+    p1_6_block = p1.get("dimensions", {}).get("P1.6") or {}
+    pct = p1_6_block.get("coverage_breadth_pct")
+    path = p1_6_block.get("evidence_path")
+    if pct is None or path is None:
+        return "ARE Spot-Scan", p1_6_block
+    return label_for(float(pct), str(path)), p1_6_block
+
+
 def render(
     score_response: dict[str, Any],
     rubric: Rubric,
@@ -482,6 +641,7 @@ def render(
     reproducibility: dict[str, Any] | None = None,
     prior_score_response: dict[str, Any] | None = None,
     remediation_threshold: float = 2.5,
+    display_pillar_weights: dict[str, int] | None = None,
 ) -> str:
     """Render a ScoreResponse to a single self-contained HTML document.
 
@@ -498,9 +658,26 @@ def render(
         score_response["forensic_bundle_uri"],
     )
 
-    bmi = int(score_response["bmi"])
-    band = score_response["band"]
-    pillars = score_response["pillars"]
+    # Presentation-layer pillar remap (BEAAA-352 contract v1.0 §pillars).
+    # When display_pillar_weights is supplied the rendered ARE, band, and pillar
+    # cards use the remapped values. Bind eligibility and all audit-trail stamps
+    # carry over unchanged from the original score_response.
+    if display_pillar_weights is not None:
+        _d_bmi, _d_band, _d_pillars = _compute_display_weighted(
+            score_response["pillars"], rubric, display_pillar_weights
+        )
+        _display_sr: dict[str, Any] = {
+            **score_response,
+            "bmi": _d_bmi,
+            "band": _d_band,
+            "pillars": _d_pillars,
+        }
+    else:
+        _display_sr = score_response
+
+    bmi = int(_display_sr["bmi"])
+    band = _display_sr["band"]
+    pillars = _display_sr["pillars"]
     pillar_floors = score_response.get("pillar_floors") or {}
     age_days = int(score_response.get("scan_evidence_age_days", 0))
     scored_at = escape(score_response["scored_at"])
@@ -511,7 +688,16 @@ def render(
     eligibility = evaluate_bind_eligibility(score_response)
     score_deg = f"{(bmi / 100) * 360:.1f}deg"
 
+    # BEAAA-209 v0.2.4: cover-label gate. Reads P1.6.coverage_breadth_pct
+    # + P1.6.evidence_path. "ARE Score" only when Path B coverage ≥ 80%;
+    # otherwise "ARE Spot-Scan". Anti-over-claim governor per BEAAA-193.
+    cover_label, _p1_6_block = _cover_label_from_p1_6(score_response)
     prov_html = _provenance_block(provenance, dim_provenance)
+    # BEAAA-390 / BEAAA-388: LOI-stage caveat above the score band. Sources
+    # rubric_version + contract_version + scanner_version from the underlying
+    # ScoreResponse (NOT the display-remapped clone) so the versions stamped
+    # in the caveat always match the audit trail at the foot of the card.
+    caveat_html = _caveat_block(score_response)
     rubric_source_html = _rubric_source_block(rubric)
     diff = None
     if prior_score_response is not None:
@@ -534,9 +720,21 @@ def render(
         )
         for pid in pillars
     )
-    sensitivity_html = render_sensitivity_block(score_response) if include_sensitivity else ""
+    sensitivity_html = render_sensitivity_block(_display_sr) if include_sensitivity else ""
     repro_html = render_reproducibility_block(reproducibility) if reproducibility else ""
     diff_html = render_diff_block(diff) if diff else ""
+
+    # Build the display_weights audit-trail item for contract-v1.0 re-renders.
+    display_weights_html = ""
+    if display_pillar_weights is not None:
+        _wvals = "/".join(str(display_pillar_weights[p]) for p in sorted(display_pillar_weights))
+        display_weights_html = (
+            f'        <div class="audit-item">\n'
+            f'          <span class="audit-key">Display weights</span>\n'
+            f'          <span class="audit-val">contract-v1.0-\u00a7pillars ({_wvals}); '
+            f'underlying rubric_version: {escape(score_response["rubric_version"])}</span>\n'
+            f"        </div>\n"
+        )
 
     age_warning = ""
     if age_days >= STALE_SCAN_DAYS:
@@ -550,7 +748,7 @@ def render(
         f'<html lang="en">\n'
         f"<head>\n"
         f'<meta charset="utf-8" />\n'
-        f"<title>Report Card \u2014 {escape(band['display'])} ({bmi}/100)</title>\n"
+        f"<title>{escape(cover_label)} \u2014 {escape(band['display'])} ({bmi}/100)</title>\n"
         f"<style>{_STYLE}</style>\n"
         f"</head>\n"
         f"<body>\n"
@@ -559,7 +757,7 @@ def render(
         f'  <div class="report-header">\n'
         f"    <div>\n"
         f'      <div class="report-brand">ARE Insurance</div>\n'
-        f'      <div class="report-title">Agent Risk Exposure \u2014 Report Card</div>\n'
+        f'      <div class="report-title">{escape(cover_label)} \u2014 Agent Risk Exposure Report Card</div>\n'
         f"    </div>\n"
         f'    <div class="report-meta">\n'
         f"      Scored: {scored_at}<br>\n"
@@ -567,6 +765,8 @@ def render(
         f"    </div>\n"
         f"  </div>\n"
         f'  <div class="report-body">\n'
+        f"\n"
+        f"    {caveat_html}\n"
         f"\n"
         f'    <div class="hero">\n'
         f'      <div class="score-ring" style="--score-deg:{score_deg};">\n'
@@ -632,9 +832,30 @@ def render(
         f'          <span class="audit-val">{escape(score_response["rubric_version"])}</span>\n'
         f"        </div>\n"
         f'        <div class="audit-item">\n'
+        f'          <span class="audit-key">Contract version</span>\n'
+        f'          <span class="audit-val">{escape(_audit_str(score_response.get("contract_version")))}</span>\n'
+        f"        </div>\n"
+        f'        <div class="audit-item">\n'
         f'          <span class="audit-key">Bands version</span>\n'
         f'          <span class="audit-val">{escape(str(band["bands_version"]))} (frozen 2026-04-30)</span>\n'
         f"        </div>\n"
+        f'        <div class="audit-item">\n'
+        f'          <span class="audit-key">Scanner version</span>\n'
+        f'          <span class="audit-val">{escape(_audit_str(score_response.get("scanner_version")))}</span>\n'
+        f"        </div>\n"
+        f'        <div class="audit-item">\n'
+        f'          <span class="audit-key">Corpus version</span>\n'
+        f'          <span class="audit-val">{escape(_audit_str(score_response.get("corpus_version")))}</span>\n'
+        f"        </div>\n"
+        f'        <div class="audit-item">\n'
+        f'          <span class="audit-key">Seed</span>\n'
+        f'          <span class="audit-val">{escape(_audit_str(score_response.get("seed")))}</span>\n'
+        f"        </div>\n"
+        f'        <div class="audit-item">\n'
+        f'          <span class="audit-key">Model versions</span>\n'
+        f'          <span class="audit-val">{escape(_format_model_versions(score_response.get("model_versions")))}</span>\n'
+        f"        </div>\n"
+        f"{display_weights_html}"
         f"      </div>\n"
         f"    </div>\n"
         f"\n"

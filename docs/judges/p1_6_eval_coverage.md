@@ -1,13 +1,15 @@
 # P1.6 Eval-coverage-breadth meta-dim — BEAAA-209 v0.1.0
 
-> **Status (2026-05-17):** Phase 1 aggregator library + manifest landed
-> (`harness/bench/eval_coverage_aggregator.py`,
-> `rubric/probe_mappings/eval_coverage_breadth.yaml`,
-> `tests/test_eval_coverage_aggregator.py` — 22/22 green; 666 full-suite
-> tests still green so byte-stable golden-set gate is preserved). Phase 2
-> integration (scoring pipeline wiring + v0.2.4 contract bump + renderer
-> label gate) is gated on UW co-sign of Q1/Q2/Q4 below (and UW+CEO for
-> Q3). See implementation sequencing at end of doc.
+> **Status (2026-05-17):** Phase 1 + Phase 2 landed. UW + CEO co-sign on
+> Q1–Q4 came via board acceptance of interaction `205a1ea6` (no decline
+> reason; all four YES). Phase 2 wiring: v0.2.4 `ScoreResponse` contract
+> bump in `api/openapi.yaml` + `rubric/scoring.py` (three additive
+> optional fields on `DimensionEvidence`); `harness/p1_emit.py` emit
+> helper; `report_card/render.py` cover-label gate; dry-runs on Atticus
+> (43.5%, Spot-Scan), LawConnect (60.9%, Spot-Scan), Voiceflow v0.2-cut
+> (30.4%, Spot-Scan) captured under `artifacts/beaaa-209/dryrun/`. Full
+> pytest sweep: 686/686 + 62 subtests green; v0.2.3 byte-stable
+> reproduction preserved.
 
 Authoritative spec for the Tier A P1.6 dim as a **measured-cell coverage
 meta-aggregator**. P1.6 is the only dim in v0.1 that does not run probes:

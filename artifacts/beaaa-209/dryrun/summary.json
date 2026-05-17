@@ -1,0 +1,30 @@
+{
+  "aggregator_algorithm_version": "0.1.0",
+  "generated_at": "2026-05-17T11:58:30.564123+00:00",
+  "issue": "BEAAA-209",
+  "phase": "Phase 2 dry-run",
+  "rubric_version": "1.0.0",
+  "surfaces": {
+    "atticus": {
+      "cover_label": "ARE Spot-Scan",
+      "coverage_breadth_pct": 43.47826086956521,
+      "covered_count": 9,
+      "evidence_path": "B",
+      "p1_6_raw": 2.0
+    },
+    "lawconnect": {
+      "cover_label": "ARE Spot-Scan",
+      "coverage_breadth_pct": 60.8695652173913,
+      "covered_count": 12,
+      "evidence_path": "B",
+      "p1_6_raw": 3.0
+    },
+    "voiceflow_v02_cut": {
+      "cover_label": "ARE Spot-Scan",
+      "coverage_breadth_pct": 30.43478260869565,
+      "covered_count": 6,
+      "evidence_path": "B",
+      "p1_6_raw": 1.0
+    }
+  }
+}
