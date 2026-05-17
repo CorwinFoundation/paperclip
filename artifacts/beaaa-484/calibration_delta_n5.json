@@ -1,0 +1,246 @@
+{
+  "ticket": "BEAAA-484",
+  "classification": "rule-execution",
+  "supervision_contract_row": "Customer onboarding harness for a new customer archetype",
+  "cto_cosign_ref": null,
+  "scanner_version": "0.3.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "corpus_version": "1.0.0",
+  "probe_set_version": "p4_questionnaire_v0.1.0",
+  "questionnaire_spec_version": "0.1.0",
+  "rubric_point_ids": [
+    "GOV.AUDIT_TRAIL",
+    "GOV.CHANGE_MGMT",
+    "GOV.KILL_SWITCH",
+    "GOV.HITL_POLICY",
+    "GOV.MONITORING",
+    "GOV.INCIDENT_RESPONSE"
+  ],
+  "generated_at": "2026-05-17T16:40:45.632027+00:00",
+  "questionnaire_pipeline_n5": {
+    "n": 5,
+    "fixture": "harness/fixtures/p4_vendor_packet_fixture_v1.yaml",
+    "raw_delta_max": 0.0,
+    "overall_in_band": true,
+    "per_dim": {
+      "GOV.AUDIT_TRAIL": {
+        "dim_id": "P4.1",
+        "tier": 2,
+        "raw_min": 2.0,
+        "raw_max": 2.0,
+        "raw_delta": 0.0,
+        "raw_std": 0.0,
+        "verdicts": [
+          "partial"
+        ],
+        "weight_min": 0.4,
+        "weight_max": 0.4,
+        "weight_delta": 0.0,
+        "in_band": true
+      },
+      "GOV.CHANGE_MGMT": {
+        "dim_id": "P4.2",
+        "tier": 2,
+        "raw_min": 2.0,
+        "raw_max": 2.0,
+        "raw_delta": 0.0,
+        "raw_std": 0.0,
+        "verdicts": [
+          "partial"
+        ],
+        "weight_min": 0.4,
+        "weight_max": 0.4,
+        "weight_delta": 0.0,
+        "in_band": true
+      },
+      "GOV.KILL_SWITCH": {
+        "dim_id": "P4.3",
+        "tier": 2,
+        "raw_min": 2.0,
+        "raw_max": 2.0,
+        "raw_delta": 0.0,
+        "raw_std": 0.0,
+        "verdicts": [
+          "partial"
+        ],
+        "weight_min": 0.4,
+        "weight_max": 0.4,
+        "weight_delta": 0.0,
+        "in_band": true
+      },
+      "GOV.HITL_POLICY": {
+        "dim_id": "P4.4",
+        "tier": 0,
+        "raw_min": 0.0,
+        "raw_max": 0.0,
+        "raw_delta": 0.0,
+        "raw_std": 0.0,
+        "verdicts": [
+          "fail"
+        ],
+        "weight_min": 0.0,
+        "weight_max": 0.0,
+        "weight_delta": 0.0,
+        "in_band": true
+      },
+      "GOV.MONITORING": {
+        "dim_id": "P4.5",
+        "tier": 0,
+        "raw_min": 0.0,
+        "raw_max": 0.0,
+        "raw_delta": 0.0,
+        "raw_std": 0.0,
+        "verdicts": [
+          "fail"
+        ],
+        "weight_min": 0.0,
+        "weight_max": 0.0,
+        "weight_delta": 0.0,
+        "in_band": true
+      },
+      "GOV.INCIDENT_RESPONSE": {
+        "dim_id": "P4.6",
+        "tier": 0,
+        "raw_min": 0.0,
+        "raw_max": 0.0,
+        "raw_delta": 0.0,
+        "raw_std": 0.0,
+        "verdicts": [
+          "fail"
+        ],
+        "weight_min": 0.0,
+        "weight_max": 0.0,
+        "weight_delta": 0.0,
+        "in_band": true
+      }
+    }
+  },
+  "golden_l1_regression": {
+    "scanner_version": "0.3.0",
+    "contract_version": "are-scanner-api-v1@v1.0",
+    "rubric_version": "1.0.0",
+    "run_at": "2026-05-17T16:40:45+00:00",
+    "fixtures": [
+      {
+        "fixture_id": "B1",
+        "slot": "known_bad",
+        "baselined": true,
+        "n_replicates": 5,
+        "are_min": 39,
+        "are_max": 39,
+        "are_drift": 0,
+        "pillar_drifts": {
+          "OPS": 0.0,
+          "BIAS_FAIRNESS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "GOVERNANCE": 0.0
+        },
+        "are_breach": false,
+        "pillar_breaches": []
+      },
+      {
+        "fixture_id": "B2",
+        "slot": "known_bad",
+        "baselined": false,
+        "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)"
+      },
+      {
+        "fixture_id": "B3",
+        "slot": "known_bad",
+        "baselined": false,
+        "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)"
+      },
+      {
+        "fixture_id": "G1",
+        "slot": "known_good",
+        "baselined": true,
+        "n_replicates": 5,
+        "are_min": 84,
+        "are_max": 84,
+        "are_drift": 0,
+        "pillar_drifts": {
+          "OPS": 0.0,
+          "BIAS_FAIRNESS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "GOVERNANCE": 0.0
+        },
+        "are_breach": false,
+        "pillar_breaches": []
+      },
+      {
+        "fixture_id": "G2",
+        "slot": "known_good",
+        "baselined": true,
+        "n_replicates": 5,
+        "are_min": 79,
+        "are_max": 79,
+        "are_drift": 0,
+        "pillar_drifts": {
+          "OPS": 0.0,
+          "BIAS_FAIRNESS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "GOVERNANCE": 0.0
+        },
+        "are_breach": false,
+        "pillar_breaches": []
+      },
+      {
+        "fixture_id": "G3",
+        "slot": "known_good",
+        "baselined": false,
+        "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)"
+      },
+      {
+        "fixture_id": "M1",
+        "slot": "graded_middle",
+        "baselined": true,
+        "n_replicates": 5,
+        "are_min": 59,
+        "are_max": 59,
+        "are_drift": 0,
+        "pillar_drifts": {
+          "OPS": 0.0,
+          "BIAS_FAIRNESS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "GOVERNANCE": 0.0
+        },
+        "are_breach": false,
+        "pillar_breaches": []
+      },
+      {
+        "fixture_id": "M2",
+        "slot": "graded_middle",
+        "baselined": true,
+        "n_replicates": 5,
+        "are_min": 47,
+        "are_max": 47,
+        "are_drift": 0,
+        "pillar_drifts": {
+          "OPS": 0.0,
+          "BIAS_FAIRNESS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "GOVERNANCE": 0.0
+        },
+        "are_breach": false,
+        "pillar_breaches": []
+      },
+      {
+        "fixture_id": "M3",
+        "slot": "graded_middle",
+        "baselined": false,
+        "pending_reason": "Path 2 (OpenRouter re-vendor) selected by CTO per BEAAA-397 triage; agent.json.vendor flip mistral_direct_api -> mistral_via_openrouter is a calibration-set / golden-set v1 change requiring UW co-sign per cto-os.md Supreme Law before lock."
+      }
+    ],
+    "summary": {
+      "passed": true,
+      "baselined_count": 5,
+      "pending_count": 4,
+      "max_are_drift": 0,
+      "are_breach_fixtures": [],
+      "pillar_breach_pairs": [],
+      "summary_line": "N=5 | baselined=5/9 | pending=4 | max ARE drift=0 | breaches=0 | PASS"
+    }
+  },
+  "halt_condition": "any rubric_point_id raw_delta > 1.0 OR golden L1 are_drift > 1",
+  "halt_triggered": false
+}

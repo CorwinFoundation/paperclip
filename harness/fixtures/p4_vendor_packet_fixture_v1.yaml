@@ -1,0 +1,108 @@
+# BEAAA-484 P4 GOVERNANCE Tier B vendor-evidence fixture (v1).
+#
+# Synthetic vendor packet for smoke-testing the questionnaire intake +
+# review wrapper. Opaque vendor handle ("vendor-tier-b-fixture-001"); no
+# carrier name, no real customer name (Carrier Rule + supervision contract
+# §6 "No commercial commitments").
+#
+# Tier mix: pki_escrow + full_v0 form, mixed tier 2/3 evidence so the
+# fixture exercises pass / partial / fail verdict mapping in the review
+# wrapper without requiring a P1.6 ledger cross-verify.
+
+envelope:
+  vendor_handle: "vendor-tier-b-fixture-001"
+  agent_id: "vendor-tier-b-fixture-001-agent"
+  attested_at: "2026-05-17T12:00:00Z"
+  attested_by:
+    name: "Vendor Tier B Fixture Signatory"
+    title: "Head of AI Governance"
+    email: "signatory@vendor-tier-b-fixture.example"
+    accountability: "I am authorized to make these attestations on behalf of vendor-tier-b-fixture-001 as a duly authorized representative, and I understand that BEA will rely on them in underwriting and at claim. I confirm that the supporting evidence attached is true and complete to the best of my knowledge as of 2026-05-17T12:00:00Z."
+    accountability_checked: true
+  signature_block:
+    signature_mode: "pki_escrow"
+    signature_sha256: "fixture-vendor-tier-b-sha256-pki-escrow"
+  form_variant: "full_v0"
+  material_change_log:
+    - event: "deployed_prompt_pin_v1_0"
+      occurred_at: "2026-04-20T00:00:00Z"
+      notes: "Pinned prompt SHA; logged + change-controlled."
+
+sections:
+  audit_trail:
+    logged_surfaces:
+      - { surface: "prompt_in",          logged: true,  retention_days: 90 }
+      - { surface: "model_response",     logged: true,  retention_days: 90 }
+      - { surface: "tool_call",          logged: true,  retention_days: 90 }
+      - { surface: "tool_response",      logged: true,  retention_days: 90 }
+      - { surface: "user_id_or_session", logged: true,  retention_days: 90 }
+    storage_mode: "append_only"
+    tamper_evidence: "hash_chain"
+    pii_handling: "redacted_mirror"
+    attestation_statement: "Audit log retention 90 days across five logged surfaces; append-only hash-chained."
+    evidence:
+      retention_policy_doc: "policies/log_retention_v1.md"
+      log_sample_file: "samples/audit_log_2026_05_10.jsonl"
+
+  change_management:
+    version_registry: "internal_git"
+    pin_policy: "pinned_per_release"
+    prompt_change_control: "pr_review_required"
+    model_change_control: "pr_review_required"
+    rollback_to_prior_supported: true
+    evidence:
+      change_log_link: "docs/change_log.md"
+      pin_policy_doc: "docs/pin_policy.md"
+      last_3_releases:
+        - { release_id: "v1.2", deployed_at: "2026-04-25", model_id: "gpt-4.1-2025-03", prompt_sha256: "fixture-prompt-sha-v1-2" }
+        - { release_id: "v1.1", deployed_at: "2026-03-30", model_id: "gpt-4.1-2025-03", prompt_sha256: "fixture-prompt-sha-v1-1" }
+        - { release_id: "v1.0", deployed_at: "2026-03-05", model_id: "gpt-4.1-2025-03", prompt_sha256: "fixture-prompt-sha-v1-0" }
+
+  kill_switch:
+    kill_switch_mechanism: "feature_flag"
+    time_to_disable_minutes: 6
+    rollback_time_minutes: 60
+    drill_cadence_days: 180
+    last_drill_at: "2026-03-12"
+    approval_required_to_invoke: "on_call_unilateral"
+    evidence:
+      runbook_link: "runbooks/kill_switch.md"
+      drill_log: "drills/2026_03_drill.md"
+      architecture_diagram: "diagrams/kill_switch_arch.png"
+
+  hitl_policy:
+    playbook_exists: true
+    scope_covered:
+      - "regulatory_inquiry"
+      - "high_value_action_review"
+      - "novel_user_segment"
+    escalation_chain:
+      - { role: "reviewer_queue", sla_minutes: 30 }
+      - { role: "eng_lead",       sla_minutes: 120 }
+      - { role: "head_of_governance", sla_minutes: 480 }
+    evidence:
+      playbook_link: "policies/hitl_policy_v1.md"
+      scope_matrix: "policies/hitl_scope_matrix.yaml"
+      tabletop_log: "tabletops/2026_04_hitl_tabletop.md"
+
+  monitoring:
+    eval_cadence_days: 30
+    dashboards_in_place:
+      - "p99_latency"
+      - "refusal_rate"
+      - "tool_failure_rate"
+    slo_documented: true
+    regression_escalation: "soft_block"
+    evidence:
+      dashboard_refs: "dashboards/are_monitoring_v1.md"
+      slo_doc: "policies/agent_slo_v1.md"
+      eval_cadence_log: "logs/eval_cadence_2026_q1.md"
+
+  incident_response:
+    owner_role: "Head of AI Governance"
+    owner_named: "vendor-tier-b-fixture-001:owner"
+    on_call_rotation_active: true
+    evidence:
+      runbook_link: "runbooks/incident_response_v1.md"
+      post_mortem_sample: "post_mortems/2026_03_pm_sample.md"
+      owner_matrix_doc: "policies/owner_matrix.yaml"

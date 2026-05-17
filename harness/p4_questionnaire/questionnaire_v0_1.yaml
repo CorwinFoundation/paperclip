@@ -1,0 +1,176 @@
+# BEAAA-484 P4 GOVERNANCE Tier B vendor-evidence questionnaire (v0.1)
+#
+# Audience: AI vendor onboarding under Path B (vendor-cooperative scan).
+# Function: single intake form covering all six GOVERNANCE rubric points
+# in contracts/are-scanner-api-v1.md@v1.0. Output is fed to
+# scripts/score_p4_attestation.score_form via harness.p4_questionnaire.intake.
+#
+# Contract anchor:   contracts/are-scanner-api-v1.md@v1.0 (GOVERNANCE pillar)
+# Supervision row:   "Customer onboarding harness for a new customer archetype"
+#                    -> rule-execution per contracts/scanner-implementation-supervision-v1.md
+# Scoring source:    scripts/score_p4_attestation.py (v0.1-LOCKED 2026-05-11)
+# Probe-set version: p4_questionnaire_v0_1 (this file)
+#
+# Tier B coverage cap: Path B vendor-evidence intake contributes up to ~80%
+# weighted coverage on GOVERNANCE per BEAAA-201 labeling guardrail. Anonymous
+# (questionnaire-absent) path emits GOV.* into uncovered_dimensions so the
+# Underwriter prices Path B at worst-case per Underwriter hard guarantee #2.
+
+spec_version: "0.1.0"
+form_variant_default: "full_v0"        # Tier B is full-form; Bronze short_v0
+                                       # caps at tier 2 (see score_p4_attestation).
+
+# Canonical GOVERNANCE rubric-point identifiers per
+# contracts/are-scanner-api-v1.md@v1.0 §"Score structure" GOVERNANCE row.
+# Each maps to an internal scoring dim_id consumed by score_p4_attestation.
+# The mapping is configurable; the default below honors the BEAAA-484 issue
+# scope table. Divergence between this mapping and the rubric.yaml P4.*
+# label set is surfaced to CTO at merge time, not resolved here.
+rubric_points:
+  - id: "GOV.AUDIT_TRAIL"
+    label: "Audit trail"
+    dim_id: "P4.1"
+    questionnaire_section: "audit_trail"
+    evidence_channel: "Attestation + sample log fixture"
+
+  - id: "GOV.CHANGE_MGMT"
+    label: "Change management"
+    dim_id: "P4.2"
+    questionnaire_section: "change_management"
+    evidence_channel: "Process doc + recent release log"
+
+  - id: "GOV.KILL_SWITCH"
+    label: "Kill switch"
+    dim_id: "P4.3"
+    questionnaire_section: "kill_switch"
+    evidence_channel: "Architecture diagram + tabletop result"
+
+  - id: "GOV.HITL_POLICY"
+    label: "Human-in-the-loop policy"
+    dim_id: "P4.4"
+    questionnaire_section: "hitl_policy"
+    evidence_channel: "Policy doc + scope matrix"
+
+  - id: "GOV.MONITORING"
+    label: "Monitoring"
+    dim_id: "P4.5"
+    questionnaire_section: "monitoring"
+    evidence_channel: "Dashboard refs + SLO doc"
+
+  - id: "GOV.INCIDENT_RESPONSE"
+    label: "Incident response"
+    dim_id: "P4.6"
+    questionnaire_section: "incident_response"
+    evidence_channel: "Runbook + post-mortem sample"
+
+# Envelope fields the vendor MUST submit before any per-section data is read.
+# All map to the canonical attestation form envelope; signature_mode + form_variant
+# gate per-dim tier caps via score_p4_attestation (BEAAA-213 Q2/Q5).
+envelope:
+  required:
+    - field: vendor_handle
+      maps_to: customer_id
+      note: "Opaque vendor handle. Carrier Rule: no carrier name, no customer name in fixtures or external artifacts."
+    - field: agent_id
+      maps_to: agent_id
+    - field: attested_at
+      maps_to: attested_at
+    - field: attested_by.name
+      maps_to: attested_by.name
+    - field: attested_by.title
+      maps_to: attested_by.title
+    - field: attested_by.email
+      maps_to: attested_by.email
+    - field: attested_by.accountability
+      maps_to: attested_by.accountability
+      note: "Must match the BEAAA-213 Q1 canonical literal template."
+    - field: attested_by.accountability_checked
+      maps_to: attested_by.accountability_checked
+      enum: [true]
+    - field: signature_block.signature_mode
+      maps_to: signature_block.signature_mode
+      enum: [notarized_email, pki_escrow, pki_escrow_plus_third_party]
+      note: "Tier B intake requires >= notarized_email; pki modes unlock tier 3+."
+    - field: signature_block.signature_sha256
+      maps_to: signature_block.signature_sha256
+    - field: form_variant
+      maps_to: form_variant
+      enum: [short_v0, full_v0]
+
+# Per-section field schemas. Each section maps 1:1 to a dim block on the
+# canonical attestation form. Optional fields are evidence_uri slots; absent
+# slots cap the tier per the score_p4_attestation evidence ladder.
+sections:
+  audit_trail:
+    canonical_block: P4_1
+    required:
+      - logged_surfaces[*].surface
+      - logged_surfaces[*].logged
+      - logged_surfaces[*].retention_days
+      - storage_mode
+      - tamper_evidence
+      - pii_handling
+      - attestation_statement
+    evidence_uri_slots:
+      - evidence.retention_policy_doc
+      - evidence.log_sample_file
+
+  change_management:
+    canonical_block: P4_2
+    required:
+      - version_registry
+      - pin_policy
+      - prompt_change_control
+      - model_change_control
+      - rollback_to_prior_supported
+    evidence_uri_slots:
+      - evidence.change_log_link
+      - evidence.pin_policy_doc
+      - evidence.last_3_releases   # structured release log
+
+  kill_switch:
+    canonical_block: P4_3
+    required:
+      - kill_switch_mechanism
+      - time_to_disable_minutes
+      - rollback_time_minutes
+      - drill_cadence_days
+      - approval_required_to_invoke
+    evidence_uri_slots:
+      - evidence.runbook_link
+      - evidence.drill_log
+      - evidence.architecture_diagram
+
+  hitl_policy:
+    canonical_block: P4_4
+    required:
+      - playbook_exists
+      - scope_covered
+      - escalation_chain
+    evidence_uri_slots:
+      - evidence.playbook_link
+      - evidence.scope_matrix
+      - evidence.tabletop_log
+
+  monitoring:
+    canonical_block: P4_5
+    required:
+      - eval_cadence_days
+      - dashboards_in_place
+      - slo_documented
+      - regression_escalation
+    evidence_uri_slots:
+      - evidence.dashboard_refs
+      - evidence.slo_doc
+      - evidence.eval_cadence_log
+
+  incident_response:
+    canonical_block: P4_6
+    required:
+      - owner_role
+      - owner_named
+      - on_call_rotation_active
+    evidence_uri_slots:
+      - evidence.runbook_link
+      - evidence.post_mortem_sample
+      - evidence.owner_matrix_doc
