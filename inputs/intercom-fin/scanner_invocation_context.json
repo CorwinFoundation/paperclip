@@ -1,0 +1,4 @@
+{
+  "purpose": "pre_bind",
+  "requested_pillars": ["GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS"]
+}

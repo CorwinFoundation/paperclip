@@ -1,0 +1,94 @@
+{
+  "issue": "BEAAA-525",
+  "action": "rule-execution (Smoke test for an existing operation \u2014 adapter scripts/scan_intercom_fin.py for Path B Intercom Fin; additive, not invoked by any locked scoring path)",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 row 'Smoke test for an existing operation'",
+  "ran_at": "2026-05-18T15:28:24.153693+00:00",
+  "n": 5,
+  "rubric_path": "rubric/rubric.yaml",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2"
+  ],
+  "deltas": {
+    "B1": {
+      "expected_total": 39,
+      "expected_hash": "d80f41b089d88a6d583b82554db57cd4b2cc393ec06712eeefa7d20f6dc2ec17",
+      "observed_totals_n5": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G1": {
+      "expected_total": 84,
+      "expected_hash": "41a969391e4adb4f8b4f99f3b8e88477eefd682dc737c5658a9a6b73536ba8e6",
+      "observed_totals_n5": [
+        84,
+        84,
+        84,
+        84,
+        84
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G2": {
+      "expected_total": 79,
+      "expected_hash": "ada7872bd44eceff5250a6a06a6611554602edf22c6c9a5bf380f74054d852e0",
+      "observed_totals_n5": [
+        79,
+        79,
+        79,
+        79,
+        79
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M1": {
+      "expected_total": 59,
+      "expected_hash": "0db248df08244800e3eac2f889578e1a10749e320734414ac1745de2f359b197",
+      "observed_totals_n5": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M2": {
+      "expected_total": 47,
+      "expected_hash": "9ca5ffe2e25196b923bf0172f4c3500275983e5409cb4999867e7da2fef86a57",
+      "observed_totals_n5": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    }
+  },
+  "all_in_band_pm1_and_byte_identical": true,
+  "note": "scripts/scan_intercom_fin.py is a Playwright-driven scan adapter; not imported by any in-agent scoring path. Reproducibility on locked goldens is therefore expected and verified byte-identical (spread=0) across N=5 replays per are-scanner-api-v1@v1.0 Reproducibility \u00b11."
+}
