@@ -15,7 +15,7 @@ Operational steps for the CTO heartbeat that resumes after Founders drop Decodo 
 ## Step 1 — verify adapter sees the env var
 
 ```bash
-cd projects/bmi-scanner
+cd projects/are-scanner
 python3 -c "from harness import egress; print('enabled:', egress.is_enabled())"
 ```
 
