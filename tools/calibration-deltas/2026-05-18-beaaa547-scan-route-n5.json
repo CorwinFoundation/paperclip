@@ -1,0 +1,53 @@
+{
+  "issue": "BEAAA-547",
+  "classification": "rule-change",
+  "cto_cosign_ref": [
+    "BEAAA-531 op-seat ACCEPT comment-4ecd6b82",
+    "BEAAA-535 HoUW countersign comment-62b25059"
+  ],
+  "scanner_version_head": "6b4e124ca76536dba8e3b9454d5b80be202b70f8",
+  "corpus_version": "pinned (per-fixture in manifest)",
+  "probe_set_version": "pinned (per-fixture in manifest)",
+  "rubric_point_id": "n/a (handler glue; T5 BEAAA-544 holds band-cut classification)",
+  "upstream_eval_version": "n/a",
+  "offline_l1_n5": {
+    "description": "Re-run rubric.scoring.score() N=5 over the locked golden eval_outputs.json fixtures; verifies POST /score path remains byte-identical pre/post adding scan_handlers + /scan routes.",
+    "summary": {
+      "passed": true,
+      "baselined_count": 5,
+      "pending_count": 4,
+      "max_are_drift": 0,
+      "are_breach_fixtures": [],
+      "pillar_breach_pairs": [],
+      "summary_line": "N=5 | baselined=5/9 | pending=4 | max ARE drift=0 | breaches=0 | PASS"
+    },
+    "max_are_drift": 0,
+    "verdict": "PASS",
+    "baselined_fixtures": 5
+  },
+  "live_probe_e2e_smoke": {
+    "description": "pytest tests/test_scan_handlers_beaaa547.py::test_end_to_end_smoke_with_real_orchestrator \u2014 wires the real scanners.live_probe_orchestrator.run_scan behind ScanRuntime against a MockRunner + synthetic probe_run_fn yielding 2 dims \u00d7 5 replicates.",
+    "rows_emitted": 10,
+    "incomplete": false,
+    "spread_total": 0.0,
+    "within_band": true,
+    "live_probe_variance_band": 2,
+    "verdict": "PASS"
+  },
+  "tests": {
+    "scan_handler_tests": {
+      "count": 29,
+      "verdict": "PASS"
+    },
+    "full_repo_pytest": {
+      "count": "953 passed + 62 subtests",
+      "verdict": "PASS"
+    }
+  },
+  "hard_invariants": {
+    "#1_cli_zero_diff": "verified: git diff bin/ harness/cli_runner.py = 0 hunks",
+    "#2_offline_score_byte_identical": "verified: L1 N=5 max drift = 0",
+    "#4_credential_secret_redacted_in_bundle": "covered by test_scan_runtime_drops_local_secret_after_kickoff + orchestrator HOSTED_RUNNER ALLOWED_ROW_FIELDS"
+  },
+  "generated_at": "2026-05-18T20:52:47.939894Z"
+}

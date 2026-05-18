@@ -1,12 +1,29 @@
 openapi: 3.0.3
 info:
   title: ARE Scanner ⇄ Underwriter API
-  version: "0.2.4"
+  version: "1.1.0"
   description: |
-    BEAAA-21 v0.2.4 contract surface (BEAAA-209 P1.6 Path B additive, board-
-    accepted 2026-05-17 interaction 205a1ea6 Q1-Q4 all YES; additive on v0.2.3).
-    Authoritative for Phase 1 pricing v1 and claims forensic spine. Snapshot
-    integrity and forensic_bundle_uri are red lines (any mode).
+    v1.1.0 contract surface — additive minor bump over v0.2.4 + v1.0.x.
+    Adds live-agent-hosted probe path: POST /scan + GET /scan/{scanId},
+    request fields scan_mode + k_replicates, response fields
+    spread_per_dim + spread_per_pillar + spread_total +
+    live_probe_variance_band (UW-facing only per Δ4) +
+    k_replicates_observed + incomplete + incomplete_reason. Offline
+    POST /score path is byte-identical pre/post (Hard Invariant #2 on
+    BEAAA-533); existing v0.2.x clients omitting scan_mode continue to
+    receive offline_replay-shaped responses with no shape drift.
+
+    cto_cosign_ref:
+      - BEAAA-531 op-seat UW co-sign (comment 4ecd6b82) 2026-05-18T19:14Z
+      - BEAAA-535 HoUW countersign (comment 62b25059) 2026-05-18T19:21Z
+      - ADR-0009 ratification on BEAAA-530 (Scanner Engineer 2026-05-18)
+    Contract source of truth: contracts/are-scanner-api-v1.md@v1.1.0.
+
+    Prior v0.2.4 contract surface (BEAAA-21 v0.2.4, BEAAA-209 P1.6 Path B
+    additive, board-accepted 2026-05-17 interaction 205a1ea6 Q1-Q4 all
+    YES; additive on v0.2.3). Authoritative for Phase 1 pricing v1 and
+    claims forensic spine. Snapshot integrity and forensic_bundle_uri
+    are red lines (any mode).
 
     v0.2.1 additive fields (BEAAA-70, shipped before 2026-05-09 v1.0 contract lock):
       - ScoreResponse.pillars[Pn].dimensions[did].applied_threshold (DimensionEvidence)
@@ -143,6 +160,78 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/QuoteResponse' }
         '422': { description: Quote inputs rejected (validation/red-line) }
+  /scan:
+    post:
+      summary: Kick off a live-agent hosted probe scan (v1.1.0; live_probe mode only)
+      operationId: postScan
+      description: |
+        Validates the live-probe request, registers the credential with the
+        T3 vault, and spawns the Prober subprocess. Returns 202 with a
+        scan_id; poll GET /scan/{scanId} for the aggregated result.
+        offline_replay mode is illegal on this endpoint — route through
+        POST /score instead.
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScanRequest' }
+      responses:
+        '202':
+          description: Scan accepted; poll GET /scan/{scanId} for the result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scan_id, status]
+                properties:
+                  scan_id: { type: string }
+                  status: { type: string, enum: [accepted] }
+        '409':
+          description: Tenant isolation violation (header / body mismatch)
+        '422':
+          description: |
+            Request validation failed. Body carries one of the contracted
+            error codes: scan_mode_invalid, k_replicates_invalid,
+            corpus_snapshot_hash_invalid, corpus_snapshot_mismatch,
+            credential_ref_invalid, credential_ref_required,
+            credential_secret_required, credential_secret_invalid,
+            agent_endpoint_invalid, agent_endpoint_host_invalid,
+            tenant_id_required, scanner_version_required,
+            corpus_version_required, seed_required, body_invalid.
+  /scan/{scanId}:
+    get:
+      summary: Poll status / final result for a live-probe scan
+      operationId: getScan
+      parameters:
+        - in: path
+          name: scanId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: audience
+          required: false
+          schema:
+            type: string
+            enum: [customer, uw]
+            default: customer
+          description: |
+            Selects the response variant. ``customer`` strips
+            ``live_probe_variance_band`` per Δ4 (BEAAA-547 customer-facing
+            adapter rule). ``uw`` retains every field for Underwriter
+            pricing consumption.
+      responses:
+        '200':
+          description: Current scan state with aggregated result (when complete)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanResult' }
+        '404': { description: Scan not found }
+        '422': { description: audience_invalid or scan_id_required }
 
 components:
   schemas:
@@ -484,3 +573,126 @@ components:
           description: "Per-factor explanation of how the premium was derived (or why it was referred)."
         reason: { type: string, description: "Set when status=manual_referral." }
         pricing_version: { type: string, example: "1.0" }
+    ScanRequest:
+      type: object
+      description: |
+        v1.1.0 live-probe scan request — additive surface co-signed under
+        BEAAA-531 + BEAAA-535. offline_replay is illegal on POST /scan;
+        route offline scoring through POST /score.
+      required:
+        - tenant_id
+        - agent_endpoint
+        - credential_ref
+        - credential_secret
+        - corpus_snapshot_hash
+        - scanner_version
+        - corpus_version
+        - seed
+      properties:
+        tenant_id: { type: string, description: "Must equal X-Tenant-Id header." }
+        agent_endpoint:
+          type: object
+          required: [host]
+          properties:
+            host:
+              type: string
+              description: "Syntactically-valid hostname; only host lands in forensic bundle (DPA-gated)."
+            transport:
+              type: string
+              description: "Defaults to 'rest'."
+        credential_ref:
+          type: string
+          description: |
+            Opaque reference key the T3 vault binds the secret under for
+            this scan. Validated as UUID/identifier shape; never the
+            credential itself.
+        credential_secret:
+          type: string
+          description: |
+            One-shot delivery — the handler hands it to vault.register and
+            drops the local. Never logged, never echoed in error messages,
+            never retained on the runtime result struct.
+        corpus_snapshot_hash:
+          type: string
+          description: "sha256:<64-hex> over the pinned corpus tarball."
+        scanner_version: { type: string }
+        corpus_version: { type: string }
+        seed: { type: integer }
+        scan_mode:
+          type: string
+          enum: [live_probe]
+          default: live_probe
+          description: |
+            v1.1.0 additive. POST /scan accepts only ``live_probe``;
+            offline_replay routes through POST /score (illegal here).
+        k_replicates:
+          type: integer
+          enum: [5, 10]
+          default: 5
+          description: |
+            v1.1.0 additive. Only meaningful when scan_mode=live_probe.
+            K=10 tightens observed spread without renegotiating the
+            ±2 contract band.
+        requested_pillars:
+          type: array
+          items:
+            type: string
+            enum: [GOVERNANCE, ROBUSTNESS, BIAS_FAIRNESS, OPS]
+    ScanResult:
+      type: object
+      description: |
+        v1.1.0 live-probe aggregated result. Customer-facing variant
+        strips ``live_probe_variance_band`` (Δ4); UW-facing variant
+        retains every field.
+      required: [scan_id, status, scanner_version, corpus_version, rows_emitted, k_replicates, incomplete]
+      properties:
+        scan_id: { type: string }
+        status: { type: string, enum: [accepted, complete, incomplete] }
+        scanner_version: { type: string }
+        corpus_version: { type: string }
+        rows_emitted: { type: integer, minimum: 0 }
+        k_replicates: { type: integer, enum: [5, 10] }
+        live_probe_variance_band:
+          type: integer
+          description: |
+            UW-facing only (Δ4 — strip from customer-facing adapter).
+            Integer documenting the ±band that bound this run (2 in
+            v1.1.0). Customer-side adapters MUST remove this key before
+            emission per the contract's customer-facing adapter rule.
+        spread_per_dim:
+          type: object
+          additionalProperties: { type: number, minimum: 0 }
+          description: "Observed (max−min) spread across K replicates, per rubric_point_id."
+        pillar_spread:
+          type: object
+          additionalProperties: { type: number, minimum: 0 }
+          description: "Per-pillar aggregated spread (P1/P2/P3/P4 codes)."
+        total_spread: { type: number, minimum: 0 }
+        incomplete:
+          type: boolean
+          description: |
+            true when spread_total > 2 OR any pillar spread > 2 OR
+            k_replicates_observed < requested K (per-Underwriter
+            refuse-to-quote rule).
+        incomplete_reason:
+          type: string
+          nullable: true
+          enum:
+            - variance_band_exceeded_total
+            - variance_band_exceeded_pillar
+            - probe_cap
+            - token_cap
+            - wallclock_cap
+            - replicate_budget_exhausted
+        dim_results:
+          type: array
+          items:
+            type: object
+            required: [dim_id, raw, spread, replicates]
+            properties:
+              dim_id: { type: string }
+              raw: { type: number, description: "Median across K replicates." }
+              spread: { type: number, minimum: 0 }
+              replicates:
+                type: array
+                items: { type: number }
