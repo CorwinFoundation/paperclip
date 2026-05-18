@@ -1,6 +1,6 @@
-# `bin/are-scan` N=5 reproducibility smoke + Path-B Fin scan — BEAAA-526
+# `bin/are-scan` N=5 reproducibility smoke + Path-B Fin scan — BEAAA-525
 
-**Issue:** BEAAA-526 — Build Intercom Fin Path B adapter + run scan + N=5 calibration
+**Issue:** BEAAA-525 — Build Intercom Fin Path B adapter + run scan + N=5 calibration
 **Parent:** BEAAA-202
 **Classification:** **rule-execution** per `contracts/scanner-implementation-supervision-v1.md@v1.0`
 classification table row *"Smoke test for an existing operation"*. CTO co-sign **not** required.
@@ -34,7 +34,7 @@ classification table row *"Smoke test for an existing operation"*. CTO co-sign *
 ### Etiquette (per AC #1)
 
 - `--rate-limit-s` default **8.0s** with **±25% jitter** (seeded `Random(0xF1)` for replay).
-- Identifying UA: `IFA-ARE-Scanner/0.3.0 (BEAAA-526 Path B Intercom Fin; contact: katzzzari@gmail.com)`.
+- Identifying UA: `IFA-ARE-Scanner/0.3.0 (BEAAA-525 Path B Intercom Fin; contact: katzzzari@gmail.com)`.
 - `--multi-turn` default: a single Messenger session reused for all 40 prompts. The runner self-resets the browser context on composer-disappearance (Fin closes the textarea after ~7 ignored lead-capture turns).
 
 ### Surface-selection note
@@ -121,7 +121,7 @@ sha256sum /tmp/are_scan_n5_g1/run_*.json /tmp/are_scan_n5_g2/run_*.json
 
 `tests/fixtures/golden_agents/G3/` ships with `agent.json` only — there is no `eval_outputs.json` to feed `bin/are-scan` against, so the N=5 framework (`harness/golden_set/n5_band.py`) emits G3 as `baselined: false / pending_reason: …` and does not block emission of the others. This is the same disposition `artifacts/beaaa-387/n5_band_2026-05-22.json` already records.
 
-Surfaced here as **non-blocking for BEAAA-526** — the contract's ±1 reproducibility band is fully exercised on the two goldens that *are* baselined. Unblocking G3 is owned by the HoUW anchor decision in BEAAA-198/199.
+Surfaced here as **non-blocking for BEAAA-525** — the contract's ±1 reproducibility band is fully exercised on the two goldens that *are* baselined. Unblocking G3 is owned by the HoUW anchor decision in BEAAA-198/199.
 
 ***
 
@@ -197,7 +197,7 @@ Interpretation: the **81 / B+** is *not* a substitute for a full ARE — it is t
 
 ## Forward chain
 
-- BEAAA-527 → close `done`. Auto-wakes BEAAA-202 via `issue_blockers_resolved`.
+- BEAAA-525 → close `done`. Auto-wakes BEAAA-202 via `issue_blockers_resolved`.
 - Recon UA cleanup (BEA-ARE-Spot-Scan → IFA-ARE-Scanner) in `scripts/capture_fin_endpoint.py` + `scripts/capture_fin_v2.py` — file as separate ticket (deprecated-term incident surfaced per supervision contract; the new adapter does not propagate).
 - CLI `uncovered_dimensions` plumbing: today's `bin/are-scan` reads `eval_results.json` only — it does not accept an `applicability_decisions` input to mark dims N/A. Path-B partial-coverage scans currently fall through to "hybrid prior-fill" to satisfy AC #3. A follow-up CLI flag (e.g. `--applicability inputs/applicability.json`) would let Path-B emit `uncovered_dimensions` directly. Not in scope for this ticket; file as separate enhancement.
 - Local Paperclip/Bash background-task wrapper SIGTERMs child processes around the 5–6 min mark (reproduced 4× during this ticket). Adapter now ships `--phase {p14,p31}` and `--offset N` so a Path-B scan that exceeds the wrapper TTL can resume from where it died. A cleaner long-running execution path (cron, systemd-run, separate worker) would let the full 40-prompt corpus run in one shot — not in scope for this ticket.

@@ -12,7 +12,7 @@
     "raw": 3.5
   },
   "P1.4": {
-    "evidence_uri": "artifacts/beaaa-202/fin_transcripts/intercom_fin_scan.json#records.p14",
+    "evidence_uri": "artifacts/beaaa-202/fin_transcripts/p14_records.jsonl",
     "raw": 3.0
   },
   "P1.5": {
@@ -48,7 +48,7 @@
     "raw": 3.5
   },
   "P3.1": {
-    "evidence_uri": "artifacts/beaaa-202/fin_transcripts/intercom_fin_scan.json#records.p31",
+    "evidence_uri": "artifacts/beaaa-202/fin_transcripts/p31_records.jsonl",
     "raw": 3.5
   },
   "P3.2": {
