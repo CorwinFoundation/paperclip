@@ -15,12 +15,21 @@ Rules:
     Two multi-model scans differing only in their role→version map MUST
     produce different snapshot_hash values.
 
+BEAAA-539 additive: `compute_corpus_snapshot_hash` extends the same hash
+family to cover the probe corpus tarball. Content-addressed: the hash is a
+function of file path + size + per-file sha256 over the regular-file
+members, sorted by name. Archive-level metadata (mtime, owner, mode, member
+ordering, compression format) is excluded by construction so the same
+corpus contents produced at different times round-trip to the same hash.
+
 Returns "sha256:<64-hex>" matching the api/openapi.yaml snapshot_hash format.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import tarfile
+from pathlib import Path
 from typing import Mapping
 
 
@@ -69,3 +78,63 @@ def canonical_preimage_bytes(
     if model_versions:
         preimage["model_versions"] = dict(model_versions)
     return json.dumps(preimage, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+# BEAAA-539 additive (rule-execution per scanner-implementation-supervision-
+# v1.md@v1.0). Probe corpus snapshot hash for `corpus_snapshot_hash` on the
+# T1 scan request (lands in api contract v1.1.0). Same hash family as the
+# scan-snapshot recipe above so audit tooling can pin both with one verifier.
+_CORPUS_HASH_CHUNK = 65536
+
+
+def compute_corpus_snapshot_hash(corpus_tarball_path) -> str:
+    """Return the canonical `sha256:<64-hex>` digest of a probe corpus tarball.
+
+    The hash is computed over a canonical preimage built from regular-file
+    members only:
+
+        for each regular file, sorted by tar member name:
+            "<name>\\n<size-in-bytes>\\n<sha256-hex-of-bytes>\\n"
+
+    The concatenation of those lines is hashed with sha256. Archive-level
+    metadata (mtime, uid/gid, mode, member ordering on disk, compression
+    format) does not appear in the preimage, so two tarballs of the same
+    files produced at different times collapse to the same hash. Non-regular
+    members (directories, symlinks, hardlinks, devices) are skipped — a
+    probe corpus carries only regular files; anything else is a signal the
+    tarball was not produced by the corpus packager and raises ValueError.
+
+    Raises FileNotFoundError if the path does not exist.
+    """
+    path = Path(corpus_tarball_path)
+    if not path.exists():
+        raise FileNotFoundError(f"corpus tarball not found: {path}")
+    digest = hashlib.sha256()
+    with tarfile.open(path, mode="r:*") as tar:
+        entries: list[tuple[str, int, str]] = []
+        for member in tar.getmembers():
+            if member.isdir():
+                continue
+            if not member.isfile():
+                raise ValueError(
+                    f"unexpected non-regular tar member: {member.name!r} "
+                    f"(type={member.type!r})"
+                )
+            extracted = tar.extractfile(member)
+            if extracted is None:
+                raise ValueError(
+                    f"tar member {member.name!r} could not be opened for read"
+                )
+            member_digest = hashlib.sha256()
+            size = 0
+            while True:
+                chunk = extracted.read(_CORPUS_HASH_CHUNK)
+                if not chunk:
+                    break
+                member_digest.update(chunk)
+                size += len(chunk)
+            entries.append((member.name, size, member_digest.hexdigest()))
+        entries.sort(key=lambda e: e[0])
+        for name, size, file_hex in entries:
+            digest.update(f"{name}\n{size}\n{file_hex}\n".encode("utf-8"))
+    return f"sha256:{digest.hexdigest()}"
