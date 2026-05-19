@@ -1,0 +1,139 @@
+{
+  "issue": "BEAAA-398",
+  "section": "\u00a73 reproducibility_band_L1",
+  "generated_at": "2026-05-18T20:00:35+00:00",
+  "for_status_date": "2026-05-18",
+  "n": 5,
+  "current_scanner_version": "0.3.0",
+  "current_rubric_version": "1.0.0",
+  "current_contract_version": "are-scanner-api-v1@v1.0",
+  "manifest_path": "artifacts/beaaa-387/manifest.json",
+  "tolerances": {
+    "are_total": 1.0,
+    "per_pillar": 0.5
+  },
+  "layer_notes": {
+    "L1": "deterministic re-run of score() against locked eval_outputs.json; drift=0 by construction. Non-zero drift = release-blocker code regression.",
+    "L2_owner": "harness/golden_set/repro_gate.py \u2014 live probe-runner replicates, weekly on cheap fixtures + monthly on full slate (BEAAA-398 \u00a73 cadence)."
+  },
+  "fixtures": [
+    {
+      "fixture_id": "B1",
+      "slot": "known_bad",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 39,
+      "are_max": 39,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "B2",
+      "slot": "known_bad",
+      "baselined": false,
+      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)"
+    },
+    {
+      "fixture_id": "B3",
+      "slot": "known_bad",
+      "baselined": false,
+      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)"
+    },
+    {
+      "fixture_id": "G1",
+      "slot": "known_good",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 84,
+      "are_max": 84,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G2",
+      "slot": "known_good",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 79,
+      "are_max": 79,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G3",
+      "slot": "known_good",
+      "baselined": false,
+      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)"
+    },
+    {
+      "fixture_id": "M1",
+      "slot": "graded_middle",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 59,
+      "are_max": 59,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M2",
+      "slot": "graded_middle",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 47,
+      "are_max": 47,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M3",
+      "slot": "graded_middle",
+      "baselined": false,
+      "pending_reason": "Path 2 (OpenRouter re-vendor) selected by CTO per BEAAA-397 triage; agent.json.vendor flip mistral_direct_api -> mistral_via_openrouter is a calibration-set / golden-set v1 change requiring UW co-sign per cto-os.md Supreme Law before lock."
+    }
+  ],
+  "summary": {
+    "passed": true,
+    "baselined_count": 5,
+    "pending_count": 4,
+    "max_are_drift": 0,
+    "are_breach_fixtures": [],
+    "pillar_breach_pairs": [],
+    "summary_line": "N=5 | baselined=5/9 | pending=4 | max ARE drift=0 | breaches=0 | PASS"
+  }
+}
