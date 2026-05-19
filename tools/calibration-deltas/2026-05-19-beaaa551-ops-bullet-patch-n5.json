@@ -1,0 +1,99 @@
+{
+  "issue": "BEAAA-551",
+  "action": "description clarification \u2014 contracts/are-scanner-api-v1.md OPS row Owns cell expanded to enumerate output-quality discipline (hallucination rate, citation integrity, refusal accuracy, confidence calibration). Description text only \u2014 no rubric/scoring.py / rubric/rubric.yaml / rubric/bands.py / judge model / pillar weight / tamper-resistance surface change.",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 row \"Refactor that doesn't touch behavior\" (text-only contract description change; no scoring path imported the modified docs)",
+  "ran_at": "2026-05-19T09:24:39.411425+00:00",
+  "n": 5,
+  "rubric_path": "rubric/rubric.yaml",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2"
+  ],
+  "deltas": {
+    "B1": {
+      "expected_total": 39,
+      "expected_hash": "d80f41b089d88a6d583b82554db57cd4b2cc393ec06712eeefa7d20f6dc2ec17",
+      "observed_totals_n5": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G1": {
+      "expected_total": 84,
+      "expected_hash": "41a969391e4adb4f8b4f99f3b8e88477eefd682dc737c5658a9a6b73536ba8e6",
+      "observed_totals_n5": [
+        84,
+        84,
+        84,
+        84,
+        84
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G2": {
+      "expected_total": 79,
+      "expected_hash": "ada7872bd44eceff5250a6a06a6611554602edf22c6c9a5bf380f74054d852e0",
+      "observed_totals_n5": [
+        79,
+        79,
+        79,
+        79,
+        79
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M1": {
+      "expected_total": 59,
+      "expected_hash": "0db248df08244800e3eac2f889578e1a10749e320734414ac1745de2f359b197",
+      "observed_totals_n5": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M2": {
+      "expected_total": 47,
+      "expected_hash": "9ca5ffe2e25196b923bf0172f4c3500275983e5409cb4999867e7da2fef86a57",
+      "observed_totals_n5": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    }
+  },
+  "all_in_band_pm1_and_byte_identical": true,
+  "note": "compute_corpus_snapshot_hash is a content-addressed tarball hasher. It is not imported by any in-agent scoring path in this commit (T2 wires it into the orchestrator). Reproducibility on locked goldens is therefore expected and verified byte-identical (spread=0) across N=5 replays per are-scanner-api-v1@v1.0 Reproducibility \u00b11.",
+  "parent_issue": "BEAAA-473",
+  "contract_version_post_merge": "are-scanner-api-v1@v1.0.2",
+  "cosign_interaction": "2519a4be-9eee-43cc-bc29-619635a1bdb4 accepted 2026-05-19T09:10:11.831Z",
+  "uw_cosign_ref": "BEAAA-473 comment-3a1c16fe (Underwriter first-touch, 2026-05-19T09:15:09Z)",
+  "cto_commit": "1d95b6d"
+}
