@@ -382,3 +382,28 @@ new keys, new stdout sha256). The ADR-0005 `subscores_contract_named`
 bridge view is removed as part of the same refactor (the in-emitter
 `_PILLAR_TO_CONTRACT` mapping table no longer has a role once
 `subscores` is contract-named at the source).
+
+## Footer — Mitigation #1 status (added 2026-05-19)
+
+§Known imperfection Mitigation #1 ("Description amendment in the
+contract") is now **shipped**, not "optional follow-on". The contract
+OPS bullet was expanded per `are-scanner-api-v1@v1.0.2` to read:
+"Eval reproducibility, data handling, retention, PII scrubbing,
+version pinning, output-quality discipline (hallucination rate,
+citation integrity, refusal accuracy, confidence calibration)."
+
+The customer-facing gap flagged in §Known imperfection ("a customer
+reading the v1.0 OPS bullet and the ARE Report Card will see the
+mismatch") is closed by this description expansion. Mitigations #2
+(per-dim transparency in the ARE Report) and #3 (escalate to Option B
+on material objection) remain available as further fallbacks but are
+not load-bearing now that #1 is in.
+
+- Patch reference: `contracts/are-scanner-api-v1.0.2-patch.md`.
+- Issues: BEAAA-473 (UW Rider 1) + BEAAA-551 (CTO file commit).
+- Cosign: interaction `2519a4be-9eee-43cc-bc29-619635a1bdb4` accepted
+  2026-05-19T09:10:11.831Z; UW first-touch on BEAAA-473 comment
+  `3a1c16fe`.
+- Classification: description clarification — no output-shape /
+  field-meaning / scoring-math / judge-model / tamper-resistance
+  change. Δ_total = Δ_subscore = 0 expected on N=5 G1.
