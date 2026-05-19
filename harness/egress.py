@@ -26,6 +26,20 @@ BEAAA_RESI_PROXY_ROTATE
 The username-injection format follows the Smartproxy/Decodo and Oxylabs
 sticky-session convention: `user-session-<id>:pass@host:port`. BrightData
 uses `user-session-<id>` as well. Verified shape, not vendor-specific code.
+
+Per-scan allow-list (BEAAA-540)
+--------------------------------
+`ScopedEgressAllowlist(allowed_host=...)` restricts outbound HTTP to exactly
+one declared host for the lifetime of a scan. Defense in depth against SSRF
+via poisoned probe responses and lateral pivoting from a hijacked customer
+endpoint toward IFA internals or third-party services. The check runs at the
+httpx transport layer so it fires on the initial request AND on any redirect
+re-issue — `Location: http://internal-service/` is refused before the second
+request goes on the wire.
+
+BEAAA-542 additive: the constructor also accepts a list of hosts, including
+the empty list `[]` to express the Scorer-worker "deny all egress" posture.
+Existing single-string callers are unchanged.
 """
 from __future__ import annotations
 
@@ -113,6 +127,154 @@ def get(url: str, *, session_id: str | None = None, **kwargs: Any):
         with httpx.Client(timeout=timeout, proxies=p) as c:
             return c.get(url, **kwargs)
     return httpx.get(url, **kwargs)
+
+
+class EgressNotAllowed(RuntimeError):
+    """Outbound request targeted a host outside the active scoped allow-list."""
+
+
+class _AllowlistTransport:
+    """httpx transport wrapper that enforces a host allow-list.
+
+    Sits in front of the real transport so the host check fires on every
+    request the client makes — initial calls AND any redirect re-issues
+    (httpx routes redirected requests back through the transport). A
+    rejected request raises before any bytes leave the process.
+
+    Accepts either a single host string (legacy single-host scope) or an
+    iterable of host strings (BEAAA-542 list form; empty iterable means
+    deny-all and is used by the Scorer worker).
+    """
+
+    def __init__(self, allowed_host, inner: Any):
+        if isinstance(allowed_host, str):
+            self._allowed_hosts: tuple[str, ...] = (
+                (allowed_host.lower(),) if allowed_host else ()
+            )
+        else:
+            self._allowed_hosts = tuple(
+                h.lower() for h in allowed_host if h
+            )
+        self._inner = inner
+
+    @property
+    def _allowed_host(self) -> str:
+        # Back-compat accessor used by older callers / tests that inspect
+        # the transport for the single declared host.
+        return self._allowed_hosts[0] if self._allowed_hosts else ""
+
+    def handle_request(self, request: Any) -> Any:
+        host = (request.url.host or "").lower()
+        if host not in self._allowed_hosts:
+            permitted = (
+                repr(self._allowed_hosts[0])
+                if len(self._allowed_hosts) == 1
+                else (
+                    repr(list(self._allowed_hosts))
+                    if self._allowed_hosts
+                    else "[] (deny-all)"
+                )
+            )
+            raise EgressNotAllowed(
+                f"egress to host {host!r} not allowed; "
+                f"scoped allow-list permits only {permitted}"
+            )
+        return self._inner.handle_request(request)
+
+    def close(self) -> None:
+        self._inner.close()
+
+    def __enter__(self):
+        self._inner.__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        return self._inner.__exit__(*exc)
+
+
+class ScopedEgressAllowlist:
+    """Restrict outbound HTTP for a scan's lifetime.
+
+    Built for the live-probe path described in ADR-0009 §5 #8: the Prober
+    subprocess opens the scope around `agent_endpoint.host`, runs the
+    probe corpus, and exits. Any non-allowed host — `127.0.0.1`, cloud
+    metadata services (`169.254.169.254`, `metadata.google.internal`),
+    arbitrary external hosts, or a follow-the-redirect target — raises
+    `EgressNotAllowed` at the transport layer.
+
+    Construction accepts either form:
+
+    * ``ScopedEgressAllowlist("agent.customer.example.com")`` — single
+      declared host. The original Prober use case.
+    * ``ScopedEgressAllowlist([])`` — deny all egress. BEAAA-542 Scorer
+      worker posture: the Scorer process has no credential read path AND
+      no network surface, so any HTTP attempt raises.
+    * ``ScopedEgressAllowlist(["host-a", "host-b"])`` — multi-host scope
+      (currently unused by the live-probe path; reserved for future scans
+      that legitimately need to reach more than one declared host).
+
+    Usage::
+
+        with ScopedEgressAllowlist("agent.customer.example.com") as scope:
+            with scope.client(timeout=10.0) as c:
+                r = c.post("https://agent.customer.example.com/probe", json=...)
+    """
+
+    def __init__(self, allowed_host):
+        if isinstance(allowed_host, str):
+            if not allowed_host:
+                raise ValueError(
+                    "ScopedEgressAllowlist requires a non-empty allowed_host "
+                    "or a list (possibly empty) of hosts"
+                )
+            self._allowed_hosts: tuple[str, ...] = (allowed_host,)
+        elif isinstance(allowed_host, (list, tuple)):
+            # BEAAA-542: empty list expresses the Scorer deny-all posture.
+            # Net-increase in tamper resistance, not a reduction.
+            self._allowed_hosts = tuple(h for h in allowed_host if h)
+        else:
+            raise ValueError(
+                "ScopedEgressAllowlist expects str or list[str], "
+                f"got {type(allowed_host).__name__}"
+            )
+
+    @property
+    def allowed_host(self) -> str:
+        # Legacy single-host accessor. Empty string under the deny-all
+        # (list = []) form, since there is no single declared host.
+        return self._allowed_hosts[0] if self._allowed_hosts else ""
+
+    @property
+    def allowed_hosts(self) -> tuple[str, ...]:
+        """All declared hosts. Empty tuple under deny-all (BEAAA-542)."""
+        return self._allowed_hosts
+
+    def __enter__(self) -> "ScopedEgressAllowlist":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        return None
+
+    def _wrap(self, *, session_id: str | None) -> Any:
+        import httpx  # type: ignore
+
+        p = proxy_url(session_id=session_id)
+        inner = httpx.HTTPTransport(proxy=p) if p else httpx.HTTPTransport()
+        return _AllowlistTransport(self._allowed_hosts, inner)
+
+    def client(self, *, timeout: float = 30.0, session_id: str | None = None,
+               **kwargs: Any):
+        """Return an `httpx.Client` whose transport enforces the allow-list.
+
+        Honors the `BEAAA_RESI_PROXY_*` env vars by routing the inner
+        transport through the configured proxy when one is set.
+        """
+        import httpx  # type: ignore
+
+        transport = self._wrap(session_id=session_id)
+        kwargs.pop("proxies", None)
+        kwargs.pop("proxy", None)
+        return httpx.Client(timeout=timeout, transport=transport, **kwargs)
 
 
 def playwright_proxy(*, session_id: str | None = None) -> dict[str, str] | None:

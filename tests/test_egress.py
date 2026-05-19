@@ -104,3 +104,116 @@ def test_client_passthrough_when_disabled(monkeypatch):
     c = egress.client(timeout=5.0)
     assert isinstance(c, httpx.Client)
     c.close()
+
+
+# --- BEAAA-540: per-scan egress allow-list -----------------------------------
+
+
+def _record_transport(record: list, status: int = 200, headers: dict | None = None,
+                      body: bytes = b"ok"):
+    """Build an httpx.MockTransport that records every request it sees.
+
+    Plugged in as the *inner* transport of `_AllowlistTransport` so the
+    allow-list check runs first; anything that gets here is what would
+    have hit the network.
+    """
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        record.append(request)
+        return httpx.Response(status, headers=headers or {}, content=body)
+
+    return httpx.MockTransport(handler)
+
+
+def test_scoped_allowlist_requires_host():
+    with pytest.raises(ValueError):
+        egress.ScopedEgressAllowlist("")
+
+
+def test_scoped_allowlist_allows_declared_host():
+    import httpx
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    wrapped = egress._AllowlistTransport(scope.allowed_host, _record_transport(sent))
+    with httpx.Client(transport=wrapped) as c:
+        # Arbitrary path, port, https scheme — all allowed on the declared host.
+        r = c.get("https://agent.customer.example.com:8443/probe/v1?x=1")
+        assert r.status_code == 200
+    assert len(sent) == 1
+    assert sent[0].url.host == "agent.customer.example.com"
+
+
+@pytest.mark.parametrize("bad_host", [
+    "127.0.0.1",
+    "localhost",
+    "metadata.google.internal",
+    "169.254.169.254",
+    "evil.example.org",
+    "AGENT.customer.example.COM.evil.org",
+])
+def test_scoped_allowlist_blocks_other_hosts(bad_host):
+    import httpx
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    wrapped = egress._AllowlistTransport(scope.allowed_host, _record_transport(sent))
+    with httpx.Client(transport=wrapped) as c:
+        with pytest.raises(egress.EgressNotAllowed):
+            c.get(f"http://{bad_host}/")
+    # Allow-list refused before the inner transport ever saw the request.
+    assert sent == []
+
+
+def test_scoped_allowlist_is_case_insensitive_on_host():
+    import httpx
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist("Agent.Customer.Example.COM")
+    wrapped = egress._AllowlistTransport(scope.allowed_host, _record_transport(sent))
+    with httpx.Client(transport=wrapped) as c:
+        r = c.get("https://agent.customer.example.com/path")
+        assert r.status_code == 200
+    assert len(sent) == 1
+
+
+def test_scoped_allowlist_blocks_redirect_to_internal_service():
+    """Redirect to a non-allowed host must be refused at the allow-list layer.
+
+    The first response is a 302 with `Location: http://internal-service/`.
+    httpx, when `follow_redirects=True`, builds a new Request and re-runs
+    it through the transport — which is exactly where we want to catch it.
+    Bytes for the redirect target never leave the process.
+    """
+    import httpx
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    inner = _record_transport(
+        sent,
+        status=302,
+        headers={"Location": "http://internal-service/"},
+    )
+    wrapped = egress._AllowlistTransport(scope.allowed_host, inner)
+    with httpx.Client(transport=wrapped, follow_redirects=True) as c:
+        with pytest.raises(egress.EgressNotAllowed):
+            c.get("https://agent.customer.example.com/probe")
+    # The initial request reached the inner transport (recorded). The
+    # redirect re-issue was refused before reaching it.
+    assert len(sent) == 1
+    assert sent[0].url.host == "agent.customer.example.com"
+
+
+def test_scoped_allowlist_context_manager_protocol():
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    with scope as s:
+        assert s is scope
+        assert s.allowed_host == "agent.customer.example.com"
+
+
+def test_scoped_allowlist_client_factory_returns_httpx_client():
+    import httpx
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    c = scope.client(timeout=5.0)
+    try:
+        assert isinstance(c, httpx.Client)
+    finally:
+        c.close()
