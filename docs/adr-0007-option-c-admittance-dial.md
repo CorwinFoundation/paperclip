@@ -8,10 +8,10 @@ focus_claim: "Closes the actuarial-dial commitment Option C deferred so a covera
 contracts_referenced: ["are-scanner-api-v1", "uw-rubric-supervision-v1"]
 ticket_refs: ["BEAAA-479", "BEAAA-421", "BEAAA-461", "BEAAA-419", "BEAAA-225", "BEAAA-198", "BEAAA-199"]
 proof_points_cited: ["artifacts/beaaa-387/{G1,G2,G3,B3}/breach_report.json (BEAAA-461, 2026-05-17)"]
-version: 0.1
-prior_version: null
+version: 1.0
+prior_version: 0.1
 self_audit_passed: true
-escalations_noted: ["CEO co-sign required on §1 option choice per BEAAA-225 dual-sign precedent; not a Founder gate (rubric weights/scoring math unchanged per contracts/are-scanner-api-v1.md@v1.0 §Approval gates)."]
+escalations_noted: ["CEO co-sign accepted 2026-05-19T14:34:21Z via request_confirmation 7945987c-cb30-4eb3-9941-dce9590207f1 (idempotencyKey confirmation:BEAAA-479:adr-0007:rev1). Not a Founder gate (rubric weights/scoring math unchanged per contracts/are-scanner-api-v1.md@v1.0 §Approval gates)."]
 ---
 
 # ADR-0007 — Option C admittance dial: posture- and coverage-aware binding eligibility (HUW + CEO co-sign)
@@ -22,7 +22,7 @@ escalations_noted: ["CEO co-sign required on §1 option choice per BEAAA-225 dua
 | owner | Head of Underwriting & AI Risk |
 | co-gate | CEO (sign-off on §1 dial parameters); CTO (executes admittance-class emission; co-counterparty on contracts/are-scanner-api-v1.md); Underwriter (operational, consumes dial in pricing under separate ticket) |
 | Founder visibility | No new Founder gate. Rubric weights unchanged. Scoring math unchanged. ARE contract output shape unchanged (admittance_class is an additive UW-side annotation, not a Scanner output field). Surfaced in CTO Friday status §3/§5 partial-coverage caveat through Phase-1 close. |
-| status | PROPOSED — awaiting CEO co-sign 2026-05-17 |
+| status | **ADOPTED 2026-05-19** (HUW signed 2026-05-17; CEO co-sign accepted 2026-05-19T14:34:21Z via `request_confirmation 7945987c-cb30-4eb3-9941-dce9590207f1`) |
 | supersedes | none (additive on `docs/adr-0003-phase1-calibration-anchor-strategy.md` §E; closes the §E fallback by completing the actuarial-dial commitment of Option C / BEAAA-225) |
 | created | 2026-05-17 |
 | target close | 2026-05-22 EOD (Phase-1 close runway: dial publish → re-run dry-run → persist held fixtures → ship Phase-1 carrier-pack) |
@@ -264,9 +264,9 @@ Co-sign block follows; signing is via `request_confirmation` interaction on BEAA
 | Signatory | Role | Status | Reference |
 |---|---|---|---|
 | Head of Underwriting & AI Risk | Drafter / strategic UW seat | **SIGNED 2026-05-17** | This artifact's metadata `self_audit_passed: true`; BEAAA-479 comment-of-record |
-| CEO | §1 dial parameters | **PENDING** | `request_confirmation` on BEAAA-479 |
-| CTO | Acknowledgement; implementation owner once §1 lands | Pending (post-CEO) | Separate child issue, BEAAA-461 / ADR-0005 contract-pin maintained |
-| Underwriter (operational) | Acknowledgement; pricing-engine consumer | Pending (post-CEO) | Separate child issue per `contracts/uw-rubric-supervision-v1.md@v1.0` row 29 reconciliation |
+| CEO | §1 dial parameters | **ACCEPTED 2026-05-19T14:34:21Z** | `request_confirmation 7945987c-cb30-4eb3-9941-dce9590207f1` on BEAAA-479 (idempotencyKey `confirmation:BEAAA-479:adr-0007:rev1`), resolvedByUserId `local-board`, outcome `accepted` |
+| CTO | Acknowledgement; implementation owner once §1 lands | Child issue filed post-acceptance | BEAAA-479 child issue: admittance post-processor + held-fixture persist |
+| Underwriter (operational) | Acknowledgement; pricing-engine consumer | Child issue filed post-acceptance | BEAAA-479 child issue: pricing-engine dial coupling per `contracts/uw-rubric-supervision-v1.md@v1.0` row 29 |
 
 ## §10 — BEAAA-421 unblock summary
 
