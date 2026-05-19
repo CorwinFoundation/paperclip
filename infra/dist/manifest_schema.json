@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "infra/dist/manifest_schema.json#v1",
+  "title": "ARE Scanner design-partner build manifest",
+  "description": "Per-(partner, OS, build) manifest emitted by infra/dist/build.py. One file per shipped binary. Carries the reproducibility envelope: same git_sha + same source_date_epoch + same pyinstaller_version + same python_version + same target_os + same partner_id (-> same watermark) MUST reproduce binary_sha256 byte-for-byte.",
+  "type": "object",
+  "required": [
+    "schema",
+    "partner_id",
+    "binary_build_id",
+    "target_os",
+    "git_sha",
+    "source_date_epoch",
+    "pyinstaller_version",
+    "python_version",
+    "binary_sha256",
+    "binary_size_bytes",
+    "corpus_snapshot_hash",
+    "license_endpoint_url",
+    "license_endpoint_insecure_allowed",
+    "built_at"
+  ],
+  "properties": {
+    "schema": {"const": "infra/dist/manifest_schema.json#v1"},
+    "partner_id": {"type": "string", "pattern": "^[a-z0-9-]{3,64}$"},
+    "binary_build_id": {"type": "string", "pattern": "^build-\\d{8}-[a-z0-9_-]+-[0-9a-f]{8}-[a-z0-9-]+$"},
+    "target_os": {
+      "type": "string",
+      "enum": ["x86_64-linux-gnu", "aarch64-apple-darwin", "x86_64-apple-darwin"]
+    },
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_date_epoch": {"type": "integer", "minimum": 0},
+    "pyinstaller_version": {"type": "string", "const": "6.11.1"},
+    "python_version": {"type": "string", "pattern": "^3\\.\\d+\\.\\d+$"},
+    "binary_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "binary_size_bytes": {"type": "integer", "minimum": 1},
+    "corpus_snapshot_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Canonical, watermark-free corpus hash. MUST equal the hash stamped into Path 1 / Path 2 / Path 3 score outputs for the same corpus_version (ADR-0011 §3.5 / Supreme Law)."
+    },
+    "license_endpoint_url": {"type": "string", "format": "uri"},
+    "license_endpoint_insecure_allowed": {
+      "type": "boolean",
+      "description": "true only for stub-loop / debug builds. Partner-bound builds MUST be false."
+    },
+    "built_at": {"type": "string", "format": "date-time"},
+    "builder_host": {
+      "type": "object",
+      "description": "Optional context about the build host. Useful for reproducibility audits.",
+      "properties": {
+        "os_release": {"type": "string"},
+        "kernel": {"type": "string"},
+        "arch": {"type": "string"}
+      }
+    }
+  },
+  "additionalProperties": false
+}

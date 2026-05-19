@@ -1,0 +1,41 @@
+ARE SCANNER — DESIGN-PARTNER EULA v0 (DRAFT)
+============================================
+
+This binary is provided under a per-partner license issued by IFA. By
+typing "I ACCEPT" you agree to the terms recorded in
+`contracts/design-partner-eula-v0.md` as in effect on the binary's
+build date. A summary of those terms:
+
+1. **Permitted use.** Run this binary only against AI agents that you
+   own or are explicitly authorized to evaluate. Do not run it against
+   third-party agents without their consent.
+
+2. **No redistribution.** Do not share this binary, its corpus, or any
+   extracted derivative with any third party. The binary is keyed to
+   your partner identifier and is traceable.
+
+3. **No reverse engineering.** Do not decompile, disassemble, or
+   otherwise attempt to recover the source corpus, the rubric, or the
+   scoring math. Doing so is a material breach.
+
+4. **No tampering with the license gate.** Do not patch, bypass, or
+   network-isolate the binary's license-validation callback. Each
+   invocation MUST reach the IFA endpoint and receive a valid
+   attestation; an invocation that scores without a valid attestation
+   is a material breach.
+
+5. **Audit.** Every invocation is logged server-side (partner_id,
+   binary build id, scan id, timestamp, source IP — no transcript
+   content, no scored output). The log is retained for 90 days.
+
+6. **Revocation.** IFA may revoke your license at any time. On
+   revocation, the next invocation refuses to score (fail-closed).
+   This is not a malfunction.
+
+7. **Time-bounded.** This binary's license has an expiry date
+   recorded in the build manifest. After expiry, the binary refuses to
+   score. Renewal requires a fresh build delivered through the same
+   channel.
+
+The full text governs in case of any conflict with this summary. If you
+do not agree, type anything other than "I ACCEPT" to abort.

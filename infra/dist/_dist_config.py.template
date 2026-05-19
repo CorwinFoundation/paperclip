@@ -1,0 +1,33 @@
+"""Template for the build-time dist config (BEAAA-567 §3, §4).
+
+`infra/dist/build.py` renders this file at PyInstaller time with the
+per-partner values pinned to the binary. The rendered file is NOT
+committed to git; it lives only inside the PyInstaller bundle. A fresh
+build for a different partner produces a different rendered file.
+
+Constraints enforced by `infra/dist/build.py`:
+
+* ``LICENSE_ENDPOINT_URL`` must start with ``https://`` for any binary
+  shipped to a partner (the BEAAA-569 local-only stub uses ``http://``
+  for the calibration / negative-smoke loop only — that path is allowed
+  with the ``--allow-insecure-endpoint`` build flag and produces a
+  ``debug`` binary that prints a banner on every run).
+* ``PUBLIC_KEY_PEM`` is the PEM serialization of the Ed25519 *public*
+  key issued by the IFA license-validation service. The private key
+  lives in the service's KMS (production) or the operator's secrets
+  directory (stub).
+* ``WATERMARK_SALT`` is included for traceability only — the binary
+  itself does not need it at runtime. It is stamped into the build
+  manifest and into the per-partner corpus copy by ``build.py``.
+
+Per ADR-0011 §3.4: NONE of these values may be overridden by environment
+variables at runtime. ``infra.dist.license_gate`` reads only this module.
+"""
+
+PARTNER_ID = "{{PARTNER_ID}}"
+BINARY_BUILD_ID = "{{BINARY_BUILD_ID}}"
+LICENSE_ENDPOINT_URL = "{{LICENSE_ENDPOINT_URL}}"
+LICENSE_KEY = "{{LICENSE_KEY}}"
+WATERMARK_SALT = "{{WATERMARK_SALT}}"  # informational; not read by the gate
+PUBLIC_KEY_PEM = b"""{{PUBLIC_KEY_PEM}}"""
+REQUEST_TIMEOUT_SEC = 10.0
