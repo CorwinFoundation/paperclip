@@ -125,15 +125,26 @@ def main(argv: list[str] | None = None) -> int:
     # than execv'ing so the process boundary stays inside the gate. The
     # CLI's `main()` does its own argparse + exit-code mapping; we return
     # whatever it returns.
-    from importlib.util import module_from_spec, spec_from_file_location
+    #
+    # Use SourceFileLoader explicitly because `bin/are-scan` has no `.py`
+    # extension; the default spec_from_file_location would return None
+    # without a loader hint, which our error path would catch as a bundle
+    # defect. The explicit loader is the correct fix — the file is valid
+    # Python regardless of its extension.
+    from importlib.machinery import SourceFileLoader
+    from importlib.util import module_from_spec, spec_from_loader
 
     cli_path = REPO / "bin" / "are-scan"
-    spec = spec_from_file_location("are_scan_cli", cli_path)
-    if spec is None or spec.loader is None:
+    if not cli_path.exists():
+        sys.stderr.write("are-scan: internal error — cannot locate CLI module\n")
+        return 3
+    loader = SourceFileLoader("are_scan_cli", str(cli_path))
+    spec = spec_from_loader("are_scan_cli", loader)
+    if spec is None:
         sys.stderr.write("are-scan: internal error — cannot locate CLI module\n")
         return 3
     module = module_from_spec(spec)
-    spec.loader.exec_module(module)
+    loader.exec_module(module)
     return int(module.main(argv))
 
 

@@ -48,6 +48,22 @@ datas = [
 # bin/are-scan) treat sys._MEIPASS as repo root when present.
 
 hiddenimports = [
+    # Scanner runtime packages — dynamically loaded via bin/are-scan's
+    # sys.path manipulation + importlib chain; PyInstaller static analysis
+    # does not traverse SourceFileLoader into bin/are-scan's imports.
+    "harness",
+    "harness.cli_runner",
+    "harness.golden_set",
+    "harness.runner",
+    "harness.result_types",
+    "rubric",
+    "rubric.scoring",
+    "rubric.bands",
+    "rubric.applicability_policy",
+    "scanners",
+    "scanners.inspect_runner",
+    "scanners.promptfoo_runner",
+    "scanners.snapshot_hash",
     # SDKs lazy-imported by harness/runner.py adapters
     "anthropic",
     "openai",

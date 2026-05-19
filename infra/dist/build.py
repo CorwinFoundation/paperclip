@@ -160,7 +160,7 @@ def build(inputs: BuildInputs, *, target_os: str, build_root: Path) -> dict:
     staging.mkdir(parents=True, exist_ok=True)
 
     # 1. Stage corpus with watermark sidecars.
-    corpus_src = REPO / "rubric" / "probe_mappings"  # placeholder: actual corpus path
+    corpus_src = REPO / "rubric"  # canonical corpus: rubric.yaml + probe_mappings/
     canonical_hash = _stage_corpus_with_watermark(
         source=corpus_src, dest=staging / "corpus", watermark=watermark
     )
@@ -186,7 +186,6 @@ def build(inputs: BuildInputs, *, target_os: str, build_root: Path) -> dict:
             "PyInstaller",
             "--clean",
             "--noconfirm",
-            "--noupx",
             "--distpath",
             str(staging / "dist"),
             "--workpath",

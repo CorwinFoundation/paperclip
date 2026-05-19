@@ -1,0 +1,64 @@
+# BEAAA-567 S1/S3/S4/S5 Smoke Evidence
+# Generated: 2026-05-19T16:18:45Z
+# Host: Linux AriClaw 6.8.0-111-generic x86_64 (Phase-1 fallback per BEAAA-574)
+# Python: 3.12.3 / PyInstaller: 6.11.1
+# git_sha: 8de237c06449aef3dd322fa3a66014d2adf2b3e9
+# source_date_epoch: 1779206565
+
+## S1 — Build (linux/amd64)
+
+binary_build_id: build-20260519-x86_64-linux-gnu-8de237c0-partner-s3smoke
+binary_sha256:   ef86d41e136eed618a2c77eb481627337f505e9194951b2e205317f32e5d617b
+binary_size_bytes: 14781640
+corpus_snapshot_hash: a805cb47be5eaef7973fd039b4e3b285949df4780ca01149c372c3bbca59f76d
+pyinstaller_version: 6.11.1
+python_version: 3.12.3
+target_os: x86_64-linux-gnu
+
+## S3 — Judge model pinning survives bundling
+
+scanner_version in output: 0.3.0
+corpus_version in output:  0.1.0
+Pinned deps in requirements.txt confirmed bundled:
+  inspect-ai==0.3.220
+  anthropic==0.39.0
+  openai==1.54.4
+  google-genai==0.3.0
+
+## S4 — N=5 byte-identical calibration vs local try-it baseline
+
+Command: are-scan-design-partner --agent G1 --seed 42 --corpus 0.1.0
+         --input-dir inputs/G1 --scored-at 2026-01-01T00:00:00Z
+
+Baseline (bin/are-scan, same args):
+  are_total: 84
+  band_letter: B+
+  subscores: {BIAS_FAIRNESS: 19.2708, GOVERNANCE: 21.875, OPS: 20.3125, ROBUSTNESS: 22.9167}
+
+Binary output (N=5 runs):
+  run1 sha256: 4fbcdcd2431438ce7530822a975ebc6ee8cf5eb2d739b9f3a61f84a7d57f7206
+  run2 sha256: 4fbcdcd2431438ce7530822a975ebc6ee8cf5eb2d739b9f3a61f84a7d57f7206
+  run3 sha256: 4fbcdcd2431438ce7530822a975ebc6ee8cf5eb2d739b9f3a61f84a7d57f7206
+  run4 sha256: 4fbcdcd2431438ce7530822a975ebc6ee8cf5eb2d739b9f3a61f84a7d57f7206
+  run5 sha256: 4fbcdcd2431438ce7530822a975ebc6ee8cf5eb2d739b9f3a61f84a7d57f7206
+  are_total: 84 (matches baseline, delta=0.0000)
+  band_letter: B+ (matches baseline)
+  subscores: {BIAS_FAIRNESS: 19.2708, GOVERNANCE: 21.875, OPS: 20.3125, ROBUSTNESS: 22.9167}
+
+RESULT: PASS — N=5 byte-identical; threshold 0.0000 met.
+
+## S5 — License-gate negative smokes
+
+S5a (revoked): license_key revoked server-side via POST /license/revoke
+  Output: "are-scan: license gate refused this invocation: outcome='revoked'"
+  Exit code: 4  PASS
+
+S5b (unreachable): stub server killed, binary invoked
+  Output: "are-scan: license gate refused this invocation: license endpoint unreachable: ConnectError"
+  Exit code: 4  PASS
+
+S5c (expired): binary built with license_key expires_at=2020-01-01T00:00:00Z
+  Output: "are-scan: license gate refused this invocation: outcome='expired'"
+  Exit code: 4  PASS
+
+All negative smokes: PASS — binary fails closed on revoked/unreachable/expired.
