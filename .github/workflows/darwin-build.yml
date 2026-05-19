@@ -1,0 +1,121 @@
+# Darwin design-partner PyInstaller build (BEAAA-574 / ADR-0011 §3.2)
+#
+# Manual-dispatch only — Phase-1 design-partner cadence is on-demand, not push-driven.
+# Matrix runs darwin/arm64 on macos-14 and darwin/amd64 on macos-13 per the CEO call
+# on BEAAA-572. Native per-arch runners (no universal2) keep the byte-identical
+# reproducibility contract from infra/dist/README.md intact.
+#
+# Acceptance evidence for BEAAA-572 acceptance triple (a)/(b)/(c) hinges on a green
+# run of this workflow on a clean ref. The "smoke" job below proves (c) — pinned
+# toolchain (Python 3.12.3 + pyinstaller==6.11.1) installs cleanly and the build
+# orchestrator module imports. The full per-partner binary build (which requires
+# the BEAAA-569 license_validator stub harness running in a sidecar step plus
+# operator-held salt + license-key inputs) is the next iteration in BEAAA-567 §S6.
+
+name: darwin-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (defaults to the workflow's checkout ref)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  # No write permissions; this workflow only reads source and uploads ephemeral artifacts.
+
+jobs:
+  smoke:
+    name: smoke (${{ matrix.arch }} / ${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-13
+            arch: amd64
+    runs-on: ${{ matrix.runner }}
+    # Reproducibility env vars at job-level per BEAAA-574 spec. SOURCE_DATE_EPOCH is
+    # computed in a step below from the resolved git commit timestamp and re-exported
+    # into GITHUB_ENV; job-level `env:` cannot shell-expand, but exporting to
+    # GITHUB_ENV makes the variable job-scoped from that step forward — matching the
+    # README determinism statement ("defaults to the git commit timestamp").
+    env:
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0  # full history so the git commit timestamp resolves correctly
+
+      - name: Compute SOURCE_DATE_EPOCH from git commit
+        run: |
+          SDE="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=${SDE}" >> "$GITHUB_ENV"
+          echo "Resolved SOURCE_DATE_EPOCH=${SDE} from $(git rev-parse --short HEAD)"
+
+      - name: Setup Python 3.12.3 (matches infra/dist/README.md pin)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.3"
+
+      - name: Show reproducibility env
+        run: |
+          echo "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}"
+          echo "PYTHONHASHSEED=${PYTHONHASHSEED}"
+          echo "TZ=${TZ}"
+          echo "PYTHON=$(python --version)"
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+
+      - name: Install pinned toolchain (acceptance (c))
+        run: |
+          python -m pip install --upgrade pip
+          # --no-deps for the requirements pin set keeps the install line byte-stable;
+          # pyinstaller==6.11.1 matches infra/dist/build.py PYINSTALLER_VERSION constant.
+          pip install --no-deps -r requirements.txt pyinstaller==6.11.1
+
+      - name: Verify pinned versions imported
+        run: |
+          python - <<'PY'
+          import PyInstaller, sys
+          print("PyInstaller", PyInstaller.__version__)
+          assert PyInstaller.__version__ == "6.11.1", "PyInstaller pin drifted"
+          print("Python", sys.version)
+          PY
+
+      - name: Verify infra.dist orchestrator imports
+        run: |
+          python -c "from infra import dist; from infra.dist import build; print('infra.dist.build OK')"
+
+      - name: Smoke — pyinstaller invocable
+        run: |
+          python -m PyInstaller --version
+
+      # Full per-partner binary build (with the BEAAA-569 license_validator stub
+      # spun up in a sidecar) lands in BEAAA-567 §S6. For BEAAA-574 acceptance,
+      # the steps above are sufficient: pinned toolchain installs cleanly + the
+      # build orchestrator module loads under the documented interpreter pin.
+
+      - name: Stub artifact (placeholder for BEAAA-567 §S6)
+        run: |
+          mkdir -p dist
+          # Placeholder; replaced by the real `are-scan-darwin-<arch>` binary when
+          # the §S6 child wires the license_validator stub harness into this workflow.
+          printf "smoke-only run; see BEAAA-567 §S6 for the real binary build\n" \
+            > "dist/are-scan-darwin-${{ matrix.arch }}.smoke"
+
+      - name: Upload smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: are-scan-darwin-${{ matrix.arch }}-smoke
+          path: dist/are-scan-darwin-${{ matrix.arch }}.smoke
+          if-no-files-found: error
+          retention-days: 7
