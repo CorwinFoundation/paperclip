@@ -5,10 +5,12 @@ and lets unittest target handlers directly without booting an ASGI app.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from pricing.quote import Rates
 from rubric.scoring import Rubric
@@ -20,6 +22,11 @@ from .scan_handlers import ScanRuntime, scan_handler, scan_status_handler
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
 RATES_PATH = REPO_ROOT / "pricing" / "rates.yaml"
+
+#: Env var that opts into the BEAAA-553 (T-CLOSE) production scan wiring.
+#: Default-off so the offline ``/score`` + ``/forensic_bundle/{id}`` path is
+#: byte-identical to today's behavior (Hard Invariant #1 of BEAAA-553).
+PRODUCTION_SCAN_WIRING_ENV: str = "ARE_PRODUCTION_SCAN_WIRING"
 
 
 def create_app(
@@ -33,6 +40,14 @@ def create_app(
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.bundles = bundles or BundleStore()
     app.state.rates = rates or Rates.load(RATES_PATH)
+    # BEAAA-553 (T-CLOSE) — explicit override wins; otherwise opt-in via env
+    # var. Default (no override, no env var) keeps ``POST /scan`` on the
+    # 503 path so the offline ``/score`` path is untouched. Lazy-import the
+    # factory so test setups that never construct a real ``ScanRuntime``
+    # don't pay the multiprocessing import cost.
+    if scan_runtime is None and os.environ.get(PRODUCTION_SCAN_WIRING_ENV) == "1":
+        from .scan_runtime_factory import make_default_production_scan_runtime
+        scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
 
     @app.post("/score")
@@ -82,7 +97,10 @@ def create_app(
             raise HTTPException(status_code=exc.status, detail=exc.message) from exc
         if status not in (200, 202):
             raise HTTPException(status_code=status, detail=payload)
-        return payload
+        # Preserve the handler's status code (202 for the live-probe accept
+        # path per contract v1.1.0). Returning the dict directly would let
+        # FastAPI's default 200 win, dropping the contracted Accepted status.
+        return JSONResponse(status_code=status, content=payload)
 
     @app.get("/scan/{scan_id}")
     async def get_scan(scan_id: str, audience: str = "customer") -> Any:

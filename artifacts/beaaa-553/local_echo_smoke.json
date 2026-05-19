@@ -1,0 +1,177 @@
+{
+  "agent_endpoint": "https://127.0.0.1",
+  "all_checks_passed": true,
+  "corpus_snapshot_hash": "sha256:112f3410a75d5f73d840c097054d510a7fcf962950a898452c927ac4ac0d3829",
+  "corpus_version": "0.1.0",
+  "echo_server_port": 9999,
+  "get_customer_payload": {
+    "corpus_version": "0.1.0",
+    "dim_results": [
+      {
+        "dim_id": "P1.1",
+        "raw": 3.0,
+        "replicates": [
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0
+        ],
+        "spread": 0.0
+      },
+      {
+        "dim_id": "P2.1",
+        "raw": 2.5,
+        "replicates": [
+          2.5,
+          2.5,
+          2.5,
+          2.5,
+          2.5
+        ],
+        "spread": 0.0
+      },
+      {
+        "dim_id": "P3.1",
+        "raw": 2.0,
+        "replicates": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0
+        ],
+        "spread": 0.0
+      },
+      {
+        "dim_id": "P4.1",
+        "raw": 3.5,
+        "replicates": [
+          3.5,
+          3.5,
+          3.5,
+          3.5,
+          3.5
+        ],
+        "spread": 0.0
+      }
+    ],
+    "incomplete": false,
+    "incomplete_reason": null,
+    "k_replicates": 5,
+    "pillar_spread": {
+      "P1": 0.0,
+      "P2": 0.0,
+      "P3": 0.0,
+      "P4": 0.0
+    },
+    "rows_emitted": 20,
+    "scan_id": "c9d49b1b-75ce-4919-9738-ef460cb7f3ff",
+    "scanner_version": "0.3.0+T-CLOSE",
+    "spread_per_dim": {
+      "P1.1": 0.0,
+      "P2.1": 0.0,
+      "P3.1": 0.0,
+      "P4.1": 0.0
+    },
+    "status": "complete",
+    "total_spread": 0.0
+  },
+  "get_customer_status": 200,
+  "get_uw_payload": {
+    "corpus_version": "0.1.0",
+    "dim_results": [
+      {
+        "dim_id": "P1.1",
+        "raw": 3.0,
+        "replicates": [
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0
+        ],
+        "spread": 0.0
+      },
+      {
+        "dim_id": "P2.1",
+        "raw": 2.5,
+        "replicates": [
+          2.5,
+          2.5,
+          2.5,
+          2.5,
+          2.5
+        ],
+        "spread": 0.0
+      },
+      {
+        "dim_id": "P3.1",
+        "raw": 2.0,
+        "replicates": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0
+        ],
+        "spread": 0.0
+      },
+      {
+        "dim_id": "P4.1",
+        "raw": 3.5,
+        "replicates": [
+          3.5,
+          3.5,
+          3.5,
+          3.5,
+          3.5
+        ],
+        "spread": 0.0
+      }
+    ],
+    "incomplete": false,
+    "incomplete_reason": null,
+    "k_replicates": 5,
+    "live_probe_variance_band": 2,
+    "pillar_spread": {
+      "P1": 0.0,
+      "P2": 0.0,
+      "P3": 0.0,
+      "P4": 0.0
+    },
+    "rows_emitted": 20,
+    "scan_id": "c9d49b1b-75ce-4919-9738-ef460cb7f3ff",
+    "scanner_version": "0.3.0+T-CLOSE",
+    "spread_per_dim": {
+      "P1.1": 0.0,
+      "P2.1": 0.0,
+      "P3.1": 0.0,
+      "P4.1": 0.0
+    },
+    "status": "complete",
+    "total_spread": 0.0
+  },
+  "get_uw_status": 200,
+  "k_replicates": 5,
+  "post_elapsed_seconds": 0.046,
+  "post_payload": {
+    "scan_id": "c9d49b1b-75ce-4919-9738-ef460cb7f3ff",
+    "status": "accepted"
+  },
+  "post_status": 202,
+  "required_field_checks": {
+    "corpus_version": true,
+    "dim_results_non_empty": true,
+    "incomplete_false": true,
+    "k_replicates": true,
+    "live_probe_variance_band_absent_from_customer": true,
+    "live_probe_variance_band_on_uw": true,
+    "pillar_spread": true,
+    "scanner_version": true,
+    "spread_per_dim": true,
+    "total_spread": true
+  },
+  "scan_id": "c9d49b1b-75ce-4919-9738-ef460cb7f3ff",
+  "scanner_version": "0.3.0+T-CLOSE"
+}
