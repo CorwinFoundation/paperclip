@@ -1,4 +1,7 @@
 {
+  "admittance_class_at_baseline": "CONSTRAINED_BIND",
+  "admittance_dial_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
+  "admittance_dial_rule_fired": "ADM.R7",
   "agent_metadata": {
     "baseline_scan_due": "2026-05-11",
     "expected_band_range": "A / A+",

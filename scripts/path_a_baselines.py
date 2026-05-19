@@ -55,6 +55,7 @@ from harness.golden_set.persist_baseline import (  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import AnthropicRunner, GeminiRunner, OpenAIRunner, OpenRouterRunner  # noqa: E402
+from underwriting import admittance as _admittance  # noqa: E402
 
 # BEAAA-461: P2 judge pin matches scripts/scan_lawconnect_atticus.py (BEAAA-199
 # Phase 2 canonical pin). Temperature 0 + ensemble_n=3 + Anthropic Claude Haiku
@@ -414,6 +415,14 @@ def run_fixture(
             "applicability_policy_version": actual.get("applicability_policy_version"),
             "p2_evidence_uri": p2_evidence_uri,
         }
+        # ADR-0007 §1.4 — UW-side admittance post-processor annotation. Not an
+        # ARE Scanner contract output field; emitted into the breach report so
+        # the T+24h HUW review can verify dial dispositions per ADR-0007 §3.
+        decision = _admittance.evaluate(
+            breach_report,
+            system_prompt_kind=cfg["system_prompt_kind"],
+        )
+        breach_report["admittance_decision"] = decision.to_dict()
         BASELINES.mkdir(parents=True, exist_ok=True)
         breach_path = BASELINES / fixture_id / "breach_report.json"
         breach_path.parent.mkdir(parents=True, exist_ok=True)
@@ -421,6 +430,7 @@ def run_fixture(
                                encoding="utf-8")
         print(f"[{fixture_id}] DRY-RUN are_total={actual['bmi']} band={actual['band']['display']} "
               f"in_range={in_range} delta={breach_report['delta_from_range']} "
+              f"admittance={decision.admittance_class} (rule={decision.firing_rule_id}) "
               f"(range={expected_range})", file=sys.stderr, flush=True)
         return breach_report
 
