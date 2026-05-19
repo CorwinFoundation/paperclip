@@ -1,0 +1,35 @@
+=== BEAAA-574 Phase-1 fallback build smoke (v2 — corrected install line) ===
+Date (UTC):       2026-05-19T16:00:37Z
+Host:             Linux AriClaw 6.8.0-111-generic #111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Git HEAD:         c80e01864bccca46f9a640105b6a263506cee6ad
+
+PYTHONHASHSEED=0
+TZ=UTC
+SOURCE_DATE_EPOCH=1779205962
+
+=== Re-install pyinstaller WITH deps (corrected workflow install line) ===
+  Using cached pyinstaller_hooks_contrib-2026.5-py3-none-any.whl.metadata (16 kB)
+Collecting packaging>=22.0 (from pyinstaller==6.11.1)
+  Using cached packaging-26.2-py3-none-any.whl.metadata (3.5 kB)
+Using cached packaging-26.2-py3-none-any.whl (100 kB)
+Using cached pyinstaller_hooks_contrib-2026.5-py3-none-any.whl (457 kB)
+Using cached setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+Using cached altgraph-0.17.5-py2.py3-none-any.whl (21 kB)
+Installing collected packages: altgraph, setuptools, packaging, pyinstaller-hooks-contrib
+
+Successfully installed altgraph-0.17.5 packaging-26.2 pyinstaller-hooks-contrib-2026.5 setuptools-82.0.1
+
+=== PyInstaller --version ===
+6.11.1
+
+=== pip list (frozen) — what landed ===
+altgraph==0.17.5
+packaging==26.2
+pyinstaller==6.11.1
+setuptools==82.0.1
+
+=== Step 4 re-check: infra.dist.build importable + PYINSTALLER_VERSION constant ===
+PYINSTALLER_VERSION constant = 6.11.1
+installed PyInstaller 6.11.1
+
+=== DONE ===

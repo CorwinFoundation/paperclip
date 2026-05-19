@@ -76,6 +76,54 @@ fresh ubuntu-22.04 container with the same inputs must reproduce the
 binary's sha256. The verification harness lands in the S1 implementation
 work and is not yet wired here.
 
+### Build host fingerprints (Phase-1 design-partner — BEAAA-572 / BEAAA-574)
+
+The Phase-1 build path is documented per host. Each fingerprint must be
+recorded here on the heartbeat the host first produces a partner-bound
+binary, so re-builds can be checked against the original hash.
+
+**Steady-state (GHA hosted runners, post-substrate provisioning).** See
+`.github/workflows/darwin-build.yml` + `docs/ops/darwin-build-dispatch.md`.
+Fingerprint = runner image manifest (`macos-14` / `macos-13` published by
+GitHub) + the pinned interpreter from `setup-python@v5` + the pinned
+`pyinstaller==6.11.1`. Recorded inline on the first green dispatch.
+
+**Phase-1 fallback (CTO host on a clock, ratified by CEO on BEAAA-572
+2026-05-19).** As of 2026-05-19 the CTO agent runs on:
+
+| Field | Value |
+|---|---|
+| Kernel / OS | `Linux AriClaw 6.8.0-111-generic #111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026 x86_64 GNU/Linux` |
+| Arch | `x86_64` (Intel/AMD64) — **not** Apple Silicon |
+| Python | 3.12.3 (matches the pin in §"Determinism statement"); `sys.version` = `3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]` |
+| Python executable sha256 | `e1efa562c2cc2e35521a5c9c9b9939921001ff8ca9708a13ef15ace68cc2ccd7` (venv interpreter copy at `/tmp/beaaa574_phase1/venv/bin/python`) |
+| pyinstaller install fingerprint | wheel `pyinstaller-6.11.1-py3-none-manylinux2014_x86_64.whl` — manylinux x86_64, not darwin |
+| altgraph / pyinstaller-hooks-contrib / packaging / setuptools | `0.17.5` / `2026.5` / `26.2` / `82.0.1` (pip-resolved, no `--no-deps` on the pyinstaller line) |
+| SOURCE_DATE_EPOCH source | `git log -1 --format=%ct` against the build ref; for `c80e018` HEAD = `1779205962` |
+| PYTHONHASHSEED, TZ | `0`, `UTC` |
+| Smoke build evidence | `infra/dist/build-evidence/beaaa574-phase1-smoke-v2-corrected.log` |
+
+**Critical posture note.** This CTO host is Linux x86_64 — it **cannot
+produce darwin/arm64 or darwin/amd64 binaries**, because PyInstaller does
+not cross-compile (see §"What this directory does NOT do"). The Phase-1
+fallback ratified on BEAAA-572 names "CTO MacBook" as the fallback host;
+that resource is not currently mapped to a physical darwin host accessible
+to the CTO agent. The Phase-1 fallback therefore satisfies (a) host
+fingerprint and (c) pinned toolchain installs cleanly on the documented
+host, but **does not** produce a darwin binary. Producing the darwin
+binary itself remains gated on either (i) the GHA substrate landing
+(steady-state path) or (ii) a Founder-routed assignment of a darwin host
+to the CTO agent. Tracked on BEAAA-572 / BEAAA-574.
+
+**Install-line correction (workflow + local).** The literal line in
+BEAAA-574 §Scope item 1.3 (`pip install --no-deps -r requirements.txt
+pyinstaller==6.11.1`) fails on `ModuleNotFoundError: No module named
+'altgraph'` because `--no-deps` strips PyInstaller's build-time runtime
+deps. Per BEAAA-574 §Scope's "defer to this README if the install line
+differs" clause, the workflow installs the requirements file with
+`--no-deps` (to keep the scanner pin set byte-stable) and PyInstaller in
+a second `pip install` with deps. Documented in `darwin-build.yml`.
+
 ## Rollback statement (ADR-0011 §10)
 
 | Tier | Action | Wall-clock | Owner |

@@ -78,9 +78,15 @@ jobs:
       - name: Install pinned toolchain (acceptance (c))
         run: |
           python -m pip install --upgrade pip
-          # --no-deps for the requirements pin set keeps the install line byte-stable;
-          # pyinstaller==6.11.1 matches infra/dist/build.py PYINSTALLER_VERSION constant.
-          pip install --no-deps -r requirements.txt pyinstaller==6.11.1
+          # Scanner runtime deps install with --no-deps so the requirements.txt pin set is
+          # byte-stable. PyInstaller installs separately WITH its bounded build-tool dep
+          # set (altgraph, pyinstaller-hooks-contrib, macholib on darwin, packaging,
+          # setuptools) — those are build-time, not bundled into the binary, and pinning
+          # PyInstaller alone is what infra/dist/README.md documents. BEAAA-574 §Scope
+          # "defer to README if it differs" clause applies here; verified locally
+          # 2026-05-19 that the single-line `--no-deps` form fails on `altgraph` missing.
+          pip install --no-deps -r requirements.txt
+          pip install pyinstaller==6.11.1
 
       - name: Verify pinned versions imported
         run: |
