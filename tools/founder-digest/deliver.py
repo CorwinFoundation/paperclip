@@ -116,8 +116,21 @@ def _post_paperclip_comment(issue_id: str, body: str) -> bool:
             resp.read()
         return True
     except (urllib.error.URLError, urllib.error.HTTPError) as exc:
-        print(f"warn: failed to post paperclip comment: {exc}", file=sys.stderr)
+        print(f"warn: failed to post paperclip comment to {issue_id}: {exc}", file=sys.stderr)
         return False
+
+
+def _post_failure_comment(parent_id: str | None, run_id: str | None, body: str) -> None:
+    """Try parent first (long-lived), fall back to run-issue.
+
+    Cross-team policy may reject writes to the parent (e.g. BEAAA-597 is owned
+    by another agent). The run-issue is always the current task and writable.
+    """
+    if parent_id and _post_paperclip_comment(parent_id, body):
+        return
+    if run_id and _post_paperclip_comment(run_id, body):
+        return
+    print(f"warn: could not post failure comment anywhere reachable", file=sys.stderr)
 
 
 def deliver(pdf_path: Path, *, run_issue_id: str | None, parent_issue_id: str, caption: str) -> int:
@@ -187,17 +200,17 @@ def deliver(pdf_path: Path, *, run_issue_id: str | None, parent_issue_id: str, c
         "reason": last_error,
         "pdf": str(pdf_path),
     }))
-    if parent_issue_id:
-        _post_paperclip_comment(
-            parent_issue_id,
-            f"## Founder digest delivery failed\n\n"
-            f"- PDF retained on disk: `{pdf_path}`\n"
-            f"- Failure reason: `{last_error}`\n"
-            f"- Timestamp: `{_now_iso()}`\n\n"
-            f"Filesystem fallback is in place. Manual delivery: re-run "
-            f"`tools/founder-digest/deliver.py --pdf {pdf_path}` once the "
-            f"underlying issue is fixed.\n",
-        )
+    _post_failure_comment(
+        parent_issue_id,
+        run_issue_id,
+        f"## Founder digest delivery failed\n\n"
+        f"- PDF retained on disk: `{pdf_path}`\n"
+        f"- Failure reason: `{last_error}`\n"
+        f"- Timestamp: `{_now_iso()}`\n\n"
+        f"Filesystem fallback is in place. Manual delivery: re-run "
+        f"`tools/founder-digest/deliver.py --pdf {pdf_path}` once the "
+        f"underlying issue is fixed.\n",
+    )
     return 1
 
 
