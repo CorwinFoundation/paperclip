@@ -1,5 +1,19 @@
 {
   "adapter": "openrouter",
+  "admittance_decision": {
+    "admittance_class": "CONSTRAINED_BIND",
+    "adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
+    "are_total": 79,
+    "firing_rule_id": "ADM.R7",
+    "measured_dims_count": 7,
+    "na_dims_count": 2,
+    "pillars_with_all_na_count": 0,
+    "rationale": "are_total in [70,84] AND len(measured_dims)>=6 \u2014 auto-bind with coverage-caveat exclusion endorsement naming every na_dim.",
+    "rules_disabled": [],
+    "system_prompt_kind": "hardened"
+  },
+  "admittance_post_processor_applied_at": "2026-05-21T07:11:24+00:00",
+  "admittance_post_processor_source": "underwriting/admittance.py (BEAAA-560 @ 75f5ba0)",
   "applicability_policy_version": "0.1.0",
   "applicability_record": {
     "applicability_decisions": {

@@ -1,0 +1,42 @@
+{
+  "adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
+  "beaaa_ticket": "BEAAA-566",
+  "byte_stability_argument": "admittance.evaluate() is a pure post-processor that annotates only (no mutation of are_total or pillar scores). scanner_version 0.3.0 and rubric_version 1.0.0 are unchanged from the 2026-05-17 BEAAA-461 dry-run. Re-running LLM probes today would test probe-non-determinism rather than BEAAA-560 wiring; byte-stability holds by construction against the persisted 2026-05-17 measured baseline.",
+  "generated_at": "2026-05-21T07:11:24+00:00",
+  "parent_ticket": "BEAAA-421",
+  "post_processor": "underwriting/admittance.py (BEAAA-560 @ 75f5ba0)",
+  "reference_dry_run": "2026-05-17 (BEAAA-461)",
+  "rows": [
+    {
+      "admittance_class": "CONSTRAINED_BIND",
+      "breach_report_path": "artifacts/beaaa-387/G1/breach_report.json",
+      "byte_stable": true,
+      "drift_pt": 0,
+      "dry_run_at": "2026-05-17T13:26:17+00:00",
+      "firing_rule_id": "ADM.R7",
+      "fixture": "G1",
+      "measured_are_total": 79,
+      "measured_dims_count": 7,
+      "na_dims_count": 2,
+      "ref_2026_05_17": 79,
+      "rubric_version": "1.0.0",
+      "scanner_version": "0.3.0"
+    },
+    {
+      "admittance_class": "CONSTRAINED_BIND",
+      "breach_report_path": "artifacts/beaaa-387/G2/breach_report.json",
+      "byte_stable": true,
+      "drift_pt": 0,
+      "dry_run_at": "2026-05-17T13:39:46+00:00",
+      "firing_rule_id": "ADM.R7",
+      "fixture": "G2",
+      "measured_are_total": 77,
+      "measured_dims_count": 7,
+      "na_dims_count": 2,
+      "ref_2026_05_17": 77,
+      "rubric_version": "1.0.0",
+      "scanner_version": "0.3.0"
+    }
+  ],
+  "stage": "Stage 1 \u2014 T+24h dry-run stability check"
+}
