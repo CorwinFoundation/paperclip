@@ -1,18 +1,32 @@
 # Pricing v1 rate tables — frozen 2026-04-30 (BEAAA-10 pricing-v1 §2-§8).
+# v1.1 amendment 2026-05-23 (BEAAA-650): C/D BandFactor recal per Founder
+# ratification on BEAAA-645 Q2 (interaction `951dd258`, CEO ack cmt `64ae7f57`).
+# Source: Actuary pressure-test-v0 (BEAAA-255 doc rev `ca1e575a`) §6.1
+# indicative recal — Supreme Law LR>0.7/segment escalation on C-band
+# (140.2% structural / 82.4% limit-factored) and D-band (175.7% / 103.4%).
+# Recal restores LR compliance (C ~59%, D ~62% under LimitFactor 1.70).
+# v1.1.1 addendum 2026-05-23 (BEAAA-669): §8 d_band_layered_excess_min_retention
+# = $50K bind-eligibility floor. HoUW ratification BEAAA-666 §1(b); op-seat
+# concur BEAAA-667. UW-guideline / referral-threshold (HoUW unilateral per
+# underwriter-os.md §DECISION AUTHORITY) — bind-eligibility addendum only,
+# no factor change, no scoring-math touch, no N=5 calibration required.
 # Encoded directly from the doc; quote.py applies the formula.
 # Annual Premium = BaseRate × AREBandFactor × ModifierFactor × SectorFactor × RevenueFactor × LimitFactor × Aggregate
 
-version: "1.0"
+version: "1.1.1"
 frozen_at: "2026-04-30"
+amended_at: "2026-05-23"
 base_rate_usd: 25000
 aggregate: 1.10
 
 # §3 — letter band factors. Keyed to BEAAA-57 12-band cuts.
+# v1.1 (2026-05-23): C 1.80→2.50, D 3.00→5.00. Founder-ratified per
+# BEAAA-645 Q2; audit block at §11 below.
 band_factor:
   A: 0.60
   B: 1.00
-  C: 1.80
-  D: 3.00  # decline/layered-excess only
+  C: 2.50  # v1.1 recal (was 1.80 in v1.0) — see §11
+  D: 5.00  # v1.1 recal (was 3.00 in v1.0) — see §11; decline/layered-excess only
 
 # §4 — sector factors. OTHER routes to manual underwriting.
 sector_factor:
@@ -50,3 +64,127 @@ endorsements:
   remediation:                { load_usd: 2500,  description: "Remediation endorsement (Band C bind requirement)" }
   regulatory_fines_buyback:   { load_usd: 5000,  description: "Regulatory-fines buyback (where insurable), sub-limit $100K" }
   harness_bump_waiver:        { load_usd: 1500,  description: "Harness version bump re-bind waiver (client opt-in)" }
+  d_band_layered_excess_min_retention:
+    min_retention_usd: 50000
+    applies_to_band: "D"
+    bind_eligibility_floor: true
+    description: |
+      Layered-excess D-band bind-eligibility minimum retention. Subject must
+      carry at least $50K self-insured retention before any IFA layered-excess
+      attachment. Anchored on Silver-tier per-incident limit (OnePager v1.3).
+    cosign_chain:
+      head_of_uw_ratification: "BEAAA-666#section-1"
+      uw_operational_landing:  "BEAAA-667"
+      authority_basis: "underwriter-os.md §DECISION AUTHORITY — UW-guideline / referral-threshold (HoUW unilateral)"
+
+# §9 — live_probe rate-book policy v1.0 (BEAAA-536, filed 2026-05-18).
+# Consumed only when score.scan_mode == "live_probe". offline_replay scans are
+# byte-identical pre/post this addendum — the live_probe block is a no-op on
+# the legacy path. Co-sign chain: op-seat Underwriter authored on BEAAA-536
+# #9f0f31e5-ed5e-404b-ae33-325e7a552d39; Head of UW & AI Risk countersigned
+# ACCEPT-all-three-rules on BEAAA-537 #c8eb13e2-6491-4748-bb74-df5f55eedad7
+# (2026-05-18T19:48Z) per Supreme Law (rule change → strategic seat).
+live_probe:
+  policy_version: "1.0"
+  filed_at: "2026-05-18"
+  contract_dependency: "are-scanner-api-v1@v1.1.0"
+  uw_operational_filing_ref: "BEAAA-536#comment-9f0f31e5-ed5e-404b-ae33-325e7a552d39"
+  head_of_uw_cosign_ref: "BEAAA-537#comment-c8eb13e2-6491-4748-bb74-df5f55eedad7"
+  # Loading-factor curve on spread_per_dim. Spread is observed (max - min)
+  # across the K replicates per rubric_point_id, in raw rubric-point units
+  # (each dim raw is 0..4 per rubric.yaml). Piecewise-linear between the
+  # named breakpoints; factor floors at 1.00 and caps at the segment endpoint.
+  loading_curve:
+    breakpoints:
+      - { spread: 0.50, factor: 1.00 }   # below this, no load
+      - { spread: 1.00, factor: 1.05 }   # mild jitter — 5% load
+      - { spread: 1.50, factor: 1.15 }   # near critical-pillar refuse — 15% load
+      - { spread: 2.00, factor: 1.30 }   # at hygiene-pillar refuse — 30% load
+    # Aggregation across dims to a single spread_load_factor. "max" applies
+    # the worst-dim load; "max" picked over "product" for v1.0 because per-dim
+    # refuse-to-quote thresholds already gate the worst-dim case, and product
+    # over 24 dims would systematically over-load even tight scans.
+    aggregation: "max"
+    cap: 1.50   # ceiling on aggregated spread_load_factor
+  # Per-dim refuse-to-quote thresholds — tighter than the contract-level
+  # spread_per_pillar > 2 / spread_total > 2 gates. Refuse-to-quote on this
+  # path surfaces as ManualReferral, mirroring the existing "no pricing
+  # without evidence trail" UW Hard Guarantee #1 enforcement.
+  refuse_to_quote_per_dim:
+    # Critical-pillar set rationale: P1 (OPS / hallucination) drives loss
+    # frequency; P2 (BIAS_FAIRNESS) drives discrimination-claim exposure;
+    # P3 (ROBUSTNESS) drives adversarial-failure exposure and already has
+    # per-dim bind-blocking floors (rubric.yaml §pillar_floors). P4
+    # (GOVERNANCE) is hygiene — its weak-link risk is pillar-level only.
+    critical_pillars: ["P1", "P2", "P3"]
+    hygiene_pillars: ["P4"]
+    critical_threshold: 1.5   # per-dim spread above this on P1/P2/P3 = refuse
+    hygiene_threshold: 2.0    # per-dim spread above this on P4 = refuse
+  # K-replicate selection policy. K=5 default; K=10 mandatory when any
+  # condition fires. Caller (quote requestor) MUST set k_replicates=10 on
+  # the upstream /score request before /quote arrives for these cases.
+  # quote.py enforces by recording the requested-vs-required K on the
+  # quote breakdown — caller mismatch surfaces as a soft warning, not a
+  # hard refuse-to-quote (the band-exceed gate catches the substantive
+  # case where the looser K=5 spread blew through thresholds anyway).
+  k_replicate_selection:
+    default_k: 5
+    mandatory_k10_conditions:
+      - revenue_tier_gte_t3                   # customer.annual_revenue_usd >= $50M
+      - prior_midterm_rescan_trigger          # any prior policy on this agent saw a re-scan trigger fire
+      - customer_attests_model_change_in_term # customer attests model deployment change within policy term
+  # Filed-rate posture. Per UW Hard Guarantee #3 ("Band-to-premium mapping
+  # is filed"), this addendum must be filed before binding the first
+  # live_probe-bound policy. Phase 1 stays in non-admitted / surplus-lines
+  # posture (rate filing not required pre-bind per underwriter-os.md
+  # filed-rate posture); this artifact is the binding rate book of record.
+  filing_status: "filed_internal_rate_book"
+  filed_artifact_uri: "projects/are-scanner/artifacts/beaaa-536/rate-book-policy-v1.0.md"
+
+# §11 — v1.1 amendment audit block (C/D BandFactor recal).
+# Founder-ratified per BEAAA-645 Q2 (interaction `951dd258`, ACCEPT
+# 2026-05-23T14:55:36Z; CEO ratification cmt `64ae7f57`). Execution issue:
+# BEAAA-650 (this rate edit). Supersedes the in-flight HoUW disposition on
+# BEAAA-255 / BEAAA-636 (C 1.80→2.20 + secondary bind-eligibility floor) by
+# Founder authority — see §11.5 for the chain.
+v1_1_amendment:
+  amendment_id: "rates.yaml-v1.1"
+  amended_at: "2026-05-23"
+  source_ruling: "BEAAA-645#comment-64ae7f57"
+  source_interaction: "BEAAA-626#interaction-6c2b6240"
+  ratifying_interaction: "BEAAA-645#interaction-951dd258"
+  execution_issue: "BEAAA-650"
+  drivers:
+    - "Actuary pressure-test-v0 (BEAAA-255 doc rev ca1e575a) §6.1 flagged C/D LR>0.7 Supreme Law breach"
+    - "C-band: mean LR 140.2% structural / 82.4% limit-factored (LimitFactor 1.70)"
+    - "D-band: mean LR 175.7% structural / 103.4% limit-factored"
+  changes:
+    - { table: "band_factor", key: "C", old: 1.80, new: 2.50 }
+    - { table: "band_factor", key: "D", old: 3.00, new: 5.00 }
+  projected_post_recal_lr:
+    # Limit-factored LR (LimitFactor 1.70, $2M/$5M tier — modal mid-market choice)
+    C_limit_factored: 0.594  # was 0.824 — back inside Supreme Law 0.70 envelope
+    D_limit_factored: 0.620  # was 1.034 — back inside Supreme Law 0.70 envelope (D is decline/layered-excess only)
+    # Structural LR (BaseRate × BandFactor × Aggregate; sector/rev/limit = 1.0)
+    # remains above 1.0 for C (1.009) and D (1.055); structural premium is not
+    # the modal bind path — the limit-factored premium is. Tracked as a watch
+    # line (see §11.4) rather than a gate.
+  derivation_method: "analytical — BandFactor is a multiplicative term on the premium denominator; new_LR = old_LR × (old_BF / new_BF). MC re-run with mc_seed 20260522 / 100K trials would reproduce identical numerator (loss-cost distribution unchanged); see BEAAA-650 verification block."
+  cosign_chain:
+    # Per BEAAA-616 three-way co-sign gate on rate-book-class changes
+    # (uw-rubric-supervision-v1@v1.1). Founder ratification supersedes the
+    # standard chain but the three legs are recorded for traceability.
+    actuary: "implicit ACCEPT — Actuary authored these exact numbers as the indicative recal in pressure-test-v0 §6.1 (BEAAA-255 doc rev ca1e575a, 2026-05-22)"
+    head_of_uw: "execution by HoUW on BEAAA-650 — supersedes my own BEAAA-636 disposition (C 1.80→2.20) by Founder authority"
+    underwriter_op_seat: "Founder ruling routes directly to HoUW; op-seat author leg (was BEAAA-637) absorbed into this Founder-ratified execution"
+    founder_ratification: "BEAAA-645#comment-64ae7f57 (interaction 951dd258 Q2 → A ACCEPT, 2026-05-23T14:55:36Z)"
+  watch_lines:
+    - "Structural-premium LR remains >1.0 for C (1.009) and D (1.055). Modal bind path is limit-factored, but any direct-primary bind at the minimum $1M/$2M tier on a C-band insured needs a remediation-endorsement re-review."
+    - "B-band LR p90 = 97.6% structural / 57.3% limit-factored — unchanged by this recal but on Actuary's Friday monitor (BEAAA-630)."
+    - "First 3–5 pilot binds will collapse the prior-uncertainty band on λ per peril (pressure-test §5.2). Re-run pressure test v0.2 on incurred-loss data when available."
+  supersedes:
+    - artifact: "BEAAA-636 HoUW disposition (C 1.80→2.20 + secondary bind-eligibility floor)"
+      reason: "Founder ratification on BEAAA-645 Q2 selected the un-floored 2.50/5.00 path over the floored 2.20 path. Secondary bind-eligibility floor concept retired with this amendment."
+    - artifact: "BEAAA-637 op-seat rate-mod v1.1 (pre-Founder draft)"
+      reason: "Absorbed into Founder-ratified BEAAA-650 execution."
+  scanner_dependency: "Scanner v0.2 must ship with these factors. Coordination tracked on child issue spawned from BEAAA-650."
