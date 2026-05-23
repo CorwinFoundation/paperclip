@@ -90,6 +90,15 @@ class GoldenAgentScoringRegressionTests(unittest.TestCase):
         # deterministic_replay path (B1, M1: empty corpus_version) and the
         # live_path_a / live_path_b path (M2 onward: stamped corpus_version).
         expected = json.loads((FIXTURES / fid / "expected_score.json").read_text())
+        # BEAAA-647 L1 Phase-2 rebase: fixtures that score under Option C
+        # carry an applicability.json sidecar mirrored from artifacts/beaaa-
+        # 387/{fid}/applicability.json. Absence means Phase-1 anchor (no N/A
+        # re-norm); presence threads the per-dim decisions + policy version
+        # so score() reproduces the Option-C aggregate byte-identical.
+        app_path = FIXTURES / fid / "applicability.json"
+        applicability_decisions = None
+        if app_path.exists():
+            applicability_decisions = json.loads(app_path.read_text()).get("applicability_decisions")
         return score(
             self.rubric, eo,
             snapshot_hash=SNAPSHOT_HASH,
@@ -98,6 +107,8 @@ class GoldenAgentScoringRegressionTests(unittest.TestCase):
             corpus_version=expected.get("corpus_version") or None,
             seed=expected.get("seed"),
             model_versions=expected.get("model_versions"),
+            applicability_decisions=applicability_decisions,
+            applicability_policy_version=expected.get("applicability_policy_version"),
         )
 
     def test_live_fixtures_reproduce_expected_score(self):

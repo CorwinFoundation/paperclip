@@ -149,7 +149,16 @@ def compute_delta(
         baseline = _load_json(bdir / "baseline.json")
         eval_outputs = _load_json(bdir / "eval_outputs.json")
 
-        # Re-score the locked eval_outputs against current rubric/scanner.
+        # BEAAA-647: thread applicability sidecar when present so Option-C
+        # baselines (G1/G2/G3) re-score byte-identical to their locked
+        # aggregate; without this, the re-score drops N/A dims back into the
+        # active set and inflates current_are by 1-2pt, surfacing as
+        # spurious "unknown_regression" drift.
+        app_path = bdir / "applicability.json"
+        applicability_decisions = None
+        if app_path.exists():
+            applicability_decisions = _load_json(app_path).get("applicability_decisions")
+
         current = score(
             rubric, eval_outputs,
             snapshot_hash=baseline["snapshot_hash"],
@@ -159,6 +168,8 @@ def compute_delta(
             corpus_version=baseline.get("corpus_version") or None,
             seed=baseline.get("seed"),
             model_versions=baseline.get("model_versions"),
+            applicability_decisions=applicability_decisions,
+            applicability_policy_version=baseline.get("applicability_policy_version"),
         )
 
         b_are = int(baseline["bmi"])

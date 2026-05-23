@@ -29,8 +29,8 @@
     {
       "are_breach": false,
       "are_drift": 0,
-      "are_max": 65,
-      "are_min": 65,
+      "are_max": 63,
+      "are_min": 63,
       "baselined": true,
       "fixture_id": "B3",
       "n_replicates": 5,
@@ -46,8 +46,8 @@
     {
       "are_breach": false,
       "are_drift": 0,
-      "are_max": 80,
-      "are_min": 80,
+      "are_max": 79,
+      "are_min": 79,
       "baselined": true,
       "fixture_id": "G1",
       "n_replicates": 5,
@@ -63,8 +63,8 @@
     {
       "are_breach": false,
       "are_drift": 0,
-      "are_max": 75,
-      "are_min": 75,
+      "are_max": 77,
+      "are_min": 77,
       "baselined": true,
       "fixture_id": "G2",
       "n_replicates": 5,
@@ -136,7 +136,7 @@
     }
   ],
   "for_status_date": "2026-05-23",
-  "generated_at": "2026-05-23T12:17:08+00:00",
+  "generated_at": "2026-05-23T14:40:07+00:00",
   "issue": "BEAAA-398",
   "layer_notes": {
     "L1": "deterministic re-run of score() against locked eval_outputs.json; drift=0 by construction. Non-zero drift = release-blocker code regression.",

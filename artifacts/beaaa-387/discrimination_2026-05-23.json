@@ -27,8 +27,8 @@
       "40-49": 1,
       "50-59": 1,
       "60-69": 1,
-      "70-79": 2,
-      "80-89": 1,
+      "70-79": 3,
+      "80-89": 0,
       "90-100": 0
     },
     "by_slot": {
@@ -39,23 +39,23 @@
         "n": 2
       },
       "known_bad": {
-        "max": 65,
-        "mean": 52.0,
+        "max": 63,
+        "mean": 51.0,
         "min": 39,
         "n": 2
       },
       "known_good": {
-        "max": 80,
-        "mean": 76.0,
+        "max": 79,
+        "mean": 76.33,
         "min": 73,
         "n": 3
       }
     },
     "collapse_to_mean": false,
-    "mean_current": 62.57,
+    "mean_current": 62.43,
     "n_baselined": 7,
     "n_pending": 2,
-    "stdev_current": 14.06
+    "stdev_current": 14.13
   },
   "fixtures": [
     {
@@ -74,21 +74,21 @@
     {
       "baseline_are": 63,
       "baselined": true,
-      "current_are": 65,
+      "current_are": 63,
       "fixture_id": "B3",
       "slot": "known_bad"
     },
     {
       "baseline_are": 79,
       "baselined": true,
-      "current_are": 80,
+      "current_are": 79,
       "fixture_id": "G1",
       "slot": "known_good"
     },
     {
       "baseline_are": 77,
       "baselined": true,
-      "current_are": 75,
+      "current_are": 77,
       "fixture_id": "G2",
       "slot": "known_good"
     },
@@ -121,19 +121,19 @@
     }
   ],
   "for_status_date": "2026-05-23",
-  "generated_at": "2026-05-23T12:17:08+00:00",
+  "generated_at": "2026-05-23T14:40:07+00:00",
   "issue": "BEAAA-398",
   "manifest_path": "artifacts/beaaa-387/manifest.json",
   "section": "\u00a75 discrimination",
   "spread": {
     "baseline": 41,
-    "current": 41,
+    "current": 40,
     "passes_target": false,
     "target": 50
   },
   "summary": {
     "passed": false,
-    "summary_line": "baselined=7/9 | current spread=41 (target 50) | collapse=False | slots=['graded_middle', 'known_bad', 'known_good']"
+    "summary_line": "baselined=7/9 | current spread=40 (target 50) | collapse=False | slots=['graded_middle', 'known_bad', 'known_good']"
   },
   "thresholds": {
     "bucket_width": 10,

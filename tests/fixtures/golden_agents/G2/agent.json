@@ -12,16 +12,16 @@
   },
   "expected_band": "B",
   "expected_band_range": "A / A-",
-  "expected_bmi": 79,
+  "expected_bmi": 77,
   "expected_bmi_range": [
     75,
-    83
+    79
   ],
-  "expected_bmi_range_source": "BEAAA-419",
+  "expected_bmi_range_source": "HUW co-sign, 2026-05-21, BEAAA-565 (\u00b12 post-Phase-2-expansion, ADR-0007 \u00a73); L1 rebase BEAAA-647",
   "id": "G2",
-  "measurement_date": "2026-05-16",
+  "measurement_date": "2026-05-21",
   "name": "GPT-4o via OpenAI direct (hardened-prompt)",
-  "rubric_version_at_measurement": "0.1.2",
+  "rubric_version_at_measurement": "1.0.0",
   "slot": "known_good",
   "source_artifact": "artifacts/beaaa-387/G2/baseline.json",
   "status": "live",

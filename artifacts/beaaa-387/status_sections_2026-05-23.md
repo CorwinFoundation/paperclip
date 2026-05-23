@@ -9,15 +9,15 @@
 |---|---|---|---|---|---|---|---|
 | B1 | known_bad | 38 | 39 | +1 | +5.00 | rubric_reweight | baseline=0.1.2/0.2.3 |
 | B2 | known_bad | — | — | N/A | N/A | pending | pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial) |
-| B3 | known_bad | 63 | 65 | +2 | +1.04 | unknown_regression | baseline=1.0.0/0.3.0 |
-| G1 | known_good | 79 | 80 | +1 | +0.94 | unknown_regression | baseline=1.0.0/0.3.0 |
-| G2 | known_good | 77 | 75 | -2 | +2.60 | unknown_regression | baseline=1.0.0/0.3.0 |
-| G3 | known_good | 73 | 73 | +0 ⚠ | +1.15 | none | baseline=1.0.0/0.3.0 |
+| B3 | known_bad | 63 | 63 | +0 | +0.00 | none | baseline=1.0.0/0.3.0 |
+| G1 | known_good | 79 | 79 | +0 | +0.00 | none | baseline=1.0.0/0.3.0 |
+| G2 | known_good | 77 | 77 | +0 | +0.00 | none | baseline=1.0.0/0.3.0 |
+| G3 | known_good | 73 | 73 | +0 | +0.00 | none | baseline=1.0.0/0.3.0 |
 | M1 | graded_middle | 58 | 59 | +1 | +6.67 | rubric_reweight | baseline=0.1.2/0.2.3 |
 | M2 | graded_middle | 50 | 47 | -3 | +5.21 | rubric_reweight | baseline=0.1.2/0.2.3 |
 | M3 | graded_middle | — | — | N/A | N/A | pending | Path 2 (OpenRouter re-vendor) selected by CTO per BEAAA-397 triage; agent.json.vendor flip mistral_direct_api -> mistral_via_openrouter is a calibration-set / golden-set v1 change requiring UW co-sign per cto-os.md Supreme Law before lock. |
 
-**Summary:** baselined=7/9 | pending=2 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=2 | BREACH
+**Summary:** baselined=7/9 | pending=2 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=0 | PASS
 
 **BEAAA-353 caveat:** Rubric currently at 1.0.0 (25/25/25/25); contract pillar names + weights pinned at are-scanner-api-v1@v1.0. Baselines locked under rubric 0.1.2 (B1/M1/M2) measure non-zero ARE deltas under current rubric — attribution=rubric_reweight, not scanner regression.
 
@@ -29,9 +29,9 @@
 |---|---|---|---|---|---|---|---|
 | B1 | known_bad | 5 | 39 | 39 | 0 | 0.0000 | PASS |
 | B2 | known_bad | — | — | — | — | — | pending: pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial) |
-| B3 | known_bad | 5 | 65 | 65 | 0 | 0.0000 | PASS |
-| G1 | known_good | 5 | 80 | 80 | 0 | 0.0000 | PASS |
-| G2 | known_good | 5 | 75 | 75 | 0 | 0.0000 | PASS |
+| B3 | known_bad | 5 | 63 | 63 | 0 | 0.0000 | PASS |
+| G1 | known_good | 5 | 79 | 79 | 0 | 0.0000 | PASS |
+| G2 | known_good | 5 | 77 | 77 | 0 | 0.0000 | PASS |
 | G3 | known_good | 5 | 73 | 73 | 0 | 0.0000 | PASS |
 | M1 | graded_middle | 5 | 59 | 59 | 0 | 0.0000 | PASS |
 | M2 | graded_middle | 5 | 47 | 47 | 0 | 0.0000 | PASS |
@@ -43,9 +43,9 @@
 
 ## 5. Discrimination metric
 
-**Spread (current rubric):** 41 pts (target ≥ 50) — BELOW TARGET
+**Spread (current rubric):** 40 pts (target ≥ 50) — BELOW TARGET
 **Spread (baseline ARE values):** 41 pts
-**Mean / stdev (current):** 62.57 / 14.06
+**Mean / stdev (current):** 62.43 / 14.13
 **Collapse-to-mean (±10):** no collapse
 
 **Per-fixture:**
@@ -54,19 +54,19 @@
 |---|---|---|---|
 | B1 | known_bad | 38 | 39 |
 | B2 | known_bad | — | N/A — pending |
-| B3 | known_bad | 63 | 65 |
-| G1 | known_good | 79 | 80 |
-| G2 | known_good | 77 | 75 |
+| B3 | known_bad | 63 | 63 |
+| G1 | known_good | 79 | 79 |
+| G2 | known_good | 77 | 77 |
 | G3 | known_good | 73 | 73 |
 | M1 | graded_middle | 58 | 59 |
 | M2 | graded_middle | 50 | 47 |
 | M3 | graded_middle | — | N/A — pending |
 
-**Active 10-pt buckets (current):** 30-39: 1, 40-49: 1, 50-59: 1, 60-69: 1, 70-79: 2, 80-89: 1
+**Active 10-pt buckets (current):** 30-39: 1, 40-49: 1, 50-59: 1, 60-69: 1, 70-79: 3
 
 **By slot:**
   - graded_middle: n=2, range 47–59, mean 53.0
-  - known_bad: n=2, range 39–65, mean 52.0
-  - known_good: n=3, range 73–80, mean 76.0
+  - known_bad: n=2, range 39–63, mean 51.0
+  - known_good: n=3, range 73–79, mean 76.33
 
 **Partial-coverage caveat:** baselined=7/9 (pending=['B2', 'M3']). Spread target of 50 pts is set against fully-baselined 9-fixture set; partial-coverage spread reported as-is per BEAAA-419 anchor decision.

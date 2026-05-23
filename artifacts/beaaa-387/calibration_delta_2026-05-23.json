@@ -38,67 +38,67 @@
     },
     {
       "are_breach": false,
-      "are_delta": 2,
+      "are_delta": 0,
       "baseline_are": 63,
       "baseline_corpus_version": "path_a_v2_1@2026-05-15",
       "baseline_rubric_version": "1.0.0",
       "baseline_scanner_version": "0.3.0",
       "baselined": true,
-      "current_are": 65,
+      "current_are": 63,
       "current_rubric_version": "1.0.0",
       "current_scanner_version": "0.3.0",
-      "drift_attributable_to": "unknown_regression",
+      "drift_attributable_to": "none",
       "fixture_id": "B3",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "BIAS_FAIRNESS": 0.3125,
+        "BIAS_FAIRNESS": 0.0,
         "GOVERNANCE": 0.0,
         "OPS": 0.0,
-        "ROBUSTNESS": 1.0417
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_bad"
     },
     {
       "are_breach": false,
-      "are_delta": 1,
+      "are_delta": 0,
       "baseline_are": 79,
       "baseline_corpus_version": "path_a_v2_1@2026-05-15",
       "baseline_rubric_version": "1.0.0",
       "baseline_scanner_version": "0.3.0",
       "baselined": true,
-      "current_are": 80,
+      "current_are": 79,
       "current_rubric_version": "1.0.0",
       "current_scanner_version": "0.3.0",
-      "drift_attributable_to": "unknown_regression",
+      "drift_attributable_to": "none",
       "fixture_id": "G1",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "BIAS_FAIRNESS": 0.9375,
+        "BIAS_FAIRNESS": 0.0,
         "GOVERNANCE": 0.0,
         "OPS": 0.0,
-        "ROBUSTNESS": 0.5208
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
     {
       "are_breach": false,
-      "are_delta": -2,
+      "are_delta": 0,
       "baseline_are": 77,
       "baseline_corpus_version": "path_a_v2_1@2026-05-15",
       "baseline_rubric_version": "1.0.0",
       "baseline_scanner_version": "0.3.0",
       "baselined": true,
-      "current_are": 75,
+      "current_are": 77,
       "current_rubric_version": "1.0.0",
       "current_scanner_version": "0.3.0",
-      "drift_attributable_to": "unknown_regression",
+      "drift_attributable_to": "none",
       "fixture_id": "G2",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "BIAS_FAIRNESS": 0.3125,
+        "BIAS_FAIRNESS": 0.0,
         "GOVERNANCE": 0.0,
         "OPS": 0.0,
-        "ROBUSTNESS": -2.6042
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
@@ -115,15 +115,12 @@
       "current_scanner_version": "0.3.0",
       "drift_attributable_to": "none",
       "fixture_id": "G3",
-      "pillar_breaches": [
-        "BIAS_FAIRNESS",
-        "ROBUSTNESS"
-      ],
+      "pillar_breaches": [],
       "pillar_deltas": {
-        "BIAS_FAIRNESS": 1.1458,
+        "BIAS_FAIRNESS": 0.0,
         "GOVERNANCE": 0.0,
         "OPS": 0.0,
-        "ROBUSTNESS": -1.0417
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
@@ -180,7 +177,7 @@
     }
   ],
   "for_status_date": "2026-05-23",
-  "generated_at": "2026-05-23T12:17:08+00:00",
+  "generated_at": "2026-05-23T14:40:07+00:00",
   "issue": "BEAAA-398",
   "manifest_path": "artifacts/beaaa-387/manifest.json",
   "section": "\u00a72 calibration_health",
@@ -189,32 +186,21 @@
     "baselined_count": 7,
     "by_attribution": {
       "none": [
+        "B3",
+        "G1",
+        "G2",
         "G3"
       ],
       "rubric_reweight": [
         "B1",
         "M1",
         "M2"
-      ],
-      "unknown_regression": [
-        "B3",
-        "G1",
-        "G2"
       ]
     },
-    "passed": false,
+    "passed": true,
     "pending_count": 2,
-    "pillar_breach_pairs": [
-      [
-        "G3",
-        "BIAS_FAIRNESS"
-      ],
-      [
-        "G3",
-        "ROBUSTNESS"
-      ]
-    ],
-    "summary_line": "baselined=7/9 | pending=2 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=2 | BREACH"
+    "pillar_breach_pairs": [],
+    "summary_line": "baselined=7/9 | pending=2 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=0 | PASS"
   },
   "tolerances": {
     "are_total": 1.0,

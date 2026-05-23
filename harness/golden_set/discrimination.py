@@ -109,6 +109,12 @@ def compute_discrimination(
         bdir = BASELINES / fid
         baseline = _load_json(bdir / "baseline.json")
         eval_outputs = _load_json(bdir / "eval_outputs.json")
+        # BEAAA-647: thread applicability sidecar so Option-C baselines
+        # (G1/G2/G3) re-score byte-identical to the locked aggregate.
+        app_path = bdir / "applicability.json"
+        applicability_decisions = None
+        if app_path.exists():
+            applicability_decisions = _load_json(app_path).get("applicability_decisions")
         current = score(
             rubric, eval_outputs,
             snapshot_hash=baseline["snapshot_hash"],
@@ -118,6 +124,8 @@ def compute_discrimination(
             corpus_version=baseline.get("corpus_version") or None,
             seed=baseline.get("seed"),
             model_versions=baseline.get("model_versions"),
+            applicability_decisions=applicability_decisions,
+            applicability_policy_version=baseline.get("applicability_policy_version"),
         )
         fixtures.append(FixtureScore(
             fixture_id=fid,
