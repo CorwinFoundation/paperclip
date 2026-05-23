@@ -142,7 +142,7 @@ class RunScanTests(unittest.TestCase):
         return d
 
     @unittest.skip(
-        "BEAAA-647a (follow-up): CLI run_scan() does not yet thread "
+        "BEAAA-648: CLI run_scan() does not yet thread "
         "applicability_decisions / applicability_policy_version. After the "
         "BEAAA-647 L1 Phase-2 anchor rebase, G1 expected_score.json scores "
         "under Option C (na_dims=['P2.2','P3.2'], bmi=79), but the CLI "
@@ -272,7 +272,7 @@ class CliSubprocessTests(unittest.TestCase):
         )
 
     @unittest.skip(
-        "BEAAA-647a (follow-up): CLI run_scan() does not yet thread "
+        "BEAAA-648: CLI run_scan() does not yet thread "
         "applicability. Post-rebase G1 returns are_total=80 (not 84 "
         "Phase-1, not 79 Phase-2 Option-C). Unskip after CLI threads "
         "applicability."
