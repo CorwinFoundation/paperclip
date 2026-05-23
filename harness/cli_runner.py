@@ -74,6 +74,8 @@ class CliInputs:
     governance_attestations: dict[str, Any] | None
     model_versions: dict[str, Any] | None
     scanner_invocation_context: dict[str, Any] | None
+    applicability_decisions: dict[str, dict[str, Any]] | None
+    applicability_policy_version: str | None
     input_dir: Path
     file_sha256s: dict[str, str]
 
@@ -237,6 +239,48 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
     if invocation is not None and not isinstance(invocation, dict):
         raise CliInputError("scanner_invocation_context.json must be an object")
 
+    # BEAAA-648: Option-C applicability sidecar. Mirrors the
+    # artifacts/beaaa-387/<agent>/applicability.json layout the L1 test
+    # wiring (tests/test_golden_agents.py::_rerun_score) and harness
+    # aggregators (harness/golden_set/{calibration_delta,discrimination,
+    # n5_band}.py) already consume. Absence → Phase-1 behaviour
+    # (byte-identical to v0.2.3 callers; no N/A re-norm).
+    applicability_payload = _read_optional_json(_hashed("applicability.json"))
+    applicability_decisions: dict[str, dict[str, Any]] | None = None
+    applicability_policy_version: str | None = None
+    if applicability_payload is not None:
+        if not isinstance(applicability_payload, dict):
+            raise CliInputError("applicability.json must be an object")
+        decisions = applicability_payload.get("applicability_decisions")
+        if decisions is not None:
+            if not isinstance(decisions, dict):
+                raise CliInputError(
+                    "applicability.json.applicability_decisions must be an object"
+                )
+            for did, decision in decisions.items():
+                if not isinstance(did, str) or not re.match(r"^P\d+\.\d+$", did):
+                    raise CliInputError(
+                        f"applicability_decisions key {did!r} not a P<n>.<m> dim id"
+                    )
+                if not isinstance(decision, dict):
+                    raise CliInputError(
+                        f"applicability_decisions[{did}] must be an object"
+                    )
+                if "fires" in decision and not isinstance(decision["fires"], bool):
+                    raise CliInputError(
+                        f"applicability_decisions[{did}].fires must be bool"
+                    )
+            applicability_decisions = decisions
+        policy_version = applicability_payload.get("policy_version")
+        if policy_version is not None:
+            if not isinstance(policy_version, str):
+                raise CliInputError(
+                    "applicability.json.policy_version must be a string"
+                )
+            applicability_policy_version = _validate_version(
+                policy_version, label="applicability.json policy_version"
+            )
+
     return CliInputs(
         agent_id=agent_id,
         eval_results=eval_results,
@@ -246,6 +290,8 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
         governance_attestations=governance_attestations,
         model_versions=model_versions,
         scanner_invocation_context=invocation,
+        applicability_decisions=applicability_decisions,
+        applicability_policy_version=applicability_policy_version,
         input_dir=input_dir,
         file_sha256s=file_sha256s,
     )
@@ -390,6 +436,9 @@ def _to_contract_output(
             "has_governance_attestations": (
                 inputs.governance_attestations is not None
             ),
+            "has_applicability_sidecar": (
+                inputs.applicability_decisions is not None
+            ),
             "scanner_invocation_context": inputs.scanner_invocation_context,
             "pillar_naming_note": (
                 "subscores keyed by contract pillar names "
@@ -441,6 +490,8 @@ def run_scan(
             corpus_version=corpus_version,
             seed=seed,
             model_versions=inputs.model_versions,
+            applicability_decisions=inputs.applicability_decisions,
+            applicability_policy_version=inputs.applicability_policy_version,
         )
     except ScoringError as exc:
         # Surface as input error — the scoring engine's domain errors map

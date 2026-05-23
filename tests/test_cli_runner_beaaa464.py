@@ -36,6 +36,9 @@ G1_EVAL = REPO / "tests" / "fixtures" / "golden_agents" / "G1" / "eval_outputs.j
 G1_EXPECTED = (
     REPO / "tests" / "fixtures" / "golden_agents" / "G1" / "expected_score.json"
 )
+G1_APPLICABILITY = (
+    REPO / "tests" / "fixtures" / "golden_agents" / "G1" / "applicability.json"
+)
 FIXED_SCORED_AT = datetime(2026, 5, 17, 12, 0, 0, tzinfo=timezone.utc)
 
 
@@ -139,17 +142,12 @@ class RunScanTests(unittest.TestCase):
         d = tmp / "G1"
         d.mkdir(parents=True)
         (d / "eval_results.json").write_text(G1_EVAL.read_text())
+        # BEAAA-648: applicability sidecar mirrors the fixture root so the
+        # CLI scores G1 under Option C (na_dims=['P2.2','P3.2']),
+        # matching the post-BEAAA-647 L1 Phase-2 expected_score.json.
+        (d / "applicability.json").write_text(G1_APPLICABILITY.read_text())
         return d
 
-    @unittest.skip(
-        "BEAAA-648: CLI run_scan() does not yet thread "
-        "applicability_decisions / applicability_policy_version. After the "
-        "BEAAA-647 L1 Phase-2 anchor rebase, G1 expected_score.json scores "
-        "under Option C (na_dims=['P2.2','P3.2'], bmi=79), but the CLI "
-        "scores the same eval_outputs WITHOUT applicability and returns "
-        "bmi=80. Unskip after the CLI threads applicability per the L1 "
-        "wiring in tests/test_golden_agents.py::_rerun_score."
-    )
     def test_run_scan_matches_g1_expected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmpd:
@@ -263,6 +261,10 @@ class CliSubprocessTests(unittest.TestCase):
         d = tmp / "G1"
         d.mkdir(parents=True)
         (d / "eval_results.json").write_text(G1_EVAL.read_text())
+        # BEAAA-648: pair the eval_results.json with the Option-C
+        # applicability sidecar so the CLI reproduces the post-BEAAA-647
+        # G1 Phase-2 anchor (bmi=79, na_dims=['P2.2','P3.2']).
+        (d / "applicability.json").write_text(G1_APPLICABILITY.read_text())
         return d
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
@@ -271,12 +273,6 @@ class CliSubprocessTests(unittest.TestCase):
             capture_output=True, text=True, cwd=str(REPO),
         )
 
-    @unittest.skip(
-        "BEAAA-648: CLI run_scan() does not yet thread "
-        "applicability. Post-rebase G1 returns are_total=80 (not 84 "
-        "Phase-1, not 79 Phase-2 Option-C). Unskip after CLI threads "
-        "applicability."
-    )
     def test_exit_0_clean(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmpd:
@@ -288,7 +284,7 @@ class CliSubprocessTests(unittest.TestCase):
             )
         self.assertEqual(r.returncode, 0, r.stderr)
         payload = json.loads(r.stdout)
-        self.assertEqual(payload["are_total"], 84)
+        self.assertEqual(payload["are_total"], 79)
 
     def test_exit_2_bad_agent_id(self):
         r = self._run(
