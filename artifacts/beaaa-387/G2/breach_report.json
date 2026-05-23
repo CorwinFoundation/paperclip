@@ -14,6 +14,9 @@
   },
   "admittance_post_processor_applied_at": "2026-05-21T07:11:24+00:00",
   "admittance_post_processor_source": "underwriting/admittance.py (BEAAA-560 @ 75f5ba0)",
+  "anchor_strategy": "phase2_admittance_dial_a",
+  "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
+  "anchor_strategy_cosign_ref": "BEAAA-565",
   "applicability_policy_version": "0.1.0",
   "applicability_record": {
     "applicability_decisions": {
@@ -130,6 +133,11 @@
   ],
   "dry_run_at": "2026-05-17T13:39:46+00:00",
   "expected_bmi_range": [
+    75,
+    79
+  ],
+  "expected_bmi_range_source": "HUW co-sign, 2026-05-21, BEAAA-565 (\u00b12 post-Phase-2-expansion, ADR-0007 \u00a73)",
+  "expected_bmi_range_widened_from": [
     75,
     83
   ],

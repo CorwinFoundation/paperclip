@@ -13,23 +13,34 @@
       "n_replicates": 5,
       "pillar_breaches": [],
       "pillar_drifts": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_bad"
     },
     {
       "baselined": false,
       "fixture_id": "B2",
-      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
       "slot": "known_bad"
     },
     {
-      "baselined": false,
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 65,
+      "are_min": 65,
+      "baselined": true,
       "fixture_id": "B3",
-      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
       "slot": "known_bad"
     },
     {
@@ -42,10 +53,10 @@
       "n_replicates": 5,
       "pillar_breaches": [],
       "pillar_drifts": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
@@ -59,17 +70,28 @@
       "n_replicates": 5,
       "pillar_breaches": [],
       "pillar_drifts": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
     {
-      "baselined": false,
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 73,
+      "are_min": 73,
+      "baselined": true,
       "fixture_id": "G3",
-      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
       "slot": "known_good"
     },
     {
@@ -82,10 +104,10 @@
       "n_replicates": 5,
       "pillar_breaches": [],
       "pillar_drifts": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "graded_middle"
     },
@@ -99,10 +121,10 @@
       "n_replicates": 5,
       "pillar_breaches": [],
       "pillar_drifts": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "graded_middle"
     },
@@ -114,7 +136,7 @@
     }
   ],
   "for_status_date": "2026-05-22",
-  "generated_at": "2026-05-16T09:13:29+00:00",
+  "generated_at": "2026-05-23T12:05:39+00:00",
   "issue": "BEAAA-398",
   "layer_notes": {
     "L1": "deterministic re-run of score() against locked eval_outputs.json; drift=0 by construction. Non-zero drift = release-blocker code regression.",
@@ -125,12 +147,12 @@
   "section": "\u00a73 reproducibility_band_L1",
   "summary": {
     "are_breach_fixtures": [],
-    "baselined_count": 5,
+    "baselined_count": 7,
     "max_are_drift": 0,
     "passed": true,
-    "pending_count": 4,
+    "pending_count": 2,
     "pillar_breach_pairs": [],
-    "summary_line": "N=5 | baselined=5/9 | pending=4 | max ARE drift=0 | breaches=0 | PASS"
+    "summary_line": "N=5 | baselined=7/9 | pending=2 | max ARE drift=0 | breaches=0 | PASS"
   },
   "tolerances": {
     "are_total": 1.0,

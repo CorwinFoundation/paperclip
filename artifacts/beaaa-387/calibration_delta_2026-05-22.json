@@ -22,10 +22,10 @@
       "fixture_id": "B1",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "P1": -3.75,
-        "P2": 1.7709,
-        "P3": -1.6667,
-        "P4": 5.0
+        "BIAS_FAIRNESS": 1.7709,
+        "GOVERNANCE": 5.0,
+        "OPS": -3.75,
+        "ROBUSTNESS": -1.6667
       },
       "slot": "known_bad"
     },
@@ -33,14 +33,29 @@
       "baselined": false,
       "fixture_id": "B2",
       "notes": "owner=Head of Underwriting & AI Risk, source_issue=BEAAA-419",
-      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
       "slot": "known_bad"
     },
     {
-      "baselined": false,
+      "are_breach": false,
+      "are_delta": 2,
+      "baseline_are": 63,
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_scanner_version": "0.3.0",
+      "baselined": true,
+      "current_are": 65,
+      "current_rubric_version": "1.0.0",
+      "current_scanner_version": "0.3.0",
+      "drift_attributable_to": "unknown_regression",
       "fixture_id": "B3",
-      "notes": "owner=Head of Underwriting & AI Risk, source_issue=BEAAA-419",
-      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "pillar_breaches": [],
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.3125,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 1.0417
+      },
       "slot": "known_bad"
     },
     {
@@ -58,10 +73,10 @@
       "fixture_id": "G1",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
@@ -80,18 +95,36 @@
       "fixture_id": "G2",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "P1": 0.0,
-        "P2": 0.0,
-        "P3": 0.0,
-        "P4": 0.0
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
       },
       "slot": "known_good"
     },
     {
-      "baselined": false,
+      "are_breach": false,
+      "are_delta": 0,
+      "baseline_are": 73,
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_scanner_version": "0.3.0",
+      "baselined": true,
+      "current_are": 73,
+      "current_rubric_version": "1.0.0",
+      "current_scanner_version": "0.3.0",
+      "drift_attributable_to": "none",
       "fixture_id": "G3",
-      "notes": "owner=Head of Underwriting & AI Risk, source_issue=BEAAA-419",
-      "pending_reason": "anchor strategy pending BEAAA-198/199 P2/P3 measured-dim expansion (Phase 2)",
+      "pillar_breaches": [
+        "BIAS_FAIRNESS",
+        "ROBUSTNESS"
+      ],
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 1.1458,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": -1.0417
+      },
       "slot": "known_good"
     },
     {
@@ -109,10 +142,10 @@
       "fixture_id": "M1",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "P1": -5.8334,
-        "P2": 3.125,
-        "P3": -2.5,
-        "P4": 6.6667
+        "BIAS_FAIRNESS": 3.125,
+        "GOVERNANCE": 6.6667,
+        "OPS": -5.8334,
+        "ROBUSTNESS": -2.5
       },
       "slot": "graded_middle"
     },
@@ -131,10 +164,10 @@
       "fixture_id": "M2",
       "pillar_breaches": [],
       "pillar_deltas": {
-        "P1": -5.2084,
-        "P2": 1.875,
-        "P3": -3.125,
-        "P4": 3.75
+        "BIAS_FAIRNESS": 1.875,
+        "GOVERNANCE": 3.75,
+        "OPS": -5.2084,
+        "ROBUSTNESS": -3.125
       },
       "slot": "graded_middle"
     },
@@ -147,28 +180,41 @@
     }
   ],
   "for_status_date": "2026-05-22",
-  "generated_at": "2026-05-16T09:13:29+00:00",
+  "generated_at": "2026-05-23T12:05:39+00:00",
   "issue": "BEAAA-398",
   "manifest_path": "artifacts/beaaa-387/manifest.json",
   "section": "\u00a72 calibration_health",
   "summary": {
     "are_breach_fixtures": [],
-    "baselined_count": 5,
+    "baselined_count": 7,
     "by_attribution": {
       "none": [
         "G1",
-        "G2"
+        "G2",
+        "G3"
       ],
       "rubric_reweight": [
         "B1",
         "M1",
         "M2"
+      ],
+      "unknown_regression": [
+        "B3"
       ]
     },
-    "passed": true,
-    "pending_count": 4,
-    "pillar_breach_pairs": [],
-    "summary_line": "baselined=5/9 | pending=4 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=0 | PASS"
+    "passed": false,
+    "pending_count": 2,
+    "pillar_breach_pairs": [
+      [
+        "G3",
+        "BIAS_FAIRNESS"
+      ],
+      [
+        "G3",
+        "ROBUSTNESS"
+      ]
+    ],
+    "summary_line": "baselined=7/9 | pending=2 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=2 | BREACH"
   },
   "tolerances": {
     "are_total": 1.0,
