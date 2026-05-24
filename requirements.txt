@@ -26,6 +26,17 @@ garak==0.10.0
 # ModelAPI. Pin so dual-runner smoke output is reproducible across CI.
 inspect-ai==0.3.220
 
+# --- additional adversarial probe source (BEAAA-711) ---
+# PyRIT (Microsoft AI Red Team, github.com/Azure/PyRIT, MIT) — independent
+# attack-generator family alongside Garak. Drives scanners/pyrit_runner.py
+# on P3.1 direct prompt-injection (orchestrators + converter chains).
+# Multi-turn primitives (Crescendo / RedTeamingOrchestrator) are deferred to
+# a P3.5 activation ticket under a rule-change ADR per
+# contracts/scanner-implementation-supervision-v1.md. Pin to an exact MIT-
+# released version so probe_id namespace + behavioral surface stay stable;
+# bump requires a fresh N=5 calibration delta on the golden set.
+pyrit==0.6.0
+
 # --- model SDKs (lazy-imported by harness/runner.py adapters) ---
 anthropic==0.39.0
 openai==1.54.4
