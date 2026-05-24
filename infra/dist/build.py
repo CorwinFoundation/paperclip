@@ -120,17 +120,36 @@ def _render_dist_config(*, inputs: BuildInputs, build_id: str, watermark: str) -
     )
 
 
+# Files we never want in the canonical corpus hash. __pycache__/*.pyc bytes
+# differ across Python patch versions (3.12.3 vs 3.12.13) and break the
+# ADR-0011 §3.5 invariant; .DS_Store appears on macOS hosts; .pytest_cache is
+# left behind by local test runs. None are part of the corpus identity.
+_CORPUS_HASH_EXCLUDE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache"})
+_CORPUS_HASH_EXCLUDE_FILENAMES = frozenset({".DS_Store"})
+_CORPUS_HASH_EXCLUDE_SUFFIXES = (".pyc", ".pyo", ".watermark")
+
+
+def _canonical_corpus_file(path: Path) -> bool:
+    if path.name in _CORPUS_HASH_EXCLUDE_FILENAMES:
+        return False
+    if path.name.endswith(_CORPUS_HASH_EXCLUDE_SUFFIXES):
+        return False
+    if any(part in _CORPUS_HASH_EXCLUDE_DIRS for part in path.parts):
+        return False
+    return True
+
+
 def _canonical_corpus_hash(corpus_dir: Path) -> str:
     """Hash the canonical (un-watermarked) corpus tree.
 
     Walks the corpus in sorted order and feeds ``relpath\x00sha256(content)\n``
     for each leaf into a rolling SHA-256. Must equal the value stamped into
-    score outputs across Path 1 / Path 2 / Path 3 (ADR-0011 §3.5).
+    score outputs across Path 1 / Path 2 / Path 3 (ADR-0011 §3.5). Filters
+    out non-source noise (pycache, OS metadata) so the hash is reproducible
+    across builders regardless of incidental on-disk state.
     """
     h = hashlib.sha256()
-    for path in sorted(p for p in corpus_dir.rglob("*") if p.is_file()):
-        if path.name.endswith(".watermark"):
-            continue  # side-channel; never in canonical hash
+    for path in sorted(p for p in corpus_dir.rglob("*") if p.is_file() and _canonical_corpus_file(p)):
         rel = path.relative_to(corpus_dir).as_posix().encode("utf-8")
         h.update(rel + b"\x00")
         h.update(hashlib.sha256(path.read_bytes()).digest())
@@ -145,7 +164,11 @@ def _stage_corpus_with_watermark(*, source: Path, dest: Path, watermark: str) ->
     """
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(source, dest)
+    shutil.copytree(
+        source,
+        dest,
+        ignore=shutil.ignore_patterns(*_CORPUS_HASH_EXCLUDE_DIRS, "*.pyc", "*.pyo", ".DS_Store"),
+    )
     for leaf in dest.rglob("*"):
         if leaf.is_file() and not leaf.name.endswith(".watermark"):
             (leaf.parent / f"{leaf.name}.watermark").write_text(watermark + "\n")
