@@ -88,6 +88,32 @@ Fingerprint = runner image manifest (`macos-14` / `macos-13` published by
 GitHub) + the pinned interpreter from `setup-python@v5` + the pinned
 `pyinstaller==6.11.1`. Recorded inline on the first green dispatch.
 
+**First green dispatch (BEAAA-718, 2026-05-24).** Repo
+`CorwinFoundation/are-scanner`. Run
+[26364989768](https://github.com/CorwinFoundation/are-scanner/actions/runs/26364989768)
+dispatched from CTO agent against `master @ 78c7918`. arm64 leg
+([job 77607124856](https://github.com/CorwinFoundation/are-scanner/actions/runs/26364989768/job/77607124856))
+green in 32s wall; amd64 leg queued on macos-13 runner availability
+(orthogonal to substrate correctness — arm64 is the canonical Apple
+Silicon design-partner arch).
+
+| Field | arm64 leg (canonical Path A host as of this dispatch) |
+|---|---|
+| Runner image | `macos-14-arm64`, release tag `20260520.0082` ([Readme](https://github.com/actions/runner-images/blob/macos-14-arm64/20260520.0082/images/macos/macos-14-arm64-Readme.md), [release](https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260520.0082)) |
+| Runner labels | `['macos-14']` |
+| Python | `3.12.3` (matches the pin in §"Determinism statement"); installed via `actions/setup-python@v5` |
+| pyinstaller install fingerprint | wheel `pyinstaller-6.11.1-py3-none-macosx_10_13_universal2.whl` — darwin universal2 |
+| pyinstaller `--version` | `6.11.1` |
+| SOURCE_DATE_EPOCH source | `git log -1 --format=%ct` against the build ref; for `78c7918` = `1779635778` |
+| PYTHONHASHSEED, TZ | `0`, `UTC` |
+| Smoke artifact name | `are-scan-darwin-arm64-smoke` (id `7186203092`) |
+| Smoke artifact file sha256 | `6afdc607d2c984afb9c1d45daf713cd5030db03fa58d5c983665d06e16fec543` (`are-scan-darwin-arm64.smoke`, 61 bytes — placeholder for the BEAAA-567 §S6 binary) |
+| GHA archive digest | `sha256:e913f641ec2d807ee418cb2e5d49694ec718721e7ae6ef9bad4a78a35b09833f` |
+
+The Phase-1 CTO MacBook fallback (BEAAA-582) row below stays alongside;
+substrate cutover is additive, not a deletion, until BEAAA-582 retires on
+its own evidence.
+
 **Phase-1 fallback (CTO host on a clock, ratified by CEO on BEAAA-572
 2026-05-19).** As of 2026-05-19 the CTO agent runs on:
 
