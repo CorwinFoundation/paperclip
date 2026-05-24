@@ -125,3 +125,5 @@ jobs:
           path: dist/are-scan-darwin-${{ matrix.arch }}.smoke
           if-no-files-found: error
           retention-days: 7
+
+# BEAAA-718: substrate cutover from CTO MacBook fallback to GHA hosted macOS runners — first dispatch from CTO agent.
