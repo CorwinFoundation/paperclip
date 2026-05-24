@@ -21,9 +21,12 @@ Pipeline:
 
        PYTHONHASHSEED=0 \\
        SOURCE_DATE_EPOCH=<git commit ts> \\
-       pyinstaller --clean --noconfirm --noupx --onefile \\
-                   --strip \\
+       pyinstaller --clean --noconfirm \\
                    infra/dist/are_scan.spec
+
+   ``upx=False``, ``strip=True``, and ``--onefile`` (via EXE) live in
+   ``infra/dist/are_scan.spec`` — PyInstaller rejects the equivalent CLI
+   flags when a ``.spec`` file is the entrypoint (BEAAA-726).
 
 5. Emit the build manifest (``manifest.json``) recording: builder OS,
    interpreter sha256, pip freeze, git sha, ``SOURCE_DATE_EPOCH``,

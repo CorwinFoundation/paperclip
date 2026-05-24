@@ -10,8 +10,11 @@
 #
 # * `--onefile` via EXE(bundle into a single file). Required by ADR-0011
 #   §3.2.
-# * `noupx=True` — UPX produces non-deterministic compression in some
-#   modes and changes binary contents per machine; we never use it.
+# * `upx=False` (on EXE) — UPX produces non-deterministic compression in
+#   some modes and changes binary contents per machine; we never use it.
+#   This MUST live on the EXE() call here, not as a `--noupx` CLI flag in
+#   build.py: PyInstaller rejects `--noupx` alongside a `.spec` entrypoint
+#   (BEAAA-726).
 # * `bootloader_ignore_signals=False`, `strip=True` on Linux.
 # * `console=True` — the binary is a CLI; no GUI hooks.
 #

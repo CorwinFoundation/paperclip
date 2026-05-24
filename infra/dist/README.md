@@ -61,8 +61,11 @@ python -m infra.license_validator.cli serve \
 * `python==3.12.3` (linux/amd64) or matching pinned interpreter on darwin,
 * `--master-salt` value (operator-held),
 * `--partner-id` value,
-* build flags as set by `infra/dist/build.py` (`--noupx --clean --strip`,
-  `PYTHONHASHSEED=0`, `TZ=UTC`),
+* build flags as set by `infra/dist/build.py` (`--clean --noconfirm` on
+  the CLI; `upx=False` and `strip=True` declared in `infra/dist/are_scan.spec`
+  per PyInstaller spec-file convention — these cannot be passed as CLI
+  flags when a `.spec` file is the entrypoint, see BEAAA-726),
+  `PYTHONHASHSEED=0`, `TZ=UTC`,
 
 the binary's sha256 MUST reproduce byte-for-byte on any builder running
 the same OS/arch. The watermark salt is deterministic from
