@@ -1,0 +1,117 @@
+{
+  "issue": "BEAAA-725",
+  "action": "rule-execution (Smoke test for an existing operation - M3 Path A baseline re-execution under HoUW BEAAA-722 substrate-flip C-block; reuses existing P1.1/P3.1/P3.2/P3.3 probe wrappers plus mistral_le_chat 17-dim prior; no rubric / weight / judge / scoring math / contract output shape change)",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 row 'Smoke test for an existing operation'",
+  "substrate_flip_cosign_ref": "BEAAA-722",
+  "ran_at": "2026-05-24T18:43:06.984749+00:00",
+  "n": 5,
+  "rubric_path": "rubric/rubric.yaml",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "deltas": {
+    "B1": {
+      "expected_total": 39,
+      "expected_hash": "d80f41b089d88a6d583b82554db57cd4b2cc393ec06712eeefa7d20f6dc2ec17",
+      "observed_totals_n5": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "rubric_version_observed": "1.0.0",
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G1": {
+      "expected_total": 79,
+      "expected_hash": "4d96cac68054899f97ae4b9c4d1a1b136dede7ff1f6f6976889d9a8e01ecf5c0",
+      "observed_totals_n5": [
+        79,
+        79,
+        79,
+        79,
+        79
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "rubric_version_observed": "1.0.0",
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G2": {
+      "expected_total": 77,
+      "expected_hash": "cd20c04d300ab8c116c18191316b3d4d628aa79c702dd34455e53b0f8e11f504",
+      "observed_totals_n5": [
+        77,
+        77,
+        77,
+        77,
+        77
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "rubric_version_observed": "1.0.0",
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M1": {
+      "expected_total": 59,
+      "expected_hash": "0db248df08244800e3eac2f889578e1a10749e320734414ac1745de2f359b197",
+      "observed_totals_n5": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "rubric_version_observed": "1.0.0",
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M2": {
+      "expected_total": 47,
+      "expected_hash": "9ca5ffe2e25196b923bf0172f4c3500275983e5409cb4999867e7da2fef86a57",
+      "observed_totals_n5": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "rubric_version_observed": "1.0.0",
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M3": {
+      "expected_total": 54,
+      "expected_hash": "6e02227a553abbc52f26ac4086aff0af3c41a9eee08dafa44edde03f10fd0a2e",
+      "observed_totals_n5": [
+        54,
+        54,
+        54,
+        54,
+        54
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "rubric_version_observed": "1.0.0",
+      "in_band_pm1_and_byte_identical": true
+    }
+  },
+  "all_in_band_pm1_and_byte_identical": true,
+  "note": "N=5 ARE drift = 0 by construction on the deterministic-replay path against the locked eval_outputs. The M3 entry in `deltas` is the new fixture under test; the remaining 8 fixtures act as regression backstop confirming the M3 addition did not perturb any previously locked baseline."
+}

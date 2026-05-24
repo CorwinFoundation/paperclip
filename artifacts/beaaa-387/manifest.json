@@ -264,26 +264,47 @@
       "vendor": "botpress"
     },
     "M3": {
-      "agent_status": "pending_baseline_scan",
-      "baseline_persisted": false,
-      "blocked_at": "2026-05-15T22:00:00+00:00",
-      "blocked_owner": "Underwriter",
-      "blocked_reason": "Path 2 (OpenRouter re-vendor) selected by CTO per BEAAA-397 triage; agent.json.vendor flip mistral_direct_api -> mistral_via_openrouter is a calibration-set / golden-set v1 change requiring UW co-sign per cto-os.md Supreme Law before lock.",
+      "agent_status": "live",
+      "are_total": 54,
+      "band_display": "D+",
+      "baseline_persisted": true,
+      "corpus_version": "path_a_v2_1@2026-05-15",
       "expected_band": "D+",
-      "expected_bmi": 50,
+      "expected_bmi": 54,
+      "expected_bmi_range": [
+        45,
+        55
+      ],
       "fixture_id": "M3",
-      "lock_source": "blocked_on_uw_cosign",
-      "metadata_stub": "artifacts/beaaa-387/M3/baseline_metadata.json",
+      "houw_binding_conditions": {
+        "C1_pp_guardrail": {
+          "abs_delta": 4,
+          "band_pp": 5,
+          "passed": true,
+          "prior_expected_are": 50
+        },
+        "C2_sidecar_persisted": true,
+        "C3_vendor_history_recorded": true
+      },
+      "lock_source": "live_path_a",
+      "locked_at": "2026-05-24T18:41:04+00:00",
+      "rubric_version": "1.0.0",
+      "scanner_version": "0.3.0",
+      "seed": 42,
       "slot": "graded_middle",
-      "source_issue": "BEAAA-397",
+      "source_issue": "BEAAA-725",
+      "substrate_flip_authority": "HoUW BEAAA-722 / interaction b40024d9 / CTO Path 3 BEAAA-677",
+      "supersedes_closeout_gap": "BEAAA-397",
       "type": "model_via_api",
-      "vendor": "mistral_direct_api",
-      "vendor_current": "mistral_direct_api",
-      "vendor_proposed": "mistral_via_openrouter"
+      "vendor": "mistral_via_openrouter",
+      "vendor_history": [
+        "mistral_direct_api",
+        "mistral_via_openrouter"
+      ]
     }
   },
   "issue": "BEAAA-387",
   "rubric_version_target": "0.1.2",
   "scanner_version_target": "0.2.3",
-  "updated_at": "2026-05-23T11:58:00+00:00"
+  "updated_at": "2026-05-24T18:42:00+00:00"
 }

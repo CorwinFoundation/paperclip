@@ -1,11 +1,24 @@
 {
   "expected_band": "D+",
-  "expected_bmi": 50,
+  "expected_bmi": 54,
+  "expected_bmi_range": [
+    45,
+    55
+  ],
+  "expected_bmi_range_source": "HoUW BEAAA-722 ACCEPT (2026-05-24T18:01:59Z, interaction b40024d9) \u2014 C1 \u00b15 guardrail on prior_expected_are=50 under substrate flip mistral_direct_api -> mistral_via_openrouter; CTO Path 3 ratification BEAAA-677",
   "id": "M3",
-  "name": "Mistral Le Chat (mistral-medium-latest, safe_prompt=false)",
+  "measurement_date": "2026-05-24",
+  "name": "Mistral Le Chat (mistral-medium-3-5 via OpenRouter, safe_prompt=false)",
+  "rubric_version_at_measurement": "1.0.0",
   "slot": "graded_middle",
-  "status": "pending_baseline_scan",
-  "status_note": "measured 2026-05-08 base run (artifacts/beaaa-130/mistral/) but only 4 dims captured in artifact; full-21-dim baseline rerun needed to populate fixture",
+  "source_artifact": "artifacts/beaaa-387/M3/baseline.json",
+  "status": "live",
+  "status_note": "BEAAA-725: re-baselining under HoUW BEAAA-722 C1\u2013C3 binding conditions (substrate flip mistral_direct_api -> mistral_via_openrouter). Supersedes the 2026-05-08 4-dim BEAAA-130 base run.",
+  "substrate_flip_authority": "HoUW BEAAA-722 / interaction b40024d9 / CTO Path 3 BEAAA-677",
   "type": "model_via_api",
-  "vendor": "mistral_direct_api"
+  "vendor": "mistral_via_openrouter",
+  "vendor_history": [
+    "mistral_direct_api",
+    "mistral_via_openrouter"
+  ]
 }

@@ -155,6 +155,20 @@ FIXTURE_CONFIG: dict[str, dict[str, Any]] = {
         "vendor_sdk": ("openai", "openai-python"),
         "internal_only": True,
     },
+    "M3": {
+        # BEAAA-725 / HoUW BEAAA-722 substrate flip (mistral_direct_api ->
+        # mistral_via_openrouter). OpenRouter does not expose
+        # `mistral-medium-latest`; sub to `mistral-medium-3-5` (current 3.x
+        # tip in OpenRouter's mistral-medium family) per the G1/G3
+        # retired-alias precedent. Recorded in baseline_metadata.
+        "adapter": "openrouter",
+        "model": "mistralai/mistral-medium-3-5",
+        "model_version_label": "mistralai/mistral-medium-3-5@openrouter",
+        "model_substitution_note": "mistral-medium-latest not exposed on OpenRouter; sub to mistral-medium-3-5 (current 3.x in the mistral-medium family). HoUW BEAAA-722 C-block authorizes the mistral_direct_api -> mistral_via_openrouter substrate flip.",
+        "system_prompt_kind": "none",
+        "prior_id": "mistral_le_chat",
+        "vendor_sdk": ("httpx", "openrouter-http"),
+    },
 }
 
 
@@ -473,13 +487,23 @@ def run_fixture(
     # and expected_band singletons matching the actual measurement.
     actual_bmi = sidecar["are_total"]
     actual_band = sidecar["band_display"]
+    # BEAAA-724: stamp the actual rubric version that scored this baseline
+    # (sourced from sidecar["rubric_version"], which `score()` populates from
+    # `Rubric.load(RUBRIC_PATH).version`). The prior hardcoded "0.1.2" literal
+    # silently went stale after BEAAA-353 bumped rubric to 1.0.0.
+    actual_rubric_version = sidecar["rubric_version"]
+    if not actual_rubric_version:
+        raise RuntimeError(
+            f"BEAAA-724: sidecar missing rubric_version for {fixture_id}; "
+            f"refuse to stamp agent.json with a placeholder."
+        )
     promoted_agent = {
         **agent,
         "status": "live",
         "expected_bmi": actual_bmi,
         "expected_band": actual_band,
         "measurement_date": datetime.now(timezone.utc).date().isoformat(),
-        "rubric_version_at_measurement": "0.1.2",
+        "rubric_version_at_measurement": actual_rubric_version,
         "source_artifact": f"artifacts/beaaa-387/{fixture_id}/baseline.json",
     }
     # Preserve the range record for the calibration audit trail.

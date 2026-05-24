@@ -1,0 +1,172 @@
+{
+  "current_contract_version": "are-scanner-api-v1@v1.0",
+  "current_rubric_version": "1.0.0",
+  "current_scanner_version": "0.3.0",
+  "fixtures": [
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 39,
+      "are_min": 39,
+      "baselined": true,
+      "fixture_id": "B1",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_bad"
+    },
+    {
+      "baselined": false,
+      "fixture_id": "B2",
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "slot": "known_bad"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 63,
+      "are_min": 63,
+      "baselined": true,
+      "fixture_id": "B3",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_bad"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 79,
+      "are_min": 79,
+      "baselined": true,
+      "fixture_id": "G1",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_good"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 77,
+      "are_min": 77,
+      "baselined": true,
+      "fixture_id": "G2",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_good"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 73,
+      "are_min": 73,
+      "baselined": true,
+      "fixture_id": "G3",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_good"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 59,
+      "are_min": 59,
+      "baselined": true,
+      "fixture_id": "M1",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "graded_middle"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 47,
+      "are_min": 47,
+      "baselined": true,
+      "fixture_id": "M2",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "graded_middle"
+    },
+    {
+      "are_breach": false,
+      "are_drift": 0,
+      "are_max": 54,
+      "are_min": 54,
+      "baselined": true,
+      "fixture_id": "M3",
+      "n_replicates": 5,
+      "pillar_breaches": [],
+      "pillar_drifts": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "graded_middle"
+    }
+  ],
+  "for_status_date": "2026-05-24",
+  "generated_at": "2026-05-24T18:44:04+00:00",
+  "issue": "BEAAA-398",
+  "layer_notes": {
+    "L1": "deterministic re-run of score() against locked eval_outputs.json; drift=0 by construction. Non-zero drift = release-blocker code regression.",
+    "L2_owner": "harness/golden_set/repro_gate.py \u2014 live probe-runner replicates, weekly on cheap fixtures + monthly on full slate (BEAAA-398 \u00a73 cadence)."
+  },
+  "manifest_path": "artifacts/beaaa-387/manifest.json",
+  "n": 5,
+  "section": "\u00a73 reproducibility_band_L1",
+  "summary": {
+    "are_breach_fixtures": [],
+    "baselined_count": 8,
+    "max_are_drift": 0,
+    "passed": true,
+    "pending_count": 1,
+    "pillar_breach_pairs": [],
+    "summary_line": "N=5 | baselined=8/9 | pending=1 | max ARE drift=0 | breaches=0 | PASS"
+  },
+  "tolerances": {
+    "are_total": 1.0,
+    "per_pillar": 0.5
+  }
+}

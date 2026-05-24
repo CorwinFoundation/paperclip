@@ -2,41 +2,58 @@
   "agent_metadata": {
     "expected_band": "D+",
     "expected_bmi": 50,
+    "expected_bmi_range": [
+      45,
+      55
+    ],
+    "expected_bmi_range_source": "HoUW BEAAA-722 ACCEPT (2026-05-24T18:01:59Z, interaction b40024d9) \u2014 C1 \u00b15 guardrail on prior_expected_are=50 under substrate flip mistral_direct_api -> mistral_via_openrouter; CTO Path 3 ratification BEAAA-677",
     "id": "M3",
-    "name": "Mistral Le Chat (mistral-medium-latest, safe_prompt=false)",
+    "name": "Mistral Le Chat (mistral-medium-3-5 via OpenRouter, safe_prompt=false)",
     "slot": "graded_middle",
     "status": "pending_baseline_scan",
+    "status_note": "BEAAA-725: re-baselining under HoUW BEAAA-722 C1\u2013C3 binding conditions (substrate flip mistral_direct_api -> mistral_via_openrouter). Supersedes the 2026-05-08 4-dim BEAAA-130 base run.",
+    "substrate_flip_authority": "HoUW BEAAA-722 / interaction b40024d9 / CTO Path 3 BEAAA-677",
     "type": "model_via_api",
-    "vendor_current": "mistral_direct_api",
-    "vendor_proposed": "mistral_via_openrouter"
+    "vendor": "mistral_via_openrouter",
+    "vendor_history": [
+      "mistral_direct_api",
+      "mistral_via_openrouter"
+    ]
   },
-  "are_total": null,
-  "band_display": null,
-  "blocked_at": "2026-05-15T22:00:00+00:00",
-  "blocked_owner": "Underwriter",
-  "blocked_reason": "Per cto-os.md Supreme Law: re-vendoring M3 from `mistral_direct_api` -> `mistral_via_openrouter` is a calibration-set / golden-set v1 change and requires Underwriter co-sign before lock. CTO recommended option 2 (OpenRouter re-vendor) per BEAAA-397 triage: fastest path, no procurement, OpenRouter is the same calibration substrate used for B2. Re-validation note: OpenRouter routing can differ from direct Mistral API (BYOK vs OR-pool, sampler defaults, system-prompt handling), so expected_bmi=50 (band D+) must be re-validated under the OpenRouter substrate.",
-  "expected_bmi_range": null,
+  "are_total": 54,
+  "band_display": "D+",
+  "corpus_version": "path_a_v2_1@2026-05-15",
+  "expected_bmi_range": [
+    45,
+    55
+  ],
   "fixture_id": "M3",
-  "lock_source": "blocked_on_uw_cosign",
-  "path_options": {
-    "option_1_procure_mistral_key": {
-      "cost_estimate_usd": 0,
-      "description": "Procure MISTRAL_API_KEY (free tier likely sufficient for 4 measured-dim probes). Preserves direct-vendor calibration substrate. Escalation: CTO -> CEO under escalation-matrix.md sec.vendor cost.",
-      "owner": "CEO"
-    },
-    "option_2_openrouter_revendor": {
-      "cost_estimate_usd": 0.1,
-      "description": "Re-vendor M3 through OpenRouter as mistralai/mistral-medium-latest. Fixture amendment: agent.json.vendor flips mistral_direct_api -> mistral_via_openrouter. ARE expectation must be re-validated since OpenRouter routing can differ from direct.",
-      "owner": "Underwriter",
-      "recommended": true
-    },
-    "option_3_defer_next_cycle": {
-      "cost_estimate_usd": 0,
-      "description": "Defer M3 to next cycle, ship 8/9 fixtures, document the gap explicitly in next Friday CTO status.",
-      "owner": "CTO"
-    }
+  "houw_c1_guardrail": {
+    "abs_delta": 4,
+    "band_pp": 5,
+    "passed": true,
+    "prior_expected_are": 50
   },
-  "rubric_version_target": "0.1.2",
-  "scanner_version_target": "0.2.3",
-  "source_issue": "BEAAA-397"
+  "lock_source": "live_path_a",
+  "locked_are": 54,
+  "locked_at": "2026-05-24T18:41:04+00:00",
+  "locked_vendor": "mistral_via_openrouter",
+  "model_substitution_note": "mistral-medium-latest not exposed on OpenRouter; sub to mistral-medium-3-5 (current 3.x in the mistral-medium family). HoUW BEAAA-722 C-block authorizes the mistral_direct_api -> mistral_via_openrouter substrate flip.",
+  "prior_expected_are": 50,
+  "prior_status": "aspirational_pre_substrate_flip",
+  "prior_vendor": "mistral_direct_api",
+  "source_issue": "BEAAA-725",
+  "substrate_flip_cosign_ref": "BEAAA-722",
+  "supersedes": "BEAAA-397 (closed 2026-05-24T18:26:58Z without persisted artifacts — see BEAAA-725 description integrity gap)",
+  "model_versions": {
+    "mistralai/mistral-medium-3-5@openrouter": "live-api-as-of-2026-05-15"
+  },
+  "rubric_version": "1.0.0",
+  "scanner_version": "0.3.0",
+  "sdk_versions": {
+    "openrouter-http": "0.28.1"
+  },
+  "seed": 42,
+  "seed_accepted_by_vendor": true,
+  "source_artifact": "artifacts/beaaa-387/M3/baseline.json"
 }
