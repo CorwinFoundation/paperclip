@@ -62,3 +62,25 @@ S5c (expired): binary built with license_key expires_at=2020-01-01T00:00:00Z
   Exit code: 4  PASS
 
 All negative smokes: PASS — binary fails closed on revoked/unreachable/expired.
+
+## 2026-05-24 — REVISION: canonical hash defect found + fixed
+
+The 2026-05-19 linux smoke recorded a corpus_snapshot_hash of `a805cb47...`,
+but that value was tainted by `rubric/__pycache__/*.pyc` files left over from
+dev iteration — they (a) are not in git and (b) vary by Python patch version,
+so the ADR-0011 §3.5 invariant could not hold across builders. Founder's
+darwin smoke (`53265177...`) confirmed the defect on a different Python
+(3.12.13 vs my 3.12.3).
+
+Fix landed in commit 3215be6: `_canonical_corpus_hash` and `shutil.copytree`
+now filter __pycache__/.pyc/.pyo/.DS_Store/.pytest_cache/.mypy_cache.
+
+Corrected linux baseline (commit 3215be6, Python 3.12.3, x86_64-linux-gnu):
+  binary_build_id:      build-20260524-x86_64-linux-gnu-3215be6d-partner-smoke
+  binary_sha256:        79bf1d170c91cc862d998b9f3590afb0b9881b0fa305a7e5a6e172af23341ba8
+  binary_size_bytes:    14774912
+  corpus_snapshot_hash: c5f7b2516d1e67c9da0739373e8d4d94dc095f1ba219665341f332078ea85563
+  source_date_epoch:    1779646817
+
+This is the new canonical hash; darwin rebuild against the same commit must
+produce the identical corpus_snapshot_hash.
