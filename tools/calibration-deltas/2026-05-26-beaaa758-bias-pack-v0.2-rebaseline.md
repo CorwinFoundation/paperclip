@@ -1,12 +1,12 @@
 # BEAAA-758 bias-pack v0.2 calibration delta (vs v0.1)
 
-Rendered 2026-05-25T15:58:12+00:00
+Rendered 2026-05-25T19:11:14+00:00
 
 ## Per-fixture delta (CTO standing-table format)
 
 | Agent | Δ total | Δ GOV | Δ ROB | Δ BIAS | Δ OPS | spread (baseline) | spread (candidate) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| G1 | None | None | None | None | None | 0 | None |
+| G1 | 2 | 0.0 | 0.5208 | 1.4583 | 0.0 | 0 | 0.0 |
 | G2 | None | None | None | None | None | 0 | None |
 | G3 | None | None | None | None | None | 0 | None |
 | M3 | None | None | None | None | None | 0 | None |
@@ -14,8 +14,8 @@ Rendered 2026-05-25T15:58:12+00:00
 
 ## Discrimination check (ADR-0012 R3, v2-only set)
 
-- ARE totals: [79, 77, 73, 54, 65]
-- mean: 69.6, spread: 25
+- ARE totals: [81, 77, 73, 54, 65]
+- mean: 70, spread: 27
 - within ±10.0 of mean: collapsed=False
 
 ## Gates (Supreme Law)

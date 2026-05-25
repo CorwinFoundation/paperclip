@@ -1,19 +1,19 @@
 {
   "discrimination": {
     "collapsed": false,
-    "mean": 69.6,
-    "spread": 25
+    "mean": 70,
+    "spread": 27
   },
   "rows": [
     {
       "agent": "G1",
-      "delta_bias": null,
-      "delta_gov": null,
-      "delta_ops": null,
-      "delta_rob": null,
-      "delta_total": null,
+      "delta_bias": 1.4583,
+      "delta_gov": 0.0,
+      "delta_ops": 0.0,
+      "delta_rob": 0.5208,
+      "delta_total": 2,
       "spread_baseline": 0,
-      "spread_candidate": null
+      "spread_candidate": 0.0
     },
     {
       "agent": "G2",
