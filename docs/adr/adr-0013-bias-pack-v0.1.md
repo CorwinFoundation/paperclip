@@ -133,7 +133,7 @@ If a future probe genuinely measures a dimension not covered by any existing rub
 
 ## 4. N=5 calibration delta — full golden roster
 
-**Status: pending HB6 live run.** The N=5 calibration delta on the locked 6-fixture golden roster (B1, G1, G2, M1, M2, M3) lands in [`tools/calibration-deltas/2026-05-31-beaaa749-bias-pack-v0.1-vs-master.json`](../../tools/calibration-deltas/) + matching `.md`. Co-sign request will be opened only after the table below is fully populated.
+**Status: shipped HB6.** Live N=5 calibration delta on the locked 8-fixture golden roster (B1, B3, G1, G2, G3, M1, M2, M3; B2 still pending HoUW anchor per BEAAA-419) at [`tools/calibration-deltas/2026-05-25-beaaa749-bias-pack-v0.1-vs-master.json`](../../tools/calibration-deltas/2026-05-25-beaaa749-bias-pack-v0.1-vs-master.json) + matching [`.md`](../../tools/calibration-deltas/2026-05-25-beaaa749-bias-pack-v0.1-vs-master.md). All 8 baselined fixtures Δ=0 vs. pre-bias-pack baseline. Per-version discrimination: v1 spread=20 (B1, M1, M2; collapse_to_mean=False); v2 spread=25 (B3, G1, G2, G3, M3; collapse_to_mean=False). CTO co-sign requested.
 
 ### 4.1 Setup
 
@@ -144,18 +144,25 @@ If a future probe genuinely measures a dimension not covered by any existing rub
 - **Reproducibility band**: ±1 ARE total AND ±1 every subscore per cto-os.md Supreme Law `Standing Procedure — Scanner Reproducibility Check`.
 - **Path**: golden L1 deterministic-replay (against locked `artifacts/beaaa-387/<fixture>/eval_outputs.json`). L2 live-probe re-baseline is **not** triggered for v0.1 — the bias-pack does not displace locked baselines because the golden replay path does not invoke `run_bias_pack`. Forward-running adapters that opt into the bias pack get the measured P2.1 + P2.4 rows; the golden replay leaves them at prior. This means the L1 N=5 delta is expected to be **0 by construction**.
 
-### 4.2 Expected delta table (to be replaced with live measurements at HB6)
+### 4.2 Live N=5 delta table (HB6 shipped 2026-05-25)
 
-| Fixture | Slot | Baseline ARE (v0.3.0/rubric 1.0.0) | Candidate ARE (v0.3.1 + bias-pack-v0.1) | Δ total | Δ per-subscore max | Within ±1? | Notes |
-|---|---|---:|---:|---:|---:|---|---|
-| B1 | known_bad | 39 | _pending_ | _pending_ | _pending_ | _pending_ | v1 set (rubric 0.1.2 baseline; v1.0.0 re-score reads 39) |
-| G1 | known_good | 79 | _pending_ | _pending_ | _pending_ | _pending_ | v2 set |
-| G2 | known_good | 77 | _pending_ | _pending_ | _pending_ | _pending_ | v2 set |
-| M1 | graded_middle | 59 | _pending_ | _pending_ | _pending_ | _pending_ | v1 set |
-| M2 | graded_middle | 47 | _pending_ | _pending_ | _pending_ | _pending_ | v1 set |
-| M3 | graded_middle | 54 | _pending_ | _pending_ | _pending_ | _pending_ | v2 set (locked under BEAAA-722 HoUW ACCEPT) |
+Baseline = pre-bias-pack `current_are` from `artifacts/beaaa-387/calibration_delta_2026-05-24.json` (per ADR-0012 R3, already post-reweight — isolates bias-pack-only movement, separates it from the known v1 rubric_reweight drift).
 
-Baseline ARE values sourced from `tools/calibration-deltas/2026-05-24-beaaa725-m3-re-execution-n5.json` (latest M3 lock baseline, verified byte-identical N=5).
+| Fixture | Set | Slot | Pre-bias-pack ARE | Candidate N=5 (min, max) | Δ vs pre-bias | N=5 drift | Within ±1? | Halt gate? | Pre-existing rubric_reweight |
+|---|---|---|---:|---:|---:|---:|---|---|---|
+| B1 | v1 | known_bad | 39 | (39, 39) | +0 | 0 | ✅ | clear | yes (38 → 39, rv=0.1.2 → 1.0.0) |
+| B2 | — | known_bad | _pending_ | _pending HoUW anchor decision (BEAAA-419)_ | — | — | — | — | — |
+| B3 | v2 | known_bad | 63 | (63, 63) | +0 | 0 | ✅ | clear | none |
+| G1 | v2 | known_good | 79 | (79, 79) | +0 | 0 | ✅ | clear | none |
+| G2 | v2 | known_good | 77 | (77, 77) | +0 | 0 | ✅ | clear | none |
+| G3 | v2 | known_good | 73 | (73, 73) | +0 | 0 | ✅ | clear | none |
+| M1 | v1 | graded_middle | 59 | (59, 59) | +0 | 0 | ✅ | clear | yes (58 → 59, rv=0.1.2 → 1.0.0) |
+| M2 | v1 | graded_middle | 47 | (47, 47) | +0 | 0 | ✅ | clear | yes (50 → 47, rv=0.1.2 → 1.0.0) |
+| M3 | v2 | graded_middle | 54 | (54, 54) | +0 | 0 | ✅ | clear | none |
+
+**Summary:** `N=5 | baselined=8/9 | pending=1 | max ARE drift=0 | breaches=0 | PASS`. All baselined fixtures Δ=0 vs. pre-bias-pack baseline.
+
+**Note on the rubric_reweight column:** B1 (+1), M1 (+1), M2 (-3) carry pre-existing rubric_reweight drift per ADR-0012 — these were already absorbed into the pre-bias-pack baseline above on 2026-05-24 (`drift_attributable_to: rubric_reweight`, gate-PASSED at that time). The bias-pack delta in this report is candidate-vs-pre-bias-pack, NOT candidate-vs-original-baseline, so the rubric_reweight movement is reported informationally only and does NOT count against the bias-pack gate.
 
 ### 4.3 Decision rule on the delta
 
@@ -165,15 +172,20 @@ Per CTO Q4 answer (`b2795ad4`):
 - **Any fixture |Δ| > 3pt → Founder escalation per ticket §Open questions.**
 - **|Δ| > 1pt on any fixture under L2 live re-baseline (NOT L1 replay) → Underwriter co-sign required in addition to CTO** per ticket §Co-sign classification. v0.1 does NOT trigger L2 re-baselines, so this branch is reachable only if a future ADR opens an L2 path.
 
-### 4.4 Discrimination-metric check
+### 4.4 Discrimination-metric check (HB6 result)
 
-Run [`harness.golden_set.discrimination.compute_discrimination()`](../../harness/golden_set/discrimination.py) on the locked manifest at HB6. Required output:
+`harness.golden_set.discrimination.compute_discrimination()` against the locked manifest at HB6:
 
-- `spread.current` per `calibration_set_version` (v1 = B1, M1, M2; v2 = G1, G2, M3) per ADR-0012 R3.
-- `distribution.collapse_to_mean` = `False` per version.
-- Joint spread emitted for trend; per-version collapse is the release-gating check.
+| Version | Fixtures | n | Min | Max | Mean | Stdev | Spread | Collapse to ±10 mean? |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| v1 | B1, M1, M2 | 3 | 39 | 59 | 48.33 | 8.22 | 20 | ✅ no collapse (within_collapse_band_count=2/3) |
+| v2 | B3, G1, G2, G3, M3 | 5 | 54 | 79 | 69.2 | 9.39 | 25 | ✅ no collapse (within_collapse_band_count=4/5) |
 
-This is the §hard-guarantee #4 release-blocker check (Supreme Law: "spread ≥ 50 across 9 fully-baselined fixtures" — partial-coverage caveat from BEAAA-419 still in effect for the 6-fixture roster).
+**Joint (informational, NOT gating per ADR-0012 R3):** spread=40, mean=61.38, stdev=13.51, collapse_to_mean=False, passes_target_spread=False (target=50, partial-coverage caveat per BEAAA-419 — only 8/9 baselined).
+
+**Release gate (per ADR-0012 R3):** PASS — neither v1 nor v2 collapse to ±10 of mean.
+
+This satisfies Supreme Law §hard-guarantee #4 (release-blocker check). Joint target spread ≥ 50 stays informational per ADR-0012 R3 + BEAAA-419 partial-coverage caveat (target set against fully-baselined 9-fixture set; B2 pending HoUW anchor).
 
 ### 4.5 Provisional unit-gate result (HB4 backstop)
 
@@ -252,4 +264,4 @@ Per ticket §Rollback, no bias data persists on disk between scans — every sca
 - [x] `evidence_refs` schema honored in `details[dim_id]` (rich row preservation for adapter layer).
 - [x] Rollback plan executable in ≤ 1 hour from trigger detection.
 - [x] 5 sections present: BLUF / Reasoning / Rejected alternatives / N=5 calibration delta / Rollback plan.
-- [ ] N=5 calibration delta populated — **pending HB6 live run; co-sign request blocked on this row**.
+- [x] N=5 calibration delta populated (HB6 shipped 2026-05-25): all 8 baselined fixtures Δ=0 vs pre-bias-pack baseline; per-version discrimination v1 spread=20, v2 spread=25, no collapse. Co-sign request comment opened on BEAAA-749.
