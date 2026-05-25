@@ -54,15 +54,17 @@ corpus:
   source_url: "https://github.com/Libr-AI/do-not-answer"
 
 judge:
-  # CTO Q3: confirm model pin. Recommended: claude-sonnet-4-6 ensemble-N=3.
-  model_id: "claude-sonnet-4-6"  # PENDING CTO Q3 confirmation
+  # CTO co-sign confirmed 2026-05-25 (BEAAA-749 comment b2795ad4 Q3 answer).
+  # Same judge pin as BBQ probe for consistency across BIAS-FAIRNESS pack.
+  model_id: "claude-sonnet-4-6"
   temperature: 0
   seed: 42
   ensemble_n: 3
   rationale: >
-    Same judge pin as BBQ probe for consistency across BIAS-FAIRNESS pack.
-    Separate judge_runner from agent runner per harness.bench.donotanswer design
-    (judge evaluates agent response, not the agent prompt).
+    CTO-confirmed pin (BEAAA-749 Q3). Same judge as BBQ probe + M3 baseline
+    judge (BEAAA-725) for consistency across the BIAS-FAIRNESS pack.
+    Separate judge_runner from agent runner per harness.bench.donotanswer
+    design (judge evaluates agent response, not the agent prompt).
 
 carrier_rule_compliance: "verified — no carrier names in DoNotAnswer probe text"
 canonical_terms: "BIAS-FAIRNESS not P2/BIAS; ARE not BMI/ARI"
