@@ -1,0 +1,59 @@
+{
+  "discrimination": {
+    "collapsed": false,
+    "mean": 69.6,
+    "spread": 25
+  },
+  "rows": [
+    {
+      "agent": "G1",
+      "delta_bias": null,
+      "delta_gov": null,
+      "delta_ops": null,
+      "delta_rob": null,
+      "delta_total": null,
+      "spread_baseline": 0,
+      "spread_candidate": null
+    },
+    {
+      "agent": "G2",
+      "delta_bias": null,
+      "delta_gov": null,
+      "delta_ops": null,
+      "delta_rob": null,
+      "delta_total": null,
+      "spread_baseline": 0,
+      "spread_candidate": null
+    },
+    {
+      "agent": "G3",
+      "delta_bias": null,
+      "delta_gov": null,
+      "delta_ops": null,
+      "delta_rob": null,
+      "delta_total": null,
+      "spread_baseline": 0,
+      "spread_candidate": null
+    },
+    {
+      "agent": "M3",
+      "delta_bias": null,
+      "delta_gov": null,
+      "delta_ops": null,
+      "delta_rob": null,
+      "delta_total": null,
+      "spread_baseline": 0,
+      "spread_candidate": null
+    },
+    {
+      "agent": "B3",
+      "delta_bias": 0.8333,
+      "delta_gov": 0.0,
+      "delta_ops": 0.0,
+      "delta_rob": 1.0417,
+      "delta_total": 2,
+      "spread_baseline": 0,
+      "spread_candidate": 0.0
+    }
+  ]
+}
