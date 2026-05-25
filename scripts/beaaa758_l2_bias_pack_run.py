@@ -32,10 +32,22 @@ Usage:
 
     # Real run (post-approval) — all three refs must resolve.
     python3 scripts/beaaa758_l2_bias_pack_run.py \\
-        --fixture all --execute \\
+        --fixture all --execute --seed 0 \\
         --cto-cosign-ref BEAAA-758:<comment-id> \\
         --uw-cosign-ref BEAAA-758:<interaction-id> \\
         --budget-approval-ref <approval-uuid>
+
+CTO co-sign (cmt 8441869f, 2026-05-25) requirements baked in:
+  * `--execute` is strictly gated on all 3 refs (fail-closed).
+  * `--seed` flag selects which seed of the N=5 candidate-side run
+    this invocation owns (seeds 0..4 per CTO requirement 2).
+  * Sibling archive `eval_outputs.bias-pack-v0.1-prior.json` MUST be
+    written BEFORE the new `eval_outputs.json` overwrite for any
+    fixture (single-write order matters per CTO requirement 4;
+    aborted runs leave the fixture in a known consistent state).
+  * Calibration delta renders to
+    `tools/calibration-deltas/2026-05-26-beaaa758-bias-pack-v0.2-rebaseline.{md,json}`
+    using the standing-table format (per CTO requirement 1).
 """
 from __future__ import annotations
 
@@ -148,11 +160,17 @@ def dry_run(fixture_ids: list[str]) -> dict[str, Any]:
 def run_fixture(
     fixture_id: str,
     *,
+    seed: int,
     cto_cosign_ref: str,
     uw_cosign_ref: str,
     budget_approval_ref: str,
 ) -> dict[str, Any]:
-    """Live L2 bias-pack run for one Path-A v2 fixture.
+    """Live L2 bias-pack run for one Path-A v2 fixture at one candidate seed.
+
+    Per CTO co-sign cmt 8441869f requirement 2: the candidate side is
+    median(N=5 seeded runs), so call this for seed in 0..4 and aggregate
+    the rich rows into a median row before persisting. Baseline (v0.1)
+    side is a single deterministic replay — no N=5 there.
 
     Implementation will land in the follow-up heartbeat once the three
     approval refs above resolve. Skeleton is committed now so the next
@@ -180,18 +198,28 @@ def run_fixture(
     )
 
     # ---- TODO post-approval (next heartbeat) ----
-    # 1. Persist rich rows:
-    #      artifacts/beaaa-387/{fid}/probes/bias-pack-bbq-v0.1.json    <- details["P2.1"]
-    #      artifacts/beaaa-387/{fid}/probes/bias-pack-dna-v0.1.json    <- details["P2.4"]
-    # 2. Archive prior eval_outputs.json + write new revision with measured P2.1+P2.4 rows.
-    # 3. Re-score the fixture and persist new baseline.json (bias-pack-aware).
-    # 4. update_manifest(): per-fixture bias_pack_version + bumped corpus_version
+    # ORDER MATTERS — single-write rollback symmetry per CTO requirement 4:
+    # 1. Write per-seed rich rows:
+    #      artifacts/beaaa-387/{fid}/probes/bias-pack-bbq-v0.1-seed{seed}.json
+    #      artifacts/beaaa-387/{fid}/probes/bias-pack-dna-v0.1-seed{seed}.json
+    # 2. After all 5 seeds complete for this fixture, compute median rows.
+    # 3. Write sibling archive `eval_outputs.bias-pack-v0.1-prior.json` BEFORE
+    #    overwriting eval_outputs.json (CTO requirement 4 — atomic-ish rollback).
+    # 4. Overwrite eval_outputs.json with median P2.1+P2.4 rows.
+    # 5. Re-score the fixture and persist new baseline.json (bias-pack-aware).
+    # 6. update_manifest(): per-fixture bias_pack_version + bumped corpus_version
     #    (additive: "bias-pack-v0.1+<existing>").
-    # 5. Compute calibration delta vs v0.1 baseline; gate ±1 ARE total + ±0.5 per pillar.
-    # 6. Re-check discrimination per ADR-0012 R3 (per-version, v2 only here).
+    # 7. Compute calibration delta vs v0.1 baseline to
+    #    tools/calibration-deltas/2026-05-26-beaaa758-bias-pack-v0.2-rebaseline.{md,json}
+    #    using CTO standing table (Agent|Δ total|Δ GOV|Δ ROB|Δ BIAS|Δ OPS|spread base|spread cand).
+    # 8. Gate ±1 ARE total + ±0.5 per pillar; >3pt names FID + per-pillar deltas
+    #    in Founder escalation packet (CTO A2 refinement).
+    # 9. Re-check discrimination per ADR-0012 R3 (per-version, v2-only set —
+    #    hard release-block gate per CTO A3 condition 3).
     # ----------------------------------------------
     return {
         "fixture_id": fixture_id,
+        "seed": seed,
         "cto_cosign_ref": cto_cosign_ref,
         "uw_cosign_ref": uw_cosign_ref,
         "budget_approval_ref": budget_approval_ref,
@@ -210,6 +238,8 @@ def main() -> None:
                     help="Path-A v2 fixture id, or 'all'")
     ap.add_argument("--execute", action="store_true",
                     help="Run live judge calls (requires --cto-cosign-ref, --uw-cosign-ref, --budget-approval-ref)")
+    ap.add_argument("--seed", type=int, default=0, choices=[0, 1, 2, 3, 4],
+                    help="Candidate-side seed (CTO requirement 2: N=5 median over seeds 0..4)")
     ap.add_argument("--cto-cosign-ref", default=os.environ.get("BEAAA_758_CTO_REF"))
     ap.add_argument("--uw-cosign-ref", default=os.environ.get("BEAAA_758_UW_REF"))
     ap.add_argument("--budget-approval-ref", default=os.environ.get("BEAAA_758_BUDGET_REF"))
@@ -229,13 +259,14 @@ def main() -> None:
     results = [
         run_fixture(
             fid,
+            seed=args.seed,
             cto_cosign_ref=args.cto_cosign_ref,
             uw_cosign_ref=args.uw_cosign_ref,
             budget_approval_ref=args.budget_approval_ref,
         )
         for fid in targets if fid in L2_FIXTURES_PATH_A_V2
     ]
-    print(json.dumps({"ticket": "BEAAA-758", "results": results}, indent=2, sort_keys=True))
+    print(json.dumps({"ticket": "BEAAA-758", "seed": args.seed, "results": results}, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
