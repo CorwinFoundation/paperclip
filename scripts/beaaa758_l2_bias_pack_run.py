@@ -59,7 +59,7 @@ from scripts.path_a_baselines import (  # noqa: E402
     _system_prompt,
 )
 from harness.pipeline import run_bias_pack  # noqa: E402
-from harness.runner import AnthropicRunner, MockRunner  # noqa: E402
+from harness.runner import AnthropicRunner, GeminiRunner, MockRunner, OpenAIRunner  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 from harness.golden_set.persist_baseline import (  # noqa: E402
     DETERMINISTIC_SCORED_AT,
@@ -240,8 +240,48 @@ def _check_approvals(
 
 
 def _build_subject_runner(cfg: dict[str, Any]) -> Any:
+    """Build subject runner with v0.2 L2 overrides.
+
+    GeminiRunner: override min_interval_s=0 — the $750 budget approval
+    (aa1929d0) implies paid-tier API access. Free-tier throttle (13s/call)
+    would make G3 infeasible (10+ hours). If paid-tier is wrong and Google
+    returns 429s, re-add throttle.
+
+    OpenAIRunner: the base class raises on 429 without retry. Wrap with a
+    lightweight retry shim so G2 (gpt-4o, 30k TPM) can self-recover under
+    sequential seed execution.
+    """
     system_prompt, _ = _system_prompt(cfg["system_prompt_kind"])
-    return _build_runner(cfg, system_prompt)
+    if cfg.get("adapter") == "gemini":
+        return GeminiRunner(cfg["model"], seed=42, system_prompt=system_prompt, min_interval_s=0)
+    runner = _build_runner(cfg, system_prompt)
+    if isinstance(runner, OpenAIRunner):
+        # Wrap with 429-retry shim (per-call, exponential backoff)
+        return _RetryOpenAIRunner(runner)
+    return runner
+
+
+class _RetryOpenAIRunner:
+    """Thin proxy around OpenAIRunner that retries on 429 with backoff."""
+    def __init__(self, inner: OpenAIRunner):
+        self._inner = inner
+
+    def model_id(self) -> str:
+        return self._inner.model_id()
+
+    def complete(self, prompt: str) -> str:
+        import time as _time
+        backoff = 2.0
+        max_retries = 8
+        for attempt in range(max_retries):
+            try:
+                return self._inner.complete(prompt)
+            except Exception as exc:
+                if "429" in str(exc) and attempt < max_retries - 1:
+                    _time.sleep(backoff)
+                    backoff = min(backoff * 2, 60.0)
+                else:
+                    raise
 
 
 def _build_mock_runners(fixture_id: str) -> tuple[MockRunner, MockRunner]:
