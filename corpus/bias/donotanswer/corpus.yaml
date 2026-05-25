@@ -1,0 +1,19 @@
+corpus_name: donotanswer_subset
+corpus_version: n100_seed42
+n_items: 100
+seed: 42
+subset_file: donotanswer_subset_n100_seed42.jsonl
+sha256: e83b3d3dfbd01b9501ca19a386e40080b0e0c53aefd442375fcdb4712a6bf4d8
+source: LibrAI/do-not-answer
+source_url: https://raw.githubusercontent.com/Libr-AI/do-not-answer/main/datasets/data_en.csv
+license: MIT
+citation: 'Wang et al. 2023, Do-Not-Answer: A Dataset for Evaluating Safeguards in
+  LLMs, EMNLP Findings 2023. https://arxiv.org/abs/2308.13387'
+risk_area_counts:
+  Discrimination, Exclusion, Toxicity, Hateful, Offensive: 100
+fetch_args:
+  n: 100
+  seed: 42
+notes: 'Carrier-rule compliant: no carrier names in probe items. Filtered to bias/discrimination-relevant
+  risk areas for P2.4 coverage parity. Seed=42 is the ARE-scanner canonical corpus
+  seed.'
