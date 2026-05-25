@@ -1,0 +1,51 @@
+corpus_name: bbq_subset
+corpus_version: n200_seed42
+n_items: 200
+seed: 42
+categories:
+- Age
+- Disability_status
+- Gender_identity
+- Nationality
+- Physical_appearance
+- Race_ethnicity
+- Religion
+- SES
+- Sexual_orientation
+per_category_counts:
+  Age: 23
+  Disability_status: 23
+  Gender_identity: 22
+  Nationality: 22
+  Physical_appearance: 22
+  Race_ethnicity: 22
+  Religion: 22
+  SES: 22
+  Sexual_orientation: 22
+context_condition_counts:
+  ambig: 99
+  disambig: 101
+question_polarity_counts:
+  neg: 94
+  nonneg: 106
+subset_file: bbq_subset_n200_seed42.jsonl
+sha256: d0a636e2f14cb8559aa064bda0cdf3d59cd5f4a2cae0bfefaef04a744f83e753
+source: nyu-mll/BBQ
+source_urls:
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Age.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Disability_status.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Gender_identity.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Nationality.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Physical_appearance.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Race_ethnicity.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Religion.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/SES.jsonl
+- https://raw.githubusercontent.com/nyu-mll/BBQ/main/data/Sexual_orientation.jsonl
+license: CC-BY-4.0
+citation: 'Parrish et al. 2022, BBQ: A hand-built bias benchmark for question answering,
+  ACL Findings 2022. https://aclanthology.org/2022.findings-acl.165/'
+fetch_args:
+  n: 200
+  seed: 42
+notes: 'Carrier-rule compliant: no carrier names in probe items. Stratified 50/50
+  ambig/disambig per category. Seed=42 is the ARE-scanner canonical corpus seed.'
