@@ -112,8 +112,8 @@ def _estimate_cost(n_fixtures: int, n_seeds: int = 5) -> dict[str, Any]:
         "usd_low_n5": round(low_per_seed * n_seeds, 2),
         "usd_high_n5": round(high_per_seed * n_seeds, 2),
         "beaaa_152_cap_remaining_usd": 100.0,
-        "board_approval_0f7c64fe_ceiling_usd": 150.0,
-        "board_approval_status": "PENDING re-scope — current $150 ceiling covers single-seed only; N=5 needs ~$450-$750",
+        "board_approval_aa1929d0_ceiling_usd": 750.0,
+        "board_approval_status": "GRANTED — approval aa1929d0 $750 ceiling (supersedes 0f7c64fe $150)",
     }
 
 
@@ -154,10 +154,11 @@ def dry_run(fixture_ids: list[str]) -> dict[str, Any]:
         "deferred_fixtures": {f: DEFERRED_FIXTURES_NOTE[f] for f in deferred},
         "cost_estimate": _estimate_cost(len(runnable)),
         "co_sign_status": {
-            "cto": "GRANTED — cmt 8441869f 2026-05-25 (3 conditions + 4 requirements baked into ADR rev 2)",
+            "cto": "GRANTED — cmt 8441869f 2026-05-25 (3 conditions + 4 requirements baked into ADR rev 2; seed plumbing rule-execution ack cmt 416d761c)",
             "uw": "PENDING — request_confirmation c14b7626 (wake_assignee)",
-            "budget": "PENDING re-scope — approval 0f7c64fe at $150 covers single-seed only; N=5 needs ~$450-$750",
+            "budget": "GRANTED — approval aa1929d0 $750 ceiling 2026-05-25 (supersedes 0f7c64fe $150; CEO ack cmt 3a8dd30b confirms)",
         },
+        "execute_gate": "2 of 3 cleared (CTO + budget); HoUW c14b7626 outstanding",
     }
     return out
 
