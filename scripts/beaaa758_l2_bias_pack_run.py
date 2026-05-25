@@ -60,6 +60,12 @@ from scripts.path_a_baselines import (  # noqa: E402
 )
 from harness.pipeline import run_bias_pack  # noqa: E402
 from harness.runner import AnthropicRunner, MockRunner  # noqa: E402
+from rubric.scoring import Rubric, score  # noqa: E402
+from harness.golden_set.persist_baseline import (  # noqa: E402
+    DETERMINISTIC_SCORED_AT,
+    DETERMINISTIC_SNAPSHOT_HASH,
+    RUBRIC_PATH,
+)
 
 JUDGE_MODEL_PIN = "claude-sonnet-4-6"
 ENSEMBLE_N = 3
@@ -116,17 +122,24 @@ def _dna_seed_artifact(fixture_id: str, seed: int) -> Path:
     return _probes_dir(fixture_id) / f"bias-pack-dna-v0.1-seed{seed}.json"
 
 
+def _sandbox_seed_from_real(filename: str, fixture_id: str | None = None) -> Path:
+    """Sandbox helper: ensure a fixture-side or root-level artifact exists in
+    the sandbox by lazy-copying from BASELINES. Used to exercise the full
+    archive-before-overwrite path during --dry-execute end-to-end smokes.
+    `fixture_id=None` means a root-level file (e.g. manifest.json)."""
+    rel = (fixture_id + "/" + filename) if fixture_id else filename
+    sandbox_path = _OUTPUT_ROOT / rel
+    if not sandbox_path.exists():
+        real_path = BASELINES / rel
+        if real_path.exists():
+            sandbox_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(real_path, sandbox_path)
+    return sandbox_path
+
+
 def _eval_outputs_path(fixture_id: str) -> Path:
-    # When in dry mode, seed from the REAL eval_outputs.json so the archive
-    # contents match the actual baseline shape (the sandbox starts empty).
     if _OUTPUT_ROOT != BASELINES:
-        sandbox_path = _OUTPUT_ROOT / fixture_id / "eval_outputs.json"
-        if not sandbox_path.exists():
-            real_path = BASELINES / fixture_id / "eval_outputs.json"
-            if real_path.exists():
-                sandbox_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(real_path, sandbox_path)
-        return sandbox_path
+        return _sandbox_seed_from_real("eval_outputs.json", fixture_id)
     return BASELINES / fixture_id / "eval_outputs.json"
 
 
@@ -135,15 +148,46 @@ def _eval_outputs_archive_path(fixture_id: str) -> Path:
 
 
 def _baseline_path(fixture_id: str) -> Path:
-    return _OUTPUT_ROOT / fixture_id / "baseline.json"
+    if _OUTPUT_ROOT != BASELINES:
+        return _sandbox_seed_from_real("baseline.json", fixture_id)
+    return BASELINES / fixture_id / "baseline.json"
 
 
 def _baseline_archive_path(fixture_id: str) -> Path:
     return _OUTPUT_ROOT / fixture_id / "baseline.bias-pack-v0.1-prior.json"
 
 
+def _baseline_metadata_path(fixture_id: str) -> Path:
+    if _OUTPUT_ROOT != BASELINES:
+        return _sandbox_seed_from_real("baseline_metadata.json", fixture_id)
+    return BASELINES / fixture_id / "baseline_metadata.json"
+
+
+def _baseline_metadata_archive_path(fixture_id: str) -> Path:
+    return _OUTPUT_ROOT / fixture_id / "baseline_metadata.bias-pack-v0.1-prior.json"
+
+
 def _manifest_path() -> Path:
-    return _OUTPUT_ROOT / "manifest.json"
+    if _OUTPUT_ROOT != BASELINES:
+        return _sandbox_seed_from_real("manifest.json")
+    return BASELINES / "manifest.json"
+
+
+def _manifest_archive_path() -> Path:
+    return _OUTPUT_ROOT / "manifest.bias-pack-v0.1-prior.json"
+
+
+def _bumped_corpus_version(prior_cv: str) -> str:
+    """v2 fixtures: `path_a_v2_1@2026-05-15` -> `path_a_v2_1@2026-05-15+bias-pack-v0.1`.
+    Idempotent: if `+bias-pack-v0.1` already present, returns prior_cv unchanged.
+    Per ticket: bias-pack-v0.1 is additive — preserves the v2 reference for
+    the non-bias dims while marking P2.1/P2.4 as bias-pack-measured."""
+    suffix = f"+{BIAS_PACK_VERSION}"
+    if not prior_cv:
+        return BIAS_PACK_VERSION
+    if suffix in prior_cv:
+        return prior_cv
+    return prior_cv + suffix
 
 
 # ---------------------------------------------------------------------------
@@ -307,11 +351,27 @@ def run_fixture_seed(
 
 
 def aggregate_fixture(fixture_id: str) -> dict[str, Any]:
-    """Compute median rows across N=5 seeds + archive prior eval_outputs +
-    write new eval_outputs.json with median P2.1 + P2.4 cells.
+    """Per-fixture transactional rebaseline: aggregate seed rows + rescore +
+    update manifest. Single-write archive-before-overwrite per CTO Req 4 for
+    all three sibling artifacts (eval_outputs, baseline, baseline_metadata).
 
-    CTO Req 4: sibling archive is written BEFORE the overwrite. Single-write
-    rollback symmetry — aborted run leaves the fixture in a consistent state.
+    Steps (executed in order; each archives prior BEFORE writing new):
+      1. Load N=5 seed BBQ + DNA probe artifacts; compute median raw + spread.
+      2. Archive prior eval_outputs.json + inject median P2.1/P2.4 cells
+         (single-dict shape `{raw, evidence_uri, ...}` per scorer contract)
+         + overwrite eval_outputs.json.
+      3. Archive prior baseline.json + rescore eval_outputs through
+         `rubric.scoring.score()` under bumped corpus_version
+         (`...+bias-pack-v0.1`) + overwrite baseline.json.
+      4. Archive prior baseline_metadata.json + rewrite with new are_total,
+         band_display, corpus_version, bias_pack_version, locked_at + new
+         _bias_pack_v0_2_rebaseline provenance block.
+      5. Update manifest.json fixture entry (archive once at start of run).
+
+    Idempotent: re-running over a fixture that's already at v0.2 leaves the
+    archives untouched (existing archive presence guards) but re-emits a
+    fresh scored baseline + metadata + manifest entry — useful when re-doing
+    after a partial run.
     """
     if fixture_id not in L2_FIXTURES_PATH_A_V2:
         raise SystemExit(f"BEAAA-758 v0.2 L2 does not cover {fixture_id}; see BEAAA-759.")
@@ -333,59 +393,172 @@ def aggregate_fixture(fixture_id: str) -> dict[str, Any]:
     bbq_spread = max(r["raw"] for r in bbq_rows) - min(r["raw"] for r in bbq_rows)
     dna_spread = max(r["raw"] for r in dna_rows) - min(r["raw"] for r in dna_rows)
 
-    # Step A — archive BEFORE overwrite (CTO Req 4)
+    # ── Step 2: eval_outputs (archive prior + inject medians) ────────────────
     eval_outputs_path = _eval_outputs_path(fixture_id)
-    archive_path = _eval_outputs_archive_path(fixture_id)
-    if eval_outputs_path.exists() and not archive_path.exists():
-        shutil.copy2(eval_outputs_path, archive_path)
-        archived = True
-    else:
-        archived = False
+    eo_archive_path = _eval_outputs_archive_path(fixture_id)
+    eo_archived = False
+    if eval_outputs_path.exists() and not eo_archive_path.exists():
+        shutil.copy2(eval_outputs_path, eo_archive_path)
+        eo_archived = True
 
-    # Step B — load existing eval_outputs + inject median P2.1 + P2.4 rows
-    if eval_outputs_path.exists():
-        eval_outputs = json.loads(eval_outputs_path.read_text())
-    else:
-        eval_outputs = {f"P{i}.{j}": [] for i in (1, 2, 3, 4) for j in range(1, 7)}
-
+    eval_outputs = json.loads(eval_outputs_path.read_text())
     ran_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    eval_outputs["P2.1"] = [{
-        "dim_id": "P2.1",
-        "raw": bbq_median_raw,
+    # Scorer contract: eval_outputs[did] = single dict with {raw, evidence_uri}.
+    # Extra metadata keys are tolerated (scorer reads only `raw` + emits
+    # `evidence_uri` into dim_block). We stamp the v0.2 provenance keys here
+    # so the rebaselined eval_outputs is self-describing without breaking
+    # the L1 scorer schema.
+    eval_outputs["P2.1"] = {
+        "raw": float(bbq_median_raw),
+        "evidence_uri": f"artifacts/beaaa-387/{fixture_id}/probes/bias-pack-bbq-v0.1-seed{{0..4}}.json",
+        "bias_pack_version": BIAS_PACK_VERSION,
         "n_seeds": N_SEEDS,
         "candidate_spread": round(bbq_spread, 4),
-        "bias_pack_version": BIAS_PACK_VERSION,
-        "evidence_uri": f"artifacts/beaaa-387/{fixture_id}/probes/bias-pack-bbq-v0.1-seed{{0..4}}.json",
-        "aggregation": "median(N=5 seeds 0..4)",
+        "aggregation": f"median(N={N_SEEDS} seeds 0..{N_SEEDS-1})",
         "asymmetry_note": "candidate=median(N=5); baseline=single deterministic replay (CTO Req 2)",
         "ran_at": ran_at,
-    }]
-    eval_outputs["P2.4"] = [{
-        "dim_id": "P2.4",
-        "raw": dna_median_raw,
+    }
+    eval_outputs["P2.4"] = {
+        "raw": float(dna_median_raw),
+        "evidence_uri": f"artifacts/beaaa-387/{fixture_id}/probes/bias-pack-dna-v0.1-seed{{0..4}}.json",
+        "bias_pack_version": BIAS_PACK_VERSION,
         "n_seeds": N_SEEDS,
         "candidate_spread": round(dna_spread, 4),
-        "bias_pack_version": BIAS_PACK_VERSION,
-        "evidence_uri": f"artifacts/beaaa-387/{fixture_id}/probes/bias-pack-dna-v0.1-seed{{0..4}}.json",
-        "aggregation": "median(N=5 seeds 0..4)",
+        "aggregation": f"median(N={N_SEEDS} seeds 0..{N_SEEDS-1})",
         "asymmetry_note": "candidate=median(N=5); baseline=single deterministic replay (CTO Req 2)",
         "ran_at": ran_at,
-    }]
-
-    # Step C — overwrite eval_outputs.json
+    }
     eval_outputs_path.write_text(
         json.dumps(eval_outputs, indent=2, sort_keys=True) + "\n", encoding="utf-8",
     )
 
-    return {
-        "fixture_id": fixture_id,
-        "p2_1_median_raw": bbq_median_raw,
-        "p2_4_median_raw": dna_median_raw,
+    # ── Step 3: baseline (archive prior + rescore) ───────────────────────────
+    baseline_path = _baseline_path(fixture_id)
+    baseline_archive_path = _baseline_archive_path(fixture_id)
+    baseline_archived = False
+    prior_baseline: dict[str, Any] = {}
+    if baseline_path.exists():
+        prior_baseline = json.loads(baseline_path.read_text())
+        if not baseline_archive_path.exists():
+            shutil.copy2(baseline_path, baseline_archive_path)
+            baseline_archived = True
+
+    prior_cv = prior_baseline.get("corpus_version") or ""
+    bumped_cv = _bumped_corpus_version(prior_cv)
+    prior_model_versions = prior_baseline.get("model_versions") or {}
+    prior_seed = prior_baseline.get("seed")
+
+    rubric = Rubric.load(RUBRIC_PATH)
+    new_baseline = score(
+        rubric, eval_outputs,
+        snapshot_hash=DETERMINISTIC_SNAPSHOT_HASH,
+        forensic_bundle_uri=f"https://golden.local/{fixture_id}",
+        scored_at=DETERMINISTIC_SCORED_AT,
+        corpus_version=bumped_cv,
+        seed=prior_seed,
+        model_versions=prior_model_versions,
+    )
+    baseline_path.write_text(
+        json.dumps(new_baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+    )
+
+    # ── Step 4: baseline_metadata (archive prior + rewrite) ──────────────────
+    metadata_path = _baseline_metadata_path(fixture_id)
+    metadata_archive_path = _baseline_metadata_archive_path(fixture_id)
+    metadata_archived = False
+    prior_metadata: dict[str, Any] = {}
+    if metadata_path.exists():
+        prior_metadata = json.loads(metadata_path.read_text())
+        if not metadata_archive_path.exists():
+            shutil.copy2(metadata_path, metadata_archive_path)
+            metadata_archived = True
+
+    new_metadata = dict(prior_metadata)
+    new_metadata.update({
+        "are_total": new_baseline["bmi"],
+        "band_display": new_baseline["band"]["display"],
+        "corpus_version": bumped_cv,
+        "bias_pack_version": BIAS_PACK_VERSION,
+        "locked_at": ran_at,
+        "rubric_version": new_baseline.get("rubric_version", prior_metadata.get("rubric_version")),
+        "scanner_version": new_baseline.get("scanner_version", prior_metadata.get("scanner_version")),
+    })
+    new_metadata["_bias_pack_v0_2_rebaseline"] = {
+        "source_ticket": "BEAAA-758",
+        "prior_corpus_version": prior_cv,
+        "prior_are_total": prior_baseline.get("bmi"),
+        "prior_band_display": (prior_baseline.get("band") or {}).get("display"),
+        "delta_total": (new_baseline["bmi"] - prior_baseline["bmi"]) if "bmi" in prior_baseline else None,
+        "p2_1_median_raw": float(bbq_median_raw),
+        "p2_4_median_raw": float(dna_median_raw),
         "p2_1_candidate_spread": round(bbq_spread, 4),
         "p2_4_candidate_spread": round(dna_spread, 4),
-        "archived_prior_eval_outputs": archived,
-        "archive_path": str(archive_path.relative_to(REPO)) if archived else None,
+        "n_seeds": N_SEEDS,
+        "rebaselined_at": ran_at,
+        "co_sign_refs": {
+            "cto": "cmt 8441869f + 416d761c",
+            "uw": "interaction c14b7626 accepted by local-board (Founder override) cmt 31eb97de",
+            "budget": "approval aa1929d0 ($750 ceiling)",
+        },
+    }
+    metadata_path.write_text(
+        json.dumps(new_metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+    )
+
+    # ── Step 5: manifest fixture entry (archive once globally + rewrite row) ─
+    manifest_path = _manifest_path()
+    manifest_archive_path = _manifest_archive_path()
+    manifest_archived = False
+    if manifest_path.exists():
+        if not manifest_archive_path.exists():
+            shutil.copy2(manifest_path, manifest_archive_path)
+            manifest_archived = True
+        manifest = json.loads(manifest_path.read_text())
+    else:
+        manifest = {"fixtures": {}}
+    entry = manifest.setdefault("fixtures", {}).setdefault(fixture_id, {})
+    entry.update({
+        "fixture_id": fixture_id,
+        "are_total": new_baseline["bmi"],
+        "band_display": new_baseline["band"]["display"],
+        "corpus_version": bumped_cv,
+        "bias_pack_version": BIAS_PACK_VERSION,
+        "locked_at": ran_at,
+        "rubric_version": new_baseline.get("rubric_version", entry.get("rubric_version")),
+        "scanner_version": new_baseline.get("scanner_version", entry.get("scanner_version")),
+        "baseline_persisted": True,
+    })
+    entry["_bias_pack_v0_2_rebaseline"] = {
+        "source_ticket": "BEAAA-758",
+        "prior_corpus_version": prior_cv,
+        "prior_are_total": prior_baseline.get("bmi"),
+        "delta_total": (new_baseline["bmi"] - prior_baseline["bmi"]) if "bmi" in prior_baseline else None,
+        "n_seeds": N_SEEDS,
+        "rebaselined_at": ran_at,
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+    )
+
+    return {
+        "fixture_id": fixture_id,
+        "p2_1_median_raw": float(bbq_median_raw),
+        "p2_4_median_raw": float(dna_median_raw),
+        "p2_1_candidate_spread": round(bbq_spread, 4),
+        "p2_4_candidate_spread": round(dna_spread, 4),
+        "prior_are_total": prior_baseline.get("bmi"),
+        "new_are_total": new_baseline["bmi"],
+        "delta_total": (new_baseline["bmi"] - prior_baseline["bmi"]) if "bmi" in prior_baseline else None,
+        "prior_band_display": (prior_baseline.get("band") or {}).get("display"),
+        "new_band_display": new_baseline["band"]["display"],
+        "prior_corpus_version": prior_cv,
+        "new_corpus_version": bumped_cv,
+        "archived_eval_outputs": eo_archived,
+        "archived_baseline": baseline_archived,
+        "archived_baseline_metadata": metadata_archived,
+        "archived_manifest": manifest_archived,
         "new_eval_outputs_path": str(eval_outputs_path.relative_to(REPO)),
+        "new_baseline_path": str(baseline_path.relative_to(REPO)),
         "n_seeds": N_SEEDS,
         "aggregated_at": ran_at,
     }
@@ -404,10 +577,10 @@ def _load_baseline(fixture_id: str) -> dict[str, Any]:
 def calibration_delta() -> dict[str, Any]:
     """Render the CTO standing-table calibration delta + discrimination check.
 
-    NOTE: Requires per-fixture baselines to have been re-scored after
-    aggregate. Re-scoring + manifest update are the missing step (`--rescore`
-    will be added next heartbeat). For now this function reads whatever's on
-    disk and flags partial state.
+    Reads `baseline.bias-pack-v0.1-prior.json` (archive written by
+    `--aggregate` per CTO Req 4 before overwrite) vs current `baseline.json`
+    for the v2 set. ARE total field is `bmi` (scorer-native; canonical term
+    is ARE in text). Pillars: GOVERNANCE / ROBUSTNESS / BIAS_FAIRNESS / OPS.
     """
     rows = []
     are_totals = []
@@ -416,18 +589,24 @@ def calibration_delta() -> dict[str, Any]:
         new_baseline = _load_baseline(fid)
         old_pillars = (old_baseline.get("pillars") or {})
         new_pillars = (new_baseline.get("pillars") or {})
-        old_total = (old_baseline.get("bmi") or {}).get("total")
-        new_total = (new_baseline.get("bmi") or {}).get("total")
+        old_total = old_baseline.get("bmi")
+        new_total = new_baseline.get("bmi")
         delta_total = (new_total - old_total) if (new_total is not None and old_total is not None) else None
+        # candidate-side spread = max(P2.1, P2.4) candidate_spread from
+        # eval_outputs (whichever cell has higher seed-variance dominates).
+        eo = json.loads(_eval_outputs_path(fid).read_text()) if _eval_outputs_path(fid).exists() else {}
+        p21_spread = (eo.get("P2.1") or {}).get("candidate_spread")
+        p24_spread = (eo.get("P2.4") or {}).get("candidate_spread")
+        candidate_spread = max(s for s in (p21_spread, p24_spread) if s is not None) if (p21_spread is not None or p24_spread is not None) else None
         row = {
             "agent": fid,
             "delta_total": delta_total,
             "delta_gov": _pillar_delta(old_pillars, new_pillars, "GOVERNANCE"),
             "delta_rob": _pillar_delta(old_pillars, new_pillars, "ROBUSTNESS"),
             "delta_bias": _pillar_delta(old_pillars, new_pillars, "BIAS_FAIRNESS"),
-            "delta_ops": _pillar_delta(old_pillars, new_pillars, "OPERATIONS"),
+            "delta_ops": _pillar_delta(old_pillars, new_pillars, "OPS"),
             "spread_baseline": 0,
-            "spread_candidate": "(see eval_outputs[P2.1/P2.4].candidate_spread)",
+            "spread_candidate": candidate_spread,
         }
         rows.append(row)
         if new_total is not None:
