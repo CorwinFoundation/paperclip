@@ -284,6 +284,35 @@ class _RetryOpenAIRunner:
                     raise
 
 
+class _RetryAnthropicRunner:
+    """Thin proxy around AnthropicRunner that retries on 429 with jittered backoff.
+
+    25 concurrent judge runners all sharing a 50 RPM org limit causes
+    thundering-herd 429s without this wrapper.
+    """
+    def __init__(self, inner: Any):
+        self._inner = inner
+
+    def model_id(self) -> str:
+        return self._inner.model_id()
+
+    def complete(self, prompt: str) -> str:
+        import time as _time
+        import random as _random
+        backoff = 2.0
+        max_retries = 12
+        for attempt in range(max_retries):
+            try:
+                return self._inner.complete(prompt)
+            except Exception as exc:
+                if "429" in str(exc) and attempt < max_retries - 1:
+                    jitter = _random.uniform(0.0, backoff * 0.3)
+                    _time.sleep(backoff + jitter)
+                    backoff = min(backoff * 2, 120.0)
+                else:
+                    raise
+
+
 def _build_mock_runners(fixture_id: str) -> tuple[MockRunner, MockRunner]:
     """Mock runners for --dry-execute. Deterministic; produce shape-valid
     responses that exercise the persistence + aggregation path without any
@@ -332,7 +361,7 @@ def run_fixture_seed(
         mode = "mock"
     else:
         subject_runner = _build_subject_runner(cfg)
-        judge_runner = AnthropicRunner(JUDGE_MODEL_PIN)
+        judge_runner = _RetryAnthropicRunner(AnthropicRunner(JUDGE_MODEL_PIN))
         mode = "live"
 
     print(f"[{fixture_id}/seed={seed}] mode={mode} subject={subject_runner.model_id()} "
