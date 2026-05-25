@@ -59,7 +59,7 @@ from scripts.path_a_baselines import (  # noqa: E402
     _system_prompt,
 )
 from harness.pipeline import run_bias_pack  # noqa: E402
-from harness.runner import AnthropicRunner, GeminiRunner, MockRunner, OpenAIRunner  # noqa: E402
+from harness.runner import AnthropicRunner, GeminiRunner, MockRunner, OpenAIRunner, OpenRouterRunner  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 from harness.golden_set.persist_baseline import (  # noqa: E402
     DETERMINISTIC_SCORED_AT,
@@ -250,14 +250,23 @@ def _build_subject_runner(cfg: dict[str, Any]) -> Any:
     OpenAIRunner: the base class raises on 429 without retry. Wrap with a
     lightweight retry shim so G2 (gpt-4o, 30k TPM) can self-recover under
     sequential seed execution.
+
+    OpenRouterRunner (Anthropic models only): fall back to AnthropicRunner when
+    OpenRouter account has insufficient credits (402). Bias measurement is
+    model-centric; direct API produces identical model behaviour for claude-*.
+    Non-Anthropic models on OpenRouter (e.g. M3/mistral) remain blocked and
+    require OpenRouter credits to proceed.
     """
     system_prompt, _ = _system_prompt(cfg["system_prompt_kind"])
     if cfg.get("adapter") == "gemini":
         return GeminiRunner(cfg["model"], seed=42, system_prompt=system_prompt, min_interval_s=0)
     runner = _build_runner(cfg, system_prompt)
     if isinstance(runner, OpenAIRunner):
-        # Wrap with 429-retry shim (per-call, exponential backoff)
         return _RetryOpenAIRunner(runner)
+    if isinstance(runner, OpenRouterRunner) and cfg.get("model", "").startswith("anthropic/"):
+        # OpenRouter 402 fallback: same model via direct Anthropic SDK.
+        model_id = cfg["model"].split("/", 1)[1]  # e.g. "claude-sonnet-4.6"
+        return _RetryAnthropicRunner(AnthropicRunner(model_id, system_prompt=system_prompt))
     return runner
 
 
