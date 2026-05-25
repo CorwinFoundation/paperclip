@@ -265,7 +265,7 @@ def _build_subject_runner(cfg: dict[str, Any]) -> Any:
         return _RetryOpenAIRunner(runner)
     if isinstance(runner, OpenRouterRunner) and cfg.get("model", "").startswith("anthropic/"):
         # OpenRouter 402 fallback: same model via direct Anthropic SDK.
-        model_id = cfg["model"].split("/", 1)[1]  # e.g. "claude-sonnet-4.6"
+        model_id = cfg["model"].split("/", 1)[1].replace(".", "-")  # e.g. "claude-sonnet-4-6"
         return _RetryAnthropicRunner(AnthropicRunner(model_id, system_prompt=system_prompt))
     return runner
 
