@@ -93,22 +93,27 @@ DEFERRED_FIXTURES_NOTE = {
 }
 
 
-def _estimate_cost(n_fixtures: int) -> dict[str, Any]:
-    """Per-fixture: BBQ n=200 subject + DNA n=100 subject + DNA n=100 judge,
-    each with ensemble_n=3. Rough $/call assumes pinned Sonnet-class pricing;
-    actuals vary by fixture's subject vendor (G2 = gpt-4o, G3 = gemini, etc.)."""
-    items_per_fixture = (200 + 100 + 100) * ENSEMBLE_N
-    total_calls = items_per_fixture * n_fixtures
-    # Bound estimate — issue body's $240 for 8 fixtures = ~$30/fixture upper.
-    low = round(n_fixtures * 18.0, 2)
-    high = round(n_fixtures * 30.0, 2)
+def _estimate_cost(n_fixtures: int, n_seeds: int = 5) -> dict[str, Any]:
+    """Per-fixture-per-seed: BBQ n=200 subject + DNA n=100 subject + DNA n=100
+    judge, each with ensemble_n=3. CTO requirement 2 = N=5 candidate-side
+    runs (seeds 0..4) so total = single-seed cost × 5. Rough $/call assumes
+    pinned Sonnet-class pricing; actuals vary by fixture's subject vendor."""
+    items_per_fixture_per_seed = (200 + 100 + 100) * ENSEMBLE_N
+    total_calls = items_per_fixture_per_seed * n_fixtures * n_seeds
+    low_per_seed = n_fixtures * 18.0
+    high_per_seed = n_fixtures * 30.0
     return {
         "fixtures": n_fixtures,
-        "items_per_fixture": items_per_fixture,
+        "seeds": n_seeds,
+        "items_per_fixture_per_seed": items_per_fixture_per_seed,
         "total_calls": total_calls,
-        "usd_low": low,
-        "usd_high": high,
-        "beaaa_152_cap_remaining_usd": 100.0,  # CEO/board confirm
+        "usd_low_single_seed": round(low_per_seed, 2),
+        "usd_high_single_seed": round(high_per_seed, 2),
+        "usd_low_n5": round(low_per_seed * n_seeds, 2),
+        "usd_high_n5": round(high_per_seed * n_seeds, 2),
+        "beaaa_152_cap_remaining_usd": 100.0,
+        "board_approval_0f7c64fe_ceiling_usd": 150.0,
+        "board_approval_status": "PENDING re-scope — current $150 ceiling covers single-seed only; N=5 needs ~$450-$750",
     }
 
 
@@ -149,9 +154,9 @@ def dry_run(fixture_ids: list[str]) -> dict[str, Any]:
         "deferred_fixtures": {f: DEFERRED_FIXTURES_NOTE[f] for f in deferred},
         "cost_estimate": _estimate_cost(len(runnable)),
         "co_sign_status": {
-            "cto": "OPEN — 3 Qs in BEAAA-758 description",
-            "uw": "OPEN — upfront co-sign required (rebaseline moves ARE by design)",
-            "budget": "OPEN — projected spend exceeds BEAAA-152 $100 cap; board approval required",
+            "cto": "GRANTED — cmt 8441869f 2026-05-25 (3 conditions + 4 requirements baked into ADR rev 2)",
+            "uw": "PENDING — request_confirmation c14b7626 (wake_assignee)",
+            "budget": "PENDING re-scope — approval 0f7c64fe at $150 covers single-seed only; N=5 needs ~$450-$750",
         },
     }
     return out
