@@ -200,6 +200,7 @@ def run_fixture(
         judge_runner=judge_runner,
         requested_pillars={"BIAS_FAIRNESS"},
         ensemble_n=ENSEMBLE_N,
+        seed=seed,
     )
 
     # ---- TODO post-approval (next heartbeat) ----

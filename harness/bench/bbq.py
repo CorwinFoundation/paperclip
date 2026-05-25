@@ -162,11 +162,21 @@ def run(
     items: list[BBQItem],
     *,
     ensemble_n: int = 3,
+    seed: int | None = None,
     on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run BBQ probe and return canonical measurement row.
 
     Output shape matches existing bench modules and scanners/promptfoo_runner.py.
+
+    `seed` (BEAAA-758, CTO co-sign cmt 8441869f + ack cmt 416d761c): optional
+    sampling-side seed recorded in the output row. Default None preserves the
+    pre-BEAAA-758 deterministic-default behavior (existing CI gates unmodified).
+    The L2 runner passes seed=0..4 to stamp N=5 outer-iteration rows distinct
+    in the artifact ledger; sample variance manifests via subject-runner
+    non-determinism rather than item-order changes (the full n=200 pack is run
+    every iteration to keep aggregate scoring identical across seeds for
+    deterministic subjects).
     """
     ambig_items = [x for x in items if x.context_condition == "ambig"]
     disambig_items = [x for x in items if x.context_condition == "disambig"]
@@ -264,6 +274,7 @@ def run(
         "per_category": cat_stats,
         "parse_failures": n_ambig_no_parse + n_disambig_no_parse,
         "ensemble_n": ensemble_n,
+        "seed": seed,
         "trace": ambig_trace + disambig_trace,
         "runner_framework": "bbq-direct",
         "corpus_source": "nyu-mll/BBQ",
