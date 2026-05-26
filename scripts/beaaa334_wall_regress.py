@@ -42,9 +42,19 @@ from harness import egress  # noqa: E402
 
 BLAND_URL = "https://api.bland.ai/v1/me"
 CASETEXT_URL = "https://www.casetext.com/"
-CHATLAB_SESSION_URL = "https://api.chatlab.com/aichat/sessionV2"
+# ChatLab probe target: the bot-config GET that the live e-commerce demo widget
+# issues first. The pre-rev V2 session POST (`api.chatlab.com/aichat/sessionV2`
+# + short-string apiKey `QXyeoVfwSt`) is dead — that endpoint shape was retired
+# upstream, captured live via playwright on 2026-05-26. The new bot apiKey is a
+# UUID lifted from the live demo's widget bootstrap call. The CF-WAF adaptive
+# flag (family 2) still fires at this layer if it fires at all — playwright
+# replay shows the widget can't render without this GET succeeding.
+CHATLAB_SESSION_URL = (
+    "https://api.chatlab.com/aichat/bots/apikey/"
+    "17a2cb19-7678-4cc6-b20f-190c24cc656a"
+)
 CHATLAB_ORIGIN = "https://www.chatlab.com"
-CHATLAB_APIKEY = "QXyeoVfwSt"  # public client-side key, lifted from scripts/scan_chatlab_ecommerce.py
+CHATLAB_APIKEY = "17a2cb19-7678-4cc6-b20f-190c24cc656a"
 CHATLAB_ENTRY_POINT = "https://www.chatlab.com/demo/ecommerce/"
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -160,17 +170,18 @@ def probe_casetext(session_id: str, timeout: float = 20.0) -> dict:
 
 
 def probe_chatlab_loop(n_sessions: int = 50, pacing_s: float = 2.0, timeout: float = 20.0) -> dict:
-    """`n_sessions` sequential POSTs to ChatLab sessionV2 at `pacing_s` interval.
+    """`n_sessions` sequential GETs to the live ChatLab bot-config endpoint at
+    `pacing_s` interval — the first call the production widget issues.
 
-    The CF WAF adaptive-flag for ChatLab manifests as `200 + content-length: 0` /
-    empty body. Wall is declared if the empty-body rate over the first
-    `n_sessions` exceeds 20%, or if any 403 occurs.
+    Wall is declared if any 403 fires (CF block) or if the empty-body /
+    refused rate over the first `n_sessions` exceeds 20% (CF-WAF adaptive
+    flag against a residential IP pool).
     """
     sessions: list[dict] = []
     empty_count = 0
     refused_count = 0
     headers = {
-        "Content-Type": "application/json",
+        "Accept": "application/json, text/plain, */*",
         "Origin": CHATLAB_ORIGIN,
         "Referer": CHATLAB_ORIGIN + "/",
         "User-Agent": USER_AGENT,
@@ -193,19 +204,9 @@ def probe_chatlab_loop(n_sessions: int = 50, pacing_s: float = 2.0, timeout: flo
             "session_id": per_session_id,
         }
         try:
-            resp = egress.post(
+            resp = egress.get(
                 CHATLAB_SESSION_URL,
                 headers=headers,
-                json={
-                    "apiKey": CHATLAB_APIKEY,
-                    "clientId": client_id,
-                    "windowLocationOrigin": CHATLAB_ORIGIN,
-                    "entryPoint": CHATLAB_ENTRY_POINT,
-                    "hostName": "www.chatlab.com",
-                    "customEndUserParams": None,
-                    "previousSessionId": None,
-                    "adminMode": False,
-                },
                 timeout=timeout,
                 session_id=per_session_id,
             )

@@ -1,0 +1,552 @@
+{
+  "issue": "BEAAA-334",
+  "started_at": "2026-05-26T11:55:23.138626+00:00",
+  "proxy_enabled": true,
+  "proxy_rotate": "sticky_port",
+  "ac_threshold_lift": "2/3 walls must NOT be walled with proxy ON",
+  "results": [
+    {
+      "wall": "bland",
+      "family": "cloud-IP edge refusal (Tier 1)",
+      "url": "https://api.bland.ai/v1/me",
+      "status": 401,
+      "elapsed_ms": 1148.0,
+      "body_excerpt": "{\"data\":null,\"errors\":[{\"error\":\"AUTH_FAILURE\",\"message\":\"Unauthorized\"}]}",
+      "walled": false,
+      "wall_indicator": null,
+      "error": null
+    },
+    {
+      "wall": "casetext",
+      "family": "cloud-IP edge refusal (Tier 1)",
+      "url": "https://www.casetext.com/",
+      "status": 200,
+      "elapsed_ms": 2226.8,
+      "body_excerpt": "<!DOCTYPE html>\n<html lang=\"en-US\">\n      \n\n\n  <head>\n\n    <!-- Meta tags and resource hints extracted to head-meta.html -->\n    <meta charset=\"utf-8\"/>\n<meta name=\"content-page-ref\" content=\"_CQEGVqYb49kdApVG14GGefkL3wwpfw2B2NYtjmP7BoL8k26hPq6NEHK46iYu9mLNij3YYVsIJzpB9jCdh722SNrVCXeawSapdJK8FeW1ChN",
+      "walled": false,
+      "wall_indicator": null,
+      "error": null
+    },
+    {
+      "wall": "chatlab",
+      "family": "CF WAF adaptive flag (Tier 2)",
+      "url": "https://api.chatlab.com/aichat/bots/apikey/17a2cb19-7678-4cc6-b20f-190c24cc656a",
+      "n_sessions": 50,
+      "pacing_s": 2.0,
+      "total_elapsed_s": 98.7,
+      "empty_count": 0,
+      "refused_count": 0,
+      "empty_rate": 0.0,
+      "refused_rate": 0.0,
+      "walled": false,
+      "wall_indicator": null,
+      "sessions": [
+        {
+          "i": 0,
+          "started_at": "2026-05-26T11:55:26.517039+00:00",
+          "client_id": "85ff6bd2-89cb-4091-a470-eb2a9921394d",
+          "session_id": "00ae6b6c068bed7d",
+          "status": 200,
+          "elapsed_ms": 730.6,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 1,
+          "started_at": "2026-05-26T11:55:28.517254+00:00",
+          "client_id": "a456af18-c48b-4f01-a5a4-a6063ce1dbe9",
+          "session_id": "2db1088426c23111",
+          "status": 200,
+          "elapsed_ms": 742.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 2,
+          "started_at": "2026-05-26T11:55:30.517404+00:00",
+          "client_id": "96102ebd-ab20-46a8-b71e-933746773fbd",
+          "session_id": "5eb0cfa5d025a48a",
+          "status": 200,
+          "elapsed_ms": 763.4,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 3,
+          "started_at": "2026-05-26T11:55:32.517539+00:00",
+          "client_id": "40d8413c-422c-4829-9c9a-7363fe706f76",
+          "session_id": "455e6e80d481530f",
+          "status": 200,
+          "elapsed_ms": 780.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 4,
+          "started_at": "2026-05-26T11:55:34.517694+00:00",
+          "client_id": "e3ed29e0-6067-4f3f-8cf1-072054853c01",
+          "session_id": "1b3a01cc1540d414",
+          "status": 200,
+          "elapsed_ms": 755.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 5,
+          "started_at": "2026-05-26T11:55:36.517810+00:00",
+          "client_id": "a2c2e7b7-0f58-40a1-90c3-5fa3e2013a0d",
+          "session_id": "53ee60a09cdd9b6f",
+          "status": 200,
+          "elapsed_ms": 716.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 6,
+          "started_at": "2026-05-26T11:55:38.517960+00:00",
+          "client_id": "b8761154-c2bd-47f4-ac82-bba3a1c1a820",
+          "session_id": "5bf625a31f712dce",
+          "status": 200,
+          "elapsed_ms": 827.9,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 7,
+          "started_at": "2026-05-26T11:55:40.518112+00:00",
+          "client_id": "40573655-e434-4eca-93a3-b7bfcf92ca53",
+          "session_id": "340703c9e118747a",
+          "status": 200,
+          "elapsed_ms": 722.7,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 8,
+          "started_at": "2026-05-26T11:55:42.518233+00:00",
+          "client_id": "5e9f13a5-0ed8-444c-883a-f4be59e56015",
+          "session_id": "64bf1e82188ff099",
+          "status": 200,
+          "elapsed_ms": 791.2,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 9,
+          "started_at": "2026-05-26T11:55:44.518383+00:00",
+          "client_id": "40689369-7489-4eee-8cc1-ff7259839bf6",
+          "session_id": "18d6f15801d2a295",
+          "status": 200,
+          "elapsed_ms": 679.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 10,
+          "started_at": "2026-05-26T11:55:46.518527+00:00",
+          "client_id": "3f9ad8b6-e512-4f69-9abf-c67e07dc4598",
+          "session_id": "362ccc59df0d3e2e",
+          "status": 200,
+          "elapsed_ms": 772.4,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 11,
+          "started_at": "2026-05-26T11:55:48.518704+00:00",
+          "client_id": "b1977946-ceae-407d-9334-7f96ff791f3b",
+          "session_id": "9003683e57dbff1a",
+          "status": 200,
+          "elapsed_ms": 971.6,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 12,
+          "started_at": "2026-05-26T11:55:50.518828+00:00",
+          "client_id": "071df007-b67b-47d1-a10b-e57bd1d12e74",
+          "session_id": "e0866c689c3e0fea",
+          "status": 200,
+          "elapsed_ms": 767.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 13,
+          "started_at": "2026-05-26T11:55:52.518954+00:00",
+          "client_id": "f083178a-9089-462a-a048-e594d7bcb87e",
+          "session_id": "126508ed598ce69b",
+          "status": 200,
+          "elapsed_ms": 690.5,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 14,
+          "started_at": "2026-05-26T11:55:54.521249+00:00",
+          "client_id": "85b59d3e-3d01-4c1b-9597-e55f49445248",
+          "session_id": "5965b809217bbac9",
+          "status": 200,
+          "elapsed_ms": 773.8,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 15,
+          "started_at": "2026-05-26T11:55:56.521413+00:00",
+          "client_id": "0fa64889-35a1-406b-9364-561e767f779d",
+          "session_id": "b0a191fbc6055f7c",
+          "status": 200,
+          "elapsed_ms": 798.2,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 16,
+          "started_at": "2026-05-26T11:55:58.521553+00:00",
+          "client_id": "047599a9-334c-4cb7-b871-5d8a82db314c",
+          "session_id": "aba13edac4d52a85",
+          "status": 200,
+          "elapsed_ms": 767.6,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 17,
+          "started_at": "2026-05-26T11:56:00.522201+00:00",
+          "client_id": "00244353-61d9-47b1-82f8-54e8b7a167a2",
+          "session_id": "a1eefa9934f00f23",
+          "status": 200,
+          "elapsed_ms": 825.8,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 18,
+          "started_at": "2026-05-26T11:56:02.522269+00:00",
+          "client_id": "660b9cb7-4734-4a5c-a350-563e5e639a33",
+          "session_id": "fa9d6c9f00870d88",
+          "status": 200,
+          "elapsed_ms": 702.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 19,
+          "started_at": "2026-05-26T11:56:04.522436+00:00",
+          "client_id": "565deff3-a179-4577-92ad-55f7b66fb74f",
+          "session_id": "405971191dcd9dc6",
+          "status": 200,
+          "elapsed_ms": 905.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 20,
+          "started_at": "2026-05-26T11:56:06.522553+00:00",
+          "client_id": "8fe0aa7a-25e8-454d-a19e-c636969d135c",
+          "session_id": "dd5592b4dd7e9d67",
+          "status": 200,
+          "elapsed_ms": 754.3,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 21,
+          "started_at": "2026-05-26T11:56:08.522706+00:00",
+          "client_id": "ceeb7e58-b8eb-48bc-86c5-813850726fc1",
+          "session_id": "da15c75a3e82c758",
+          "status": 200,
+          "elapsed_ms": 684.5,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 22,
+          "started_at": "2026-05-26T11:56:10.522844+00:00",
+          "client_id": "5604febd-4ddf-4a2d-9d30-6ddef6a8a2fd",
+          "session_id": "d11039a4543b57aa",
+          "status": 200,
+          "elapsed_ms": 714.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 23,
+          "started_at": "2026-05-26T11:56:12.523021+00:00",
+          "client_id": "0689f474-628b-4074-b79c-5023b9fae0ec",
+          "session_id": "b9e7c18844173cce",
+          "status": 200,
+          "elapsed_ms": 712.3,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 24,
+          "started_at": "2026-05-26T11:56:14.523152+00:00",
+          "client_id": "d004ad82-9ca5-4f74-ab1a-d0db5f655d2b",
+          "session_id": "b5d6b95927d76509",
+          "status": 200,
+          "elapsed_ms": 711.9,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 25,
+          "started_at": "2026-05-26T11:56:16.523300+00:00",
+          "client_id": "48427337-8995-43e7-814f-123c8bfaba51",
+          "session_id": "c893765150bc0182",
+          "status": 200,
+          "elapsed_ms": 838.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 26,
+          "started_at": "2026-05-26T11:56:18.523419+00:00",
+          "client_id": "ca602369-1ae3-4484-86fc-f76d2bd48640",
+          "session_id": "22ab89cc74e907a6",
+          "status": 200,
+          "elapsed_ms": 698.3,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 27,
+          "started_at": "2026-05-26T11:56:20.523547+00:00",
+          "client_id": "0a0af209-eba8-49fa-a718-1a807f06667d",
+          "session_id": "036ffbeef87fe429",
+          "status": 200,
+          "elapsed_ms": 795.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 28,
+          "started_at": "2026-05-26T11:56:22.523685+00:00",
+          "client_id": "889200aa-e6a0-43c8-a093-f0a8665ddadd",
+          "session_id": "d00840a9962bb164",
+          "status": 200,
+          "elapsed_ms": 1057.8,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 29,
+          "started_at": "2026-05-26T11:56:24.524062+00:00",
+          "client_id": "699b19aa-74ef-4f34-8387-26c350386c9b",
+          "session_id": "4a4a7128561ba83c",
+          "status": 200,
+          "elapsed_ms": 855.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 30,
+          "started_at": "2026-05-26T11:56:26.524126+00:00",
+          "client_id": "c2fcecb9-2219-4eba-a660-b150c0dfd05b",
+          "session_id": "88eaea3664b27237",
+          "status": 200,
+          "elapsed_ms": 728.2,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 31,
+          "started_at": "2026-05-26T11:56:28.524247+00:00",
+          "client_id": "8d5ddc85-be6c-446e-b76c-574b21d52bcd",
+          "session_id": "0bd0052cfcc348b2",
+          "status": 200,
+          "elapsed_ms": 793.5,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 32,
+          "started_at": "2026-05-26T11:56:30.524388+00:00",
+          "client_id": "0a515c8e-fc72-4322-af0c-543066f9eaa1",
+          "session_id": "be5e669a3d511f3b",
+          "status": 200,
+          "elapsed_ms": 797.3,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 33,
+          "started_at": "2026-05-26T11:56:32.524593+00:00",
+          "client_id": "c84cce12-f228-4c4e-8602-18ff0b42153e",
+          "session_id": "7ef14a5478bc7f4d",
+          "status": 200,
+          "elapsed_ms": 787.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 34,
+          "started_at": "2026-05-26T11:56:34.524738+00:00",
+          "client_id": "1c49407a-4810-4dda-9923-a7a52379feeb",
+          "session_id": "1b22ade813676f34",
+          "status": 200,
+          "elapsed_ms": 858.9,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 35,
+          "started_at": "2026-05-26T11:56:36.524831+00:00",
+          "client_id": "0f885125-0229-4302-b0e0-ee51a1782c91",
+          "session_id": "9da88cc8975fd386",
+          "status": 200,
+          "elapsed_ms": 808.5,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 36,
+          "started_at": "2026-05-26T11:56:38.525008+00:00",
+          "client_id": "ea3651df-df11-4418-8ff2-b3baf5b0a1e6",
+          "session_id": "50b535935a28f155",
+          "status": 200,
+          "elapsed_ms": 777.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 37,
+          "started_at": "2026-05-26T11:56:40.525098+00:00",
+          "client_id": "ff672ca3-1441-4cd6-acb9-66e0e1b6447c",
+          "session_id": "1241cb30f3d4a2de",
+          "status": 200,
+          "elapsed_ms": 741.7,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 38,
+          "started_at": "2026-05-26T11:56:42.525239+00:00",
+          "client_id": "f15010ce-e193-431f-bf74-e909381bd844",
+          "session_id": "9642230ce799c4dc",
+          "status": 200,
+          "elapsed_ms": 776.9,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 39,
+          "started_at": "2026-05-26T11:56:44.525386+00:00",
+          "client_id": "ba112e65-f3fa-4869-aa32-01a3f0e02bd9",
+          "session_id": "e017b62d3ce2858e",
+          "status": 200,
+          "elapsed_ms": 678.9,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 40,
+          "started_at": "2026-05-26T11:56:46.525529+00:00",
+          "client_id": "a4537d3e-0711-45c1-8a87-2d1b24c038e4",
+          "session_id": "7ff74dc8671f11b8",
+          "status": 200,
+          "elapsed_ms": 719.9,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 41,
+          "started_at": "2026-05-26T11:56:48.525664+00:00",
+          "client_id": "c8055473-2dc1-4abf-8cc6-6872d7cdee31",
+          "session_id": "6b70f619f16dc45e",
+          "status": 200,
+          "elapsed_ms": 742.8,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 42,
+          "started_at": "2026-05-26T11:56:50.525796+00:00",
+          "client_id": "b28e89ef-3f89-42e4-8bbf-05798ec28ce6",
+          "session_id": "327a3c844c366c99",
+          "status": 200,
+          "elapsed_ms": 872.8,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 43,
+          "started_at": "2026-05-26T11:56:52.525942+00:00",
+          "client_id": "97cb9604-37ef-468c-9334-90215c897fb0",
+          "session_id": "f82b638a7e7d0889",
+          "status": 200,
+          "elapsed_ms": 718.8,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 44,
+          "started_at": "2026-05-26T11:56:54.526067+00:00",
+          "client_id": "d58a8afb-9fe7-4124-8b01-f3da3cca4e78",
+          "session_id": "97b03df12a389f41",
+          "status": 200,
+          "elapsed_ms": 760.5,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 45,
+          "started_at": "2026-05-26T11:56:56.526213+00:00",
+          "client_id": "b1b27348-c4a2-4ae7-9362-595fef1a5a32",
+          "session_id": "67e53c67f9e2f5be",
+          "status": 200,
+          "elapsed_ms": 805.1,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 46,
+          "started_at": "2026-05-26T11:56:58.526385+00:00",
+          "client_id": "7a0b4630-e163-4622-8c06-c81b09c0c08b",
+          "session_id": "1110d3ec671e7a07",
+          "status": 200,
+          "elapsed_ms": 786.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 47,
+          "started_at": "2026-05-26T11:57:00.526650+00:00",
+          "client_id": "53d6a458-8046-4a1f-bd0c-2824c4b0c7e3",
+          "session_id": "e22573ac25c9c714",
+          "status": 200,
+          "elapsed_ms": 769.0,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 48,
+          "started_at": "2026-05-26T11:57:02.526731+00:00",
+          "client_id": "641c004d-bb1f-49b9-8f7f-6f1086427e32",
+          "session_id": "b8b6a9c777de3594",
+          "status": 200,
+          "elapsed_ms": 762.5,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        },
+        {
+          "i": 49,
+          "started_at": "2026-05-26T11:57:04.526877+00:00",
+          "client_id": "6e588dfc-4984-485d-b49d-1d3be6632a69",
+          "session_id": "16327a366cf1dc82",
+          "status": 200,
+          "elapsed_ms": 727.3,
+          "body_len": 13986,
+          "body_excerpt": "{\"id\":665,\"active\":true,\"activationInfo\":null,\"userId\":null,\"ownerSubscriptionInfo\":null,\"relationship\":\"OWNED\",\"sharing"
+        }
+      ]
+    }
+  ],
+  "walled_count": 0,
+  "not_walled_count": 3,
+  "lift": "3/3",
+  "passes_ac": true,
+  "finished_at": "2026-05-26T11:57:05.255125+00:00"
+}
