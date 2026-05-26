@@ -1,6 +1,6 @@
 # BEAAA-758 bias-pack v0.2 calibration delta (vs v0.1)
 
-Rendered 2026-05-25T19:11:14+00:00
+Rendered 2026-05-26T00:11:22+00:00
 
 ## Per-fixture delta (CTO standing-table format)
 
@@ -8,7 +8,7 @@ Rendered 2026-05-25T19:11:14+00:00
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | G1 | 2 | 0.0 | 0.5208 | 1.4583 | 0.0 | 0 | 0.0 |
 | G2 | None | None | None | None | None | 0 | None |
-| G3 | None | None | None | None | None | 0 | None |
+| G3 | 0 | 0.0 | -1.0417 | 1.6667 | 0.0 | 0 | 0.0 |
 | M3 | None | None | None | None | None | 0 | None |
 | B3 | 2 | 0.0 | 1.0417 | 0.8333 | 0.0 | 0 | 0.0 |
 

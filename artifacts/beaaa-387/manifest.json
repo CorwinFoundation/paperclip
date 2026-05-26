@@ -184,6 +184,14 @@
       "vendor": "openai_direct"
     },
     "G3": {
+      "_bias_pack_v0_2_rebaseline": {
+        "delta_total": 0,
+        "n_seeds": 5,
+        "prior_are_total": 73,
+        "prior_corpus_version": "path_a_v2_1@2026-05-15",
+        "rebaselined_at": "2026-05-25T23:34:50+00:00",
+        "source_ticket": "BEAAA-758"
+      },
       "admittance_class_at_baseline": "CONSTRAINED_BIND",
       "admittance_dial_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
       "admittance_dial_rule_fired": "ADM.R7",
@@ -194,7 +202,8 @@
       "are_total": 73,
       "band_display": "B-",
       "baseline_persisted": true,
-      "corpus_version": "path_a_v2_1@2026-05-15",
+      "bias_pack_version": "bias-pack-v0.1",
+      "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
       "coverage_caveat_at_baseline": {
         "code": "coverage_caveat",
         "detail": {
@@ -233,9 +242,9 @@
       ],
       "fixture_id": "G3",
       "lock_source": "live_path_a",
-      "locked_at": "2026-05-19T00:00:00+00:00",
+      "locked_at": "2026-05-25T23:34:50+00:00",
       "rubric_version": "1.0.0",
-      "scanner_version": "0.3.0",
+      "scanner_version": "0.3.1",
       "seed": 42,
       "slot": "known_good",
       "source_issue": "BEAAA-419",
