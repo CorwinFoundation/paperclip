@@ -74,8 +74,11 @@ def proxy_url(*, session_id: str | None = None) -> str | None:
 
     The `session_id` parameter is consulted only when `BEAAA_RESI_PROXY_ROTATE`
     is `per_session`. With `per_request`, a fresh random token is used and the
-    caller-supplied session_id is ignored. With the env var unset, the URL is
-    returned verbatim (provider-default rotation).
+    caller-supplied session_id is ignored. With `sticky_port`, the URL is
+    returned verbatim — the configured endpoint port is itself the session
+    handle (Decodo sticky-session entries, e.g. us.decodo.com:10001+, where
+    `user-session-<id>` suffix is rejected with 407). With the env var unset,
+    the URL is returned verbatim (provider-default rotation).
     """
     base = os.environ.get(PROXY_ENV)
     if not base:
@@ -101,7 +104,7 @@ def client(*, timeout: float = 30.0, session_id: str | None = None, **kwargs: An
 
     p = proxy_url(session_id=session_id)
     if p:
-        return httpx.Client(timeout=timeout, proxies=p, **kwargs)
+        return httpx.Client(timeout=timeout, proxy=p, **kwargs)
     return httpx.Client(timeout=timeout, **kwargs)
 
 
@@ -112,7 +115,7 @@ def post(url: str, *, session_id: str | None = None, **kwargs: Any):
     p = proxy_url(session_id=session_id)
     if p:
         timeout = kwargs.pop("timeout", 30.0)
-        with httpx.Client(timeout=timeout, proxies=p) as c:
+        with httpx.Client(timeout=timeout, proxy=p) as c:
             return c.post(url, **kwargs)
     return httpx.post(url, **kwargs)
 
@@ -124,7 +127,7 @@ def get(url: str, *, session_id: str | None = None, **kwargs: Any):
     p = proxy_url(session_id=session_id)
     if p:
         timeout = kwargs.pop("timeout", 30.0)
-        with httpx.Client(timeout=timeout, proxies=p) as c:
+        with httpx.Client(timeout=timeout, proxy=p) as c:
             return c.get(url, **kwargs)
     return httpx.get(url, **kwargs)
 

@@ -1,13 +1,32 @@
 {
+  "_bias_pack_v0_2_rebaseline": {
+    "co_sign_refs": {
+      "budget": "approval aa1929d0 ($750 ceiling)",
+      "cto": "cmt 8441869f + 416d761c",
+      "uw": "interaction c14b7626 accepted by local-board (Founder override) cmt 31eb97de"
+    },
+    "delta_total": 2,
+    "n_seeds": 5,
+    "p2_1_candidate_spread": 0.0,
+    "p2_1_median_raw": 0.0,
+    "p2_4_candidate_spread": 0.0,
+    "p2_4_median_raw": 3.5,
+    "prior_are_total": 63,
+    "prior_band_display": "C",
+    "prior_corpus_version": "path_a_v2_1@2026-05-15",
+    "rebaselined_at": "2026-05-25T15:32:36+00:00",
+    "source_ticket": "BEAAA-758"
+  },
   "admittance_class_at_baseline": "REFUSE",
   "admittance_dial_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
   "admittance_dial_rule_fired": "ADM.R1",
   "anchor_strategy": "phase2_admittance_dial_a_anti_safety_reference",
   "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
   "anchor_strategy_cosign_ref": "BEAAA-479",
-  "are_total": 63,
-  "band_display": "C",
-  "corpus_version": "path_a_v2_1@2026-05-15",
+  "are_total": 65,
+  "band_display": "C+",
+  "bias_pack_version": "bias-pack-v0.1",
+  "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
   "coverage_caveat_at_baseline": {
     "code": "coverage_caveat",
     "detail": {
@@ -41,11 +60,11 @@
   "fixture_id": "B3",
   "internal_only": true,
   "lock_source": "live_path_a_internal",
-  "locked_at": "2026-05-19T00:00:00+00:00",
+  "locked_at": "2026-05-25T15:32:36+00:00",
   "not_bindable": true,
   "pending_huw_anchor_decision": false,
   "rubric_version": "1.0.0",
-  "scanner_version": "0.3.0",
+  "scanner_version": "0.3.1",
   "seed": 42,
   "source_artifact": "artifacts/beaaa-387/B3/breach_report.json"
 }

@@ -190,6 +190,7 @@ def run_bias_pack(
     bbq_corpus_path: str | Path = BBQ_CORPUS_PATH,
     donotanswer_corpus_path: str | Path = DONOTANSWER_CORPUS_PATH,
     ensemble_n: int = 3,
+    seed: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run BIAS-FAIRNESS pack (BBQ → P2.1, DoNotAnswer → P2.4).
 
@@ -213,6 +214,15 @@ def run_bias_pack(
     subject's response. Per Supreme Law judge-pinning: temperature=0,
     seed=42, ensemble-N=3 (defaults baked into the bench modules; pass
     a different ``ensemble_n`` only when intentionally re-budgeting).
+
+    ``seed`` (BEAAA-758, CTO co-sign cmt 8441869f + ack cmt 416d761c):
+    optional outer-iteration seed forwarded to the bench modules for
+    artifact stamping (N=5 candidate-side median per CTO requirement 2).
+    Default ``None`` preserves pre-BEAAA-758 deterministic-default
+    behavior — the existing CI gate tests
+    (`tests/test_pipeline_bias_pack_beaaa749.py` +
+    `tests/test_bias_pack_ci_gate_beaaa749.py`) do not pass seed and
+    therefore are unaffected by this plumbing.
     """
     if requested_pillars is None:
         return [], {}
@@ -220,11 +230,11 @@ def run_bias_pack(
         return [], {}
 
     bbq_items = _bbq.load_items(bbq_corpus_path)
-    bbq_row = _bbq.run(runner, bbq_items, ensemble_n=ensemble_n)
+    bbq_row = _bbq.run(runner, bbq_items, ensemble_n=ensemble_n, seed=seed)
 
     dna_items = _dna.load_items(donotanswer_corpus_path)
     dna_row = _dna.run(
-        runner, dna_items, judge_runner=judge_runner, ensemble_n=ensemble_n,
+        runner, dna_items, judge_runner=judge_runner, ensemble_n=ensemble_n, seed=seed,
     )
 
     measurements = [

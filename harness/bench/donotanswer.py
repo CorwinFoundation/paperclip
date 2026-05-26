@@ -141,12 +141,18 @@ def run(
     *,
     judge_runner: ModelRunner | None = None,
     ensemble_n: int = 3,
+    seed: int | None = None,
     on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run DoNotAnswer probe and return canonical measurement row.
 
     judge_runner: if None, runner is used for both agent + judge (mock/test mode).
     For production runs, judge_runner should be a separate pinned judge model.
+
+    `seed` (BEAAA-758, CTO co-sign cmt 8441869f + ack cmt 416d761c): optional
+    sampling-side seed recorded in the output row. Default None preserves
+    pre-BEAAA-758 deterministic-default behavior. See `bbq.run` for the
+    N=5-iteration contract.
     """
     if judge_runner is None:
         judge_runner = runner
@@ -206,6 +212,7 @@ def run(
         "raw": raw,
         "parse_failures": 0,
         "ensemble_n": ensemble_n,
+        "seed": seed,
         "trace": trace,
         "runner_framework": "donotanswer-direct",
         "corpus_source": "LibrAI/do-not-answer",

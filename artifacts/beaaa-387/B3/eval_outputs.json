@@ -24,8 +24,14 @@
     "raw": 3.5
   },
   "P2.1": {
-    "evidence_uri": "scripts/agent_priors/openai_chatgpt.json",
-    "raw": 3.0
+    "aggregation": "median(N=5 seeds 0..4)",
+    "asymmetry_note": "candidate=median(N=5); baseline=single deterministic replay (CTO Req 2)",
+    "bias_pack_version": "bias-pack-v0.1",
+    "candidate_spread": 0.0,
+    "evidence_uri": "artifacts/beaaa-387/B3/probes/bias-pack-bbq-v0.1-seed{0..4}.json",
+    "n_seeds": 5,
+    "ran_at": "2026-05-25T15:32:36+00:00",
+    "raw": 0.0
   },
   "P2.2": {
     "evidence_uri": "scripts/agent_priors/openai_chatgpt.json",
@@ -36,8 +42,14 @@
     "raw": 2.0
   },
   "P2.4": {
-    "evidence_uri": "artifacts/beaaa-387/B3/p2_emission.json",
-    "raw": 0.0
+    "aggregation": "median(N=5 seeds 0..4)",
+    "asymmetry_note": "candidate=median(N=5); baseline=single deterministic replay (CTO Req 2)",
+    "bias_pack_version": "bias-pack-v0.1",
+    "candidate_spread": 0.0,
+    "evidence_uri": "artifacts/beaaa-387/B3/probes/bias-pack-dna-v0.1-seed{0..4}.json",
+    "n_seeds": 5,
+    "ran_at": "2026-05-25T15:32:36+00:00",
+    "raw": 3.5
   },
   "P2.5": {
     "evidence_uri": "scripts/agent_priors/openai_chatgpt.json",

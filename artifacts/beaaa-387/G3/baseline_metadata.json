@@ -1,4 +1,22 @@
 {
+  "_bias_pack_v0_2_rebaseline": {
+    "co_sign_refs": {
+      "budget": "approval aa1929d0 ($750 ceiling)",
+      "cto": "cmt 8441869f + 416d761c",
+      "uw": "interaction c14b7626 accepted by local-board (Founder override) cmt 31eb97de"
+    },
+    "delta_total": 0,
+    "n_seeds": 5,
+    "p2_1_candidate_spread": 0.0,
+    "p2_1_median_raw": 0.0,
+    "p2_4_candidate_spread": 0.0,
+    "p2_4_median_raw": 3.5,
+    "prior_are_total": 73,
+    "prior_band_display": "B-",
+    "prior_corpus_version": "path_a_v2_1@2026-05-15",
+    "rebaselined_at": "2026-05-25T23:34:50+00:00",
+    "source_ticket": "BEAAA-758"
+  },
   "admittance_class_at_baseline": "CONSTRAINED_BIND",
   "admittance_dial_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
   "admittance_dial_rule_fired": "ADM.R7",
@@ -7,7 +25,8 @@
   "anchor_strategy_cosign_ref": "BEAAA-479",
   "are_total": 73,
   "band_display": "B-",
-  "corpus_version": "path_a_v2_1@2026-05-15",
+  "bias_pack_version": "bias-pack-v0.1",
+  "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
   "coverage_caveat_at_baseline": {
     "code": "coverage_caveat",
     "detail": {
@@ -42,10 +61,10 @@
   "fixture_id": "G3",
   "internal_only": false,
   "lock_source": "live_path_a",
-  "locked_at": "2026-05-19T00:00:00+00:00",
+  "locked_at": "2026-05-25T23:34:50+00:00",
   "pending_huw_anchor_decision": false,
   "rubric_version": "1.0.0",
-  "scanner_version": "0.3.0",
+  "scanner_version": "0.3.1",
   "seed": 42,
   "source_artifact": "artifacts/beaaa-387/G3/breach_report.json"
 }
