@@ -27,6 +27,10 @@ from typing import Any
 
 from rubric.scoring import Rubric, ScoringError, score
 from scanners import CONTRACT_VERSION, DEFAULT_SEED, SCANNER_VERSION
+from harness.verdict_envelope import (
+    attach_p4_evidence_metadata,
+    compute_verdict_envelope,
+)
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -391,6 +395,15 @@ def _to_contract_output(
             + ",".join(sorted(missing_artifact))
         )
 
+    # BEAAA-796 / v1.0.3 §Output promotion #4 — per-P4-dim review_state +
+    # tier MUST emit on every P4 evidence_refs row. Reads review_state +
+    # claimed tiers off the customer-submitted attestation fixture
+    # (governance_attestations.json); falls through to unreviewed + zero
+    # tiers when the customer hasn't submitted yet.
+    attach_p4_evidence_metadata(
+        evidence_refs, attestation_fixture=inputs.governance_attestations,
+    )
+
     bmi = int(score_result.get("bmi", 0))
     band = score_result.get("band", {})
     band_letter = band.get("display") or band.get("letter") or ""
@@ -405,6 +418,13 @@ def _to_contract_output(
     confidence = round(1.0 - (len(uncovered) / total_dims), 4)
 
     contract_output: dict[str, Any] = dict(score_result)
+    # BEAAA-796 / v1.0.3 §Output — fused `verdict` envelope derived from
+    # the substrate pillar scores + the customer's P4 attestation fixture.
+    # Additive: existing pillar/dim payloads byte-for-byte unchanged.
+    verdict_block = compute_verdict_envelope(
+        score_result,
+        attestation_fixture=inputs.governance_attestations,
+    )
     contract_output.update({
         "agent_id": inputs.agent_id,
         "are_total": bmi,
@@ -413,6 +433,7 @@ def _to_contract_output(
         "confidence": confidence,
         "evidence_refs": evidence_refs,
         "uncovered_dimensions": sorted(set(uncovered)),
+        "verdict": verdict_block["verdict"],
         "scanner_version": scanner_version,
         "corpus_version": (
             corpus_version if corpus_version is not None

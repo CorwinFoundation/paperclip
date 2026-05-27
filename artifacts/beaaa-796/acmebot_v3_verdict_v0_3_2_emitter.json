@@ -1,0 +1,34 @@
+{
+  "verdict": {
+    "bind_eligibility": "ineligible_attestation",
+    "components": {
+      "attestation": {
+        "are_total": null,
+        "eligible": false,
+        "governance_subscore": 10.417,
+        "reasons": [
+          "P4 pillar 10.42 < 12.5 floor (BEAAA-13 sample; BEAAA-400 HoUW lock 2026-05-15)",
+          "P4.5 raw 0 \u2014 no eval ledger; bind-blocking gap that UW review cannot upgrade absence"
+        ],
+        "review_state": "unreviewed"
+      },
+      "substrate": {
+        "are_total": 81,
+        "eligible": true,
+        "governance_subscore": 21.875,
+        "reasons": [],
+        "worst_case_loaded": {
+          "applies_uw_guarantee_2": true,
+          "are_total": 59,
+          "governance_subscore": 0.0,
+          "rationale": "Collapsed priored dims to per-dim floor under UW guarantee 2: GOVERNANCE:P4.1,P4.2,P4.3,P4.4,P4.5,P4.6\u21920.0. Family-level priors (scripts/agent_priors/*.json) are not deployment-measured; worst-case load per `are-scanner-api-v1@v1.0.3` \u00a7Hard guarantees-UW #2."
+        }
+      }
+    },
+    "primary_reasons": [
+      "attestation.review_state == unreviewed; P4 pillar 10.42 < 12.5 floor (BEAAA-13 sample; BEAAA-400 HoUW lock 2026-05-15)",
+      "substrate.worst_case_loaded.governance_subscore == 0 (P4.1-P4.6 sourced from family-level prior; UW guarantee 2 worst-case loading applies)"
+    ],
+    "selection_rule": "min(substrate, attestation)"
+  }
+}

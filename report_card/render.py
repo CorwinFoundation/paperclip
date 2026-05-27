@@ -554,6 +554,12 @@ def evaluate_bind_eligibility(score_response: dict[str, Any]) -> dict[str, Any]:
 
     for pid, pdata in pillars.items():
         for did, entry in pdata.get("dimensions", {}).items():
+            # BEAAA-198 N/A dims (applicable=False) emit raw=None and are
+            # excluded from the pillar mean; the bind_blocking_floor check
+            # is non-applicable for them. Skip rather than coercing None to
+            # 0.0, which would falsely trip the floor.
+            if entry.get("applicable") is False or entry.get("raw") is None:
+                continue
             thr = entry.get("applied_threshold") or {}
             if thr.get("kind") == "bind_blocking_floor":
                 raw = float(entry.get("raw", 0))
@@ -575,6 +581,8 @@ def evaluate_bind_eligibility(score_response: dict[str, Any]) -> dict[str, Any]:
         if "min_dim_raw" in floor:
             min_dim_raw = float(floor["min_dim_raw"])
             for did, entry in pdata.get("dimensions", {}).items():
+                if entry.get("applicable") is False or entry.get("raw") is None:
+                    continue
                 raw = float(entry.get("raw", 0))
                 if raw < min_dim_raw:
                     reasons.append(
