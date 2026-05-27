@@ -14,19 +14,19 @@ self_audit_passed: true
 escalations_noted:
   - "Output shape ADDED (verdict envelope + four MUST-emit promotions). Surface check 8/8: shape change but additive — existing pillar/dim payloads byte-for-byte unchanged; field meanings unchanged; scoring math unchanged (verdict computed from pillar scores + attestation, no rubric points added/removed/reweighted); judge models unchanged; pillar weights unchanged (25/25/25/25); tamper-resistance preserved (verdict is derived not new-input); ADR attached on BEAAA-767; N=5 calibration Δ expected 0 (verdict block is post-aggregation render of fields already in baseline.json + attestation fixture)."
   - "v1.0.x baseline + v1.0.2 patch + v1.0.3 patch (this) + v1.1.0 patch (BEAAA-547) compose without conflict — v1.0.3 touches §Output (verdict envelope) + §Hard guarantees-UW #2 cross-ref (worst_case_loaded.applies_uw_guarantee_2 made explicit), disjoint from v1.0.2 §Score-structure OPS-bullet-text and v1.1.0 §Input/§Output scan_mode/k_replicates/spread fields."
-  - "Implementation, N=5 calibration delta, ADR-0013, and AcmeBot v3 reference-packet byte-identical match are delegated to scanner-engineer child issue. Merge of the scanner v0.3.2 release gated on N=5 Δ=0 (expected) per Supreme Law ±1 band."
+  - "Implementation, N=5 calibration delta, ADR-0015 (slot bumped from 0013; 0013 + 0014 taken by bias-pack work BEAAA-749 + BEAAA-759), and AcmeBot v3 reference-packet byte-identical match are delegated to scanner-engineer child issue. Merge of the scanner v0.3.2 release gated on N=5 Δ=0 (expected) per Supreme Law ±1 band."
 ---
 
 # Contract patch — `are-scanner-api-v1.md` v1.0.2 → v1.0.3
 
-**Status:** approved for merge as design lock. Scanner v0.3.2 release gated on N=5 calibration + ADR-0013 landing (engineer child, separate ticket).
+**Status:** approved for merge as design lock. Scanner v0.3.2 release gated on N=5 calibration + ADR-0015 landing (engineer child, separate ticket; slot bumped from "ADR-0013" — 0013 + 0014 taken by BEAAA-749 / BEAAA-759 bias-pack work).
 **HoUW binding ruling:** [BEAAA-766](/BEAAA/issues/BEAAA-766) Q2 ruling 2026-05-25 (rule-change-class per `uw-rubric-supervision-v1@v1.0`).
 **UW conditional co-sign + named field gaps:** [BEAAA-765](/BEAAA/issues/BEAAA-765) (4 gaps folded into this single workstream).
 **CTO design lock:** [BEAAA-763 §3 + Appendix A](/BEAAA/issues/BEAAA-763) doc `66d0b303` rev `f6997607` (Bind-Grade Evidence Packet v0.2).
 **CEO acknowledgement:** [BEAAA-763 cmt f8505b4f](/BEAAA/issues/BEAAA-763#comment-f8505b4f-a91a-49eb-a2a4-46a354f2300a) (no pre-emption).
 **Founder gate:** NOT triggered (no pillar-weight change, no >3pt golden move, no tamper-resistance reduction, no policy-wording change). Per [BEAAA-754](/BEAAA/issues/BEAAA-754) scanner-first hold order: Phase 1 critical path landed ([BEAAA-749](/BEAAA/issues/BEAAA-749) + [BEAAA-758](/BEAAA/issues/BEAAA-758) + [BEAAA-752](/BEAAA/issues/BEAAA-752) all `done`) — this v1.0.3 patch ships post-Phase-1 per the original sequencing.
 **Change classification:** additive output schema change; presentation-only. Existing pillar / dim payloads byte-for-byte unchanged. Verdict envelope is computed from fields already produced by the v0.3.1 scoring pipeline; no rubric points added/removed, no scoring-math change, no judge-model change.
-**Rollback:** Tier 1, ≤2 min. Drop the `verdict` block + the four MUST-emit field promotions from the live `ScoreResponse` emitter; the existing v0.3.1-shape response is byte-identical for the non-verdict surface. No data migration. Existing bound policies under v1.0.2 unaffected. Per ADR-0013 §Rollback.
+**Rollback:** Tier 1, ≤2 min. Drop the `verdict` block + the four MUST-emit field promotions from the live `ScoreResponse` emitter; the existing v0.3.1-shape response is byte-identical for the non-verdict surface. No data migration. Existing bound policies under v1.0.2 unaffected. Per ADR-0015 §Rollback (slot bumped from "ADR-0013" — 0013 + 0014 taken by bias-pack work).
 
 ---
 
@@ -117,7 +117,7 @@ This v1.0.3 patch is classified under "Rubric point added or removed (CTO + Unde
 - CEO acknowledgement: [BEAAA-763 cmt f8505b4f](/BEAAA/issues/BEAAA-763#comment-f8505b4f-a91a-49eb-a2a4-46a354f2300a).
 - Founder gate: NOT triggered (per §front-matter `escalations_noted`).
 
-**Cleared to merge** the scanner v0.3.1 → v0.3.2 release once implementation + N=5 delta (Δ = 0 expected) + ADR-0013 + AcmeBot v3 reference-packet byte-identical match land. Implementation is delegated to scanner-engineer (Phase 1 critical-path now `done`); CTO closes BEAAA-767 on merge.
+**Cleared to merge** the scanner v0.3.1 → v0.3.2 release once implementation + N=5 delta (Δ = 0 expected) + ADR-0015 (slot bumped from "ADR-0013" — 0013 + 0014 taken by BEAAA-749 / BEAAA-759 bias-pack work) + AcmeBot v3 reference-packet byte-identical match land. Implementation is delegated to scanner-engineer (Phase 1 critical-path now `done`); CTO closes BEAAA-767 on merge.
 
 ## §Customer-facing adapter rule (NEW sub-section to §Output)
 
@@ -174,7 +174,7 @@ Cross-team agent-instruction sync (other agents' instruction snapshots regenerat
 | Pillar weights | unchanged (25/25/25/25) |
 | Tamper resistance | unchanged (verdict is derived, no new tamper surface) |
 | Golden calibration | Δ_total = Δ_subscore = 0 expected; N=5 verification at-merge by scanner-engineer child against `2026-05-26-beaaa758-bias-pack-v0.2-rebaseline.md` baseline plus the AcmeBot v3 reference packet byte-identical match per BEAAA-767 acceptance criterion 6 |
-| ADR attached | ADR-0013 on BEAAA-767 (scanner-engineer child drafts; CTO signs as standing rule-change-class co-sign) |
+| ADR attached | ADR-0015 on BEAAA-767 (scanner-engineer child drafts; CTO signs as standing rule-change-class co-sign). Originally pointed at "ADR-0013" in this doc; slots 0013 + 0014 landed earlier under BEAAA-749 (bias-pack v0.1) + BEAAA-759 (bias-pack v0.3); ADR lands at the next free slot, 0015. |
 
 ## Approval gate row-by-row (no Founder gate, no HoUW countersign beyond the BEAAA-766 binding ruling already on record)
 
@@ -201,7 +201,7 @@ Per [BEAAA-766](/BEAAA/issues/BEAAA-766) ruling §forward-binding watchpoints, a
 
 - Parent: [BEAAA-748](/BEAAA/issues/BEAAA-748) — Phase 1 scanner critical path (done; meta-tracker closed 2026-05-25, operational ship landed 2026-05-27 with BEAAA-752 close).
 - This issue: [BEAAA-767](/BEAAA/issues/BEAAA-767) — contract patch v1.0.3 + scanner v0.3.2 workstream.
-- Engineer child: scanner-engineer ticket for emitter implementation + N=5 calibration + ADR-0013 + AcmeBot v3 reference-packet byte-identical match (filed under [BEAAA-767](/BEAAA/issues/BEAAA-767), CTO this heartbeat).
+- Engineer child: scanner-engineer ticket for emitter implementation + N=5 calibration + ADR-0015 + AcmeBot v3 reference-packet byte-identical match (filed under [BEAAA-767](/BEAAA/issues/BEAAA-767), CTO this heartbeat). Slot bumped from "ADR-0013" → ADR-0015 at merge; 0013 + 0014 both taken by bias-pack work (BEAAA-749, BEAAA-759).
 - Binding HoUW ruling: [BEAAA-766](/BEAAA/issues/BEAAA-766) §Q2 fused-vs-dual.
 - UW conditional co-sign + 4 named field gaps: [BEAAA-765](/BEAAA/issues/BEAAA-765).
 - CTO design lock: [BEAAA-763 §3 + Appendix A](/BEAAA/issues/BEAAA-763) doc `66d0b303` rev `f6997607`.
@@ -209,7 +209,7 @@ Per [BEAAA-766](/BEAAA/issues/BEAAA-766) ruling §forward-binding watchpoints, a
 - Founder scanner-first hold (cleared on Phase 1 ship): [BEAAA-754](/BEAAA/issues/BEAAA-754) (done).
 - Sibling complete v1.0.2 patch: `contracts/are-scanner-api-v1.0.2-patch.md` + [BEAAA-551](/BEAAA/issues/BEAAA-551).
 - Sibling complete v1.1.0 patch: `contracts/are-scanner-api-v1.md` + [BEAAA-547](/BEAAA/issues/BEAAA-547) (orthogonal).
-- ADR: ADR-0013 (draft on scanner-engineer child) — BLUF + rejected alternative (dual rendering, per HoUW [BEAAA-766](/BEAAA/issues/BEAAA-766)) + rollback (drop verdict envelope + four MUST-emit field promotions; no data migration).
+- ADR: `docs/adr/adr-0015-scanner-v0-3-2-verdict-envelope.md` (landed under scanner-engineer child BEAAA-796) — BLUF + rejected alternative (dual rendering, per HoUW [BEAAA-766](/BEAAA/issues/BEAAA-766)) + rollback (drop verdict envelope + four MUST-emit field promotions; no data migration). Slot bumped 0013 → 0015 at merge; both 0013 + 0014 taken by bias-pack work (BEAAA-749, BEAAA-759). CTO ack on BEAAA-796 comment `b3e18707`.
 
 ## Rollback
 
