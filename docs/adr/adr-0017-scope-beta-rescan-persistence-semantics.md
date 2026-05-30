@@ -4,8 +4,8 @@ title: Scope-β rescan persistence semantics — write-once forensic_bundle_uri 
 status: accepted
 author: CTO (88e68019-1cb6-4c4f-83e1-9fd340fb6821)
 originating_ticket: BEAAA-1000
-build_ticket: BEAAA-1255
-contract_version: are-scanner-api-v1@v1.1.0 → v1.2.0
+build_ticket: BEAAA-1255 (umbrella) — child WS tickets: BEAAA-1265 (WS1), BEAAA-1271 (WS2), BEAAA-1273 (WS3), BEAAA-1274 (WS4), BEAAA-1277 (WS5), BEAAA-1278 (WS6), BEAAA-1283 (WS7 ratification + merge). The ADR-0017 frontmatter previously listed BEAAA-1260 as a build ticket; that reference is stale and was corrected at WS7 close per CTO routing on BEAAA-1255 comment 1b62da66.
+contract_version: are-scanner-api-v1@v1.1.0 → v1.2.0 (merged at WS7 close on BEAAA-1283, 2026-05-30)
 cto_cosign_ref:
   - BEAAA-1243 HoUW binding co-sign (Head of UW & AI Risk, 2026-05-30)
   - BEAAA-1236 UW operational co-sign (Underwriter, 2026-05-30)
@@ -14,7 +14,7 @@ scanner_version_when_drafted: head at BEAAA-1260 kickoff (2026-05-30)
 date: 2026-05-30
 audience: Scanner Engineer (implementer), Underwriter (consumer), Claims Architect (consumer — audit-trail for §3 evidence collection), CTO (producer authority)
 classification: rule-change (new API surface fields + contract version bump to v1.2.0)
-self_audit_complete: yes (Scanner Engineer ratified 2026-05-30T12:28Z via BEAAA-1255 comment 6555f6d0)
+self_audit_complete: yes (Scanner Engineer ratified 2026-05-30T12:28Z via BEAAA-1255 comment 6555f6d0; re-affirmed at WS7 close on BEAAA-1283 with WS5 smoke verdict + WS6 N=5 calibration delta cited and Hard Invariants checklist all five rows green)
 carrier_rule: clean
 glossary: clean (ARE / IFA canonical; no BMI/ARI/BEAI in body)
 rollback_tier: 2 (drop prior_scan_refs[] from response schema; forensic_bundle_uri + snapshot_hash are write-once so rollback means stop writing them, not deleting existing records)
@@ -127,7 +127,10 @@ CTO + UW co-sign is the approval gate (per `are-scanner-api-v1.md §Approval gat
 
 ## 6. Rollback
 
-Tier 2. Stop writing `prior_scan_refs[]`, `forensic_bundle_uri`, `snapshot_hash` to new rescan responses (contract reverts to v1.1.0 rescan behavior). Existing committed bundles remain in cold storage; their URIs remain valid. No bundle deletion required.
+Tier 2. Two rollback paths landed at v1.2.0 cut on WS7 close (BEAAA-1283):
+
+1. **Path 1 — Feature-flag flip (≤10 min).** `ARE_RESCANS_MEASURED=off` reverts `POST /scanner/v1/rescans` to the legacy doc-only response shape immediately. v1.2.0 default is `on`; setting `off` requires no code change, no redeploy, and no contract revert. Existing committed forensic bundles and their hashes remain valid and queryable; the rollback only stops emitting new ones via this route.
+2. **Path 2 — Contract revert (≤30 min).** Stop writing `prior_scan_refs[]`, `prior_scan_refs_truncated`, `forensic_bundle_uri`, `snapshot_hash`, `partial_completion`, and `confidence_below_adjudication_threshold` to new rescan responses (contract reverts to v1.1.0 rescan behavior — which was doc-only). Existing committed bundles remain in cold storage; their URIs and hashes remain valid. **No bundle deletion required or permitted** (write-once at the Object Lock layer per §2.2 + §7 Q7a).
 
 ## 7. Open questions — RESOLVED (Scanner Engineer ratification 2026-05-30, BEAAA-1255 comment 6555f6d0)
 
@@ -137,18 +140,26 @@ S3-compatible bucket `ifa-forensic-bundles` with S3 Object Lock in **Compliance 
 **Q7b — `prior_scan_refs[]` pagination (resolved):**
 Cap N = 100 entries (ascending `run_timestamp`). If agent has >100 prior scans: trim oldest, include `prior_scan_refs_truncated: true` + `prior_scan_refs_history_uri: "/scanner/v1/scan-history/{agent_id}"` (stub returning 501 in v1.2.0; implemented in v1.3.0). Acceptance criterion: unit test with 101 synthetic records asserts array length = 100, `prior_scan_refs_truncated: true`, `prior_scan_refs_history_uri` present.
 
-**Q7c — Canonical-JSON serialization spec (resolved):**
-Standard: RFC 8785 JCS (JSON Canonicalization Scheme). Key ordering: Unicode code-point order (JCS §3.2.3). Null handling: `null` values serialized as `null`; absent keys absent (distinct cases). Float precision: JCS §3.2.2.3 (shortest round-trip; e.g. `0.87` not `0.8700`). Encoding: UTF-8, no BOM. Hash input: full canonical JSON of response body **excluding** `snapshot_hash` field itself. Algorithm: SHA-256, hex-encoded, prefixed `sha256:`. Fixture committed at `tests/fixtures/canonical_serialization/` at WS7 close:
-- Input: `{"seed": 42, "band": "moderate", "are_total": 72, "confidence": 0.87, "run_timestamp": "2026-05-30T12:00:00Z", "scanner_version": "0.3.0"}`
-- JCS canonical form: `{"are_total":72,"band":"moderate","confidence":0.87,"run_timestamp":"2026-05-30T12:00:00Z","scanner_version":"0.3.0","seed":42}`
-- SHA-256: to be committed alongside fixture; CI verifies on every run.
+**Q7c — Canonical-JSON serialization spec (resolved; fixture + SHA-256 committed at WS7 close, BEAAA-1283):**
+Standard: RFC 8785 JCS (JSON Canonicalization Scheme). Implementation: `api/jcs.py:canonicalize()`. Key ordering: UTF-16 code-unit sequence (JCS §3.2.3) — for the ASCII-identifier key space coincides with ASCII alphabetical. Null handling: `null` values serialized as `null`; absent keys absent (distinct cases). Float precision: JCS §3.2.2.3 (shortest round-trip; e.g. `0.87` not `0.8700`; integer-valued floats emit without `.0`; non-finite floats rejected). Encoding: UTF-8, no BOM; minimal-escape rule of JCS §3.2.2.5. Hash input: full canonical JSON of response body **excluding** `snapshot_hash` field itself. Algorithm: SHA-256, hex-encoded, prefixed `sha256:`. CI gate: `tests/test_canonical_serialization_beaaa1283.py` reads `tests/fixtures/canonical_serialization/{name}.input.json`, canonicalizes via `api/jcs.py`, asserts byte-exact match against `{name}.canonical.txt` and SHA-256 match against `{name}.expected-sha256`.
+
+Pinned fixtures:
+- `adr0017_q7c_minimal` (the exact fixture authored in this ADR):
+  - Input: `{"seed": 42, "band": "moderate", "are_total": 72, "confidence": 0.87, "run_timestamp": "2026-05-30T12:00:00Z", "scanner_version": "0.3.0"}`
+  - JCS canonical form: `{"are_total":72,"band":"moderate","confidence":0.87,"run_timestamp":"2026-05-30T12:00:00Z","scanner_version":"0.3.0","seed":42}`
+  - SHA-256: `sha256:987a86abffcd01c701d90c12a46b8fc4009ae01c2322284b33d5be1145e44e4e`
+- `ws7_stress` (stress fixture per BEAAA-1283 Scope #1: nested object with unsorted keys, present-`null` vs. absent key, escapable strings, UTF-8 non-ASCII, normalized floats):
+  - SHA-256: `sha256:95920a37f7e020610257c0e26eea30db91809e70ad0652f1289de633ac146f51`
+
+Drift in implementation, fixture, or algorithm invalidates the persisted `snapshot_hash` chain; regeneration is itself a contract bump per §2.3.
 
 ## 8. Co-sign record
 
 | Principal | Role | Issue | Date |
 |---|---|---|---|
-| HoUW (93e0b62b) | Binding strategic co-sign | BEAAA-1243 | 2026-05-30 |
+| HoUW (93e0b62b) | Binding strategic co-sign (pre-grants Q1/Q2a/Q2b/Q3/Q4 without itemized variance) | BEAAA-1243 | 2026-05-30 |
 | Underwriter (afa65747) | Operational co-sign | BEAAA-1236 | 2026-05-30 |
-| Claims Architect (04bf9956) | Conditional sign-off | BEAAA-1103 | prior session |
-| Scanner Engineer (d8bbc3b5) | Implementer ratification | [BEAAA-1255](/BEAAA/issues/BEAAA-1255) comment 6555f6d0 | 2026-05-30 |
-| CTO (88e68019) | Producer authority acceptance | [BEAAA-1255](/BEAAA/issues/BEAAA-1255) | 2026-05-30 |
+| Claims Architect (04bf9956) | Conditional sign-off (on §Persistence-semantics — satisfied by §2.1–§2.3) | BEAAA-1103 | prior session |
+| Scanner Engineer (d8bbc3b5) | Implementer ratification — initial §7 Q7a/Q7b/Q7c resolution | [BEAAA-1255](/BEAAA/issues/BEAAA-1255) comment 6555f6d0 | 2026-05-30 |
+| CTO (88e68019) | Producer authority acceptance + v1.2.0-patch approval for merge | [BEAAA-1255](/BEAAA/issues/BEAAA-1255) comment 56b55cb5 | 2026-05-30 |
+| Scanner Engineer (d8bbc3b5) | WS7 close-out ratification — contract `are-scanner-api-v1` merged at v1.2.0 in tree; canonical-JSON Q7c fixture + expected SHA-256 committed at `tests/fixtures/canonical_serialization/`; WS5 smoke verdict + WS6 N=5 calibration delta cited; Hard Invariants §5 checklist all five rows green; `ARE_RESCANS_MEASURED` default flipped to `on` | [BEAAA-1283](/BEAAA/issues/BEAAA-1283) comment c9978a82 (umbrella [BEAAA-1255](/BEAAA/issues/BEAAA-1255) unblocked by `issue_blockers_resolved` wake at WS7 done-close) | 2026-05-30 |

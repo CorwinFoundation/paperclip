@@ -1,0 +1,14 @@
+{
+  "z_outer": 1,
+  "a_outer": {
+    "nested_z": true,
+    "nested_a": null,
+    "nested_m": "has_value_not_null"
+  },
+  "null_key_present": null,
+  "escapes": "line1\nline2\ttab\"quote\\back\u0001ctrl",
+  "unicode_label": "café — π — 漢字 — emoji 😀",
+  "float_normalized": 0.87,
+  "integer_score": 72,
+  "are_total_band": "A"
+}

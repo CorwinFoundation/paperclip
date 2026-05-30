@@ -135,7 +135,13 @@ def test_post_scan_returns_202_with_scan_id(corpus_hash, stub_runtime):
         scan_id_factory=lambda: "scan-test-1",
     )
     assert status == 202
-    assert payload == {"scan_id": "scan-test-1", "status": "accepted"}
+    # BEAAA-1274 (WS4) AC #5 — additive flags default false on /scan responses.
+    assert payload == {
+        "scan_id": "scan-test-1",
+        "status": "accepted",
+        "partial_completion": False,
+        "confidence_below_adjudication_threshold": False,
+    }
 
 
 def test_get_scan_returns_404_for_unknown_id(stub_runtime):

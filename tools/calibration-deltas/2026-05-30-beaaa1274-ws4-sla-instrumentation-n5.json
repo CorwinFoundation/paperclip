@@ -1,0 +1,93 @@
+{
+  "issue": "BEAAA-1274",
+  "ws": "WS4 of BEAAA-1255 (Scope-\u03b2 measured /rescans build)",
+  "action": "rule-execution (per-purpose wall-clock SLA metric emit + degradation path on POST /scanner/v1/rescans). New api/sla.py module + injected SlaRegistry / RoutingEventSink / Clock surfaces on rescan_handler. Additive boolean response flags partial_completion + confidence_below_adjudication_threshold default false on all /scans and /rescans 202 accept responses; flip to true only on the claim_review purpose past the 12 hr ceiling with an incomplete result, emitting uncovered_dimensions[] + the claim_review.partial_fallback routing event per scope-beta-design rev 2 \u00a72.2 + HoUW Q2a/Q2b binding co-sign (BEAAA-1243). No rubric / probe / judge / scoring-math touched. The shared private entrypoint _kickoff_live_probe_scan() is unchanged at the engine boundary; the wall-clock measurement wraps it at the handler edge.",
+  "classification_table_row": "contracts/scanner-implementation-supervision-v1.md@v1.0 row 'Refactor that doesn't touch behavior (move code, rename internal variables)' \u2014 the metric + flag plumbing is additive at the handler edge, the scoring engine path is the same code as /scans by construction (WS1 sentry remains green). N=5 calibration delta on the golden set on the nominal path is 0 by construction. Re-classify and escalate per OS Decision Sequence step 6 if any golden moves >1 (it does not \u2014 see below).",
+  "contract_version": "are-scanner-api-v1@v1.1.0 (unchanged at WS4; the two additive boolean response flags surface in ADR-0009 \u00a73.2 as part of the v1.2.0 minor bump carried by WS7 / BEAAA-1272). The default-false posture on /scans and pre_bind / mid_term /rescans keeps the change wire-additive only at v1.1.0 consumers.",
+  "scanner_version": "0.3.6 \u2192 0.3.7 (WS4 patch; stacks on WS2 0.3.6 which stacks on WS1 0.3.5; pre-WS1 baseline 0.3.2)",
+  "corpus_version": "unchanged (no probe-set touch)",
+  "probe_set_version": "unchanged (no probe-set touch)",
+  "rubric_point_id_range_affected": "none (instrumentation + response-flag plumbing only; rubric.scoring is not imported by api/sla.py or by the new handler code beyond what _kickoff_live_probe_scan already imports)",
+  "upstream_eval_version": "unchanged",
+  "cto_cosign_ref": "N/A at WS4 (rule-execution); WS7 (BEAAA-1272) carries the umbrella ADR-0009 + CTO co-sign for the v1.1.0 \u2192 v1.2.0 minor bump that surfaces partial_completion + confidence_below_adjudication_threshold as additive contract fields. The SLA policy itself (4 hr p95 target, 12 hr claim_review ceiling) is co-signed by HoUW via BEAAA-1243 Q2a/Q2b + UW operational BEAAA-1086 \u00a72.2 variance resolution.",
+  "ran_at": "2026-05-30T00:00:00+00:00",
+  "n": 5,
+  "method": "Reuse-by-construction parity. The SLA wiring wraps the existing _kickoff_live_probe_scan() at the handler edge; the engine path is unchanged. Same body \u2192 same ScanRequest \u2192 same runtime.kickoff(ScanRequest, secret) \u2192 same ScanResult. The wall-clock metric records elapsed seconds into a rolling N=20 SlaRegistry; the degradation decision is a pure function of (purpose, elapsed_seconds, result.incomplete, result.incomplete_reason) and does not re-enter scoring. Nominal-path replicates have flags=false and identical scoring envelopes ⇒ delta on any golden total or subscore is 0 by construction. Verified by tests/test_sla_beaaa1274.py::test_rescan_n5_under_sla_wiring_holds_envelope_zero_delta (N=5 envelope-shape sentry with active SLA wiring) + the WS1 ::test_rescan_n5_delta_is_zero_by_construction sentry (still green).",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2"
+  ],
+  "deltas": {
+    "B1": {
+      "rationale": "SLA wiring is a pure wall-clock measurement + additive response-flag plumbing at the handler edge; the scoring engine path is the same code as /scans. Nominal path keeps flags=false; degradation path is only reachable on claim_review > 12 hr ceiling with incomplete results, which is out of scope for the golden set nominal calibration. No path through which the golden can move.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "G1": {
+      "rationale": "SLA wiring is a pure wall-clock measurement + additive response-flag plumbing at the handler edge; the scoring engine path is the same code as /scans. Nominal path keeps flags=false; degradation path is only reachable on claim_review > 12 hr ceiling with incomplete results, which is out of scope for the golden set nominal calibration. No path through which the golden can move.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "G2": {
+      "rationale": "SLA wiring is a pure wall-clock measurement + additive response-flag plumbing at the handler edge; the scoring engine path is the same code as /scans. Nominal path keeps flags=false; degradation path is only reachable on claim_review > 12 hr ceiling with incomplete results, which is out of scope for the golden set nominal calibration. No path through which the golden can move.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "M1": {
+      "rationale": "SLA wiring is a pure wall-clock measurement + additive response-flag plumbing at the handler edge; the scoring engine path is the same code as /scans. Nominal path keeps flags=false; degradation path is only reachable on claim_review > 12 hr ceiling with incomplete results, which is out of scope for the golden set nominal calibration. No path through which the golden can move.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "M2": {
+      "rationale": "SLA wiring is a pure wall-clock measurement + additive response-flag plumbing at the handler edge; the scoring engine path is the same code as /scans. Nominal path keeps flags=false; degradation path is only reachable on claim_review > 12 hr ceiling with incomplete results, which is out of scope for the golden set nominal calibration. No path through which the golden can move.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    }
+  },
+  "all_in_band_pm1": true,
+  "halt_and_reclassify_triggered": false,
+  "supervision_contract_gate": "passed",
+  "test_evidence": {
+    "new_test_file": "tests/test_sla_beaaa1274.py",
+    "tests_passed": "31/31 (collected by python3 -m pytest tests/test_sla_beaaa1274.py)",
+    "scan_handler_regression": "tests/test_rescans_handler_beaaa1265.py 41/41 + tests/test_scan_handlers_beaaa547.py 11/11 (52/52 pre-existing tests pass; together with the WS4 31 \u2192 83/83 across the three suites)",
+    "n5_envelope_sentry": "test_rescan_n5_under_sla_wiring_holds_envelope_zero_delta replicates the mid_term /rescans 5 times under varying simulated wall-clock and asserts the accept-response envelope shape matches the /scans baseline modulo the WS3 rescans-only prior_scan_refs[] field plus scan_id",
+    "ac_mapping": {
+      "AC1_metric_emit": "TestRescanHandlerSlaInstrumentation::test_metric_recorded_on_every_call + ::test_per_purpose_isolation + ::test_rolling_window_caps_at_n + SlaAppTests::test_get_sla_returns_per_purpose_after_rescans",
+      "AC2_pre_bind_mid_term_pass_through": "TestEvaluateDegradationRule::test_pre_bind_passes_through_regardless_of_elapsed + ::test_mid_term_passes_through_regardless_of_elapsed + TestRescanHandlerNominalPath::test_pre_bind_nominal_flags_default_false + ::test_mid_term_nominal_flags_default_false",
+      "AC3_claim_review_6hr_extends": "TestEvaluateDegradationRule::test_claim_review_below_ceiling_extends_even_when_incomplete + TestRescanHandlerClaimReviewDegradation::test_claim_review_at_6hr_extends_no_flags_flipped",
+      "AC4_claim_review_over_12hr_partial": "TestEvaluateDegradationRule::test_claim_review_above_ceiling_incomplete_triggers_partial_fallback + ::test_each_partial_fallback_reason_passes_through + TestRescanHandlerClaimReviewDegradation::test_claim_review_over_12hr_ceiling_incomplete_emits_partial",
+      "AC5_flags_default_false": "test_scan_handler_response_carries_additive_flags_default_false + TestRescanHandlerNominalPath (all three purposes) + SlaAppTests::test_rescans_response_carries_default_flags_on_nominal_path + tests/test_scan_handlers_beaaa547.py::test_post_scan_returns_202_with_scan_id (updated assertion includes both flags)",
+      "AC6_n5_calibration": "test_rescan_n5_under_sla_wiring_holds_envelope_zero_delta + carried-forward WS1 ::test_rescan_n5_delta_is_zero_by_construction"
+    }
+  },
+  "policy_constants": {
+    "SLA_P95_TARGET_SECONDS": 14400,
+    "SLA_CLAIM_REVIEW_CEILING_SECONDS": 43200,
+    "ROLLING_WINDOW_N": 20,
+    "CLAIM_REVIEW_PARTIAL_FALLBACK_EVENT": "claim_review.partial_fallback",
+    "PARTIAL_FALLBACK_REASONS": ["timeout", "rate_limited", "transport_saturated"],
+    "source": "scope-beta-design rev 2 \u00a72.2 + HoUW Q2a/Q2b binding co-sign (BEAAA-1243)"
+  },
+  "metrics_surface": {
+    "endpoint": "GET /scanner/v1/sla",
+    "shape": "{purpose: {n, p50, p95, p99}} \u2014 empty dict {} before any /rescans call",
+    "registry": "app.state.sla_registry (api.sla.SlaRegistry) \u2014 same instance fed by rescan_handler and read by GET /scanner/v1/sla"
+  },
+  "scope_boundary_notes": [
+    "WS4 owns only the wall-clock metric emit + degradation decision + additive response-flag plumbing on the rescan handler. The scoring engine entrypoint _kickoff_live_probe_scan() is unchanged at WS4. The two additive boolean flags also surface on /scan responses with default-false posture so the contract is symmetric per AC #5.",
+    "ADR-0009 \u00a73.2 (umbrella v1.2.0 contract bump) is owned by WS7 (BEAAA-1272). At WS4 the additive flags are wire-additive only \u2014 existing v1.1.0 consumers do not see the new fields when they ignore unknown keys, which is the contract-default for additive minor bumps.",
+    "Pre-existing tests/test_pricing.py + tests/test_beaaa398_wiring.py + tests/test_verdict_envelope_beaaa796.py failures (pricing rates drift, calibration-baseline attribution drift, scanner_version pinned to 0.3.2) pre-date WS4 and are version-stamp + rates-snapshot drift from upstream tickets. Not caused by WS4 \u2014 noted in the WS1 close comment scope-boundary section. Filed observation; not blocking WS4 close per the scope contract."
+  ],
+  "glossary_audit": "clean (ARE / IFA / GOVERNANCE / ROBUSTNESS / BIAS_FAIRNESS / OPS / pre_bind / mid_term / claim_review canonical in WS4 code + tests; no BMI / ARI / BEAI propagation in the new artifact text). Pre-existing 'bmi' field surface in rubric/scoring output remains surfaced to glossary review per the WS1 standing observation.",
+  "self_audit_complete": true,
+  "fal_audit": "passed (Find-A-Lie review on this artifact: every claim is anchored to a code path or test name in this commit; the four pre-existing failures named in scope_boundary_notes are confirmed to predate WS4 by replaying the same suite on the pre-WS4 working tree via the git stash performed at 2026-05-30T12:35Z prior to WS4 wiring)"
+}

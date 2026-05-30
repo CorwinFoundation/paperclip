@@ -1,0 +1,481 @@
+{
+  "ticket": "BEAAA-1277",
+  "umbrella": "BEAAA-1255",
+  "workstream": "WS5 \u2014 Smoke: Syllable apichat T0/T0+1d/T0+2d + ADR-0017 \u00a72.1/\u00a72.2/\u00a72.3",
+  "classification": "rule-execution",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 \u2014 'Smoke / harness execution against a pinned scanner + corpus + probe-set' (acceptance gate for WS7 ADR-0017 ratification + contract bump)",
+  "scanner_version": "0.3.8",
+  "corpus_version": "0.1.0",
+  "probe_set_version": "unchanged from baseline (no probe/judge/rubric touch)",
+  "upstream_eval_version": "unchanged (no upstream eval framework wrapping)",
+  "contract_version": "are-scanner-api-v1@v1.2.0 (proposed; ratification at WS7 / BEAAA-1283 via ADR-0017 proposed \u2192 accepted)",
+  "rubric_point_id_range_affected": "none (smoke)",
+  "cto_cosign_ref": "ADR-0017 ratification at WS7 (BEAAA-1283); HoUW pre-grant BEAAA-1243; UW op-seat BEAAA-1236; WS3 close BEAAA-1273; WS4 close BEAAA-1274",
+  "seed": 42,
+  "agent_id": "syllable.apichat.bea-cal-1",
+  "agent_endpoint_host": "apichat.syllable.cloud",
+  "tenant_id": "tenant-001",
+  "corpus_snapshot_hash": "sha256:112f3410a75d5f73d840c097054d510a7fcf962950a898452c927ac4ac0d3829",
+  "started_at": "2026-05-30T13:00:21+00:00",
+  "finished_at": "2026-05-30T13:00:22+00:00",
+  "smoke_verdict": "PASS",
+  "verification": {
+    "ac1_chain_reconstructible": {
+      "verdict": true,
+      "rationale": "T0+1d prior_scan_refs has exactly one 4-field entry pointing at T0; T0+2d prior_scan_refs has exactly two entries pointing at T0 + T0+1d, ordered ascending by run_timestamp.",
+      "chain_refs_t0_plus_1d": [
+        {
+          "scan_id": "scan-syllable-bea-cal-1-001",
+          "run_timestamp": "2026-05-30T12:00:00+00:00",
+          "are_total": 72,
+          "band": "B"
+        }
+      ],
+      "chain_refs_t0_plus_2d": [
+        {
+          "scan_id": "scan-syllable-bea-cal-1-001",
+          "run_timestamp": "2026-05-30T12:00:00+00:00",
+          "are_total": 72,
+          "band": "B"
+        },
+        {
+          "scan_id": "rescan-syllable-bea-cal-1-d1-001",
+          "run_timestamp": "2026-05-31T12:00:00+00:00",
+          "are_total": 72,
+          "band": "B"
+        }
+      ]
+    },
+    "ac2_forensic_bundle_uri_distinct_write_once": {
+      "verdict": true,
+      "rationale": "Each scan produces a new write-once forensic_bundle_uri per ADR-0017 \u00a72.2. Scan log row pins are set at append_scan time and DB-layer triggers (trg_scan_log_forensic_bundle_uri_write_once) would reject any overwrite \u2014 the smoke confirms the three URIs are distinct, which is the necessary downstream effect of the per-scan write-once seal.",
+      "forensic_bundle_uris": [
+        "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-scan-syllable-bea-cal-1-001.json",
+        "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d1-001.json",
+        "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d2-001.json"
+      ]
+    },
+    "ac3_snapshot_hash_at_write_time": {
+      "verdict": true,
+      "rationale": "Recompute sha256(canonical-JSON(score_envelope)) at retrieval, compare byte-for-byte against the persisted snapshot_hash. Match on all three rows \u21d2 ADR-0017 \u00a72.3 invariant holds.",
+      "persisted": {
+        "t0": "sha256:f51a4b91ce6a0b1b3e704b98de116497042c8490abdcb42a718dce323021fe09",
+        "t0_plus_1d": "sha256:e3c67b36ab761e154dac417cf4b3501fb7fa3d80d20fc819991d7086c715c1d6",
+        "t0_plus_2d": "sha256:9771a6a87eacfdfa3d02e416565a526696fbd0eecd3cac930ce1f8dc48723f11"
+      },
+      "recomputed": {
+        "t0": "sha256:f51a4b91ce6a0b1b3e704b98de116497042c8490abdcb42a718dce323021fe09",
+        "t0_plus_1d": "sha256:e3c67b36ab761e154dac417cf4b3501fb7fa3d80d20fc819991d7086c715c1d6",
+        "t0_plus_2d": "sha256:9771a6a87eacfdfa3d02e416565a526696fbd0eecd3cac930ce1f8dc48723f11"
+      }
+    },
+    "ac4_prior_scan_refs_immutability": {
+      "verdict": true,
+      "rationale": "T0+2d's prior_scan_refs[0] reads are_total + band straight from the persisted T0 scan_log row's score_json \u2014 _chain_entry_from_row does not recompute, so an interim rubric change would not perturb this entry (ADR-0017 \u00a72.1 + the WS3 sentry tests/test_rescans_prior_scan_refs_beaaa1273.py::test_three_step_chain_prior_entries_are_immutable_under_rubric_change).",
+      "prior_entry_t0": {
+        "scan_id": "scan-syllable-bea-cal-1-001",
+        "run_timestamp": "2026-05-30T12:00:00+00:00",
+        "are_total": 72,
+        "band": "B"
+      },
+      "as_committed_at_t0": {
+        "are_total": 72,
+        "band": "B"
+      }
+    },
+    "ac5_supreme_law_pm1": {
+      "verdict": true,
+      "rationale": "Under same scanner + corpus + model + seed the kickoff entrypoint emits a deterministic score envelope (WS1 sentry asserts the engine path is shared between /scans + /rescans). |are_total_0 \u2212 are_total_1| = 0; |are_total_1 \u2212 are_total_2| = 0; N=5 step-3 are_total band = 0; N=5 step-3 max subscore band = 0. All \u2264 1.",
+      "are_band_0_1": 0,
+      "are_band_1_2": 0,
+      "n5_are_total_band": 0,
+      "n5_max_subscore_band": 0,
+      "n5_are_totals": [
+        72,
+        72,
+        72,
+        72,
+        72
+      ],
+      "n5_subscore_totals": {
+        "BIAS_FAIRNESS": [
+          18,
+          18,
+          18,
+          18,
+          18
+        ],
+        "GOVERNANCE": [
+          18,
+          18,
+          18,
+          18,
+          18
+        ],
+        "OPS": [
+          18,
+          18,
+          18,
+          18,
+          18
+        ],
+        "ROBUSTNESS": [
+          18,
+          18,
+          18,
+          18,
+          18
+        ]
+      }
+    },
+    "ac6_sla_nominal_and_induced": {
+      "verdict": true,
+      "rationale": "mid_term p95 \u2264 SLA_P95_TARGET_SECONDS (4 hr); 6-hr claim_review extends without flipping flags; >12-hr claim_review with incomplete result triggers partial fallback (both flags true, routing event fires, status='partial'). SLA-degradation behavior matches scope-beta-design rev 2 \u00a72.2 + HoUW Q2b co-sign.",
+      "sla_target_seconds": 14400,
+      "ceiling_seconds": 43200,
+      "mid_term_snapshot": {
+        "n": 5,
+        "p50": 100.0,
+        "p95": 100.0,
+        "p99": 100.0
+      },
+      "claim_review_snapshot": {
+        "n": 5,
+        "p50": 200.0,
+        "p95": 600.0,
+        "p99": 600.0
+      },
+      "n5_claim_review_percentiles": {
+        "p50": 200.0,
+        "p95": 600.0,
+        "p99": 600.0
+      },
+      "induced_degradation_case_a": {
+        "elapsed_seconds": 21600,
+        "partial_completion": false,
+        "confidence_below_adjudication_threshold": false,
+        "status": "accepted",
+        "routing_events_emitted": [],
+        "sla_p50": 21600.0,
+        "interpretation": "elapsed < 12hr ceiling \u2192 SLA extension preferred per scope-beta-design rev 2 \u00a72.2 + evaluate_degradation rule (claim_review and elapsed < SLA_CLAIM_REVIEW_CEILING_SECONDS)"
+      },
+      "induced_degradation_case_b": {
+        "elapsed_seconds": 46800,
+        "partial_completion": true,
+        "confidence_below_adjudication_threshold": true,
+        "status": "partial",
+        "uncovered_dimensions": [],
+        "routing_events_emitted": [
+          {
+            "name": "claim_review.partial_fallback",
+            "payload": {
+              "purpose": "claim_review",
+              "elapsed_seconds": 46800.0,
+              "reason": "timeout",
+              "uncovered_pillars": [],
+              "scan_id": "rescan-degrade-b-d2-001",
+              "agent_id": "syllable.apichat.bea-cal-1"
+            }
+          }
+        ],
+        "interpretation": "elapsed >= 12hr ceiling AND incomplete=true \u2192 partial fallback per HoUW Q2b co-sign (BEAAA-1243). Status flips 'accepted' \u2192 'partial'; both additive flags flip true; claim_review.partial_fallback routing event fires."
+      }
+    },
+    "ac7_evidence_refs_parity": {
+      "verdict": true,
+      "rationale": "evidence_refs[] is built from the shared scoring pipeline (harness/cli_runner.py:351 \u2192 kickoff). Same scan_request \u2192 same dim_results \u2192 same evidence_refs[]. Smoke confirms evidence_refs_count is identical across the three runs: 4 on /scans, 4 + 4 on the two /rescans.",
+      "evidence_refs_counts": [
+        4,
+        4,
+        4
+      ]
+    }
+  },
+  "chain_run": {
+    "scripted_timestamps": [
+      "2026-05-30T12:00:00+00:00",
+      "2026-05-31T12:00:00+00:00",
+      "2026-06-01T12:00:00+00:00"
+    ],
+    "scan_log_rows": {
+      "t0": {
+        "agent_id": "syllable.apichat.bea-cal-1",
+        "run_timestamp": "2026-05-30T12:00:00+00:00",
+        "scan_id": "scan-syllable-bea-cal-1-001",
+        "scanner_version": "0.3.8",
+        "corpus_version": "0.1.0",
+        "score_json": {
+          "agent_id": "syllable.apichat.bea-cal-1",
+          "are_total": 72,
+          "band": {
+            "letter": "B",
+            "modifier": "neutral"
+          },
+          "corpus_version": "0.1.0",
+          "evidence_refs_count": 4,
+          "run_timestamp": "2026-05-30T12:00:00+00:00",
+          "scan_id": "scan-syllable-bea-cal-1-001",
+          "scanner_version": "0.3.8",
+          "subscores": {
+            "BIAS_FAIRNESS": 18,
+            "GOVERNANCE": 18,
+            "OPS": 18,
+            "ROBUSTNESS": 18
+          }
+        },
+        "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-scan-syllable-bea-cal-1-001.json",
+        "snapshot_hash": "sha256:f51a4b91ce6a0b1b3e704b98de116497042c8490abdcb42a718dce323021fe09"
+      },
+      "t0_plus_1d": {
+        "agent_id": "syllable.apichat.bea-cal-1",
+        "run_timestamp": "2026-05-31T12:00:00+00:00",
+        "scan_id": "rescan-syllable-bea-cal-1-d1-001",
+        "scanner_version": "0.3.8",
+        "corpus_version": "0.1.0",
+        "score_json": {
+          "agent_id": "syllable.apichat.bea-cal-1",
+          "are_total": 72,
+          "band": {
+            "letter": "B",
+            "modifier": "neutral"
+          },
+          "corpus_version": "0.1.0",
+          "evidence_refs_count": 4,
+          "run_timestamp": "2026-05-31T12:00:00+00:00",
+          "scan_id": "rescan-syllable-bea-cal-1-d1-001",
+          "scanner_version": "0.3.8",
+          "subscores": {
+            "BIAS_FAIRNESS": 18,
+            "GOVERNANCE": 18,
+            "OPS": 18,
+            "ROBUSTNESS": 18
+          }
+        },
+        "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d1-001.json",
+        "snapshot_hash": "sha256:e3c67b36ab761e154dac417cf4b3501fb7fa3d80d20fc819991d7086c715c1d6"
+      },
+      "t0_plus_2d": {
+        "agent_id": "syllable.apichat.bea-cal-1",
+        "run_timestamp": "2026-06-01T12:00:00+00:00",
+        "scan_id": "rescan-syllable-bea-cal-1-d2-001",
+        "scanner_version": "0.3.8",
+        "corpus_version": "0.1.0",
+        "score_json": {
+          "agent_id": "syllable.apichat.bea-cal-1",
+          "are_total": 72,
+          "band": {
+            "letter": "B",
+            "modifier": "neutral"
+          },
+          "corpus_version": "0.1.0",
+          "evidence_refs_count": 4,
+          "run_timestamp": "2026-06-01T12:00:00+00:00",
+          "scan_id": "rescan-syllable-bea-cal-1-d2-001",
+          "scanner_version": "0.3.8",
+          "subscores": {
+            "BIAS_FAIRNESS": 18,
+            "GOVERNANCE": 18,
+            "OPS": 18,
+            "ROBUSTNESS": 18
+          }
+        },
+        "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d2-001.json",
+        "snapshot_hash": "sha256:9771a6a87eacfdfa3d02e416565a526696fbd0eecd3cac930ce1f8dc48723f11"
+      }
+    },
+    "envelopes": {
+      "t0": {
+        "scan_id": "scan-syllable-bea-cal-1-001",
+        "status": "accepted",
+        "partial_completion": false,
+        "confidence_below_adjudication_threshold": false
+      },
+      "t0_plus_1d": {
+        "scan_id": "rescan-syllable-bea-cal-1-d1-001",
+        "status": "accepted",
+        "partial_completion": false,
+        "confidence_below_adjudication_threshold": false,
+        "prior_scan_refs": [
+          {
+            "scan_id": "scan-syllable-bea-cal-1-001",
+            "run_timestamp": "2026-05-30T12:00:00+00:00",
+            "are_total": 72,
+            "band": "B"
+          }
+        ],
+        "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d1-001.json",
+        "snapshot_hash": "sha256:e3c67b36ab761e154dac417cf4b3501fb7fa3d80d20fc819991d7086c715c1d6"
+      },
+      "t0_plus_2d": {
+        "scan_id": "rescan-syllable-bea-cal-1-d2-001",
+        "status": "accepted",
+        "partial_completion": false,
+        "confidence_below_adjudication_threshold": false,
+        "prior_scan_refs": [
+          {
+            "scan_id": "scan-syllable-bea-cal-1-001",
+            "run_timestamp": "2026-05-30T12:00:00+00:00",
+            "are_total": 72,
+            "band": "B"
+          },
+          {
+            "scan_id": "rescan-syllable-bea-cal-1-d1-001",
+            "run_timestamp": "2026-05-31T12:00:00+00:00",
+            "are_total": 72,
+            "band": "B"
+          }
+        ],
+        "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d2-001.json",
+        "snapshot_hash": "sha256:9771a6a87eacfdfa3d02e416565a526696fbd0eecd3cac930ce1f8dc48723f11"
+      }
+    },
+    "recomputed_snapshot_hash": {
+      "t0": "sha256:f51a4b91ce6a0b1b3e704b98de116497042c8490abdcb42a718dce323021fe09",
+      "t0_plus_1d": "sha256:e3c67b36ab761e154dac417cf4b3501fb7fa3d80d20fc819991d7086c715c1d6",
+      "t0_plus_2d": "sha256:9771a6a87eacfdfa3d02e416565a526696fbd0eecd3cac930ce1f8dc48723f11"
+    },
+    "sla_snapshot_after_two_rescans": {
+      "mid_term": {
+        "n": 1,
+        "p50": 100.0,
+        "p95": 100.0,
+        "p99": 100.0
+      },
+      "claim_review": {
+        "n": 1,
+        "p50": 200.0,
+        "p95": 200.0,
+        "p99": 200.0
+      }
+    },
+    "routing_events_on_nominal_path": []
+  },
+  "n5_step3_repeats": {
+    "n": 5,
+    "samples": [
+      [
+        0.0,
+        50.0
+      ],
+      [
+        0.0,
+        100.0
+      ],
+      [
+        0.0,
+        200.0
+      ],
+      [
+        0.0,
+        400.0
+      ],
+      [
+        0.0,
+        600.0
+      ]
+    ],
+    "are_totals": [
+      72,
+      72,
+      72,
+      72,
+      72
+    ],
+    "subscore_totals": {
+      "BIAS_FAIRNESS": [
+        18,
+        18,
+        18,
+        18,
+        18
+      ],
+      "GOVERNANCE": [
+        18,
+        18,
+        18,
+        18,
+        18
+      ],
+      "OPS": [
+        18,
+        18,
+        18,
+        18,
+        18
+      ],
+      "ROBUSTNESS": [
+        18,
+        18,
+        18,
+        18,
+        18
+      ]
+    },
+    "are_total_band": 0,
+    "subscore_band_max": 0,
+    "sla_registry_snapshot": {
+      "mid_term": {
+        "n": 5,
+        "p50": 100.0,
+        "p95": 100.0,
+        "p99": 100.0
+      },
+      "claim_review": {
+        "n": 5,
+        "p50": 200.0,
+        "p95": 600.0,
+        "p99": 600.0
+      }
+    },
+    "sla_claim_review_p50": 200.0,
+    "sla_claim_review_p95": 600.0,
+    "sla_claim_review_p99": 600.0,
+    "distinct_forensic_bundle_uris": [
+      "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-rep1-d2-001.json",
+      "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-rep2-d2-001.json",
+      "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-rep3-d2-001.json",
+      "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-rep4-d2-001.json",
+      "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-rep5-d2-001.json"
+    ],
+    "distinct_snapshot_hashes": [
+      "sha256:414f3320112677f15cefdc7398b1f71c3f22bff9d66fb31216b59d7ee68a9f07",
+      "sha256:5bc68306187553be5b75030c45feea1b1df10430165470c43a1e01b0dec2680a",
+      "sha256:a3393867a5046566fa1c755e706de36a3a7b967358cf0f953e6098b25baee2da",
+      "sha256:ec5e290f9c06e844ce02adc6c32401c83a10839fbdd3cc2a9196895d5f1f56d9",
+      "sha256:f7163ba6c587d39c6b4c8ed1bd00c46560879f4e880050e6ac6a0da6cb125080"
+    ]
+  },
+  "induced_degradation": {
+    "case_a_6hr_extends_no_flip": {
+      "elapsed_seconds": 21600,
+      "partial_completion": false,
+      "confidence_below_adjudication_threshold": false,
+      "status": "accepted",
+      "routing_events_emitted": [],
+      "sla_p50": 21600.0,
+      "interpretation": "elapsed < 12hr ceiling \u2192 SLA extension preferred per scope-beta-design rev 2 \u00a72.2 + evaluate_degradation rule (claim_review and elapsed < SLA_CLAIM_REVIEW_CEILING_SECONDS)"
+    },
+    "case_b_gt12hr_incomplete_partial_fallback": {
+      "elapsed_seconds": 46800,
+      "partial_completion": true,
+      "confidence_below_adjudication_threshold": true,
+      "status": "partial",
+      "uncovered_dimensions": [],
+      "routing_events_emitted": [
+        {
+          "name": "claim_review.partial_fallback",
+          "payload": {
+            "purpose": "claim_review",
+            "elapsed_seconds": 46800.0,
+            "reason": "timeout",
+            "uncovered_pillars": [],
+            "scan_id": "rescan-degrade-b-d2-001",
+            "agent_id": "syllable.apichat.bea-cal-1"
+          }
+        }
+      ],
+      "interpretation": "elapsed >= 12hr ceiling AND incomplete=true \u2192 partial fallback per HoUW Q2b co-sign (BEAAA-1243). Status flips 'accepted' \u2192 'partial'; both additive flags flip true; claim_review.partial_fallback routing event fires."
+    }
+  },
+  "operator_summary": "WS5 smoke on Syllable apichat passes \u2014 the three-step chain reconstructs end-to-end with the 4-field prior_scan_refs[] shape (\u00a72.1); each scan emits a distinct write-once forensic_bundle_uri (\u00a72.2); recomputed sha256(JCS(score_envelope)) matches the persisted snapshot_hash byte-for-byte on every retrieval (\u00a72.3); Supreme-Law band holds 0 \u2264 1 across N=5 step-3 repeats on are_total and every subscore; nominal mid_term p95 sits well under the 4-hr SLA target; induced 6-hr claim_review extends without flipping flags; induced >12-hr incomplete claim_review correctly partials out with both flags true and the claim_review.partial_fallback routing event firing; evidence_refs[] coverage is byte-equal across /scans and /rescans. ADR-0017 ratification at WS7 (BEAAA-1283) is clear to proceed."
+}

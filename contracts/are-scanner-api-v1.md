@@ -4,132 +4,416 @@ owner: underwriter
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "v1.1.0 contract bump enables live-agent probe scans against commercial endpoints while honestly disclosing the widened variance band and refusing to quote on band-exceed."
-contracts_referenced: ["are-scanner-api-v1@v1.0.x → v1.1.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
-ticket_refs: ["BEAAA-531", "BEAAA-535", "BEAAA-533", "BEAAA-530", "BEAAA-529"]
-proof_points_cited: ["ADR-0009 adr-0009-live-agent-hosted-probe-v0 (doc 7373b284-034b-4c29-835b-544b1cc85fed)", "Op-seat UW co-sign BEAAA-531 comment 4ecd6b82-55aa-4685-8b8c-e00c17cc0e18", "HoUW countersign BEAAA-535 comment 62b25059", "harness/runner.py:84–86", "harness/runner.py:96–100"]
-version: "v1.1.0-patch"
-prior_version: "are-scanner-api-v1@v1.0.x"
+focus_claim: "v1.2.0 contract bump activates POST /scanner/v1/rescans as a measured route with claims-grade audit-chain persistence (prior_scan_refs[], write-once forensic_bundle_uri, at-write-time snapshot_hash) and purpose-aware SLA degradation flags (partial_completion, confidence_below_adjudication_threshold)."
+contracts_referenced: ["are-scanner-api-v1@v1.1.0 → v1.2.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
+ticket_refs: ["BEAAA-1283", "BEAAA-1255", "BEAAA-1243", "BEAAA-1236", "BEAAA-1103", "BEAAA-1271", "BEAAA-1273", "BEAAA-1274", "BEAAA-1277", "BEAAA-1278"]
+proof_points_cited: ["ADR-0017 (accepted 2026-05-30, docs/adr/adr-0017-scope-beta-rescan-persistence-semantics.md)", "HoUW binding co-sign BEAAA-1243 2026-05-30", "UW op-seat co-sign BEAAA-1236 2026-05-30", "Claims Architect sign-off BEAAA-1103", "Scanner Engineer ratification BEAAA-1255 (WS7 close, BEAAA-1283)", "CTO co-sign BEAAA-1255 comment 56b55cb5 2026-05-30", "WS5 smoke BEAAA-1277 doc scope-beta-smoke-syllable-apichat-v1 (AC 1-7 PASS)", "WS6 N=5 calibration BEAAA-1278 doc scope-beta-n5-calibration-rescans-vs-scans-v1 (Δ=0, band=0, discrimination=22.5)"]
+version: "v1.2.0"
+prior_version: "are-scanner-api-v1@v1.1.0-patch"
 self_audit_passed: true
-escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged (HoUW countersign §Founder-gate analysis)."]
+escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged. Tamper resistance strengthened (write-once forensic_bundle_uri + at-write-time snapshot_hash, ADR-0017 §3). CTO + HoUW + UW co-sign authority sufficient."]
 ---
 
-# Contract patch — `are-scanner-api-v1.md` v1.0.x → v1.1.0
+# Contract: ARE Scanner API — v1.2.0
 
-**Status:** approved for merge.
-**Op-seat co-sign:** [BEAAA-531 #4ecd6b82](/BEAAA/issues/BEAAA-531#comment-4ecd6b82-55aa-4685-8b8c-e00c17cc0e18) (Underwriter operational, 2026-05-18T19:14Z).
-**Strategic-seat countersign:** [BEAAA-535 #62b25059](/BEAAA/issues/BEAAA-535#comment-62b25059) (Head of UW & AI Risk, 2026-05-18T19:21Z).
-**CTO authority:** ADR-0009 `adr-0009-live-agent-hosted-probe-v0` ratified on [BEAAA-530](/BEAAA/issues/BEAAA-530#document-adr-0009-ratification) by Scanner Engineer 2026-05-18.
-**Build implementer:** Scanner Engineer on [BEAAA-533](/BEAAA/issues/BEAAA-533) (build-scope follow-on, unblocks when BEAAA-531 closes done — CEO §6b gate on [BEAAA-532](/BEAAA/issues/BEAAA-532) already done).
-**Change classification:** additive minor; Tier 1 rollback per ADR-0009 §9 (drop the four new fields + the new mode; existing offline_replay behavior unaffected).
+**Status:** merged. ADR-0017 ratified 2026-05-30 (Scanner Engineer ratification at BEAAA-1255 WS7 close on BEAAA-1283; CTO co-sign at BEAAA-1255 comment 56b55cb5).
+**Op-seat co-sign:** [BEAAA-1236](/BEAAA/issues/BEAAA-1236) `done` (Underwriter operational, 2026-05-30).
+**Strategic-seat countersign:** [BEAAA-1243](/BEAAA/issues/BEAAA-1243) `done` (Head of UW & AI Risk, 2026-05-30; pre-grants Q1/Q2a/Q2b/Q3/Q4 without itemized variance).
+**Claims Architect sign-off:** [BEAAA-1103](/BEAAA/issues/BEAAA-1103) `done` (conditional on ADR-0017 §Persistence-semantics — satisfied by §2.1–§2.3).
+**CTO authority:** ADR-0017 `accepted` at `projects/are-scanner/docs/adr/adr-0017-scope-beta-rescan-persistence-semantics.md`.
+**Build implementer:** Scanner Engineer on [BEAAA-1255](/BEAAA/issues/BEAAA-1255) umbrella (WS1 BEAAA-1265, WS2 BEAAA-1271, WS3 BEAAA-1273, WS4 BEAAA-1274, WS5 BEAAA-1277, WS6 BEAAA-1278, WS7 BEAAA-1283).
+**Change classification:** rule-change (contract version bump + additive new fields on /rescans + measured-route activation); additive minor under semver; Tier 2 rollback.
 
 ---
 
-## §Version header (replaces line 1)
+## §Version header
 
 ```
-# Contract: ARE Scanner API — v1.1.0
+# Contract: ARE Scanner API — v1.2.0
 ```
 
-## §Input (additive — `scan_mode`, `k_replicates` fields)
+---
 
-Add the following keys to the request schema (both optional; backward-compatible — omitted = `offline_replay` with K=1):
+## §Input — `POST /scanner/v1/scans` (unchanged from v1.1.0)
+
+The scan route input shape is byte-identical to v1.1.0. Recap:
 
 ```jsonc
 {
-  // ... existing fields unchanged ...
-  "scan_mode": "offline_replay | live_probe",   // optional; default "offline_replay". Mode selector.
-  "k_replicates": 5 | 10                         // optional; default 5. Only meaningful when scan_mode = "live_probe". K=10 tightens observed spread without renegotiating the contract band.
+  // ... identity, corpus snapshot, model versions, evidence pointers ...
+  "scan_mode": "offline_replay | live_probe",   // optional; default "offline_replay" (v1.1.0)
+  "k_replicates": 5 | 10                         // optional; default 5; meaningful only for live_probe (v1.1.0)
 }
 ```
 
-**Semantics:**
-- `scan_mode: "offline_replay"` — today's behavior. Deterministic kernel over supplied artifacts. ±1 reproducibility surface unchanged.
-- `scan_mode: "live_probe"` — Prober drives the target endpoint with the pinned probe corpus K times; per-dim `raw` is the median across K replicates; per-dim spread is recorded.
-- `k_replicates` is ignored when `scan_mode: "offline_replay"`.
+Existing v1.1.0 consumers that omit `scan_mode` continue to receive
+`offline_replay`-shaped responses byte-identically.
 
-## §Output (additive — live_probe fields)
+## §Input — `POST /scanner/v1/rescans` (NEW measured route, v1.2.0)
 
-Add the following keys to the response schema. Fields marked **UW-facing only** are stripped from the customer-facing report-card adapter (per Δ4 tamper-resistance hardening):
+`POST /scanner/v1/rescans` accepts the identical request schema as
+`POST /scanner/v1/scans`, with two differences:
 
 ```jsonc
 {
-  // ... existing fields unchanged ...
-  "scan_mode": "offline_replay | live_probe",   // mirror of the requested mode
-  "spread_per_dim": {                            // present only when scan_mode = "live_probe"
-    "<rubric_point_id>": 0.0..N,                 // observed spread (max - min) across K replicates, per rubric point
-    // ... one entry per rubric_point_id in the run ...
+  // ... all /scans input fields, with same semantics ...
+  "agent_id": "<uuid>",                         // REQUIRED on /rescans (vs. optional on /scans);
+                                                 // must reference an existing scan record. 422 agent_id_no_prior_scan otherwise.
+  "scanner_invocation_context": {
+    "purpose": "pre_bind | mid_term | claim_review"   // REQUIRED on /rescans; drives SLA + degradation policy.
   },
-  "spread_per_pillar": {                         // present only when scan_mode = "live_probe"
-    "GOVERNANCE": 0.0..25,
-    "ROBUSTNESS": 0.0..25,
-    "BIAS_FAIRNESS": 0.0..25,
-    "OPS": 0.0..25
-  },
-  "spread_total": 0.0..100,                      // present only when scan_mode = "live_probe"
-  "live_probe_variance_band": 2,                 // UW-facing only (Δ4); integer; documents the ±2 band that bound this run
-  "k_replicates_observed": 1..K,                 // present only when scan_mode = "live_probe"; actual successful replicate count
-  "incomplete": true | false                     // true when spread_total > 2 OR any pillar spread > 2 OR k_replicates_observed < requested K
+  "scan_mode": "offline_replay | live_probe",   // optional; default "offline_replay"
+  "k_replicates": 5 | 10                         // optional; default 5; meaningful only for live_probe
 }
 ```
 
-**`incomplete: true` semantics** (live_probe mode):
-- `spread_total > 2` → `incomplete: true`
-- any `spread_per_pillar[*] > 2` → `incomplete: true`
-- `k_replicates_observed < requested k_replicates` (after Prober's bounded retry budget exhausts) → `incomplete: true`
+Rescans against a never-scanned `agent_id` MUST fail 422 with detail
+`agent_id_no_prior_scan` before any scoring work begins. Rescans with an
+unknown `purpose` MUST fail 422 with detail `purpose_invalid`.
 
-`incomplete: true` routes to the existing Underwriter Hard Guarantee #1 hard rejection (no pricing without evidence trail). The quote engine MUST NOT price an `incomplete: true` score, regardless of `scan_mode`.
+## §Output — `POST /scanner/v1/scans` (additive: WS4 boolean flags)
 
-## §Hard guarantees (CTO is on the hook for these) — patch
+v1.1.0 response shape is preserved field-for-field. v1.2.0 adds two
+top-level boolean flags that default `false` on every scan response:
 
-Replace clause #1 with two sub-clauses (1a unchanged from v1.0.x; 1b new):
+```jsonc
+{
+  // ... all existing v1.1.0 /scans response fields unchanged (are_total, subscores, band,
+  //     confidence, evidence_refs[], uncovered_dimensions, scanner_version, corpus_version,
+  //     model_versions, seed, run_timestamp, scan_mode, spread_per_dim, spread_per_pillar,
+  //     spread_total, live_probe_variance_band, k_replicates_observed, incomplete) ...
 
-> 1a. **Reproducibility (offline_replay).** Same agent + same scanner_version + same corpus_version + same model_versions + same seed + `scan_mode: "offline_replay"` → same `are_total` within ±1 point and same value for every subscore within ±1 point. Enforced in CI: every release runs the calibration set N=5 times in offline_replay mode; release blocks if total or any subscore varies by more than 1 point.
->
-> 1b. **Reproducibility (live_probe).** For `scan_mode: "live_probe"`, the K-replicate median aggregation yields a result that, across the K replicates within a single scan, varies by no more than ±2 on `are_total` and ±2 on every pillar subscore. Anything wider sets `incomplete: true` and refuses-to-quote. Enforced in CI: every release runs the live_probe contract test against the calibration set with `k_replicates: 5`; release blocks if observed spread on a calibration target exceeds the band without triggering `incomplete: true`. The ±2 widening exists strictly to absorb non-pinnable commercial-endpoint variance (e.g. `claude-opus-4-7` rejects the `temperature` kwarg per `harness/runner.py:84–86`; OpenAI `seed` is best-effort under MoE routing per `harness/runner.py:96–100`).
+  "partial_completion": false,                    // v1.2.0; true ⇒ result was partially produced under
+                                                  // SLA degradation (see §SLA degradation policy)
+  "confidence_below_adjudication_threshold": false  // v1.2.0; true ⇒ confidence is below the
+                                                  // adjudication-grade floor and routes to manual review
+}
+```
 
-Clauses #2–#5 unchanged.
+The two flags are mode-independent — they appear on both `offline_replay`
+and `live_probe` responses. They are pure-additive: v1.1.0 consumers that
+ignore them receive the same data they did before. Wire-shape gate: both
+fields ALWAYS present on `/scans` accept responses (default `false`).
 
-## §Hard guarantees (Underwriter is on the hook for these) — unchanged
+## §Output — `POST /scanner/v1/rescans` (additive beyond `/scans`, v1.2.0)
 
-Clauses #1–#4 bind both `scan_mode` values identically:
-- UW #1 "No pricing without evidence trail" — applies via `incomplete: true` enforcement in both modes.
-- UW #2 "Uncovered dimensions priced at maximum risk" — mode-independent.
-- UW #3 "Band-to-premium mapping is filed" — unchanged for `offline_replay`; for `live_probe`, the rate-book extension consuming `spread_per_dim` lands as a separate filed artifact (downstream rate-book child) before the first live_probe-bound policy ships.
-- UW #4 "Mid-term re-scan triggers documented" — unaffected by this bump.
+`POST /scanner/v1/rescans` returns the same response schema as
+`POST /scanner/v1/scans` (all fields identical in semantics, including the
+two new v1.2.0 flags above) plus three Scope-β additive fields per
+ADR-0017 §2.1 + §2.2 + §2.3:
 
-## §Approval gates — unchanged
+```jsonc
+{
+  // ... all /scans output fields, with same semantics, including
+  //     partial_completion + confidence_below_adjudication_threshold ...
 
-This v1.1.0 bump is itself classified under "Scoring logic change (CTO + Underwriter)" (additive surface; narrower constraint surfaces unchanged). CTO + Underwriter co-sign authority is sufficient; pillar weights and rubric points are unchanged, so no Founder sign-off is triggered. Future contract bumps follow the existing gate table.
+  // Scope-β additions (v1.2.0, rescans route only):
+  "prior_scan_refs": [                            // ordered list of all prior scans for this agent_id
+    {                                             // (ascending by run_timestamp; current rescan NOT included)
+      "scan_id": "<uuid>",
+      "run_timestamp": "<ISO-8601>",
+      "are_total": 0..100,
+      "band": "A | B | C | D"                     // canonical 12-band letter (rubric/bands.py BEAAA-57 FROZEN 2026-04-30)
+    }
+    // ... one entry per prior scan (initial scan + all prior rescans), asc by run_timestamp ...
+    // MAY be empty array on the first /rescans for an agent_id; callers MUST handle empty.
+    // ALWAYS present on /rescans accept responses (empty array when chain is empty).
+  ],
+  "prior_scan_refs_truncated": true,              // OPTIONAL; present ONLY when chain exceeds the v1.2.0 cap (N=100)
+  "forensic_bundle_uri": "<URI>",                 // write-once URI to the cold-storage forensic bundle for this rescan;
+                                                  // present only when the runtime is wired with a scan_log (omitted on
+                                                  // rollback / unwired paths — cannot be fabricated, per ADR-0017 §2.2)
+  "snapshot_hash": "sha256:<64-hex-chars>"        // SHA-256 of the RFC 8785 JCS canonical form of the response body
+                                                  // (minus `snapshot_hash` itself), computed at write time and stored
+                                                  // immutably; present only with scan_log (same gate as forensic_bundle_uri)
+}
+```
 
-## §Customer-facing adapter rule (NEW sub-section)
+The three Scope-β fields are absent on the `/scans` response shape (AC #3
+of WS3 — `/scans` envelope is byte-identical to v1.1.0). Callers MUST
+treat absent `prior_scan_refs_truncated` and absent `forensic_bundle_uri`
+/ `snapshot_hash` identically to `false` / no-evidence-yet semantics
+respectively.
 
-Add at end of §Output:
+## §Persistence semantics — `forensic_bundle_uri` + `snapshot_hash`
 
-> **Customer-facing report-card adapter.** When emitting a customer-visible report card (the artifact the customer sees in their portal or the Approval Pack), the adapter MUST strip the `live_probe_variance_band` field. The variance-band figure is UW-facing and audit-facing only; exposing it to the scanned agent (or to a sufficiently adversarial customer-side proxy) gives the scanned agent its tampering target, which would degrade CTO Hard Guarantee #5 (tamper resistance). All other live_probe-mode response fields (`scan_mode`, `spread_per_dim`, `spread_per_pillar`, `spread_total`, `k_replicates_observed`, `incomplete`) MAY appear in customer-facing output at the customer-success team's discretion; only `live_probe_variance_band` is mandated UW-only.
+> **Authoritative ADR:** ADR-0017 (`docs/adr/adr-0017-scope-beta-rescan-persistence-semantics.md`), §2.2 + §2.3.
 
-## §Versioning — bump
+**Write-once `forensic_bundle_uri` (ADR-0017 §2.2).** Once the forensic
+bundle for a rescan is written to cold storage, its URI is sealed. A
+subsequent rescan of the same `agent_id` produces a new bundle at a new
+URI; it does not overwrite the prior record. The URI MUST be stable for
+the life of the policy plus the claims run-off period (policy term +
+7 years). Cold-storage implementation (per §7 Q7a, pinned at WS2 close
+BEAAA-1271): S3-compatible bucket `ifa-forensic-bundles` with Object Lock
+in Compliance mode; retain-until = `run_timestamp + 10y`; scanner IAM
+role carries `s3:PutObject` + `s3:PutObjectRetention` only (no
+`s3:DeleteObject`, no `s3:BypassGovernanceRetention`).
 
-Update the standing version pointer. The Underwriter pricing engine continues to pin to a specific contract version; pinned consumers must opt into v1.1.0 explicitly. Existing v1.0.x consumers that omit `scan_mode` continue to receive offline_replay-shaped responses byte-identically.
+**At-write-time `snapshot_hash` (ADR-0017 §2.3).** The SHA-256 hash of
+the RFC 8785 JCS canonical form (see §Canonical-JSON serialization below)
+of the full rescan response body — **excluding `snapshot_hash` itself**
+— is computed immediately before the bundle is committed to cold
+storage. The hash is NOT recomputed on read. If a retrieved bundle's
+hash does not match the stored `snapshot_hash`, the bundle MUST be
+treated as tampered and MUST NOT be used as claims evidence.
 
----
+**Tamper-resistance relationship (CTO Hard Guarantee #5 strengthened).**
+The scanner's refusal to overwrite prior bundles and the at-write-time
+seal mean that no post-loss mutation of the forensic record is possible
+via the scanner's own API surface.
 
-## Build-spec implementation flags (NON-contract — for the BEAAA-533 build spec)
+## §Canonical-JSON serialization — `snapshot_hash` preimage (NEW, v1.2.0)
 
-These do not change the contract shape; they are implementation-detail directives the build child must honor:
+> **Authoritative ADR:** ADR-0017 §7 Q7c, ratified at BEAAA-1283 (WS7 close).
+> **Pinned fixture:** `tests/fixtures/canonical_serialization/` (CI-gated by
+> `tests/test_canonical_serialization_beaaa1283.py`).
 
-1. **Partial-K retry budget.** Prober retries failed replicates within a bounded retry budget per scan (recommendation: retry budget = K, so total replicate attempts ≤ 2K). On budget exhaustion with `k_replicates_observed < requested K`, return `incomplete: true`. Do NOT return a median-over-K' result with implicit weaker variance.
-2. **Same semantics extend to `k_replicates: 10`.** If retry budget exhausts at K' < 10, return `incomplete: true` rather than median-over-K'<10.
-3. **`live_probe_variance_band` stripping** is enforced in the customer-facing report-card adapter (not in the `/score` handler — the handler always emits the UW-facing payload). Build child must implement the adapter-side strip and unit-test it.
+- **Standard:** RFC 8785 (JSON Canonicalization Scheme — JCS).
+- **Implementation:** `api/jcs.py:canonicalize()`.
+- **Key ordering:** UTF-16 code-unit sequence (JCS §3.2.3).
+- **Null handling:** present-with-`null` is serialized as `null`; absent
+  keys are absent. These are distinct cases — the canonical form mirrors
+  payload presence; it never injects or suppresses keys.
+- **Float precision:** ECMAScript 6 ToString (JCS §3.2.2.3) — shortest
+  round-trip representation; trailing zeros stripped; integer-valued
+  floats emit without `.0`; non-finite floats rejected.
+- **String encoding:** UTF-8, no BOM. Minimal-escape rule of JCS §3.2.2.5
+  — the seven mandatory short escapes (`\"`, `\\`, `\b`, `\f`, `\n`,
+  `\r`, `\t`) plus `\u00xx` for remaining C0 control codes; every other
+  code point emitted as-is.
+- **Hash input scope:** the complete canonical JSON byte string of the
+  full rescan response body, **excluding** the `snapshot_hash` field
+  itself. The hash is computed before `snapshot_hash` is inserted.
+- **Hash algorithm:** SHA-256, hex-encoded, prefixed `sha256:` →
+  `sha256:<64 lowercase hex chars>`.
 
-## Co-sign reference manifest (stamped on BEAAA-533)
+Drift in any of the above (implementation, fixture, or hash algorithm)
+invalidates the chain of `snapshot_hash` values committed to cold
+storage. Any such change is itself a contract bump per ADR-0017 §2.3.
 
-For citation by the build child task per `scanner-implementation-supervision-v1@v1.0` "Required artifacts per Operational action":
+## §Audit-trail linkage — `prior_scan_refs[]`
 
-- `cto_cosign_ref`: ADR-0009 ratification record on [BEAAA-530#document-adr-0009-ratification](/BEAAA/issues/BEAAA-530#document-adr-0009-ratification) (Scanner Engineer, 2026-05-18).
-- `uw_operational_cosign_ref`: [BEAAA-531 #4ecd6b82](/BEAAA/issues/BEAAA-531#comment-4ecd6b82-55aa-4685-8b8c-e00c17cc0e18) (Underwriter operational, 2026-05-18T19:14Z).
-- `head_of_uw_cosign_ref`: [BEAAA-535 #62b25059](/BEAAA/issues/BEAAA-535#comment-62b25059) (Head of UW & AI Risk, 2026-05-18T19:21Z).
+> **Authoritative ADR:** ADR-0017 §2.1.
+> **Claims protocol dependency:** §3 evidence-collection, §4 coverage analysis, §9 post-mortem.
+
+`prior_scan_refs[]` makes the rescan response self-contained for
+adjudication: the claims handler can construct the complete ARE evidence
+chain (bind-time scan + all rescans) from a single rescan response,
+without a second API call or a history lookup.
+
+**Entries are committed values.** `are_total` and `band` in each entry
+are the values as committed at the time of the prior scan. They are not
+recomputed and are not affected by rubric updates after the fact. This
+preserves the integrity of the evidence chain for §4 bind-time vs.
+at-loss state comparison.
+
+**Pagination — v1.2.0 resolution (ADR-0017 §7 Q7b, pinned at WS3 close BEAAA-1273).**
+Max-entries cap is **N = 100** for v1.2.0. If a `/rescans` POST would
+produce more than 100 `prior_scan_refs[]` entries, the response MUST
+return the most-recent 100 entries (truncated from the head end — the
+most-recent tail by `run_timestamp` is kept) AND set the non-breaking
+sentinel field `prior_scan_refs_truncated: true`. Callers MUST check
+`prior_scan_refs_truncated` before treating the array as complete; when
+the flag is absent or `false`, the array is the complete chain.
+Implementation constant: `api.scan_handlers.PRIOR_SCAN_REFS_MAX = 100`.
+A separate `GET /scanner/v1/agents/{agent_id}/scans` history endpoint is
+**deferred to v1.3.0**; v1.2.0 does NOT emit a
+`prior_scan_refs_history_uri`. Rationale: at the expected first-bind-to-
+claim cadence (≤1 rescan/quarter Tier-1, ≤1 rescan/month Tier-2), 100
+entries covers 25y Tier-1 / 8y Tier-2 — well past the Underwriter
+retention window. The persisted scan_log row count remains unbounded
+(no row eviction); the cap is operational defense-in-depth, not a hot
+path.
+
+## §SLA degradation policy — purpose-aware (NEW, v1.2.0)
+
+> **Authoritative source:** WS4 (BEAAA-1274) — `api/sla.py`.
+
+Each `/rescans` invocation carries a `scanner_invocation_context.purpose`
+in `{pre_bind, mid_term, claim_review}`. The route emits per-purpose
+rolling-window wall-clock metrics (N=20 samples, nearest-rank p50/p95/p99)
+observable at `GET /scanner/v1/sla`. Pinned SLA targets:
+
+- **`pre_bind` / `mid_term` p95 ≤ 4 hours** wall-clock. Nominal path.
+- **`claim_review` ceiling = 12 hours** wall-clock. SLA extension up to
+  12 hours is preferred over partial fallback.
+
+**Degradation behavior.** When a `claim_review` rescan exceeds the
+12-hour ceiling with an incomplete result (cause ∈ `{timeout,
+rate_limited, transport_saturated}`):
+
+- `partial_completion` MUST be set `true`.
+- `confidence_below_adjudication_threshold` MUST be set `true`.
+- `uncovered_dimensions[].reason` MUST be populated.
+- The `claim_review.partial_fallback` routing event MUST be emitted via
+  `RoutingEventSink`, hooking the Claims Architect manual-review pipeline.
+
+Both flags default `false` on every accept response. Setting them
+`true` is the only signal callers should rely on; their absence MUST be
+treated as `false`.
+
+## §New endpoint — `GET /scanner/v1/sla`
+
+Returns the per-`purpose` rolling-window snapshot:
+
+```jsonc
+{
+  "pre_bind":     { "p50_s": 1234, "p95_s": 3456, "p99_s": 4567, "n": 20 },
+  "mid_term":     { "p50_s": 2345, "p95_s": 4567, "p99_s": 7890, "n": 20 },
+  "claim_review": { "p50_s": 5678, "p95_s": 9012, "p99_s": 11456, "n": 20 }
+}
+```
+
+Returns `{}` before the first `/rescans` invocation populates any
+metric. No authz changes beyond the existing `/scanner/v1/*` surface.
+
+## §Hard guarantees (CTO is on the hook for these)
+
+Recap of v1.1.0 clauses 1a + 1b unchanged. v1.2.0 appends:
+
+> **1c. Reproducibility (rescans).** `POST /scanner/v1/rescans` with
+> `scan_mode: "offline_replay"` satisfies the same ±1 reproducibility
+> guarantee as `POST /scanner/v1/scans` (clause 1a). `scan_mode:
+> "live_probe"` satisfies the same ±2 band guarantee (clause 1b). The
+> rescan result is NOT required to equal the bind-time scan result —
+> bind-to-loss drift is expected and is the measurement we are trying to
+> capture. Enforced in CI: every release runs the N=5 calibration delta
+> on the golden set via `/rescans` vs. `/scans` baseline (BEAAA-1278);
+> release blocks if `are_total` or any subscore varies by more than
+> 1 point across replicates.
+
+Clause #5 (tamper resistance) gains a 5a addendum:
+
+> **5a. Forensic bundle tamper evidence.** The `snapshot_hash` returned
+> in every rescan response is the tamper-evident seal on the committed
+> forensic bundle. Any party in possession of the bundle and the hash
+> can independently verify integrity by re-canonicalizing the bundle
+> bytes per §Canonical-JSON serialization and recomputing SHA-256. The
+> scanner MUST NOT provide any API surface to recompute or overwrite
+> the hash for an existing bundle. Cold-storage Object Lock (Compliance
+> mode) is the second seal at the storage layer.
+
+Clauses #2–#4 unchanged.
+
+## §Hard guarantees (Underwriter is on the hook for these)
+
+Recap of v1.1.0 clauses #1–#4 unchanged. They bind both `/scans` and
+`/rescans` identically (UW #1 routes via `partial_completion: true` ⇒
+no pricing, UW #2 routes via `uncovered_dimensions`, UW #3 unchanged for
+offline_replay and rate-book extension applies to live_probe spread, UW
+#4 mid-term re-scan triggers are satisfied by the measured `/rescans`
+route this contract activates).
+
+## §Customer-facing adapter rule (unchanged from v1.1.0)
+
+When emitting a customer-visible report card, the adapter MUST strip the
+`live_probe_variance_band` field (UW-facing only, per Δ4
+tamper-resistance hardening). v1.2.0 ADDS the rule that the customer-
+facing adapter MUST also strip `forensic_bundle_uri` and `snapshot_hash`
+(both are claims-grade evidence-pipeline references — exposing them to
+the scanned agent gives it tampering targets and degrades CTO Hard
+Guarantee #5a). `prior_scan_refs[]` MAY appear in customer-facing output
+at customer-success discretion; `prior_scan_refs_truncated`,
+`partial_completion`, and `confidence_below_adjudication_threshold` MAY
+appear in customer-facing output.
+
+## §Approval gates
+
+| Change class | Authority required |
+|---|---|
+| Rubric point edit (text / weight / dimension) | CTO + Underwriter (uw-rubric-supervision-v1) |
+| Pillar weight change | CTO + Underwriter + Founder |
+| Judge-model substitution | CTO + Underwriter |
+| Scoring math change | CTO + Underwriter |
+| Contract additive minor (this v1.2.0 bump pattern) | CTO + Underwriter; HoUW countersign on /scanner/v1/* persistence semantics. Authoritative source for v1.2.0: ADR-0017. |
+| Contract breaking change (major) | CTO + Underwriter + Founder |
+| Tamper-resistance reduction | CTO + Underwriter + Founder |
+
+This v1.2.0 bump itself is classified as "Contract additive minor" with
+the HoUW countersign on persistence semantics: CTO + Underwriter +
+HoUW + Claims Architect signed; no Founder sign-off triggered
+(pillar weights / rubric points unchanged; tamper resistance strengthened
+not weakened — ADR-0017 §3 + §5a).
+
+## §Versioning — history
+
+| Version | Date | Bump class | Authoritative source |
+|---|---|---|---|
+| v1.0.x | 2026-03 → 2026-04 | offline_replay baseline | ADR-0005 + early patches |
+| v1.1.0 | 2026-05-18 | additive minor — live-probe scan mode | ADR-0009; BEAAA-531 op-seat; BEAAA-535 strategic countersign |
+| **v1.2.0** | **2026-05-30** | **additive minor — measured /rescans + persistence semantics + SLA flags** | **ADR-0017; BEAAA-1243 HoUW; BEAAA-1236 UW op-seat; BEAAA-1103 Claims Architect; BEAAA-1255 build umbrella; BEAAA-1283 ratification (WS7)** |
+
+Existing v1.0.x and v1.1.0 consumers that call `POST /scanner/v1/scans`
+receive byte-identical responses beyond the two pure-additive boolean
+flags (default `false`) — no required new fields, no removed fields, no
+renamed fields. `POST /scanner/v1/rescans` callers upgrade to v1.2.0
+when they are ready to consume the three new fields.
+
+## §Feature-flag gating
+
+`POST /scanner/v1/rescans` is gated by `ARE_RESCANS_MEASURED` (env var,
+`api/app.py:RESCANS_MEASURED_ENV`).
+
+- **v1.2.0 default:** `on` — measured route is live, returns the v1.2.0
+  envelope above.
+- **Rollback Path 1 (Tier 2, ≤10 min):** set `ARE_RESCANS_MEASURED=off`
+  in the runtime environment. The route reverts to the legacy doc-only
+  response shape (`{"status": "doc_only", "agent_id": ..., "purpose":
+  ..., "note": ...}`). Existing committed forensic bundles + their
+  hashes remain valid and queryable; the rollback only stops emitting
+  new ones via this route.
 
 ## Rollback
 
-Tier 1, ≤2 min. Reversal procedure: drop `scan_mode`, `k_replicates`, `spread_per_dim`, `spread_per_pillar`, `spread_total`, `live_probe_variance_band`, `k_replicates_observed`, `incomplete` (when added by this delta) from the contract doc and the `/score` handler response shape. Existing `offline_replay`-shaped responses unaffected. Existing CLI (`bin/are-scan`) unaffected. Existing bound book unaffected.
+Tier 2. Two rollback paths are available:
+
+1. **Flag flip (≤10 min).** Set `ARE_RESCANS_MEASURED=off`. Stops the
+   measured `/rescans` path immediately. Existing bundles + hashes
+   untouched.
+2. **Contract revert (≤30 min).** Stop emitting `prior_scan_refs[]`,
+   `prior_scan_refs_truncated`, `forensic_bundle_uri`, `snapshot_hash`,
+   `partial_completion`, and `confidence_below_adjudication_threshold`
+   from new responses (contract reverts to v1.1.0 surface). Existing
+   committed bundles remain in cold storage; their URIs and hashes
+   remain valid. **No bundle deletion required or permitted** (write-
+   once guarantee at the Object Lock layer).
+
+## Co-sign reference manifest
+
+For citation by downstream consumers per `scanner-implementation-supervision-v1@v1.0`:
+
+- `cto_cosign_ref`: ADR-0017 accepted 2026-05-30 + BEAAA-1255 comment
+  56b55cb5 (CTO co-sign 2026-05-30); WS7 ratification at BEAAA-1283.
+- `houw_cosign_ref`: [BEAAA-1243](/BEAAA/issues/BEAAA-1243) (Head of UW
+  & AI Risk, 2026-05-30; pre-grants Q1/Q2a/Q2b/Q3/Q4 without itemized
+  variance).
+- `uw_operational_cosign_ref`: [BEAAA-1236](/BEAAA/issues/BEAAA-1236)
+  (Underwriter operational, 2026-05-30).
+- `claims_architect_cosign_ref`: [BEAAA-1103](/BEAAA/issues/BEAAA-1103)
+  (Claims Architect, conditional on ADR-0017 §Persistence-semantics).
+- `scanner_engineer_ratification_ref`: WS7 close on
+  [BEAAA-1283](/BEAAA/issues/BEAAA-1283) comment c9978a82 (umbrella
+  [BEAAA-1255](/BEAAA/issues/BEAAA-1255) is the CTO-owned record; the
+  Scanner Engineer ratification lives on the WS7 child because the
+  access-control surface scopes mutation to the assignee).
+
+## Required artifact fields (per supervision contract @v1.0)
+
+- `scanner_version`: pinned per release; v1.2.0 cuts at scanner_version
+  ≥ 0.3.8 (per WS5 BEAAA-1277 smoke + WS6 BEAAA-1278 N=5).
+- `corpus_version`: unchanged from v1.1.0 baseline (`0.1.0` on the
+  smoke harness; per-agent calibration sidecars retain their pinned
+  versions).
+- `probe-set-version`: unchanged (no probe-set touch in WS1–WS7).
+- `rubric_point_id` range affected: **none** (route-level + persistence
+  layer + SLA-policy layer; no rubric edit).
+- `N=5 calibration delta`: BEAAA-1278 doc
+  [scope-beta-n5-calibration-rescans-vs-scans-v1](/BEAAA/issues/BEAAA-1278#document-scope-beta-n5-calibration-rescans-vs-scans-v1)
+  — Δ=0 on `are_total` and every subscore; variance band=0;
+  discrimination half-range=22.5 around mean 61.5 (well outside ±10
+  collapse threshold); Supreme-Law verdict PASS.
+- `upstream_eval_version`: unchanged (no upstream eval wrapping
+  changes; live-probe orchestrator pins are unchanged on /rescans by
+  shared-entrypoint construction).
+- `cto_cosign_ref`: see Co-sign reference manifest above.

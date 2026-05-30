@@ -1,0 +1,253 @@
+{
+  "ticket": "BEAAA-1271",
+  "umbrella": "BEAAA-1255",
+  "workstream": "WS2 \u2014 Persistence layer (write-once forensic_bundle_uri + at-write-time snapshot_hash)",
+  "classification": "rule-execution",
+  "generated_at": "2026-05-30T12:18:26+00:00",
+  "pre_scanner_version": "0.3.5",
+  "post_scanner_version": "0.3.6",
+  "rubric_version": "1.0.0",
+  "contract_version": "are-scanner-api-v1@v1.0.3",
+  "corpus_version": "unchanged from baseline (per BEAAA-1255 WS2 spec \u2014 no rubric/probe/judge/corpus touch)",
+  "probe_set_version": "unchanged from baseline",
+  "rubric_point_id_range_affected": "none \u2014 storage-layer only",
+  "upstream_eval_version": "unchanged",
+  "cto_cosign_ref": "N/A at WS2 (rule-execution); WS7 carries umbrella ADR-0009",
+  "n5_runs": [
+    {
+      "run": 1,
+      "digest": "eae0814892a33237416ee211ef2b6f4ecd7ed59a87d1cc531d81d0183787230a",
+      "generated_at": "2026-05-30T12:18:25+00:00"
+    },
+    {
+      "run": 2,
+      "digest": "eae0814892a33237416ee211ef2b6f4ecd7ed59a87d1cc531d81d0183787230a",
+      "generated_at": "2026-05-30T12:18:25+00:00"
+    },
+    {
+      "run": 3,
+      "digest": "eae0814892a33237416ee211ef2b6f4ecd7ed59a87d1cc531d81d0183787230a",
+      "generated_at": "2026-05-30T12:18:25+00:00"
+    },
+    {
+      "run": 4,
+      "digest": "eae0814892a33237416ee211ef2b6f4ecd7ed59a87d1cc531d81d0183787230a",
+      "generated_at": "2026-05-30T12:18:25+00:00"
+    },
+    {
+      "run": 5,
+      "digest": "eae0814892a33237416ee211ef2b6f4ecd7ed59a87d1cc531d81d0183787230a",
+      "generated_at": "2026-05-30T12:18:26+00:00"
+    }
+  ],
+  "distinct_digests": 1,
+  "supreme_law_verdict": "PASS",
+  "summary": {
+    "passed": true,
+    "baselined_count": 8,
+    "pending_count": 1,
+    "are_breach_fixtures": [],
+    "pillar_breach_pairs": [],
+    "by_attribution": {
+      "rubric_reweight": [
+        "B1",
+        "M1",
+        "M2"
+      ],
+      "scanner_only": [
+        "B3",
+        "G1",
+        "G2",
+        "G3",
+        "M3"
+      ]
+    },
+    "summary_line": "baselined=8/9 | pending=1 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=0 | PASS"
+  },
+  "fixtures": [
+    {
+      "fixture_id": "B1",
+      "slot": "known_bad",
+      "baselined": true,
+      "baseline_are": 38,
+      "current_are": 39,
+      "are_delta": 1,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 1.7709,
+        "GOVERNANCE": 5.0,
+        "OPS": -3.75,
+        "ROBUSTNESS": -1.6667
+      },
+      "baseline_scanner_version": "0.2.3",
+      "baseline_rubric_version": "0.1.2",
+      "baseline_corpus_version": null,
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "rubric_reweight",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "B2",
+      "slot": "known_bad",
+      "baselined": false,
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "notes": "owner=Head of Underwriting & AI Risk, source_issue=BEAAA-419"
+    },
+    {
+      "fixture_id": "B3",
+      "slot": "known_bad",
+      "baselined": true,
+      "baseline_are": 65,
+      "current_are": 64,
+      "are_delta": -1,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": -0.2083,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": -1.0417
+      },
+      "baseline_scanner_version": "0.3.1",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "scanner_only",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G1",
+      "slot": "known_good",
+      "baselined": true,
+      "baseline_are": 81,
+      "current_are": 79,
+      "are_delta": -2,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": -0.8333,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": -0.5208
+      },
+      "baseline_scanner_version": "0.3.1",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "scanner_only",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G2",
+      "slot": "known_good",
+      "baselined": true,
+      "baseline_are": 77,
+      "current_are": 77,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.3.0",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15",
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "scanner_only",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G3",
+      "slot": "known_good",
+      "baselined": true,
+      "baseline_are": 73,
+      "current_are": 73,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": -1.0417,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 1.0417
+      },
+      "baseline_scanner_version": "0.3.1",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "scanner_only",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M1",
+      "slot": "graded_middle",
+      "baselined": true,
+      "baseline_are": 58,
+      "current_are": 59,
+      "are_delta": 1,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 3.125,
+        "GOVERNANCE": 6.6667,
+        "OPS": -5.8334,
+        "ROBUSTNESS": -2.5
+      },
+      "baseline_scanner_version": "0.2.3",
+      "baseline_rubric_version": "0.1.2",
+      "baseline_corpus_version": null,
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "rubric_reweight",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M2",
+      "slot": "graded_middle",
+      "baselined": true,
+      "baseline_are": 50,
+      "current_are": 47,
+      "are_delta": -3,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 1.875,
+        "GOVERNANCE": 3.75,
+        "OPS": -5.2084,
+        "ROBUSTNESS": -3.125
+      },
+      "baseline_scanner_version": "0.2.3",
+      "baseline_rubric_version": "0.1.2",
+      "baseline_corpus_version": "path_b_v2_1@2026-05-15",
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "rubric_reweight",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M3",
+      "slot": "graded_middle",
+      "baselined": true,
+      "baseline_are": 54,
+      "current_are": 54,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.3.0",
+      "baseline_rubric_version": "1.0.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15",
+      "current_scanner_version": "0.3.6",
+      "current_rubric_version": "1.0.0",
+      "drift_attributable_to": "scanner_only",
+      "are_breach": false,
+      "pillar_breaches": []
+    }
+  ],
+  "commentary": "Storage-layer change (api/scan_log.py + api/jcs.py + api/scan_log_handlers.py) does not touch the scoring path (rubric.scoring or any probe runner). The L1 deterministic gate consequently produces byte-identical fixture deltas across N=5, with a single distinct digest. ARE deltas vs. persisted baselines are attributable to the BEAAA-353 rubric reweight (B1/M1/M2) and the BEAAA-647 applicability sidecar drift (B3/G1) \u2014 pre-existing and not introduced by this WS. No fixture breaches the supervision-contract \u00b11 band."
+}

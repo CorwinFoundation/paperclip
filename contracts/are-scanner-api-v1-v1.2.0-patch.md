@@ -11,7 +11,7 @@ proof_points_cited: ["ADR-0017 (accepted 2026-05-30, docs/adr/adr-0017-scope-bet
 version: "v1.2.0-patch"
 prior_version: "are-scanner-api-v1@v1.1.0"
 self_audit_passed: true
-self_audit_note: "ADR-0017 accepted 2026-05-30. Scanner Engineer ratified §7 Q7a/Q7b/Q7c (BEAAA-1255 comment 6555f6d0). CTO co-sign complete. Approved for merge; WS5 N=5 golden-set gate is the sole remaining merge blocker."
+self_audit_note: "ADR-0017 accepted 2026-05-30. Scanner Engineer ratified §7 Q1 (cold-storage = S3 object-locked, pinned at BEAAA-1271 WS2 close), §7 Q2 (prior_scan_refs[] cap = 100 + truncated sentinel + history endpoint deferred to v1.3.0, pinned at BEAAA-1273 WS3 close), §7 Q3 (canonical-JSON = RFC 8785 JCS, pinned at BEAAA-1271 WS2 close). CTO co-sign complete. Approved for merge; WS5 (BEAAA-1277) Syllable apichat smoke + WS6 (BEAAA-1278) N=5 golden-set gate remain the merge blockers."
 escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged. CTO + UW co-sign authority sufficient (additive minor; no tamper-resistance regression — persistence guarantees strengthen evidence chain)."]
 ---
 
@@ -64,16 +64,18 @@ This contract bump activates the Scope-β route. Prior to v1.2.0, `POST /scanner
   //     live_probe_variance_band, k_replicates_observed, incomplete) ...
 
   // Scope-β additions (v1.2.0, rescans route only):
-  "prior_scan_refs": [                            // ordered list of all prior scans for this agent_id
+  "prior_scan_refs": [                            // ordered list of all prior scans for this agent_id (asc by run_timestamp)
     {
       "scan_id": "<uuid>",
       "run_timestamp": "<ISO-8601>",
       "are_total": 0..100,
-      "band": "low | moderate | high | very_high"
+      "band": "A | B | C | D"                     // canonical 12-band letter (rubric/bands.py BEAAA-57 FROZEN 2026-04-30)
     }
     // ... one entry per prior scan (initial scan + all prior rescans), ascending by run_timestamp ...
     // The current rescan is NOT included in prior_scan_refs[]; caller reconciles current + prior.
+    // MAY be empty array OR omitted on /scans and on the first /rescans for an agent_id; callers MUST handle both.
   ],
+  "prior_scan_refs_truncated": true,              // OPTIONAL; present ONLY when the chain exceeds the v1.2.0 cap (100 entries)
   "forensic_bundle_uri": "<URI>",                 // write-once URI to the cold-storage forensic bundle for this rescan
   "snapshot_hash": "sha256:<64-hex-chars>"        // SHA-256 of the canonical JSON payload, computed at write time
 }
@@ -97,7 +99,7 @@ This contract bump activates the Scope-β route. Prior to v1.2.0, `POST /scanner
 
 **Entries are committed values.** `are_total` and `band` in each `prior_scan_refs[]` entry are the values as committed at the time of the prior scan. They are not recomputed and are not affected by rubric updates after the fact. This preserves the integrity of the evidence chain for §4 bind-time vs. at-loss state comparison.
 
-**Pagination.** If `prior_scan_refs[]` would exceed N entries (N to be pinned at build close in ADR-0017 §7), the response MUST include a `prior_scan_refs_truncated: true` flag and a `prior_scan_refs_history_uri` pointing to the full history endpoint. Callers MUST check `prior_scan_refs_truncated` before treating the array as complete. (For typical policy lifetimes before first real Tier-2+ claim, N will not be reached.)
+**Pagination — v1.2.0 resolution (ADR-0017 §7 Q2, pinned at WS3 close — [BEAAA-1273](/BEAAA/issues/BEAAA-1273)).** Max-entries cap is **N = 100** for v1.2.0. If a `/rescans` POST would produce more than 100 `prior_scan_refs[]` entries, the response MUST return the most-recent 100 (truncated from the head end ascending — the most-recent tail by `run_timestamp` is kept) AND set the non-breaking sentinel field `prior_scan_refs_truncated: true`. Callers MUST check `prior_scan_refs_truncated` before treating the array as complete; when the flag is absent or `false`, the array is the complete chain. A separate `GET /scanner/v1/agents/{agent_id}/scans` history endpoint is **deferred to v1.3.0** — v1.2.0 does NOT emit a `prior_scan_refs_history_uri`. Rationale for N=100: at the expected first-bind-to-claim cadence (≤1 rescan/quarter Tier-1, ≤1 rescan/month Tier-2), 100 entries covers 25y Tier-1 / 8y Tier-2 — well past the Underwriter retention window. The cap is operational defense-in-depth, not a hot path; the persisted scan_log row count remains unbounded (no row eviction).
 
 ## §Hard guarantees (CTO) — Scope-β addendum
 
@@ -122,7 +124,7 @@ Update the standing version pointer. Existing v1.1.0 consumers that call `POST /
 ## Build-spec implementation flags (NON-contract — for BEAAA-1255)
 
 1. **Cold-storage choice** (ADR-0017 §7 open question 1): S3-compatible object-locked bucket preferred. URI scheme must be dereferenceable by Claims team without scanner intermediary. Pin implementation choice and confirm in ADR-0017 ratification comment on BEAAA-1255.
-2. **`prior_scan_refs[]` pagination cap N** (ADR-0017 §7 open question 2): propose a cap (e.g., 50 entries) or confirm no cap needed for v1.2.0 with a v1.3.0 follow-on. Pin in ADR-0017 ratification.
+2. **`prior_scan_refs[]` pagination cap N** (ADR-0017 §7 Q2 — **PINNED at WS3 close, [BEAAA-1273](/BEAAA/issues/BEAAA-1273)**): **N = 100**. Truncation drops from the head end (oldest), keeps the most-recent tail by `run_timestamp`, and sets `prior_scan_refs_truncated: true` on the response. Separate `GET /scanner/v1/agents/{agent_id}/scans` history endpoint deferred to v1.3.0. Implementation constant: `api.scan_handlers.PRIOR_SCAN_REFS_MAX = 100`.
 3. **Canonical-JSON serialization spec** (ADR-0017 §7 open question 3): key sort order, null handling, float precision must be pinned. Provide a canonical-serialization fixture in the test suite. Pin in ADR-0017 ratification.
 4. **`pre_bind`/`mid_term` SLA**: ≤4 hr p95 for rescan completion. Document measurement methodology in BEAAA-1255. `claim_review` degradation: prefer SLA extension up to 12 hr; partial fallback gated behind explicit flags + manual routing (per scope-beta-design rev 2 §2.2).
 5. **Smoke target**: Syllable apichat (BEAAA-585 target). Two timestamped rescans returning linkable, measured pack rows within SLA. Both `prior_scan_refs[]` from rescan #2 must include rescan #1 as an entry.
@@ -136,4 +138,4 @@ Update the standing version pointer. Existing v1.1.0 consumers that call `POST /
 
 ## Rollback
 
-Tier 2. Stop writing `prior_scan_refs[]`, `forensic_bundle_uri`, `snapshot_hash`, `prior_scan_refs_truncated`, `prior_scan_refs_history_uri` to new rescan responses (contract reverts to v1.1.0 rescan behavior — which was doc-only). Existing committed bundles remain in cold storage; their URIs and hashes remain valid. No bundle deletion required or permitted (write-once guarantee).
+Tier 2. Stop writing `prior_scan_refs[]`, `forensic_bundle_uri`, `snapshot_hash`, `prior_scan_refs_truncated` to new rescan responses (contract reverts to v1.1.0 rescan behavior — which was doc-only). Existing committed bundles remain in cold storage; their URIs and hashes remain valid. No bundle deletion required or permitted (write-once guarantee). `prior_scan_refs_history_uri` is not emitted at v1.2.0 (deferred to v1.3.0) and so is not part of the rollback surface.

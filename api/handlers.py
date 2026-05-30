@@ -44,6 +44,14 @@ def _verify_tenant_isolation(body_tenant: str, header_tenant: str | None) -> Non
         raise HandlerError(409, "tenant mismatch between header and body")
 
 
+# Public alias — BEAAA-546 T7 (single source of truth for tenant isolation
+# across api/handlers.py and api/scan_handlers.py). Tests at
+# tests/test_beaaa546_tenant_isolation_reuse.py + the scan-handler sentry
+# at tests/test_scan_handlers_beaaa547.py assert identity with the private
+# implementation; do not re-implement here.
+verify_tenant_isolation = _verify_tenant_isolation
+
+
 def score_handler(
     body: dict[str, Any],
     *,

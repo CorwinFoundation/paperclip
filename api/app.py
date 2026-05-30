@@ -17,7 +17,14 @@ from rubric.scoring import Rubric
 
 from .bundle import BundleStore
 from .handlers import HandlerError, forensic_bundle_handler, quote_handler, score_handler
-from .scan_handlers import ScanRuntime, scan_handler, scan_status_handler
+from .scan_handlers import (
+    RESCAN_PURPOSES,
+    ScanRuntime,
+    rescan_handler,
+    scan_handler,
+    scan_status_handler,
+)
+from .sla import RoutingEventSink, SlaRegistry
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
@@ -28,6 +35,22 @@ RATES_PATH = REPO_ROOT / "pricing" / "rates.yaml"
 #: byte-identical to today's behavior (Hard Invariant #1 of BEAAA-553).
 PRODUCTION_SCAN_WIRING_ENV: str = "ARE_PRODUCTION_SCAN_WIRING"
 
+#: BEAAA-1265 (WS1) env var gating the measured /scanner/v1/rescans shim per
+#: scope-beta-design rev 2 §7 Rollback. v1.2.0 cut at WS7 close (BEAAA-1283)
+#: flipped the default to **on**: the route returns the v1.2.0 measured
+#: envelope (prior_scan_refs[], forensic_bundle_uri, snapshot_hash,
+#: partial_completion, confidence_below_adjudication_threshold) unless the
+#: env var is explicitly set to ``"off"``. Setting ``ARE_RESCANS_MEASURED=off``
+#: is rollback Path 1 (≤10 min Tier-2 flip per ADR-0017 §6); it reverts the
+#: route to the legacy doc-only response shape with no code change or
+#: redeploy. Existing forensic bundles and snapshot_hash values remain
+#: valid under rollback.
+RESCANS_MEASURED_ENV: str = "ARE_RESCANS_MEASURED"
+
+#: Rollback Path 1 sentinel. Any value other than ``"off"`` (including
+#: unset, empty string, or ``"on"``) means the measured route is active.
+RESCANS_MEASURED_OFF: str = "off"
+
 
 def create_app(
     *,
@@ -35,6 +58,8 @@ def create_app(
     bundles: BundleStore | None = None,
     rates: Rates | None = None,
     scan_runtime: ScanRuntime | None = None,
+    sla_registry: SlaRegistry | None = None,
+    routing_event_sink: RoutingEventSink | None = None,
 ) -> FastAPI:
     app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
@@ -49,6 +74,12 @@ def create_app(
         from .scan_runtime_factory import make_default_production_scan_runtime
         scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
+    # BEAAA-1274 (WS4) — per-purpose SLA metric registry + routing-event sink.
+    # Default sinks survive the lifetime of the app instance so the rolling
+    # window observed by ``GET /scanner/v1/sla`` matches the window the
+    # rescan handler is feeding samples into.
+    app.state.sla_registry = sla_registry or SlaRegistry()
+    app.state.routing_event_sink = routing_event_sink or RoutingEventSink()
 
     @app.post("/score")
     async def post_score(
@@ -101,6 +132,59 @@ def create_app(
         # path per contract v1.1.0). Returning the dict directly would let
         # FastAPI's default 200 win, dropping the contracted Accepted status.
         return JSONResponse(status_code=status, content=payload)
+
+    @app.post("/scanner/v1/rescans")
+    async def post_rescan(
+        request: Request,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    ) -> Any:
+        # BEAAA-1265 (WS1) — /scanner/v1/rescans shim. v1.2.0 default
+        # (post-WS7 merge on BEAAA-1283) is ``on``: any value other than
+        # ``ARE_RESCANS_MEASURED=off`` activates the measured response
+        # envelope. Rollback Path 1 per ADR-0017 §6 is to set the env var
+        # to ``off`` explicitly.
+        body = await request.json()
+        if os.environ.get(RESCANS_MEASURED_ENV) == RESCANS_MEASURED_OFF:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "doc_only",
+                    "agent_id": (body or {}).get("agent_id") if isinstance(body, dict) else None,
+                    "purpose": (
+                        ((body or {}).get("scanner_invocation_context") or {}).get("purpose")
+                        if isinstance(body, dict)
+                        and isinstance(body.get("scanner_invocation_context"), dict)
+                        else None
+                    ),
+                    "note": (
+                        "/scanner/v1/rescans measurement is gated behind "
+                        f"{RESCANS_MEASURED_ENV}=on; see ADR-0017 + BEAAA-1255."
+                    ),
+                },
+            )
+        if app.state.scan_runtime is None:
+            raise HTTPException(status_code=503, detail="scan_runtime_unconfigured")
+        try:
+            status, payload = rescan_handler(
+                body,
+                tenant_header=x_tenant_id,
+                runtime=app.state.scan_runtime,
+                sla_registry=app.state.sla_registry,
+                routing_event_sink=app.state.routing_event_sink,
+            )
+        except HandlerError as exc:
+            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+        if status not in (200, 202):
+            raise HTTPException(status_code=status, detail=payload)
+        # Preserve the handler's 202 accept status to match /scan parity.
+        return JSONResponse(status_code=status, content=payload)
+
+    @app.get("/scanner/v1/sla")
+    async def get_sla() -> Any:
+        # BEAAA-1274 (WS4) — observable per-purpose rolling p50/p95/p99 from
+        # the SLA registry the rescan handler is feeding. Returns the empty
+        # registry shape ``{}`` before the first /rescans call.
+        return app.state.sla_registry.snapshot()
 
     @app.get("/scan/{scan_id}")
     async def get_scan(scan_id: str, audience: str = "customer") -> Any:

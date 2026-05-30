@@ -1,0 +1,104 @@
+{
+  "ticket": "BEAAA-1273",
+  "umbrella": "BEAAA-1255",
+  "workstream": "WS3 — prior_scan_refs[] (4-field) + forensic_bundle_uri + snapshot_hash on POST /scanner/v1/rescans (ADR-0017 §2.1 + §7 Q2)",
+  "classification": "rule-change",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 — 'bin/are-scan CLI behavior change that affects output JSON shape' applied by analogy to /scanner/v1/* route surface (adds three additive response fields toward are-scanner-api-v1 v1.1.0 → v1.2.0 minor bump)",
+  "generated_at": "2026-05-30T13:00:00+00:00",
+  "pre_scanner_version": "0.3.7",
+  "post_scanner_version": "0.3.8",
+  "rubric_version": "1.0.0",
+  "contract_version_pre": "are-scanner-api-v1@v1.1.0",
+  "contract_version_post": "are-scanner-api-v1@v1.2.0 (proposed; ratification at WS7 via ADR-0017 — proposed → accepted)",
+  "corpus_version": "unchanged (no probe / corpus touch)",
+  "probe_set_version": "unchanged",
+  "rubric_point_id_range_affected": "none — route-level additive response fields; rubric.scoring not imported by api/scan_handlers.py (anti-pattern guard asserted by tests/test_rescans_prior_scan_refs_beaaa1273.py::test_scan_handlers_does_not_import_rubric_or_judge)",
+  "upstream_eval_version": "unchanged (no upstream eval framework wrapping)",
+  "cto_cosign_ref": "BEAAA-1243 (HoUW pre-grant 2026-05-30) + BEAAA-1236 (UW operational co-sign 2026-05-30) + ADR-0017 ratification at WS7 (CTO authority on minor bump)",
+  "method": "Reuse-by-construction parity. WS3 is route-level only: read-only chain query from api.scan_log + write-time pin propagation through ScanRuntime.kickoff. The scoring engine path is the same _kickoff_live_probe_scan() entrypoint as /scans (WS1 sentry remains green: tests/test_rescans_handler_beaaa1265.py::test_rescan_and_scan_share_kickoff_entrypoint). The delta on any golden total or subscore is therefore 0 by construction — no separate code path for the engine to diverge in. The WS3 additive fields (`prior_scan_refs[]`, `forensic_bundle_uri`, `snapshot_hash`, `prior_scan_refs_truncated`) do NOT feed back into the scoring path; they are computed from the already-committed score envelope in the persisted scan_log row. Verified by tests/test_rescans_prior_scan_refs_beaaa1273.py::test_n5_calibration_chain_additions_do_not_perturb_baseline (5 replicate /rescans vs /scans baseline — shared envelope keys identical, additive WS3 keys present + stable).",
+  "n": 5,
+  "fixtures": ["B1", "G1", "G2", "M1", "M2"],
+  "deltas": {
+    "B1": {
+      "rationale": "WS3 only adds response-envelope additive fields read from the persisted scan_log row; scoring path unchanged from the WS1 shared-entrypoint baseline.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "G1": {
+      "rationale": "WS3 only adds response-envelope additive fields read from the persisted scan_log row; scoring path unchanged from the WS1 shared-entrypoint baseline.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "G2": {
+      "rationale": "WS3 only adds response-envelope additive fields read from the persisted scan_log row; scoring path unchanged from the WS1 shared-entrypoint baseline.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "M1": {
+      "rationale": "WS3 only adds response-envelope additive fields read from the persisted scan_log row; scoring path unchanged from the WS1 shared-entrypoint baseline.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "M2": {
+      "rationale": "WS3 only adds response-envelope additive fields read from the persisted scan_log row; scoring path unchanged from the WS1 shared-entrypoint baseline.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    }
+  },
+  "max_observed_delta_total": 0,
+  "max_observed_delta_subscore": 0,
+  "supreme_law_verdict": "PASS",
+  "halt_and_escalate_trigger_fired": false,
+  "test_evidence": {
+    "shared_entrypoint_sentry": "tests/test_rescans_handler_beaaa1265.py::test_rescan_and_scan_share_kickoff_entrypoint",
+    "envelope_parity_under_ws3": "tests/test_rescans_handler_beaaa1265.py::test_rescan_parity_with_scan_same_inputs_same_envelope (asserts rescan keys == scan keys ∪ {prior_scan_refs})",
+    "n5_delta_zero_by_construction": "tests/test_rescans_handler_beaaa1265.py::test_rescan_n5_delta_is_zero_by_construction",
+    "ws3_n5_chain_additions_neutral": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_n5_calibration_chain_additions_do_not_perturb_baseline",
+    "no_rubric_or_judge_import": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_scan_handlers_does_not_import_rubric_or_judge"
+  },
+  "ws3_acceptance_criteria_coverage": {
+    "ac_1_prior_scan_refs_ordered_asc": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_prior_scan_refs_ordered_ascending_by_run_timestamp"
+    ],
+    "ac_2_top_level_forensic_pins": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_rescans_envelope_contains_top_level_forensic_pins",
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_two_step_chain_first_rescan_envelope_carries_current_pins"
+    ],
+    "ac_3_scans_envelope_preserved": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_scans_envelope_omits_prior_scan_refs",
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::RescansChainAppTests::test_scans_route_omits_prior_scan_refs"
+    ],
+    "ac_4_two_step_chain": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_two_step_chain_rescans_prior_scan_refs_matches_scans_envelope",
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_current_rescan_not_in_its_own_prior_scan_refs"
+    ],
+    "ac_5_three_step_chain_immutability": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_three_step_chain_immutability_under_rubric_change"
+    ],
+    "ac_6_pagination_cap_100": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_pagination_cap_100_truncates_head_and_sets_flag",
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_pagination_cap_exactly_100_omits_truncated_flag",
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_apply_prior_scan_cap_keeps_most_recent_tail",
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_apply_prior_scan_cap_under_limit_no_truncation"
+    ],
+    "ac_7_n5_golden_set": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_n5_calibration_chain_additions_do_not_perturb_baseline"
+    ],
+    "ac_8_no_scoring_path_touch": [
+      "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_scan_handlers_does_not_import_rubric_or_judge"
+    ]
+  },
+  "adr_0017_section_7_q2_resolution": {
+    "question": "If an agent accumulates many rescans over a long policy term, the array could grow large. Flag if a pagination scheme is needed before v1.2.0 merges, or propose a max-entries cap with a separate history endpoint as a v1.3.0 follow-on.",
+    "resolution": "Max-entries cap = 100 in v1.2.0. If a /rescans POST would produce >100 prior_scan_refs entries, return the most-recent 100 (truncated from the head end ascending — keep the most-recent tail by run_timestamp) and add a non-breaking sentinel field `prior_scan_refs_truncated: true` on the response. A separate GET /scanner/v1/agents/{agent_id}/scans history endpoint is deferred to v1.3.0.",
+    "rationale": "At the expected first-bind-to-claim cadence (≤1 rescan/quarter Tier-1, ≤1 rescan/month Tier-2), 100 entries covers 25y Tier-1 / 8y Tier-2 — well past the Underwriter retention window. The cap is operational defense-in-depth, not a hot path. The persisted scan_log row count is unbounded (no row eviction); the cap only constrains the wire-response footprint.",
+    "implementation_constant": "api.scan_handlers.PRIOR_SCAN_REFS_MAX = 100",
+    "carry_to_cto_ratification": "WS7 (ADR-0017 §7 Q2 close-out comment). CTO may override the cap at ratification; the constant is a single-line change."
+  },
+  "commentary": "Route-level surface change (api/scan_handlers.py — ScanRuntime persistence wiring + rescan response augmentation; api/scan_log.py — `check_same_thread=False` for FastAPI threadpool access). Zero rubric, judge, probe-runner, or scoring-math touch (anti-pattern auto-reject asserted). The L1 deterministic gate is byte-identical because the scoring engine code path is unchanged; the WS3 additive fields are derived from the WS2 scan_log row (`forensic_bundle_uri`, `snapshot_hash`) and the chain projection (`prior_scan_refs[]`), both of which are read-only on score data. Supreme Law gate: PASS — no fixture moves >1 on are_total or any subscore. The chain-immutability invariant (ADR-0017 §2.1) is verified explicitly: tests/test_rescans_prior_scan_refs_beaaa1273.py::test_three_step_chain_immutability_under_rubric_change asserts that past prior_scan_refs entries are NOT recomputed even when the score_envelope_factory swaps between rescans (simulating a rubric change between scans)."
+}

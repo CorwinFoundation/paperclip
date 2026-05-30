@@ -1,0 +1,22 @@
+{
+  "confidence_below_adjudication_threshold": false,
+  "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-degrade-a-d2-001.json",
+  "partial_completion": false,
+  "prior_scan_refs": [
+    {
+      "are_total": 72,
+      "band": "B",
+      "run_timestamp": "2026-05-30T12:00:00+00:00",
+      "scan_id": "scan-degrade-a-001"
+    },
+    {
+      "are_total": 72,
+      "band": "B",
+      "run_timestamp": "2026-05-31T12:00:00+00:00",
+      "scan_id": "rescan-degrade-a-d1-001"
+    }
+  ],
+  "scan_id": "rescan-degrade-a-d2-001",
+  "snapshot_hash": "sha256:93279592567664ec0890f5aee2ab4be924ddaa78ceb0606640357869f8d95e86",
+  "status": "accepted"
+}

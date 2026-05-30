@@ -1,0 +1,22 @@
+{
+  "confidence_below_adjudication_threshold": false,
+  "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-rescan-syllable-bea-cal-1-d2-001.json",
+  "partial_completion": false,
+  "prior_scan_refs": [
+    {
+      "are_total": 72,
+      "band": "B",
+      "run_timestamp": "2026-05-30T12:00:00+00:00",
+      "scan_id": "scan-syllable-bea-cal-1-001"
+    },
+    {
+      "are_total": 72,
+      "band": "B",
+      "run_timestamp": "2026-05-31T12:00:00+00:00",
+      "scan_id": "rescan-syllable-bea-cal-1-d1-001"
+    }
+  ],
+  "scan_id": "rescan-syllable-bea-cal-1-d2-001",
+  "snapshot_hash": "sha256:9771a6a87eacfdfa3d02e416565a526696fbd0eecd3cac930ce1f8dc48723f11",
+  "status": "accepted"
+}

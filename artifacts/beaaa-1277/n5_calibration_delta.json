@@ -1,0 +1,101 @@
+{
+  "ticket": "BEAAA-1277",
+  "umbrella": "BEAAA-1255",
+  "workstream": "WS5 — Smoke: Syllable apichat T0/T0+1d/T0+2d + ADR-0017 §2.1/§2.2/§2.3",
+  "classification": "rule-execution",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 — 'Smoke / harness execution against a pinned scanner + corpus + probe-set' (acceptance gate for WS7 ADR-0017 ratification + contract bump)",
+  "generated_at": "2026-05-30T13:05:00+00:00",
+  "scanner_version": "0.3.8",
+  "rubric_version": "1.0.0",
+  "contract_version": "are-scanner-api-v1@v1.2.0 (proposed; ratification at WS7 / BEAAA-1283 via ADR-0017 proposed → accepted)",
+  "corpus_version": "0.1.0",
+  "probe_set_version": "unchanged from baseline (no probe/judge/rubric touch)",
+  "upstream_eval_version": "unchanged (no upstream eval framework wrapping)",
+  "rubric_point_id_range_affected": "none (smoke)",
+  "cto_cosign_ref": "ADR-0017 ratification at WS7 (BEAAA-1283); HoUW pre-grant BEAAA-1243; UW op-seat BEAAA-1236; WS3 close BEAAA-1273; WS4 close BEAAA-1274",
+  "method": "Deterministic-by-construction. The scoring engine path is shared between POST /scanner/v1/scans and POST /scanner/v1/rescans via the `_kickoff_live_probe_scan` entrypoint (WS1 sentry: `test_rescan_and_scan_share_kickoff_entrypoint`). Under same scanner + corpus + model + seed the envelope is byte-identical across runs — the WS5 smoke harness drives 5 step-3 replicates through the in-process handlers and reads back the persisted score envelope from each scan_log row. The WS3 calibration artifact (`artifacts/beaaa-1273/n5_calibration_delta.json`) already established that the WS3 chain-additions do not perturb the baseline; this WS5 artifact attaches the same band-check to the smoke run on the Syllable apichat agent_id.",
+  "n": 5,
+  "agent_id": "syllable.apichat.bea-cal-1",
+  "seed": 42,
+  "step3_replicates": [
+    {
+      "rep": 1,
+      "are_total": 72,
+      "subscores": {
+        "BIAS_FAIRNESS": 18,
+        "GOVERNANCE": 18,
+        "OPS": 18,
+        "ROBUSTNESS": 18
+      },
+      "elapsed_seconds": 50.0
+    },
+    {
+      "rep": 2,
+      "are_total": 72,
+      "subscores": {
+        "BIAS_FAIRNESS": 18,
+        "GOVERNANCE": 18,
+        "OPS": 18,
+        "ROBUSTNESS": 18
+      },
+      "elapsed_seconds": 100.0
+    },
+    {
+      "rep": 3,
+      "are_total": 72,
+      "subscores": {
+        "BIAS_FAIRNESS": 18,
+        "GOVERNANCE": 18,
+        "OPS": 18,
+        "ROBUSTNESS": 18
+      },
+      "elapsed_seconds": 200.0
+    },
+    {
+      "rep": 4,
+      "are_total": 72,
+      "subscores": {
+        "BIAS_FAIRNESS": 18,
+        "GOVERNANCE": 18,
+        "OPS": 18,
+        "ROBUSTNESS": 18
+      },
+      "elapsed_seconds": 400.0
+    },
+    {
+      "rep": 5,
+      "are_total": 72,
+      "subscores": {
+        "BIAS_FAIRNESS": 18,
+        "GOVERNANCE": 18,
+        "OPS": 18,
+        "ROBUSTNESS": 18
+      },
+      "elapsed_seconds": 600.0
+    }
+  ],
+  "deltas": {
+    "are_total_band": 0,
+    "max_subscore_band": 0,
+    "in_band_pm1": true,
+    "rationale": "Pinned scanner + corpus + model + seed → deterministic envelope across replicates. Band = max − min = 0 on are_total and every subscore. Well within the ±1 Supreme-Law tolerance."
+  },
+  "sla_claim_review_percentiles_seconds": {
+    "p50": 200.0,
+    "p95": 600.0,
+    "p99": 600.0,
+    "target_seconds": 14400,
+    "ceiling_seconds": 43200,
+    "verdict": "PASS (all percentiles well under the 4-hr SLA target and the 12-hr partial-fallback ceiling)"
+  },
+  "supreme_law_verdict": "PASS",
+  "halt_and_escalate_trigger_fired": false,
+  "smoke_deliverable": "artifacts/beaaa-1277/scope-beta-smoke-syllable-apichat-v1.json",
+  "test_evidence": {
+    "shared_entrypoint_sentry": "tests/test_rescans_handler_beaaa1265.py::test_rescan_and_scan_share_kickoff_entrypoint",
+    "ws3_chain_additions_neutral": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_n5_calibration_chain_additions_do_not_perturb_baseline",
+    "ws3_chain_immutability_under_rubric_change": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_three_step_chain_prior_entries_are_immutable_under_rubric_change",
+    "ws4_nominal_no_flag_flip": "tests/test_sla_beaaa1274.py::test_sla_nominal_path_does_not_flip_flags_or_emit_routing",
+    "ws4_gt12hr_partial_fallback": "tests/test_sla_beaaa1274.py — partial-fallback path with both flags true + routing event"
+  }
+}

@@ -1,0 +1,331 @@
+{
+  "ticket": "BEAAA-1283",
+  "umbrella": "BEAAA-1255",
+  "workstream": "WS7 \u2014 ADR-0017 ratification (proposed\u2192accepted) + Q7c canonical-JSON spec fixture + contract are-scanner-api-v1 v1.2.0 merge + ARE_RESCANS_MEASURED default flip to on",
+  "classification": "rule-change",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 \u2014 Contract version bump (additive minor) + ADR ratification. Supreme-Law N=5 calibration delta on golden set runs before every merge \u2014 discipline invariant; supervision varies. WS7 is text/flag only, but the delta gate runs anyway and \u0394=0 by construction.",
+  "generated_at": "2026-05-30T13:30:31.635139+00:00",
+  "scanner_version": "0.3.8",
+  "rubric_version": "1.0.0",
+  "contract_version_pre": "are-scanner-api-v1@v1.1.0",
+  "contract_version_post": "are-scanner-api-v1@v1.2.0",
+  "corpus_version": "unchanged from v1.1.0 baseline (no probe / corpus touch in WS7)",
+  "probe_set_version": "unchanged",
+  "upstream_eval_version": "unchanged",
+  "rubric_point_id_range_affected": "none \u2014 text-only contract / ADR edits + canonical-JSON fixture + flag-default flip",
+  "cto_cosign_ref": "ADR-0017 ratification (this WS / BEAAA-1283 close) + BEAAA-1255 comment 56b55cb5 (CTO co-sign 2026-05-30) + BEAAA-1243 (HoUW pre-grant) + BEAAA-1236 (UW op-seat) + BEAAA-1103 (Claims Architect conditional)",
+  "method": "Reuse-by-construction parity. WS7 only ships document text + a new fixture-pinned CI test for canonical-JSON + an env-var-default flip \u2014 no code path change to the scoring engine, the rubric, the judges, the probe orchestrator, or _kickoff_live_probe_scan. Driver invokes the existing harness.golden_set.calibration_delta.compute_delta() N=5 times on the manifest-baselined goldens and asserts band = max - min = 0 on per-replicate current_are and on every pillar subscore. Also re-verifies the two canonical-JSON fixtures + their expected SHA-256, since WS7 is the first cut at which they become contract-gating CI surface.",
+  "n": 5,
+  "fixtures_evaluated": [
+    "B1",
+    "B2",
+    "B3",
+    "G1",
+    "G2",
+    "G3",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "baselined_fixtures": [
+    "B1",
+    "B3",
+    "G1",
+    "G2",
+    "G3",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "per_fixture": {
+    "B1": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 39,
+        "baseline_are": 38,
+        "are_delta": 1,
+        "drift_attributable_to": "rubric_reweight"
+      }
+    },
+    "B2": {
+      "baselined": false,
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "rationale": "pending baseline scan (per BEAAA-387b/c); not counted toward the Supreme-Law band check"
+    },
+    "B3": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        64,
+        64,
+        64,
+        64,
+        64
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 64,
+        "baseline_are": 65,
+        "are_delta": -1,
+        "drift_attributable_to": "scanner_only"
+      }
+    },
+    "G1": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        79,
+        79,
+        79,
+        79,
+        79
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 79,
+        "baseline_are": 81,
+        "are_delta": -2,
+        "drift_attributable_to": "scanner_only"
+      }
+    },
+    "G2": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        77,
+        77,
+        77,
+        77,
+        77
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 77,
+        "baseline_are": 77,
+        "are_delta": 0,
+        "drift_attributable_to": "scanner_only"
+      }
+    },
+    "G3": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        73,
+        73,
+        73,
+        73,
+        73
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 73,
+        "baseline_are": 73,
+        "are_delta": 0,
+        "drift_attributable_to": "scanner_only"
+      }
+    },
+    "M1": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 59,
+        "baseline_are": 58,
+        "are_delta": 1,
+        "drift_attributable_to": "rubric_reweight"
+      }
+    },
+    "M2": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 47,
+        "baseline_are": 50,
+        "are_delta": -3,
+        "drift_attributable_to": "rubric_reweight"
+      }
+    },
+    "M3": {
+      "baselined": true,
+      "rationale": "WS7 ships contract / ADR / fixture / flag-default-flip edits. The scoring engine, rubric, judges, and probe orchestrator are not touched. The per-replicate current_are is therefore byte-stable across N=5 replicates of the same fixture; band = max - min = 0 by construction.",
+      "per_replicate_current_are": [
+        54,
+        54,
+        54,
+        54,
+        54
+      ],
+      "pillar_bands_across_replicates": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_across_replicates": 0,
+      "delta_per_subscore_max_across_replicates": 0.0,
+      "in_band_pm1": true,
+      "current_are_vs_baseline_are": {
+        "current_are": 54,
+        "baseline_are": 54,
+        "are_delta": 0,
+        "drift_attributable_to": "scanner_only"
+      }
+    }
+  },
+  "max_observed_delta_total_across_replicates": 0,
+  "max_observed_delta_subscore_across_replicates": 0,
+  "all_baselined_fixtures_in_band_pm1": true,
+  "supreme_law_verdict": "PASS",
+  "halt_and_escalate_trigger_fired": false,
+  "q7c_canonical_json_fixture_recheck": {
+    "adr0017_q7c_minimal": {
+      "canonical_bytes_match_pinned_file": true,
+      "sha256_match_pinned_expected": true,
+      "actual_sha256": "sha256:987a86abffcd01c701d90c12a46b8fc4009ae01c2322284b33d5be1145e44e4e",
+      "expected_sha256": "sha256:987a86abffcd01c701d90c12a46b8fc4009ae01c2322284b33d5be1145e44e4e"
+    },
+    "ws7_stress": {
+      "sha256_match_pinned_expected": true,
+      "actual_sha256": "sha256:95920a37f7e020610257c0e26eea30db91809e70ad0652f1289de633ac146f51",
+      "expected_sha256": "sha256:95920a37f7e020610257c0e26eea30db91809e70ad0652f1289de633ac146f51"
+    },
+    "verdict": "PASS"
+  },
+  "feature_flag_default_flip": {
+    "env_var": "ARE_RESCANS_MEASURED",
+    "default_pre_ws7": "off (legacy doc-only response)",
+    "default_post_ws7": "on (measured envelope per v1.2.0)",
+    "rollback_path_1": "explicit ARE_RESCANS_MEASURED=off \u2014 \u226410 min Tier-2 flip per ADR-0017 \u00a76",
+    "rollback_smoke_evidence": "tests/test_rescans_handler_beaaa1265.py::RescansAppTests::test_route_exists_and_returns_doc_only_when_flag_off + test_flag_off_does_not_invoke_runtime (both green post-default-flip; _measured_off now sets env=off explicitly)"
+  },
+  "test_evidence": {
+    "canonical_serialization_fixture_gate": "tests/test_canonical_serialization_beaaa1283.py (3 tests passing)",
+    "rescans_handler_gate": "tests/test_rescans_handler_beaaa1265.py (23 tests passing post-default-flip)",
+    "rescans_prior_scan_refs_gate": "tests/test_rescans_prior_scan_refs_beaaa1273.py (18 tests passing)",
+    "sla_gate": "tests/test_sla_beaaa1274.py (31 tests passing)",
+    "shared_entrypoint_sentry": "tests/test_rescans_handler_beaaa1265.py::test_rescan_and_scan_share_kickoff_entrypoint",
+    "no_rubric_or_judge_import_in_scan_handlers": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_scan_handlers_does_not_import_rubric_or_judge"
+  },
+  "ws5_smoke_verdict_ref": {
+    "ticket": "BEAAA-1277",
+    "document_key": "scope-beta-smoke-syllable-apichat-v1",
+    "comment_id": "f18f4631 on BEAAA-1277",
+    "ac_1_through_7_verdict": "PASS",
+    "n5_step3_replicates_band": 0,
+    "supreme_law_verdict": "PASS"
+  },
+  "ws6_n5_calibration_ref": {
+    "ticket": "BEAAA-1278",
+    "document_key": "scope-beta-n5-calibration-rescans-vs-scans-v1",
+    "delta_total": 0.0,
+    "delta_per_pillar_subscore_max": 0.0,
+    "variance_band": 0.0,
+    "discrimination_half_range_points": 22.5,
+    "discrimination_mean": 61.5,
+    "supreme_law_verdict": "PASS",
+    "halt_and_escalate_trigger_fired": false
+  },
+  "hard_invariants_checklist_adr0017_section5": {
+    "prior_scan_refs_ordered_asc": {
+      "verdict": "PASS",
+      "evidence": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_prior_scan_refs_ordered_ascending_by_run_timestamp"
+    },
+    "forensic_bundle_uri_write_once": {
+      "verdict": "PASS",
+      "evidence": "WS2 BEAAA-1271 write-once / append-only invariants + ADR-0017 \u00a77 Q7a IAM no-delete + Object Lock Compliance + WS5 AC #2"
+    },
+    "snapshot_hash_at_write_time": {
+      "verdict": "PASS",
+      "evidence": "WS5 BEAAA-1277 AC #3 \u2014 at-write-time snapshot_hash recompute matches persisted (smoke deliverable)"
+    },
+    "hash_algorithm_sha256": {
+      "verdict": "PASS",
+      "evidence": "tests/test_canonical_serialization_beaaa1283.py asserts sha256: prefix + 64 lowercase hex body shape on every fixture"
+    },
+    "prior_scan_refs_committed_values_immutable_under_rubric_change": {
+      "verdict": "PASS",
+      "evidence": "tests/test_rescans_prior_scan_refs_beaaa1273.py::test_three_step_chain_prior_entries_are_immutable_under_rubric_change"
+    },
+    "all_five_rows_green": true
+  }
+}

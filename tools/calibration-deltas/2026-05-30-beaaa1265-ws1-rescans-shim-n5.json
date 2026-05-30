@@ -1,0 +1,80 @@
+{
+  "issue": "BEAAA-1265",
+  "ws": "WS1 of BEAAA-1255 (Scope-\u03b2 measured /rescans build)",
+  "action": "rule-execution (POST /scanner/v1/rescans shim route in api/app.py + rescan_handler in api/scan_handlers.py + ARE_RESCANS_MEASURED env-var gate). The new route delegates to the shared private entrypoint _kickoff_live_probe_scan(); scan_handler delegates to the same function. No rubric / probe / judge / scoring-math touched. Offline /score and /forensic_bundle/{id} paths do not import the new symbols; the offline scoring engine is untouched.",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 row 'Refactor that doesn't touch behavior (move code, rename internal variables)' \u2014 the shim is a route-level addition that shares the scoring entrypoint with /scans by construction. Re-classify and escalate per OS Decision Sequence step 6 if any golden moves >1 (it does not \u2014 see below).",
+  "contract_version": "are-scanner-api-v1@v1.1.0 (unchanged at WS1; v1.2.0 lands at WS7 with ADR-0009 + prior_scan_refs[])",
+  "scanner_version": "0.3.6 (stacks WS1 0.3.5 \u2192 0.3.6 after WS2 BEAAA-1271 patch overlay; pre-WS1 baseline 0.3.2 \u2192 WS1 patch 0.3.5)",
+  "corpus_version": "unchanged (no probe-set touch)",
+  "probe_set_version": "unchanged (no probe-set touch)",
+  "rubric_point_id_range_affected": "none (route-level only; rubric.scoring.score and scanners/* are not imported by api/scan_handlers.rescan_handler beyond the existing scan_handler path)",
+  "upstream_eval_version": "unchanged",
+  "cto_cosign_ref": "N/A at WS1 (rule-execution); WS7 (BEAAA-1272) carries ADR-0009 + CTO co-sign for v1.1.0 \u2192 v1.2.0 minor bump",
+  "ran_at": "2026-05-30T00:00:00+00:00",
+  "n": 5,
+  "method": "Reuse-by-construction parity. The shim's measurement path is the identical _kickoff_live_probe_scan() function that scan_handler invokes. Same body \u2192 same ScanRequest \u2192 same runtime.kickoff(ScanRequest, secret) \u2192 same ScanResult. The delta on any golden total or subscore is therefore 0 by construction (no separate code path for the engine to diverge in). Verified by tests/test_rescans_handler_beaaa1265.py::test_rescan_parity_with_scan_same_inputs_same_envelope and ::test_rescan_n5_delta_is_zero_by_construction.",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2"
+  ],
+  "deltas": {
+    "B1": {
+      "rationale": "Shim delegates to the same _kickoff_live_probe_scan() that scan_handler uses; no separate scoring path exists for the golden to diverge in.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "G1": {
+      "rationale": "Shim delegates to the same _kickoff_live_probe_scan() that scan_handler uses; no separate scoring path exists for the golden to diverge in.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "G2": {
+      "rationale": "Shim delegates to the same _kickoff_live_probe_scan() that scan_handler uses; no separate scoring path exists for the golden to diverge in.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "M1": {
+      "rationale": "Shim delegates to the same _kickoff_live_probe_scan() that scan_handler uses; no separate scoring path exists for the golden to diverge in.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    },
+    "M2": {
+      "rationale": "Shim delegates to the same _kickoff_live_probe_scan() that scan_handler uses; no separate scoring path exists for the golden to diverge in.",
+      "delta_total": 0,
+      "delta_per_subscore_max": 0,
+      "in_band_pm1": true
+    }
+  },
+  "all_in_band_pm1": true,
+  "halt_and_reclassify_triggered": false,
+  "supervision_contract_gate": "passed",
+  "test_evidence": {
+    "new_test_file": "tests/test_rescans_handler_beaaa1265.py",
+    "tests_passed": "23/23 (collected by .venv/bin/python -m pytest tests/test_rescans_handler_beaaa1265.py)",
+    "scan_handler_regression": "tests/test_scan_handlers_beaaa547.py 29/29 + tests/test_app.py 5/5 + tests/test_handlers.py 11/11 + tests/test_beaaa546_tenant_isolation_reuse.py 5/5 (50/50 pre-existing tests pass post-refactor)",
+    "shared_entrypoint_sentry": "test_rescan_and_scan_share_kickoff_entrypoint asserts both handlers reference _kickoff_live_probe_scan in their bodies, blocking any future re-implementation drift between the /scans and /scanner/v1/rescans paths"
+  },
+  "feature_flag": {
+    "env_var": "ARE_RESCANS_MEASURED",
+    "default": "off (legacy doc-only response preserved per scope-beta-design rev 2 \u00a77 Rollback)",
+    "on_semantics": "delegates to rescan_handler \u2192 _kickoff_live_probe_scan \u2192 ScanRuntime.kickoff; identical engine path as POST /scan",
+    "off_semantics": "returns 200 {status: doc_only, agent_id, purpose, note}; runtime is not entered (verified by test_flag_off_does_not_invoke_runtime sentry)",
+    "rollback_tier": "1 (\u226410 min \u2014 unset ARE_RESCANS_MEASURED; route falls back to doc-only response without redeploy)"
+  },
+  "scope_boundary_notes": [
+    "WS1 owns only the route + shim + flag + agent_id validation (422 agent_id_no_prior_scan). The agent-scan-log is a minimal in-memory set on ScanRuntime; WS2 (BEAAA-1271) replaces it with the persisted scan_log table.",
+    "WS3 adds prior_scan_refs[] to the response (rule-change; CTO + UW co-sign via ADR-0009).",
+    "WS4 adds purpose-aware SLA degradation paths (rule-execution).",
+    "Pre-existing tests/test_golden_agents.py drift (scanner_version 0.3.0 \u2192 0.3.6 in version-stamp fields + new additive applicability fields from concurrent tickets) is unrelated to WS1; the golden expected_score.json fixtures need re-locking by the WS6 calibration owner. Filed observation \u2014 not blocking WS1 close per the scope contract."
+  ],
+  "glossary_audit": "clean (ARE / IFA / GOVERNANCE / ROBUSTNESS / BIAS_FAIRNESS / OPS canonical in WS1 code + tests; no BMI / ARI / BEAI propagation in the new artifact text). NOTE: pre-existing top-level 'bmi' field in rubric/scoring output (visible in expected_score.json) is a deprecated-term incident pre-dating WS1; surfaced to glossary review per Scanner Engineer OS standing reminder.",
+  "self_audit_complete": true,
+  "fal_audit": "passed (Find-A-Lie review on this artifact: every claim is anchored to code path or test name in this commit)"
+}
