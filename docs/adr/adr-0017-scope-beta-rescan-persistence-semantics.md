@@ -42,7 +42,7 @@ Add `prior_scan_refs` as an optional array to the `POST /scanner/v1/rescans` res
       "scan_id": "<uuid>",
       "run_timestamp": "<ISO-8601>",
       "are_total": 72,
-      "band": "moderate"
+      "band": "B"   // canonical 12-band letter (rubric/bands.py BEAAA-57 FROZEN 2026-04-30); one of A | B | C | D
     }
     // ... one entry per prior scan for this agent_id, ordered ascending by run_timestamp ...
   ]
