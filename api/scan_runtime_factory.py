@@ -68,6 +68,7 @@ from api.scan_handlers import (
     _chain_entry_from_row,
 )
 from api.scan_log import ScanLog
+from api.score_runtime import ScoreRuntime
 from harness.credentials import CredentialVault
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
@@ -364,28 +365,39 @@ def make_production_scan_runtime(
 
 def _production_score_envelope_factory(
     runtime_ref: list[ScanRuntime],
+    score_runtime: ScoreRuntime,
 ) -> Callable[[ScanResult, str, str], dict[str, Any]]:
     """Build the score_envelope_factory per ADR-0017 addendum-1 §2.2.
 
     ADR-0017 addendum-1 §2.2 enumerates the snapshot_hash domain. The
     factory output is the deterministic envelope persisted to scan_log
     and hashed via ``compute_snapshot_hash`` (SHA-256 of RFC 8785 JCS
-    canonical form). Phase 1 envelope carries every §2.2 field reachable
-    from the (ScanResult, agent_id, run_timestamp) inputs the
-    ScoreEnvelopeFactory signature pins, plus ``prior_scan_refs`` closed
-    over the runtime ref so the chain projection runs at envelope-build
-    time per the §2.2 row.
+    canonical form).
 
-    Fields that the synthetic v0 probe walker does not produce
-    (rubric_version / seed / model_versions / are_total / band /
-    subscores / evidence_refs / purpose / partial_completion /
-    confidence_below_adjudication_threshold) are stamped as
-    ``"_phase1_pending"`` so the envelope key set is byte-stable and
-    JCS-canonicalizes deterministically; the placeholder string carries
-    the addendum §2.2 row name so a Phase 2 scoring-path-integration
-    ticket can grep these out and replace verbatim. The placeholders
-    keep the envelope domain stable for replay even before the upstream
-    scoring fields are populated.
+    BEAAA-2175 PR-B replaces the Phase 1 ``"_phase1_pending"`` placeholders
+    with real values sourced from the canonical scoring projection
+    (``rubric.scoring.score`` → ``harness.contract_envelope.to_contract_output``
+    → §2.2 selector). The factory:
+
+    * Closes over ``runtime_ref`` for ``prior_scan_refs[]`` (chain
+      projection at envelope-build time per §2.2) AND for the per-scan
+      ``ScanRequest`` + ``scanner_invocation_context`` lookups the
+      ``ScanRuntime`` populates at kickoff (PR-B registries).
+    * Closes over ``score_runtime`` for the scoring projection. The
+      ``ScanResult.dim_results`` aggregates are projected via
+      :meth:`ScoreRuntime.compute_envelope`.
+
+    ``ScoreEnvelopeFactory`` typedef is unchanged
+    (``(ScanResult, agent_id, run_timestamp) → dict``). Per-scan inputs
+    flow via the runtime registries the closure reads.
+
+    The ``snapshot_hash`` written downstream by ``ScanLog.append_scan``
+    now signs **real scoring values**, not placeholders. The replay
+    invariant (AG-5) continues to hold byte-equally because the JCS
+    canonicalization domain (the dict returned here) and the hash
+    algorithm are unchanged from v1.2.0 — only the field contents
+    change. The seal becomes load-bearing for evidence completeness
+    per ``contracts/are-scanner-api-v1@v1.2.x §Hard guarantees (CTO) #2``.
     """
 
     def factory(
@@ -399,23 +411,42 @@ def _production_score_envelope_factory(
         )
         prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
         prior_refs = [_chain_entry_from_row(r) for r in prior_capped]
-        envelope: dict[str, Any] = {
-            "agent_id": agent_id,
-            "are_total": "_phase1_pending",
-            "band": "_phase1_pending",
-            "confidence_below_adjudication_threshold": "_phase1_pending",
-            "corpus_version": result.corpus_version,
-            "evidence_refs": "_phase1_pending",
-            "model_versions": "_phase1_pending",
-            "partial_completion": "_phase1_pending",
-            "prior_scan_refs": prior_refs,
-            "purpose": "_phase1_pending",
-            "rubric_version": "_phase1_pending",
-            "run_timestamp": run_timestamp,
-            "scanner_version": result.scanner_version,
-            "seed": "_phase1_pending",
-            "subscores": "_phase1_pending",
-        }
+
+        # BEAAA-2175 PR-B — recover the per-scan inputs the score
+        # projection needs (``seed`` from ScanRequest; ``purpose`` from
+        # the rescan invocation_context) via the runtime registries.
+        # Either may be ``None`` when persistence is wired against a
+        # non-rescan code path (e.g., the legacy ``/scans`` route) —
+        # the projection treats those as defaults.
+        scan_request = (
+            runtime.current_scan_request(result.scan_id)
+            if runtime is not None
+            else None
+        )
+        invocation_context = (
+            runtime.current_scan_invocation_context(result.scan_id)
+            if runtime is not None
+            else None
+        )
+        if scan_request is None:
+            # Cannot project the envelope without a ScanRequest — this is a
+            # programmer error (the rescan path always populates the
+            # registry before invoking the factory). Surface loudly rather
+            # than silently producing a placeholder envelope.
+            raise OrchestratorError(
+                f"score_envelope_factory: no ScanRequest registered for "
+                f"scan_id={result.scan_id} (runtime registry empty)"
+            )
+
+        envelope = score_runtime.compute_envelope(
+            scan_result=result,
+            scan_request=scan_request,
+            agent_id=agent_id,
+            run_timestamp=run_timestamp,
+            invocation_context=invocation_context,
+            prior_scan_refs=prior_refs,
+        )
+
         if truncated:
             # ADR-0017 §7 Q2 cap sentinel — at-write-time pin on the capped
             # chain so the persisted snapshot_hash signs the capped chain
@@ -467,8 +498,14 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     # prior_scan_refs at envelope build time per addendum §2.2.
     runtime._scan_log = scan_log
     runtime_ref: list[ScanRuntime] = [runtime]
+    # BEAAA-2175 (PR-B) — load the rubric once at runtime construction so
+    # every kickoff's envelope projection reuses the same parsed instance
+    # (matching the CLI's per-invocation load pattern). The rubric file is
+    # read-only at runtime; no hot-reload semantics in v0.
+    rubric_path = Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
+    score_runtime = ScoreRuntime.from_rubric_path(rubric_path)
     runtime._score_envelope_factory = _production_score_envelope_factory(
-        runtime_ref
+        runtime_ref, score_runtime
     )
     return runtime
 

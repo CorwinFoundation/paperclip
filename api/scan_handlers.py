@@ -152,6 +152,16 @@ class ScanRuntime:
         # handler can read the just-persisted row back without a second
         # scan_log scan (the row is keyed by that pair, not by scan_id).
         self._kickoff_keys: dict[str, tuple[str, str]] = {}
+        # BEAAA-2175 (PR-B) — per-scan registries so the
+        # ``score_envelope_factory`` closure can recover the originating
+        # ``ScanRequest`` (carries ``seed``, version pins, etc.) and the
+        # rescan-specific ``scanner_invocation_context`` (carries
+        # ``purpose``). Keeps the factory typedef
+        # ``(ScanResult, agent_id, run_timestamp) → dict`` unchanged —
+        # the factory looks up these per-scan inputs by ``scan_id`` via
+        # the runtime reference it already closed over for ``prior_scan_refs``.
+        self._scan_requests: dict[str, ScanRequest] = {}
+        self._scan_invocation_contexts: dict[str, dict[str, Any]] = {}
 
     def kickoff(
         self,
@@ -159,6 +169,7 @@ class ScanRuntime:
         secret: str,
         *,
         agent_id: str | None = None,
+        scanner_invocation_context: dict[str, Any] | None = None,
     ) -> ScanResult:
         """Run the scan now; record the result by scan_id.
 
@@ -174,6 +185,14 @@ class ScanRuntime:
         """
         result = self._run_scan_fn(scan_request, secret)
         self._results[scan_request.scan_id] = result
+        # BEAAA-2175 (PR-B) — populate per-scan registries before invoking the
+        # envelope factory so the factory closure can read them via
+        # ``current_scan_request`` / ``current_scan_invocation_context``.
+        self._scan_requests[scan_request.scan_id] = scan_request
+        if scanner_invocation_context is not None:
+            self._scan_invocation_contexts[scan_request.scan_id] = dict(
+                scanner_invocation_context
+            )
         if agent_id is not None:
             self._agent_ids_with_prior_scan.add(agent_id)
             if (
@@ -215,6 +234,26 @@ class ScanRuntime:
 
     def has_prior_scan_for_agent(self, agent_id: str) -> bool:
         return agent_id in self._agent_ids_with_prior_scan
+
+    # ----- BEAAA-2175 (PR-B) per-scan registry readback -----
+    def current_scan_request(self, scan_id: str) -> ScanRequest | None:
+        """Return the ``ScanRequest`` that initiated the kickoff for
+        ``scan_id``, or ``None`` if no kickoff has run for that id yet.
+        The envelope factory closure reads this to recover ``seed`` and
+        the request-side version pins for the envelope projection without
+        a factory-typedef change.
+        """
+        return self._scan_requests.get(scan_id)
+
+    def current_scan_invocation_context(
+        self, scan_id: str
+    ) -> dict[str, Any] | None:
+        """Return the ``scanner_invocation_context`` supplied to
+        ``kickoff`` for ``scan_id`` (carries ``purpose``), or ``None`` if
+        the caller did not supply one (e.g., legacy ``/scans`` calls — the
+        ``purpose`` field is only meaningful on the rescan path).
+        """
+        return self._scan_invocation_contexts.get(scan_id)
 
     # ----- BEAAA-1273 (WS3) chain readback -----
     def current_kickoff_row(self, scan_id: str) -> dict[str, Any] | None:
@@ -490,6 +529,7 @@ def _kickoff_live_probe_scan(
     runtime: ScanRuntime,
     scan_id_factory: Callable[[], str] | None,
     agent_id: str | None = None,
+    scanner_invocation_context: dict[str, Any] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Shared body-validation + ScanRequest build + runtime.kickoff path.
 
@@ -543,7 +583,12 @@ def _kickoff_live_probe_scan(
         raise HandlerError(422, "k_replicates_invalid") from exc
 
     try:
-        runtime.kickoff(scan_request, credential_secret, agent_id=agent_id)
+        runtime.kickoff(
+            scan_request,
+            credential_secret,
+            agent_id=agent_id,
+            scanner_invocation_context=scanner_invocation_context,
+        )
     except CorpusSnapshotMismatchError as exc:
         raise HandlerError(422, "corpus_snapshot_mismatch") from exc
     except CredentialResolveError as exc:
@@ -677,6 +722,11 @@ def rescan_handler(
         runtime=runtime,
         scan_id_factory=scan_id_factory,
         agent_id=agent_id,
+        # BEAAA-2175 (PR-B) — plumb the rescan-specific invocation context
+        # (carries ``purpose``) through to the runtime so the score envelope
+        # factory closure can read it and stamp ``purpose`` on the §2.2
+        # envelope without changing the ScoreEnvelopeFactory typedef.
+        scanner_invocation_context=invocation_context,
     )
 
     elapsed_seconds = max(0.0, sla_clock.now() - start)

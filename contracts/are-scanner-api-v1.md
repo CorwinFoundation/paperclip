@@ -4,32 +4,30 @@ owner: underwriter
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "v1.2.0 contract bump activates POST /scanner/v1/rescans as a measured route with claims-grade audit-chain persistence (prior_scan_refs[], write-once forensic_bundle_uri, at-write-time snapshot_hash) and purpose-aware SLA degradation flags (partial_completion, confidence_below_adjudication_threshold)."
-contracts_referenced: ["are-scanner-api-v1@v1.1.0 → v1.2.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
-ticket_refs: ["BEAAA-1283", "BEAAA-1255", "BEAAA-1243", "BEAAA-1236", "BEAAA-1103", "BEAAA-1271", "BEAAA-1273", "BEAAA-1274", "BEAAA-1277", "BEAAA-1278"]
-proof_points_cited: ["ADR-0017 (accepted 2026-05-30, docs/adr/adr-0017-scope-beta-rescan-persistence-semantics.md)", "HoUW binding co-sign BEAAA-1243 2026-05-30", "UW op-seat co-sign BEAAA-1236 2026-05-30", "Claims Architect sign-off BEAAA-1103", "Scanner Engineer ratification BEAAA-1255 (WS7 close, BEAAA-1283)", "CTO co-sign BEAAA-1255 comment 56b55cb5 2026-05-30", "WS5 smoke BEAAA-1277 doc scope-beta-smoke-syllable-apichat-v1 (AC 1-7 PASS)", "WS6 N=5 calibration BEAAA-1278 doc scope-beta-n5-calibration-rescans-vs-scans-v1 (Δ=0, band=0, discrimination=22.5)"]
-version: "v1.2.0"
-prior_version: "are-scanner-api-v1@v1.1.0-patch"
+focus_claim: "v1.2.1 patch — POST /scanner/v1/rescans 202 response is the ADR-0017 addendum-1 §2.2 envelope (14 fields populated with real scoring values; no `_phase1_pending` placeholders) plus `{forensic_bundle_uri, snapshot_hash, purpose_aware_sla}` when persistence is wired. `snapshot_hash` now signs real envelope content, making the seal load-bearing for evidence completeness."
+contracts_referenced: ["are-scanner-api-v1@v1.2.0 → v1.2.1", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
+ticket_refs: ["BEAAA-2175", "BEAAA-2132", "BEAAA-2139", "BEAAA-1255", "BEAAA-1283", "BEAAA-1243", "BEAAA-1236"]
+proof_points_cited: ["ADR-0017 addendum-1 (git aac1ac9, docs/adr/adr-0017-addendum-1-snapshot-hash-domain-and-scan-log-path.md)", "BEAAA-2175 PR-A v2 merge commit 85d8be1 (verbatim lift _to_contract_output → harness/contract_envelope; full-dict byte-equivalence vs. master)", "BEAAA-2175 CTO design co-sign comment 99dbec2e 2026-06-03 (option (c) — ScoreRuntime dep + shared-library extraction)", "BEAAA-2175 PR-B (this bump) — score_envelope_factory rewired to project rubric.scoring.score → harness.contract_envelope.to_contract_output → §2.2 selector; 10 `_phase1_pending` literals replaced with real values"]
+version: "v1.2.1"
+prior_version: "are-scanner-api-v1@v1.2.0"
 self_audit_passed: true
-escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged. Tamper resistance strengthened (write-once forensic_bundle_uri + at-write-time snapshot_hash, ADR-0017 §3). CTO + HoUW + UW co-sign authority sufficient."]
+escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged. Tamper resistance strengthened (snapshot_hash now signs real scoring values, not placeholders). CTO co-sign required per scanner-implementation-supervision-v1@v1.0 (response-shape semantics change). UW op-seat co-sign required per are-scanner-api-v1@v1.2.0 §Approval gates (contract output surface change)."]
 ---
 
-# Contract: ARE Scanner API — v1.2.0
+# Contract: ARE Scanner API — v1.2.1
 
-**Status:** merged. ADR-0017 ratified 2026-05-30 (Scanner Engineer ratification at BEAAA-1255 WS7 close on BEAAA-1283; CTO co-sign at BEAAA-1255 comment 56b55cb5).
-**Op-seat co-sign:** [BEAAA-1236](/BEAAA/issues/BEAAA-1236) `done` (Underwriter operational, 2026-05-30).
-**Strategic-seat countersign:** [BEAAA-1243](/BEAAA/issues/BEAAA-1243) `done` (Head of UW & AI Risk, 2026-05-30; pre-grants Q1/Q2a/Q2b/Q3/Q4 without itemized variance).
-**Claims Architect sign-off:** [BEAAA-1103](/BEAAA/issues/BEAAA-1103) `done` (conditional on ADR-0017 §Persistence-semantics — satisfied by §2.1–§2.3).
-**CTO authority:** ADR-0017 `accepted` at `projects/are-scanner/docs/adr/adr-0017-scope-beta-rescan-persistence-semantics.md`.
-**Build implementer:** Scanner Engineer on [BEAAA-1255](/BEAAA/issues/BEAAA-1255) umbrella (WS1 BEAAA-1265, WS2 BEAAA-1271, WS3 BEAAA-1273, WS4 BEAAA-1274, WS5 BEAAA-1277, WS6 BEAAA-1278, WS7 BEAAA-1283).
-**Change classification:** rule-change (contract version bump + additive new fields on /rescans + measured-route activation); additive minor under semver; Tier 2 rollback.
+**Status:** pending merge. PR-B against [BEAAA-2175](/BEAAA/issues/BEAAA-2175) lands the envelope-content fill + this doc bump in one merge. CTO design co-sign at [BEAAA-2175 comment 99dbec2e](/BEAAA/issues/BEAAA-2175#comment-99dbec2e-073c-4106-9eeb-286f920af30a) accepts option (c) (ScoreRuntime dep + shared-library extraction); merge co-sign pending on the PR-B request.
+**Op-seat co-sign:** UW (Underwriter operational) — pending fresh request on [BEAAA-2175](/BEAAA/issues/BEAAA-2175) at PR-B submission. Required per `are-scanner-api-v1@v1.2.0 §Approval gates` (contract output surface change — placeholder → real value is a meaning-of-output change).
+**CTO authority:** BEAAA-2175 PR-A v2 (commit 85d8be1, merged to master 2026-06-03) extracted the shared `to_contract_output` library; PR-B (this bump) rewires the rescan-path envelope factory to call it. Classification: rule-change per `contracts/scanner-implementation-supervision-v1@v1.0` table row "contract response-shape field semantics".
+**Build implementer:** Scanner Engineer on [BEAAA-2175](/BEAAA/issues/BEAAA-2175) (PR-A v2 + PR-B).
+**Change classification:** rule-change (response-shape semantics: 10 fields transition from `_phase1_pending` placeholder to real values; field set + JCS canonicalization domain unchanged from v1.2.0); additive patch under semver; Tier 2 rollback (Path 1 from ADR-0017 §6 — `ARE_RESCANS_MEASURED=off`).
 
 ---
 
 ## §Version header
 
 ```
-# Contract: ARE Scanner API — v1.2.0
+# Contract: ARE Scanner API — v1.2.1
 ```
 
 ---
