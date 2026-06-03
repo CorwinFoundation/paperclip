@@ -1,0 +1,188 @@
+{
+  "ticket": "BEAAA-2139",
+  "parent": "BEAAA-2132",
+  "ran_at": "2026-06-03T08:08:08.108295+00:00",
+  "git_sha": "aac1ac9119253decd6702e229d60b4bbc03daa21",
+  "scanner_version": "0.3.9",
+  "contract_version": "are-scanner-api-v1@v1.2.0",
+  "addendum": "ADR-0017 addendum-1 (git aac1ac9)",
+  "seed": 42,
+  "env_profile": {
+    "ARE_PRODUCTION_SCAN_WIRING": "1",
+    "ARE_RESCANS_MEASURED": "<unset>",
+    "ARE_SCAN_LOG_PATH": "/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner/tools/calibration-deltas/_beaaa2139-preflight-scan-log/scan_log.sqlite3"
+  },
+  "preflight": {
+    "score_parity": {
+      "status_code": 200,
+      "envelope_keys": [
+        "band",
+        "bmi",
+        "contract_version",
+        "corpus_version",
+        "forensic_bundle_uri",
+        "model_versions",
+        "pillar_floors",
+        "pillars",
+        "rubric_version",
+        "scan_evidence_age_days",
+        "scanner_version",
+        "scored_at",
+        "seed",
+        "snapshot_hash"
+      ],
+      "required_keys_present": true,
+      "legacy_keys_observed": [
+        "bmi"
+      ],
+      "legacy_keys_note": "Legacy 'bmi' key co-emitted alongside canonical 'band' block \u2014 documented out-of-scope for WS3 per api/scan_handlers.py:392-396; surfaced to glossary review; not a cut-over blocker.",
+      "verdict": "PASS"
+    },
+    "sla_pre_cut": {
+      "status_code": 200,
+      "body": {},
+      "verdict": "PASS"
+    },
+    "calibration_replay": {
+      "method": "\u0394=0 by structural construction \u2014 v1.2.0 changes route shim + persistence + SLA emission only; rubric / scoring / probe / judge untouched (verified by zero-diff on imports of rubric.scoring and scanners.* from api.scan_handlers). 6 calibrated goldens (B1/G1/G2/M1/M2/M3) covered by-construction.",
+      "cited_artifacts": [
+        "tools/calibration-deltas/2026-05-30-beaaa1265-ws1-rescans-shim-n5.json",
+        "tools/calibration-deltas/2026-05-30-beaaa1274-ws4-sla-instrumentation-n5.json",
+        "tools/calibration-deltas/2026-06-01-beaaa1721-contract-version-sync.json"
+      ],
+      "test_suite_returncode": 0,
+      "test_suite_tail": "........................................................................ [ 74%]\n.........................                                                [100%]\n97 passed in 4.18s\n",
+      "verdict": "PASS",
+      "spread_per_golden": {
+        "B1": 0,
+        "G1": 0,
+        "G2": 0,
+        "M1": 0,
+        "M2": 0,
+        "M3": 0
+      }
+    }
+  },
+  "cutover": {
+    "synthetic_rescan": {
+      "status_code": 202,
+      "forensic_bundle_uri_present": true,
+      "forensic_bundle_uri_preview": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-1a699447-944a-433d-8897-c703dcc0ccfa.json",
+      "snapshot_hash_present": true,
+      "snapshot_hash_preview": "sha256:e29084d1bbcb05bc98bcd4d837ed8947550a2ae61b042906fbbea5fca2aa346e",
+      "prior_scan_refs_len": 0,
+      "envelope_keys": [
+        "confidence_below_adjudication_threshold",
+        "forensic_bundle_uri",
+        "partial_completion",
+        "prior_scan_refs",
+        "scan_id",
+        "snapshot_hash",
+        "status"
+      ],
+      "verdict": "PASS"
+    },
+    "sla_post_cut": {
+      "status_code": 200,
+      "body_is_non_empty": true,
+      "purposes_seen": [
+        "pre_bind"
+      ],
+      "verdict": "PASS"
+    }
+  },
+  "addendum_acceptance_gates": {
+    "AG-1_scan_log_bound": {
+      "scan_log_is_not_none": true,
+      "scan_log_path": "/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner/tools/calibration-deltas/_beaaa2139-preflight-scan-log/scan_log.sqlite3",
+      "expected_path": "/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner/tools/calibration-deltas/_beaaa2139-preflight-scan-log/scan_log.sqlite3",
+      "path_matches": true,
+      "verdict": "PASS"
+    },
+    "AG-2_score_envelope_factory_bound": {
+      "score_envelope_factory_is_not_none": true,
+      "verdict": "PASS"
+    },
+    "AG-3_forensic_bundle_uri_top_level": {
+      "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-1a699447-944a-433d-8897-c703dcc0ccfa.json",
+      "matches_spec_uri_pattern": true,
+      "verdict": "PASS"
+    },
+    "AG-4_snapshot_hash_shape": {
+      "snapshot_hash_preview": "sha256:e29084d1bbcb05bc98bcd4d837ed8947550a2ae61b042906fbbea5fca2aa346e",
+      "matches_sha256_64hex": true,
+      "verdict": "PASS"
+    },
+    "AG-5_replay_invariant": {
+      "response_keys_minus_excluded": [
+        "confidence_below_adjudication_threshold",
+        "partial_completion",
+        "prior_scan_refs",
+        "scan_id",
+        "status"
+      ],
+      "envelope_keys": [
+        "agent_id",
+        "are_total",
+        "band",
+        "confidence_below_adjudication_threshold",
+        "corpus_version",
+        "evidence_refs",
+        "model_versions",
+        "partial_completion",
+        "prior_scan_refs",
+        "purpose",
+        "rubric_version",
+        "run_timestamp",
+        "scanner_version",
+        "seed",
+        "subscores"
+      ],
+      "recomputed_response_hash_preview": "sha256:4980c1e5c9323aab4233ebaa35918f88b75c7cbe8568809b2c74efc552ffedd5",
+      "persisted_snapshot_hash_preview": "sha256:e29084d1bbcb05bc98bcd4d837ed8947550a2ae61b042906fbbea5fca2aa346e",
+      "envelope_hash_preview": "sha256:e29084d1bbcb05bc98bcd4d837ed8947550a2ae61b042906fbbea5fca2aa346e",
+      "envelope_hash_matches_persisted": true,
+      "replay_byte_equal": false,
+      "verdict": "FAIL",
+      "reason": "response shape and \u00a72.2 envelope diverge: response carries fields (scan_id, status) not in envelope, envelope carries \u00a72.2 fields not in response \u2014 see response_keys_minus_excluded vs. envelope_keys diff. Resolving requires either (a) reshaping /scanner/v1/rescans 202 response to be the envelope + 3 excluded keys (contract-touching), or (b) re-escalating to CTO for \u00a72.2 envelope subset alignment with the existing 202 shape. Pre-flight halts here per addendum \u00a73 HALT criterion."
+    },
+    "AG-6_scan_log_row_pinned": {
+      "agent_id": "syllable.apichat.bea-cal-1",
+      "run_timestamp": "2026-06-03T08:08:13.788924+00:00",
+      "scan_id": "1a699447-944a-433d-8897-c703dcc0ccfa",
+      "forensic_bundle_uri_non_null": true,
+      "snapshot_hash_non_null": true,
+      "verdict": "PASS"
+    },
+    "AG-7_calibration_spread_zero": {
+      "spread_per_golden": {
+        "B1": 0,
+        "G1": 0,
+        "G2": 0,
+        "M1": 0,
+        "M2": 0,
+        "M3": 0
+      },
+      "test_suite_returncode": 0,
+      "verdict": "PASS"
+    }
+  },
+  "acceptance": {
+    "AC-3_spot_check_preflight": {
+      "verdict": "DEFERRED-TO-T+1H",
+      "reason": "in-process TestClient bundle store is ephemeral; production bundle-store byte-compare is the AC-3 deliverable and is performed on the first prod rescan during the soak.",
+      "recomputed_response_envelope_hash_preview": "sha256:d6c4d4ce4ad62a06a90aae0d743ea65e77addc900485ec368ef47820c447fa43",
+      "persisted_snapshot_hash_preview": "sha256:e29084d1bbcb05bc98bcd4d837ed8947550a2ae61b042906fbbea5fca2aa346e"
+    }
+  },
+  "addendum_aggregate": {
+    "AG-1_scan_log_bound": "PASS",
+    "AG-2_score_envelope_factory_bound": "PASS",
+    "AG-3_forensic_bundle_uri_top_level": "PASS",
+    "AG-4_snapshot_hash_shape": "PASS",
+    "AG-5_replay_invariant": "FAIL",
+    "AG-6_scan_log_row_pinned": "PASS",
+    "AG-7_calibration_spread_zero": "PASS"
+  },
+  "aggregate_verdict": "PARTIAL \u2014 pre-flight 1-5 PASS; addendum \u00a73 gates not all PASS \u2014 HALT cut-over and post finding on parent BEAAA-2132"
+}

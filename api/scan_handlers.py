@@ -731,6 +731,45 @@ def rescan_handler(
             payload_for_event["agent_id"] = agent_id
             routing_event_sink.emit(decision.routing_event_name, payload_for_event)
 
+    # BEAAA-2139 / ADR-0017 addendum-1 §2.3 + CTO interaction e5ab2af2
+    # (`ag5_resolution_path: path_a`, resolved 2026-06-03T08:45:18Z) — Path A
+    # reshape: when persistence is wired (scan_log + score_envelope_factory
+    # both bound and a kickoff row exists for this scan), the 202 response is
+    # the §2.2 score envelope + ``forensic_bundle_uri`` + ``snapshot_hash`` +
+    # ``purpose_aware_sla``. The replay invariant (AG-5) then holds byte-
+    # equally: SHA-256(JCS(response \ {forensic_bundle_uri, snapshot_hash,
+    # purpose_aware_sla})) == response.snapshot_hash. Unwired runtimes keep
+    # the WS1/WS3 back-compat thin shape so legacy fixtures stay green; the
+    # partial-fallback path also keeps the legacy shape because
+    # ``uncovered_dimensions`` is not in §2.2 envelope (out-of-scope for
+    # Path A; surface separately if/when claim_review partial-path replay
+    # needs the §2.2 envelope shape too).
+    if (
+        isinstance(scan_id, str)
+        and not decision.partial_completion
+    ):
+        persisted = runtime.current_kickoff_row(scan_id)
+        if persisted is not None and persisted.get("score_json") is not None:
+            envelope = dict(persisted["score_json"])
+            fbu = persisted.get("forensic_bundle_uri")
+            sh = persisted.get("snapshot_hash")
+            if fbu is not None:
+                envelope["forensic_bundle_uri"] = fbu
+            if sh is not None:
+                envelope["snapshot_hash"] = sh
+            if sla_registry is not None:
+                sla_snapshot = sla_registry.snapshot()
+                if purpose in sla_snapshot:
+                    envelope["purpose_aware_sla"] = sla_snapshot[purpose]
+            # ``prior_scan_refs_truncated`` (ADR-0017 §7 Q2 cap sentinel) is
+            # NOT carried under Path A: addendum §2.3 specifies the response
+            # as exactly envelope + 3 keys, and cap-handling shifts to the
+            # envelope-build side (the score_envelope_factory closure applies
+            # the cap before hashing so chain immutability is preserved). The
+            # WS3 cap test surface follows separately — out of scope for this
+            # cut-over heartbeat.
+            payload = envelope
+
     return status, payload
 
 

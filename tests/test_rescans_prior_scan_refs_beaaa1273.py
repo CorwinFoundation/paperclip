@@ -147,17 +147,30 @@ class _ScriptedClock:
         return self._queue.pop(0)
 
 
-def _score_envelope_factory(are_total: int, band_letter: str):
+def _score_envelope_factory(
+    are_total: int,
+    band_letter: str,
+    *,
+    runtime_ref: list | None = None,
+):
     """Build a score_envelope_factory that emits a minimal score envelope.
 
     Production wiring binds the factory to the scoring engine output;
     these tests bypass the engine entirely (Scanner Engineer OS:
     "No probe / judge / rubric / scoring-math touch") and stamp known
     values so the chain readback can assert immutability.
+
+    BEAAA-2139 / ADR-0017 addendum-1 §2.2 + Path A response reshape — the
+    envelope now projects ``prior_scan_refs`` via a closure over the
+    runtime so the wire shape ``response = envelope + 3 keys`` carries
+    the chain. Tests that don't supply ``runtime_ref`` keep the prior
+    minimal-envelope behavior (legacy WS3 fixtures); the
+    :func:`_runtime` helper wires the ref by default.
     """
+    from api.scan_handlers import _apply_prior_scan_cap, _chain_entry_from_row
 
     def factory(result: ScanResult, agent_id: str, run_timestamp: str) -> dict[str, Any]:
-        return {
+        envelope: dict[str, Any] = {
             "are_total": are_total,
             "band": {"letter": band_letter, "modifier": "neutral"},
             "scanner_version": result.scanner_version,
@@ -166,6 +179,23 @@ def _score_envelope_factory(are_total: int, band_letter: str):
             "agent_id": agent_id,
             "run_timestamp": run_timestamp,
         }
+        runtime = runtime_ref[0] if runtime_ref else None
+        if runtime is not None:
+            prior_rows = runtime.prior_scan_rows(
+                agent_id, exclude_scan_id=result.scan_id
+            )
+            prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
+            envelope["prior_scan_refs"] = [
+                _chain_entry_from_row(r) for r in prior_capped
+            ]
+            if truncated:
+                # ADR-0017 §7 Q2 cap sentinel. Under Path A response =
+                # envelope + 3 keys, so the sentinel rides inside the
+                # envelope. It is part of the chain-state pin at write
+                # time (capped chain == hashed chain), preserving chain
+                # immutability per §2.1.
+                envelope["prior_scan_refs_truncated"] = True
+        return envelope
 
     return factory
 
@@ -179,13 +209,23 @@ def _runtime(
     prior_agent_ids: tuple[str, ...] = (AGENT_ID,),
     score_envelope_factory=None,
 ) -> ScanRuntime:
-    """Build a synchronous ``ScanRuntime`` with optional scan_log wiring."""
+    """Build a synchronous ``ScanRuntime`` with optional scan_log wiring.
+
+    BEAAA-2139 Path A — the default factory now closes over the runtime
+    instance so the persisted envelope carries ``prior_scan_refs`` and the
+    /scanner/v1/rescans 202 response shape (envelope + 3 keys) is
+    addendum-§2.2 faithful. Callers supplying ``score_envelope_factory``
+    take responsibility for projecting their own chain entries.
+    """
 
     def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
         return _synthetic_result(scan_request.scan_id)
 
-    factory = score_envelope_factory or _score_envelope_factory(are_total, band)
-    return ScanRuntime(
+    runtime_ref: list = []
+    factory = score_envelope_factory or _score_envelope_factory(
+        are_total, band, runtime_ref=runtime_ref
+    )
+    runtime = ScanRuntime(
         run_scan_fn=run_scan_fn,
         prior_agent_ids=prior_agent_ids,
         scan_log=scan_log,
@@ -193,6 +233,8 @@ def _runtime(
         forensic_bundle_uri_factory=lambda aid, sid: f"s3://ifa-forensic-bundles/agent-{aid}/scan-{sid}.json",
         score_envelope_factory=factory,
     )
+    runtime_ref.append(runtime)
+    return runtime
 
 
 def _scan_body(corpus_hash: str, **overrides) -> dict:
@@ -445,14 +487,21 @@ def test_three_step_chain_immutability_under_rubric_change(corpus_hash):
     # "Rubric change" between rescans → new envelope factory emits
     # are_total=58, band=C. ADR-0017 §2.1 invariant: past entries
     # are committed values, NOT recomputed.
+    # Path A: the v2 factory must also close over its runtime so the
+    # /rescans response envelope carries ``prior_scan_refs`` (the WS3
+    # chain) under the addendum-1 §2.3 reshape.
+    runtime_v2_ref: list = []
     runtime_v2 = ScanRuntime(
         run_scan_fn=runtime_v1._run_scan_fn,
         scan_log=log,
         run_timestamp_factory=_ScriptedClock(["2026-06-01T00:00:00+00:00"]),
         forensic_bundle_uri_factory=runtime_v1._forensic_bundle_uri_factory,
-        score_envelope_factory=_score_envelope_factory(58, "C"),
+        score_envelope_factory=_score_envelope_factory(
+            58, "C", runtime_ref=runtime_v2_ref
+        ),
         prior_agent_ids=(AGENT_ID,),
     )
+    runtime_v2_ref.append(runtime_v2)
     _, payload = rescan_handler(
         _rescan_body(corpus_hash),
         tenant_header=TENANT,
@@ -702,16 +751,23 @@ def test_unwired_runtime_emits_empty_chain_and_omits_pins(corpus_hash):
 
 
 def test_n5_calibration_chain_additions_do_not_perturb_baseline(corpus_hash):
-    """AC #7 — `/rescans` with WS3 wiring vs /scans baseline: the base 202
-    keys (``scan_id``, ``status``, WS4 flags) are identical across 5
-    replicates; only the additive fields differ. The scoring engine path
-    is the same code (WS1 shared-entrypoint sentry holds), so the N=5
-    calibration delta on the golden set is 0 by construction.
+    """AC #7 — `/rescans` chain additions do not perturb scoring.
+
+    BEAAA-2139 / ADR-0017 addendum-1 + CTO interaction e5ab2af2 (Path A)
+    reshape: the /scanner/v1/rescans 202 response is the §2.2 score
+    envelope + ``forensic_bundle_uri`` + ``snapshot_hash`` +
+    ``purpose_aware_sla`` when persistence is wired. The /scans 202
+    accept-envelope ``(scan_id, status, WS4 flags)`` is no longer a
+    subset of the /rescans response — Path A intentionally separates
+    the two shapes so the rescans response IS the bundle envelope. The
+    calibration invariant remains: the scoring engine path is the same
+    code (WS1 shared-entrypoint sentry holds), so the N=5 calibration
+    delta on the golden set is 0 by construction.
 
     Per the Supreme Law gate: if any golden moved >1, halt + escalate
-    to CTO. This test asserts the strict invariant "shared envelope keys
-    are identical" — anything weaker would let scoring drift hide behind
-    a passing delta check.
+    to CTO. This test asserts that (a) each replicate's response still
+    carries the WS3 additive forensic pins + chain, and (b) the /scans
+    baseline still has the WS1 thin accept envelope.
     """
     log = ScanLog()
     runtime = _runtime(
@@ -727,6 +783,13 @@ def test_n5_calibration_chain_additions_do_not_perturb_baseline(corpus_hash):
         scan_id_factory=lambda: "baseline-scans",
     )
     baseline_keys = set(baseline_payload.keys())
+    # /scans 202 thin accept envelope is unchanged under Path A.
+    assert baseline_keys == {
+        "scan_id",
+        "status",
+        "partial_completion",
+        "confidence_below_adjudication_threshold",
+    }
 
     for i in range(5):
         status, payload = rescan_handler(
@@ -736,22 +799,19 @@ def test_n5_calibration_chain_additions_do_not_perturb_baseline(corpus_hash):
             scan_id_factory=lambda i=i: f"rescan-replicate-{i}",
         )
         assert status == baseline_status == 202
-        # Base /scans keys all present in /rescans envelope.
-        rescan_keys = set(payload.keys())
-        assert baseline_keys.issubset(rescan_keys), (
-            f"replicate-{i}: missing /scans baseline keys "
-            f"{baseline_keys - rescan_keys}"
-        )
         # WS3 additive keys NEVER appear on the /scans baseline.
         ws3_keys = {"prior_scan_refs", "forensic_bundle_uri", "snapshot_hash"}
         assert ws3_keys.isdisjoint(baseline_keys)
-        # Each replicate carries the WS3 additions (chain grows monotonically
-        # since each kickoff persists; the cap stays well below 100).
+        # Each /rescans replicate carries the WS3 additions (chain grows
+        # monotonically since each kickoff persists; the cap stays well
+        # below 100).
         assert "prior_scan_refs" in payload
         assert "forensic_bundle_uri" in payload
         assert "snapshot_hash" in payload
-        # WS1 shared-entrypoint sentry — accept-shape unchanged on base keys.
-        assert payload["status"] == "accepted"
+        # WS1 shared-entrypoint sentry — under Path A the /rescans 202
+        # response IS the bundle envelope (no ``status`` field); the WS1
+        # accept-shape proof now reads the /scans baseline above.
+        assert "scan_id" not in payload or payload.get("scan_id") == f"rescan-replicate-{i}"
     log.close()
 
 

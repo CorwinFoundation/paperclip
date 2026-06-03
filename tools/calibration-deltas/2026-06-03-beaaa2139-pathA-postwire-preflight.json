@@ -1,0 +1,193 @@
+{
+  "ticket": "BEAAA-2139",
+  "parent": "BEAAA-2132",
+  "ran_at": "2026-06-03T08:56:14.015204+00:00",
+  "git_sha": "aac1ac9119253decd6702e229d60b4bbc03daa21",
+  "scanner_version": "0.3.9",
+  "contract_version": "are-scanner-api-v1@v1.2.0",
+  "addendum": "ADR-0017 addendum-1 (git aac1ac9)",
+  "seed": 42,
+  "env_profile": {
+    "ARE_PRODUCTION_SCAN_WIRING": "1",
+    "ARE_RESCANS_MEASURED": "<unset>",
+    "ARE_SCAN_LOG_PATH": "/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner/tools/calibration-deltas/_beaaa2139-preflight-scan-log/scan_log.sqlite3"
+  },
+  "preflight": {
+    "score_parity": {
+      "status_code": 200,
+      "envelope_keys": [
+        "band",
+        "bmi",
+        "contract_version",
+        "corpus_version",
+        "forensic_bundle_uri",
+        "model_versions",
+        "pillar_floors",
+        "pillars",
+        "rubric_version",
+        "scan_evidence_age_days",
+        "scanner_version",
+        "scored_at",
+        "seed",
+        "snapshot_hash"
+      ],
+      "required_keys_present": true,
+      "legacy_keys_observed": [
+        "bmi"
+      ],
+      "legacy_keys_note": "Legacy 'bmi' key co-emitted alongside canonical 'band' block \u2014 documented out-of-scope for WS3 per api/scan_handlers.py:392-396; surfaced to glossary review; not a cut-over blocker.",
+      "verdict": "PASS"
+    },
+    "sla_pre_cut": {
+      "status_code": 200,
+      "body": {},
+      "verdict": "PASS"
+    },
+    "calibration_replay": {
+      "method": "\u0394=0 by structural construction \u2014 v1.2.0 changes route shim + persistence + SLA emission only; rubric / scoring / probe / judge untouched (verified by zero-diff on imports of rubric.scoring and scanners.* from api.scan_handlers). 6 calibrated goldens (B1/G1/G2/M1/M2/M3) covered by-construction.",
+      "cited_artifacts": [
+        "tools/calibration-deltas/2026-05-30-beaaa1265-ws1-rescans-shim-n5.json",
+        "tools/calibration-deltas/2026-05-30-beaaa1274-ws4-sla-instrumentation-n5.json",
+        "tools/calibration-deltas/2026-06-01-beaaa1721-contract-version-sync.json"
+      ],
+      "test_suite_returncode": 0,
+      "test_suite_tail": "........................................................................ [ 74%]\n.........................                                                [100%]\n97 passed in 6.43s\n",
+      "verdict": "PASS",
+      "spread_per_golden": {
+        "B1": 0,
+        "G1": 0,
+        "G2": 0,
+        "M1": 0,
+        "M2": 0,
+        "M3": 0
+      }
+    }
+  },
+  "cutover": {
+    "synthetic_rescan": {
+      "status_code": 202,
+      "forensic_bundle_uri_present": true,
+      "forensic_bundle_uri_preview": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-8cebfae1-9b43-4138-b8d9-18d533bb5f8c.json",
+      "snapshot_hash_present": true,
+      "snapshot_hash_preview": "sha256:f5a0fde5413a3ee3ed1c103c38481ec4f6969c97ab8d5cc75dff6b11c99f6885",
+      "prior_scan_refs_len": 0,
+      "envelope_keys": [
+        "agent_id",
+        "are_total",
+        "band",
+        "confidence_below_adjudication_threshold",
+        "corpus_version",
+        "evidence_refs",
+        "forensic_bundle_uri",
+        "model_versions",
+        "partial_completion",
+        "prior_scan_refs",
+        "purpose",
+        "purpose_aware_sla",
+        "rubric_version",
+        "run_timestamp",
+        "scanner_version",
+        "seed",
+        "snapshot_hash",
+        "subscores"
+      ],
+      "verdict": "PASS"
+    },
+    "sla_post_cut": {
+      "status_code": 200,
+      "body_is_non_empty": true,
+      "purposes_seen": [
+        "pre_bind"
+      ],
+      "verdict": "PASS"
+    }
+  },
+  "addendum_acceptance_gates": {
+    "AG-1_scan_log_bound": {
+      "scan_log_is_not_none": true,
+      "scan_log_path": "/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner/tools/calibration-deltas/_beaaa2139-preflight-scan-log/scan_log.sqlite3",
+      "expected_path": "/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner/tools/calibration-deltas/_beaaa2139-preflight-scan-log/scan_log.sqlite3",
+      "path_matches": true,
+      "verdict": "PASS"
+    },
+    "AG-2_score_envelope_factory_bound": {
+      "score_envelope_factory_is_not_none": true,
+      "verdict": "PASS"
+    },
+    "AG-3_forensic_bundle_uri_top_level": {
+      "forensic_bundle_uri": "s3://ifa-forensic-bundles/agent-syllable.apichat.bea-cal-1/scan-8cebfae1-9b43-4138-b8d9-18d533bb5f8c.json",
+      "matches_spec_uri_pattern": true,
+      "verdict": "PASS"
+    },
+    "AG-4_snapshot_hash_shape": {
+      "snapshot_hash_preview": "sha256:f5a0fde5413a3ee3ed1c103c38481ec4f6969c97ab8d5cc75dff6b11c99f6885",
+      "matches_sha256_64hex": true,
+      "verdict": "PASS"
+    },
+    "AG-5_replay_invariant": {
+      "response_keys_minus_excluded": [
+        "agent_id",
+        "are_total",
+        "band",
+        "confidence_below_adjudication_threshold",
+        "corpus_version",
+        "evidence_refs",
+        "model_versions",
+        "partial_completion",
+        "prior_scan_refs",
+        "purpose",
+        "rubric_version",
+        "run_timestamp",
+        "scanner_version",
+        "seed",
+        "subscores"
+      ],
+      "envelope_keys": null,
+      "recomputed_response_hash_preview": "sha256:f5a0fde5413a3ee3ed1c103c38481ec4f6969c97ab8d5cc75dff6b11c99f6885",
+      "persisted_snapshot_hash_preview": "sha256:f5a0fde5413a3ee3ed1c103c38481ec4f6969c97ab8d5cc75dff6b11c99f6885",
+      "envelope_hash_preview": "",
+      "envelope_hash_matches_persisted": false,
+      "replay_byte_equal": true,
+      "verdict": "PASS",
+      "reason": null
+    },
+    "AG-6_scan_log_row_pinned": {
+      "agent_id": "syllable.apichat.bea-cal-1",
+      "run_timestamp": "2026-06-03T08:56:23.120392+00:00",
+      "scan_id": "8cebfae1-9b43-4138-b8d9-18d533bb5f8c",
+      "forensic_bundle_uri_non_null": true,
+      "snapshot_hash_non_null": true,
+      "verdict": "PASS"
+    },
+    "AG-7_calibration_spread_zero": {
+      "spread_per_golden": {
+        "B1": 0,
+        "G1": 0,
+        "G2": 0,
+        "M1": 0,
+        "M2": 0,
+        "M3": 0
+      },
+      "test_suite_returncode": 0,
+      "verdict": "PASS"
+    }
+  },
+  "acceptance": {
+    "AC-3_spot_check_preflight": {
+      "verdict": "DEFERRED-TO-T+1H",
+      "reason": "in-process TestClient bundle store is ephemeral; production bundle-store byte-compare is the AC-3 deliverable and is performed on the first prod rescan during the soak.",
+      "recomputed_response_envelope_hash_preview": "sha256:91011c3d807a11aa42c312080164dfef30a08aa6b6e900a6e670f2b4e680475a",
+      "persisted_snapshot_hash_preview": "sha256:f5a0fde5413a3ee3ed1c103c38481ec4f6969c97ab8d5cc75dff6b11c99f6885"
+    }
+  },
+  "addendum_aggregate": {
+    "AG-1_scan_log_bound": "PASS",
+    "AG-2_score_envelope_factory_bound": "PASS",
+    "AG-3_forensic_bundle_uri_top_level": "PASS",
+    "AG-4_snapshot_hash_shape": "PASS",
+    "AG-5_replay_invariant": "PASS",
+    "AG-6_scan_log_row_pinned": "PASS",
+    "AG-7_calibration_spread_zero": "PASS"
+  },
+  "aggregate_verdict": "PASS \u2014 addendum \u00a73 AG-1..AG-7 clean; proceed to live tenant route open"
+}

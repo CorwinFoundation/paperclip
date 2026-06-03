@@ -62,7 +62,12 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from api.scan_handlers import ScanRuntime
+from api.scan_handlers import (
+    ScanRuntime,
+    _apply_prior_scan_cap,
+    _chain_entry_from_row,
+)
+from api.scan_log import ScanLog
 from harness.credentials import CredentialVault
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
@@ -78,6 +83,14 @@ from scanners.live_probe_workers import (
     spawn_scorer,
 )
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
+
+
+# ADR-0017 addendum-1 §2.4 — Phase 1 prod fleet scan_log path on EFS-mounted
+# /var/lib/are-scanner. Overridable via ARE_SCAN_LOG_PATH so the cut-over
+# pre-flight (and any future test rig) can point the runtime at a writable
+# temp file without touching the prod constant.
+ARE_SCAN_LOG_PATH_ENV: str = "ARE_SCAN_LOG_PATH"
+ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
 
 
 # Wall-clock guard on the parent-side join. The orchestrator enforces its
@@ -349,20 +362,115 @@ def make_production_scan_runtime(
     return ScanRuntime(run_scan_fn=run_scan_fn)
 
 
+def _production_score_envelope_factory(
+    runtime_ref: list[ScanRuntime],
+) -> Callable[[ScanResult, str, str], dict[str, Any]]:
+    """Build the score_envelope_factory per ADR-0017 addendum-1 §2.2.
+
+    ADR-0017 addendum-1 §2.2 enumerates the snapshot_hash domain. The
+    factory output is the deterministic envelope persisted to scan_log
+    and hashed via ``compute_snapshot_hash`` (SHA-256 of RFC 8785 JCS
+    canonical form). Phase 1 envelope carries every §2.2 field reachable
+    from the (ScanResult, agent_id, run_timestamp) inputs the
+    ScoreEnvelopeFactory signature pins, plus ``prior_scan_refs`` closed
+    over the runtime ref so the chain projection runs at envelope-build
+    time per the §2.2 row.
+
+    Fields that the synthetic v0 probe walker does not produce
+    (rubric_version / seed / model_versions / are_total / band /
+    subscores / evidence_refs / purpose / partial_completion /
+    confidence_below_adjudication_threshold) are stamped as
+    ``"_phase1_pending"`` so the envelope key set is byte-stable and
+    JCS-canonicalizes deterministically; the placeholder string carries
+    the addendum §2.2 row name so a Phase 2 scoring-path-integration
+    ticket can grep these out and replace verbatim. The placeholders
+    keep the envelope domain stable for replay even before the upstream
+    scoring fields are populated.
+    """
+
+    def factory(
+        result: ScanResult, agent_id: str, run_timestamp: str
+    ) -> dict[str, Any]:
+        runtime = runtime_ref[0] if runtime_ref else None
+        prior_rows = (
+            runtime.prior_scan_rows(agent_id, exclude_scan_id=result.scan_id)
+            if runtime is not None
+            else []
+        )
+        prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
+        prior_refs = [_chain_entry_from_row(r) for r in prior_capped]
+        envelope: dict[str, Any] = {
+            "agent_id": agent_id,
+            "are_total": "_phase1_pending",
+            "band": "_phase1_pending",
+            "confidence_below_adjudication_threshold": "_phase1_pending",
+            "corpus_version": result.corpus_version,
+            "evidence_refs": "_phase1_pending",
+            "model_versions": "_phase1_pending",
+            "partial_completion": "_phase1_pending",
+            "prior_scan_refs": prior_refs,
+            "purpose": "_phase1_pending",
+            "rubric_version": "_phase1_pending",
+            "run_timestamp": run_timestamp,
+            "scanner_version": result.scanner_version,
+            "seed": "_phase1_pending",
+            "subscores": "_phase1_pending",
+        }
+        if truncated:
+            # ADR-0017 §7 Q2 cap sentinel — at-write-time pin on the capped
+            # chain so the persisted snapshot_hash signs the capped chain
+            # state per §2.1 immutability.
+            envelope["prior_scan_refs_truncated"] = True
+        return envelope
+
+    return factory
+
+
 def make_default_production_scan_runtime() -> ScanRuntime:
     """v0 convenience wrapper — wires the synthetic probe walker, the
     MockRunner factory, and a transient v0 corpus tarball.
 
     Used by ``api/app.py::create_app`` when ``ARE_PRODUCTION_SCAN_WIRING=1``.
+
+    ADR-0017 addendum-1 wiring (BEAAA-2139 cut-over):
+
+    * ``scan_log`` bound to the Phase 1 EFS-mounted SQLite at
+      ``/var/lib/are-scanner/scan_log.sqlite3`` per addendum §2.4 (env
+      override ``ARE_SCAN_LOG_PATH`` for pre-flight + future test rigs).
+    * ``score_envelope_factory`` produces the addendum §2.2 envelope; see
+      :func:`_production_score_envelope_factory`.
+    * ``forensic_bundle_uri_factory`` left default per addendum §2.5 —
+      ``_default_forensic_bundle_uri`` at ``api/scan_handlers.py``
+      already emits the spec URI ``s3://ifa-forensic-bundles/agent-<id>/
+      scan-<scan_id>.json``.
+
     Replace either dependency at call time once an upstream eval framework
     is wrapped under its own rule-execution ticket.
     """
     corpus_path = build_v0_corpus_tarball()
-    return make_production_scan_runtime(
+    runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
         runner_factory=v0_mock_runner_factory,
         probe_run_fn=synthetic_v0_probe_run_fn,
     )
+    scan_log_path = os.environ.get(
+        ARE_SCAN_LOG_PATH_ENV, ARE_SCAN_LOG_DEFAULT_PATH
+    )
+    # Ensure parent dir exists when caller pointed at a non-prod path; the
+    # EFS-mount path is created at infra-provision time and exists in prod.
+    parent_dir = Path(scan_log_path).parent
+    if str(parent_dir) and str(parent_dir) != ".":
+        parent_dir.mkdir(parents=True, exist_ok=True)
+    scan_log = ScanLog(scan_log_path)
+    # Post-set the persistence bindings on the constructed ScanRuntime so
+    # the score_envelope_factory can close over the runtime and project
+    # prior_scan_refs at envelope build time per addendum §2.2.
+    runtime._scan_log = scan_log
+    runtime_ref: list[ScanRuntime] = [runtime]
+    runtime._score_envelope_factory = _production_score_envelope_factory(
+        runtime_ref
+    )
+    return runtime
 
 
 # ---------------------------------------------------------------------------
