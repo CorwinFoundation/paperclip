@@ -1,0 +1,95 @@
+{
+  "agents": {
+    "B1": {
+      "master_digest": "709a6e75061ec997e5701518e11264454f85e15ffa5b3c488fb2992780d9e8d5",
+      "master_eq_v2": true,
+      "pass": true,
+      "v2_digests": [
+        "709a6e75061ec997e5701518e11264454f85e15ffa5b3c488fb2992780d9e8d5",
+        "709a6e75061ec997e5701518e11264454f85e15ffa5b3c488fb2992780d9e8d5",
+        "709a6e75061ec997e5701518e11264454f85e15ffa5b3c488fb2992780d9e8d5",
+        "709a6e75061ec997e5701518e11264454f85e15ffa5b3c488fb2992780d9e8d5",
+        "709a6e75061ec997e5701518e11264454f85e15ffa5b3c488fb2992780d9e8d5"
+      ],
+      "v2_replicates_identical": true
+    },
+    "G1": {
+      "master_digest": "f3d38880aa19b012e388521a5289dd44cb624db8603a2d7fb3bd6c29d59b8547",
+      "master_eq_v2": true,
+      "pass": true,
+      "v2_digests": [
+        "f3d38880aa19b012e388521a5289dd44cb624db8603a2d7fb3bd6c29d59b8547",
+        "f3d38880aa19b012e388521a5289dd44cb624db8603a2d7fb3bd6c29d59b8547",
+        "f3d38880aa19b012e388521a5289dd44cb624db8603a2d7fb3bd6c29d59b8547",
+        "f3d38880aa19b012e388521a5289dd44cb624db8603a2d7fb3bd6c29d59b8547",
+        "f3d38880aa19b012e388521a5289dd44cb624db8603a2d7fb3bd6c29d59b8547"
+      ],
+      "v2_replicates_identical": true
+    },
+    "G2": {
+      "master_digest": "397049474856d6243677295808bd3a62ae2a078e8183ceb14f087833738ecaf9",
+      "master_eq_v2": true,
+      "pass": true,
+      "v2_digests": [
+        "397049474856d6243677295808bd3a62ae2a078e8183ceb14f087833738ecaf9",
+        "397049474856d6243677295808bd3a62ae2a078e8183ceb14f087833738ecaf9",
+        "397049474856d6243677295808bd3a62ae2a078e8183ceb14f087833738ecaf9",
+        "397049474856d6243677295808bd3a62ae2a078e8183ceb14f087833738ecaf9",
+        "397049474856d6243677295808bd3a62ae2a078e8183ceb14f087833738ecaf9"
+      ],
+      "v2_replicates_identical": true
+    },
+    "M1": {
+      "master_digest": "b7126343a5e553b85a08e9e11a050e1a85d28041617b268ed2e672dc96d38dd0",
+      "master_eq_v2": true,
+      "pass": true,
+      "v2_digests": [
+        "b7126343a5e553b85a08e9e11a050e1a85d28041617b268ed2e672dc96d38dd0",
+        "b7126343a5e553b85a08e9e11a050e1a85d28041617b268ed2e672dc96d38dd0",
+        "b7126343a5e553b85a08e9e11a050e1a85d28041617b268ed2e672dc96d38dd0",
+        "b7126343a5e553b85a08e9e11a050e1a85d28041617b268ed2e672dc96d38dd0",
+        "b7126343a5e553b85a08e9e11a050e1a85d28041617b268ed2e672dc96d38dd0"
+      ],
+      "v2_replicates_identical": true
+    },
+    "M2": {
+      "master_digest": "e4b0dcf5b293c7f10dc990a4c862b2386bba5854bab2709bcd674ee4d2c89eea",
+      "master_eq_v2": true,
+      "pass": true,
+      "v2_digests": [
+        "e4b0dcf5b293c7f10dc990a4c862b2386bba5854bab2709bcd674ee4d2c89eea",
+        "e4b0dcf5b293c7f10dc990a4c862b2386bba5854bab2709bcd674ee4d2c89eea",
+        "e4b0dcf5b293c7f10dc990a4c862b2386bba5854bab2709bcd674ee4d2c89eea",
+        "e4b0dcf5b293c7f10dc990a4c862b2386bba5854bab2709bcd674ee4d2c89eea",
+        "e4b0dcf5b293c7f10dc990a4c862b2386bba5854bab2709bcd674ee4d2c89eea"
+      ],
+      "v2_replicates_identical": true
+    },
+    "M3": {
+      "master_digest": "42c6c2ba2ffb719c0e7eeff575fa2b8f1cc0e4608a02e0d9c18017fe6f21ad59",
+      "master_eq_v2": true,
+      "pass": true,
+      "v2_digests": [
+        "42c6c2ba2ffb719c0e7eeff575fa2b8f1cc0e4608a02e0d9c18017fe6f21ad59",
+        "42c6c2ba2ffb719c0e7eeff575fa2b8f1cc0e4608a02e0d9c18017fe6f21ad59",
+        "42c6c2ba2ffb719c0e7eeff575fa2b8f1cc0e4608a02e0d9c18017fe6f21ad59",
+        "42c6c2ba2ffb719c0e7eeff575fa2b8f1cc0e4608a02e0d9c18017fe6f21ad59",
+        "42c6c2ba2ffb719c0e7eeff575fa2b8f1cc0e4608a02e0d9c18017fe6f21ad59"
+      ],
+      "v2_replicates_identical": true
+    }
+  },
+  "fixed_scored_at": "2026-06-03T12:00:00+00:00",
+  "master_commit": "6be43f1",
+  "n_replicates": 5,
+  "phase": "PR-A v2 \u2014 full-dict byte-equivalence vs. master",
+  "seed": 42,
+  "summary": {
+    "agents_failed": [],
+    "agents_passed": 6,
+    "all_master_eq_v2": true,
+    "all_v2_replicates_identical": true
+  },
+  "ticket": "BEAAA-2175",
+  "v2_branch": "beaaa-2175-pr-a-v2"
+}
