@@ -1,0 +1,168 @@
+{
+  "agents": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "gates": {
+    "AG-10": {
+      "max_spread": 0,
+      "n_replicates": 5,
+      "pass": true,
+      "per_agent": {
+        "B1": {
+          "pass": true,
+          "pillar_spreads": {
+            "BIAS_FAIRNESS": 0.0,
+            "GOVERNANCE": 0.0,
+            "OPS": 0.0,
+            "ROBUSTNESS": 0.0
+          },
+          "total_spread": 0,
+          "totals": [
+            39,
+            39,
+            39,
+            39,
+            39
+          ]
+        },
+        "G1": {
+          "pass": true,
+          "pillar_spreads": {
+            "BIAS_FAIRNESS": 0.0,
+            "GOVERNANCE": 0.0,
+            "OPS": 0.0,
+            "ROBUSTNESS": 0.0
+          },
+          "total_spread": 0,
+          "totals": [
+            79,
+            79,
+            79,
+            79,
+            79
+          ]
+        },
+        "G2": {
+          "pass": true,
+          "pillar_spreads": {
+            "BIAS_FAIRNESS": 0.0,
+            "GOVERNANCE": 0.0,
+            "OPS": 0.0,
+            "ROBUSTNESS": 0.0
+          },
+          "total_spread": 0,
+          "totals": [
+            77,
+            77,
+            77,
+            77,
+            77
+          ]
+        },
+        "M1": {
+          "pass": true,
+          "pillar_spreads": {
+            "BIAS_FAIRNESS": 0.0,
+            "GOVERNANCE": 0.0,
+            "OPS": 0.0,
+            "ROBUSTNESS": 0.0
+          },
+          "total_spread": 0,
+          "totals": [
+            59,
+            59,
+            59,
+            59,
+            59
+          ]
+        },
+        "M2": {
+          "pass": true,
+          "pillar_spreads": {
+            "BIAS_FAIRNESS": 0.0,
+            "GOVERNANCE": 0.0,
+            "OPS": 0.0,
+            "ROBUSTNESS": 0.0
+          },
+          "total_spread": 0,
+          "totals": [
+            47,
+            47,
+            47,
+            47,
+            47
+          ]
+        },
+        "M3": {
+          "pass": true,
+          "pillar_spreads": {
+            "BIAS_FAIRNESS": 0.0,
+            "GOVERNANCE": 0.0,
+            "OPS": 0.0,
+            "ROBUSTNESS": 0.0
+          },
+          "total_spread": 0,
+          "totals": [
+            54,
+            54,
+            54,
+            54,
+            54
+          ]
+        }
+      }
+    },
+    "AG-1_to_AG-7": {
+      "AG-1_to_AG-7_overall": "PASS",
+      "aggregate_verdict_raw": "PASS \u2014 addendum \u00a73 AG-1..AG-7 clean; proceed to live tenant route open",
+      "exit_code": 0,
+      "gates": {
+        "AG-1_scan_log_bound": "PASS",
+        "AG-2_score_envelope_factory_bound": "PASS",
+        "AG-3_forensic_bundle_uri_top_level": "PASS",
+        "AG-4_snapshot_hash_shape": "PASS",
+        "AG-5_replay_invariant": "PASS",
+        "AG-6_scan_log_row_pinned": "PASS",
+        "AG-7_calibration_spread_zero": "PASS"
+      },
+      "stdout_tail": "n\",\n        \"seed\",\n        \"subscores\"\n      ],\n      \"envelope_keys\": null,\n      \"recomputed_response_hash_preview\": \"sha256:5e51b45f03a2e8b7729e5a2f0da7f6ee606de17bffaa4e26e9497e7f4029c81c\",\n      \"persisted_snapshot_hash_preview\": \"sha256:5e51b45f03a2e8b7729e5a2f0da7f6ee606de17bffaa4e26e9497e7f4029c81c\",\n      \"envelope_hash_preview\": \"\",\n      \"envelope_hash_matches_persisted\": false,\n      \"replay_byte_equal\": true,\n      \"verdict\": \"PASS\",\n      \"reason\": null\n    },\n    \"AG-6_scan_log_row_pinned\": {\n      \"agent_id\": \"syllable.apichat.bea-cal-1\",\n      \"run_timestamp\": \"2026-06-03T10:36:51.342196+00:00\",\n      \"scan_id\": \"eff2ad9a-0436-435c-a4ad-140a80c70590\",\n      \"forensic_bundle_uri_non_null\": true,\n      \"snapshot_hash_non_null\": true,\n      \"verdict\": \"PASS\"\n    },\n    \"AG-7_calibration_spread_zero\": {\n      \"spread_per_golden\": {\n        \"B1\": 0,\n        \"G1\": 0,\n        \"G2\": 0,\n        \"M1\": 0,\n        \"M2\": 0,\n        \"M3\": 0\n      },\n      \"test_suite_returncode\": 0,\n      \"verdict\": \"PASS\"\n    }\n  },\n  \"acceptance\": {\n    \"AC-3_spot_check_preflight\": {\n      \"verdict\": \"DEFERRED-TO-T+1H\",\n      \"reason\": \"in-process TestClient bundle store is ephemeral; production bundle-store byte-compare is the AC-3 deliverable and is performed on the first prod rescan during the soak.\",\n      \"recomputed_response_envelope_hash_preview\": \"sha256:c89410867142ca2ebf3d4288ea2b70d3a71cf8f190fdee62022fdfab3cfe36df\",\n      \"persisted_snapshot_hash_preview\": \"sha256:5e51b45f03a2e8b7729e5a2f0da7f6ee606de17bffaa4e26e9497e7f4029c81c\"\n    }\n  },\n  \"addendum_aggregate\": {\n    \"AG-1_scan_log_bound\": \"PASS\",\n    \"AG-2_score_envelope_factory_bound\": \"PASS\",\n    \"AG-3_forensic_bundle_uri_top_level\": \"PASS\",\n    \"AG-4_snapshot_hash_shape\": \"PASS\",\n    \"AG-5_replay_invariant\": \"PASS\",\n    \"AG-6_scan_log_row_pinned\": \"PASS\",\n    \"AG-7_calibration_spread_zero\": \"PASS\"\n  },\n  \"aggregate_verdict\": \"PASS \\u2014 addendum \\u00a73 AG-1..AG-7 clean; proceed to live tenant route open\"\n}\n"
+    },
+    "AG-8": {
+      "pass": true,
+      "payload_size_bytes": 6978,
+      "placeholder_present": false
+    },
+    "AG-9": {
+      "are_total_type": "int",
+      "hash_match": true,
+      "pass": true,
+      "recomputed_snapshot_hash": "sha256:7737f09aa838ad00f9c9493b66ca171fb9e4b9ecfa2a5373f581c957d6bf9e96",
+      "response_snapshot_hash": "sha256:7737f09aa838ad00f9c9493b66ca171fb9e4b9ecfa2a5373f581c957d6bf9e96",
+      "scoring_projection_callee": "score_runtime.compute_envelope \u2192 rubric.scoring.score \u2192 harness.contract_envelope.to_contract_output (CTO note #2 wording \u2014 canonical projection, not 'what the scorer emitted')",
+      "scoring_sanity_pass": true,
+      "subscores_keys": [
+        "BIAS_FAIRNESS",
+        "GOVERNANCE",
+        "OPS",
+        "ROBUSTNESS"
+      ]
+    }
+  },
+  "n_replicates": 5,
+  "phase": "PR-B Phase 2 preflight \u2014 AG-1..AG-10",
+  "scanner_version": "0.3.10",
+  "seed": 42,
+  "summary": {
+    "AG-10_pass": true,
+    "AG-1_to_AG-7_pass": true,
+    "AG-8_pass": true,
+    "AG-9_pass": true,
+    "all_pass": true
+  },
+  "ticket": "BEAAA-2175"
+}
