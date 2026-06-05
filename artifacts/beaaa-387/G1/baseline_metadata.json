@@ -37,8 +37,9 @@
   "anchor_strategy": "phase2_admittance_dial_a",
   "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
   "anchor_strategy_cosign_ref": "BEAAA-565",
-  "are_total": 81,
-  "band_display": "B+",
+  "applicability_policy_version": "0.1.2",
+  "are_total": 79,
+  "band_display": "B",
   "bias_pack_version": "bias-pack-v0.1",
   "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
   "coverage_caveat_at_baseline": {
@@ -80,8 +81,8 @@
     "anthropic/claude-sonnet-4.6@openrouter": "live-api-as-of-2026-05-15"
   },
   "pending_huw_anchor_decision": false,
-  "rubric_version": "1.0.0",
-  "scanner_version": "0.3.1",
+  "rubric_version": "1.1.0",
+  "scanner_version": "0.4.0",
   "sdk_versions": {
     "openrouter-http": "unknown"
   },

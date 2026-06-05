@@ -23,6 +23,7 @@
   "anchor_strategy": "phase2_admittance_dial_a",
   "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
   "anchor_strategy_cosign_ref": "BEAAA-479",
+  "applicability_policy_version": "0.1.2",
   "are_total": 73,
   "band_display": "B-",
   "bias_pack_version": "bias-pack-v0.1",
@@ -63,8 +64,8 @@
   "lock_source": "live_path_a",
   "locked_at": "2026-05-25T23:34:50+00:00",
   "pending_huw_anchor_decision": false,
-  "rubric_version": "1.0.0",
-  "scanner_version": "0.3.1",
+  "rubric_version": "1.1.0",
+  "scanner_version": "0.4.0",
   "seed": 42,
   "source_artifact": "artifacts/beaaa-387/G3/breach_report.json"
 }

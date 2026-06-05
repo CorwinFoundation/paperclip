@@ -10,7 +10,8 @@
     "type": "deployed_agent_path_b",
     "vendor": "botpress"
   },
-  "are_total": 50,
+  "applicability_policy_version": "0.1.2",
+  "are_total": 47,
   "band_display": "D+",
   "corpus_version": "path_b_v2_1@2026-05-15",
   "endpoint_label": "botpress:55bd84a2",
@@ -22,8 +23,8 @@
   "lock_source": "live_path_b",
   "locked_at": "2026-05-15T22:04:54+00:00",
   "prior_id": "botpress_demo",
-  "rubric_version": "0.1.2",
-  "scanner_version": "0.2.3",
+  "rubric_version": "1.1.0",
+  "scanner_version": "0.4.0",
   "sdk_versions": {
     "requests": "2.31.0"
   },

@@ -12,7 +12,8 @@
     "type": "deployed_agent_path_b",
     "vendor": "huggingface_via_openrouter"
   },
-  "are_total": 58,
+  "applicability_policy_version": "0.1.2",
+  "are_total": 59,
   "band_display": "C-",
   "corpus_version": "",
   "eval_outputs_path": "tests/fixtures/golden_agents/M1/eval_outputs.json",
@@ -20,7 +21,7 @@
   "fixture_id": "M1",
   "lock_source": "deterministic_replay",
   "locked_at": "2026-05-15T20:37:30+00:00",
-  "rubric_version": "0.1.2",
-  "scanner_version": "0.2.3",
+  "rubric_version": "1.1.0",
+  "scanner_version": "0.4.0",
   "seed": 42
 }

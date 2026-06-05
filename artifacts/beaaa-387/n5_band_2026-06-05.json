@@ -1,0 +1,172 @@
+{
+  "issue": "BEAAA-398",
+  "section": "\u00a73 reproducibility_band_L1",
+  "generated_at": "2026-06-05T20:38:48+00:00",
+  "for_status_date": "2026-06-05",
+  "n": 5,
+  "current_scanner_version": "0.4.0",
+  "current_rubric_version": "1.1.0",
+  "current_contract_version": "are-scanner-api-v1@v1.3.0",
+  "manifest_path": "artifacts/beaaa-387/manifest.json",
+  "tolerances": {
+    "are_total": 1.0,
+    "per_pillar": 0.5
+  },
+  "layer_notes": {
+    "L1": "deterministic re-run of score() against locked eval_outputs.json; drift=0 by construction. Non-zero drift = release-blocker code regression.",
+    "L2_owner": "harness/golden_set/repro_gate.py \u2014 live probe-runner replicates, weekly on cheap fixtures + monthly on full slate (BEAAA-398 \u00a73 cadence)."
+  },
+  "fixtures": [
+    {
+      "fixture_id": "B1",
+      "slot": "known_bad",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 39,
+      "are_max": 39,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "B2",
+      "slot": "known_bad",
+      "baselined": false,
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)"
+    },
+    {
+      "fixture_id": "B3",
+      "slot": "known_bad",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 64,
+      "are_max": 64,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G1",
+      "slot": "known_good",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 79,
+      "are_max": 79,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G2",
+      "slot": "known_good",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 77,
+      "are_max": 77,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G3",
+      "slot": "known_good",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 73,
+      "are_max": 73,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M1",
+      "slot": "graded_middle",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 59,
+      "are_max": 59,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M2",
+      "slot": "graded_middle",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 47,
+      "are_max": 47,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M3",
+      "slot": "graded_middle",
+      "baselined": true,
+      "n_replicates": 5,
+      "are_min": 54,
+      "are_max": 54,
+      "are_drift": 0,
+      "pillar_drifts": {
+        "OPS": 0.0,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "GOVERNANCE": 0.0
+      },
+      "are_breach": false,
+      "pillar_breaches": []
+    }
+  ],
+  "summary": {
+    "passed": true,
+    "baselined_count": 8,
+    "pending_count": 1,
+    "max_are_drift": 0,
+    "are_breach_fixtures": [],
+    "pillar_breach_pairs": [],
+    "summary_line": "N=5 | baselined=8/9 | pending=1 | max ARE drift=0 | breaches=0 | PASS"
+  }
+}

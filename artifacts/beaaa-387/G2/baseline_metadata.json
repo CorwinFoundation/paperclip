@@ -19,6 +19,7 @@
   "anchor_strategy": "phase2_admittance_dial_a",
   "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
   "anchor_strategy_cosign_ref": "BEAAA-565",
+  "applicability_policy_version": "0.1.2",
   "are_total": 77,
   "band_display": "B",
   "corpus_version": "path_a_v2_1@2026-05-15",
@@ -60,8 +61,8 @@
     "openai/gpt-4o": "live-api-as-of-2026-05-15"
   },
   "pending_huw_anchor_decision": false,
-  "rubric_version": "1.0.0",
-  "scanner_version": "0.3.0",
+  "rubric_version": "1.1.0",
+  "scanner_version": "0.4.0",
   "sdk_versions": {
     "openai-python": "unknown"
   },

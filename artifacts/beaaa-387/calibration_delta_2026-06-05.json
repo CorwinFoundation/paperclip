@@ -1,0 +1,223 @@
+{
+  "issue": "BEAAA-398",
+  "section": "\u00a72 calibration_health",
+  "generated_at": "2026-06-05T20:38:48+00:00",
+  "for_status_date": "2026-06-05",
+  "current_scanner_version": "0.4.0",
+  "current_rubric_version": "1.1.0",
+  "current_contract_version": "are-scanner-api-v1@v1.3.0",
+  "manifest_path": "artifacts/beaaa-387/manifest.json",
+  "tolerances": {
+    "are_total": 1.0,
+    "per_pillar": 0.5
+  },
+  "caveats": {
+    "beaaa353_rubric_contract_drift": "Rubric currently at 1.0.0 (25/25/25/25); contract pillar names + weights pinned at are-scanner-api-v1@v1.0. Baselines locked under rubric 0.1.2 (B1/M1/M2) measure non-zero ARE deltas under current rubric \u2014 attribution=rubric_reweight, not scanner regression.",
+    "partial_coverage": "Pending fixtures (G3, B2, B3, M3) emit pending_reason and do not block emission per BEAAA-419 anchor decision (ADR-0003)."
+  },
+  "fixtures": [
+    {
+      "fixture_id": "B1",
+      "slot": "known_bad",
+      "baselined": true,
+      "baseline_are": 39,
+      "current_are": 39,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": null,
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "B2",
+      "slot": "known_bad",
+      "baselined": false,
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "notes": "owner=Head of Underwriting & AI Risk, source_issue=BEAAA-419"
+    },
+    {
+      "fixture_id": "B3",
+      "slot": "known_bad",
+      "baselined": true,
+      "baseline_are": 64,
+      "current_are": 64,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G1",
+      "slot": "known_good",
+      "baselined": true,
+      "baseline_are": 79,
+      "current_are": 79,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G2",
+      "slot": "known_good",
+      "baselined": true,
+      "baseline_are": 77,
+      "current_are": 77,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15",
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "G3",
+      "slot": "known_good",
+      "baselined": true,
+      "baseline_are": 73,
+      "current_are": 73,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M1",
+      "slot": "graded_middle",
+      "baselined": true,
+      "baseline_are": 59,
+      "current_are": 59,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": null,
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M2",
+      "slot": "graded_middle",
+      "baselined": true,
+      "baseline_are": 47,
+      "current_are": 47,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": "path_b_v2_1@2026-05-15",
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    },
+    {
+      "fixture_id": "M3",
+      "slot": "graded_middle",
+      "baselined": true,
+      "baseline_are": 54,
+      "current_are": 54,
+      "are_delta": 0,
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "baseline_scanner_version": "0.4.0",
+      "baseline_rubric_version": "1.1.0",
+      "baseline_corpus_version": "path_a_v2_1@2026-05-15",
+      "current_scanner_version": "0.4.0",
+      "current_rubric_version": "1.1.0",
+      "drift_attributable_to": "none",
+      "are_breach": false,
+      "pillar_breaches": []
+    }
+  ],
+  "summary": {
+    "passed": true,
+    "baselined_count": 8,
+    "pending_count": 1,
+    "are_breach_fixtures": [],
+    "pillar_breach_pairs": [],
+    "by_attribution": {
+      "none": [
+        "B1",
+        "B3",
+        "G1",
+        "G2",
+        "G3",
+        "M1",
+        "M2",
+        "M3"
+      ]
+    },
+    "summary_line": "baselined=8/9 | pending=1 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=0 | PASS"
+  }
+}

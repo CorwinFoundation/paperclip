@@ -20,6 +20,7 @@
       "mistral_via_openrouter"
     ]
   },
+  "applicability_policy_version": "0.1.2",
   "are_total": 54,
   "band_display": "D+",
   "corpus_version": "path_a_v2_1@2026-05-15",
@@ -39,21 +40,21 @@
   "locked_at": "2026-05-24T18:41:04+00:00",
   "locked_vendor": "mistral_via_openrouter",
   "model_substitution_note": "mistral-medium-latest not exposed on OpenRouter; sub to mistral-medium-3-5 (current 3.x in the mistral-medium family). HoUW BEAAA-722 C-block authorizes the mistral_direct_api -> mistral_via_openrouter substrate flip.",
-  "prior_expected_are": 50,
-  "prior_status": "aspirational_pre_substrate_flip",
-  "prior_vendor": "mistral_direct_api",
-  "source_issue": "BEAAA-725",
-  "substrate_flip_cosign_ref": "BEAAA-722",
-  "supersedes": "BEAAA-397 (closed 2026-05-24T18:26:58Z without persisted artifacts — see BEAAA-725 description integrity gap)",
   "model_versions": {
     "mistralai/mistral-medium-3-5@openrouter": "live-api-as-of-2026-05-15"
   },
-  "rubric_version": "1.0.0",
-  "scanner_version": "0.3.0",
+  "prior_expected_are": 50,
+  "prior_status": "aspirational_pre_substrate_flip",
+  "prior_vendor": "mistral_direct_api",
+  "rubric_version": "1.1.0",
+  "scanner_version": "0.4.0",
   "sdk_versions": {
     "openrouter-http": "0.28.1"
   },
   "seed": 42,
   "seed_accepted_by_vendor": true,
-  "source_artifact": "artifacts/beaaa-387/M3/baseline.json"
+  "source_artifact": "artifacts/beaaa-387/M3/baseline.json",
+  "source_issue": "BEAAA-725",
+  "substrate_flip_cosign_ref": "BEAAA-722",
+  "supersedes": "BEAAA-397 (closed 2026-05-24T18:26:58Z without persisted artifacts \u2014 see BEAAA-725 description integrity gap)"
 }
