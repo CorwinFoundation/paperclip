@@ -37,10 +37,64 @@ inspect-ai==0.3.220
 # bump requires a fresh N=5 calibration delta on the golden set.
 pyrit==0.6.0
 
+# --- AgentDojo (BEAAA-713 + BEAAA-1682) ---
+# AgentDojo (ETH Zurich, github.com/ethz-spylab/agentdojo, MIT) — tool-call
+# benchmark used for indirect-injection (P3.2) and tool-misuse
+# (ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL + .PARAM_TAMPER) wraps. Drives
+# scanners/agentdojo_runner.py via the rubric/probe_mappings/agentdojo.yaml
+# + agentdojo_tool_misuse.yaml mappings. Wrap-only per
+# contracts/scanner-implementation-supervision-v1.md@v1.0 row "Wrap an
+# upstream eval framework ... as an ARE probe". Pin exact so probe-id
+# namespace + judge behavior stay stable; bump requires fresh N=5 delta.
+agentdojo==0.1.35
+
 # --- model SDKs (lazy-imported by harness/runner.py adapters) ---
 anthropic==0.39.0
 openai==1.54.4
 google-genai==0.3.0
+
+# --- PII / scrubber substrate (BEAAA-2068 engine-import pre-flight) ---
+# LLM Guard (Protect AI, github.com/protectai/llm-guard, MIT) — wraps the
+# Anonymize / Deanonymize / Secrets / MaliciousURLs probe units that drive
+# the PII rubric_point_ids spec'd on parent BEAAA-2026 comment 66728f27
+# (ROBUSTNESS.PII.SCAN_TIME_DETECTION + GOVERNANCE.PII.HANDLING_ATTESTATION,
+# both always-on). Pinned at upstream tag v0.3.16 (commit SHA
+# 32b14a4a2fa398df8b77fd748ee4bd387a4ac5ce) per the LLM Guard Vendor Pin
+# doc shipped on BEAAA-815. The selective loader at scanners/selective_loader.py
+# imports exactly four class symbols (Anonymize, Deanonymize, Secrets,
+# MaliciousURLs); upgrade is a deliberate ticketed event and requires a
+# fresh N=5 calibration delta on the golden set per the supervision
+# contract row "Bump the upstream eval framework's version".
+llm-guard==0.3.16
+
+# Presidio Analyzer + Anonymizer (Microsoft, github.com/microsoft/presidio, MIT)
+# — the PII detection + redaction backbone that LLM Guard's Anonymize /
+# Deanonymize scanners delegate to. The detector string under v1.0.3
+# model_versions.detectors[] (per BEAAA-815 vendor pin doc) names
+# presidio-analyzer 2.2.358; pin both sibling packages in lockstep so the
+# detector envelope stamped on every ScoreResponse stays byte-identical.
+# Wrap-only per scanner-implementation-supervision-v1.md@v1.0; no fork.
+presidio-analyzer==2.2.358
+presidio-anonymizer==2.2.358
+
+# spaCy — NER backbone consumed by Presidio Analyzer for entity
+# recognition behind the LLM Guard Anonymize scanner. Pin matches the
+# 3.8 release line that the local dev venv verifies (presidio-analyzer
+# 2.2.358 declares `spacy>=3.4.4,<4.0`; 3.8.14 satisfies that and is
+# the version paired with the en_core_web_lg-3.8.0 model artifact SHA
+# recorded in scanners/model_versions.json). Bump requires a fresh N=5
+# calibration delta on the golden set.
+spacy==3.8.14
+
+# Hugging Face Transformers — required for the DistilBERT-backed Presidio
+# transformers NER recognizer and the LLM Guard MaliciousURLs DistilBERT
+# classifier. Pin matches LLM Guard 0.3.16's exact declared dep
+# (`transformers==4.51.3`); any drift away from that exact value is a
+# silent rule-change via dep mismatch per supervision-contract row
+# "Bump the upstream eval framework's version". Bump requires a fresh
+# N=5 calibration delta (HF tokenizer / model changes can shift
+# detector scores).
+transformers==4.51.3
 
 # --- dev / test ---
 # Test suite uses stdlib unittest; pytest is optional. No test-only
@@ -48,3 +102,9 @@ google-genai==0.3.0
 
 # --- pinned external CLI (Node, not pip-managed) ---
 # promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)
+#
+# --- pinned external SHAs (recorded out-of-band) ---
+# Upstream commit SHAs + HF model revisions for the BEAAA-2068 set live in
+# scanners/model_versions.json (Supreme Law pin-everything block). Runtime
+# thresholds for the four LLM Guard scanner classes are pinned in the same
+# file per the BEAAA-781 kick-off audit forward-binding #6.

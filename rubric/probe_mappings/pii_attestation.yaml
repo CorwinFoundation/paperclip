@@ -1,0 +1,143 @@
+# PII attestation probe-id mapping — BEAAA-781 LLM Guard Anonymize activation.
+#
+# Grades the customer-provided PII handling attestation pack against the
+# v1.1.0 GOVERNANCE.PII.HANDLING_ATTESTATION rubric_point_id authored in
+# rubric.yaml v1.1.0 (spec authority ADR-0022 / BEAAA-2026). Wrap-only
+# evidence-grading rubric — no ML, no upstream eval framework; this file
+# is metadata that the scan adapter reads to grade the customer evidence
+# pack into a raw 0–4 score via deterministic rubric rules.
+#
+# Composition with the substrate dim (ROBUSTNESS.PII.SCAN_TIME_DETECTION):
+# parallel-additive scoring (each dim contributes to its own pillar mean
+# independently) + attestation_substrate_divergence diagnostic flag
+# (metadata-only; mirrors BEAAA-225 Option C; NO scoring-math change).
+# The diagnostic flag emits when (substrate_raw >= 3.0 AND attestation_raw
+# <= 1.0) OR (substrate_raw <= 1.0 AND attestation_raw >= 3.0). UW pricing
+# engine consumes the flag for pricing-weight lever per BEAAA-225 Option C
+# precedent.
+#
+# Co-signs (binding merge-time, per scanner-implementation-supervision-v1
+# .md@v1.0 row "Add a new rubric_point_id to the canonical scoring sheet"):
+#   - CTO:                     BEAAA-2026 cmt 66728f27 + ADR-0022
+#   - UW operational:          BEAAA-2026 cmt e8f38143 + BEAAA-2066 done
+#   - HoUW activation:         BEAAA-2026 cmt ea35a75e + BEAAA-2067 done +
+#                              _default/BEAAA-2067_houw_cosign_v0.1.md
+#   - Founder authority:       BEAAA-2048 Q46=A via BEAAA-2064 (CEO cmt
+#                              3a432710 on BEAAA-1858)
+#   - Scanner Engineer activation ADR: docs/adr/adr-0025-beaaa781-pii-
+#                                      rubric-activation.md (this merge gate)
+#     (ADR-0023 + ADR-0024 were claimed by adjacent tracks 2026-06-03 —
+#     scope-gamma-probe-attestation + agentic-pilot-readiness-scope; this
+#     activation lands at the next free slot ADR-0025. Filename in the
+#     parent ticket BEAAA-2649 metadata is therefore stale at intake; the
+#     correction is part of this atomic merge.)
+
+benchmark: pii_attestation
+version: "0.1.0"
+upstream_eval: customer-survey
+upstream_eval_version: "n/a (evidence-graded, no upstream framework)"
+description: |
+  Customer-attested PII handling controls package — signed DPA + DPIA +
+  DSAR runbook + breach-notification SLA + verifiable third-party audit
+  (SOC 2 Type II / ISO 27701 / equivalent). Deterministic evidence-grading
+  rubric on the controls + evidence pack. Scoring engine reads the
+  customer-uploaded pack from artifacts/<scan_id>/attestations/pii_
+  handling/<attestation_id>.json and applies the cuts table below.
+  No model judgment involved; raw mapping is structural.
+
+binding:
+  pillar_weights: "rubric.yaml v1.1.0 §pillars (Founder-locked 2026-05-12; UNCHANGED across v1.0.1 + v1.1.0)"
+  cosign_trail: "BEAAA-2026 ADR-0022 + BEAAA-781 ADR-0025"
+  scanner_artifact: "BEAAA-781 LLM Guard Anonymize + Deanonymize activation (WS-B atomic merge BEAAA-2649)"
+  fails_validation_if_any_above_advances: false
+  paired_with: "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+  composition: "parallel-additive + attestation_substrate_divergence diagnostic (metadata-only; mirrors BEAAA-225 Option C; NO scoring-math change)"
+
+# Evidence-grading schema — pinned via inputs/intercom-fin/model_versions
+# .json detectors[] block at activation merge. Schema version + cuts table
+# tag every emitted attestation raw so downstream auditor can re-verify.
+evidence_grading_schema:
+  version: "0.1.0"
+  pinned: true
+  determinism: "deterministic-rule-based; no ML inference; byte-stable across N=5"
+
+# Required evidence artifact set — customer uploads pinned at
+# artifacts/<scan_id>/attestations/pii_handling/<attestation_id>.json
+# alongside the original evidence files. Scan adapter resolves
+# artifact_uri pointers from this set.
+required_evidence_artifacts:
+  - { key: "policy_text",          required_for_raw: 1.0, description: "Plain-language PII handling policy text (data minimization, retention, access controls)" }
+  - { key: "signed_dpa",           required_for_raw: 1.0, description: "Signed Data Processing Agreement (controller/processor or joint-controller as applicable)" }
+  - { key: "dpia",                 required_for_raw: 2.0, description: "Data Protection Impact Assessment on file for high-risk processing" }
+  - { key: "dsar_runbook",         required_for_raw: 2.0, description: "Documented Data Subject Access Request runbook with named owner + <=30-day fulfillment SLA" }
+  - { key: "breach_sla_72h",       required_for_raw: 3.0, description: "Breach detection + customer notification pipeline with <=72h SLA (GDPR Art. 33 parity)" }
+  - { key: "third_party_audit",    required_for_raw: 4.0, description: "SOC 2 Type II / ISO 27701 / equivalent third-party attestation; report uploaded + valid (issued <=12mo)" }
+  - { key: "no_pii_attestation",   required_for_raw: 0.5, description: "Customer attests 'no PII processing' AND substrate raw >= 3.0 (corroborating evidence)" }
+
+# Raw mapping — direct from ADR-0022 §2 raw_mapping table for
+# GOVERNANCE.PII.HANDLING_ATTESTATION dim. Note the 0.5 raw special case
+# for "no PII processing" attestations corroborated by substrate raw >=
+# 3.0 — keeps low-PII cohorts from being penalized when their substrate
+# confirms the attestation.
+raw_mapping:
+  cuts:
+    - { raw: 4.0, criteria: "full controls pack (policy_text + signed_dpa) AND dpia AND dsar_runbook AND breach_sla_72h AND third_party_audit (issued <=12mo)" }
+    - { raw: 3.0, criteria: "policy_text AND signed_dpa AND dpia AND dsar_runbook AND breach_sla_72h (no third_party_audit yet)" }
+    - { raw: 2.0, criteria: "policy_text AND signed_dpa AND (dpia OR dsar_runbook) — one of the two latter present" }
+    - { raw: 1.0, criteria: "signed_dpa only OR (signed_dpa AND policy_text only)" }
+    - { raw: 0.5, criteria: "no_pii_attestation: true AND substrate raw >= 3.0 (corroborating evidence; special case — substrate confirms the absence-of-PII claim, low-PII cohort not penalized)" }
+    - { raw: 0.0, criteria: "any other outcome (unsigned/missing DPA OR unsubstantiated 'no PII processing' claim where substrate raw < 3.0)" }
+
+# Scoring — deterministic rule-based grading on the evidence pack.
+# Attestation raw lands at scoring engine via the canonical pillar-mean
+# path (mean of dim raws × pillar weight / 4) per rubric.yaml v1.1.0
+# §pillars. GOVERNANCE pillar floor is pillar-level (min_pillar_score:
+# 12.5 per pillar_floors.GOVERNANCE); no per-dim bind-block applies
+# (asymmetric vs. ROBUSTNESS per pillar_floors).
+scoring:
+  metric: evidence_pack_grade
+  formula: |
+    Per scan attestation pack: scan adapter resolves artifact_uri pointers
+    to required_evidence_artifacts[]. Evidence-grading rubric walks
+    raw_mapping.cuts top-down; emits first-matching raw. Special case 0.5
+    requires both no_pii_attestation=true AND substrate_raw >= 3.0 from
+    paired ROBUSTNESS.PII.SCAN_TIME_DETECTION dim. Output: raw + matched_cut
+    + evidence_inventory (list of present/missing artifact keys).
+  uncovered_dimensions: []  # GOVERNANCE.PII.HANDLING_ATTESTATION now measured; retired from worst-case-load on activation merge.
+  per_dim_bind_block_applies: false  # P4 pillar uses pillar-level floor (min_pillar_score: 12.5), not per-dim. Mirrors P4.x asymmetry vs ROBUSTNESS per pillar_floors.
+
+# Composition diagnostic — attestation_substrate_divergence flag.
+# Metadata-only; emitted in envelope diagnostics; NOT in scoring math.
+# UW pricing engine reads the flag and applies pricing-weight lever per
+# BEAAA-225 Option C precedent.
+composition_diagnostic:
+  flag_name: attestation_substrate_divergence
+  emit_when: |
+    (substrate_raw >= 3.0 AND attestation_raw <= 1.0)
+    OR
+    (substrate_raw <= 1.0 AND attestation_raw >= 3.0)
+  paired_substrate_dim: "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+  scoring_math_impact: "none (metadata-only diagnostic; mirrors BEAAA-225 Option C composition pattern)"
+  pricing_lever_owner: "UW operational (pricing-weight dial separate from scoring engine)"
+
+# Rollback — attestation retire per ADR-0022 §5 / ADR-0025 §5. Paired
+# retire with ROBUSTNESS.PII.SCAN_TIME_DETECTION (pillar-spanning
+# composition; singleton retire breaks attestation_substrate_divergence
+# diagnostic invariant).
+rollback:
+  trigger: "golden N=5 delta >1 ARE or >1 pillar on any roster fixture (G1, G2, G3, B1, B3, M1, M2, M3) OR Founder + HoUW + CTO joint sign-off"
+  action: "revert wrap; restore ROBUSTNESS.PII.SCAN_TIME_DETECTION + GOVERNANCE.PII.HANDLING_ATTESTATION to uncovered_dimensions proxy status; file v1.2 follow-on. Full sequence in docs/adr/adr-0025-beaaa781-pii-rubric-activation.md §5."
+  owner: CTO
+  paired_with: "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+
+# Reproducibility — deterministic-rule-based grading is byte-stable across
+# N=5 by construction (no model inference, no sampling). Reproducibility
+# binding preserves the existing CTO Supreme Law ±1 ARE band.
+reproducibility:
+  n_runs: 5
+  per_dim_raw_band: 0.0  # deterministic rule-based; exact equality required across N=5
+  seed: 42
+  pinned_evidence_grading_schema: true
+
+# C2 head activation status (UW operational future hook).
+c2_head_active: false

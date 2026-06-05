@@ -1,4 +1,12 @@
 {
   "primary": "intercom-fin-tx2p130c (Anthropic Claude family per Intercom platform docs)",
-  "judges": []
+  "judges": [],
+  "detectors_pin_ref": "scanners/model_versions.json::detectors (single source of truth — per-customer fixtures inherit by reference per BEAAA-2068; activation pin tracked at scanners/model_versions.json::detectors.llm-guard-anonymize.activation_pin)",
+  "_activation_anchor": {
+    "ticket_ref": "BEAAA-781 (atomic merge BEAAA-2649)",
+    "rubric_version_at_activation": "1.1.0",
+    "applicability_policy_version_at_activation": "0.1.2",
+    "scanner_version_at_activation": "0.4.0",
+    "fixture_inherits_detector_pin_by_reference": true
+  }
 }

@@ -4,19 +4,19 @@ owner: underwriter
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "v1.2.0 contract bump activates POST /scanner/v1/rescans as a measured route with claims-grade audit-chain persistence (prior_scan_refs[], write-once forensic_bundle_uri, at-write-time snapshot_hash) and purpose-aware SLA degradation flags (partial_completion, confidence_below_adjudication_threshold)."
-contracts_referenced: ["are-scanner-api-v1@v1.1.0 → v1.2.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
-ticket_refs: ["BEAAA-1283", "BEAAA-1255", "BEAAA-1243", "BEAAA-1236", "BEAAA-1103", "BEAAA-1271", "BEAAA-1273", "BEAAA-1274", "BEAAA-1277", "BEAAA-1278"]
-proof_points_cited: ["ADR-0017 (accepted 2026-05-30, docs/adr/adr-0017-scope-beta-rescan-persistence-semantics.md)", "HoUW binding co-sign BEAAA-1243 2026-05-30", "UW op-seat co-sign BEAAA-1236 2026-05-30", "Claims Architect sign-off BEAAA-1103", "Scanner Engineer ratification BEAAA-1255 (WS7 close, BEAAA-1283)", "CTO co-sign BEAAA-1255 comment 56b55cb5 2026-05-30", "WS5 smoke BEAAA-1277 doc scope-beta-smoke-syllable-apichat-v1 (AC 1-7 PASS)", "WS6 N=5 calibration BEAAA-1278 doc scope-beta-n5-calibration-rescans-vs-scans-v1 (Δ=0, band=0, discrimination=22.5)"]
-version: "v1.2.0"
-prior_version: "are-scanner-api-v1@v1.1.0-patch"
+focus_claim: "v1.3.0 contract bump activates two new rubric_point_ids on the /scanner/v1/scans response surface (and CLI output): ROBUSTNESS.PII.SCAN_TIME_DETECTION (substrate, LLM Guard Anonymize wrap) + GOVERNANCE.PII.HANDLING_ATTESTATION (attestation pair, evidence-graded). Minor-additive — envelope field-set extends via pillars[].dimensions[].id additions; no existing key renamed/removed; v1.2.0 envelope-content for prior keys remains byte-stable per scanner-implementation-supervision-v1@v1.0."
+contracts_referenced: ["are-scanner-api-v1@v1.2.0 → v1.3.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
+ticket_refs: ["BEAAA-2649", "BEAAA-781", "BEAAA-2026", "BEAAA-2066", "BEAAA-2067", "BEAAA-2068", "BEAAA-1682"]
+proof_points_cited: ["ADR-0022 (spec authority, docs/adr/adr-0022-beaaa2026-pii-rubric-spec-authorship.md)", "ADR-0025 (BEAAA-781 activation, docs/adr/adr-0025-beaaa781-pii-rubric-activation.md)", "CTO spec co-sign BEAAA-2026 comment 66728f27", "UW operational co-sign BEAAA-2026 comment e8f38143 + BEAAA-2066 done", "HoUW activation co-sign BEAAA-2026 comment ea35a75e + BEAAA-2067 done + _default/BEAAA-2067_houw_cosign_v0.1.md", "Founder authority BEAAA-2048 Q46=A via BEAAA-2064 (CEO comment 3a432710 on BEAAA-1858)", "Actuary C1/C2 co-sign BEAAA-781 comment 1be2c13b + BEAAA-2649 comment 3caa47ac", "HoUW WS-B atomic-merge binding BEAAA-2649 comment 185366c9", "CTO Path A ruling BEAAA-2649 comment 289f10fb"]
+version: "v1.3.0"
+prior_version: "are-scanner-api-v1@v1.2.0"
 self_audit_passed: true
-escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged. Tamper resistance strengthened (write-once forensic_bundle_uri + at-write-time snapshot_hash, ADR-0017 §3). CTO + HoUW + UW co-sign authority sufficient."]
+escalations_noted: ["No Founder gate: pillar weights 25/25/25/25 UNCHANGED (Founder-locked 2026-05-12 per BEAAA-21 v1.0 §pillars); bound-book pricing UNCHANGED (new dims add to scoring sheet — no scoring-math change per ADR-0022 §2); tamper resistance preserved by construction (envelope content for v1.2.0 keys byte-stable; the new pillars[ROBUSTNESS|GOVERNANCE].dimensions[] additions are append-only). CTO spec + UW operational + HoUW activation co-sign authority sufficient per supervision contract row 'Add a new rubric_point_id to the canonical scoring sheet' (x2)."]
 ---
 
-# Contract: ARE Scanner API — v1.2.0
+# Contract: ARE Scanner API — v1.3.0
 
-**Status:** merged. ADR-0017 ratified 2026-05-30 (Scanner Engineer ratification at BEAAA-1255 WS7 close on BEAAA-1283; CTO co-sign at BEAAA-1255 comment 56b55cb5).
+**Status:** merged at activation gate. ADR-0022 spec authority accepted 2026-06-03 (CTO co-sign BEAAA-2026 comment 66728f27); ADR-0025 activation accepted 2026-06-05 (Scanner Engineer activation on BEAAA-781 via BEAAA-2649 atomic merge).
 **Op-seat co-sign:** [BEAAA-1236](/BEAAA/issues/BEAAA-1236) `done` (Underwriter operational, 2026-05-30).
 **Strategic-seat countersign:** [BEAAA-1243](/BEAAA/issues/BEAAA-1243) `done` (Head of UW & AI Risk, 2026-05-30; pre-grants Q1/Q2a/Q2b/Q3/Q4 without itemized variance).
 **Claims Architect sign-off:** [BEAAA-1103](/BEAAA/issues/BEAAA-1103) `done` (conditional on ADR-0017 §Persistence-semantics — satisfied by §2.1–§2.3).
@@ -29,7 +29,7 @@ escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-boo
 ## §Version header
 
 ```
-# Contract: ARE Scanner API — v1.2.0
+# Contract: ARE Scanner API — v1.3.0
 ```
 
 ---
