@@ -4,30 +4,30 @@ owner: underwriter
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "v1.3.0 additive minor — adds a single top-level `cosign_metadata` block to the `/scanner/v1/scans` + `/scanner/v1/rescans` response surfaces (and to the `bin/are-scan` CLI output) sourced from `harness.cosign_manifest.SCANNER_COSIGN_MANIFEST`. Auditor and Underwriter intake can verify rule-change co-signs without spelunking per-probe `_summary.json` artifacts. Field set crosses the v1.2.x seam by adding a new top-level key; envelope content for all v1.2.1 keys remains byte-identical."
-contracts_referenced: ["are-scanner-api-v1@v1.2.1 → v1.3.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
+focus_claim: "v1.6.0 additive minor — adds a single top-level `cosign_metadata` block to the `/scanner/v1/scans` + `/scanner/v1/rescans` response surfaces (and to the `bin/are-scan` CLI output) sourced from `harness.cosign_manifest.SCANNER_COSIGN_MANIFEST`. Auditor and Underwriter intake can verify rule-change co-signs without spelunking per-probe `_summary.json` artifacts. Field set crosses the v1.2.x seam by adding a new top-level key; envelope content for all v1.2.1 keys remains byte-identical."
+contracts_referenced: ["are-scanner-api-v1@v1.2.1 → v1.6.0", "scanner-implementation-supervision-v1@v1.0", "uw-rubric-supervision-v1@v1.0"]
 ticket_refs: ["BEAAA-2199", "BEAAA-1686", "BEAAA-2262", "BEAAA-2175", "BEAAA-794"]
-proof_points_cited: ["BEAAA-2199 CTO design co-sign comment ca7071d9 2026-06-03 (ACCEPT design with 4-file scope + INTENDED_DELTAS=['cosign_metadata'] + isolated worktree off master 52c003e)", "BEAAA-2262 Underwriter op-seat call comment e59a5d3b 2026-06-03 (Option B — minor bump v1.3.x family; field-set invariant seam)", "harness/cosign_manifest.py:SCANNER_COSIGN_MANIFEST (BEAAA-794 ROBUSTNESS.TOOL_MISUSE + BEAAA-1683 sanitization layer entries)", "ADR-BEAAA-2199 docs/adr/adr-beaaa-2199-cosign-metadata-block.md"]
-version: "v1.3.0"
+proof_points_cited: ["BEAAA-2199 CTO design co-sign comment ca7071d9 2026-06-03 (ACCEPT design with 4-file scope + INTENDED_DELTAS=['cosign_metadata'] + isolated worktree off master 52c003e)", "BEAAA-2262 Underwriter op-seat call comment e59a5d3b 2026-06-03 (Option B — minor bump direction; field-set invariant seam) + BEAAA-2848 UW op-seat re-call 2026-06-05 (Path A retarget v1.3.0 → v1.6.0 after contract-version-registry collision)", "harness/cosign_manifest.py:SCANNER_COSIGN_MANIFEST (BEAAA-794 ROBUSTNESS.TOOL_MISUSE + BEAAA-1683 sanitization layer entries)", "ADR-BEAAA-2199 docs/adr/adr-beaaa-2199-cosign-metadata-block.md"]
+version: "v1.6.0"
 prior_version: "are-scanner-api-v1@v1.2.1"
 self_audit_passed: true
-escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged; tamper resistance preserved by construction (`snapshot_hash` continues to sign the full envelope including the new block deterministically; no judge-model or scoring-math touch). CTO design co-sign delivered at BEAAA-2199 comment ca7071d9; CTO merge co-sign required pre-merge per scanner-implementation-supervision-v1@v1.0 (rule-change row: bin/are-scan CLI output JSON shape change). UW op-seat call delivered at BEAAA-2262 comment e59a5d3b (Option B minor v1.3.x family)."]
+escalations_noted: ["No Founder gate: pillar weights / rubric points / bound-book pricing unchanged; tamper resistance preserved by construction (`snapshot_hash` continues to sign the full envelope including the new block deterministically; no judge-model or scoring-math touch). CTO design co-sign delivered at BEAAA-2199 comment ca7071d9; CTO merge co-sign required pre-merge per scanner-implementation-supervision-v1@v1.0 (rule-change row: bin/are-scan CLI output JSON shape change). UW op-seat call delivered at BEAAA-2262 comment e59a5d3b (Option B minor bump direction); UW op-seat re-call delivered at BEAAA-2848 (Path A v1.3.0 → v1.6.0 retarget after contract-version-registry collision with BEAAA-2020/2023's reserved v1.3.0 slot)."]
 ---
 
-# Contract: ARE Scanner API — v1.3.0
+# Contract: ARE Scanner API — v1.6.0
 
 **Status:** pending merge. PR against [BEAAA-2199](/BEAAA/issues/BEAAA-2199) lands `harness/cosign_manifest.py` (tracked), the `cosign_metadata` field at the contract output surface in `harness/contract_envelope.py::to_contract_output`, this doc bump, ADR-BEAAA-2199, and the cosign-metadata test in one merge. CTO design co-sign at [BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9) accepts the 4-file scope with `INTENDED_DELTAS=["cosign_metadata"]` and halt-on-unintended; CTO merge co-sign pending on the PR-submission request with full-dict calibration JSON.
-**Op-seat co-sign:** UW (Underwriter operational) — Option B (minor bump v1.3.x family) delivered at [BEAAA-2262 comment e59a5d3b](/BEAAA/issues/BEAAA-2262#comment-e59a5d3b). Field-set invariant seam: v1.2.0 → v1.2.1 was patch because envelope-content fill preserved the field set; this bump adds a new top-level `cosign_metadata` key, crossing the field-set seam.
+**Op-seat co-sign:** UW (Underwriter operational) — Option B (minor bump direction) delivered at [BEAAA-2262 comment e59a5d3b](/BEAAA/issues/BEAAA-2262#comment-e59a5d3b); slot retargeted v1.3.0 → v1.6.0 via UW op-seat re-call [BEAAA-2848](/BEAAA/issues/BEAAA-2848) (Path A) after the contract-version-registry collision was surfaced by CTO at [comment 7bf1525f](/BEAAA/issues/BEAAA-2199#comment-7bf1525f). Field-set invariant seam: v1.2.0 → v1.2.1 was patch because envelope-content fill preserved the field set; this bump adds a new top-level `cosign_metadata` key, crossing the field-set seam.
 **CTO authority:** Design co-sign at BEAAA-2199 comment ca7071d9. Classification: rule-change per `contracts/scanner-implementation-supervision-v1@v1.0` table row "`bin/are-scan` CLI behavior change that affects output JSON shape — Rule change, YES + ADR (contract version bump)". Isolated worktree off master `52c003e` (BEAAA-2175 PR-B merge).
 **Build implementer:** Scanner Engineer on [BEAAA-2199](/BEAAA/issues/BEAAA-2199).
-**Change classification:** rule-change (output-surface field-set addition: one new top-level `cosign_metadata` block; no scoring math, no judge model, no judge prompt, no canonical-JSON domain edit; envelope content for all v1.2.1 keys remains byte-identical by construction); additive minor under semver; Tier 1 rollback (revert the additive field — pre-v1.3.0 consumers ignore the new key by default).
+**Change classification:** rule-change (output-surface field-set addition: one new top-level `cosign_metadata` block; no scoring math, no judge model, no judge prompt, no canonical-JSON domain edit; envelope content for all v1.2.1 keys remains byte-identical by construction); additive minor under semver; Tier 1 rollback (revert the additive field — pre-v1.6.0 consumers ignore the new key by default).
 
 ---
 
 ## §Version header
 
 ```
-# Contract: ARE Scanner API — v1.3.0
+# Contract: ARE Scanner API — v1.6.0
 ```
 
 ---
@@ -266,7 +266,7 @@ Returns the per-`purpose` rolling-window snapshot:
 Returns `{}` before the first `/rescans` invocation populates any
 metric. No authz changes beyond the existing `/scanner/v1/*` surface.
 
-## §cosign_metadata (NEW, v1.3.0 — auditor-readable cosign block at output surface)
+## §cosign_metadata (NEW, v1.6.0 — auditor-readable cosign block at output surface)
 
 > **Authoritative ADR:** ADR-BEAAA-2199 (`docs/adr/adr-beaaa-2199-cosign-metadata-block.md`).
 > **Authoritative source:** `harness/cosign_manifest.py:SCANNER_COSIGN_MANIFEST`
@@ -287,7 +287,7 @@ per-probe `_summary.json` artifacts.
     "block_version": "0.1.0",                    // semver of this block's schema; bumps on field-set changes
     "block_ticket_ref": "BEAAA-1686 (WS-C of BEAAA-794) — UW Cond 8 pin",
     "scanner_version": "0.3.9",                  // mirrors live scanner_version field
-    "contract_version": "are-scanner-api-v1@v1.3.0",
+    "contract_version": "are-scanner-api-v1@v1.6.0",
     "rubric_version": "1.0.1",                   // mirrors live rubric_version field
     "applicability_policy_version": "0.1.1",     // mirrors live applicability_policy_version field
     "rule_changes": [
@@ -359,7 +359,7 @@ covers the cosign block deterministically.
 [BEAAA-1721](/BEAAA/issues/BEAAA-1721).** The emitted
 `cosign_metadata.contract_version` reflects `scanners.CONTRACT_VERSION`
 (currently `are-scanner-api-v1@v1.0.3`), which is behind this
-contract-doc header (`v1.3.0`) until [BEAAA-1721](/BEAAA/issues/BEAAA-1721)
+contract-doc header (`v1.6.0`) until [BEAAA-1721](/BEAAA/issues/BEAAA-1721)
 lands the constant-to-doc sync. CTO judgment 2026-06-03
 ([BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9)
 Ask 3): proceed with the activation; BEAAA-1721 self-heals the value
@@ -376,10 +376,10 @@ tamper-target URIs; the per-cosign `*_cosign_ref` values are opaque
 BEAAA-internal identifiers that confer no exploit surface to a scanned
 agent.
 
-**Pre-v1.3.0 consumer compatibility.** Pre-v1.3.0 consumers that
+**Pre-v1.6.0 consumer compatibility.** Pre-v1.6.0 consumers that
 treated the response as `Dict[str, Any]` continue to ignore the new
 top-level key. Consumers that pinned to a strict schema (e.g. via
-pydantic `extra='forbid'`) MUST upgrade to v1.3.0+ to accept the
+pydantic `extra='forbid'`) MUST upgrade to v1.6.0+ to accept the
 additive field. There are no removed fields and no renamed fields
 vs. v1.2.1.
 
@@ -459,7 +459,7 @@ not weakened — ADR-0017 §3 + §5a).
 | v1.1.0 | 2026-05-18 | additive minor — live-probe scan mode | ADR-0009; BEAAA-531 op-seat; BEAAA-535 strategic countersign |
 | **v1.2.0** | **2026-05-30** | **additive minor — measured /rescans + persistence semantics + SLA flags** | **ADR-0017; BEAAA-1243 HoUW; BEAAA-1236 UW op-seat; BEAAA-1103 Claims Architect; BEAAA-1255 build umbrella; BEAAA-1283 ratification (WS7)** |
 | v1.2.1 | 2026-06-03 | additive patch — `/rescans` 202 response envelope-content fill (10 `_phase1_pending` → real values; field set + JCS canonicalization domain unchanged) | BEAAA-2175 PR-B (merge commit 52c003e); CTO design co-sign comment 99dbec2e; CTO merge co-sign + UW op-seat co-sign at PR-B close |
-| **v1.3.0** | **2026-06-05** | **additive minor — `cosign_metadata` top-level block at output surface** | **ADR-BEAAA-2199; BEAAA-2199 CTO design co-sign comment ca7071d9; BEAAA-2262 UW op-seat call comment e59a5d3b (Option B minor v1.3.x family); BEAAA-2199 PR merge co-sign pending** |
+| **v1.6.0** | **2026-06-05** | **additive minor — `cosign_metadata` top-level block at output surface** | **ADR-BEAAA-2199; BEAAA-2199 CTO design co-sign comment ca7071d9; BEAAA-2262 UW op-seat call comment e59a5d3b (Option B minor direction) + BEAAA-2848 UW op-seat re-call (Path A v1.3.0 → v1.6.0 retarget after contract-version-registry collision; v1.3.0 = BEAAA-2020/2023, v1.4.0 = BEAAA-2474, v1.5.0 = BEAAA-2182 Track A DRAFT); BEAAA-2199 PR merge co-sign pending** |
 
 Existing v1.0.x and v1.1.0 consumers that call `POST /scanner/v1/scans`
 receive byte-identical responses beyond the two pure-additive boolean
@@ -498,11 +498,11 @@ Tier 2. Two rollback paths are available:
 
 ## Co-sign reference manifest
 
-For citation by downstream consumers per `scanner-implementation-supervision-v1@v1.0`. Block-level co-signs for the v1.3.0 bump:
+For citation by downstream consumers per `scanner-implementation-supervision-v1@v1.0`. Block-level co-signs for the v1.6.0 bump:
 
-- `cto_design_cosign_ref` (v1.3.0): [BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9-cf08-4eb3-a4ed-87d8b51bdf95).
-- `cto_merge_cosign_ref` (v1.3.0): pending on PR-submission comment with full-dict calibration JSON.
-- `uw_operational_cosign_ref` (v1.3.0): [BEAAA-2262 comment e59a5d3b](/BEAAA/issues/BEAAA-2262#comment-e59a5d3b) — Option B (minor v1.3.x family).
+- `cto_design_cosign_ref` (v1.6.0): [BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9).
+- `cto_merge_cosign_ref` (v1.6.0): pending on PR-submission comment with full-dict calibration JSON.
+- `uw_operational_cosign_ref` (v1.6.0): [BEAAA-2262 comment e59a5d3b](/BEAAA/issues/BEAAA-2262#comment-e59a5d3b) — Option B (minor bump direction) + [BEAAA-2848](/BEAAA/issues/BEAAA-2848) — Path A (v1.3.0 → v1.6.0 retarget after contract-version-registry collision).
 - ADR: `docs/adr/adr-beaaa-2199-cosign-metadata-block.md` (BEAAA-2199).
 
 Prior v1.2.x co-signs (preserved for chain-of-custody):
@@ -531,7 +531,7 @@ Prior v1.2.x co-signs (preserved for chain-of-custody):
   versions).
 - `probe-set-version`: unchanged (no probe-set touch in WS1–WS7).
 - `rubric_point_id` range affected: **none** (output-surface field
-  addition; no rubric edit; v1.3.0 bump adds `cosign_metadata` block
+  addition; no rubric edit; v1.6.0 bump adds `cosign_metadata` block
   via `harness/cosign_manifest.py` reading-only — no scoring math, no
   judge model, no judge prompt, no canonical-JSON domain edit).
 - `N=5 calibration delta`: BEAAA-1278 doc

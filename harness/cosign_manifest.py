@@ -19,13 +19,13 @@ is a rule change. ADR-BEAAA-2199 (docs/adr/adr-beaaa-2199-cosign-
 metadata-block.md) documents the envelope-surface activation; ADR-0019
 (BEAAA-794) documents the underlying rule activation.
 
-Contract version bump: `are-scanner-api-v1@v1.2.1 → v1.3.0` (minor) per
+Contract version bump: `are-scanner-api-v1@v1.2.1 → v1.6.0` (minor) per
 Underwriter op-seat call on [BEAAA-2262](/BEAAA/issues/BEAAA-2262) —
 the new top-level `cosign_metadata` key is a field-set change (the
 v1.2.0 → v1.2.1 patch was a same-field-set envelope-content fill;
 adding a new top-level key crosses the field-set seam). A future
 Underwriter intake consumer that requires this field MUST pin to
-v1.3.0+; pre-v1.3.0 consumers continue to ignore it.
+v1.6.0+; pre-v1.6.0 consumers continue to ignore it.
 
 Audit hook (per `agents/auditor-os.md`):
 

@@ -3,7 +3,7 @@ adr_id: ADR-BEAAA-2199
 title: "`cosign_metadata` block at the contract output surface (auditor-readable cosign trail)"
 status: Accepted
 date: 2026-06-05
-contract_referenced: "are-scanner-api-v1@v1.2.1 → v1.3.0"
+contract_referenced: "are-scanner-api-v1@v1.2.1 → v1.6.0"
 supervision_contract: "scanner-implementation-supervision-v1@v1.0"
 classification: rule-change
 ticket_refs: ["BEAAA-2199", "BEAAA-1686", "BEAAA-2262", "BEAAA-2175", "BEAAA-794", "BEAAA-1683", "BEAAA-1721"]
@@ -14,7 +14,7 @@ cosign_refs:
 scanner_baseline: "0.3.10"
 scanner_target: "0.3.11"
 contract_baseline: "are-scanner-api-v1@v1.2.1"
-contract_target: "are-scanner-api-v1@v1.3.0"
+contract_target: "are-scanner-api-v1@v1.6.0"
 master_baseline: "52c003e"
 ---
 
@@ -32,7 +32,7 @@ from `harness.cosign_manifest.build_cosign_metadata(...)`, composed in
 `harness.contract_envelope.to_contract_output`, and snapshot-hash
 sealed by construction. Field set crosses the v1.2.x patch seam — the
 new top-level key is a field-set change — so the contract bump is
-minor (v1.2.1 → v1.3.0), per Underwriter op-seat call on
+minor (v1.2.1 → v1.6.0), per Underwriter op-seat call on
 [BEAAA-2262](/BEAAA/issues/BEAAA-2262).
 
 ## §2 — Classification
@@ -56,7 +56,7 @@ applicability-policy axis is touched.
 |---|---|---|
 | `harness/cosign_manifest.py` | NEW, tracked (156 LOC) | Static `SCANNER_COSIGN_MANIFEST` list of rule-change entries (today: BEAAA-794 `ROBUSTNESS.TOOL_MISUSE.*` rubric activation + BEAAA-1683 WS-B sanitization-layer tamper-resistance strengthening); `build_cosign_metadata(*, scanner_version, contract_version, rubric_version, applicability_policy_version) -> dict[str, Any]` factory. |
 | `harness/contract_envelope.py` | additive import + 1 new top-level key in `contract_output.update({...})` (4 lines) | Composes the block via the factory; `score_result.get("rubric_version")` and `score_result.get("applicability_policy_version")` flow from `rubric/scoring.py` (both already populated on `score_result`). |
-| `contracts/are-scanner-api-v1.md` | v1.2.1 → v1.3.0; new §cosign_metadata section; §Versioning history entry; frontmatter refresh | Documents the block shape, key set, snapshot-hash inclusion, pre-v1.3.0 consumer compatibility, customer-facing adapter rule, and the BEAAA-1721 stale-`CONTRACT_VERSION`-constant known issue. |
+| `contracts/are-scanner-api-v1.md` | v1.2.1 → v1.6.0; new §cosign_metadata section; §Versioning history entry; frontmatter refresh | Documents the block shape, key set, snapshot-hash inclusion, pre-v1.6.0 consumer compatibility, customer-facing adapter rule, and the BEAAA-1721 stale-`CONTRACT_VERSION`-constant known issue. |
 | `tests/test_cosign_metadata_beaaa2199.py` | NEW | Asserts `cosign_metadata` present at top level on `bin/are-scan` JSON output of a B1 fixture run; asserts key set + per-entry key set + non-empty `rule_changes`. |
 
 Bump: `scanners.__init__.SCANNER_VERSION` 0.3.10 → 0.3.11 per CTO
@@ -140,7 +140,7 @@ dependency).** The constant in `scanners/__init__.py:CONTRACT_VERSION`
 is currently `"are-scanner-api-v1@v1.0.3"`. `build_cosign_metadata`
 reads this constant, so the emitted
 `cosign_metadata.contract_version` will say `v1.0.3` while the doc is
-at `v1.3.0`. This is a real defect, but it is
+at `v1.6.0`. This is a real defect, but it is
 [BEAAA-1721](/BEAAA/issues/BEAAA-1721)'s defect (the
 contract-version-sync ticket), not BEAAA-2199's. CTO judgment
 ([comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9)
@@ -192,7 +192,7 @@ Tier 1. Two paths:
    `harness/cosign_manifest.py`, revert the 4-line
    `harness/contract_envelope.py` addition, revert
    `scanners/__init__.py` 0.3.11 → 0.3.10, revert this contract doc.
-   Pre-v1.3.0 consumers continue to work unchanged.
+   Pre-v1.6.0 consumers continue to work unchanged.
 2. **Empty the manifest** (≤5 min): set
    `SCANNER_COSIGN_MANIFEST = []` in `harness/cosign_manifest.py`.
    The block still emits but `rule_changes` is empty. Useful if
@@ -206,6 +206,6 @@ Tier 1. Two paths:
 - `cto_merge_cosign_ref`: pending — PR-submission comment on BEAAA-2199
 - `supervision_contract`: `scanner-implementation-supervision-v1@v1.0`
 - `contract_doc_baseline`: `are-scanner-api-v1@v1.2.1`
-- `contract_doc_target`: `are-scanner-api-v1@v1.3.0`
+- `contract_doc_target`: `are-scanner-api-v1@v1.6.0`
 - `scanner_master_baseline`: `52c003e`
 - `scanner_version_baseline → target`: `0.3.10 → 0.3.11`

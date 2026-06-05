@@ -15,7 +15,7 @@ rule-change per ``contracts/scanner-implementation-supervision-v1@v1.0``
 (``bin/are-scan`` CLI output JSON shape change). CTO design co-sign on
 [BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9);
 UW op-seat bump-direction co-sign on [BEAAA-2262](/BEAAA/issues/BEAAA-2262)
-(Option B → contract ``v1.2.1 → v1.3.0`` minor).
+(Option B → contract ``v1.2.1 → v1.6.0`` minor).
 
 Existing field set is byte-stable; ``cosign_metadata`` is pure-additive
 on top. ``snapshot_hash`` continues to sign the full envelope including

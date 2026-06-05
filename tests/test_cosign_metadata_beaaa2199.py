@@ -5,7 +5,7 @@ Coverage:
     `to_contract_output(...)` / `run_scan(...)` dict on the G1 golden
     fixture.
   - Block carries the required top-level keys per
-    `contracts/are-scanner-api-v1.md@v1.3.0 §cosign_metadata`.
+    `contracts/are-scanner-api-v1.md@v1.6.0 §cosign_metadata`.
   - `cosign_metadata.scanner_version` / `contract_version` /
     `rubric_version` / `applicability_policy_version` mirror the live
     same-named response fields (block-level invariant — drift means the
@@ -86,7 +86,7 @@ class BuildCosignMetadataUnitTests(unittest.TestCase):
     def test_field_set_matches_contract(self) -> None:
         block = build_cosign_metadata(
             scanner_version="0.3.9",
-            contract_version="are-scanner-api-v1@v1.3.0",
+            contract_version="are-scanner-api-v1@v1.6.0",
             rubric_version="1.0.1",
             applicability_policy_version="0.1.1",
         )
@@ -95,21 +95,21 @@ class BuildCosignMetadataUnitTests(unittest.TestCase):
     def test_top_level_field_values_mirror_kwargs(self) -> None:
         block = build_cosign_metadata(
             scanner_version="0.3.9",
-            contract_version="are-scanner-api-v1@v1.3.0",
+            contract_version="are-scanner-api-v1@v1.6.0",
             rubric_version="1.0.1",
             applicability_policy_version="0.1.1",
         )
         self.assertTrue(block["auditor_readable"])
         self.assertEqual(block["block_version"], "0.1.0")
         self.assertEqual(block["scanner_version"], "0.3.9")
-        self.assertEqual(block["contract_version"], "are-scanner-api-v1@v1.3.0")
+        self.assertEqual(block["contract_version"], "are-scanner-api-v1@v1.6.0")
         self.assertEqual(block["rubric_version"], "1.0.1")
         self.assertEqual(block["applicability_policy_version"], "0.1.1")
 
     def test_rule_changes_is_independent_copy(self) -> None:
         block = build_cosign_metadata(
             scanner_version="0.3.9",
-            contract_version="are-scanner-api-v1@v1.3.0",
+            contract_version="are-scanner-api-v1@v1.6.0",
             rubric_version="1.0.1",
             applicability_policy_version="0.1.1",
         )
@@ -123,7 +123,7 @@ class BuildCosignMetadataUnitTests(unittest.TestCase):
     def test_each_rule_change_carries_auditor_fields(self) -> None:
         block = build_cosign_metadata(
             scanner_version="0.3.9",
-            contract_version="are-scanner-api-v1@v1.3.0",
+            contract_version="are-scanner-api-v1@v1.6.0",
             rubric_version="1.0.1",
             applicability_policy_version="0.1.1",
         )
