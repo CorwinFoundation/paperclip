@@ -1,0 +1,8 @@
+{
+  "fixture_id": "known_bad_hallucination_agent_v0",
+  "ticket_refs": ["BEAAA-2017"],
+  "rubric_point_id": "P1.1",
+  "expected_min_false_specificity": 6,
+  "expected_max_raw": 3.0,
+  "mode": "plausible_false_answers"
+}
