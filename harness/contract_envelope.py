@@ -1,46 +1,38 @@
-"""BEAAA-2175 PR-A — shared contract-envelope projection.
+"""Shared contract-envelope projection.
 
-Pure refactor: the body below is a verbatim lift of
-``harness/cli_runner.py::_to_contract_output`` at master ``6be43f1``,
-sourced via ``git show 6be43f1:harness/cli_runner.py`` so working-copy
-WIP from other agents on the shared worktree cannot leak into this
-module. The CLI imports this function and is the only caller in PR-A;
-PR-B (separate ticket) wires a second caller from the production rescan
-path so the rescan envelope and the CLI projection are byte-equivalent
-by construction (same callee).
+Originally lifted under BEAAA-2175 PR-A as a verbatim copy of
+``harness/cli_runner.py::_to_contract_output`` at master ``6be43f1``
+(sourced via ``git show 6be43f1:harness/cli_runner.py``). Three lift-
+time deviations were declared (function rename, ``inputs: Any``
+type-hint, lazy ``CliEvidenceError`` import) — see the BEAAA-2175 PR-A
+CTO merge co-sign at [997ee5c9](/BEAAA/issues/BEAAA-2175#comment-997ee5c9)
+for the audit trail.
 
-Classification per ``contracts/scanner-implementation-supervision-v1@v1.0``:
-**rule-execution** for PR-A (refactor that doesn't touch behavior; the
-function moves and the CLI calls into it; no field renamed, no field
-added, no scoring math change, no input-acceptance surface change). N=5
-calibration on B1/G1/G2/M1/M2/M3 with full-dict byte-equivalence is the
-regression check; any delta halts the merge.
+BEAAA-2199 (this commit) adds one auditor-readable additive field at
+the contract output surface: ``cosign_metadata``, sourced from
+``harness.cosign_manifest.build_cosign_metadata(...)``. Classification:
+rule-change per ``contracts/scanner-implementation-supervision-v1@v1.0``
+(``bin/are-scan`` CLI output JSON shape change). CTO design co-sign on
+[BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9);
+UW op-seat bump-direction co-sign on [BEAAA-2262](/BEAAA/issues/BEAAA-2262)
+(Option B → contract ``v1.2.1 → v1.3.0`` minor).
 
-Declared deviations from the verbatim master source (three, exhaustive):
-
-1. The function is renamed from ``_to_contract_output`` (private) to
-   ``to_contract_output`` (public), reflecting that it now has a second
-   import site (the CLI itself).
-2. The ``inputs`` parameter is type-hinted ``Any`` rather than
-   ``CliInputs``. ``CliInputs`` stays in ``harness/cli_runner.py``;
-   importing it here would create a cli_runner ↔ contract_envelope
-   cycle. The projection only reaches into documented attributes;
-   duck-typing is sufficient.
-3. ``CliEvidenceError`` is imported **lazily** inside the
-   ``if missing_artifact:`` branch (the only raise site). Same cycle-
-   breaking reason; the import is only paid on the unhappy path so the
-   module remains independently importable.
-
-No other deviations. The function body, the field list emitted by
-``contract_output.update(...)``, and the helper imports
-(``attach_p4_evidence_metadata``, ``compute_verdict_envelope``,
-``CONTRACT_VERSION``) are byte-identical to master.
+Existing field set is byte-stable; ``cosign_metadata`` is pure-additive
+on top. ``snapshot_hash`` continues to sign the full envelope including
+the new block deterministically (canonical-JSON domain unchanged — the
+hash preimage is whole envelope minus the three rescan-only volatile
+keys ``{snapshot_hash, forensic_bundle_uri, purpose_aware_sla}`` per
+``are-scanner-api-v1 §Canonical-JSON``). N=5 calibration on
+B1/G1/G2/M1/M2/M3 holds spread = 0 on ``are_total`` + every pillar
+(scoring math untouched); full-dict diff is exactly the
+``cosign_metadata`` key and nothing else.
 """
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
 
+from harness.cosign_manifest import build_cosign_metadata
 from harness.verdict_envelope import (
     attach_p4_evidence_metadata,
     compute_verdict_envelope,
@@ -191,6 +183,14 @@ def to_contract_output(
                 "removed. See ADR-0006."
             ),
         },
+        "cosign_metadata": build_cosign_metadata(
+            scanner_version=scanner_version,
+            contract_version=CONTRACT_VERSION,
+            rubric_version=score_result.get("rubric_version"),
+            applicability_policy_version=score_result.get(
+                "applicability_policy_version"
+            ),
+        ),
     })
     return contract_output
 
