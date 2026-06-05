@@ -71,6 +71,37 @@ BASELINES = REPO / "artifacts" / "beaaa-387"
 
 CORPUS_VERSION = "path_a_v2_1@2026-05-15"
 
+# BEAAA-2867: rubric 1.1.0 (BEAAA-2649 PII activation, merged 2026-06-05 07:18Z)
+# adds two PII dims with applicability_policy.yaml fires_when: always. The
+# BEAAA-396 Path-A calibration harness does NOT wire the BEAAA-781 LLM Guard
+# Anonymize / Deanonymize probe slate (out of scope per BEAAA-2867 — separate
+# Eng #2 OSS-eval scope). For calibration golden runs we override the
+# applicability decisions to N/A so score() re-normalizes under Option C
+# instead of raising `ScoringError: missing dim scores`. Production scans
+# (api/scan_handlers + the BEAAA-781 wrap) are unaffected — they fire the
+# dims per applicability_policy.yaml v0.1.2 as designed. Behavior-preserving:
+# Option C re-normalizes pillar means across active dims (rubric.scoring
+# §C re-norm), so adding two N/A entries leaves pre-PII rubric pillar
+# scores byte-identical (proven in tests/test_path_a_pii_harness_uncovered.py
+# pre/post rubric synthetic comparator). Rule-execution per
+# contracts/scanner-implementation-supervision-v1.md@v1.0 (B2-archetype
+# harness wiring within existing rubric, no rubric_point_id / weight / judge
+# / scoring-math change).
+_HARNESS_UNCOVERED_DIMS: tuple[str, ...] = (
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+)
+_HARNESS_UNCOVERED_NA_JUSTIFICATION_KEY = "calibration_harness_pii_uncovered"
+_HARNESS_UNCOVERED_NA_JUSTIFICATION = (
+    "PII rubric dim N/A in the BEAAA-396 Path-A calibration harness: this "
+    "golden-roster baseline harness does not wire the BEAAA-781 LLM Guard "
+    "Anonymize / Deanonymize probe slate. Production scans fire the dim per "
+    "applicability_policy.yaml v0.1.2 (fires_when: always); this N/A is "
+    "calibration-scope only and produces no rubric / weight / scoring-math "
+    "delta (Option C re-normalization, pre/post equivalence test "
+    "test_path_a_pii_harness_uncovered.py)."
+)
+
 BENCHES = [
     ("truthfulqa-mc1-poc", REPO / "harness" / "fixtures" / "truthfulqa_mc1_sample.jsonl",
      truthfulqa.load_items, truthfulqa.run),
@@ -355,15 +386,48 @@ def run_fixture(
             for did, d in decisions.items()
         }
         applicability_kwargs["applicability_policy_version"] = "0.1.0"
+        # BEAAA-2867: override PII dims (uncovered by this calibration harness;
+        # see _HARNESS_UNCOVERED_DIMS module docstring). Must come BEFORE the
+        # eval_outputs.pop loop so the override is what drives eval_outputs
+        # pruning. Does NOT touch applicability_policy.yaml — the production
+        # scan path still reads fires_when: always for these dims.
+        for did in _HARNESS_UNCOVERED_DIMS:
+            if did in applicability_kwargs["applicability_decisions"]:
+                applicability_kwargs["applicability_decisions"][did] = {
+                    "fires": False,
+                    "na_justification": _HARNESS_UNCOVERED_NA_JUSTIFICATION,
+                    "na_justification_key": _HARNESS_UNCOVERED_NA_JUSTIFICATION_KEY,
+                }
         # Drop eval_outputs entries for N/A dims so score() emits raw=null + the
         # byte-stable justification rather than reading a prior value that
         # contradicts the N/A decision.
-        for did, d in decisions.items():
-            if not d.fires and did in eval_outputs:
+        for did, decision_dict in applicability_kwargs["applicability_decisions"].items():
+            if not decision_dict["fires"] and did in eval_outputs:
                 eval_outputs.pop(did)
         # Persist the applicability evidence artifact (adapter contract per
         # rubric/applicability_policy.yaml §adapter_contract).
         app_record = applicability.applicability_record(applicability.load_policy(), arch_flags)
+        # BEAAA-2867: reflect the harness-uncovered PII override in the
+        # persisted artifact so the bundle matches what score() actually saw.
+        # The override is harness-scope; production scans persist the
+        # un-overridden record (fires: true) when those wraps land.
+        for did in _HARNESS_UNCOVERED_DIMS:
+            if did in app_record["applicability_decisions"]:
+                app_record["applicability_decisions"][did] = {
+                    "fires": False,
+                    "na_justification": _HARNESS_UNCOVERED_NA_JUSTIFICATION,
+                    "na_justification_key": _HARNESS_UNCOVERED_NA_JUSTIFICATION_KEY,
+                }
+                if did in app_record.get("measured_dims", []):
+                    app_record["measured_dims"].remove(did)
+                if did not in app_record.get("na_dims", []):
+                    app_record.setdefault("na_dims", []).append(did)
+        app_record["calibration_harness_override"] = {
+            "ticket": "BEAAA-2867",
+            "uncovered_dims": list(_HARNESS_UNCOVERED_DIMS),
+            "scope": "calibration_harness_only",
+            "production_path_unaffected": True,
+        }
         app_artifact = BASELINES / fixture_id / "applicability.json"
         app_artifact.parent.mkdir(parents=True, exist_ok=True)
         app_artifact.write_text(json.dumps(app_record, indent=2, sort_keys=True) + "\n",
