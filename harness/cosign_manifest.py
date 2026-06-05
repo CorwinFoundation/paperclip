@@ -7,25 +7,20 @@ changes the current scanner / rubric / applicability-policy combination
 depends on; refreshed on every rule change (= every CTO co-sign captured
 in `cto_cosign_ref` / `head_of_uw_cosign_ref` / `founder_cosign_ref`).
 
-The block is additive in the contract output (existing envelope keys
-remain byte-stable; no field renamed, no field removed). Reads as a
+The block is additive in the contract output (BEAAA-796 v1.0.3 envelope
+remains byte-stable; no field renamed, no field removed). Reads as a
 flat append on top of the existing surface so the verdict envelope test
 suite stays green.
 
-Per `contracts/scanner-implementation-supervision-v1.md@v1.0`
+Per `contracts/scanner-implementation-supervision-v1.md@v1.0` row 32
 ("`bin/are-scan` CLI behavior change that affects output JSON shape —
 Rule change, YES + ADR (contract version bump)"), the addition itself
-is a rule change. ADR-BEAAA-2199 (docs/adr/adr-beaaa-2199-cosign-
-metadata-block.md) documents the envelope-surface activation; ADR-0019
-(BEAAA-794) documents the underlying rule activation.
-
-Contract version bump: `are-scanner-api-v1@v1.2.1 → v1.6.0` (minor) per
-Underwriter op-seat call on [BEAAA-2262](/BEAAA/issues/BEAAA-2262) —
-the new top-level `cosign_metadata` key is a field-set change (the
-v1.2.0 → v1.2.1 patch was a same-field-set envelope-content fill;
-adding a new top-level key crosses the field-set seam). A future
-Underwriter intake consumer that requires this field MUST pin to
-v1.6.0+; pre-v1.6.0 consumers continue to ignore it.
+is a rule change. ADR-0019 (BEAAA-794) documents it. The contract version
+remains at `are-scanner-api-v1@v1.0.3` because the field is additive on
+top of the existing v1.0.3 surface (precedent: BEAAA-796 verdict block
+was also additive without a major bump). A future Underwriter intake
+consumer that requires this field MUST pin to v1.0.3+; pre-v1.0.3
+consumers continue to ignore it.
 
 Audit hook (per `agents/auditor-os.md`):
 
