@@ -85,11 +85,25 @@ endorsements:
 # ACCEPT-all-three-rules on BEAAA-537 #c8eb13e2-6491-4748-bb74-df5f55eedad7
 # (2026-05-18T19:48Z) per Supreme Law (rule change → strategic seat).
 live_probe:
-  policy_version: "1.0"
+  policy_version: "1.1-draft-foundernow-candidate-r1"
   filed_at: "2026-05-18"
   contract_dependency: "are-scanner-api-v1@v1.1.0"
   uw_operational_filing_ref: "BEAAA-536#comment-9f0f31e5-ed5e-404b-ae33-325e7a552d39"
   head_of_uw_cosign_ref: "BEAAA-537#comment-c8eb13e2-6491-4748-bb74-df5f55eedad7"
+  # v1.1-draft Founder-NOW pivot metadata (BEAAA-617 AC3 closure via BEAAA-2823).
+  # Every numeric parameter below (loading_curve, cap, refuse thresholds, aggregation,
+  # k_replicate_selection) stays byte-identical to v1.0 — this is a metadata-only
+  # addition. Outcome of the synthetic_v2 K=10 expanded recalibration: HOLD on
+  # every parameter; production refresh remains scheduled on the original trigger.
+  calibrated_against: "synthetic_v2_k10_expanded_n=200_seed=20260518_commit=b536ca0"
+  calibration_date: "2026-06-05"
+  founder_directives_absorbed:
+    - "BEAAA-2048_Q29A: re-cal NOW; no ±10% breakpoint cap (synthetic-substrate outcome: HOLD; override moot)"
+    - "BEAAA-2048_Q42A: usage-based pricing only; no seat-based curves (compliance verified — all params per-scan / per-ARE-score)"
+  production_refresh_trigger:
+    bind_count: 10
+    or_date: "2026-08-16"
+    closes: "BEAAA-537 v1.1 review-trigger commitment"
   # Loading-factor curve on spread_per_dim. Spread is observed (max - min)
   # across the K replicates per rubric_point_id, in raw rubric-point units
   # (each dim raw is 0..4 per rubric.yaml). Piecewise-linear between the
