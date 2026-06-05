@@ -202,10 +202,12 @@ Tier 1. Two paths:
 ## §9 — Cosign refs (canonical for citation)
 
 - `cto_design_cosign_ref`: [BEAAA-2199 comment ca7071d9](/BEAAA/issues/BEAAA-2199#comment-ca7071d9)
-- `uw_op_seat_cosign_ref`: [BEAAA-2262 comment e59a5d3b](/BEAAA/issues/BEAAA-2262#comment-e59a5d3b)
-- `cto_merge_cosign_ref`: pending — PR-submission comment on BEAAA-2199
+- `uw_op_seat_direction_cosign_ref`: [BEAAA-2262 comment e59a5d3b](/BEAAA/issues/BEAAA-2262#comment-e59a5d3b) — Option B (minor bump direction)
+- `uw_op_seat_slot_cosign_ref`: [BEAAA-2848](/BEAAA/issues/BEAAA-2848) — Path A (v1.3.0 → v1.6.0 retarget after contract-version-registry collision)
+- `cto_merge_cosign_ref`: [BEAAA-2199 comment e566561e](/BEAAA/issues/BEAAA-2199#comment-e566561e) — ACCEPT on fast-forward on commit `768aa87` (pre-rebase) / `3559354` (post-rebase onto master `5d91e5d` — content-equivalent per `git range-diff`)
 - `supervision_contract`: `scanner-implementation-supervision-v1@v1.0`
-- `contract_doc_baseline`: `are-scanner-api-v1@v1.2.1`
-- `contract_doc_target`: `are-scanner-api-v1@v1.6.0`
-- `scanner_master_baseline`: `52c003e`
+- `contract_doc_baseline → target`: `are-scanner-api-v1@v1.2.1 → v1.6.0`
+- `scanner_master_baseline`: `5d91e5d` (post-BEAAA-2198 fast-forward base; pre-rebase BEAAA-2199 cut off `52c003e`)
+- `scanner_master_head_post_merge`: `3559354` (FF tip)
 - `scanner_version_baseline → target`: `0.3.10 → 0.3.11`
+- `registry_verification_v1.6.0`: CTO API check (`?q=v1.6.0+contract` → zero hits) + SE worktree directory check + UW registry memory cross-check — v1.6.0 confirmed next-unused (triple-corroborated)
