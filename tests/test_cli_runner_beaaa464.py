@@ -104,6 +104,27 @@ class InputLoaderTests(unittest.TestCase):
             with self.assertRaises(CliInputError):
                 load_inputs("G1", d)
 
+    def test_eval_results_accepts_pillar_family_sub_dim_id(self):
+        # BEAAA-2198: rubric v1.0.1 fully-qualified Pillar.FAMILY.SUB
+        # dim_ids are accepted at the CLI input-acceptance boundary
+        # alongside the legacy P<n>.<m> shape. _validate_eval_results
+        # only checks dim_id shape and entry shape; rubric-existence
+        # is downstream. This test pins the input boundary contract.
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._g1_dir(Path(tmpd))
+            (d / "eval_results.json").write_text(
+                json.dumps(
+                    {"ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": {"raw": 2.0}}
+                )
+            )
+            try:
+                load_inputs("G1", d)
+            except CliInputError as exc:
+                self.fail(
+                    f"load_inputs rejected Pillar.FAMILY.SUB dim_id: {exc}"
+                )
+
     def test_eval_results_rejects_malformed_json(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmpd:

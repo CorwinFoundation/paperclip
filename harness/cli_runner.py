@@ -39,6 +39,13 @@ _MAX_FILE_BYTES = 10 * 1024 * 1024
 _MAX_AGENT_ID_LEN = 128
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
+# Dim IDs accepted on the CLI input surface. Two non-overlapping shapes:
+# legacy `P<n>.<m>` (rubric v1.0.0) and fully-qualified `Pillar.FAMILY.SUB`
+# (rubric v1.0.1, strict 3-segment all-caps). The union is a true superset
+# of the legacy regex on legacy inputs. See ADR-0027 (BEAAA-2198).
+_DIM_ID_RE = re.compile(
+    r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
+)
 
 # Post-BEAAA-470: the rubric pillar keys are now the contract pillar names
 # directly (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE). `subscores`
@@ -170,8 +177,11 @@ def _validate_eval_results(payload: Any) -> dict[str, dict[str, Any]]:
         raise CliInputError("eval_results.json must be a non-empty object")
     out: dict[str, dict[str, Any]] = {}
     for dim_id, entry in payload.items():
-        if not isinstance(dim_id, str) or not re.match(r"^P\d+\.\d+$", dim_id):
-            raise CliInputError(f"eval_results key {dim_id!r} not a P<n>.<m> dim id")
+        if not isinstance(dim_id, str) or not _DIM_ID_RE.match(dim_id):
+            raise CliInputError(
+                f"eval_results key {dim_id!r} not a "
+                "P<n>.<m> or Pillar.FAMILY.SUB dim id"
+            )
         if not isinstance(entry, dict) or "raw" not in entry:
             raise CliInputError(f"eval_results[{dim_id}] missing 'raw'")
         try:
@@ -259,9 +269,10 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
                     "applicability.json.applicability_decisions must be an object"
                 )
             for did, decision in decisions.items():
-                if not isinstance(did, str) or not re.match(r"^P\d+\.\d+$", did):
+                if not isinstance(did, str) or not _DIM_ID_RE.match(did):
                     raise CliInputError(
-                        f"applicability_decisions key {did!r} not a P<n>.<m> dim id"
+                        f"applicability_decisions key {did!r} not a "
+                        "P<n>.<m> or Pillar.FAMILY.SUB dim id"
                     )
                 if not isinstance(decision, dict):
                     raise CliInputError(
