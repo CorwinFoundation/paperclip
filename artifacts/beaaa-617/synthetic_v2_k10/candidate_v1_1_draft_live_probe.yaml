@@ -1,0 +1,65 @@
+# BEAAA-617 v1.1-draft candidate — live_probe block
+# Filed by: Actuary (89868c9a)
+# Filed on: 2026-06-02
+# Provenance: synthetic_v2_k10_expanded_n=200 (per BEAAA-2058 D1+D2+D3 sweep, commit b459aa1)
+# Substrate caveat: stratified fixture grid recovers v1.0 breakpoint regimes; fitted quantiles
+#                   reflect grid design, not underlying spread distribution physics. v1.1-final
+#                   refresh against production live_probe binds (bind_count==10 OR T==2026-08-16)
+#                   is the second-pass that can move breakpoints on measured evidence.
+# Founder ruling (BEAAA-2048 Q29=A): "No ±10% cap on breakpoint adjustments" absorbed; bootstrap
+#                                     CI exclusion retained as only statistical gate. Override is
+#                                     moot for this substrate — synthetic-v2 does not motivate shifts.
+#
+# §3.1 finding: HOLD all loading-curve breakpoints. Quantile fits chase fixture grid.
+#   p50=1.185 [1.163, 1.198]  — CI excludes v1.0 0.50 but reflects fixture spec, not motion
+#   p75=1.398 [1.392, 1.835]  — bimodal cluster artifact (wide CI signals cross-regime resample)
+#   p90=1.888 [1.876, 1.893]  — CI excludes v1.0 1.50 but again reflects fixture R4/R5 regime
+#
+# §3.2 finding: HOLD P1/P2/P3 (calibrated); HOLD P4 with advisory-leakage flag
+#   P1/P2/P3 (thr=1.5): rate=20.0% Wilson95 [15.0, 26.1] — CALIBRATED (5-25% target)
+#                       Minor boundary-leakage (37/21/29 cases in [1.35,1.50]) is signal-only,
+#                       not under-refusing per protocol §3.2 (rate is in-band).
+#   P4      (thr=2.0): rate=0.0% Wilson95 [0.0, 1.9] — UNDER+boundary-leakage on substrate, but
+#                       28 cases in [1.80,2.00] is fixture-design (R5_hygiene-at-boundary).
+#                       HOLD on synthetic; production refresh confirms P4 shift if real.
+#
+# §3.3 finding: HOLD `max` aggregation (Founder scope is breakpoints+thresholds; advisory only)
+#   product/max ratio p50=1.184 < 1.20 → product *technically* defensible on synthetic substrate
+#   p90=1.329  max=1.338 — well below 24-dim nonsense compounding (3.2×)
+#   Surface to HoUW for separate v1.2 consideration.
+#
+# §3.4 finding: HOLD cap 1.50 (advisory — never hit, but synthetic-substrate-dependent)
+#   cap-hit rate 0/160 = 0.0% (Hanley upper 95% CI: 3/160 = 1.9%)
+#   p99 applied_factor = 1.130 — cap is structurally redundant on this substrate
+#   Production refresh required before relaxation per pre-stage protocol §3.4.
+#
+# Net: candidate v1.1-draft live_probe block is BYTE-IDENTICAL to v1.0.
+#      D4 boundary-swing replay under v1.1-draft == D3 baseline (no loading_curve change).
+#      D5 byte-identity hashes auto-PASS by construction (block unchanged).
+live_probe:
+  loading_curve:
+    - {spread: 0.50, factor: 1.00}
+    - {spread: 1.00, factor: 1.05}
+    - {spread: 1.50, factor: 1.15}
+    - {spread: 2.00, factor: 1.30}
+  cap: 1.50
+  refuse_thresholds:
+    P1: 1.50
+    P2: 1.50
+    P3: 1.50
+    P4: 2.00
+  aggregation: max
+  k_replicate_policy:
+    default_k: 5
+    mandatory_k_10:
+      - condition: annual_revenue_usd_gte_50M
+      - condition: prior_midterm_rescan_trigger
+      - condition: model_change_within_term
+    enforcement: advisory  # unchanged from v1.0
+  calibrated_against: synthetic_v2_k10_expanded_n=200_seed=20260518_commit=b459aa1
+  calibration_date: 2026-06-02
+  scanner_version_pin: ">=0.3.0"
+  contract_pin: are-scanner-api-v1@v1.1.0
+  production_refresh_trigger:
+    bind_count: 10
+    or_date: 2026-08-16

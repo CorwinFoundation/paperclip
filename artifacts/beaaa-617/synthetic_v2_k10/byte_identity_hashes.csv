@@ -8,10 +8,10 @@
 # hash_convention          : sha256 of canonical-form quote payload (premium + breakdown sans scan_evidence_age_days + endorsements + status), truncated to 16 hex chars
 # historical_hashes_source : artifacts/beaaa-536/calibration_delta_n5.txt (absent in repo @ 2026-06-02; see file docstring honest-provenance note)
 # pass_condition           : baseline_hash == candidate_hash for every profile (offline_replay path is byte-identical pre/post any live_probe-block change by construction; this CSV is the explicit witness)
-# candidate_status         : ABSENT — Actuary candidate v1.1-draft rates.yaml not yet supplied. Re-run with --candidate-rates PATH once available.
+# candidate_rates_path     : (supplied via --candidate-rates)
 profile_id,baseline_premium,baseline_hash,candidate_premium,candidate_hash,identical
-p1,60775,7fc3927b34c4f625,,,
-p2,28133,a28fe4404373786e,,,
-p3,286344,1bc3dfe8a9569b53,,,
-p4,73563,e4f326c3bd361445,,,
-p5,33912,cf4151e25311d777,,,
+p1,60775,7fc3927b34c4f625,60775,7fc3927b34c4f625,True
+p2,28133,a28fe4404373786e,28133,a28fe4404373786e,True
+p3,286344,1bc3dfe8a9569b53,286344,1bc3dfe8a9569b53,True
+p4,73563,e4f326c3bd361445,73563,e4f326c3bd361445,True
+p5,33912,cf4151e25311d777,33912,cf4151e25311d777,True

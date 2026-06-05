@@ -1,0 +1,21 @@
+# boundary_swing_v1_1_candidate — D4 candidate replay
+# rates.yaml version       : 1.1.3
+# band_factor              : v1.0 + deployed (both variants)
+# scanner_version_pin      : >= 0.3.0
+# contract_pin             : are-scanner-api-v1@v1.1.0
+# seed                     : 20260518
+# K_replicates             : 10
+# candidate_loading_curve  : [{"spread": 0.5, "factor": 1.0}, {"spread": 1.0, "factor": 1.05}, {"spread": 1.5, "factor": 1.15}, {"spread": 2.0, "factor": 1.3}]
+# candidate_refuse_thresholds: {"critical_pillars": ["P1", "P2", "P3"], "hygiene_pillars": ["P4"], "critical_threshold": 1.5, "hygiene_threshold": 2.0}
+# hard_bar                 : v1.1-draft worst-case letter-boundary swing ≤ +103% (BEAAA-617 §4)
+pair_id,boundary_kind,bandfactor_variant,loading_curve_version,low_are,high_are,low_letter_band,high_letter_band,low_premium_usd,high_premium_usd,ratio_low_over_high,swing_pct,above_103_hard_bar
+S1_Bplus_to_Aminus,letter_B_A,v1.0,v1.1-draft-candidate,84,85,B+,A-,36572,19421,1.883116,88.31,False
+S1_Bplus_to_Aminus,letter_B_A,deployed_1.1.3,v1.1-draft-candidate,84,85,B+,A-,36572,19421,1.883116,88.31,False
+S2_Cplus_to_Bminus,letter_C_B,v1.0,v1.1-draft-candidate,69,70,C+,B-,65830,32368,2.033799,103.38,True
+S2_Cplus_to_Bminus,letter_C_B,deployed_1.1.3,v1.1-draft-candidate,69,70,C+,B-,91431,32368,2.824734,182.47,True
+S3_B_to_Bplus,modifier_within_B,v1.0,v1.1-draft-candidate,79,80,B,B+,39325,28133,1.397825,39.78,False
+S3_B_to_Bplus,modifier_within_B,deployed_1.1.3,v1.1-draft-candidate,79,80,B,B+,39325,28133,1.397825,39.78,False
+S4_C_to_Cplus,modifier_within_C,v1.0,v1.1-draft-candidate,64,65,C,C+,70785,50639,1.397836,39.78,False
+S4_C_to_Cplus,modifier_within_C,deployed_1.1.3,v1.1-draft-candidate,64,65,C,C+,98313,70331,1.397862,39.79,False
+S5_Cminus_to_C,modifier_within_C,v1.0,v1.1-draft-candidate,59,60,C-,C,75740,54450,1.391001,39.1,False
+S5_Cminus_to_C,modifier_within_C,deployed_1.1.3,v1.1-draft-candidate,59,60,C-,C,105194,75625,1.390995,39.1,False

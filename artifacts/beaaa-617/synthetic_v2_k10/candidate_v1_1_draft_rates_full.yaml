@@ -1,0 +1,650 @@
+# Op-seat-derived full-rates wrapper for Actuary candidate v1.1-draft live_probe block.
+# Source: artifacts/beaaa-617/synthetic_v2_k10/candidate_v1_1_draft_live_probe.yaml (Actuary, 2026-06-02).
+# Derivation: deployed pricing/rates.yaml v1.1.3 base + Actuary's candidate live_probe block
+#             translated into the deployed live_probe schema shape.
+# Top-level `version` preserved at 1.1.3: candidate is a live_probe-block overlay only;
+# non-live_probe fields inherit verbatim. live_probe.policy_version carries the candidate-r1 marker.
+# This preserves the offline_replay byte-identity invariant — quote.pricing_version
+# matches the deployed baseline by construction, so D5 hashes can compare cleanly.
+# Schema translation map:
+#   candidate.live_probe.loading_curve (list)  -> live_probe.loading_curve.breakpoints (list)
+#   candidate.live_probe.cap                   -> live_probe.loading_curve.cap
+#   candidate.live_probe.aggregation           -> live_probe.loading_curve.aggregation
+#   candidate.live_probe.refuse_thresholds.P{1..3}=X -> live_probe.refuse_to_quote_per_dim.critical_threshold=X
+#   candidate.live_probe.refuse_thresholds.P4=Y  -> live_probe.refuse_to_quote_per_dim.hygiene_threshold=Y
+#   candidate.live_probe.k_replicate_policy    -> live_probe.k_replicate_selection
+# Asserted-invariant: candidate refuse_thresholds.P1==P2==P3 (Actuary HOLD-byte-identical claim).
+# BandFactor: inherits deployed v1.1.3 (C=2.50, D=5.00) per Actuary substrate-caveat scope.
+# Filed by op-seat for BEAAA-2058 D4 + D5-candidate re-fire only; not for §11.7 audit-block merge.
+version: 1.1.3
+frozen_at: '2026-04-30'
+amended_at: '2026-05-29'
+base_rate_usd: 25000
+aggregate: 1.1
+band_factor:
+  A: 0.6
+  B: 1.0
+  C: 2.5
+  D: 5.0
+sector_factor:
+  ENT_SAAS: 1.0
+  B2B_AI_SAAS: 1.1
+  RETAIL_CONSUMER: 1.25
+  INDUSTRIAL: 1.35
+  HEALTHCARE: 1.4
+  LEGAL: 1.45
+  FINSERV: 1.5
+  PUBLIC_SECTOR: 1.5
+revenue_bands:
+- min_usd: 0
+  max_usd_excl: 10000000
+  factor: 0.7
+  label: <$10M
+- min_usd: 10000000
+  max_usd_excl: 50000000
+  factor: 0.85
+  label: $10M-$50M
+- min_usd: 50000000
+  max_usd_excl: 250000000
+  factor: 1.0
+  label: $50M-$250M
+- min_usd: 250000000
+  max_usd_excl: 1000000000
+  factor: 1.3
+  label: $250M-$1B
+- min_usd: 1000000000
+  max_usd_excl: 5000000000
+  factor: 1.75
+  label: $1B-$5B
+- min_usd: 5000000000
+  max_usd_excl: null
+  factor: null
+  label: '>$5B (manual)'
+limit_tiers:
+- per_claim_usd: 500000
+  aggregate_usd: 1000000
+  factor: 0.6
+- per_claim_usd: 1000000
+  aggregate_usd: 2000000
+  factor: 1.0
+- per_claim_usd: 2000000
+  aggregate_usd: 5000000
+  factor: 1.7
+- per_claim_usd: 5000000
+  aggregate_usd: 10000000
+  factor: 2.75
+- per_claim_usd: 10000000
+  aggregate_usd: 20000000
+  factor: 4.2
+endorsements:
+  remediation:
+    load_usd: 2500
+    description: Remediation endorsement (Band C bind requirement)
+    rescan_trigger_months: 6
+    rescan_trigger_basis: "v1.1.2 (BEAAA-816): on C-band bind issuance, the bound\
+      \ risk is auto-flagged\nfor a 6-month policy-period re-scan checkpoint. Process-only\
+      \ at trigger \u2014\ndoes not affect pricing math at the \xA78 6-mo re-scan\
+      \ output itself.\nv1.1.3 (BEAAA-934): boundary-drift sub-case codified \u2014\
+      \ see\nboundary_drift_manual_referral block below. Premium impact stays $0 at\n\
+      the \xA78 trigger; downstream op-seat verdict drives any premium action\nunder\
+      \ policy wording v1.3 (BEAAA-186) when that locks.\n"
+    rescan_trigger_authority: BEAAA-636 D1 surviving piece, ratified via Path B BEAAA-640#interaction-bbad9880;
+      v1.1.3 boundary-drift routing per ADR-0016 (BEAAA-934)
+    boundary_drift_manual_referral:
+      authority: "ADR-0016 (BEAAA-934); HoUW BEAAA-924 cmt 16e61987 \xA74.3 Item 3\
+        \ ACCEPT verdict; HoUW BEAAA-1018 cmt ce379ac1 ACCEPT-WITH-CONDITIONS countersign"
+      trigger:
+        applies_when: band_at_bind == 'C'
+        boundary_radius_pt: 1
+        boundary_centers:
+        - 55
+        - 70
+        measurement_basis: bind_are_total
+        measurement_basis_rationale: 'Boundary drift is measured against the are_total
+          at original bind,
+
+          not a rolling baseline. Rolling baseline compounds scanner-noise
+
+          drift across re-scans; using bind_are_total anchors trigger on the
+
+          original bind state.
+
+          '
+        reproducibility_envelope_source: "contracts/are-scanner-api-v1@v1.1.0 \xA7\
+          Hard guarantees-CTO #1 (same agent + same scanner_version + same corpus_version\
+          \ + same model_versions + same seed \u2192 same are_total within \xB11 point;\
+          \ CI blocks any release that fails the N=5 calibration spread)"
+      disposition:
+        c_to_d_drift:
+          condition: rescan_are_total < 54
+          route: decline-routed per BEAAA-141 Surplus/Decline ladder
+          delta_from_v1_1_2: "unchanged \u2014 already covered by BEAAA-141 routing\
+            \ (condition narrowed from `< 55` to `< 54` on op-seat UW BEAAA-1016 R1\
+            \ path A redline to remove integer-set overlap with boundary_envelope_55\
+            \ at rescan_are_total == 54; substantive intent unchanged \u2014 boundary-envelope\
+            \ routing wins at 54)"
+        boundary_envelope_55:
+          condition: 54 <= rescan_are_total <= 56
+          route: manual_referral_to_op_seat_uw
+          delta_from_v1_1_2: codified by ADR-0016
+        interior_c:
+          condition: 57 <= rescan_are_total <= 68
+          route: annotate_no_referral
+          delta_from_v1_1_2: codified by ADR-0016
+        boundary_envelope_70:
+          condition: 69 <= rescan_are_total <= 71
+          route: manual_referral_to_op_seat_uw
+          delta_from_v1_1_2: codified by ADR-0016
+        interior_b:
+          condition: rescan_are_total >= 72
+          route: annotate_no_referral_op_seat_may_route_to_re_quote
+          delta_from_v1_1_2: "codified by ADR-0016 (discretionary re-quote criteria\
+            \ per \xA711.7 watch_line C1)"
+      op_seat_decision_menu:
+      - "HOLD \u2014 no action, log on policy file"
+      - "ENDORSE \u2014 mid-term endorsement at op-seat-authored load"
+      - "REFER_TO_HOUW \u2014 non-renewal review per escalation-matrix.md UW trigger\
+        \ (two-step carry to CEO per \xA711.7 watch_line C2)"
+      - "AUTHORIZE_FRESH_UW \u2014 new-business UW pathway (rare, attested material\
+        \ change; must cite governance_attestations per \xA711.7 watch_line C4)"
+      op_seat_sla_business_days: 5
+      op_seat_sla_breach_escalation: auto-route to HoUW (queue-side flag)
+      premium_impact_at_trigger_usd: 0
+      premium_impact_at_disposition: op-seat verdict drives downstream action under
+        live rates.yaml schedule; no auto-reprice
+      referral_packet_fields:
+        bind_side:
+        - bind_are_total
+        - bind_scanner_version
+        - bind_corpus_version
+        - bind_model_versions
+        - bind_seed
+        - bind_run_timestamp
+        rescan_side:
+        - rescan_are_total
+        - rescan_scanner_version
+        - rescan_corpus_version
+        - rescan_model_versions
+        - rescan_seed
+        - rescan_run_timestamp
+        - rescan_evidence_refs
+        derived:
+        - boundary_trigger
+      cosign_chain:
+        underwriter_op_seat: "BEAAA-1016 cmt fcd0ccd8-0b2b-4462-b608-1173ee94841a\
+          \ \u2014 ACCEPT-WITH-REDLINES (R1 path A applied this merge; R2 \xA711/\xA7\
+          11.6 explicit non-reversal claims applied \xA711.7 below)"
+        actuary: BEAAA-934 ADR-0016 (Actuary draft 2026-05-29; on-issue document adr-0016-section-8-boundary-drift-manual-referral)
+        head_of_uw: "BEAAA-1018 cmt ce379ac1-494b-42f4-8fbd-e559f7695f7c \u2014 ACCEPT-WITH-CONDITIONS\
+          \ (C1-C4 folded into \xA711.7 watch_lines below)"
+        founder_ratification: "n/a \u2014 re-scan disposition class per actuary-os.md\
+          \ \xA7DECISION AUTHORITY; HoUW countersign is terminal"
+  regulatory_fines_buyback:
+    load_usd: 5000
+    description: Regulatory-fines buyback (where insurable), sub-limit $100K
+  harness_bump_waiver:
+    load_usd: 1500
+    description: Harness version bump re-bind waiver (client opt-in)
+  d_band_layered_excess_min_retention:
+    min_retention_usd: 50000
+    applies_to_band: D
+    bind_eligibility_floor: true
+    description: 'Layered-excess D-band bind-eligibility minimum retention. Subject
+      must
+
+      carry at least $50K self-insured retention before any IFA layered-excess
+
+      attachment. Anchored on Silver-tier per-incident limit (OnePager v1.3).
+
+      '
+    cosign_chain:
+      head_of_uw_ratification: BEAAA-666#section-1
+      uw_operational_landing: BEAAA-667
+      authority_basis: "underwriter-os.md \xA7DECISION AUTHORITY \u2014 UW-guideline\
+        \ / referral-threshold (HoUW unilateral)"
+live_probe:
+  policy_version: 1.1-draft-foundernow-candidate-r1
+  filed_at: '2026-06-02'
+  contract_dependency: are-scanner-api-v1@v1.1.0
+  calibrated_against: synthetic_v2_k10_expanded_n=200_seed=20260518_commit=b459aa1
+  calibration_date: '2026-06-02'
+  actuary_filing_ref: BEAAA-617#document-rate-book-policy-v1-1-draft-foundernow-candidate-r1
+  uw_operational_filing_ref: BEAAA-2058 (op-seat D1+D2+D3 sweep; D4+D5 re-fire)
+  loading_curve:
+    breakpoints:
+    - spread: 0.5
+      factor: 1.0
+    - spread: 1.0
+      factor: 1.05
+    - spread: 1.5
+      factor: 1.15
+    - spread: 2.0
+      factor: 1.3
+    aggregation: max
+    cap: 1.5
+  refuse_to_quote_per_dim:
+    critical_pillars:
+    - P1
+    - P2
+    - P3
+    hygiene_pillars:
+    - P4
+    critical_threshold: 1.5
+    hygiene_threshold: 2.0
+  k_replicate_selection:
+    default_k: 5
+    mandatory_k10_conditions:
+    - annual_revenue_usd_gte_50M
+    - prior_midterm_rescan_trigger
+    - model_change_within_term
+    enforcement: advisory
+  filing_status: candidate_filed_pending_houw_cosign
+  filed_artifact_uri: projects/are-scanner/artifacts/beaaa-617/synthetic_v2_k10/candidate_v1_1_draft_live_probe.yaml
+  production_refresh_trigger:
+    bind_count: 10
+    or_date: 2026-08-16
+agentic_loading:
+  factor: 1.2
+  trigger:
+    field: deployment_profile.tool_use
+    operator: ==
+    value: true
+  applies_to: annual_premium_pre_aggregate
+  applies_position: "AREBandFactor \xD7 ModifierFactor \xD7 SectorFactor \xD7 RevenueFactor\
+    \ \xD7 LimitFactor \xD7 AgenticLoading \xD7 Aggregate"
+  sunset:
+    retires_on: scanner-v0.2-P3.4-ga
+    rationale: "P3.4 agentic robustness probe ships with scanner v0.2. Once GA, the\n\
+      agentic-tool-use signal moves into the rubric (per-dim raw score) and\nthe loading\
+      \ folds into the base AREBandFactor via the v1.2 re-cal\n(BEAAA-617). The standalone\
+      \ \xA710 multiplier retires on that boundary\nto avoid double-counting tool-use\
+      \ risk.\n"
+    retirement_check_owner: "underwriter (op-seat) to confirm scanner v0.2 P3.4 GA\
+      \ on BEAAA-617 sprint kickoff and propose \xA710 deletion on the v1.2 candidate"
+  authority_basis: "rate-book factor change \u2192 BEAAA-616 three-way gate (UW draft\
+    \ + Actuary co-sign + HoUW countersign)"
+  scanner_emission_contract: "are-scanner-api-v1@v1.1.0 \u2014 scanner response payload\
+    \ must include deployment_profile.tool_use as a boolean. If absent on a quote\
+    \ request, defaults to false (no loading applied)."
+  no_op_on_absent_field: true
+  v1_2_dependency: "BEAAA-617 v1.2 re-cal absorbs \xA710 into AREBandFactor; this\
+    \ addendum retires on that merge."
+v1_1_amendment:
+  amendment_id: rates.yaml-v1.1
+  amended_at: '2026-05-23'
+  source_ruling: BEAAA-645#comment-64ae7f57
+  source_interaction: BEAAA-626#interaction-6c2b6240
+  ratifying_interaction: BEAAA-645#interaction-951dd258
+  execution_issue: BEAAA-650
+  drivers:
+  - "Actuary pressure-test-v0 (BEAAA-255 doc rev ca1e575a) \xA76.1 flagged C/D LR>0.7\
+    \ Supreme Law breach"
+  - 'C-band: mean LR 140.2% structural / 82.4% limit-factored (LimitFactor 1.70)'
+  - 'D-band: mean LR 175.7% structural / 103.4% limit-factored'
+  changes:
+  - table: band_factor
+    key: C
+    old: 1.8
+    new: 2.5
+  - table: band_factor
+    key: D
+    old: 3.0
+    new: 5.0
+  projected_post_recal_lr:
+    C_limit_factored: 0.594
+    D_limit_factored: 0.62
+  derivation_method: "analytical \u2014 BandFactor is a multiplicative term on the\
+    \ premium denominator; new_LR = old_LR \xD7 (old_BF / new_BF). MC re-run with\
+    \ mc_seed 20260522 / 100K trials would reproduce identical numerator (loss-cost\
+    \ distribution unchanged); see BEAAA-650 verification block."
+  cosign_chain:
+    actuary: "implicit ACCEPT \u2014 Actuary authored these exact numbers as the indicative\
+      \ recal in pressure-test-v0 \xA76.1 (BEAAA-255 doc rev ca1e575a, 2026-05-22)"
+    head_of_uw: "execution by HoUW on BEAAA-650 \u2014 supersedes my own BEAAA-636\
+      \ disposition (C 1.80\u21922.20) by Founder authority"
+    underwriter_op_seat: Founder ruling routes directly to HoUW; op-seat author leg
+      (was BEAAA-637) absorbed into this Founder-ratified execution
+    founder_ratification: "BEAAA-645#comment-64ae7f57 (interaction 951dd258 Q2 \u2192\
+      \ A ACCEPT, 2026-05-23T14:55:36Z)"
+  watch_lines:
+  - Structural-premium LR remains >1.0 for C (1.009) and D (1.055). Modal bind path
+    is limit-factored, but any direct-primary bind at the minimum $1M/$2M tier on
+    a C-band insured needs a remediation-endorsement re-review.
+  - "B-band LR p90 = 97.6% structural / 57.3% limit-factored \u2014 unchanged by this\
+    \ recal but on Actuary's Friday monitor (BEAAA-630)."
+  - "First 3\u20135 pilot binds will collapse the prior-uncertainty band on \u03BB\
+    \ per peril (pressure-test \xA75.2). Re-run pressure test v0.2 on incurred-loss\
+    \ data when available."
+  supersedes:
+  - artifact: "BEAAA-636 HoUW disposition (C 1.80\u21922.20 + secondary bind-eligibility\
+      \ floor)"
+    reason: Founder ratification on BEAAA-645 Q2 selected the un-floored 2.50/5.00
+      path over the floored 2.20 path. Secondary bind-eligibility floor concept retired
+      with this amendment.
+  - artifact: BEAAA-637 op-seat rate-mod v1.1 (pre-Founder draft)
+    reason: Absorbed into Founder-ratified BEAAA-650 execution.
+  scanner_dependency: Scanner v0.2 must ship with these factors. Coordination tracked
+    on child issue spawned from BEAAA-650.
+v1_1_2_amendment:
+  amendment_id: rates.yaml-v1.1.2
+  amended_at: '2026-05-27'
+  source_ruling: BEAAA-640#interaction-bbad9880-7659-4a7a-8f3c-23d9b75187c0
+  ratifying_interaction: BEAAA-640#interaction-bbad9880-7659-4a7a-8f3c-23d9b75187c0
+  execution_issue: BEAAA-816
+  scope: "thin additive \u2014 \xA710 NEW + \xA78 endorsements.remediation re-scan\
+    \ trigger only"
+  changes:
+  - section: "\xA710"
+    change: "NEW addendum agentic_loading: 1.20\xD7 multiplier when scanner emits\
+      \ deployment_profile.tool_use == true; sunset on scanner v0.2 P3.4 GA"
+    driver: "BEAAA-636 D3 surviving piece \u2014 Path B preserves the agentic-tool-use\
+      \ loading from the retired BEAAA-636 disposition"
+  - section: "\xA78"
+    change: endorsements.remediation.rescan_trigger_months = 6 (C-bind issuance only)
+    driver: "BEAAA-636 D1 surviving piece \u2014 process-only re-scan checkpoint,\
+      \ no pricing math impact"
+  - section: "\xA711.6"
+    change: NEW v1_1_2_amendment audit block (this block)
+    driver: "artifact-metadata-schema.md \u2014 every amendment carries an audit block"
+  - section: header
+    change: "version 1.1.1 \u2192 1.1.2; amended_at 2026-05-23 \u2192 2026-05-27"
+    driver: amendment versioning convention
+  explicit_non_reversals:
+  - claim: "\xA73 band_factor C=2.50, D=5.00 preserved verbatim from v1.1.1."
+    basis: "Founder ratification on BEAAA-645 Q2 (interaction 951dd258, CEO ack cmt\
+      \ 64ae7f57, 2026-05-23T14:55:36Z) NOT reversed by this amendment. v1_1_amendment\
+      \ block in \xA711 stays load-bearing."
+  - claim: "Retired BEAAA-636 D1 secondary bind-eligibility floor (P3 \u2265 2.0 /\
+      \ P4 \u2265 16.0) on C-band auto-bind NOT reintroduced."
+    basis: Path B (Founder bbad9880) is additive on top of v1.1.1. The secondary floor
+      concept stays retired per v1_1_amendment.supersedes.
+  - claim: "\xA78 d_band_layered_excess_min_retention $50K floor (BEAAA-669) preserved\
+      \ verbatim from v1.1.1."
+    basis: "BEAAA-666 \xA71(b) HoUW ratification stands; v1.1.2 does not touch the\
+      \ D-band layered-excess block."
+  cosign_chain:
+    underwriter_op_seat:
+      issue: BEAAA-816
+      comment: BEAAA-816#comment-698e3ac0-4c99-47c7-8d12-27662e96c8de
+      artifact: projects/are-scanner/artifacts/beaaa-816/rates-v1.1.2-draft.yaml
+      role: op-seat UW draft author
+    actuary:
+      issue: BEAAA-820
+      issue_id: 106fcafc-115a-4819-aded-afeca5c793a9
+      comment: BEAAA-820#comment-0a2d74dc-af4e-4c3d-88ba-624cc2209920
+      verdict: "ACCEPT-WITH-CONDITIONS (C1/C2/C3 \u2014 disclosure-only, not pre-merge\
+        \ blockers)"
+      role: "pre-merge co-sign \u2014 selection-corrected LR projection on \xA710\
+        \ 1.20\xD7 addendum + rating-span coverage on agentic-tool-use cohort"
+      scope_note: "\xA78 re-scan is process-only, no pricing math required there.\
+        \ Loading-breakpoint uncertainty accepted per Founder C9 on BEAAA-800 \u2014\
+        \ full re-cal deferred to v1.2 on BEAAA-617 next sprint."
+    head_of_uw:
+      issue: BEAAA-821
+      issue_id: 18df76fc-1a40-47d1-87f3-c5613285140c
+      comment: BEAAA-821#comment-5093076e
+      verdict: ACCEPT-WITH-CONDITIONS (C1/C2/C3 folded into watch_lines; R5 retracted)
+      role: "strategic countersign \u2014 final ACCEPT/REJECT against deployed-diff\
+        \ (Path B preservation of \xA73 baseline) + \xA711.6 audit block + \xA710\
+        \ sunset clause check"
+    founder_ratification: BEAAA-640#interaction-bbad9880-7659-4a7a-8f3c-23d9b75187c0
+      (Path B resolved 2026-05-27T11:55:06Z)
+  ship_deadline: Sat 2026-05-30 EOD (Founder-bound per BEAAA-800 Q6=A)
+  watch_lines:
+  - id: C1
+    source: Actuary BEAAA-820 cmt 0a2d74dc
+    line: "B-band structural-premium LR for tool-use sub-cohort post-\xA710 sits ~0.75\
+      \ \u2014 over the 0.70 trigger as a watch line. Modal bind path is limit-factored\
+      \ (1.70 tier) where LR=0.46; structural premium is not the modal bind path.\
+      \ Consistent with the existing v1.1.1 \xA711.4 watch posture on minimum-tier\
+      \ direct-primary binds."
+    monitor_owner: actuary on BEAAA-630 Friday LR monitor
+    action_threshold: if 3+ consecutive months structural B-band tool-use LR > 0.80,
+      trigger out-of-band Actuary re-cal
+  - id: C2
+    source: "Actuary BEAAA-820 cmt 0a2d74dc + draft \xA710.sunset"
+    line: "\xA710 sunset clause must fire on scanner v0.2 P3.4 GA. If P3.4 slips,\
+      \ \xA710 over-loads the tool-use cohort beyond what is actuarially needed once\
+      \ P3.4 is in rubric scoring."
+    monitor_owner: underwriter op-seat on BEAAA-617 v1.2 re-cal sprint kickoff
+    action_threshold: "BEAAA-617 sprint kickoff must verify scanner v0.2 P3.4 GA before\
+      \ proposing \xA710 deletion on the v1.2 candidate; if P3.4 not GA, escalate\
+      \ scanner roadmap to CTO"
+  - id: C3
+    source: Actuary BEAAA-820 cmt 0a2d74dc
+    line: "First 3-5 binds on tool_use==true accounts trigger \xA710 cell re-verification\
+      \ \u2014 tool-use sub-cohort share priors collapse on first bind data. v1.2\
+      \ \xA710 re-cal (BEAAA-617) absorbs."
+    monitor_owner: underwriter op-seat (per-bind) + actuary (post-N=5)
+    action_threshold: "after 5 bound tool-use==true policies, actuary re-runs \xA7\
+      6.1 LR cells on observed mix and confirms (or re-bands) the 1.20\xD7 factor\
+      \ on the v1.2 candidate"
+  - id: R5-retracted
+    source: Actuary BEAAA-820 cmt 0a2d74dc surfaced R5; op-seat BEAAA-816 cmt fb2cc809
+      retracted; HoUW BEAAA-821 countersign (5093076e) dismissed
+    line: "Out-of-scope R5 claim that deployed pricing/rates.yaml carried pre-staged\
+      \ Interp B \xA710 scaffold at v1.1.2-merge-time. Empirically false: deployed\
+      \ file at countersign time was 190 lines, sha256 27723ee5\u2026, version 1.1.1,\
+      \ zero \xA710 content. No merge-time scaffold conflict. Recorded here only for\
+      \ lineage audit (likely confusion with \xA79 live_probe.loading_curve)."
+    monitor_owner: "n/a \u2014 closed at merge"
+    action_threshold: "n/a \u2014 no action required"
+  v1_2_dependency: "Full re-cal of \xA710 loading-breakpoint uncertainty deferred\
+    \ to v1.2 on BEAAA-617 next sprint per Founder C9 on BEAAA-800. \xA710 sunset\
+    \ clause retires this addendum on scanner v0.2 P3.4 GA boundary."
+  downstream_unblocked_on_merge:
+  - BEAAA-186 policy wording v1.3 lock
+  - "BEAAA-617 v1.2 \xA710 re-cal (next sprint) inherits this baseline for spread-distribution\
+    \ actuarial review"
+  scanner_dependency:
+    section_10: "scanner-side deployment_profile.tool_use boolean emission required\
+      \ (per are-scanner-api-v1@v1.1.0). \xA710.no_op_on_absent_field = true so addendum\
+      \ is inert if scanner doesn't emit the field."
+    section_8: "none \u2014 re-scan trigger is process-only on the policy lifecycle"
+v1_1_3_amendment:
+  amendment_id: rates.yaml-v1.1.3
+  amended_at: '2026-05-29'
+  source_ruling: "BEAAA-924#comment-16e61987 \xA74.3 Item 3 ACCEPT"
+  source_pre_status: "BEAAA-918#document-pre-status-2026-05-29 v0.5 \xA72.2 + \xA7\
+    6.5"
+  source_adr: projects/are-scanner/docs/adr/adr-0016-rates-v1-1-3-section-8-boundary-drift-manual-referral.md
+  execution_issue: BEAAA-934
+  scope: "thin additive \u2014 \xA78 endorsements.remediation.boundary_drift_manual_referral\
+    \ sub-block + \xA78 rescan_trigger_basis narrative extension + \xA78 rescan_trigger_authority\
+    \ cross-link only. Process-only routing change; pricing math impact $0 at trigger."
+  changes:
+  - section: "\xA78"
+    change: "NEW endorsements.remediation.boundary_drift_manual_referral sub-block\
+      \ codifying disposition routing on \xA78 6-mo C-bind re-scan output. Op-seat\
+      \ R1 path A applied on merge: c_to_d_drift condition narrowed from `< 55` to\
+      \ `< 54` to remove integer-set overlap with boundary_envelope_55 at rescan_are_total\
+      \ == 54 (boundary-envelope routing wins for noise-symmetry; substantive intent\
+      \ unchanged from Actuary draft and HoUW countersign)."
+    driver: "HoUW BEAAA-924 Item 3 ACCEPT verdict on Actuary BEAAA-918 \xA72.2 + \xA7\
+      6.5 boundary-cliff finding; op-seat UW BEAAA-1016 R1 redline applied; HoUW BEAAA-1018\
+      \ ACCEPT-WITH-CONDITIONS"
+  - section: "\xA78"
+    change: endorsements.remediation.rescan_trigger_basis extended with v1.1.3 cross-reference
+    driver: audit traceability
+  - section: "\xA78"
+    change: endorsements.remediation.rescan_trigger_authority extended with v1.1.3
+      ADR cross-reference
+    driver: audit traceability
+  - section: "\xA711.7"
+    change: "NEW v1_1_3_amendment audit block (this block) \u2014 includes HoUW BEAAA-1018\
+      \ conditions C1-C4 in watch_lines + op-seat R2 explicit \xA711 / \xA711.6 non-reversal\
+      \ claims"
+    driver: "artifact-metadata-schema.md \u2014 every amendment carries an audit block;\
+      \ HoUW countersign conditions fold here on op-seat merge"
+  - section: header
+    change: "version 1.1.2 \u2192 1.1.3; amended_at 2026-05-27 \u2192 2026-05-29;\
+      \ header comment block extended with v1.1.3 description"
+    driver: amendment versioning convention
+  explicit_non_reversals:
+  - claim: "\xA73 band_factor C=2.50, D=5.00 preserved verbatim from v1.1.2."
+    basis: "Founder ratification on BEAAA-645 Q2 (interaction 951dd258, CEO ack cmt\
+      \ 64ae7f57, 2026-05-23T14:55:36Z) NOT reversed. v1_1_amendment block in \xA7\
+      11 stays load-bearing."
+  - claim: "\xA710 agentic_loading 1.20\xD7 preserved verbatim from v1.1.2."
+    basis: "Path B Founder ratification on BEAAA-640 interaction bbad9880-7659-4a7a-8f3c-23d9b75187c0\
+      \ 2026-05-27T11:55:06Z NOT reversed. v1_1_2_amendment block in \xA711.6 stays\
+      \ load-bearing."
+  - claim: "\xA78 d_band_layered_excess_min_retention $50K floor (BEAAA-669) preserved\
+      \ verbatim from v1.1.2."
+    basis: "BEAAA-666 \xA71(b) HoUW ratification NOT reversed by v1.1.3 routing extension."
+  - claim: "\xA78 endorsements.remediation.load_usd $2,500 preserved verbatim from\
+      \ v1.1.2."
+    basis: "v1.1.3 routing extension is process-only; no premium-math impact at the\
+      \ \xA78 trigger."
+  - claim: "\xA79 live_probe block preserved verbatim from v1.1.2."
+    basis: "v1.1.3 is a \xA78 routing change, does not touch \xA79."
+  - claim: "\xA711 v1_1_amendment audit block preserved verbatim from v1.1.2."
+    basis: "BEAAA-645 Q2 Founder ratification (interaction 951dd258, CEO ack cmt 64ae7f57,\
+      \ 2026-05-23T14:55:36Z) audit chain stays load-bearing. v1.1.3 is additive on\
+      \ \xA78 only and does not touch \xA711. (Op-seat UW BEAAA-1016 R2 explicit non-reversal\
+      \ applied on merge.)"
+  - claim: "\xA711.6 v1_1_2_amendment audit block preserved verbatim from v1.1.2."
+    basis: "Path B Founder ratification (BEAAA-640 interaction bbad9880-7659-4a7a-8f3c-23d9b75187c0,\
+      \ 2026-05-27T11:55:06Z) audit chain stays load-bearing. v1.1.3 is additive on\
+      \ \xA78 only and does not touch \xA711.6. (Op-seat UW BEAAA-1016 R2 explicit\
+      \ non-reversal applied on merge.)"
+  cosign_chain:
+    underwriter_op_seat:
+      issue: BEAAA-1016
+      comment: BEAAA-1016#comment-fcd0ccd8-0b2b-4462-b608-1173ee94841a
+      verdict: "ACCEPT-WITH-REDLINES (R1 path A applied this merge; R2 \xA711/\xA7\
+        11.6 explicit non-reversal claims applied this merge)"
+      role: "op-seat UW co-sign \u2014 renders \xA78 yaml block with R1 path A applied\
+        \ (c_to_d_drift narrowed to `< 54`) + R2 \xA711/\xA711.6 explicit non-reversal\
+        \ claims appended; authors this \xA711.7 audit block on merge with HoUW C1-C4\
+        \ conditions folded into watch_lines"
+    actuary:
+      issue: BEAAA-934
+      artifact: projects/are-scanner/docs/adr/adr-0016-rates-v1-1-3-section-8-boundary-drift-manual-referral.md
+      yaml_patch_draft: projects/are-scanner/artifacts/beaaa-934/rates-v1.1.3-section-8-yaml-patch-draft.yaml
+      verdict: DRAFT (ADR-0016 + yaml patch draft 2026-05-29)
+      role: "Actuary pre-merge draft per BEAAA-616 three-way rate-book gate \u2014\
+        \ boundary definition, disposition routing, sensitivity range, data lineage,\
+        \ backtest plan, rollback"
+    head_of_uw:
+      issue: BEAAA-1018
+      comment: BEAAA-1018#comment-ce379ac1-494b-42f4-8fbd-e559f7695f7c
+      verdict: ACCEPT-WITH-CONDITIONS (C1-C4 folded into watch_lines this block; terminal
+        at HoUW per re-scan disposition class)
+      role: "strategic countersign \u2014 final ACCEPT against the deployed-diff under\
+        \ HoUW BEAAA-924 Item 3 ACCEPT verdict; four conditions C1-C4 fold into \xA7\
+        11.7 watch_lines on op-seat merge"
+    founder_ratification: "n/a \u2014 re-scan disposition class per actuary-os.md\
+      \ \xA7DECISION AUTHORITY; HoUW countersign is terminal."
+  cross_links:
+    beaaa_187_reconciliation: "BEAAA-187 reconciliation-child acceptance criterion\
+      \ #3 ('\xA78 6-mo C-bind re-scan referral path matches Item 3 verdict') converges\
+      \ on this routing definition. Cross-link load-bearing in this file per HoUW\
+      \ BEAAA-1018 condition C3; cross-link on reconciliation-child close."
+  watch_lines:
+  - id: C1
+    source: "HoUW BEAAA-1018 cmt ce379ac1 \xA73 Condition C1"
+    line: "Interior-B (rescan_are_total >= 72) routes to `annotate_no_referral_op_seat_may_route_to_re_quote`,\
+      \ leaving an op-seat discretion zone. Discretionary re-quote criteria for sustained\
+      \ interior-B drift: (a) minimum interior-B distance from the 70 boundary = `rescan_are_total\
+      \ >= 73` (mid; \xB11pt sensitivity bracket per HoUW C1 proposed range); (b)\
+      \ minimum sustained-period requirement = TWO consecutive 6-mo re-scans both\
+      \ showing `rescan_are_total >= 73` before discretionary mid-term re-quote may\
+      \ be proposed. Without (a) AND (b) satisfied, interior-B routing stays at annotate;\
+      \ no op-seat-initiated re-quote."
+    monitor_owner: HoUW at first N=1 interior-B re-scan disposition; op-seat UW per-disposition
+      logging on policy file
+    action_threshold: if op-seat-initiated re-quote fires on interior-B with either
+      (a) `73 > rescan_are_total >= 72` OR (b) single re-scan (not two consecutive),
+      HoUW escalates to recall the disposition and re-route to annotate-only
+  - id: C2
+    source: "HoUW BEAAA-1018 cmt ce379ac1 \xA73 Condition C2"
+    line: "REFER_TO_HOUW menu item on op-seat boundary-drift disposition carries to\
+      \ CEO per canon/escalation-matrix.md UW trigger 'pricing change would change\
+      \ customer's premium by >15% mid-term' \u2014 by construction any cross-band\
+      \ re-quote on a v1.1.2 BandFactor 2.50\xD7 / 1.00\xD7 C-bind exceeds 15% mid-term\
+      \ (the customer-side swing is +150% C\u2192B or -60% B\u2192C per ADR-0016 \xA7\
+      Numeric scope worked at boundary). Two-step carry: op-seat \u2192 HoUW (proximate,\
+      \ REFER_TO_HOUW menu item) \u2192 CEO (matrix carry, on any cross-band mid-term\
+      \ re-quote authorization). HoUW self-triggers CEO carry on receipt regardless\
+      \ of whether watch_line is in place; watch_line exists for audit-trail completeness."
+    monitor_owner: HoUW on receipt of REFER_TO_HOUW disposition; CEO on cross-band
+      re-quote authorization
+    action_threshold: every REFER_TO_HOUW disposition that lands at HoUW carries to
+      CEO before any cross-band re-quote authorization fires; absence of CEO carry
+      on a fired re-quote = audit-trail breach
+  - id: C3
+    source: "HoUW BEAAA-1018 cmt ce379ac1 \xA73 Condition C3"
+    line: "BEAAA-187 reconciliation-child acceptance criterion #3 ('\xA78 6-mo C-bind\
+      \ re-scan referral path matches Item 3 verdict') cross-link stays explicitly\
+      \ load-bearing in this rate-book file at cross_links.beaaa_187_reconciliation\
+      \ above \u2014 NOT collapsed into a generic 'see ADR-0016' hand-wave. Audit\
+      \ traceability requires the BEAAA-187 acceptance criterion #3 \u2194 ADR-0016\
+      \ \xA7Decision 1 convergence to remain explicitly cited."
+    monitor_owner: op-seat UW on any future v1.1.x rate-book edit
+    action_threshold: any v1.1.x edit that drops the cross_links.beaaa_187_reconciliation
+      line without an HoUW countersigned replacement = audit-trail breach; revert
+      before merge
+  - id: C4
+    source: "HoUW BEAAA-1018 cmt ce379ac1 \xA73 Condition C4"
+    line: "AUTHORIZE_FRESH_UW menu item must, on every disposition, cite an explicit\
+      \ `governance_attestations` field per contracts/are-scanner-api-v1@v1.1.0 \xA7\
+      Input. Without the citation, AUTHORIZE_FRESH_UW becomes a back-door for new-bind\
+      \ UW on bound book, collapsing pre-bind vs. mid-term policy-period continuity\
+      \ (the same failure mode ADR-0016 \xA7Rejected alternative D rules out wholesale)."
+    monitor_owner: "op-seat UW per-disposition; Actuary backtest at N=1 fallback per\
+      \ ADR-0016 \xA7Backtest"
+    action_threshold: if AUTHORIZE_FRESH_UW fires without `governance_attestations`
+      citation in the disposition packet, op-seat recalls + re-routes to HOLD pending
+      governance evidence; Actuary backtest at N=1 catches as false-positive material-change
+      call
+  - id: W1
+    source: "ADR-0016 \xA7Backtest"
+    line: "At N=5 \xA78 6-mo re-scans, Actuary backtests boundary-drift trigger fire\
+      \ / no-fire against op-seat verdicts. Feeds into BEAAA-617 v1.2 re-cal next-sprint\
+      \ pressure-test if available by 2026-08-16."
+    monitor_owner: Actuary on Friday pressure-test cadence routine (BEAAA-630)
+    action_threshold: 'Pre-N=5 fallback: at N=1, Actuary cross-checks op-seat verdict
+      against are-scanner-api-v1@v1.1.0 Hard Guarantee #1 envelope; flags any false-positive
+      (manual-referral on noise-only drift) or false-negative (genuine risk movement
+      escaped trigger) to HoUW.'
+  - id: W2
+    source: "ADR-0016 \xA7Decision 5"
+    line: Op-seat SLA on manual referral is 5 business days. SLA breach auto-routes
+      to HoUW (queue-side flag). Monitor for SLA breaches as queue-capacity signal.
+    monitor_owner: op-seat UW on per-bind queue management
+    action_threshold: if SLA breaches in 2 consecutive months, escalate to HoUW for
+      queue-capacity review
+  - id: W3
+    source: "ADR-0016 \xA7Decision 1"
+    line: "Boundary radius is pinned at \xB11pt per are-scanner-api-v1@v1.1.0 Hard\
+      \ Guarantee #1. Any contract patch that loosens or tightens the reproducibility\
+      \ envelope is a blocking signal \u2014 re-fire BEAAA-934 to re-codify the boundary\
+      \ radius."
+    monitor_owner: Actuary on contracts/are-scanner-api-v1.md version watch
+    action_threshold: "if Hard Guarantee #1 envelope \u2260 \xB11pt on any future\
+      \ contract version, re-fire codification"
+  - id: W4
+    source: "Op-seat UW BEAAA-1016 cmt fcd0ccd8 Redline R1 \u2014 path A applied this\
+      \ merge"
+    line: "Yaml integer-set overlap removed: c_to_d_drift condition narrowed from\
+      \ `< 55` to `< 54`; boundary_envelope_55 (54-56) captures 54 cleanly as manual-referral.\
+      \ Substantive intent: at rescan_are_total == 54 (1pt below C/D boundary, inside\
+      \ the \xB11pt reproducibility-noise envelope), boundary-envelope routing wins\
+      \ over band-flip routing \u2014 symmetric with the C\u2192B direction where\
+      \ auto-reprice is rejected for the same noise-symmetry reason. Any future rate-book\
+      \ yaml patch that re-introduces integer-set overlap on dispositional conditions\
+      \ is an audit-trail breach (downstream rule engines need non-overlapping conditions\
+      \ OR an explicit `precedence_rule` field)."
+    monitor_owner: "op-seat UW on any future v1.1.x \xA78 routing-yaml edit"
+    action_threshold: any future routing-yaml edit that re-introduces overlap at `rescan_are_total
+      == 54` (or any other boundary integer) without an explicit precedence_rule field
+      = blocked merge; revert and re-redline
+  downstream_unblocked_on_merge:
+  - BEAAA-934 closes done on this merge (parent gate-aggregator)
+  - BEAAA-186 policy wording v1.3 inherits boundary-drift routing for mid-term remediation
+    review pathway when that locks (BEAAA-816 dependency carries through v1.1.3)
+  - 'BEAAA-187 reconciliation-child acceptance criterion #3 cross-link fires on its
+    close per condition C3'
+  scanner_dependency: "none \u2014 this routing is policy-side, scanner emits the\
+    \ same are_total / band envelope per are-scanner-api-v1@v1.1.0 unchanged."
