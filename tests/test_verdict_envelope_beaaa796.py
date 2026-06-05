@@ -23,6 +23,8 @@ import json
 import unittest
 from pathlib import Path
 
+from packaging.version import Version
+
 from harness.verdict_envelope import (
     BIND_ELIGIBILITY,
     REVIEW_STATES,
@@ -45,7 +47,12 @@ class VersionBumpTests(unittest.TestCase):
     """v1.0.3 §Hard guarantees-CTO #3 — scanner_version + contract pin."""
 
     def test_scanner_version_bumped(self):
-        self.assertEqual(SCANNER_VERSION, "0.3.2")
+        # BEAAA-2868: assert the BEAAA-796 v0.3.2 floor (the original v1.0.3
+        # ship value where the verdict envelope was introduced) without
+        # blocking subsequent SCANNER_VERSION bumps. Equality against the
+        # ship literal drifted silently through 0.3.5..0.3.11; surfaced
+        # post-BEAAA-2199 (hygiene spill).
+        self.assertGreaterEqual(Version(SCANNER_VERSION), Version("0.3.2"))
 
     def test_contract_version_pinned_v1_0_3(self):
         self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.0.3")
