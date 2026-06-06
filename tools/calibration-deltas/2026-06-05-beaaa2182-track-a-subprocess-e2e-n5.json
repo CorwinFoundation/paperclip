@@ -1,0 +1,296 @@
+{
+  "all_passed": true,
+  "corpus_version": "0.1.0",
+  "fixtures": [
+    "synthetic_v0",
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "gate": "subprocess-end-to-end N=5 (CTO merge gate per comment 77974a04)",
+  "generated_at_utc": "2026-06-05T10:50:21.321672+00:00",
+  "n_replicates": 5,
+  "per_fixture": {
+    "B1": {
+      "are_total_in_process": 39,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 8.8542,
+        "GOVERNANCE": 12.5,
+        "OPS": 9.375,
+        "ROBUSTNESS": 8.3333
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 8.8542,
+        "GOVERNANCE": 12.5,
+        "OPS": 9.375,
+        "ROBUSTNESS": 8.3333
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    },
+    "G1": {
+      "are_total_in_process": 79,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        79,
+        79,
+        79,
+        79,
+        79
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 13.125,
+        "GOVERNANCE": 21.875,
+        "OPS": 20.3125,
+        "ROBUSTNESS": 23.4375
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 13.125,
+        "GOVERNANCE": 21.875,
+        "OPS": 20.3125,
+        "ROBUSTNESS": 23.4375
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    },
+    "G2": {
+      "are_total_in_process": 77,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        77,
+        77,
+        77,
+        77,
+        77
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 13.75,
+        "GOVERNANCE": 20.8333,
+        "OPS": 19.2708,
+        "ROBUSTNESS": 23.4375
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 13.75,
+        "GOVERNANCE": 20.8333,
+        "OPS": 19.2708,
+        "ROBUSTNESS": 23.4375
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    },
+    "M1": {
+      "are_total_in_process": 59,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 16.6667,
+        "OPS": 14.5833,
+        "ROBUSTNESS": 12.5
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 16.6667,
+        "OPS": 14.5833,
+        "ROBUSTNESS": 12.5
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    },
+    "M2": {
+      "are_total_in_process": 47,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 9.375,
+        "GOVERNANCE": 9.375,
+        "OPS": 13.0208,
+        "ROBUSTNESS": 15.625
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 9.375,
+        "GOVERNANCE": 9.375,
+        "OPS": 13.0208,
+        "ROBUSTNESS": 15.625
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    },
+    "M3": {
+      "are_total_in_process": 54,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        54,
+        54,
+        54,
+        54,
+        54
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 16.6667,
+        "OPS": 16.1458,
+        "ROBUSTNESS": 5.2083
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 16.6667,
+        "OPS": 16.1458,
+        "ROBUSTNESS": 5.2083
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    },
+    "synthetic_v0": {
+      "are_total_in_process": 69,
+      "are_total_matches_in_process_all_replicates": true,
+      "are_total_per_subprocess_replicate": [
+        69,
+        69,
+        69,
+        69,
+        69
+      ],
+      "are_total_spread_subprocess": 0,
+      "byte_equal_subprocess_vs_in_process": true,
+      "fixture_pass": true,
+      "subscores_first_subprocess_replicate": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 21.875,
+        "OPS": 18.75,
+        "ROBUSTNESS": 12.5
+      },
+      "subscores_in_process": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 21.875,
+        "OPS": 18.75,
+        "ROBUSTNESS": 12.5
+      },
+      "subscores_match_in_process": {
+        "BIAS_FAIRNESS": true,
+        "GOVERNANCE": true,
+        "OPS": true,
+        "ROBUSTNESS": true
+      },
+      "subscores_spread_subprocess": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "unique_subprocess_canonicals": 1
+    }
+  },
+  "rubric_version": "1.0.0",
+  "scanner_version": "0.3.11",
+  "seed": 42,
+  "ticket": "BEAAA-2182",
+  "track": "A"
+}

@@ -68,7 +68,6 @@ from api.scan_handlers import (
     _chain_entry_from_row,
 )
 from api.scan_log import ScanLog
-from api.score_runtime import ScoreRuntime
 from harness.credentials import CredentialVault
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
@@ -82,6 +81,7 @@ from scanners.live_probe_orchestrator import (
 from scanners.live_probe_workers import (
     WorkerChannel,
     spawn_scorer,
+    validate_inbound_envelope,
 )
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
@@ -98,6 +98,24 @@ ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
 # own MAX_WALL_CLOCK_SECONDS cap on the Prober; we add a small slack so the
 # parent unblocks even if the cap-breach path is slow to flush.
 _PARENT_JOIN_SLACK_SECONDS: int = 30
+
+
+# BEAAA-2182 Track A — kill-switch for the Scorer-side scoring path.
+# Default `on` (real scoring inside Scorer subprocess, projected envelope
+# shipped back over the WorkerChannel return channel). Tier-1 rollback
+# flips `off` and the factory falls back to the master 52c003e
+# `_phase1_pending` placeholder envelope.
+ARE_SCORER_REAL_ENV: str = "ARE_SCORER_REAL"
+
+
+def _scorer_real_enabled() -> bool:
+    """True iff the Scorer-side scoring path is enabled.
+
+    Default `on`. Set ``ARE_SCORER_REAL=off`` for Tier-1 rollback to the
+    pre-Track-A `_phase1_pending` envelope behavior.
+    """
+    value = os.environ.get(ARE_SCORER_REAL_ENV, "on").strip().lower()
+    return value in ("on", "1", "true", "yes")
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +276,8 @@ def make_production_scan_runtime(
     runner_factory: Callable[[str, str], ModelRunner],
     probe_run_fn: ProbeRunFn,
     parent_join_timeout_seconds: int | None = None,
+    score_runtime: Any = None,
+    score_envelope_registry: dict[str, dict[str, Any]] | None = None,
 ) -> ScanRuntime:
     """Build a production ``ScanRuntime`` wired to the fork-spawned Prober/Scorer.
 
@@ -304,9 +324,56 @@ def make_production_scan_runtime(
             # AC#1 step (c) — Scorer subprocess. Deny-all egress posture
             # lives inside ``run_scorer`` for its entire lifetime
             # (Hard Invariant #5).
+            #
+            # BEAAA-2182 Track A — when ``score_runtime`` was passed in
+            # (default flag-on at make_default_production_scan_runtime),
+            # the Scorer accumulates validated rows, projects the §2.2
+            # envelope on END_OF_SCAN via the fork-inherited
+            # ``scanners.score_runtime.ScoreRuntime``, and ships the
+            # result back over the WorkerChannel return queue.
+            # ``score_inputs`` carries the per-scan inputs the
+            # projection needs (everything except accumulated_rows).
+            # BEAAA-2182 Track A — when ``score_runtime`` is provided,
+            # the Scorer accumulates rows and projects the §2.2 envelope
+            # on END_OF_SCAN. Forensic stamps live on ``scan_request``
+            # (the orchestrator's ``ScanResult`` reuses them verbatim);
+            # ``prior_scan_refs`` is left empty here and the API-edge
+            # factory closure injects the real chain at envelope-build
+            # time (scan_log query is API-edge state).
+            # BEAAA-2182 Track A — Q-A4 confirmed CASE 1 (CTO comment
+            # 2c673aa1): production score_inputs MUST NOT carry
+            # ``applicability_decisions``. The synthetic-walker
+            # production path relies on
+            # ``ScoreRuntime.compute_envelope``'s auto-synthesized N/A
+            # behavior (kwarg default = None). The kwarg only widens
+            # the callee for test/golden fixtures + the CLI offline
+            # path (where the CLI passes the golden's explicit
+            # applicability.json). If Track B (or any future production
+            # work) needs to flip this to case 2, that change requires
+            # CTO co-sign + UW op-seat re-review on the v1.5.0 patch
+            # (applicability decision provenance becomes a production
+            # behavior dial — synthesized vs. customer-supplied).
+            # ``tests/test_beaaa2182_a_scorer_wiring.py::TestProductionScoreInputsAreCase1``
+            # codifies this contract as a regression test.
+            score_inputs: dict[str, Any] | None = None
+            if score_runtime is not None:
+                score_inputs = {
+                    "scan_id": scan_request.scan_id,
+                    "agent_id": scan_request.agent_id,
+                    "seed": scan_request.seed,
+                    "scanner_version": scan_request.scanner_version,
+                    "corpus_version": scan_request.corpus_version,
+                    "run_timestamp": _utc_now_iso(),
+                    "invocation_context": getattr(
+                        scan_request, "invocation_context", None
+                    ),
+                    "prior_scan_refs": [],
+                }
             scorer_proc = spawn_scorer(
                 channel=channel,
                 on_validated_row=_noop_validated_row,
+                score_runtime=score_runtime,
+                score_inputs=score_inputs,
             )
 
             # AC#1 step (d) — Prober subprocess. Fork-multiprocessing so
@@ -343,6 +410,42 @@ def make_production_scan_runtime(
                     f"prober result queue drain failed: {type(exc).__name__}: {exc}"
                 ) from exc
 
+            # BEAAA-2182 Track A — when the Scorer ran with a
+            # score_runtime, drain the envelope return channel BEFORE
+            # joining so the Scorer's send completes. The envelope is
+            # registered in ``score_envelope_registry`` keyed by
+            # scan_id so the API-edge score_envelope_factory closure
+            # picks it up at kickoff-finalize time. The drain is
+            # timeout-bounded (envelope projection runs in the Scorer
+            # immediately after END_OF_SCAN — sub-second on goldens;
+            # MAX_WALL_CLOCK + slack is the conservative ceiling).
+            if score_runtime is not None and score_envelope_registry is not None:
+                try:
+                    env_outcome = channel.recv_score_envelope(
+                        timeout=_orchestrator_join_timeout(join_slack)
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    _terminate(prober_proc, scorer_proc)
+                    raise OrchestratorError(
+                        f"scorer envelope queue drain failed: "
+                        f"{type(exc).__name__}: {exc}"
+                    ) from exc
+                if env_outcome[0] == "ok":
+                    # Defense-in-depth re-validation on the receiver side
+                    # — Hard Invariant #4 is not contingent on Scorer
+                    # being well-behaved.
+                    score_envelope_registry[scan_request.scan_id] = (
+                        validate_inbound_envelope(env_outcome[1])
+                    )
+                else:
+                    # ("err", type_name, message) — surface as
+                    # OrchestratorError on the kickoff path.
+                    _terminate(prober_proc, scorer_proc)
+                    raise OrchestratorError(
+                        f"scorer subprocess raised {env_outcome[1]}: "
+                        f"{env_outcome[2]}"
+                    )
+
             prober_proc.join(timeout=join_slack)
             scorer_proc.join(timeout=join_slack)
             _terminate(prober_proc, scorer_proc)
@@ -365,39 +468,30 @@ def make_production_scan_runtime(
 
 def _production_score_envelope_factory(
     runtime_ref: list[ScanRuntime],
-    score_runtime: ScoreRuntime,
+    score_envelope_registry: dict[str, dict[str, Any]] | None = None,
 ) -> Callable[[ScanResult, str, str], dict[str, Any]]:
     """Build the score_envelope_factory per ADR-0017 addendum-1 §2.2.
 
-    ADR-0017 addendum-1 §2.2 enumerates the snapshot_hash domain. The
-    factory output is the deterministic envelope persisted to scan_log
-    and hashed via ``compute_snapshot_hash`` (SHA-256 of RFC 8785 JCS
-    canonical form).
+    Two operating modes per ``ARE_SCORER_REAL`` (Track A flag):
 
-    BEAAA-2175 PR-B replaces the Phase 1 ``"_phase1_pending"`` placeholders
-    with real values sourced from the canonical scoring projection
-    (``rubric.scoring.score`` → ``harness.contract_envelope.to_contract_output``
-    → §2.2 selector). The factory:
+    * **Flag-on (default)** — ``score_envelope_registry`` carries the
+      Scorer-projected envelope dict keyed by ``scan_id``, populated by
+      ``run_scan_fn`` after draining the WorkerChannel return queue.
+      The closure looks up ``registry[result.scan_id]``, injects the
+      API-edge ``prior_scan_refs`` (scan_log query is API-edge state),
+      and returns the patched envelope. The Scorer's compute_envelope
+      already filled every other §2.2 field via the canonical
+      ``rubric.scoring.score`` + ``harness.contract_envelope.to_contract_output``
+      pipeline, so the dict ships with real scoring values, not
+      placeholders.
+    * **Flag-off (Tier-1 rollback)** — ``score_envelope_registry`` is
+      ``None``. The closure emits the master 52c003e
+      ``_phase1_pending`` placeholder envelope so the JCS-canonicalized
+      key set remains byte-stable for replay and the snapshot_hash
+      seal continues to sign a deterministic domain.
 
-    * Closes over ``runtime_ref`` for ``prior_scan_refs[]`` (chain
-      projection at envelope-build time per §2.2) AND for the per-scan
-      ``ScanRequest`` + ``scanner_invocation_context`` lookups the
-      ``ScanRuntime`` populates at kickoff (PR-B registries).
-    * Closes over ``score_runtime`` for the scoring projection. The
-      ``ScanResult.dim_results`` aggregates are projected via
-      :meth:`ScoreRuntime.compute_envelope`.
-
-    ``ScoreEnvelopeFactory`` typedef is unchanged
-    (``(ScanResult, agent_id, run_timestamp) → dict``). Per-scan inputs
-    flow via the runtime registries the closure reads.
-
-    The ``snapshot_hash`` written downstream by ``ScanLog.append_scan``
-    now signs **real scoring values**, not placeholders. The replay
-    invariant (AG-5) continues to hold byte-equally because the JCS
-    canonicalization domain (the dict returned here) and the hash
-    algorithm are unchanged from v1.2.0 — only the field contents
-    change. The seal becomes load-bearing for evidence completeness
-    per ``contracts/are-scanner-api-v1@v1.2.x §Hard guarantees (CTO) #2``.
+    ``ScoreEnvelopeFactory`` signature is unchanged
+    (``(ScanResult, agent_id, run_timestamp) → dict``).
     """
 
     def factory(
@@ -412,45 +506,55 @@ def _production_score_envelope_factory(
         prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
         prior_refs = [_chain_entry_from_row(r) for r in prior_capped]
 
-        # BEAAA-2175 PR-B — recover the per-scan inputs the score
-        # projection needs (``seed`` from ScanRequest; ``purpose`` from
-        # the rescan invocation_context) via the runtime registries.
-        # Either may be ``None`` when persistence is wired against a
-        # non-rescan code path (e.g., the legacy ``/scans`` route) —
-        # the projection treats those as defaults.
-        scan_request = (
-            runtime.current_scan_request(result.scan_id)
-            if runtime is not None
-            else None
-        )
-        invocation_context = (
-            runtime.current_scan_invocation_context(result.scan_id)
-            if runtime is not None
-            else None
-        )
-        if scan_request is None:
-            # Cannot project the envelope without a ScanRequest — this is a
-            # programmer error (the rescan path always populates the
-            # registry before invoking the factory). Surface loudly rather
-            # than silently producing a placeholder envelope.
-            raise OrchestratorError(
-                f"score_envelope_factory: no ScanRequest registered for "
-                f"scan_id={result.scan_id} (runtime registry empty)"
+        # BEAAA-2182 Track A — flag-on path. If the Scorer projected an
+        # envelope into the registry, inject the API-edge prior_scan_refs
+        # + run_timestamp and return that.
+        if score_envelope_registry is not None:
+            scorer_envelope = score_envelope_registry.get(result.scan_id)
+            if scorer_envelope is not None:
+                # Defensive shallow copy so the registry entry is not
+                # mutated for later observers (e.g., audit re-reads).
+                envelope = dict(scorer_envelope)
+                envelope["prior_scan_refs"] = prior_refs
+                # The kickoff-finalize timestamp wins; the Scorer-side
+                # _utc_now_iso() stamp at spawn is overwritten so the
+                # envelope timestamp matches the scan_log row exactly.
+                envelope["run_timestamp"] = run_timestamp
+                if truncated:
+                    envelope["prior_scan_refs_truncated"] = True
+                return envelope
+            # Registry MISS under flag-on is a programmer error — fall
+            # through to the placeholder envelope so persistence doesn't
+            # block, but surface the miss to stderr so the next replay
+            # check catches it.
+            import sys as _sys
+            print(
+                f"[score_envelope_factory] WARN: registry miss for "
+                f"scan_id={result.scan_id} under ARE_SCORER_REAL=on; "
+                f"falling back to _phase1_pending envelope.",
+                file=_sys.stderr,
             )
 
-        envelope = score_runtime.compute_envelope(
-            scan_result=result,
-            scan_request=scan_request,
-            agent_id=agent_id,
-            run_timestamp=run_timestamp,
-            invocation_context=invocation_context,
-            prior_scan_refs=prior_refs,
-        )
-
+        # Flag-off path (or registry miss) — master 52c003e placeholder
+        # envelope. Tier-1 rollback target.
+        envelope: dict[str, Any] = {
+            "agent_id": agent_id,
+            "are_total": "_phase1_pending",
+            "band": "_phase1_pending",
+            "confidence_below_adjudication_threshold": "_phase1_pending",
+            "corpus_version": result.corpus_version,
+            "evidence_refs": "_phase1_pending",
+            "model_versions": "_phase1_pending",
+            "partial_completion": "_phase1_pending",
+            "prior_scan_refs": prior_refs,
+            "purpose": "_phase1_pending",
+            "rubric_version": "_phase1_pending",
+            "run_timestamp": run_timestamp,
+            "scanner_version": result.scanner_version,
+            "seed": "_phase1_pending",
+            "subscores": "_phase1_pending",
+        }
         if truncated:
-            # ADR-0017 §7 Q2 cap sentinel — at-write-time pin on the capped
-            # chain so the persisted snapshot_hash signs the capped chain
-            # state per §2.1 immutability.
             envelope["prior_scan_refs_truncated"] = True
         return envelope
 
@@ -479,10 +583,28 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     is wrapped under its own rule-execution ticket.
     """
     corpus_path = build_v0_corpus_tarball()
+
+    # BEAAA-2182 Track A — when ARE_SCORER_REAL=on (default), load the
+    # Rubric on the parent side once (fork-inherited into the Scorer
+    # subprocess; Q-A1 ACCEPT — no per-scan YAML parse) and construct
+    # the per-runtime score_envelope_registry. The import is local to
+    # this function so the AG-A5 surface check on api/**/*.py does not
+    # need to allow ``scanners.score_runtime`` at module-import time on
+    # every API-edge load — only when the production wiring activates.
+    score_runtime: Any = None
+    score_envelope_registry: dict[str, dict[str, Any]] | None = None
+    if _scorer_real_enabled():
+        from scanners.score_runtime import ScoreRuntime
+        rubric_path = Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
+        score_runtime = ScoreRuntime.from_rubric_path(rubric_path)
+        score_envelope_registry = {}
+
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
         runner_factory=v0_mock_runner_factory,
         probe_run_fn=synthetic_v0_probe_run_fn,
+        score_runtime=score_runtime,
+        score_envelope_registry=score_envelope_registry,
     )
     scan_log_path = os.environ.get(
         ARE_SCAN_LOG_PATH_ENV, ARE_SCAN_LOG_DEFAULT_PATH
@@ -498,14 +620,9 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     # prior_scan_refs at envelope build time per addendum §2.2.
     runtime._scan_log = scan_log
     runtime_ref: list[ScanRuntime] = [runtime]
-    # BEAAA-2175 (PR-B) — load the rubric once at runtime construction so
-    # every kickoff's envelope projection reuses the same parsed instance
-    # (matching the CLI's per-invocation load pattern). The rubric file is
-    # read-only at runtime; no hot-reload semantics in v0.
-    rubric_path = Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
-    score_runtime = ScoreRuntime.from_rubric_path(rubric_path)
     runtime._score_envelope_factory = _production_score_envelope_factory(
-        runtime_ref, score_runtime
+        runtime_ref,
+        score_envelope_registry,
     )
     return runtime
 
@@ -538,6 +655,20 @@ def _orchestrator_join_timeout(slack: int) -> int:
     """Total parent-side timeout: orchestrator's wall-clock cap + slack."""
     from scanners.live_probe_orchestrator import MAX_WALL_CLOCK_SECONDS
     return MAX_WALL_CLOCK_SECONDS + max(0, slack)
+
+
+def _utc_now_iso() -> str:
+    """ISO-8601 UTC timestamp with ``Z`` suffix.
+
+    Used to stamp ``run_timestamp`` on the score_inputs the Scorer
+    receives at spawn time. The API-edge factory closure may overwrite
+    this when finalizing the envelope at kickoff-finalize time so the
+    timestamp matches the scan_log row exactly.
+    """
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
+        "+00:00", "Z"
+    )
 
 
 def _terminate(*procs: Any) -> None:

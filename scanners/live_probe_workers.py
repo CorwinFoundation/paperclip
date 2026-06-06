@@ -72,6 +72,7 @@ from __future__ import annotations
 import multiprocessing as mp
 import multiprocessing.context as mp_context
 import multiprocessing.queues as mp_queues
+import os
 import sys
 from typing import Any, Callable, Iterable
 
@@ -123,6 +124,45 @@ MAX_IPC_ROW_BYTES: int = 64 * 1024
 # so the Scorer's drain loop terminates cleanly. Not a row, not a dict —
 # a plain string the schema validator rejects up front.
 END_OF_SCAN: str = "__END_OF_SCAN__"
+
+
+# BEAAA-2182 Track A — closed allow-list of fields permitted in the
+# Scorer→API IPC envelope return channel. Mirrors :data:`ALLOWED_ROW_FIELDS`
+# pattern: frozenset, validated on both serialize and receive sides, no
+# free-text trace, no opaque bytes (every leaf is JSON-primitive per
+# :func:`_is_pure_json_value`).
+#
+# Set = ADR-0017 addendum-1 §2.2 envelope fields + the optional cap
+# sentinel ``prior_scan_refs_truncated`` (per §7 Q2). The same dict the
+# Scorer-side :func:`scanners.score_runtime.ScoreRuntime.compute_envelope`
+# returns is checked against this allow-list before it crosses the wire,
+# and re-checked on receive by the API-edge parent (defense in depth —
+# Hard Invariant #4 not contingent on a well-behaved Scorer).
+ALLOWED_SCORE_ENVELOPE_FIELDS: frozenset[str] = frozenset({
+    "agent_id",
+    "are_total",
+    "band",
+    "confidence_below_adjudication_threshold",
+    "corpus_version",
+    "evidence_refs",
+    "model_versions",
+    "partial_completion",
+    "prior_scan_refs",
+    "prior_scan_refs_truncated",
+    "purpose",
+    "rubric_version",
+    "run_timestamp",
+    "scanner_version",
+    "seed",
+    "subscores",
+})
+
+# Hard cap on the serialized envelope bytes. Larger than MAX_IPC_ROW_BYTES
+# because ``evidence_refs`` carries one entry per active rubric dim (≥30
+# dims at v1.0.1 rubric), each ~256 bytes — empirically <16 KiB even at
+# full coverage. 256 KiB ceiling leaves headroom for future N/A
+# justification growth and stays well below queue-starvation territory.
+MAX_IPC_ENVELOPE_BYTES: int = 256 * 1024
 
 
 class IPCSchemaError(ValueError):
@@ -311,6 +351,116 @@ def validate_inbound(message: Any) -> tuple[str, dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# BEAAA-2182 Track A — Scorer→API IPC envelope return channel.
+#
+# The scoring projection runs INSIDE the Scorer subprocess (inside the
+# deny-all ``ScopedEgressAllowlist([])`` scope per Hard Invariant #5).
+# The §2.2 envelope it produces is shipped back to the API-edge parent
+# over a separate return-queue, validated against the closed
+# :data:`ALLOWED_SCORE_ENVELOPE_FIELDS` allow-list on both serialize and
+# receive sides.
+# ---------------------------------------------------------------------------
+
+
+def serialize_score_envelope(envelope: dict[str, Any]) -> dict[str, Any]:
+    """Scorer-side. Validate and return a sendable envelope dict.
+
+    Raises :class:`IPCSchemaError` BEFORE the dict goes on the wire if it
+    carries any field outside :data:`ALLOWED_SCORE_ENVELOPE_FIELDS`, any
+    value whose type is not a JSON primitive, any ``bytes`` /
+    ``bytearray`` / opaque object, or any instance of
+    :class:`~harness.credentials.CredentialVault` /
+    :class:`~harness.credentials.CredentialRef` (which should never
+    appear in a scoring envelope but the check is defense in depth).
+
+    Mirrors :func:`serialize_measurement_row` exactly except for the
+    allow-list set and the byte cap. The two serializers share the
+    :func:`_is_pure_json_value` helper so behavior is consistent.
+    """
+    if not isinstance(envelope, dict):
+        raise IPCSchemaError(
+            f"envelope must be a dict, got {type(envelope).__name__}"
+        )
+
+    extra = set(envelope) - ALLOWED_SCORE_ENVELOPE_FIELDS
+    if extra:
+        raise IPCSchemaError(
+            f"envelope contains fields not in the IPC allow-list: "
+            f"{sorted(extra)}. Allowed: "
+            f"{sorted(ALLOWED_SCORE_ENVELOPE_FIELDS)}. Anything not in "
+            "this list is rejected before transit (Hard Invariant #4)."
+        )
+
+    for k, v in envelope.items():
+        if isinstance(v, _FORBIDDEN_VALUE_TYPES):
+            raise IPCSchemaError(
+                f"{k!r}: {type(v).__name__} is forbidden in IPC payloads "
+                "(opaque bytes could smuggle a credential)."
+            )
+        cls_name = type(v).__name__
+        if cls_name in ("CredentialVault", "CredentialRef"):
+            raise IPCSchemaError(
+                f"{k!r}: {cls_name} instances must never cross the IPC "
+                "boundary (Hard Invariant #4)."
+            )
+        if not _is_pure_json_value(v):
+            raise IPCSchemaError(
+                f"{k!r}: value of type {type(v).__name__} is not a JSON "
+                "primitive; IPC payloads must be JSON-pure."
+            )
+
+    import json
+    encoded = json.dumps(envelope, sort_keys=True, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) > MAX_IPC_ENVELOPE_BYTES:
+        raise IPCSchemaError(
+            f"serialized envelope exceeds {MAX_IPC_ENVELOPE_BYTES} bytes "
+            f"({len(encoded)} chars) — refusing to enqueue."
+        )
+
+    return envelope
+
+
+def validate_inbound_envelope(message: Any) -> dict[str, Any]:
+    """Parent-side. Validate an IPC envelope message and return the
+    envelope dict.
+
+    Defense in depth: even though the Scorer-side serializer rejects
+    extras, the parent re-checks. Hard Invariant #4 is not contingent on
+    the Scorer being well-behaved.
+
+    Does NOT call the intake-guard validators
+    (``enforce_hosted_eval_only`` / ``enforce_input_safety``) — those are
+    row-shape validators inappropriate for an envelope dict. The closed
+    allow-list + JSON-primitive type check is the binding contract.
+    """
+    if not isinstance(message, dict):
+        raise IPCSchemaError(
+            f"envelope IPC message must be a dict, got "
+            f"{type(message).__name__}"
+        )
+
+    extra = set(message) - ALLOWED_SCORE_ENVELOPE_FIELDS
+    if extra:
+        raise IPCSchemaError(
+            f"envelope IPC message contains fields not in the allow-list: "
+            f"{sorted(extra)}"
+        )
+
+    for k, v in message.items():
+        if isinstance(v, _FORBIDDEN_VALUE_TYPES):
+            raise IPCSchemaError(
+                f"{k!r}: {type(v).__name__} forbidden in IPC envelope."
+            )
+        if not _is_pure_json_value(v):
+            raise IPCSchemaError(
+                f"{k!r}: value of type {type(v).__name__} is not a JSON "
+                "primitive."
+            )
+
+    return message
+
+
+# ---------------------------------------------------------------------------
 # Process model — Prober and Scorer spawn helpers.
 # ---------------------------------------------------------------------------
 
@@ -336,17 +486,30 @@ def _fork_context() -> mp_context.BaseContext:
 class WorkerChannel:
     """Container for the Prober↔Scorer IPC queue + lifecycle bits.
 
-    A thin wrapper around ``multiprocessing.Queue`` that exposes only
-    :meth:`send_row` (Prober side) and :meth:`recv_row` (Scorer side).
-    Callers do not touch the raw queue, so all sends are routed through
-    :func:`serialize_measurement_row` and all receives through
-    :func:`validate_inbound`.
+    Wraps two ``multiprocessing.Queue`` instances:
+
+    * The row queue (Prober → Scorer) carries one validated
+      measurement row per put. Send via :meth:`send_row`; receive via
+      :meth:`recv_row`. Sends are routed through
+      :func:`serialize_measurement_row` and receives through
+      :func:`validate_inbound`.
+    * The score-envelope return queue (Scorer → API-edge parent)
+      carries exactly one envelope tuple per scan (BEAAA-2182 Track A).
+      Send via :meth:`send_score_envelope`; receive via
+      :meth:`recv_score_envelope`. Sends are routed through
+      :func:`serialize_score_envelope` (on the ``"ok"`` branch) and
+      receives through :func:`validate_inbound_envelope`.
+
+    Callers do not touch either raw queue.
     """
 
     def __init__(self, *, max_queue: int = 256) -> None:
         ctx = _fork_context()
         self._ctx = ctx
         self._queue: mp_queues.Queue = ctx.Queue(maxsize=max_queue)
+        # BEAAA-2182 Track A — return queue. maxsize=1 because exactly
+        # one envelope is shipped per scan (success OR error tuple).
+        self._envelope_queue: mp_queues.Queue = ctx.Queue(maxsize=1)
 
     @property
     def context(self) -> mp_context.BaseContext:
@@ -355,6 +518,10 @@ class WorkerChannel:
     @property
     def queue(self) -> mp_queues.Queue:
         return self._queue
+
+    @property
+    def envelope_queue(self) -> mp_queues.Queue:
+        return self._envelope_queue
 
     def send_row(self, dim_id: str, row: dict[str, Any], *,
                  timeout: float | None = None) -> None:
@@ -379,6 +546,68 @@ class WorkerChannel:
         validator independently testable on synthesized messages.
         """
         return self._queue.get(timeout=timeout)
+
+    def send_score_envelope(
+        self,
+        outcome: tuple,
+        *,
+        timeout: float | None = None,
+    ) -> None:
+        """Scorer side. Validate + enqueue the score-envelope tuple.
+
+        ``outcome`` is exactly one of:
+
+        * ``("ok", envelope_dict)`` — the success path. The envelope
+          dict is validated through :func:`serialize_score_envelope`
+          BEFORE the tuple goes on the wire. A failed validation raises
+          :class:`IPCSchemaError` and the bad dict never reaches the
+          parent.
+        * ``("err", type_name, message)`` — the error path. Mirrors the
+          Prober's outcome tuple shape exactly (Q-A2 ACCEPT on
+          BEAAA-2182 wake comment 9840343c). The parent side raises
+          :class:`OrchestratorError` from this tuple.
+
+        Any other shape raises :class:`IPCSchemaError` BEFORE enqueueing.
+        """
+        if not isinstance(outcome, tuple) or len(outcome) < 2:
+            raise IPCSchemaError(
+                f"score envelope outcome must be ('ok', dict) or "
+                f"('err', type, msg); got {outcome!r}"
+            )
+        tag = outcome[0]
+        if tag == "ok":
+            if len(outcome) != 2 or not isinstance(outcome[1], dict):
+                raise IPCSchemaError(
+                    f"('ok', envelope) requires envelope as dict; got "
+                    f"{outcome!r}"
+                )
+            serialize_score_envelope(outcome[1])
+            self._envelope_queue.put(outcome, timeout=timeout)
+            return
+        if tag == "err":
+            if len(outcome) != 3 or not isinstance(outcome[1], str) or not isinstance(outcome[2], str):
+                raise IPCSchemaError(
+                    f"('err', type, msg) requires two strs; got "
+                    f"{outcome!r}"
+                )
+            self._envelope_queue.put(outcome, timeout=timeout)
+            return
+        raise IPCSchemaError(
+            f"unknown score envelope tag {tag!r}; expected 'ok' | 'err'"
+        )
+
+    def recv_score_envelope(
+        self,
+        *,
+        timeout: float | None = None,
+    ) -> tuple:
+        """Parent side. Pop the score-envelope tuple from the return queue.
+
+        Returns the tuple verbatim — caller is responsible for branching
+        on ``outcome[0] in {'ok', 'err'}`` and invoking
+        :func:`validate_inbound_envelope` on the dict (defense in depth).
+        """
+        return self._envelope_queue.get(timeout=timeout)
 
 
 def run_prober(
@@ -431,6 +660,8 @@ def run_scorer(
     channel: WorkerChannel,
     on_validated_row: Callable[[str, dict[str, Any]], None],
     on_validation_error: Callable[[Any, Exception], None] | None = None,
+    score_runtime: Any = None,
+    score_inputs: dict[str, Any] | None = None,
 ) -> None:
     """Scorer subprocess entrypoint.
 
@@ -445,17 +676,40 @@ def run_scorer(
     forwarded to ``on_validated_row`` — Hard Invariant #3 means the
     scoring engine never sees an unvalidated row.
 
-    The scoring engine itself is invoked by the orchestrator (ADR-0009
-    §5 #2) once all dims have been accumulated, not per-row inside this
-    function. Keeping accumulation in the orchestrator means this
-    module stays narrowly about "process model + validated IPC" and
-    does not creep into scoring-orchestration responsibilities.
+    BEAAA-2182 Track A — when ``score_runtime`` is provided (a
+    :class:`scanners.score_runtime.ScoreRuntime` instance fork-inherited
+    from the API-edge parent), the Scorer ALSO accumulates the
+    validated rows into a ``dim_id → entry`` dict, then on END_OF_SCAN
+    invokes ``score_runtime.compute_envelope(accumulated_rows=...,
+    **score_inputs)`` and ships the resulting §2.2 envelope back to the
+    parent over :meth:`WorkerChannel.send_score_envelope`. Errors from
+    the projection are surfaced as ``("err", type_name, message)``
+    tuples mirroring :func:`api.scan_runtime_factory._prober_target`
+    (Q-A2 ACCEPT on BEAAA-2182 wake comment ``9840343c``).
+
+    When ``score_runtime`` is ``None`` (legacy / flag-off path), the
+    Scorer behaves as it did pre-Track-A: drain + validate + forward,
+    no return-channel emit. Backward-compatible default.
     """
+    # AG-A5 paranoia layer (Q-A3 ACCEPT on BEAAA-2182 wake comment
+    # 9840343c). Runs BEFORE the deny-all egress scope opens so the
+    # AssertionError doesn't get masked. Only fires under ARE_TEST_MODE=1
+    # to avoid prod startup overhead.
+    if os.environ.get("ARE_TEST_MODE") == "1":
+        assert "api.score_runtime" not in sys.modules, (
+            "AG-A5 violation: api.score_runtime imported by parent before "
+            "fork (fork-inherits sys.modules); scoring callee transitively "
+            "reachable from API edge. The Scorer-side module is "
+            "scanners.score_runtime; the api.* path is forbidden by "
+            "scripts/check_no_apiedge_score.py."
+        )
+
+    accumulated: dict[str, dict[str, Any]] = {}
     with ScopedEgressAllowlist([]):
         while True:
             message = channel.recv_row()
             if message == END_OF_SCAN:
-                return
+                break
             try:
                 dim_id, entry = validate_inbound(message)
             except (IntakeError, IPCSchemaError) as exc:
@@ -464,6 +718,36 @@ def run_scorer(
                 on_validation_error(message, exc)
                 continue
             on_validated_row(dim_id, entry)
+            if score_runtime is not None:
+                # Last-write-wins on duplicate dim_id — matches
+                # rubric.scoring.score expectations (one row per dim).
+                accumulated[dim_id] = entry
+
+        # BEAAA-2182 Track A — END_OF_SCAN reached. If a Scorer-side
+        # score_runtime was provided, project the §2.2 envelope and ship
+        # it back over the return channel. Tuple sentinel mirrors Prober.
+        if score_runtime is not None:
+            try:
+                envelope = score_runtime.compute_envelope(
+                    accumulated_rows=accumulated,
+                    **(score_inputs or {}),
+                )
+                channel.send_score_envelope(("ok", envelope))
+            except BaseException as exc:  # noqa: BLE001 — surface every failure
+                # The parent's recv_score_envelope drain will see this
+                # tuple and raise OrchestratorError. The Prober end-path
+                # (which already pushed END_OF_SCAN on its error route)
+                # means the row queue drain has already returned.
+                try:
+                    channel.send_score_envelope(
+                        ("err", type(exc).__name__, str(exc))
+                    )
+                except Exception:  # noqa: BLE001
+                    # If even the err tuple can't be enqueued (e.g.
+                    # queue closed), there's nothing more the Scorer
+                    # can do — the parent's drain timeout is the
+                    # backstop.
+                    pass
 
 
 def spawn_prober(
@@ -498,6 +782,8 @@ def spawn_scorer(
     channel: WorkerChannel,
     on_validated_row: Callable[[str, dict[str, Any]], None],
     on_validation_error: Callable[[Any, Exception], None] | None = None,
+    score_runtime: Any = None,
+    score_inputs: dict[str, Any] | None = None,
     name: str = "are-scorer",
 ) -> mp_context.SpawnProcess:
     """Fork the Scorer subprocess and return the handle.
@@ -506,6 +792,13 @@ def spawn_scorer(
     (``ScopedEgressAllowlist([])``), not at spawn time, so the deny-all
     scope is in effect for the full window in which the Scorer touches
     user-supplied data.
+
+    BEAAA-2182 Track A — when ``score_runtime`` is provided, the kwargs
+    flow into :func:`run_scorer` so the Scorer subprocess can project
+    the §2.2 envelope on END_OF_SCAN and ship it back to the parent.
+    The ``score_runtime`` instance is fork-inherited (loaded once on
+    the parent side via :meth:`scanners.score_runtime.ScoreRuntime.from_rubric_path`
+    BEFORE spawn — Q-A1 ACCEPT).
     """
     ctx = channel.context
     proc = ctx.Process(
@@ -514,6 +807,8 @@ def spawn_scorer(
             "channel": channel,
             "on_validated_row": on_validated_row,
             "on_validation_error": on_validation_error,
+            "score_runtime": score_runtime,
+            "score_inputs": score_inputs,
         },
         name=name,
     )
@@ -523,17 +818,21 @@ def spawn_scorer(
 
 __all__ = [
     "ALLOWED_ROW_FIELDS",
+    "ALLOWED_SCORE_ENVELOPE_FIELDS",
     "END_OF_SCAN",
     "EgressNotAllowed",
     "IPCSchemaError",
     "IntakeError",
+    "MAX_IPC_ENVELOPE_BYTES",
     "MAX_IPC_ROW_BYTES",
     "ScopedEgressAllowlist",
     "WorkerChannel",
     "run_prober",
     "run_scorer",
     "serialize_measurement_row",
+    "serialize_score_envelope",
     "spawn_prober",
     "spawn_scorer",
     "validate_inbound",
+    "validate_inbound_envelope",
 ]
