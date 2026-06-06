@@ -172,7 +172,7 @@ ADR will land same-heartbeat as the customer-scan-merge commit at `docs/adrs/adr
 - [x] **Discrimination**: F1 spans `scotus_canon` (judge-strong, full-index) through `treatise` (judge-weak, sparse-index) so the dim distribution does not collapse to the middle. Discrimination metric tracked per release per cto-os.md ESL #4.
 - [x] **No pillar-weight change**; no Founder gate triggered.
 - [x] **No contract shape change**; `are-scanner-api-v1.md` v1.0 evidence_refs schema unchanged (additive fields only: `citation_index_version`, `citation_index_sha256`, per-citation fabrication/plausibility flags).
-- [x] **Glossary**: ARE / IFA only (no BMI / BEAI in body copy; legacy `bmi-scanner/` directory name retained because the repo path rename is a separate ticket).
+- [x] **Glossary**: ARE / IFA only (no BMI / BEAI in body copy; repo directory `are-scanner/` per BEAAA-510 rename, ADR-0008).
 - [x] **Carrier Rule**: no carrier-channel decisions in this packet. Carriers remain partners; this packet does not touch carrier-facing artifacts.
 
 ---

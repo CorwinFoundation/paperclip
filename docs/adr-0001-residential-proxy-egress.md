@@ -45,6 +45,6 @@ The adapter is infra, not scoring math. Calibration delta on the golden set must
 5. Contract change: no. `contracts/are-scanner-api-v1.md` unchanged. ✓
 6. Rollback plan: env-var unset, two lines of CI doc. ✓
 7. Judge models pinned: N/A — no LLM judges added. ✓
-8. Glossary check: ARE not BMI; IFA not BEAI. The repo name `bmi-scanner` is the legacy directory name and not customer-facing. ✓
+8. Glossary check: ARE not BMI; IFA not BEAI. Repo directory `are-scanner/` per BEAAA-510 rename (ADR-0008). ✓
 9. Carrier Rule: N/A. Internal infra. ✓
 10. CEO / UW pre-empt: addressed — POC keeps/discards based on AC #4 report; recurring spend is a separate ask if approved. ✓

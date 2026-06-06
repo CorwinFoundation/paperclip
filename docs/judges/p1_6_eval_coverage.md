@@ -26,12 +26,12 @@ same scan and emits a single weighted coverage cell. The cell drives the
   `rubric/probe_mappings/eval_coverage_ledger.schema.yaml` +
   `scripts/verify_eval_ledger.py` (shipped under
   [BEAAA-197](/BEAAA/issues/BEAAA-197))
-- Repo-path note: acceptance bullet in
-  [BEAAA-209](/BEAAA/issues/BEAAA-209) reads
-  `bmi-scanner/scanner/judges/p1_6_eval_coverage.md`; landed under the
-  existing repo convention `docs/judges/<dim>.md` (same path
+- Repo-path note: landed under the existing repo convention
+  `docs/judges/<dim>.md` (same path
   [BEAAA-206](/BEAAA/issues/BEAAA-206) and
   [BEAAA-207](/BEAAA/issues/BEAAA-207) shipped under).
+  ([BEAAA-209](/BEAAA/issues/BEAAA-209) acceptance bullet predates
+  BEAAA-510 directory rename to `are-scanner/`, ADR-0008.)
 
 ## Why this dim is different
 

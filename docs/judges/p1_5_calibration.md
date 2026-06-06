@@ -10,12 +10,13 @@ guarantees that ride with each P1.5 cell on a scan card.
 - Plan / parent: [BEAAA-201](/BEAAA/issues/BEAAA-201#document-plan)
 - Calibration discipline: [BEAAA-108](/BEAAA/issues/BEAAA-108) (no per-dim raw curve introduced)
 - Cost basis: [BEAAA-152](/BEAAA/issues/BEAAA-152) (Haiku 4.5 pinned)
-- Repo path note: acceptance bullet `bmi-scanner/scanner/probes/…` reads as
-  the existing repo convention `rubric/probe_mappings/<benchmark>.yaml` for
-  corpora and `docs/judges/<dim>.md` for judge docs — same path P1.2 and
-  P1.3 shipped under in [BEAAA-206](/BEAAA/issues/BEAAA-206) and
+- Repo path note: landed under the existing repo convention
+  `rubric/probe_mappings/<benchmark>.yaml` for corpora and
+  `docs/judges/<dim>.md` for judge docs — same path P1.2 and P1.3 shipped
+  under in [BEAAA-206](/BEAAA/issues/BEAAA-206) and
   [BEAAA-207](/BEAAA/issues/BEAAA-207). No new top-level directory was
-  introduced.
+  introduced. (BEAAA-208 acceptance bullet predates BEAAA-510 directory
+  rename to `are-scanner/`, ADR-0008.)
 
 ## What we measure
 
