@@ -37,18 +37,29 @@ def _read_first_version(path: Path) -> str:
 class PiiActivationVersionPinTests(unittest.TestCase):
     """Pin the rubric + applicability + SCANNER_VERSION trio."""
 
-    def test_rubric_at_1_1_0(self):
-        self.assertEqual(_read_first_version(RUBRIC), "1.1.0")
+    def test_rubric_at_1_2_0(self):
+        # BEAAA-3161 / ADR-0027 MINOR additive — adds calibration_curve
+        # metadata field per dim entry, bound to named-curve registry in
+        # rubric/calibration_curves.yaml. No score motion on the golden
+        # roster (byte-identical raws); MINOR additive per supervision
+        # contract row "Change scoring math".
+        self.assertEqual(_read_first_version(RUBRIC), "1.2.0")
 
     def test_applicability_at_0_1_2(self):
         self.assertEqual(_read_first_version(APPLICABILITY), "0.1.2")
 
-    def test_scanner_version_at_0_4_0(self):
-        self.assertEqual(SCANNER_VERSION, "0.4.0")
+    def test_scanner_version_at_0_4_1(self):
+        # BEAAA-3161 / ADR-0027 patch bump on top of 0.4.0 (BEAAA-781 PII
+        # activation). No contract envelope change (ScoreResponse shape
+        # unchanged); scoring math is internal. AC#9 of BEAAA-3161 calls
+        # for v0.3.9 → v0.3.10; applied semantically as v0.4.0 → v0.4.1
+        # because master advanced past 0.3.x via BEAAA-781.
+        self.assertEqual(SCANNER_VERSION, "0.4.1")
 
-    def test_applicability_anchors_rubric_1_1_0(self):
+    def test_applicability_anchors_rubric_1_2_0(self):
+        # BEAAA-3161 / ADR-0027 — applies_to_rubric tracks rubric.yaml MINOR.
         text = APPLICABILITY.read_text(encoding="utf-8")
-        self.assertIn('applies_to_rubric: "1.1.0"', text)
+        self.assertIn('applies_to_rubric: "1.2.0"', text)
 
     def test_active_dim_count_is_25(self):
         text = RUBRIC.read_text(encoding="utf-8")

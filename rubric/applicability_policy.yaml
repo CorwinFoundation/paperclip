@@ -45,8 +45,12 @@ version: "0.1.2"
 # ea35a75e + BEAAA-2067 + _default/BEAAA-2067_houw_cosign_v0.1.md), Founder
 # authority (BEAAA-2048 Q46=A via BEAAA-2064; CEO cmt 3a432710 on BEAAA-1858).
 # applies_to_rubric bumped 1.0.1 → 1.1.0 to track the rubric.yaml MINOR.
-status: "adopted (Option C) — UW + CEO co-signed; gating issue BEAAA-225 closed 2026-05-17; TOOL_MISUSE rows added under BEAAA-1682 CTO + HoUW co-sign; PII rows added under BEAAA-781 CTO + UW operational + HoUW activation co-sign (rubric.yaml v1.1.0)"
-applies_to_rubric: "1.1.0"
+# BEAAA-3161 / ADR-0027: bumped 1.1.0 → 1.2.0 to track the rubric.yaml
+# MINOR additive that adds per-dim calibration_curve metadata. No
+# applicability semantics change (no new architecture flag, no new dim
+# applicability rule); the bump is purely the tracking-invariant.
+status: "adopted (Option C) — UW + CEO co-signed; gating issue BEAAA-225 closed 2026-05-17; TOOL_MISUSE rows added under BEAAA-1682 CTO + HoUW co-sign; PII rows added under BEAAA-781 CTO + UW operational + HoUW activation co-sign (rubric.yaml v1.1.0); calibration-curve registry bound at BEAAA-3161 / ADR-0027 (rubric.yaml v1.2.0)"
+applies_to_rubric: "1.2.0"
 
 # Vocabulary of architecture-feature flags. Scan adapters populate ALL of
 # these as booleans before invoking the scoring engine. Any flag left

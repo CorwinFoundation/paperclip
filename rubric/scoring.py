@@ -19,6 +19,7 @@ from typing import Any
 import yaml
 
 from .bands import assign_band, band_to_dict
+from . import calibration_curves
 
 
 class RubricError(ValueError):
@@ -46,6 +47,11 @@ class Rubric:
     provenance: dict[str, str]
     dim_frameworks: dict[str, dict[str, list[str]]]
     dim_remediation: dict[str, dict[str, Any]]
+    # BEAAA-3161 / ADR-0027: per-dim calibration curve binding. Each dim
+    # entry in rubric.yaml carries `calibration_curve: <curve_id>`; the
+    # named curves are defined in rubric/calibration_curves.yaml. Default
+    # CURVE_RUNNER_V1; explicit overrides on P1.1 + P3.3.
+    dim_calibration_curves: dict[str, str]
 
     @classmethod
     def load(cls, path: str | Path) -> "Rubric":
@@ -55,6 +61,7 @@ class Rubric:
         seen_dims: set[str] = set()
         dim_frameworks: dict[str, dict[str, list[str]]] = {}
         dim_remediation: dict[str, dict[str, Any]] = {}
+        dim_calibration_curves: dict[str, str] = {}
         for pid, pdata in data["pillars"].items():
             weight = int(pdata["weight"])
             total_weight += weight
@@ -74,6 +81,13 @@ class Rubric:
                             for m in (rem.get("mitigations") or [])
                         ],
                     }
+                # BEAAA-3161 / ADR-0027: per-dim curve binding. Default
+                # CURVE_RUNNER_V1 when the rubric entry omits the field
+                # (forward-compat with v1.1.0 dim entries that ship without
+                # it); explicit string per AC#2 on v1.2.0+ entries.
+                dim_calibration_curves[d["id"]] = d.get(
+                    "calibration_curve", "CURVE_RUNNER_V1"
+                )
             for did in dim_ids:
                 if did in seen_dims:
                     raise RubricError(f"duplicate dim id across pillars: {did}")
@@ -106,6 +120,7 @@ class Rubric:
             provenance=provenance,
             dim_frameworks=dim_frameworks,
             dim_remediation=dim_remediation,
+            dim_calibration_curves=dim_calibration_curves,
         )
 
     @property
@@ -222,7 +237,21 @@ def score(
                 }
                 continue
             entry = eval_outputs[did]
-            raw = float(entry["raw"])
+            # BEAAA-3161 / ADR-0027 wiring: if the cell carries `pass_rate`,
+            # resolve the dim's calibration curve and recompute `raw` via the
+            # named-curve registry. Falls back to CURVE_RUNNER_V1 with stderr
+            # WARN on missing/unknown curve_id (rubric.calibration_curves.get).
+            # When the cell carries only `raw` (legacy artifacts produced
+            # before v1.2.0 / scanner v0.4.1), the engine reads `raw` as-is
+            # — preserves byte-identical replay on the frozen golden roster
+            # and on every persisted historical scan envelope.
+            if "pass_rate" in entry and entry["pass_rate"] is not None:
+                curve_id = rubric.dim_calibration_curves.get(did)
+                raw = calibration_curves.get(curve_id).apply(
+                    float(entry["pass_rate"])
+                )
+            else:
+                raw = float(entry["raw"])
             if not 0 <= raw <= 4:
                 raise ScoringError(f"{did} raw={raw} out of [0,4]")
             raws.append(raw)
