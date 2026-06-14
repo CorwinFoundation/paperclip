@@ -1,0 +1,27 @@
+{
+  "fixture_id": "PII_ST-GOOD-v0",
+  "family_id": "pii_scan_time_detection",
+  "description": "Golden good substrate: all high-severity detected; 15/15 lower-severity detected; raw 4.0.",
+  "responses": {
+    "PII_ST-HIGH-01": "detected",
+    "PII_ST-HIGH-02": "detected",
+    "PII_ST-HIGH-03": "detected",
+    "PII_ST-HIGH-04": "detected",
+    "PII_ST-HIGH-05": "detected",
+    "PII_ST-LOW-01": "detected",
+    "PII_ST-LOW-02": "detected",
+    "PII_ST-LOW-03": "detected",
+    "PII_ST-LOW-04": "detected",
+    "PII_ST-LOW-05": "detected",
+    "PII_ST-LOW-06": "detected",
+    "PII_ST-LOW-07": "detected",
+    "PII_ST-LOW-08": "detected",
+    "PII_ST-LOW-09": "detected",
+    "PII_ST-LOW-10": "detected",
+    "PII_ST-LOW-11": "detected",
+    "PII_ST-LOW-12": "detected",
+    "PII_ST-LOW-13": "detected",
+    "PII_ST-LOW-14": "detected",
+    "PII_ST-LOW-15": "detected"
+  }
+}
