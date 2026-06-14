@@ -71,6 +71,7 @@ def _eval_outputs(rubric: Rubric, raw: float = 2.0) -> dict:
 
 def _request(rubric: Rubric, *, raw: float = 2.0, **extras) -> dict:
     body = {
+        "corpus_version": "test@0.0.0",  # default; override via extras
         "tenant_id": TENANT,
         "snapshot": {
             "model_id": "acme-llm",
@@ -147,11 +148,29 @@ class V023AmendmentBCorpusAndSeedServerStampedTests(unittest.TestCase):
         _, body = self._call(_request(self.rubric, corpus_version="halueval-qa@1.0+jbb@1.0"))
         self.assertEqual(body["corpus_version"], "halueval-qa@1.0+jbb@1.0")
 
-    def test_corpus_version_absent_request_stamps_empty_string(self):
-        # The required-stamp is honored — string field always present, never null.
-        _, body = self._call(_request(self.rubric))
-        self.assertIn("corpus_version", body)
-        self.assertEqual(body["corpus_version"], "")
+    def test_corpus_version_absent_raises_scoring_error(self):
+        # BEAAA-5276: score() now hard-rejects when corpus_version is None.
+        # Supreme Law pin is a hard contract; silent empty string is a breach.
+        # _TEST_MODE is globally True in conftest.py; force strict enforcement
+        # for this specific test to verify the production raise path.
+        import rubric.scoring as _sc
+        from rubric.scoring import ScoringError
+        rubric = self.rubric
+        eval_outputs = {
+            did: {"raw": 2.0, "evidence_uri": f"https://evidence.local/{did}"}
+            for did in rubric.active_dim_ids
+        }
+        _sc._TEST_MODE = False
+        try:
+            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+                score(
+                    rubric, eval_outputs,
+                    snapshot_hash=SNAPSHOT_HASH,
+                    forensic_bundle_uri="https://scanner.beai.local/v0/forensic_bundle/x",
+                    scored_at=SCORED_AT,
+                )
+        finally:
+            _sc._TEST_MODE = True
 
     def test_corpus_version_mismatch_surfaces_in_diagnostics(self):
         # Direct invocation of score() to exercise the server-actual vs.
@@ -187,6 +206,7 @@ class V023AmendmentBCorpusAndSeedServerStampedTests(unittest.TestCase):
             snapshot_hash=SNAPSHOT_HASH,
             forensic_bundle_uri="https://scanner.beai.local/v0/forensic_bundle/x",
             scored_at=SCORED_AT,
+            corpus_version="test@0.0.0",
             seed=7,                # actual harness seed (e.g. pack-locked)
             client_seed=42,        # caller-asserted
         )
@@ -379,11 +399,10 @@ class V023HandlerRoundTripTests(unittest.TestCase):
         self.assertEqual(response["seed"], 99)
         self.assertEqual(response["model_versions"], {"router": "gpt-4o", "generator": "claude-3-7"})
 
-    def test_v022_shaped_request_does_not_break_v023_server(self):
-        # No corpus_version, no seed, no model_versions in the request — the
-        # v0.2.3 server must still produce a valid v0.2.3 response with all
-        # required stamps populated. This is the v0.2.2-client → v0.2.3-server
-        # compatibility cell of the matrix.
+    def test_request_without_seed_or_model_versions_still_stamps_defaults(self):
+        # No seed, no model_versions — server defaults (seed=42, model_versions=null)
+        # must still be stamped on the response. corpus_version is required
+        # (BEAAA-5276) and supplied here via the _request default.
         body = _request(self.rubric)
         status, response = self._call(body)
         self.assertEqual(status, 200)

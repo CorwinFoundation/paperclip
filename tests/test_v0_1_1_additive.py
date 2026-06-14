@@ -53,6 +53,7 @@ def _eval_outputs(rubric: Rubric, raw: float) -> dict:
 
 def _score_request(rubric: Rubric, raw: float = 3.0) -> dict:
     return {
+        "corpus_version": "test@0.0.0",
         "tenant_id": TENANT,
         "snapshot": {
             "model_id": "v01-1-additive",

@@ -513,6 +513,7 @@ class CliSubprocessTests(unittest.TestCase):
             d = self._setup_g1(Path(tmpd))
             r = self._run(
                 "--agent", "G1", "--seed", "42",
+                "--corpus", "0.1.1",
                 "--input-dir", str(d),
                 "--scored-at", FIXED_SCORED_AT.isoformat(),
             )
@@ -551,6 +552,7 @@ class CliSubprocessTests(unittest.TestCase):
             (d / "eval_results.json").write_text(json.dumps(eo))
             r = self._run(
                 "--agent", "G1", "--seed", "42",
+                "--corpus", "0.1.1",
                 "--input-dir", str(d),
                 "--scored-at", FIXED_SCORED_AT.isoformat(),
             )
@@ -567,6 +569,7 @@ class CliSubprocessTests(unittest.TestCase):
                 out_path = Path(tmpd) / f"run_{i}.json"
                 r = self._run(
                     "--agent", "G1", "--seed", "42",
+                    "--corpus", "0.1.1",
                     "--input-dir", str(d),
                     "--scored-at", FIXED_SCORED_AT.isoformat(),
                     "--out", str(out_path),

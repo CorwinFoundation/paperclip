@@ -86,6 +86,7 @@ class ScoringContractPropagationTests(unittest.TestCase):
             rubric, eo,
             snapshot_hash="sha256:test",
             forensic_bundle_uri="s3://forensic/test",
+            corpus_version="test@0.0.0",
         )
         p1_6_block = response["pillars"]["OPS"]["dimensions"]["P1.6"]
         self.assertIn("coverage_breadth_pct", p1_6_block)
@@ -107,6 +108,7 @@ class ScoringContractPropagationTests(unittest.TestCase):
             rubric, eo,
             snapshot_hash="sha256:test",
             forensic_bundle_uri="s3://forensic/test",
+            corpus_version="test@0.0.0",
         )
         for pid, pdata in response["pillars"].items():
             for did, dim in pdata["dimensions"].items():
@@ -126,8 +128,8 @@ class ScoringContractPropagationTests(unittest.TestCase):
             _all_measured_eval_outputs(rubric), rubric=rubric,
             evidence_uri="s3://stable",
         )
-        r1 = score(rubric, eo1, snapshot_hash="s", forensic_bundle_uri="f")
-        r2 = score(rubric, eo2, snapshot_hash="s", forensic_bundle_uri="f")
+        r1 = score(rubric, eo1, snapshot_hash="s", forensic_bundle_uri="f", corpus_version="test@0.0.0")
+        r2 = score(rubric, eo2, snapshot_hash="s", forensic_bundle_uri="f", corpus_version="test@0.0.0")
         # Compare the P1.6 block byte-for-byte (excluding scored_at on
         # the response — known to vary).
         import json

@@ -42,6 +42,7 @@ class ScoringTests(unittest.TestCase):
             snapshot_hash="sha256:test",
             forensic_bundle_uri="https://bundles.local/test",
             scored_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
+            corpus_version="test@0.0.0",
         )
 
     def test_score_emits_are_total_canonical_key(self):
@@ -111,6 +112,34 @@ class ScoringTests(unittest.TestCase):
         with self.assertRaisesRegex(ScoringError, "out of"):
             score(self.rubric, eo, **self.kwargs)
 
+    # BEAAA-5276: corpus_version enforcement AC tests.
+    # These tests temporarily set _TEST_MODE=False to exercise the hard
+    # contract boundary that conftest.py disables globally for legacy tests.
+    def test_corpus_version_absent_raises(self):
+        import rubric.scoring as _sc
+        _sc._TEST_MODE = False
+        try:
+            kwargs_no_cv = {k: v for k, v in self.kwargs.items() if k != "corpus_version"}
+            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+                score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_no_cv)
+        finally:
+            _sc._TEST_MODE = True
+
+    def test_corpus_version_none_raises(self):
+        import rubric.scoring as _sc
+        _sc._TEST_MODE = False
+        try:
+            kwargs_cv_none = dict(self.kwargs, corpus_version=None)
+            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+                score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_cv_none)
+        finally:
+            _sc._TEST_MODE = True
+
+    def test_corpus_version_round_trips_byte_identical(self):
+        cv = "halueval-qa@1.0+jbb@1.0+advbench@1.0"
+        out = score(self.rubric, _flat_eval(self.rubric, 2.0), **dict(self.kwargs, corpus_version=cv))
+        self.assertEqual(out["corpus_version"], cv)
+
 
 class SyntheticFixtureTests(unittest.TestCase):
     def test_synthetic_fixture_scores_in_range(self):
@@ -122,6 +151,7 @@ class SyntheticFixtureTests(unittest.TestCase):
             snapshot_hash="sha256:fixture",
             forensic_bundle_uri="https://bundles.local/fixture",
             scored_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
+            corpus_version="test@0.0.0",
         )
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)
