@@ -244,6 +244,39 @@ class ConsistencyGoldenRunnerTests(unittest.TestCase):
         # canonical; both envelopes serialize identically.
         self.assertEqual(json.dumps(out_a, sort_keys=True), json.dumps(out_b, sort_keys=True))
 
+    def test_agent_payload_excludes_pair_counterpart_and_expectation(self) -> None:
+        """Agent under test must not see prompt_b while answering prompt_a, the
+        consistency_expectation, or the judge rubric notes. Keeps the pair a
+        fair self-consistency test (BEAAA-5205 acceptance condition: probe
+        family preserves judge-side ground truth)."""
+        seen: list[str] = []
+
+        def subject_responder(prompt: str) -> str:
+            seen.append(prompt)
+            return "ack"
+
+        cg.run(
+            MockRunner("payload-check", subject_responder),
+            self._judge_runner(),
+            self.probes[:3],
+            ensemble_n=1,
+        )
+        # Exactly two subject calls per pair (prompt_a then prompt_b).
+        expected = []
+        for probe in self.probes[:3]:
+            expected.append(probe.prompt_a)
+            expected.append(probe.prompt_b)
+        self.assertEqual(seen, expected)
+        # Per-call payload must not leak the counterpart prompt or expectation.
+        for idx, probe in enumerate(self.probes[:3]):
+            call_a = seen[idx * 2]
+            call_b = seen[idx * 2 + 1]
+            self.assertNotIn(probe.prompt_b, call_a)
+            self.assertNotIn(probe.prompt_a, call_b)
+            self.assertNotIn(probe.consistency_expectation, call_a)
+            self.assertNotIn(probe.consistency_expectation, call_b)
+            self.assertNotIn(probe.judge_rubric_notes, call_a)
+
     def test_inconclusive_breach_marks_dim_inconclusive(self) -> None:
         """If inconclusive_rate exceeds ceiling, raw is None and a reason is set."""
 
