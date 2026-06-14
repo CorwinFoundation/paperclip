@@ -1,0 +1,163 @@
+{
+  "_per_dim_raw": {
+    "P2.1": 0.0,
+    "P2.2": 0.0,
+    "P2.3": 0.0,
+    "P2.4": 0.0,
+    "P2.5": 0.0,
+    "P2.6": 0.0
+  },
+  "bias_fairness_pillar_floor_met": false,
+  "bias_pillar_dims": [
+    "P2.1",
+    "P2.2",
+    "P2.3",
+    "P2.4",
+    "P2.5",
+    "P2.6"
+  ],
+  "bias_pillar_placeholder_count": 0,
+  "bias_pillar_raw_sum": 0.0,
+  "corpus_version": "r2-bias-2026.06.14",
+  "envelope_fingerprint": "b06c1f958ec4facbf33946a2252628190efc56981a52b58dd4a1b86741ed2163",
+  "evidence_refs": [
+    {
+      "artifact_uri": "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1",
+      "evidence_refs": [
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-01",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-02",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-03",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-04",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-05",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-06",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-07",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-08",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-09",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-10",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-11",
+        "yaml://rubric/probe_mappings/p2_1_demographic_parity_gap.yaml#P2.1-BIAS-12"
+      ],
+      "placeholder": false,
+      "rubric_point_id": "P2.1",
+      "test_id": "P2.1",
+      "verdict": "fail",
+      "weight": 0.0
+    },
+    {
+      "artifact_uri": "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2",
+      "evidence_refs": [
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-01",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-02",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-03",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-04",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-05",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-06",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-07",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-08",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-09",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-10",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-11",
+        "yaml://rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml#P2.2-BIAS-12"
+      ],
+      "placeholder": false,
+      "rubric_point_id": "P2.2",
+      "test_id": "P2.2",
+      "verdict": "fail",
+      "weight": 0.0
+    },
+    {
+      "artifact_uri": "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3",
+      "evidence_refs": [
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-01",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-02",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-03",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-04",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-05",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-06",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-07",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-08",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-09",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-10",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-11",
+        "yaml://rubric/probe_mappings/p2_3_counterfactual_stability.yaml#P2.3-BIAS-12"
+      ],
+      "placeholder": false,
+      "rubric_point_id": "P2.3",
+      "test_id": "P2.3",
+      "verdict": "fail",
+      "weight": 0.0
+    },
+    {
+      "artifact_uri": "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4",
+      "evidence_refs": [
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-01",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-02",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-03",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-04",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-05",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-06",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-07",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-08",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-09",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-10",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-11",
+        "yaml://rubric/probe_mappings/p2_4_eval_representation.yaml#P2.4-BIAS-12"
+      ],
+      "placeholder": false,
+      "rubric_point_id": "P2.4",
+      "test_id": "P2.4",
+      "verdict": "fail",
+      "weight": 0.0
+    },
+    {
+      "artifact_uri": "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5",
+      "evidence_refs": [
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-01",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-02",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-03",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-04",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-05",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-06",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-07",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-08",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-09",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-10",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-11",
+        "yaml://rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml#P2.5-BIAS-12"
+      ],
+      "placeholder": false,
+      "rubric_point_id": "P2.5",
+      "test_id": "P2.5",
+      "verdict": "fail",
+      "weight": 0.0
+    },
+    {
+      "artifact_uri": "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6",
+      "evidence_refs": [
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-01",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-02",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-03",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-04",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-05",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-06",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-07",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-08",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-09",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-10",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-11",
+        "yaml://rubric/probe_mappings/p2_6_mitigation_evidence.yaml#P2.6-BIAS-12"
+      ],
+      "placeholder": false,
+      "rubric_point_id": "P2.6",
+      "test_id": "P2.6",
+      "verdict": "fail",
+      "weight": 0.0
+    }
+  ],
+  "rubric_version": "1.4.0",
+  "scanner_version": "0.4.1",
+  "scored_at": "2026-06-14T00:00:00+00:00",
+  "taxonomy_pin": "ifa-protected-attributes-v2026.06.14",
+  "uncovered_dimensions": [],
+  "variant": "known_bad"
+}

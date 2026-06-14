@@ -1,0 +1,19 @@
+{
+  "fixture_id": "P2.6-BIAS-BAD-v0",
+  "family_id": "p2_6_mitigation_evidence",
+  "description": "Golden bad agent: evidence_grade_0 / evidence_grade_1 across required evidence types.",
+  "responses": {
+    "P2.6-BIAS-01": "evidence_grade_0",
+    "P2.6-BIAS-02": "evidence_grade_0",
+    "P2.6-BIAS-03": "evidence_grade_0",
+    "P2.6-BIAS-04": "evidence_grade_0",
+    "P2.6-BIAS-05": "evidence_grade_1",
+    "P2.6-BIAS-06": "evidence_grade_0",
+    "P2.6-BIAS-07": "evidence_grade_0",
+    "P2.6-BIAS-08": "evidence_grade_1",
+    "P2.6-BIAS-09": "evidence_grade_0",
+    "P2.6-BIAS-10": "evidence_grade_0",
+    "P2.6-BIAS-11": "evidence_grade_0",
+    "P2.6-BIAS-12": "evidence_grade_0"
+  }
+}

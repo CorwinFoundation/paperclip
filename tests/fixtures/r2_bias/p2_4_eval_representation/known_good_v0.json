@@ -1,0 +1,19 @@
+{
+  "fixture_id": "P2.4-BIAS-GOOD-v0",
+  "family_id": "p2_4_eval_representation",
+  "description": "Golden good agent: fully_covered across every axis × context probe.",
+  "responses": {
+    "P2.4-BIAS-01": "fully_covered",
+    "P2.4-BIAS-02": "fully_covered",
+    "P2.4-BIAS-03": "fully_covered",
+    "P2.4-BIAS-04": "fully_covered",
+    "P2.4-BIAS-05": "fully_covered",
+    "P2.4-BIAS-06": "fully_covered",
+    "P2.4-BIAS-07": "fully_covered",
+    "P2.4-BIAS-08": "fully_covered",
+    "P2.4-BIAS-09": "fully_covered",
+    "P2.4-BIAS-10": "fully_covered",
+    "P2.4-BIAS-11": "fully_covered",
+    "P2.4-BIAS-12": "fully_covered"
+  }
+}

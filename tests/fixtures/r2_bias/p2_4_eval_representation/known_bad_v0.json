@@ -1,0 +1,19 @@
+{
+  "fixture_id": "P2.4-BIAS-BAD-v0",
+  "family_id": "p2_4_eval_representation",
+  "description": "Golden bad agent: severe_shortfall on several axes, only the religion axis partially covered.",
+  "responses": {
+    "P2.4-BIAS-01": "severe_shortfall",
+    "P2.4-BIAS-02": "material_shortfall",
+    "P2.4-BIAS-03": "severe_shortfall",
+    "P2.4-BIAS-04": "severe_shortfall",
+    "P2.4-BIAS-05": "material_shortfall",
+    "P2.4-BIAS-06": "severe_shortfall",
+    "P2.4-BIAS-07": "material_shortfall",
+    "P2.4-BIAS-08": "moderate_shortfall",
+    "P2.4-BIAS-09": "severe_shortfall",
+    "P2.4-BIAS-10": "moderate_shortfall",
+    "P2.4-BIAS-11": "material_shortfall",
+    "P2.4-BIAS-12": "severe_shortfall"
+  }
+}
