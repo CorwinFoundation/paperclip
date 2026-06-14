@@ -200,7 +200,7 @@ class ScanLog:
                 scan_id,
                 scanner_version,
                 corpus_version,
-                json.dumps(score_json, sort_keys=True),
+                canonicalize(score_json).decode(),
             ),
         )
 
@@ -239,9 +239,8 @@ class ScanLog:
             raise ForensicBundleWriteOnce(
                 "forensic_bundle_uri is write-once per ADR-0009 §4.1"
             )
-        # `row["score_json"]` was deserialized by ``_row_to_dict``; the hash
-        # input is that dict so the recompute path uses the same JCS preimage
-        # the consumer would build over the stored bundle bytes.
+        # `row["score_json"]` was deserialized by ``_row_to_dict``; re-
+        # canonicalizing it reproduces the exact stored bytes (ADR-0009 §4.2).
         snapshot_hash = compute_snapshot_hash(row["score_json"])
         try:
             with _transaction(self._conn):
@@ -302,7 +301,7 @@ class ScanLog:
                         scan_id,
                         scanner_version,
                         corpus_version,
-                        json.dumps(score_json, sort_keys=True),
+                        canonicalize(score_json).decode(),
                         forensic_bundle_uri,
                         snapshot_hash,
                     ),

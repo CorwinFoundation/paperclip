@@ -173,6 +173,37 @@ class ScanLogPersistenceTests(unittest.TestCase):
         recomputed = compute_snapshot_hash(row["score_json"])
         self.assertEqual(recomputed, h)
 
+    def test_stored_bytes_are_jcs_preimage_beaaa5282(self):
+        # ADR-0009 §4.2 (BEAAA-5282): stored score_json TEXT must be
+        # byte-identical to the JCS canonical form so that an external
+        # auditor computing sha256(raw_db_bytes) reproduces snapshot_hash
+        # without a round-trip deserialize.
+        import hashlib
+        import sqlite3 as _sqlite3
+        h = self.log.append_scan(
+            agent_id="a-repro",
+            run_timestamp="2026-05-30T12:00:00Z",
+            scan_id="s-repro",
+            scanner_version="0.3.6",
+            corpus_version="1.2.0",
+            score_json=SCORE_ENVELOPE,
+            forensic_bundle_uri="https://b/repro",
+        )
+        # Read the raw TEXT column value directly — bypass _row_to_dict.
+        cur = self.log._conn.execute(
+            "SELECT score_json, snapshot_hash FROM scan_log "
+            "WHERE agent_id = ? AND run_timestamp = ?",
+            ("a-repro", "2026-05-30T12:00:00Z"),
+        )
+        raw_score_json, stored_hash = cur.fetchone()
+        # Stored bytes must be JCS canonical.
+        self.assertEqual(raw_score_json.encode("utf-8"), canonicalize(SCORE_ENVELOPE))
+        # sha256(stored_bytes) must equal snapshot_hash — the auditor path.
+        recomputed = "sha256:" + hashlib.sha256(
+            raw_score_json.encode("utf-8")
+        ).hexdigest()
+        self.assertEqual(recomputed, stored_hash)
+
     def test_write_once_forensic_bundle_uri_via_finalize_pins(self):
         self.log.insert_pending(
             agent_id="a-3",
