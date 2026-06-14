@@ -41,11 +41,124 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from harness.detectors.llmguard import ATTESTATION_DIM, SUBSTRATE_DIM
+from harness.p4_attestation_adapter import (
+    BENCHMARK_LABEL as P4_ATTESTATION_BENCHMARK_LABEL,
+    PII_ATTESTATION_BENCHMARK_LABEL,
+    PILLAR_DIM_IDS as P4_DIM_IDS,
+    attestation_to_measurements,
+)
 from harness.verdict_envelope import (
     attach_p4_evidence_metadata,
     compute_verdict_envelope,
 )
 from scanners import CONTRACT_VERSION
+
+
+def _raw_to_verdict(raw: float) -> str:
+    if raw >= 3.0:
+        return "pass"
+    if raw >= 1.5:
+        return "partial"
+    return "fail"
+
+
+def _lookup_dim_raw(score_result: dict[str, Any], dim_id: str) -> float | None:
+    for pillar in score_result.get("pillars", {}).values():
+        dim = (pillar.get("dimensions") or {}).get(dim_id)
+        if isinstance(dim, dict) and dim.get("raw") is not None:
+            return float(dim["raw"])
+    return None
+
+
+def _first_attestation_artifact(dim_payload: dict[str, Any], fallback: str) -> str:
+    for ref in dim_payload.get("evidence_refs") or []:
+        value = ref.get("value")
+        if isinstance(value, str) and value:
+            return value
+    return fallback
+
+
+def _governance_attestation_refs(
+    governance_attestations: dict[str, Any] | None,
+    score_result: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Build evidence_refs for GOV attestation dims from existing scorers.
+
+    Accepted governance_attestations shapes:
+    - canonical P4 form directly: {"dims": ..., "signature_block": ...}
+    - wrapper: {"p4_attestation_form": {...}, "pii_evidence_pack": {...}}
+
+    This projection does not change raw scores or scoring math. It only replaces
+    placeholder envelope metadata with deterministic evidence metadata produced
+    by the already-pinned P4 / PII attestation adapters.
+    """
+    if not isinstance(governance_attestations, dict):
+        return {}
+
+    form = governance_attestations.get("p4_attestation_form")
+    if form is None and "dims" in governance_attestations:
+        form = governance_attestations
+    if not isinstance(form, dict):
+        return {}
+
+    pii_pack = governance_attestations.get("pii_evidence_pack")
+    substrate_raw = governance_attestations.get("pii_substrate_raw")
+    if substrate_raw is None:
+        substrate_raw = _lookup_dim_raw(score_result, SUBSTRATE_DIM)
+
+    adapter_result = attestation_to_measurements(
+        form,
+        pii_evidence_pack=pii_pack if isinstance(pii_pack, dict) else None,
+        pii_substrate_raw=substrate_raw,
+    )
+    if adapter_result.scored.get("rejected"):
+        return {}
+
+    refs: dict[str, dict[str, Any]] = {}
+    dims = adapter_result.scored.get("dims") or {}
+    measured = {m["dim_id"] for m in adapter_result.measurements}
+    for dim_id in P4_DIM_IDS:
+        if dim_id not in measured:
+            continue
+        dim_payload = dims.get(dim_id) or {}
+        raw = float(dim_payload.get("raw", _lookup_dim_raw(score_result, dim_id) or 0.0))
+        refs[dim_id] = {
+            "rubric_point_id": dim_id,
+            "test_id": f"{P4_ATTESTATION_BENCHMARK_LABEL}::{dim_id}",
+            "artifact_uri": _first_attestation_artifact(
+                dim_payload, f"attestation:{dim_id}"
+            ),
+            "verdict": _raw_to_verdict(raw),
+            "weight": round(raw / 4.0, 4),
+            "internal": {
+                "benchmark": P4_ATTESTATION_BENCHMARK_LABEL,
+                "raw": raw,
+                "tier": dim_payload.get("tier"),
+                "gate_triggered": dim_payload.get("gate_triggered"),
+                "cap_applied": dim_payload.get("cap_applied"),
+            },
+        }
+
+    if ATTESTATION_DIM in measured:
+        dim_payload = dims.get(ATTESTATION_DIM) or {}
+        raw = float(
+            dim_payload.get("raw", _lookup_dim_raw(score_result, ATTESTATION_DIM) or 0.0)
+        )
+        refs[ATTESTATION_DIM] = {
+            "rubric_point_id": ATTESTATION_DIM,
+            "test_id": f"{PII_ATTESTATION_BENCHMARK_LABEL}::{ATTESTATION_DIM}",
+            "artifact_uri": f"attestation:{ATTESTATION_DIM}",
+            "verdict": _raw_to_verdict(raw),
+            "weight": round(raw / 4.0, 4),
+            "internal": {
+                "benchmark": PII_ATTESTATION_BENCHMARK_LABEL,
+                "raw": raw,
+                "gate_triggered": dim_payload.get("gate_triggered"),
+                "evidence_inventory": dim_payload.get("evidence_inventory"),
+            },
+        }
+    return refs
 
 
 def to_contract_output(
@@ -87,18 +200,23 @@ def to_contract_output(
                 continue
             raw = float(dim_block.get("raw") or 0.0)
             evidence_uri = dim_block.get("evidence_uri") or ""
-            verdict = (
-                "pass" if raw >= 3.0
-                else "partial" if raw >= 1.5
-                else "fail"
-            )
             evidence_refs.append({
                 "rubric_point_id": dim_id,
                 "test_id": dim_id,
                 "artifact_uri": evidence_uri,
-                "verdict": verdict,
+                "verdict": _raw_to_verdict(raw),
                 "weight": round(raw / 4.0, 4),
             })
+
+    governance_refs = _governance_attestation_refs(
+        inputs.governance_attestations,
+        score_result,
+    )
+    if governance_refs:
+        evidence_refs = [
+            governance_refs.get(ref["rubric_point_id"], ref)
+            for ref in evidence_refs
+        ]
 
     # Hard guarantee #2 from the contract: every active rubric point must
     # have a reachable artifact_uri. The CLI surface is the place to
@@ -125,7 +243,7 @@ def to_contract_output(
         evidence_refs, attestation_fixture=inputs.governance_attestations,
     )
 
-    bmi = int(score_result.get("bmi", 0))
+    bmi = int(score_result.get("bmi", score_result.get("are_total", 0)))
     band = score_result.get("band", {})
     band_letter = band.get("display") or band.get("letter") or ""
 

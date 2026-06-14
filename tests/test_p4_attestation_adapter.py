@@ -47,6 +47,18 @@ class AdapterContractTests(unittest.TestCase):
     def test_constants_match_spec(self):
         self.assertEqual(adapter.BENCHMARK_LABEL, "p4_attestation_form_v0_1_locked")
         self.assertEqual(adapter.PILLAR_DIM_IDS, ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6"))
+        self.assertEqual(
+            adapter.GOVERNANCE_ATTESTATION_DIM_IDS,
+            (
+                "P4.1",
+                "P4.2",
+                "P4.3",
+                "P4.4",
+                "P4.5",
+                "P4.6",
+                "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            ),
+        )
 
     def test_pilot_form_loads_and_validates(self):
         form = _load_pilot()
@@ -64,6 +76,53 @@ class AdapterContractTests(unittest.TestCase):
             self.assertIsInstance(m["raw"], float)
             self.assertGreaterEqual(m["raw"], 0.0)
             self.assertLessEqual(m["raw"], 4.0)
+
+    def test_pilot_form_scores_seven_measurements_with_pii_pack(self):
+        form = _load_pilot()
+        pii_pack = {
+            "policy_text": "s3://attest/policy.pdf",
+            "signed_dpa": True,
+            "dpia": True,
+            "dsar_runbook": "s3://attest/dsar.pdf",
+            "dsar_sla_days": 15,
+            "breach_sla_72h": 24,
+            "third_party_audit": "SOC2_TYPE_II",
+        }
+        result = adapter.attestation_to_measurements(
+            form,
+            now=NOW,
+            pii_evidence_pack=pii_pack,
+            pii_substrate_raw=4.0,
+        )
+        self.assertFalse(result.scored.get("rejected"), msg=result.scored.get("rejection_reason"))
+        self.assertEqual(len(result.measurements), 7)
+        self.assertEqual(
+            [m["dim_id"] for m in result.measurements],
+            list(adapter.GOVERNANCE_ATTESTATION_DIM_IDS),
+        )
+        pii = result.measurements[-1]
+        self.assertEqual(pii["dim_id"], "GOVERNANCE.PII.HANDLING_ATTESTATION")
+        self.assertEqual(pii["benchmark"], adapter.PII_ATTESTATION_BENCHMARK_LABEL)
+        self.assertEqual(pii["raw"], 4.0)
+        self.assertEqual(
+            result.scored["dims"]["GOVERNANCE.PII.HANDLING_ATTESTATION"]["gate_triggered"],
+            "4.0 (full controls + audit)",
+        )
+
+    def test_pii_divergence_diagnostic_is_metadata_only(self):
+        form = _load_pilot()
+        result = adapter.attestation_to_measurements(
+            form,
+            now=NOW,
+            pii_evidence_pack={"signed_dpa": True, "policy_text": "s3://attest/policy.pdf"},
+            pii_substrate_raw=4.0,
+        )
+        pii_scored = result.scored["dims"]["GOVERNANCE.PII.HANDLING_ATTESTATION"]
+        self.assertEqual(pii_scored["raw"], 1.0)
+        self.assertEqual(len(pii_scored["diagnostics"]), 1)
+        diagnostic = pii_scored["diagnostics"][0]
+        self.assertEqual(diagnostic["flag"], "attestation_substrate_divergence")
+        self.assertIn("metadata-only", diagnostic["scoring_math_impact"])
 
     def test_measurements_merge_into_priors_and_override_p4(self):
         """End-to-end pipeline-side proof: priors dict gets its P4 entries

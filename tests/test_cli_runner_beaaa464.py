@@ -39,7 +39,44 @@ G1_EXPECTED = (
 G1_APPLICABILITY = (
     REPO / "tests" / "fixtures" / "golden_agents" / "G1" / "applicability.json"
 )
+P4_ATTESTATION_FORM = REPO / "harness" / "fixtures" / "p4_attestation_pilot_v1.json"
+CURRENT_G1_NA_DIMS = (
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+)
+GOV_ATTESTATION_DIMS = (
+    "P4.1",
+    "P4.2",
+    "P4.3",
+    "P4.4",
+    "P4.5",
+    "P4.6",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+)
 FIXED_SCORED_AT = datetime(2026, 5, 17, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def _current_g1_applicability() -> dict:
+    payload = json.loads(G1_APPLICABILITY.read_text())
+    decisions = payload.setdefault("applicability_decisions", {})
+    na_dims = payload.setdefault("na_dims", [])
+    for dim_id in CURRENT_G1_NA_DIMS:
+        decisions.setdefault(
+            dim_id,
+            {
+                "fires": False,
+                "na_justification": (
+                    f"{dim_id} N/A in this G1 CLI fixture; the fixture predates "
+                    "the current active-dim slate and uses Option C re-normalization."
+                ),
+                "na_justification_key": "G1.current_fixture_uncovered",
+            },
+        )
+        if dim_id not in na_dims:
+            na_dims.append(dim_id)
+    return payload
 
 
 class InputLoaderTests(unittest.TestCase):
@@ -166,7 +203,9 @@ class RunScanTests(unittest.TestCase):
         # BEAAA-648: applicability sidecar mirrors the fixture root so the
         # CLI scores G1 under Option C (na_dims=['P2.2','P3.2']),
         # matching the post-BEAAA-647 L1 Phase-2 expected_score.json.
-        (d / "applicability.json").write_text(G1_APPLICABILITY.read_text())
+        (d / "applicability.json").write_text(
+            json.dumps(_current_g1_applicability())
+        )
         return d
 
     def test_run_scan_matches_g1_expected(self):
@@ -208,6 +247,101 @@ class RunScanTests(unittest.TestCase):
         self.assertEqual(result["seed"], 42)
         self.assertEqual(result["corpus_version"], "0.1.1")
         self.assertEqual(result["agent_id"], "G1")
+
+    def test_governance_attestations_replace_gov_placeholder_refs(self):
+        """BEAAA-5239: sample envelope GOV rows must carry attestation
+        test IDs + artifact URIs, not dim-id placeholders or N/A rows."""
+        import tempfile
+        from harness.p4_attestation_adapter import attestation_to_measurements
+
+        form = json.loads(P4_ATTESTATION_FORM.read_text())
+        form["customer_id"] = "sample-vendor-v3"
+        form["agent_id"] = "sample-agent-v3-prod"
+        form["attested_by"]["title"] = "Head of AI Controls"
+        form["attested_by"]["email"] = "priley@example.invalid"
+        form["attested_by"]["accountability"] = (
+            "I am authorized to make these attestations for the sample vendor, "
+            "and I understand that BackBond will rely on them in underwriting "
+            "and at claim."
+        )
+        pii_pack = {
+            "policy_text": "s3://attest/policy.pdf",
+            "signed_dpa": True,
+            "dpia": True,
+            "dsar_runbook": "s3://attest/dsar.pdf",
+            "dsar_sla_days": 15,
+            "breach_sla_72h": 24,
+            "third_party_audit": "SOC2_TYPE_II",
+        }
+        measured = attestation_to_measurements(
+            form,
+            pii_evidence_pack=pii_pack,
+            pii_substrate_raw=4.0,
+        ).measurements
+
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            eval_results = json.loads((d / "eval_results.json").read_text())
+            for row in measured:
+                eval_results[row["dim_id"]] = {"raw": row["raw"], "evidence_uri": ""}
+            eval_results["ROBUSTNESS.PII.SCAN_TIME_DETECTION"] = {
+                "raw": 4.0,
+                "evidence_uri": "attestation:ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+            }
+            (d / "eval_results.json").write_text(json.dumps(eval_results))
+
+            applicability = json.loads((d / "applicability.json").read_text())
+            decisions = applicability["applicability_decisions"]
+            for dim_id in (
+                "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+                "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            ):
+                decisions[dim_id] = {
+                    "fires": True,
+                    "na_justification": None,
+                    "na_justification_key": None,
+                }
+                if dim_id in applicability["na_dims"]:
+                    applicability["na_dims"].remove(dim_id)
+            (d / "applicability.json").write_text(json.dumps(applicability))
+            (d / "governance_attestations.json").write_text(
+                json.dumps(
+                    {
+                        "p4_attestation_form": form,
+                        "pii_evidence_pack": pii_pack,
+                        "pii_substrate_raw": 4.0,
+                    }
+                )
+            )
+            result = run_scan(
+                agent_id="G1",
+                input_dir=d,
+                seed=42,
+                corpus_version="0.1.1",
+                rubric_path=RUBRIC_PATH,
+                scored_at=FIXED_SCORED_AT,
+            )
+
+        refs_by_dim = {
+            ref["rubric_point_id"]: ref for ref in result["evidence_refs"]
+        }
+        for dim_id in GOV_ATTESTATION_DIMS:
+            self.assertNotIn(dim_id, result["uncovered_dimensions"])
+            ref = refs_by_dim[dim_id]
+            self.assertNotEqual(ref["test_id"], dim_id)
+            self.assertNotEqual(ref["test_id"], "N/A")
+            self.assertTrue(ref["artifact_uri"])
+            self.assertNotEqual(ref["verdict"], "n/a")
+        self.assertTrue(
+            refs_by_dim["P4.1"]["test_id"].startswith(
+                "p4_attestation_form_v0_1_locked::"
+            )
+        )
+        self.assertTrue(
+            refs_by_dim["GOVERNANCE.PII.HANDLING_ATTESTATION"][
+                "test_id"
+            ].startswith("pii_attestation_evidence_pack_v0_1::")
+        )
 
     def test_run_scan_byte_identical_across_replicates(self):
         """Supreme Law: same inputs + same seed → byte-identical JSON."""
@@ -285,7 +419,9 @@ class CliSubprocessTests(unittest.TestCase):
         # BEAAA-648: pair the eval_results.json with the Option-C
         # applicability sidecar so the CLI reproduces the post-BEAAA-647
         # G1 Phase-2 anchor (bmi=79, na_dims=['P2.2','P3.2']).
-        (d / "applicability.json").write_text(G1_APPLICABILITY.read_text())
+        (d / "applicability.json").write_text(
+            json.dumps(_current_g1_applicability())
+        )
         return d
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
