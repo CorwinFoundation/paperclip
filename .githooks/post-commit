@@ -27,8 +27,8 @@ if [[ -z "$branch" ]]; then
 fi
 
 msg="$(git log -1 --format=%B HEAD 2>/dev/null || true)"
-if [[ "$msg" == *"[skip push]"* ]]; then
-  echo "[auto-push] commit message has [skip push]; skipping" >&2
+if printf '%s\n' "$msg" | grep -qE '^[[:space:]]*\[skip push\][[:space:]]*$'; then
+  echo "[auto-push] commit message has a [skip push] line; skipping" >&2
   exit 0
 fi
 
