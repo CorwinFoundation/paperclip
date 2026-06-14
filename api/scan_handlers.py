@@ -578,6 +578,7 @@ def _kickoff_live_probe_scan(
             requested_pillars=requested_pillars,
             scan_mode=scan_mode,
             k_replicates=k_replicates,
+            agent_id=agent_id,
         )
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc

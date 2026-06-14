@@ -201,6 +201,10 @@ class ScanRequest:
     scan_mode: str = "live_probe"
     # T5 (BEAAA-544 / Δ2) — K-replicate per v1.1.0 contract.
     k_replicates: int = DEFAULT_K_REPLICATES
+    # Agent identifier carried through to score_inputs for envelope assembly.
+    # Optional for backwards compat; scan_runtime_factory uses it when building
+    # score_inputs for the Scorer subprocess (BEAAA-3337 production cut-over).
+    agent_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.k_replicates not in ALLOWED_K_REPLICATES:
