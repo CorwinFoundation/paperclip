@@ -61,6 +61,8 @@ def create_app(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
 ) -> FastAPI:
+    if not os.environ.get("ARE_BUNDLE_SIGNING_KEY") and os.environ.get("ARE_ALLOW_DEV_SIGNING_KEY") != "true":
+        raise ValueError("ARE_BUNDLE_SIGNING_KEY must be set in production")
     app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.bundles = bundles or BundleStore()

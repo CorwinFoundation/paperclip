@@ -23,8 +23,9 @@ from urllib.parse import urlsplit
 
 # Deterministic namespace UUID for bundle ids (uuid5 over canonical request).
 _BUNDLE_NS = uuid.UUID("c1c1f1c0-bea1-4bea-b001-bea1bea1bea1")
-_DEFAULT_KEY = b"v0.1-dev-key-do-not-use-in-prod"
 _REDACTED = "<redacted>"
+# Used only when ARE_ALLOW_DEV_SIGNING_KEY=true; never acceptable in production.
+_DEV_KEY = b"v0.1-dev-key-do-not-use-in-prod"
 
 
 class BundleError(ValueError):
@@ -33,7 +34,11 @@ class BundleError(ValueError):
 
 def _signing_key() -> bytes:
     raw = os.environ.get("ARE_BUNDLE_SIGNING_KEY")
-    return raw.encode("utf-8") if raw else _DEFAULT_KEY
+    if raw:
+        return raw.encode("utf-8")
+    if os.environ.get("ARE_ALLOW_DEV_SIGNING_KEY") == "true":
+        return _DEV_KEY
+    raise ValueError("ARE_BUNDLE_SIGNING_KEY must be set in production")
 
 
 def _canonical(obj: Any) -> bytes:
