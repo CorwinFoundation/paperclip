@@ -32,6 +32,22 @@ tests/          # Synthetic fixtures, contract tests
 
 Snapshot integrity, `forensic_bundle_uri`, tenant isolation, audit log, pillar weights, dim count. Non-negotiable in any mode.
 
+## Local setup after cloning
+
+Install the repo-tracked git hooks once after clone (or after `git pull`
+brings new hooks):
+
+```
+./bin/install-git-hooks.sh
+```
+
+This installs `.githooks/post-commit`, which auto-pushes each commit on
+the current branch to `origin`. The hook reads `GITHUB_PAT_ARE_SCANNER`
+from the environment via an inline credential helper, so no token is
+written to disk. To skip the auto-push for a single commit, include
+`[skip push]` in the commit message. The hook also skips during
+in-flight rebase / cherry-pick / merge and on detached HEAD.
+
 ## Running scans from the CLI
 
 `bin/are-scan` (BEAAA-464) lets you run a scan outside the CTO's agent

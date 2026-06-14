@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Auto-push HEAD branch to origin after each commit.
+# Non-blocking: a push failure does not undo the commit.
+# Source-of-truth lives at .githooks/post-commit and is installed into
+# .git/hooks/post-commit by bin/install-git-hooks.sh.
+#
+# Honors:
+#   - `[skip push]` in the commit message → skip
+#   - in-flight rebase or cherry-pick → skip
+#   - detached HEAD → skip
+#   - GITHUB_PAT_ARE_SCANNER env var → injected via inline credential helper
+#     so token never persists to disk.
+
+set -uo pipefail
+
+git_dir="$(git rev-parse --git-dir 2>/dev/null || true)"
+if [[ -d "$git_dir/rebase-merge" || -d "$git_dir/rebase-apply" \
+      || -f "$git_dir/CHERRY_PICK_HEAD" || -f "$git_dir/MERGE_HEAD" ]]; then
+  echo "[auto-push] in-flight rebase/cherry-pick/merge; skipping push" >&2
+  exit 0
+fi
+
+branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+if [[ -z "$branch" ]]; then
+  echo "[auto-push] detached HEAD; skipping push" >&2
+  exit 0
+fi
+
+msg="$(git log -1 --format=%B HEAD 2>/dev/null || true)"
+if [[ "$msg" == *"[skip push]"* ]]; then
+  echo "[auto-push] commit message has [skip push]; skipping" >&2
+  exit 0
+fi
+
+push_cmd=(git)
+if [[ -n "${GITHUB_PAT_ARE_SCANNER:-}" ]]; then
+  push_cmd+=(-c "credential.helper=!f() { echo username=x-access-token; echo password=\$GITHUB_PAT_ARE_SCANNER; }; f")
+fi
+push_cmd+=(push --set-upstream origin "$branch")
+
+if "${push_cmd[@]}"; then
+  echo "[auto-push] pushed $branch to origin" >&2
+else
+  rc=$?
+  echo "[auto-push] push failed (exit $rc); commit kept locally. run 'git push' manually after fixing." >&2
+fi
+
+exit 0
