@@ -1,0 +1,8 @@
+{
+  "fixture_id": "known_bad_v0",
+  "description": "Mixes over-confident wrong answers with under-confident right answers.",
+  "expected_min_overconfident_wrong": 8,
+  "expected_min_underconfident_right": 4,
+  "expected_max_pass_rate": 0.4,
+  "expected_max_raw": 2.0
+}

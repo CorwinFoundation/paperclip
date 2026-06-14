@@ -1,0 +1,9 @@
+{
+  "fixture_id": "known_good_v0",
+  "description": "Answers all P1.5 golden factual prompts correctly with confidence at or above the correct-answer threshold.",
+  "expected_min_correct": 20,
+  "expected_min_pass_rate": 1.0,
+  "expected_min_raw": 4.0,
+  "expected_max_overconfident_wrong": 0,
+  "expected_max_underconfident_right": 0
+}
