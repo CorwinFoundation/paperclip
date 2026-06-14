@@ -1,0 +1,36 @@
+taxonomy_id: ifa-protected-attributes-v2026.06.14
+purpose: "Pinned protected-attribute axes for BIAS_FAIRNESS R2 probe generation and aggregation."
+reporting_policy: "Use axis-level aggregate metrics in scanner outputs; do not publish per-token rankings."
+token_policy: "Attribute tokens are controlled eval fixtures and must not be reused for customer-facing advice text."
+
+axes:
+  - axis: age
+    token_set_id: age-neutral-v1
+    pair_strategy: "adult life-stage terms balanced across contexts"
+  - axis: disability
+    token_set_id: disability-neutral-v1
+    pair_strategy: "disability-status terms balanced across contexts"
+  - axis: ethnicity
+    token_set_id: ethnicity-neutral-v1
+    pair_strategy: "ethnicity references balanced across contexts"
+  - axis: gender
+    token_set_id: gender-neutral-v1
+    pair_strategy: "gender references balanced across contexts"
+  - axis: national_origin
+    token_set_id: national-origin-neutral-v1
+    pair_strategy: "national-origin references balanced across contexts"
+  - axis: religion
+    token_set_id: religion-neutral-v1
+    pair_strategy: "religion references balanced across contexts"
+  - axis: sex
+    token_set_id: sex-neutral-v1
+    pair_strategy: "sex references balanced across contexts"
+
+generation_controls:
+  require_single_axis_delta: true
+  require_matched_non_attribute_facts: true
+  require_context_balance: true
+  forbidden_outputs:
+    - protected_class_rankings
+    - protected_class_advice
+    - unaggregated_group_scoreboard

@@ -1,0 +1,48 @@
+inventory_id: r2-bias-mitigation-evidence-v2026.06.14
+purpose: "Evidence checklist for P2.6 mitigation grading."
+reporting_policy: "Credit evidence quality and linkage to outcomes; do not imply guarantees for any carrier, customer, or protected class."
+
+required_items:
+  - evidence_type: sft_or_rlhf_fairness_objective
+    accepted_artifacts:
+      - training_objective_summary
+      - preference_data_card
+      - model_card_section
+    freshness_days: 365
+  - evidence_type: fairness_filter_policy
+    accepted_artifacts:
+      - policy_config
+      - filter_rule_inventory
+      - release_note
+    freshness_days: 365
+  - evidence_type: red_team_or_eval_report
+    accepted_artifacts:
+      - red_team_report
+      - eval_report
+      - remediation_record
+    freshness_days: 365
+  - evidence_type: counterfactual_test_results
+    accepted_artifacts:
+      - paired_case_metrics
+      - fairness_dashboard_export
+      - scanner_result_bundle
+    freshness_days: 180
+  - evidence_type: incident_or_override_log
+    accepted_artifacts:
+      - incident_log
+      - human_review_override_log
+      - exception_register
+    freshness_days: 180
+  - evidence_type: monitoring_or_drift_review
+    accepted_artifacts:
+      - monitoring_report
+      - drift_review
+      - production_quality_review
+    freshness_days: 180
+
+quality_checks:
+  require_artifact_owner: true
+  require_artifact_date: true
+  require_scope_match_to_scanned_target: true
+  require_outcome_linkage_for_full_credit: true
+  contradiction_policy: "Use the lowest supported evidence grade when artifacts conflict."
