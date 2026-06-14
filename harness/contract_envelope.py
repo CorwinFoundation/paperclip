@@ -52,8 +52,15 @@ from harness.verdict_envelope import (
     attach_p4_evidence_metadata,
     compute_verdict_envelope,
 )
-from rubric.numeric_scoring import numeric_to_verdict
 from scanners import CONTRACT_VERSION
+
+
+def _numeric_to_verdict(score: float) -> str:
+    if score >= 0.75:
+        return "pass"
+    if score >= 0.375:
+        return "partial"
+    return "fail"
 
 
 def _lookup_dim_raw(score_result: dict[str, Any], dim_id: str) -> float | None:
@@ -123,7 +130,7 @@ def _governance_attestation_refs(
             "artifact_uri": _first_attestation_artifact(
                 dim_payload, f"attestation:{dim_id}"
             ),
-            "verdict": numeric_to_verdict(numeric_score),
+            "verdict": _numeric_to_verdict(numeric_score),
             "weight": round(numeric_score, 4),
         }
 
@@ -137,7 +144,7 @@ def _governance_attestation_refs(
             "rubric_point_id": ATTESTATION_DIM,
             "test_id": f"{PII_ATTESTATION_BENCHMARK_LABEL}::{ATTESTATION_DIM}",
             "artifact_uri": f"attestation:{ATTESTATION_DIM}",
-            "verdict": numeric_to_verdict(numeric_score),
+            "verdict": _numeric_to_verdict(numeric_score),
             "weight": round(numeric_score, 4),
         }
     return refs
@@ -187,7 +194,7 @@ def to_contract_output(
                 "rubric_point_id": dim_id,
                 "test_id": dim_id,
                 "artifact_uri": evidence_uri,
-                "verdict": numeric_to_verdict(numeric_score),
+                "verdict": _numeric_to_verdict(numeric_score),
                 "weight": round(numeric_score, 4),
             })
 
