@@ -44,6 +44,14 @@ class ScoringTests(unittest.TestCase):
             scored_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
         )
 
+    def test_score_emits_are_total_canonical_key(self):
+        # BEAAA-5275 / A-001: score() must emit "are_total" as the canonical
+        # contract key (are-scanner-api-v1@v1.3.0 §Output). "bmi" is the
+        # one-release deprecation shim and must equal are_total.
+        out = score(self.rubric, _flat_eval(self.rubric, 2.0), **self.kwargs)
+        self.assertIn("are_total", out)
+        self.assertEqual(out["are_total"], out["bmi"])
+
     def test_perfect_score_yields_bmi_100(self):
         out = score(self.rubric, _flat_eval(self.rubric, 4.0), **self.kwargs)
         self.assertEqual(out["bmi"], 100)

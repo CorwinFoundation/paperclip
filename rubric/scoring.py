@@ -354,7 +354,8 @@ def score(
         })
 
     response: dict[str, Any] = {
-        "bmi": bmi_int,
+        "are_total": bmi_int,
+        "bmi": bmi_int,  # BEAAA-5275 deprecation shim — remove after one release
         "band": band_to_dict(assign_band(bmi_int)),
         "pillars": pillars_out,
         "forensic_bundle_uri": forensic_bundle_uri,

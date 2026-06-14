@@ -339,7 +339,7 @@ def to_contract_output(
         evidence_refs, attestation_fixture=inputs.governance_attestations,
     )
 
-    bmi = int(score_result.get("bmi", 0))
+    bmi = int(score_result.get("are_total", score_result.get("bmi", 0)))
     band = score_result.get("band", {})
     band_letter = band.get("display") or band.get("letter") or ""
 
