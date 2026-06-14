@@ -21,9 +21,13 @@ from typing import Any
 HOSTED_RUNNER = "beaai-hosted-eval"
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
-_DIM_ID_RE = re.compile(r"^P[1-4]\.[1-9][0-9]?$")
+# Two non-overlapping shapes: legacy `P<n>.<m>` (rubric v1.0.0) and fully-qualified
+# `Pillar.FAMILY.SUB` (rubric v1.0.1, strict 3-segment all-caps). ADR-0027 (BEAAA-2198).
+_DIM_ID_RE = re.compile(
+    r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
+)
 _EVIDENCE_URI_MAX = 2048
-_DIM_ID_MAX = 16
+_DIM_ID_MAX = 64
 _MAX_DIMS = 64
 
 # Control chars: anything below 0x20 except tab/newline/cr; plus DEL (0x7F).
