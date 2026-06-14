@@ -128,9 +128,9 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
             self.assertIsInstance(floors[pid]["rationale"], str)
             self.assertGreater(len(floors[pid]["rationale"]), 0)
 
-    def test_rubric_version_is_v1_0(self):
+    def test_rubric_version_is_v1_2(self):
         body = self._score()
-        self.assertEqual(body["rubric_version"], "1.0.0")
+        self.assertEqual(body["rubric_version"], "1.2.0")
 
 
 class V011AdditiveQuoteRoundTripTests(unittest.TestCase):

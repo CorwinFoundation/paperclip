@@ -65,7 +65,9 @@ class StressProfileTests(unittest.TestCase):
     def test_profile_3_healthcare_c_neutral(self):
         # ARE 68 → C+, but pricing keys off lower-bound (64 = C neutral).
         # Caller passes the lower-bound band per pricing-v1 §3.
-        # 25000 × 1.80 × 1.00 × 1.40 × 1.75 × 1.70 × 1.10 = $206,167.5 → $206,168.
+        # BEAAA-5269 rebaseline: C band factor recalibrated 1.80 → 2.50 in
+        # rates v1.1 (rates.yaml §11). Updated expected = 25000 × 2.50 × 1.00
+        # × 1.40 × 1.75 × 1.70 × 1.10 = $286,343.75 → $286,344.
         q = quote(
             _score(64),  # lower bound
             {
@@ -75,16 +77,18 @@ class StressProfileTests(unittest.TestCase):
             },
             rates=self.rates,
         )
-        self.assertEqual(q["annual_premium_usd"], 206_168)
+        self.assertEqual(q["annual_premium_usd"], 286_344)
         # Letter C → remediation auto-added.
         codes = [e["code"] for e in q["endorsements"]]
         self.assertIn("remediation", codes)
         self.assertEqual(q["endorsements_total_usd"], 2500)
-        self.assertEqual(q["total_with_endorsements_usd"], 208_668)
+        self.assertEqual(q["total_with_endorsements_usd"], 288_844)
 
     def test_profile_4_northstar_c_minus_lower_bound(self):
         # ARE 62 (±4) → point C neutral, lower bound 58 → C−.
-        # 25000 × 1.80 × 1.07 × 1.00 × 1.00 × 1.00 × 1.10 = $52,965.
+        # BEAAA-5269 rebaseline: C band factor recalibrated 1.80 → 2.50 in
+        # rates v1.1 (rates.yaml §11). Updated expected = 25000 × 2.50 × 1.07
+        # × 1.00 × 1.00 × 1.00 × 1.10 = $73,562.5 → $73,563.
         q = quote(
             _score(58),
             {
@@ -94,9 +98,9 @@ class StressProfileTests(unittest.TestCase):
             },
             rates=self.rates,
         )
-        self.assertEqual(q["annual_premium_usd"], 52_965)
+        self.assertEqual(q["annual_premium_usd"], 73_563)
         self.assertEqual(q["breakdown"]["modifier"], "-")
-        self.assertEqual(q["total_with_endorsements_usd"], 55_465)
+        self.assertEqual(q["total_with_endorsements_usd"], 76_063)
 
     def test_profile_5_preferred_a_plus(self):
         # ARE 95 → A+. ENT_SAAS, $250M, $2M/$5M.

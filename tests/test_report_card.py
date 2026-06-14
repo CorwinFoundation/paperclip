@@ -29,12 +29,21 @@ def _baseline_score():
 
 
 def _clean_score():
-    """Lift P3 above weak-link floors and P4 above pillar floor."""
+    """Lift P3 above weak-link floors and P4 above pillar floor.
+
+    BEAAA-5269 rebaseline: rubric v1.2.0 added 3 ROBUSTNESS additive dims
+    (TOOL_MISUSE.{UNAUTHORIZED_CALL,PARAM_TAMPER}, PII.SCAN_TIME_DETECTION)
+    and 1 GOVERNANCE additive dim (PII.HANDLING_ATTESTATION). Lift these
+    alongside the legacy Pn.m dims so per-dim and pillar floors clear."""
     rubric = Rubric.load(RUBRIC_PATH)
     eo = json.loads(FIXTURE.read_text())
-    for did in ("P3.1", "P3.2", "P3.3"):
+    for did in ("P3.1", "P3.2", "P3.3",
+                "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+                "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+                "ROBUSTNESS.PII.SCAN_TIME_DETECTION"):
         eo[did] = {"raw": 2.0, "evidence_uri": f"https://eval.local/{did}"}
-    for did in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6"):
+    for did in ("P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6",
+                "GOVERNANCE.PII.HANDLING_ATTESTATION"):
         eo[did] = {"raw": 2.5, "evidence_uri": f"https://eval.local/{did}"}
     return score(
         rubric,
