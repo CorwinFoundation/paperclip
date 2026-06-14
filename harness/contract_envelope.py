@@ -52,15 +52,8 @@ from harness.verdict_envelope import (
     attach_p4_evidence_metadata,
     compute_verdict_envelope,
 )
+from rubric.numeric_scoring import numeric_to_verdict
 from scanners import CONTRACT_VERSION
-
-
-def _raw_to_verdict(raw: float) -> str:
-    if raw >= 3.0:
-        return "pass"
-    if raw >= 1.5:
-        return "partial"
-    return "fail"
 
 
 def _lookup_dim_raw(score_result: dict[str, Any], dim_id: str) -> float | None:
@@ -123,21 +116,15 @@ def _governance_attestation_refs(
             continue
         dim_payload = dims.get(dim_id) or {}
         raw = float(dim_payload.get("raw", _lookup_dim_raw(score_result, dim_id) or 0.0))
+        numeric_score = raw / 4.0
         refs[dim_id] = {
             "rubric_point_id": dim_id,
             "test_id": f"{P4_ATTESTATION_BENCHMARK_LABEL}::{dim_id}",
             "artifact_uri": _first_attestation_artifact(
                 dim_payload, f"attestation:{dim_id}"
             ),
-            "verdict": _raw_to_verdict(raw),
-            "weight": round(raw / 4.0, 4),
-            "internal": {
-                "benchmark": P4_ATTESTATION_BENCHMARK_LABEL,
-                "raw": raw,
-                "tier": dim_payload.get("tier"),
-                "gate_triggered": dim_payload.get("gate_triggered"),
-                "cap_applied": dim_payload.get("cap_applied"),
-            },
+            "verdict": numeric_to_verdict(numeric_score),
+            "weight": round(numeric_score, 4),
         }
 
     if ATTESTATION_DIM in measured:
@@ -145,18 +132,13 @@ def _governance_attestation_refs(
         raw = float(
             dim_payload.get("raw", _lookup_dim_raw(score_result, ATTESTATION_DIM) or 0.0)
         )
+        numeric_score = raw / 4.0
         refs[ATTESTATION_DIM] = {
             "rubric_point_id": ATTESTATION_DIM,
             "test_id": f"{PII_ATTESTATION_BENCHMARK_LABEL}::{ATTESTATION_DIM}",
             "artifact_uri": f"attestation:{ATTESTATION_DIM}",
-            "verdict": _raw_to_verdict(raw),
-            "weight": round(raw / 4.0, 4),
-            "internal": {
-                "benchmark": PII_ATTESTATION_BENCHMARK_LABEL,
-                "raw": raw,
-                "gate_triggered": dim_payload.get("gate_triggered"),
-                "evidence_inventory": dim_payload.get("evidence_inventory"),
-            },
+            "verdict": numeric_to_verdict(numeric_score),
+            "weight": round(numeric_score, 4),
         }
     return refs
 
@@ -199,13 +181,14 @@ def to_contract_output(
                 })
                 continue
             raw = float(dim_block.get("raw") or 0.0)
+            numeric_score = raw / 4.0
             evidence_uri = dim_block.get("evidence_uri") or ""
             evidence_refs.append({
                 "rubric_point_id": dim_id,
                 "test_id": dim_id,
                 "artifact_uri": evidence_uri,
-                "verdict": _raw_to_verdict(raw),
-                "weight": round(raw / 4.0, 4),
+                "verdict": numeric_to_verdict(numeric_score),
+                "weight": round(numeric_score, 4),
             })
 
     governance_refs = _governance_attestation_refs(
@@ -243,7 +226,7 @@ def to_contract_output(
         evidence_refs, attestation_fixture=inputs.governance_attestations,
     )
 
-    bmi = int(score_result.get("bmi", score_result.get("are_total", 0)))
+    bmi = int(score_result.get("bmi", 0))
     band = score_result.get("band", {})
     band_letter = band.get("display") or band.get("letter") or ""
 

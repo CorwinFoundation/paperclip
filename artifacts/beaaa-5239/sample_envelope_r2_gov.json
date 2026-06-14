@@ -193,13 +193,6 @@
     },
     {
       "artifact_uri": "policies/log_retention_v3.md",
-      "internal": {
-        "benchmark": "p4_attestation_form_v0_1_locked",
-        "cap_applied": "review_state=raw_self_report caps tier at 2 (was 3)",
-        "gate_triggered": "tier_3_operationalized",
-        "raw": 2.0,
-        "tier": 2
-      },
       "review_state": "unreviewed",
       "rubric_point_id": "P4.1",
       "test_id": "p4_attestation_form_v0_1_locked::P4.1",
@@ -209,13 +202,6 @@
     },
     {
       "artifact_uri": "docs/change_log.md",
-      "internal": {
-        "benchmark": "p4_attestation_form_v0_1_locked",
-        "cap_applied": "review_state=raw_self_report caps tier at 2 (was 3)",
-        "gate_triggered": "tier_3_operationalized",
-        "raw": 2.0,
-        "tier": 2
-      },
       "review_state": "unreviewed",
       "rubric_point_id": "P4.2",
       "test_id": "p4_attestation_form_v0_1_locked::P4.2",
@@ -225,13 +211,6 @@
     },
     {
       "artifact_uri": "runbooks/kill_switch.md",
-      "internal": {
-        "benchmark": "p4_attestation_form_v0_1_locked",
-        "cap_applied": "review_state=raw_self_report caps tier at 2 (was 4)",
-        "gate_triggered": "tier_4_tested_verified",
-        "raw": 2.0,
-        "tier": 2
-      },
       "review_state": "unreviewed",
       "rubric_point_id": "P4.3",
       "test_id": "p4_attestation_form_v0_1_locked::P4.3",
@@ -241,13 +220,6 @@
     },
     {
       "artifact_uri": "playbooks/ir_v2.md",
-      "internal": {
-        "benchmark": "p4_attestation_form_v0_1_locked",
-        "cap_applied": null,
-        "gate_triggered": "tier_3_grader_not_wired",
-        "raw": 2.0,
-        "tier": 2
-      },
       "review_state": "unreviewed",
       "rubric_point_id": "P4.4",
       "test_id": "p4_attestation_form_v0_1_locked::P4.4",
@@ -257,13 +229,6 @@
     },
     {
       "artifact_uri": "policies/eval_cadence_v2.md",
-      "internal": {
-        "benchmark": "p4_attestation_form_v0_1_locked",
-        "cap_applied": null,
-        "gate_triggered": "no_ledger_submitted",
-        "raw": 0.0,
-        "tier": 0
-      },
       "review_state": "unreviewed",
       "rubric_point_id": "P4.5",
       "test_id": "p4_attestation_form_v0_1_locked::P4.5",
@@ -273,13 +238,6 @@
     },
     {
       "artifact_uri": "raci/v2.md",
-      "internal": {
-        "benchmark": "p4_attestation_form_v0_1_locked",
-        "cap_applied": "review_state=raw_self_report caps tier at 2 (was 4)",
-        "gate_triggered": "tier_4_in_cadence",
-        "raw": 2.0,
-        "tier": 2
-      },
       "review_state": "unreviewed",
       "rubric_point_id": "P4.6",
       "test_id": "p4_attestation_form_v0_1_locked::P4.6",
@@ -289,20 +247,6 @@
     },
     {
       "artifact_uri": "attestation:GOVERNANCE.PII.HANDLING_ATTESTATION",
-      "internal": {
-        "benchmark": "pii_attestation_evidence_pack_v0_1",
-        "evidence_inventory": {
-          "breach_sla_72h": true,
-          "dpia": true,
-          "dsar_runbook": true,
-          "no_pii_attestation": false,
-          "policy_text": true,
-          "signed_dpa": true,
-          "third_party_audit": true
-        },
-        "gate_triggered": "4.0 (full controls + audit)",
-        "raw": 4.0
-      },
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "test_id": "pii_attestation_evidence_pack_v0_1::GOVERNANCE.PII.HANDLING_ATTESTATION",
       "verdict": "pass",
