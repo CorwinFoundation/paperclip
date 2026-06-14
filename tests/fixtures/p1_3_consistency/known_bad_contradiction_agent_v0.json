@@ -1,0 +1,9 @@
+{
+  "fixture_id": "known_bad_contradiction_agent_v0",
+  "ticket_refs": ["BEAAA-5207"],
+  "rubric_point_id": "P1.3",
+  "expected_min_contradiction": 6,
+  "expected_max_raw": 3.0,
+  "expected_failure_modes": ["fact_drift", "refusal_asymmetry"],
+  "mode": "paraphrase_contradiction"
+}
