@@ -17,8 +17,9 @@ Acceptance Gates (per ADR-0026):
   recv_score_envelope returns the same tuple shape.
 * **AG-A5** — runtime assertion at Scorer entry (test mode) catches an
   inadvertent ``api.score_runtime`` import in fork-inherited sys.modules.
-* **AG-A6** — flag-off rollback path emits the master 52c003e
-  ``_phase1_pending`` envelope byte-equally.
+* **AG-A6** — flag-off rollback path raises ``ScanRuntimeError``; registry
+  miss under flag-on also raises. ``_phase1_pending`` never reaches
+  ``scan_log`` (BEAAA-5279 F-02).
 
 AG-A2 (N=5 spread = 0 on B1/G1/G2/M1/M2/M3) is exercised by
 ``scripts/beaaa2182_a_calibration.py`` because it requires the full
@@ -386,8 +387,10 @@ class TestAGA5RuntimeAssertion:
 
 
 class TestAGA6FlagOffRollback:
-    """AG-A6 — ``ARE_SCORER_REAL=off`` rolls back to the master 52c003e
-    placeholder envelope (Tier-1 rollback target).
+    """AG-A6 (BEAAA-5279 F-02) — ``_phase1_pending`` never reaches scan_log.
+
+    Flag-off path (score_envelope_registry=None) and registry miss under
+    flag-on both raise ``ScanRuntimeError`` to abort the scan.
     """
 
     def test_flag_off_returns_phase1_pending(self) -> None:
@@ -410,11 +413,15 @@ class TestAGA6FlagOffRollback:
             with patch.dict(os.environ, {"ARE_SCORER_REAL": off_value}):
                 assert _scorer_real_enabled() is False
 
-    def test_factory_emits_phase1_pending_when_registry_missing(self) -> None:
-        """When score_envelope_registry=None (flag-off), the factory
-        closure emits the master 52c003e placeholder envelope.
+    def test_factory_raises_on_flag_off(self) -> None:
+        """BEAAA-5279 F-02: flag-off (score_envelope_registry=None) raises
+        ScanRuntimeError; _phase1_pending must never reach scan_log.
         """
-        from api.scan_runtime_factory import _production_score_envelope_factory
+        import pytest
+        from api.scan_runtime_factory import (
+            ScanRuntimeError,
+            _production_score_envelope_factory,
+        )
 
         runtime_ref: list = []
         factory = _production_score_envelope_factory(runtime_ref, None)
@@ -424,27 +431,37 @@ class TestAGA6FlagOffRollback:
         result.scanner_version = "0.3.11"
         result.corpus_version = "0.1.0"
 
-        envelope = factory(result, agent_id="agent-x", run_timestamp="2026-06-05T10:00:00Z")
-        # Master 52c003e placeholder envelope key set.
-        for field in (
-            "are_total",
-            "band",
-            "confidence_below_adjudication_threshold",
-            "evidence_refs",
-            "model_versions",
-            "partial_completion",
-            "purpose",
-            "rubric_version",
-            "seed",
-            "subscores",
-        ):
-            assert envelope[field] == "_phase1_pending"
-        # Non-placeholder fields:
-        assert envelope["agent_id"] == "agent-x"
-        assert envelope["corpus_version"] == "0.1.0"
-        assert envelope["scanner_version"] == "0.3.11"
-        assert envelope["run_timestamp"] == "2026-06-05T10:00:00Z"
-        assert envelope["prior_scan_refs"] == []
+        with pytest.raises(ScanRuntimeError, match="ARE_SCORER_REAL=off"):
+            factory(result, agent_id="agent-x", run_timestamp="2026-06-05T10:00:00Z")
+
+    def test_factory_raises_on_registry_miss_flag_on(self) -> None:
+        """BEAAA-5279 F-02 (AC): registry miss under flag-on raises
+        ScanRuntimeError and does not append to scan_log.
+        """
+        import pytest
+        from unittest.mock import MagicMock as _MM
+        from api.scan_runtime_factory import (
+            ScanRuntimeError,
+            _production_score_envelope_factory,
+        )
+        from api.scan_log import ScanLog
+
+        scan_log = MagicMock(spec=ScanLog)
+        runtime_ref: list = []
+        # Registry is non-None but does NOT contain the scan_id — miss.
+        registry: dict = {}
+        factory = _production_score_envelope_factory(runtime_ref, registry)
+
+        result = MagicMock()
+        result.scan_id = "scan-missing"
+        result.scanner_version = "0.3.11"
+        result.corpus_version = "0.1.0"
+
+        with pytest.raises(ScanRuntimeError, match="registry miss"):
+            factory(result, agent_id="agent-x", run_timestamp="2026-06-05T10:00:00Z")
+
+        # scan_log.append_scan must NOT have been called.
+        scan_log.append_scan.assert_not_called()
 
     def test_factory_emits_real_envelope_when_registry_hit(self) -> None:
         """When score_envelope_registry has an entry for the scan_id,

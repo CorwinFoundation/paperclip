@@ -86,6 +86,14 @@ from scanners.live_probe_workers import (
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
 
+class ScanRuntimeError(RuntimeError):
+    """Raised when the scan runtime cannot produce a valid score envelope.
+
+    Aborts the scan so that placeholder or corrupted envelopes never reach
+    ``scan_log.append_scan()`` and corrupt UW chain integrity checks.
+    """
+
+
 # ADR-0017 addendum-1 §2.4 — Phase 1 prod fleet scan_log path on EFS-mounted
 # /var/lib/are-scanner. Overridable via ARE_SCAN_LOG_PATH so the cut-over
 # pre-flight (and any future test rig) can point the runtime at a writable
@@ -485,10 +493,9 @@ def _production_score_envelope_factory(
       pipeline, so the dict ships with real scoring values, not
       placeholders.
     * **Flag-off (Tier-1 rollback)** — ``score_envelope_registry`` is
-      ``None``. The closure emits the master 52c003e
-      ``_phase1_pending`` placeholder envelope so the JCS-canonicalized
-      key set remains byte-stable for replay and the snapshot_hash
-      seal continues to sign a deterministic domain.
+      ``None``. The closure raises :class:`ScanRuntimeError` so the scan
+      is aborted; ``_phase1_pending`` placeholders must never reach
+      ``scan_log.append_scan()`` (BEAAA-5279 F-02).
 
     ``ScoreEnvelopeFactory`` signature is unchanged
     (``(ScanResult, agent_id, run_timestamp) → dict``).
@@ -523,40 +530,23 @@ def _production_score_envelope_factory(
                 if truncated:
                     envelope["prior_scan_refs_truncated"] = True
                 return envelope
-            # Registry MISS under flag-on is a programmer error — fall
-            # through to the placeholder envelope so persistence doesn't
-            # block, but surface the miss to stderr so the next replay
-            # check catches it.
-            import sys as _sys
-            print(
-                f"[score_envelope_factory] WARN: registry miss for "
-                f"scan_id={result.scan_id} under ARE_SCORER_REAL=on; "
-                f"falling back to _phase1_pending envelope.",
-                file=_sys.stderr,
+            # BEAAA-5279 (F-02): Registry MISS under flag-on is a programmer
+            # error. Abort the scan so _phase1_pending never reaches
+            # scan_log and corrupts UW chain integrity checks.
+            raise ScanRuntimeError(
+                f"score envelope registry miss for scan_id={result.scan_id!r} "
+                f"under ARE_SCORER_REAL=on; aborting scan to prevent "
+                f"_phase1_pending persistence"
             )
 
-        # Flag-off path (or registry miss) — master 52c003e placeholder
-        # envelope. Tier-1 rollback target.
-        envelope: dict[str, Any] = {
-            "agent_id": agent_id,
-            "are_total": "_phase1_pending",
-            "band": "_phase1_pending",
-            "confidence_below_adjudication_threshold": "_phase1_pending",
-            "corpus_version": result.corpus_version,
-            "evidence_refs": "_phase1_pending",
-            "model_versions": "_phase1_pending",
-            "partial_completion": "_phase1_pending",
-            "prior_scan_refs": prior_refs,
-            "purpose": "_phase1_pending",
-            "rubric_version": "_phase1_pending",
-            "run_timestamp": run_timestamp,
-            "scanner_version": result.scanner_version,
-            "seed": "_phase1_pending",
-            "subscores": "_phase1_pending",
-        }
-        if truncated:
-            envelope["prior_scan_refs_truncated"] = True
-        return envelope
+        # BEAAA-5279 (F-02): Flag-off path — score_envelope_registry is None.
+        # Raise rather than persist a _phase1_pending placeholder; UW chain
+        # integrity requires real scores in scan_log.
+        raise ScanRuntimeError(
+            f"score_envelope_registry is None (ARE_SCORER_REAL=off) for "
+            f"scan_id={result.scan_id!r}; aborting scan to prevent "
+            f"_phase1_pending persistence to scan_log"
+        )
 
     return factory
 
