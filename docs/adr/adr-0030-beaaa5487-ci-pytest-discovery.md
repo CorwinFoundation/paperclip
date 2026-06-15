@@ -30,10 +30,10 @@ escalations_noted: []
 
 # ADR-0030 - BEAAA-5529 CI Pytest Discovery
 
-**Decision:** switch the PR/push test workflow from `python -m unittest discover -v tests` to `python -m pytest -v tests`.
+**Decision:** switch the PR/push test workflow from `python -m unittest discover -v tests` to `python -m pytest -v tests`, with an explicit pytest collection proof for the integration regressions.
 
 **Rationale:** pytest collects both legacy `unittest.TestCase` suites and pytest-style acceptance classes. The prior `unittest discover` command could report zero tests for Track B pytest-style integration coverage, creating a false-green CI gate.
 
 **Classification:** rule-execution per `scanner-implementation-supervision-v1@v1.1`, row "Smoke test for an existing operation" / CI plumbing under existing rules. No rubric, scoring, judge model, corpus, tamper-resistance posture, or contract output shape changed.
 
-**Rollback:** revert `.github/workflows/tests.yml`, `requirements.txt`, and `tests/conftest.py`. Rollback restores the known false-green risk for pytest-style Track B acceptance tests.
+**Rollback:** revert `.github/workflows/tests.yml` and `requirements.txt` (and, only if also removing the upstream BEAAA-5529 base, `tests/conftest.py`). Rollback restores the known false-green risk for pytest-style Track B acceptance tests.
