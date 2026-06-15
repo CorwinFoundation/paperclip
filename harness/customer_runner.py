@@ -149,19 +149,22 @@ class _CustomerAgentHttpRunner(ModelRunner):
         # hazard the Content-Encoding gate below is defending against.
         try:
             with ScopedEgressAllowlist(self._allowed_host) as scope:
-                # ``follow_redirects=True`` is REQUIRED. httpx routes
-                # each redirect re-issue back through the same
-                # transport, so the allowlist's host check fires on
-                # every hop. With redirects disabled, a 30x response
-                # would surface as a non-2xx error without the
-                # SSRF guard ever evaluating the Location target — the
-                # transport-layer protection only protects requests
-                # the transport actually sees. ``client.stream`` routes
-                # redirects through the same transport as ``client.post``
-                # did, so the SSRF guard remains intact under streaming.
+                # BEAAA-5552: redirects rejected outright. Customer
+                # endpoint is registered as a single URL; auto-redirect
+                # handling in httpx drains intermediate 30x bodies via
+                # ``Response.read()`` (the decoded-content path), which
+                # would bypass the BEAAA-5532 compression-bomb gates
+                # below — those gates apply only to the FINAL response
+                # shape. Reject 3xx; do not implement a manual redirect
+                # loop without a co-sign ticket (UW + Founder for the
+                # expanded surface). BEAAA-5485 SSRF host check still
+                # holds: with no auto-redirect there is no off-allow-
+                # list re-issue to validate; the host check fires on
+                # the initial (and only) request through
+                # ``_AllowlistTransport``.
                 with scope.client(
                     timeout=_REQUEST_TIMEOUT_SECONDS,
-                    follow_redirects=True,
+                    follow_redirects=False,
                 ) as client:
                     with client.stream(
                         "POST",
@@ -169,6 +172,19 @@ class _CustomerAgentHttpRunner(ModelRunner):
                         content=body_bytes,
                         headers=headers,
                     ) as resp:
+                        # BEAAA-5552: 3xx rejection. Fire BEFORE the
+                        # >=400 check so a redirect status surfaces as
+                        # a redirect-rejection error (not a generic
+                        # HTTP error). The check runs on header
+                        # receipt; the response body generator is
+                        # never iterated, and the next context exit
+                        # closes the underlying connection without
+                        # draining the body.
+                        if 300 <= resp.status_code < 400:
+                            raise RunnerError(
+                                f"customer endpoint returned redirect: "
+                                f"{resp.status_code} {resp.reason_phrase}"
+                            )
                         if resp.status_code >= 400:
                             # Read reason_phrase before exiting the
                             # stream context (response object is still

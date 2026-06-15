@@ -1,16 +1,33 @@
 """BEAAA-5485 — Customer-runner SSRF regression: 302 redirect to loopback.
 
-The Track B customer runner
-(:func:`harness.customer_runner.customer_agent_http_runner_factory`)
-must refuse a redirect target that falls outside the active
-:class:`harness.egress.ScopedEgressAllowlist`. Before the BEAAA-5485
-fix, the runner issued HTTP via ``urllib.request.urlopen`` — a separate
-library from the ``httpx`` transport that the allowlist intercepts —
-so a 302 ``Location: http://127.0.0.1/`` was followed verbatim, opening
-an SSRF path from the customer endpoint into the Prober's loopback
-surface.
+Updated under BEAAA-5552 (BEAAA-5527 P1 4th-pass): the runner now sets
+``follow_redirects=False`` and rejects 3xx outright via
+``RunnerError("customer endpoint returned redirect: 302 ...")`` —
+because httpx's auto-redirect path calls ``Response.read()`` on the
+intermediate 30x BEFORE following the Location header, which drains
+(and *decodes*) the body and bypasses the BEAAA-5532 compression-bomb
+gates. The BEAAA-5485 SSRF protection still holds — with no auto-
+redirect there is no off-allowlist re-issue to validate; the
+transport-layer host check on ``_AllowlistTransport`` fires on the
+initial (and only) request. This file now pins both BEAAA-5485 and
+the BEAAA-5552 update.
 
-This regression pins the fix.
+History
+-------
+Before the BEAAA-5485 fix, the runner issued HTTP via
+``urllib.request.urlopen`` — a separate library from the ``httpx``
+transport that the allowlist intercepts — so a 302 ``Location:
+http://127.0.0.1/`` was followed verbatim, opening an SSRF path from
+the customer endpoint into the Prober's loopback surface. BEAAA-5485
+moved the runner onto an httpx client with
+``ScopedEgressAllowlist`` + ``follow_redirects=True``, so redirects
+were intercepted by the transport's host check on every hop. BEAAA-
+5552 closed the secondary hazard that ``follow_redirects=True``
+required httpx to call ``Response.read()`` on each intermediate 30x —
+which decoded compressed bodies into memory before the runner's gates
+could see them — by switching to ``follow_redirects=False`` and
+adding an outright-rejection 3xx gate ahead of the existing >=400
+check.
 
 Test wire-up
 ------------
@@ -24,24 +41,55 @@ Test wire-up
 * The fake target responds with HTTP 302 + ``Location:
   http://127.0.0.1/``.
 * The test wraps the runner call in
-  ``ScopedEgressAllowlist("127.0.0.2")``. The fix forces the runner
-  through the allowlist's transport (or its own equivalent host-scoped
-  transport), so the redirect re-issue to ``127.0.0.1`` fires the
-  transport check and refuses the request before any bytes hit the
-  loopback service.
-* The assertion is that the call raises (or otherwise refuses) without
-  ever touching ``127.0.0.1`` — verified by binding a sentinel handler
-  to ``127.0.0.1`` that flips an in-process flag if it is ever
-  reached. The flag must remain ``False`` at the end of the run.
+  ``ScopedEgressAllowlist("127.0.0.2")``.
 
-A failing run (pre-fix) lets the redirect through and the flag flips
-to ``True``; the test surfaces that with a clear assertion message.
+Post-BEAAA-5552 assertion semantic
+----------------------------------
+Pre-BEAAA-5552 (under ``follow_redirects=True``), this test asserted
+that the redirect to ``127.0.0.1`` was refused at the transport-layer
+allowlist (a redirect re-issue check). The off-allowlist host never
+saw a request because the transport intercepted the redirect.
 
-Commit ordering (per BEAAA-5485 AC#1)
--------------------------------------
-This file lands FIRST in the BEAAA-5485 PR (commit N) and MUST fail
-against the pre-fix tree. The fix lands in commit N+1; both are
-visible in the PR diff so the bug → fix arc is auditable.
+Post-BEAAA-5552, the redirect is rejected on header receipt by the
+new 3xx gate BEFORE any follow-up request is built. The transport-
+layer host check would still refuse the off-allowlist target if the
+gate were absent — defence-in-depth — but the 3xx gate is what now
+fires first. The sentinel handler bound to ``127.0.0.1`` must STILL
+not be reached:
+
+* If reached, either (a) the redirect was followed (BEAAA-5552 gate
+  regression), or (b) the new 3xx gate was bypassed.
+* The flag must remain ``False`` at the end of the run.
+
+The exception type is now narrower: only ``RunnerError`` (raised by
+the 3xx gate). ``EgressNotAllowed`` from
+``_AllowlistTransport`` is no longer reached on this fixture — there
+is no auto-redirect to fire the host check on. The accept-list
+``(RunnerError, EgressNotAllowed)`` is preserved so the test remains
+auditable against either path, but the assertion message identifies
+the BEAAA-5552 path as the expected gate.
+
+A failing run on a pre-BEAAA-5485 tree lets the redirect through and
+the flag flips to ``True``; the test surfaces that with a clear
+assertion message. A failing run on a tree that drops the BEAAA-5552
+gate (e.g. ``follow_redirects=True`` re-introduced) surfaces with the
+flag flipping to ``True`` because the BEAAA-5485 transport-layer
+check is now the only remaining gate on the redirect — and it *would*
+fire on the off-allowlist target, but the test would still see the
+flag at ``False`` and the exception at ``EgressNotAllowed``, which is
+the regression diagnostic for that case.
+
+Commit ordering
+---------------
+* BEAAA-5485 PR: file landed FIRST (commit N) and failed against the
+  pre-fix tree (``urlopen`` bypassed the allowlist).
+* BEAAA-5552 PR: this file updated IN THE SAME COMMIT as the
+  ``follow_redirects=False`` fix on ``harness/customer_runner.py``
+  (per BEAAA-5552 Discipline bullet 5: "If you split, the
+  intermediate state is a CI break"). The pre-existing assertion
+  semantic (off-allowlist transport refusal) and the new BEAAA-5552
+  semantic (3xx outright refusal) are both satisfied by the post-
+  BEAAA-5552 runner.
 """
 from __future__ import annotations
 
@@ -188,7 +236,14 @@ def redirect_server() -> Iterable[Tuple[str, int]]:
 
 
 class TestCustomerRunnerRefusesLoopbackRedirect:
-    """BEAAA-5485 AC#1 — runner refuses a 302 to a non-allow-listed host."""
+    """BEAAA-5485 AC#1 — runner refuses a 302 to a non-allow-listed host.
+
+    Post-BEAAA-5552 the gate is the 3xx outright-rejection check on
+    the runner (``follow_redirects=False``); the BEAAA-5485 transport-
+    layer host check is no longer reached because no auto-redirect re-
+    issue is built. The accept-list ``(RunnerError, EgressNotAllowed)``
+    preserves auditability across the two paths.
+    """
 
     def test_runner_refuses_loopback_pivot_via_redirect(
         self, redirect_server: Tuple[str, int]
@@ -202,11 +257,49 @@ class TestCustomerRunnerRefusesLoopbackRedirect:
             with pytest.raises((RunnerError, EgressNotAllowed)) as exc_info:
                 runner.complete("ssrf-probe-payload")
 
+        # SSRF semantic preserved: the loopback sentinel must NOT have
+        # been reached. Under post-BEAAA-5552 the gate is the new 3xx
+        # outright-rejection check (the redirect was never followed,
+        # so the off-allowlist host never saw a request). Under pre-
+        # BEAAA-5552 (follow_redirects=True), the gate would have been
+        # the transport-layer host check on _AllowlistTransport (the
+        # auto-redirect re-issue would have been refused). Either gate
+        # satisfies the SSRF invariant; the failure mode this
+        # assertion catches is "redirect was followed AND host check
+        # missed it" — the sentinel handler flips the flag.
         assert not _LOOPBACK_HIT["hit"], (
             f"SSRF guard breach: customer_runner followed a 302 redirect to "
             f"{_LOOPBACK_PIVOT_HOST} despite being inside "
             f"ScopedEgressAllowlist({_ALLOWED_BIND_HOST!r}). Exception "
             f"raised after the fact (if any): {exc_info.value!r}"
+        )
+
+        # BEAAA-5552 path assertion: the new 3xx outright-rejection
+        # gate must be the one that fires. RunnerError is raised with
+        # "customer endpoint returned redirect: 302 ..." text, BEFORE
+        # any auto-redirect re-issue is built, so the BEAAA-5485
+        # transport-layer host check is not reached on this fixture.
+        # Cross-references: BEAAA-5485 (transport-layer SSRF check —
+        # still active on the INITIAL request, not the redirect re-
+        # issue which no longer exists) and BEAAA-5552 (3xx outright
+        # rejection — the gate that now fires on this fixture).
+        assert isinstance(exc_info.value, RunnerError), (
+            f"BEAAA-5552 gate regression: expected RunnerError from the "
+            f"3xx outright-rejection gate (the post-BEAAA-5552 path), got "
+            f"{type(exc_info.value).__name__}: {exc_info.value!r}. If "
+            f"this is EgressNotAllowed, the BEAAA-5552 redirect gate "
+            f"is missing and the test fell through to the BEAAA-5485 "
+            f"transport-layer host check on the redirect re-issue — "
+            f"which means follow_redirects was re-enabled."
+        )
+        assert "customer endpoint returned redirect" in str(exc_info.value), (
+            f"expected the BEAAA-5552 redirect-rejection message; got "
+            f"{exc_info.value!r}. Cross-reference BEAAA-5485 (SSRF "
+            f"protection on the initial request) + BEAAA-5552 "
+            f"(redirect outright-rejection on header receipt). With "
+            f"follow_redirects=False the runner never builds a "
+            f"redirect re-issue, so the only gate on this fixture is "
+            f"the BEAAA-5552 3xx rejection."
         )
 
 
