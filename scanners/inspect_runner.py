@@ -216,13 +216,21 @@ def truthfulqa_spec() -> InspectBenchSpec:
         chosen = tqa._parse_letter(response)
         return chosen == item.answer
 
+    # BEAAA-5269 rebaseline: `_accuracy_to_raw` retired in BEAAA-3161 /
+    # ADR-0027; P1.1's raw mapping lives in the calibration-curve registry
+    # under CURVE_LEGACY_TQA_FRONTIER (byte-identical cuts).
+    from rubric import calibration_curves as _curves
+
+    def _tqa_raw_mapper(accuracy: float) -> float:
+        return _curves.apply("CURVE_LEGACY_TQA_FRONTIER", accuracy)
+
     return InspectBenchSpec(
         dim_id="P1.1",
         benchmark_id="truthfulqa-mc1-poc",
         prompt_fn=tqa._format_prompt,
         target_fn=lambda item: item.answer,
         scorer_fn=_scorer,
-        raw_mapper=tqa._accuracy_to_raw,
+        raw_mapper=_tqa_raw_mapper,
         aggregate_field="accuracy",
         metadata_fn=None,
     )

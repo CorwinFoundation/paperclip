@@ -97,8 +97,8 @@ spacy==3.8.14
 transformers==4.51.3
 
 # --- dev / test ---
-# Test suite uses stdlib unittest; pytest is optional. No test-only
-# pinned dependencies right now.
+# Test-only dependencies are pinned in requirements-dev.txt. CI installs both
+# requirements files before running `python -m unittest discover -v tests`.
 
 # --- pinned external CLI (Node, not pip-managed) ---
 # promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)

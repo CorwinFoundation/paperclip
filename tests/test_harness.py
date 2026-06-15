@@ -52,16 +52,25 @@ class ParseTests(unittest.TestCase):
 
 
 class AccuracyMappingTests(unittest.TestCase):
+    """BEAAA-5269 rebaseline: the legacy `_accuracy_to_raw` mapping was
+    retired in BEAAA-3161 / ADR-0027 and hoisted into
+    rubric/calibration_curves.yaml as CURVE_LEGACY_TQA_FRONTIER (byte-
+    identical cuts). These tests now exercise the curve registry directly."""
+
+    def _accuracy_to_raw(self, acc: float) -> float:
+        from rubric import calibration_curves
+        return calibration_curves.apply("CURVE_LEGACY_TQA_FRONTIER", acc)
+
     def test_perfect_maps_to_4(self):
-        self.assertEqual(truthfulqa._accuracy_to_raw(1.0), 4.0)
+        self.assertEqual(self._accuracy_to_raw(1.0), 4.0)
 
     def test_zero_maps_to_0(self):
-        self.assertEqual(truthfulqa._accuracy_to_raw(0.0), 0.0)
+        self.assertEqual(self._accuracy_to_raw(0.0), 0.0)
 
     def test_monotonic(self):
         prev = -1.0
         for acc in (0.0, 0.1, 0.2, 0.3, 0.4, 0.55, 0.7, 0.85, 1.0):
-            cur = truthfulqa._accuracy_to_raw(acc)
+            cur = self._accuracy_to_raw(acc)
             self.assertGreaterEqual(cur, prev)
             prev = cur
 

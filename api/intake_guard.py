@@ -22,9 +22,11 @@ HOSTED_RUNNER = "beaai-hosted-eval"
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
 # Two non-overlapping shapes: legacy `P<n>.<m>` (rubric v1.0.0) and fully-qualified
-# `Pillar.FAMILY.SUB` (rubric v1.0.1, strict 3-segment all-caps). ADR-0027 (BEAAA-2198).
+# `PILLAR.FAMILY.SUB` (rubric v1.0.1, strict 3-segment all-caps). ADR-0027 (BEAAA-2198).
+# The legacy shape is locked to P1–P4: rubric has exactly 4 pillars and pillar-5+ is
+# explicitly out of scope. BEAAA-5270 / ADR-0027 addendum.
 _DIM_ID_RE = re.compile(
-    r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
+    r"^(?:P[1-4]\.[1-9][0-9]?|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
 )
 _EVIDENCE_URI_MAX = 2048
 _DIM_ID_MAX = 64
@@ -87,7 +89,10 @@ def enforce_input_safety(eval_outputs: dict[str, dict[str, Any]]) -> None:
         if not isinstance(dim_id, str) or len(dim_id) > _DIM_ID_MAX:
             raise IntakeError(f"dim_id={dim_id!r} too long or not a string")
         if not _DIM_ID_RE.match(dim_id):
-            raise IntakeError(f"dim_id={dim_id!r} does not match canonical Pn.m shape")
+            raise IntakeError(
+                f"dim_id={dim_id!r} does not match canonical Pn.m shape "
+                f"(P1–P4 only) or PILLAR.FAMILY.SUB shape"
+            )
         if not isinstance(entry, dict):
             raise IntakeError(f"{dim_id}: entry must be an object")
 

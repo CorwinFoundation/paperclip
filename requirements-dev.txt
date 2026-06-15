@@ -1,0 +1,6 @@
+# Development and CI-only dependencies.
+#
+# These pins support the PR/push unit-test gate without changing runtime
+# scanner dependency pins in requirements.txt.
+pytest==9.0.3
+fastapi==0.136.1

@@ -29,10 +29,10 @@ class RubricLoadTests(unittest.TestCase):
         r = Rubric.load(RUBRIC_PATH)
         self.assertEqual(sum(p["weight"] for p in r.pillars.values()), 100)
 
-    def test_active_dim_count_is_21(self):
+    def test_active_dim_count_is_25(self):
         r = Rubric.load(RUBRIC_PATH)
-        self.assertEqual(len(r.active_dim_ids), 21)
-        self.assertEqual(len(set(r.active_dim_ids)), 21)
+        self.assertEqual(len(r.active_dim_ids), 25)
+        self.assertEqual(len(set(r.active_dim_ids)), 25)
 
 
 class ScoringTests(unittest.TestCase):
