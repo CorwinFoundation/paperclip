@@ -388,9 +388,7 @@ def make_production_scan_runtime(
                     "scanner_version": scan_request.scanner_version,
                     "corpus_version": scan_request.corpus_version,
                     "run_timestamp": _utc_now_iso(),
-                    "invocation_context": getattr(
-                        scan_request, "invocation_context", None
-                    ),
+                    "invocation_context": scan_request.invocation_context,
                     "prior_scan_refs": [],
                 }
             scorer_proc = spawn_scorer(

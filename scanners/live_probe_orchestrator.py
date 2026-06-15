@@ -205,6 +205,10 @@ class ScanRequest:
     # Optional for backwards compat; scan_runtime_factory uses it when building
     # score_inputs for the Scorer subprocess (BEAAA-3337 production cut-over).
     agent_id: str | None = None
+    # BEAAA-5486 (P1/P2): carry scanner_invocation_context/purpose
+    # from /scanner/v1/rescans through the orchestrator boundary so
+    # production score_inputs can preserve customer attestation intent.
+    invocation_context: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.k_replicates not in ALLOWED_K_REPLICATES:

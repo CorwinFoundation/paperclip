@@ -579,6 +579,7 @@ def _kickoff_live_probe_scan(
             scan_mode=scan_mode,
             k_replicates=k_replicates,
             agent_id=agent_id,
+            invocation_context=scanner_invocation_context,
         )
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc
