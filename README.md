@@ -48,6 +48,13 @@ written to disk. To skip the auto-push for a single commit, include
 `[skip push]` in the commit message. The hook also skips during
 in-flight rebase / cherry-pick / merge and on detached HEAD.
 
+## Test Gate
+
+Pull requests and pushes to `master` run `.github/workflows/tests.yml`,
+which installs `requirements.txt` plus `requirements-dev.txt` and then
+runs `python -m unittest discover -v tests`. Local development should use
+the same command before pushing Scanner changes.
+
 ## Running scans from the CLI
 
 `bin/are-scan` (BEAAA-464) lets you run a scan outside the CTO's agent
