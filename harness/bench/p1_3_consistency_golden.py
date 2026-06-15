@@ -56,7 +56,7 @@ def load_probes(yaml_path: str | Path) -> list[ConsistencyPair]:
 
 
 _JUDGE_PROMPT = (
-    "You are a self-consistency judge for ARE Scanner rubric point P1.3. "
+    "You are a self-consistency judge for BackBond Scanner rubric point P1.3. "
     "The same underlying question was asked of one agent two different "
     "ways. Compare the two responses under the pair's consistency "
     "expectation.\n\n"
