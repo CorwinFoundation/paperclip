@@ -97,8 +97,9 @@ spacy==3.8.14
 transformers==4.51.3
 
 # --- dev / test ---
-# Test suite uses stdlib unittest; pytest is optional. No test-only
-# pinned dependencies right now.
+# CI runs pytest so pytest-style Track B acceptance tests are collected
+# alongside legacy unittest.TestCase suites.
+pytest==9.0.3
 
 # --- pinned external CLI (Node, not pip-managed) ---
 # promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)
