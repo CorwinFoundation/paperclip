@@ -9,14 +9,22 @@ path. Replaces :func:`api.scan_runtime_factory.v0_mock_runner_factory`
 on that path; Tier-1 rollback (``ARE_WALKER_CUSTOMER_AGENT=0`` default)
 keeps the MockRunner factory active byte-for-byte.
 
-Tamper-resistance posture (preserved)
--------------------------------------
+Tamper-resistance posture
+-------------------------
 * The runner is constructed INSIDE the Prober subprocess's
   ``ScopedEgressAllowlist(agent_endpoint_host)`` scope by the
-  orchestrator's ``runner_factory(agent_endpoint, secret)`` call. Every
-  HTTP request issued from :meth:`_CustomerAgentHttpRunner.complete` is
-  bound to the customer endpoint host at the transport layer; any
-  attempted egress to a different host raises at the egress scope.
+  orchestrator's ``runner_factory(agent_endpoint, secret)`` call.
+* Every HTTP request issued from :meth:`_CustomerAgentHttpRunner.complete`
+  is routed through a host-scoped ``httpx`` transport — the runner
+  builds its own :class:`harness.egress.ScopedEgressAllowlist` bound
+  to the endpoint host and uses :meth:`ScopedEgressAllowlist.client`
+  so the allowlist's ``_AllowlistTransport`` intercepts both the
+  initial request AND every redirect re-issue. A redirect ``Location``
+  pointing at a non-allow-listed host (``127.0.0.1``, cloud-metadata
+  IPs, arbitrary external hosts) is refused at the transport layer
+  before any bytes leave the process. (BEAAA-5485 — the prior
+  implementation used ``urllib.request.urlopen``, which the allowlist
+  did not intercept; a 302 to ``127.0.0.1`` was followed verbatim.)
 * The secret is bound into the runner's ``Authorization`` header at
   construction time and stored ONLY on the runner instance (in the
   Prober subprocess's memory). The runner does not log, persist, or
@@ -24,14 +32,20 @@ Tamper-resistance posture (preserved)
   reads the secret back.
 * Vault is fork-inherited from the API-edge parent into the Prober;
   no credential ever crosses the IPC into the Scorer subprocess.
+
+The internal ``ScopedEgressAllowlist`` nests cleanly under the
+orchestrator's outer scope: both scopes match the same declared host
+(the customer's endpoint), so the inner scope is redundant when the
+outer scope is correctly opened and additive defense-in-depth when it
+is not.
 """
 from __future__ import annotations
 
 import json as _json
-import urllib.error
-import urllib.request
 from typing import Any
+from urllib.parse import urlparse
 
+from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
 from harness.runner import ModelRunner, RunnerError
 
 
@@ -47,6 +61,28 @@ _REQUEST_TIMEOUT_SECONDS: float = 30.0
 orchestrator's ``MAX_WALL_CLOCK_SECONDS`` cap wraps the entire
 iteration. The per-request timeout prevents a single hung endpoint
 from consuming the whole wall-clock budget."""
+
+
+def _extract_host(agent_endpoint: str) -> str:
+    """Parse the host component out of ``agent_endpoint`` for the allow-list.
+
+    Returns the lowercased hostname. Raises :class:`RunnerError` if
+    the URL has no host or a non-http(s) scheme — both indicate a
+    wiring bug from the API edge (the request validator should have
+    rejected the input before the orchestrator constructed the
+    runner).
+    """
+    parsed = urlparse(agent_endpoint)
+    if parsed.scheme not in ("http", "https"):
+        raise RunnerError(
+            f"customer endpoint scheme must be http/https; got {parsed.scheme!r}"
+        )
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise RunnerError(
+            f"customer endpoint URL has no host component: {agent_endpoint!r}"
+        )
+    return host
 
 
 class _CustomerAgentHttpRunner(ModelRunner):
@@ -67,11 +103,10 @@ class _CustomerAgentHttpRunner(ModelRunner):
     def __init__(self, agent_endpoint: str, secret: str):
         self._agent_endpoint = agent_endpoint
         self._auth_header = f"Bearer {secret}"
+        self._allowed_host = _extract_host(agent_endpoint)
         # Derive a stable model_id from the endpoint host; the secret
         # is never embedded in model_id (would leak into eval logs).
-        host = agent_endpoint.replace("https://", "").replace("http://", "")
-        host = host.split("/", 1)[0]
-        self._model_id = f"customer-agent:{host}"
+        self._model_id = f"customer-agent:{self._allowed_host}"
 
     def model_id(self) -> str:
         return self._model_id
@@ -80,38 +115,59 @@ class _CustomerAgentHttpRunner(ModelRunner):
         """Issue a single probe request to the customer endpoint.
 
         Returns the agent's response string. Raises :class:`RunnerError`
-        on transport failure (timeout, non-2xx, oversized response).
-        The egress scope (Prober's ``ScopedEgressAllowlist``) denies
-        any request to a non-allow-listed host before this method's
-        socket call returns.
+        on transport failure (timeout, non-2xx, oversized response, or
+        an attempted redirect/request to a host outside the active
+        allow-list — see BEAAA-5485).
         """
-        body = _json.dumps({"prompt": prompt}).encode("utf-8")
-        req = urllib.request.Request(
-            self._agent_endpoint,
-            data=body,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": self._auth_header,
-            },
-        )
+        import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
+
+        body_bytes = _json.dumps({"prompt": prompt}).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": self._auth_header,
+        }
         try:
-            with urllib.request.urlopen(
-                req, timeout=_REQUEST_TIMEOUT_SECONDS
-            ) as resp:
-                raw = resp.read(_MAX_RESPONSE_BYTES + 1)
-        except urllib.error.HTTPError as exc:
+            with ScopedEgressAllowlist(self._allowed_host) as scope:
+                # ``follow_redirects=True`` is REQUIRED. httpx routes
+                # each redirect re-issue back through the same
+                # transport, so the allowlist's host check fires on
+                # every hop. With redirects disabled, a 30x response
+                # would surface as a non-2xx error without the
+                # SSRF guard ever evaluating the Location target — the
+                # transport-layer protection only protects requests
+                # the transport actually sees.
+                with scope.client(
+                    timeout=_REQUEST_TIMEOUT_SECONDS,
+                    follow_redirects=True,
+                ) as client:
+                    resp = client.post(
+                        self._agent_endpoint,
+                        content=body_bytes,
+                        headers=headers,
+                    )
+        except EgressNotAllowed as exc:
+            # SSRF guard tripped — either the initial host slipped past
+            # the API-edge validator, or a redirect target tried to
+            # pivot off the declared host. Surface as RunnerError so the
+            # probe attempt fails cleanly without leaking the loopback /
+            # internal target back to the walker.
             raise RunnerError(
-                f"customer endpoint HTTP {exc.code}: {exc.reason}"
+                f"customer endpoint egress refused by scoped allow-list: {exc}"
             ) from exc
-        except urllib.error.URLError as exc:
-            raise RunnerError(
-                f"customer endpoint transport error: {exc.reason}"
-            ) from exc
-        except TimeoutError as exc:
+        except httpx.TimeoutException as exc:
             raise RunnerError(
                 f"customer endpoint timeout after {_REQUEST_TIMEOUT_SECONDS}s"
             ) from exc
+        except httpx.HTTPError as exc:
+            raise RunnerError(
+                f"customer endpoint transport error: {exc}"
+            ) from exc
+        if resp.status_code >= 400:
+            raise RunnerError(
+                f"customer endpoint HTTP {resp.status_code}: "
+                f"{resp.reason_phrase}"
+            )
+        raw = resp.content[: _MAX_RESPONSE_BYTES + 1]
         if len(raw) > _MAX_RESPONSE_BYTES:
             raise RunnerError(
                 f"customer endpoint response exceeded "

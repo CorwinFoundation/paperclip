@@ -201,3 +201,16 @@ Per BEAAA-5353 Decision 3, until the platform-level cascade-close guard lands, t
 * Parent escalation: BEAAA-5353 (Founder ruling on Decision 2 = A 2026-06-15T06:57Z)
 * Supervision contract: `contracts/scanner-implementation-supervision-v1.md` v1.1 (BEAAA-5288 2026-06-14T17:45Z)
 * BEAAA-2182 Track A: the Q-A4 carve-out at `api/scan_runtime_factory.py:351-362` names this case as rule-change requiring CTO co-sign + UW op-seat re-review
+
+## Footer — BEAAA-5485 SSRF gap closure (2026-06-15)
+
+The customer-runner tamper-resistance posture promised in §Design line 115 of this ADR ("The customer endpoint is the only host the walker can talk to; any other outbound is denied at the transport layer.") was broken in implementation. `harness/customer_runner.py` issued HTTP via `urllib.request.urlopen` — a transport the `ScopedEgressAllowlist`'s `httpx`-based `_AllowlistTransport` does not intercept — so a 302 `Location: http://127.0.0.1/` was followed verbatim from inside `ScopedEgressAllowlist(<declared-host>)`. SSRF gap; the §6 promise on `contracts/are-scanner-api-v1@v1.3.0` did not hold on the Track B walker path.
+
+**Closed by BEAAA-5485** (CTO-unilateral, security-posture restoration row of `contracts/scanner-implementation-supervision-v1.md@v1.0`).
+
+* Fix commit on the BEAAA-5485 PR branch: replaces `urllib.request.urlopen` with `scope.client(follow_redirects=True)` so the allowlist's transport intercepts both the initial request and every redirect re-issue. Concrete commit SHA recorded in the BEAAA-5485 PR description (`branch beaaa-5485-ssrf-fix` against master at branch-off; tip SHA captured in the cmt `cto_cosign_ref` block at close).
+* Regression test: `tests/integration/test_customer_runner_egress.py` — bounds the contract going forward. Pre-fix run fails with "DID NOT RAISE"; post-fix run passes with the sentinel-on-127.0.0.1 flag staying `False`.
+* N=5 calibration delta vs master: `tools/calibration-deltas/2026-06-15-beaaa5485-ssrf-fix-n5.json`. Δ = 0 by construction (`rubric.scoring.score` does not import `harness.customer_runner`) and empirically (master vs fix score-function output is byte-identical modulo timestamp). Supreme Law ±1 satisfied.
+* Posture invariant after the fix: any non-allow-listed host (initial request OR redirect target) raises `EgressNotAllowed` at the transport layer; the runner surfaces this as `RunnerError` to the walker without leaking the refused target.
+
+Note: the BEAAA-5485 ticket body references "ADR 0006 (egress containment)"; ADR-0006 in this repo is the pillar-name reconciliation ADR and has no egress content. The Track B walker tamper-resistance posture is the §Design line 115 claim above, so this ADR (ADR-0030) is the semantically correct closing-record location. Discrepancy with the ticket text flagged to CTO in the BEAAA-5485 disposition comment for ruling.
