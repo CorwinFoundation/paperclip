@@ -118,6 +118,30 @@ def _scorer_real_enabled() -> bool:
     return value in ("on", "1", "true", "yes")
 
 
+# BEAAA-5414 v0.3 — customer-true Track B walker selector. Default off.
+# Set ``ARE_WALKER_CUSTOMER_AGENT=1`` to swap
+# :func:`synthetic_v0_probe_run_fn` + :func:`v0_mock_runner_factory` for
+# :func:`scanners.customer_agent_walker.customer_agent_probe_run_fn` +
+# :func:`harness.customer_runner.customer_agent_http_runner_factory` on
+# :func:`make_default_production_scan_runtime`. Tier-1 rollback flips
+# back to synthetic_v0 in ≤10 min by setting the env var to 0 / unset.
+# CTO co-sign: BEAAA-5418. UW op-seat co-sign: BEAAA-5420. v1.5.0 patch
+# envelope shape unchanged; only the ``applicability_decisions``
+# provenance dial (CASE 1 → CASE 2) and ``partial_completion`` semantics
+# move under the customer-true path.
+ARE_WALKER_CUSTOMER_AGENT_ENV: str = "ARE_WALKER_CUSTOMER_AGENT"
+
+
+def _customer_agent_walker_enabled() -> bool:
+    """True iff the BEAAA-5414 customer-true Track B walker is selected.
+
+    Default off. The synthetic_v0 path is byte-identical to the canon
+    master ``bec8f80`` baseline when this flag is unset.
+    """
+    value = os.environ.get(ARE_WALKER_CUSTOMER_AGENT_ENV, "0").strip().lower()
+    return value in ("on", "1", "true", "yes")
+
+
 # ---------------------------------------------------------------------------
 # v0 helpers — synthetic probe stream + MockRunner factory.
 # ---------------------------------------------------------------------------
@@ -599,10 +623,28 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         score_runtime = ScoreRuntime.from_rubric_path(rubric_path)
         score_envelope_registry = {}
 
+    # BEAAA-5414 v0.3 — customer-true Track B walker selector. Default
+    # off → synthetic_v0 path byte-identical to canon master ``bec8f80``.
+    # Flag-on → customer-true walker + HTTP runner factory. The lazy
+    # imports keep the AG-A5 ``api/**/*.py`` surface check tight: the
+    # customer-true modules are only imported when the flag selects
+    # them at production wiring time. CTO co-sign BEAAA-5418 + UW
+    # op-seat co-sign BEAAA-5420.
+    if _customer_agent_walker_enabled():
+        from harness.customer_runner import customer_agent_http_runner_factory
+        from scanners.customer_agent_walker import customer_agent_probe_run_fn
+        _selected_runner_factory: Callable[[str, str], ModelRunner] = (
+            customer_agent_http_runner_factory
+        )
+        _selected_probe_run_fn: ProbeRunFn = customer_agent_probe_run_fn
+    else:
+        _selected_runner_factory = v0_mock_runner_factory
+        _selected_probe_run_fn = synthetic_v0_probe_run_fn
+
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
-        runner_factory=v0_mock_runner_factory,
-        probe_run_fn=synthetic_v0_probe_run_fn,
+        runner_factory=_selected_runner_factory,
+        probe_run_fn=_selected_probe_run_fn,
         score_runtime=score_runtime,
         score_envelope_registry=score_envelope_registry,
     )
@@ -693,6 +735,7 @@ def _terminate(*procs: Any) -> None:
 
 
 __all__ = [
+    "ARE_WALKER_CUSTOMER_AGENT_ENV",
     "build_v0_corpus_tarball",
     "make_default_production_scan_runtime",
     "make_production_scan_runtime",
