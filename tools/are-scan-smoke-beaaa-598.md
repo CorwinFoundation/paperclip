@@ -78,11 +78,11 @@ diff returns empty.
    normalises them before render.
 5. **CTO eyeballs three `--as-of` snapshots.** Files attached for
    sampling:
-   - `artifacts/beaaa-598/digest_2026-05-18T08:00:00Z.pdf` (53 KB HTML,
+   - `artifacts/beaaa-598/digest_2026-05-18T08-00-00Z.pdf` (53 KB HTML,
      234 KB PDF, 243 footer ids — peak activity day)
-   - `artifacts/beaaa-598/digest_2026-05-19T08:00:00Z.pdf` (42 KB HTML,
+   - `artifacts/beaaa-598/digest_2026-05-19T08-00-00Z.pdf` (42 KB HTML,
      193 KB PDF, 188 footer ids)
-   - `artifacts/beaaa-598/digest_2026-05-20T08:00:00Z.pdf` (43 KB HTML,
+   - `artifacts/beaaa-598/digest_2026-05-20T08-00-00Z.pdf` (43 KB HTML,
      196 KB PDF, 208 footer ids — today)
 6. **Commit in normal commit, not untracked.** Done in the same commit as
    this evidence file.

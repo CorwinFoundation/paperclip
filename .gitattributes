@@ -1,0 +1,2 @@
+# Artifact filenames must be Windows-portable: no colon, question mark,
+# asterisk, angle bracket, quote, pipe, or trailing space/dot.
