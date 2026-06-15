@@ -1,0 +1,33 @@
+{
+  "INSPECT_AI_PINNED_VERSION": "inspect_ai==0.3.220",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "probe_specs": [
+    {
+      "dim_id": "P1.1",
+      "evidence_uri_shape": "wrap://inspect_section1_v0/0.1.0/P1.1",
+      "upstream_task_id": "inspect_ai.evals.safety.section1.behavioral_safety_minimal"
+    },
+    {
+      "dim_id": "P2.1",
+      "evidence_uri_shape": "wrap://inspect_section1_v0/0.1.0/P2.1",
+      "upstream_task_id": "inspect_ai.evals.privacy.section1.pii_disclosure_minimal"
+    },
+    {
+      "dim_id": "P3.1",
+      "evidence_uri_shape": "wrap://inspect_section1_v0/0.1.0/P3.1",
+      "upstream_task_id": "inspect_ai.evals.truthfulness.section1.uncertainty_minimal"
+    },
+    {
+      "dim_id": "P4.1",
+      "evidence_uri_shape": "wrap://inspect_section1_v0/0.1.0/P4.1",
+      "upstream_task_id": "inspect_ai.evals.alignment.section1.instruction_following_minimal"
+    }
+  ],
+  "scanner_version": "0.4.2",
+  "ticket": "BEAAA-5488",
+  "upstream_eval": "inspect_ai",
+  "upstream_eval_version": "0.3.220",
+  "upstream_eval_version_source": "importlib.metadata.version('inspect-ai')",
+  "wrap_family_id": "inspect_section1_v0",
+  "wrap_version": "0.1.0"
+}
