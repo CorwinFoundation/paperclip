@@ -27,15 +27,18 @@ The wrap module emits NO network traffic; it returns probe specs that
 """
 from __future__ import annotations
 
+import importlib.metadata as _importlib_metadata
 from dataclasses import dataclass
 from typing import Callable, List
 
 
-INSPECT_AI_PINNED_VERSION: str = "inspect_ai==0.3.69"
-"""Upstream framework version this wrap is pinned against. The follow-on
-wrap-ticket integrates the real upstream runner; until then the prompt
-text + scoring rules below are the surface this wrap presents to the
-walker."""
+INSPECT_AI_PINNED_VERSION: str = f"inspect_ai=={_importlib_metadata.version('inspect-ai')}"
+"""Upstream framework version this wrap is pinned against. Read from
+``importlib.metadata`` at import time so the recorded provenance can
+never drift from the actually-installed runtime (BEAAA-5488). The
+follow-on wrap-ticket integrates the real upstream runner; until then
+the prompt text + scoring rules below are the surface this wrap
+presents to the walker."""
 
 
 WRAP_FAMILY_ID: str = "inspect_section1_v0"
