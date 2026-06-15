@@ -122,18 +122,31 @@ class _CustomerAgentHttpRunner(ModelRunner):
         import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
 
         body_bytes = _json.dumps({"prompt": prompt}).encode("utf-8")
+        # BEAAA-5532: pin ``Accept-Encoding: identity`` so a well-behaved
+        # customer endpoint returns uncompressed bytes. httpx's default
+        # is ``gzip, deflate, br, zstd``; under that default a small
+        # compressed wire payload can inflate to multi-GB into the
+        # Prober's memory through ``iter_bytes`` (the decoded-content
+        # iterator) before the size cap fires on the inflated bytes.
+        # The Content-Encoding response-gate below is defence-in-depth
+        # against a non-compliant endpoint that ignores this header.
         headers = {
             "Content-Type": "application/json",
             "Authorization": self._auth_header,
+            "Accept-Encoding": "identity",
         }
         # BEAAA-5528: stream the response and early-abort the moment
         # accumulated length exceeds ``_MAX_RESPONSE_BYTES``. The prior
         # ``client.post`` path fully buffered the body before the cap
         # check fired, so a misbehaving endpoint streaming multi-GB
         # chunked body would OOM the Prober before the cap evaluated.
-        # ``client.stream`` returns headers immediately; ``iter_bytes``
-        # surfaces chunks as they arrive over the wire, and a ``break``
-        # on cap closes the connection at the next context exit.
+        # ``client.stream`` returns headers immediately; ``iter_raw``
+        # surfaces raw on-the-wire chunks as they arrive, and a
+        # ``break`` on cap closes the connection at the next context
+        # exit. BEAAA-5532: ``iter_raw`` (not ``iter_bytes``) is
+        # mandatory — ``iter_bytes`` decodes any Content-Encoding the
+        # response carries, which would re-open the compression-bomb
+        # hazard the Content-Encoding gate below is defending against.
         try:
             with ScopedEgressAllowlist(self._allowed_host) as scope:
                 # ``follow_redirects=True`` is REQUIRED. httpx routes
@@ -167,13 +180,43 @@ class _CustomerAgentHttpRunner(ModelRunner):
                                 f"customer endpoint HTTP {resp.status_code}: "
                                 f"{resp.reason_phrase}"
                             )
+                        # BEAAA-5532: Content-Encoding gate. Reject any
+                        # response that carries a non-identity
+                        # Content-Encoding BEFORE iterating the body so
+                        # a compression bomb is never decoded into the
+                        # Prober's memory. Allowed values: missing
+                        # header, empty string, or ``identity``. This
+                        # gate fires regardless of what
+                        # ``Accept-Encoding`` the request advertised —
+                        # defence-in-depth against a customer endpoint
+                        # that does not honour ``Accept-Encoding:
+                        # identity``.
+                        encoding = (
+                            resp.headers.get("Content-Encoding", "")
+                            .strip()
+                            .lower()
+                        )
+                        if encoding not in ("", "identity"):
+                            raise RunnerError(
+                                f"customer endpoint returned unsupported "
+                                f"Content-Encoding: {encoding}"
+                            )
                         buf = bytearray()
                         truncated = False
-                        for chunk in resp.iter_bytes():
-                            buf.extend(chunk)
-                            if len(buf) > _MAX_RESPONSE_BYTES:
+                        # BEAAA-5532: pre-extension cap check. The
+                        # check fires BEFORE ``buf.extend(chunk)`` so
+                        # the buffer never grows past the cap even by
+                        # one chunk-worth of slack. The BEAAA-5528
+                        # post-extension check allowed peak buffer to
+                        # reach ``cap + len(chunk)`` before the break;
+                        # under adversarial chunk sizing that's an
+                        # extra-large memory residue. Pre-extension
+                        # check guarantees ``len(buf) <= cap`` always.
+                        for chunk in resp.iter_raw():
+                            if len(buf) + len(chunk) > _MAX_RESPONSE_BYTES:
                                 truncated = True
                                 break
+                            buf.extend(chunk)
                         if truncated:
                             raise RunnerError(
                                 f"customer endpoint response exceeded "
