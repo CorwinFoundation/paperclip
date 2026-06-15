@@ -98,7 +98,7 @@ transformers==4.51.3
 
 # --- dev / test ---
 # Test-only dependencies are pinned in requirements-dev.txt. CI installs both
-# requirements files before running `python -m unittest discover -v tests`.
+# requirements files before running `python -m pytest -v tests`.
 
 # --- pinned external CLI (Node, not pip-managed) ---
 # promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)
