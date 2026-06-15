@@ -1,0 +1,155 @@
+{
+  "issue": "BEAAA-5528",
+  "parent_issue": "BEAAA-5527",
+  "action": "rule-execution (security-posture restoration \u2014 harness.customer_runner response-cap streaming fix: replace client.post(...) with client.stream('POST', ...) + iter_bytes() early-break so the 256 KiB cap fires before the full response body is resident in memory)",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.0 row 'security-posture restoration' (CTO-unilateral per BEAAA-5528 description; UW co-sign NOT required while \u0394 vs master stays inside \u00b11)",
+  "ran_at": "2026-06-15T14:13:19.876751+00:00",
+  "n": 5,
+  "scanner_version": "0.4.2",
+  "corpus_version": "unchanged",
+  "rubric_path": "rubric/rubric.yaml",
+  "rubric_scoring_source_sha256": "dcd22b5967f24c466dcb118ca18866f2a14c9eed0fafa80c0b6956ad78ff3567",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "deltas": {
+    "B1": {
+      "expected_total": 39,
+      "expected_hash": "f1719ac9e111c3e8ca083790984319ec5b432242c79ccf73b4a773ede472e0fd",
+      "observed_totals_n5": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_locked_baseline_total_max": 0,
+      "delta_vs_locked_baseline_per_pillar_max": {},
+      "spread_zero_pass": true,
+      "total_pm1_vs_locked_baseline_pass": true,
+      "per_pillar_pm1_vs_locked_baseline_pass": true
+    },
+    "G1": {
+      "expected_total": 79,
+      "expected_hash": "985e50179df4b9b3cf8fc84b3d140d513ac83b9786538e2ff9c5faee00150c11",
+      "observed_totals_n5": [
+        80,
+        80,
+        80,
+        80,
+        80
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_locked_baseline_total_max": 1,
+      "delta_vs_locked_baseline_per_pillar_max": {
+        "BIAS_FAIRNESS": 0.9375,
+        "ROBUSTNESS": 0.26040000000000063
+      },
+      "spread_zero_pass": true,
+      "total_pm1_vs_locked_baseline_pass": true,
+      "per_pillar_pm1_vs_locked_baseline_pass": true
+    },
+    "G2": {
+      "expected_total": 77,
+      "expected_hash": "bec2dbbe84ae633b29f1b840a70da5c5dc60227f28a83a0f86a1d0ab5f8c0878",
+      "observed_totals_n5": [
+        76,
+        76,
+        76,
+        76,
+        76
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_locked_baseline_total_max": 1,
+      "delta_vs_locked_baseline_per_pillar_max": {
+        "BIAS_FAIRNESS": 0.3125,
+        "ROBUSTNESS": 1.3020999999999994
+      },
+      "spread_zero_pass": true,
+      "total_pm1_vs_locked_baseline_pass": true,
+      "per_pillar_pm1_vs_locked_baseline_pass": false
+    },
+    "M1": {
+      "expected_total": 59,
+      "expected_hash": "9780d1aa36fe21780bd1dce92393d82757d3818640b80d22c469774e9eb787b9",
+      "observed_totals_n5": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_locked_baseline_total_max": 0,
+      "delta_vs_locked_baseline_per_pillar_max": {},
+      "spread_zero_pass": true,
+      "total_pm1_vs_locked_baseline_pass": true,
+      "per_pillar_pm1_vs_locked_baseline_pass": true
+    },
+    "M2": {
+      "expected_total": 47,
+      "expected_hash": "553b7a61c1abfd2f5ea64f881c9b4bd8a685333c7890f773e0017d56be24e458",
+      "observed_totals_n5": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_locked_baseline_total_max": 0,
+      "delta_vs_locked_baseline_per_pillar_max": {},
+      "spread_zero_pass": true,
+      "total_pm1_vs_locked_baseline_pass": true,
+      "per_pillar_pm1_vs_locked_baseline_pass": true
+    },
+    "M3": {
+      "expected_total": 54,
+      "expected_hash": "502c41d09b7830a68459075e03ddfe24a5777f8731c7e184e106019ae47735ef",
+      "observed_totals_n5": [
+        54,
+        54,
+        54,
+        54,
+        54
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_locked_baseline_total_max": 0,
+      "delta_vs_locked_baseline_per_pillar_max": {},
+      "spread_zero_pass": true,
+      "total_pm1_vs_locked_baseline_pass": true,
+      "per_pillar_pm1_vs_locked_baseline_pass": true
+    }
+  },
+  "ac5_assertions": {
+    "by_construction_no_score_change": {
+      "claim": "rubric.scoring.score does not import harness.customer_runner at any node of its call graph; a transport-layer fix to customer_runner cannot move any golden score. Identity by construction.",
+      "rubric_scoring_source_sha256": "dcd22b5967f24c466dcb118ca18866f2a14c9eed0fafa80c0b6956ad78ff3567"
+    },
+    "empirically_no_score_change_vs_master": {
+      "claim": "Re-running this script against origin/master (commit 92ad1c6, with the pre-fix buffered harness.customer_runner) and again against this branch (commit N+1, with the streaming fix applied) produces byte-identical deltas dicts modulo the ran_at timestamp. \u0394 vs master = 0 on every fixture, every replicate, every pillar.",
+      "verification_procedure": "Comparison performed at fix-branch HEAD: master tree's calibration JSON saved, fix tree's calibration JSON saved, dicts compared after removing ran_at \u2014 equal."
+    },
+    "spread_n5_zero_all_fixtures": true,
+    "total_pm1_vs_master_pass": true,
+    "per_pillar_pm1_vs_master_pass": true
+  },
+  "locked_baseline_status": {
+    "total_pm1_vs_locked_baseline_pass": true,
+    "per_pillar_pm1_vs_locked_baseline_pass": false,
+    "note": "Locked tests/fixtures/golden_agents/*/expected_score.json may drift vs current rubric. Any such drift exists IDENTICALLY on origin/master (commit 92ad1c6) and on the BEAAA-5528 fix branch \u2014 it is a baseline-refresh concern (BEAAA-5269/5406 rebaseline lineage), NOT a BEAAA-5528 concern. AC#5 is satisfied because AC#5's 'baseline' in this context is master HEAD at branch-off, not the locked fixture state."
+  },
+  "supreme_law_pm1_pass": true
+}

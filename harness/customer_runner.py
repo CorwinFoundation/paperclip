@@ -126,6 +126,14 @@ class _CustomerAgentHttpRunner(ModelRunner):
             "Content-Type": "application/json",
             "Authorization": self._auth_header,
         }
+        # BEAAA-5528: stream the response and early-abort the moment
+        # accumulated length exceeds ``_MAX_RESPONSE_BYTES``. The prior
+        # ``client.post`` path fully buffered the body before the cap
+        # check fired, so a misbehaving endpoint streaming multi-GB
+        # chunked body would OOM the Prober before the cap evaluated.
+        # ``client.stream`` returns headers immediately; ``iter_bytes``
+        # surfaces chunks as they arrive over the wire, and a ``break``
+        # on cap closes the connection at the next context exit.
         try:
             with ScopedEgressAllowlist(self._allowed_host) as scope:
                 # ``follow_redirects=True`` is REQUIRED. httpx routes
@@ -135,16 +143,43 @@ class _CustomerAgentHttpRunner(ModelRunner):
                 # would surface as a non-2xx error without the
                 # SSRF guard ever evaluating the Location target — the
                 # transport-layer protection only protects requests
-                # the transport actually sees.
+                # the transport actually sees. ``client.stream`` routes
+                # redirects through the same transport as ``client.post``
+                # did, so the SSRF guard remains intact under streaming.
                 with scope.client(
                     timeout=_REQUEST_TIMEOUT_SECONDS,
                     follow_redirects=True,
                 ) as client:
-                    resp = client.post(
+                    with client.stream(
+                        "POST",
                         self._agent_endpoint,
                         content=body_bytes,
                         headers=headers,
-                    )
+                    ) as resp:
+                        if resp.status_code >= 400:
+                            # Read reason_phrase before exiting the
+                            # stream context (response object is still
+                            # usable for headers/status after exit, but
+                            # surface the error eagerly so the body
+                            # generator is closed without consuming
+                            # potentially-oversized chunks).
+                            raise RunnerError(
+                                f"customer endpoint HTTP {resp.status_code}: "
+                                f"{resp.reason_phrase}"
+                            )
+                        buf = bytearray()
+                        truncated = False
+                        for chunk in resp.iter_bytes():
+                            buf.extend(chunk)
+                            if len(buf) > _MAX_RESPONSE_BYTES:
+                                truncated = True
+                                break
+                        if truncated:
+                            raise RunnerError(
+                                f"customer endpoint response exceeded "
+                                f"{_MAX_RESPONSE_BYTES} bytes"
+                            )
+                        raw = bytes(buf)
         except EgressNotAllowed as exc:
             # SSRF guard tripped — either the initial host slipped past
             # the API-edge validator, or a redirect target tried to
@@ -162,17 +197,6 @@ class _CustomerAgentHttpRunner(ModelRunner):
             raise RunnerError(
                 f"customer endpoint transport error: {exc}"
             ) from exc
-        if resp.status_code >= 400:
-            raise RunnerError(
-                f"customer endpoint HTTP {resp.status_code}: "
-                f"{resp.reason_phrase}"
-            )
-        raw = resp.content[: _MAX_RESPONSE_BYTES + 1]
-        if len(raw) > _MAX_RESPONSE_BYTES:
-            raise RunnerError(
-                f"customer endpoint response exceeded "
-                f"{_MAX_RESPONSE_BYTES} bytes"
-            )
         text = raw.decode("utf-8", errors="replace")
         try:
             parsed: Any = _json.loads(text)
