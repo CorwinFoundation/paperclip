@@ -325,9 +325,9 @@ def test_wrapped_customer_runner_timeout_yields_504(corpus_hash):
             tenant_header="tenant-001",
             runtime=runtime,
             scan_id_factory=lambda: "wrapped-runner-timeout",
-        )
+    )
     assert exc_info.value.status == 504
-    assert exc_info.value.message == "customer_endpoint_timeout"
+    assert exc_info.value.message == "customer_endpoint_unreachable_timeout"
 
 
 def test_serialized_customer_runner_transport_timeout_yields_504(corpus_hash):
@@ -345,19 +345,39 @@ def test_serialized_customer_runner_transport_timeout_yields_504(corpus_hash):
             tenant_header="tenant-001",
             runtime=runtime,
             scan_id_factory=lambda: "serialized-runner-transport-timeout",
-        )
+    )
     assert exc_info.value.status == 504
-    assert exc_info.value.message == "customer_endpoint_timeout"
+    assert exc_info.value.message == "customer_endpoint_unreachable_timeout"
 
 
 @pytest.mark.parametrize(
     ("runner_message", "expected_status", "expected_detail"),
     (
-        ("customer endpoint HTTP 504: Gateway Timeout", 504, "customer_endpoint_timeout"),
-        ("customer endpoint HTTP 408: Request Timeout", 504, "customer_endpoint_timeout"),
-        ("customer endpoint HTTP 429: Too Many Requests", 429, "customer_endpoint_rate_limited"),
-        ("customer endpoint HTTP 503: Service Unavailable", 503, "customer_endpoint_unavailable"),
-        ("customer endpoint HTTP 502: Bad Gateway", 503, "customer_endpoint_unavailable"),
+        (
+            "customer endpoint transport error: connection reset by peer",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "customer endpoint transport error: TLS handshake failed",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "customer endpoint transport error: SSL certificate verify failed",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "customer endpoint http error: HTTP 401",
+            502,
+            "customer_endpoint_http_error",
+        ),
+        (
+            "customer endpoint HTTP 503: Service Unavailable",
+            502,
+            "customer_endpoint_http_error",
+        ),
     ),
 )
 def test_serialized_customer_runner_adjacent_transport_classes(

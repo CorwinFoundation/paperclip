@@ -11,7 +11,7 @@ proof_points_cited: ["tests/test_scan_handlers_beaaa547.py", "tests.test_golden_
 version: 0.1
 prior_version: null
 self_audit_passed: true
-escalations_noted: []
+escalations_noted: ["CTO co-sign required by BEAAA-6038 issue body before final close"]
 ---
 
 # BEAAA-6038 N=5 Calibration Delta
@@ -31,7 +31,7 @@ Rule-execution under `contracts/scanner-implementation-supervision-v1.md@v1.1`, 
 | `probe-set-version` | unchanged; no probe-set files modified |
 | `rubric_point_id` | OPS eval reproducibility / API error handling; no scoring rubric point modified |
 | `N=5 calibration delta` | 0 total movement and 0 subscore movement by construction; explicit N=5 golden regression replay passed 5/5 |
-| `cto_cosign_ref` | not required; rule-execution |
+| `cto_cosign_ref` | pending CTO review on BEAAA-6038 per issue acceptance criteria |
 | `upstream_eval_version` | n/a; no upstream eval wrapper added or bumped |
 
 ## Verification
@@ -40,7 +40,7 @@ Targeted handler regression:
 
 ```text
 pytest -q tests/test_scan_handlers_beaaa547.py
-42 passed in 0.60s
+42 passed in 1.98s
 ```
 
 Explicit N=5 replay:
@@ -48,19 +48,19 @@ Explicit N=5 replay:
 ```text
 for i in 1 2 3 4 5; do python3 -m unittest -q tests.test_golden_agents tests.test_golden_set_l2_gate || exit 1; echo "N=$i OK"; done
 
-Ran 19 tests in 1.114s
+Ran 19 tests in 3.048s
 OK
 N=1 OK
-Ran 19 tests in 1.721s
+Ran 19 tests in 3.463s
 OK
 N=2 OK
-Ran 19 tests in 1.250s
+Ran 19 tests in 3.586s
 OK
 N=3 OK
-Ran 19 tests in 1.088s
+Ran 19 tests in 3.683s
 OK
 N=4 OK
-Ran 19 tests in 1.238s
+Ran 19 tests in 3.645s
 OK
 N=5 OK
 ```

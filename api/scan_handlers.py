@@ -69,7 +69,10 @@ _CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
-_CUSTOMER_ENDPOINT_HTTP_RE = re.compile(r"^customer endpoint HTTP (?P<status>\d{3}):")
+_CUSTOMER_ENDPOINT_HTTP_RE = re.compile(
+    r"^customer endpoint (?:(?:http error: )?HTTP) (?P<status>\d{3})(?::|$)",
+    re.IGNORECASE,
+)
 
 # BEAAA-1265 (WS1) — purpose values accepted on POST /scanner/v1/rescans.
 # Carried via the request body's ``scanner_invocation_context.purpose`` field
@@ -113,14 +116,7 @@ def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
 
     http_match = _CUSTOMER_ENDPOINT_HTTP_RE.match(message)
     if http_match is not None:
-        status = int(http_match.group("status"))
-        if status in (408, 504):
-            return HandlerError(504, "customer_endpoint_timeout")
-        if status == 429:
-            return HandlerError(429, "customer_endpoint_rate_limited")
-        if status in (502, 503):
-            return HandlerError(503, "customer_endpoint_unavailable")
-        return HandlerError(422, "customer_endpoint_unreachable")
+        return HandlerError(502, "customer_endpoint_http_error")
 
     lowered = message.lower()
     if (
@@ -139,7 +135,13 @@ def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
             )
         )
     ):
-        return HandlerError(504, "customer_endpoint_timeout")
+        return HandlerError(504, "customer_endpoint_unreachable_timeout")
+
+    if message.startswith("customer endpoint transport error:") and any(
+        token in lowered
+        for token in ("connection reset", "tls", "ssl")
+    ):
+        return HandlerError(504, "customer_endpoint_unreachable_transport")
 
     return HandlerError(422, "customer_endpoint_unreachable")
 
