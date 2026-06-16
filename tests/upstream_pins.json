@@ -1,0 +1,57 @@
+{
+  "advbench": {
+    "ref": "5f3e7af52ed9da50f5e5d735e0b08f1f3a96d80f",
+    "ref_type": "git_sha",
+    "source": "https://github.com/llm-attacks/llm-attacks",
+    "subdir": "data/advbench",
+    "release_label": "advbench-2023-07-27",
+    "citation": "Zou et al., 2023, Universal and Transferable Adversarial Attacks on Aligned Language Models (USENIX-23).",
+    "filter_predicate": "B2B-relevant rows (fraud / malware / disinfo / privacy / financial). Exclude physical-harm / weapons / CSAM-adjacent per BEAAA-125.",
+    "subset_size": 8,
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/advbench.yaml@v0.1.0"
+  },
+  "jailbreakbench": {
+    "ref": "v1.0.0",
+    "ref_type": "git_tag",
+    "source": "https://github.com/JailbreakBench/jailbreakbench",
+    "subdir": "data/JBB-Behaviors",
+    "release_label": "jailbreakbench-v1.0.0",
+    "citation": "Chao et al., 2024, JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models (NeurIPS-24 D&B).",
+    "filter_predicate": "Categories from BEAAA-153 #comment-89df5af9 UW gate: privacy x1.25, fraud_deception x1.25, expert_advice x1.25, malware_hacking x1.0, economic_harm x1.0, disinformation x1.0, harassment_discrimination x0.75. Exclude physical_harm / sexual_adult.",
+    "subset_size": 8,
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/jailbreakbench.yaml@v0.1.0"
+  },
+  "agentdojo": {
+    "ref": "v0.1.35",
+    "ref_type": "pypi_release_tag",
+    "source": "https://github.com/ethz-spylab/agentdojo",
+    "subdir": "src/agentdojo/data_suites",
+    "release_label": "agentdojo-v0.1.35",
+    "citation": "Debenedetti et al., 2024, AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (NeurIPS-24).",
+    "filter_predicate": "Indirect-injection (tool-call output surface) subset only — workspace.write_then_summarize, retrieval.citation_card.canary, tools.email_thread.injected_followup, docs.attachment.rendered_html. Single-dim P3.2 mapping per rubric/probe_mappings/agentdojo.yaml@v0.1.35.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P3.2"],
+    "probe_mapping_yaml": "rubric/probe_mappings/agentdojo.yaml@v0.1.35"
+  },
+  "crescendo": {
+    "ref": "usenix-25-camera-ready",
+    "ref_type": "paper_release_label",
+    "source": "https://www.usenix.org/conference/usenixsecurity25/presentation/russinovich",
+    "subdir": "paper appendix B (multi-turn escalation chains)",
+    "release_label": "crescendo-usenix-25",
+    "citation": "Russinovich et al., 2025, Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack (USENIX Security 2025).",
+    "filter_predicate": "Canonical escalation-chain templates from appendix B, restricted to B2B-relevant target topics (fraud playbook, exfil playbook, manipulation playbook). Physical-harm / weapons / CSAM excluded per BEAAA-125.",
+    "subset_size": 4,
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/promptinject.yaml@v0.1.0 (multi-turn variant; formal P3.5 activation deferred per ADR-0032)"
+  },
+  "_meta": {
+    "ticket": "BEAAA-5757",
+    "supervision_contract": "contracts/scanner-implementation-supervision-v1.md@v1.1 row 'Wrap an upstream eval framework' = Rule execution",
+    "scanner_api": "contracts/are-scanner-api-v1.md@v1.0",
+    "adr": "docs/adr/adr-0032-beaaa5757-p5-injection-judge-pin.md",
+    "judge": "non-LLM regex refusal classifier (mirrors engineering/probe-sdk/src/are_probe/probes/refusal_robustness.py); no model in the loop; ADR-0032 records the decision and the deferred multi-turn rubric_point P3.5 carry-forward."
+  }
+}
