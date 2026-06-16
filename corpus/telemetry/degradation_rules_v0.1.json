@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "artifact_type": "other",
+    "owner": "underwriter",
+    "persona_audience": "internal",
+    "phase": 1,
+    "canonical_terms_only": true,
+    "focus_claim": "This artifact gives the Backbond telemetry MVP a deterministic re-pricing trigger that converts signed signal envelopes into Underwriter-consumable multiplier inputs without changing the Backbond score Output.",
+    "contracts_referenced": [
+      "telemetry-api-v0",
+      "are-scanner-api-v1"
+    ],
+    "ticket_refs": [
+      "BEAAA-4969",
+      "BEAAA-4912",
+      "BEAAA-4882"
+    ],
+    "proof_points_cited": [
+      "contracts/telemetry-api-v0.md §5.4",
+      "contracts/telemetry-api-v0.md §11 row 4",
+      "are-scanner-api-v1@v1.0 hard guarantees"
+    ],
+    "version": "0.1",
+    "prior_version": null,
+    "self_audit_passed": true,
+    "escalations_noted": [
+      "No Founder gate: this is additive telemetry trigger logic and does not change the Backbond score Output, pillar weights, rubric points, or filed band mapping.",
+      "Suspend semantics approved only with Founder + HoUW co-sign per contracts/telemetry-api-v0.md §4.3."
+    ]
+  },
+  "schema_version": "0.1",
+  "event_rule_corpus_version": "0.1",
+  "degradation_rule_id": "dp_7d_weighted_event_threshold_v0_1",
+  "scope": {
+    "unit": "dp_id",
+    "rolling_window": "P7D",
+    "trigger_window_alignment": "sliding",
+    "idempotency_key": [
+      "dp_id",
+      "trigger_window_start"
+    ]
+  },
+  "event_type_weights": {
+    "wrong_recipient": 3,
+    "unauthorized_commitment": 4,
+    "data_leak": 4,
+    "hallucination": 2,
+    "prompt_injection": 3,
+    "regulatory_response": 5
+  },
+  "per_event_type_count_thresholds": {
+    "wrong_recipient": 2,
+    "unauthorized_commitment": 1,
+    "data_leak": 1,
+    "hallucination": 5,
+    "prompt_injection": 3,
+    "regulatory_response": 1
+  },
+  "combined_severity_threshold": 8,
+  "trigger_logic": {
+    "fires_when": "any_per_event_threshold_met_or_aggregate_severity_gte_threshold",
+    "aggregate_severity_formula": "sum(event_type_counts[event_type] * event_type_weights[event_type])",
+    "minimum_signal_envelopes": 1
+  },
+  "consumer_notes": {
+    "underwriter_multiplier_input": "event_type_counts and aggregate_severity are sufficient and necessary for f(event_type_counts, aggregate_severity) -> new_multiplier; no reach-back to portal state is required.",
+    "current_backbond_score_ref": "Evidence pointer only. It is not an input to this trigger and does not mutate the Backbond score Output.",
+    "retraction_policy": "Already-emitted re-pricing events are not rescinded by a later rules revert; downstream Underwriter intake handles superseding events or manual retraction."
+  }
+}

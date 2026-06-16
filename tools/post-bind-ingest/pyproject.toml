@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "post-bind-ingest"
+version = "0.1.0"
+description = "BackBond post-bind push-mode manifest ingest + normalizer"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+post-bind-ingest = "post_bind_ingest.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
