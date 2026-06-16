@@ -12,8 +12,10 @@ RUN groupadd --system connector && useradd --system --gid connector --home /var/
     && chown -R connector:connector /var/lib/are-connector
 
 COPY pyproject.toml ./
+COPY constraints.txt ./
 COPY src ./src
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --require-hashes -r constraints.txt \
+    && SOURCE_DATE_EPOCH=1735689600 pip install --no-cache-dir --no-deps .
 
 USER connector
 ENTRYPOINT ["are-connector"]

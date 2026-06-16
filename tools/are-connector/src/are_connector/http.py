@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -60,15 +61,19 @@ class PortalClient:
         headers = kwargs.pop("headers", {})
         if self.bearer_token:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
-        response = self.session.request(method, url, headers=headers, **kwargs)
-        response.raise_for_status()
+        response = self.session.request(
+            method, url, headers=headers, allow_redirects=False, **kwargs
+        )
+        _raise_for_redirect(response)
         return response
 
 
 def call_agent(endpoint: str, payload: dict, allowlist: EgressAllowlist, timeout: int) -> dict:
     allowlist.assert_allowed(endpoint)
-    response = requests.post(endpoint, json=payload, timeout=timeout, stream=True)
-    response.raise_for_status()
+    response = requests.post(
+        endpoint, json=payload, timeout=timeout, stream=True, allow_redirects=False
+    )
+    _raise_for_redirect(response)
     body = _read_capped_response_body(response)
     try:
         return response.json() if getattr(response, "_content", None) == body else _json_loads(body)
@@ -102,8 +107,21 @@ def _json_loads(body: bytes) -> dict:
     return decoded
 
 
+def _raise_for_redirect(response: requests.Response) -> None:
+    status_code = getattr(response, "status_code", None)
+    if status_code is not None and 300 <= int(status_code) < 400:
+        raise PermissionError(
+            "redirect blocked"
+            + (f": {response.headers.get('Location')}" if response.headers.get("Location") else "")
+        )
+    response.raise_for_status()
+
+
 def _origin(url: str) -> str:
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    allowed_schemes = {"https"}
+    if os.environ.get("ALLOW_PLAINTEXT_AGENT_ENDPOINT") == "1":
+        allowed_schemes.add("http")
+    if parsed.scheme not in allowed_schemes or not parsed.netloc:
         raise ValueError(f"invalid egress URL: {url}")
     return f"{parsed.scheme}://{parsed.netloc}".lower()

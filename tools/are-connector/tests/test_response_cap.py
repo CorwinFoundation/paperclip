@@ -36,8 +36,9 @@ class FakeResponse:
 
 
 def _patch_post(monkeypatch, body: bytes) -> None:
-    def fake_post(endpoint, json=None, timeout=None, stream=False):
+    def fake_post(endpoint, json=None, timeout=None, stream=False, **kwargs):
         assert stream is True
+        assert kwargs.get("allow_redirects") is False
         return FakeResponse(body)
 
     monkeypatch.setattr("are_connector.http.requests.post", fake_post)
