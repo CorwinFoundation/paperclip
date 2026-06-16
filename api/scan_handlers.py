@@ -69,6 +69,7 @@ _CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
+_CUSTOMER_ENDPOINT_HTTP_RE = re.compile(r"^customer endpoint HTTP (?P<status>\d{3}):")
 
 # BEAAA-1265 (WS1) — purpose values accepted on POST /scanner/v1/rescans.
 # Carried via the request body's ``scanner_invocation_context.purpose`` field
@@ -99,13 +100,48 @@ def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
         current = current.__cause__ or current.__context__
 
 
-def _is_customer_endpoint_runner_error(exc: RunnerError) -> bool:
-    """Return true for customer-supplied endpoint failures.
+def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
+    """Return the API error for customer-supplied endpoint failures.
 
     Generic ``RunnerError`` is also used by internal SDK adapters, so only
-    errors emitted by ``harness.customer_runner`` are translated to 4xx.
+    errors emitted by ``harness.customer_runner`` are translated out of the
+    generic ``orchestrator_error`` bucket.
     """
-    return str(exc).startswith("customer endpoint ")
+    message = str(exc)
+    if not message.startswith("customer endpoint "):
+        return None
+
+    http_match = _CUSTOMER_ENDPOINT_HTTP_RE.match(message)
+    if http_match is not None:
+        status = int(http_match.group("status"))
+        if status in (408, 504):
+            return HandlerError(504, "customer_endpoint_timeout")
+        if status == 429:
+            return HandlerError(429, "customer_endpoint_rate_limited")
+        if status in (502, 503):
+            return HandlerError(503, "customer_endpoint_unavailable")
+        return HandlerError(422, "customer_endpoint_unreachable")
+
+    lowered = message.lower()
+    if (
+        message.startswith("customer endpoint timeout ")
+        or (
+            message.startswith("customer endpoint transport error:")
+            and any(
+                token in lowered
+                for token in (
+                    "timeout",
+                    "timed out",
+                    "readtimeout",
+                    "connecttimeout",
+                    "pooltimeout",
+                )
+            )
+        )
+    ):
+        return HandlerError(504, "customer_endpoint_timeout")
+
+    return HandlerError(422, "customer_endpoint_unreachable")
 
 
 def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerError:
@@ -113,11 +149,10 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
     for chain_exc in _exception_chain(exc):
         if isinstance(chain_exc, CorpusSnapshotMismatchError):
             return HandlerError(422, "corpus_snapshot_mismatch")
-        if (
-            isinstance(chain_exc, RunnerError)
-            and _is_customer_endpoint_runner_error(chain_exc)
-        ):
-            return HandlerError(422, "customer_endpoint_unreachable")
+        if isinstance(chain_exc, RunnerError):
+            customer_error = _customer_endpoint_handler_error(chain_exc)
+            if customer_error is not None:
+                return customer_error
     message = str(exc)
     if message.startswith("prober subprocess raised CorpusSnapshotMismatchError:"):
         return HandlerError(422, "corpus_snapshot_mismatch")
@@ -125,8 +160,9 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
         runner_message = message.removeprefix(
             "prober subprocess raised RunnerError:"
         ).strip()
-        if runner_message.startswith("customer endpoint "):
-            return HandlerError(422, "customer_endpoint_unreachable")
+        customer_error = _customer_endpoint_handler_error(RunnerError(runner_message))
+        if customer_error is not None:
+            return customer_error
     return HandlerError(500, "orchestrator_error")
 
 

@@ -203,6 +203,12 @@ paths:
             agent_endpoint_invalid, agent_endpoint_host_invalid,
             tenant_id_required, scanner_version_required,
             corpus_version_required, seed_required, body_invalid.
+        '429':
+          description: Customer endpoint returned rate limiting; detail is customer_endpoint_rate_limited.
+        '503':
+          description: Customer endpoint returned upstream availability failure; detail is customer_endpoint_unavailable.
+        '504':
+          description: Customer endpoint timed out; detail is customer_endpoint_timeout.
   /scan/{scanId}:
     get:
       summary: Poll status / final result for a live-probe scan

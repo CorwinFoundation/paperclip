@@ -312,6 +312,78 @@ def test_serialized_customer_runner_dns_error_yields_422(corpus_hash):
     assert exc_info.value.message == "customer_endpoint_unreachable"
 
 
+def test_wrapped_customer_runner_timeout_yields_504(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        cause = RunnerError("customer endpoint timeout after 30.0s")
+        raise OrchestratorError("prober subprocess raised RunnerError") from cause
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "wrapped-runner-timeout",
+        )
+    assert exc_info.value.status == 504
+    assert exc_info.value.message == "customer_endpoint_timeout"
+
+
+def test_serialized_customer_runner_transport_timeout_yields_504(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        raise OrchestratorError(
+            "prober subprocess raised RunnerError: "
+            "customer endpoint transport error: ReadTimeout: request timed out"
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "serialized-runner-transport-timeout",
+        )
+    assert exc_info.value.status == 504
+    assert exc_info.value.message == "customer_endpoint_timeout"
+
+
+@pytest.mark.parametrize(
+    ("runner_message", "expected_status", "expected_detail"),
+    (
+        ("customer endpoint HTTP 504: Gateway Timeout", 504, "customer_endpoint_timeout"),
+        ("customer endpoint HTTP 408: Request Timeout", 504, "customer_endpoint_timeout"),
+        ("customer endpoint HTTP 429: Too Many Requests", 429, "customer_endpoint_rate_limited"),
+        ("customer endpoint HTTP 503: Service Unavailable", 503, "customer_endpoint_unavailable"),
+        ("customer endpoint HTTP 502: Bad Gateway", 503, "customer_endpoint_unavailable"),
+    ),
+)
+def test_serialized_customer_runner_adjacent_transport_classes(
+    corpus_hash,
+    runner_message,
+    expected_status,
+    expected_detail,
+):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        raise OrchestratorError(
+            f"prober subprocess raised RunnerError: {runner_message}"
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "serialized-runner-adjacent",
+        )
+    assert exc_info.value.status == expected_status
+    assert exc_info.value.message == expected_detail
+
+
 def test_wrapped_internal_orchestrator_error_stays_500(corpus_hash):
     def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
         del scan_request, secret
