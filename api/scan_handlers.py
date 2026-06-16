@@ -48,6 +48,7 @@ from api.sla import (
     evaluate_degradation,
     pillars_from_dim_results,
 )
+from harness.runner import RunnerError
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
     CorpusSnapshotMismatchError,
@@ -86,6 +87,47 @@ _UW_ONLY_FIELDS: frozenset[str] = frozenset({"live_probe_variance_band"})
 # ``GET /scanner/v1/agents/{agent_id}/scans`` history endpoint is deferred to
 # v1.3.0. Carried to CTO at WS7 ratification as the §7 Q2 resolution.
 PRIOR_SCAN_REFS_MAX: int = 100
+
+
+def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
+    """Yield ``exc`` and its explicit/implicit causes without looping."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def _is_customer_endpoint_runner_error(exc: RunnerError) -> bool:
+    """Return true for customer-supplied endpoint failures.
+
+    Generic ``RunnerError`` is also used by internal SDK adapters, so only
+    errors emitted by ``harness.customer_runner`` are translated to 4xx.
+    """
+    return str(exc).startswith("customer endpoint ")
+
+
+def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerError:
+    """Preserve typed 4xx causes wrapped by an ``OrchestratorError``."""
+    for chain_exc in _exception_chain(exc):
+        if isinstance(chain_exc, CorpusSnapshotMismatchError):
+            return HandlerError(422, "corpus_snapshot_mismatch")
+        if (
+            isinstance(chain_exc, RunnerError)
+            and _is_customer_endpoint_runner_error(chain_exc)
+        ):
+            return HandlerError(422, "customer_endpoint_unreachable")
+    message = str(exc)
+    if message.startswith("prober subprocess raised CorpusSnapshotMismatchError:"):
+        return HandlerError(422, "corpus_snapshot_mismatch")
+    if message.startswith("prober subprocess raised RunnerError:"):
+        runner_message = message.removeprefix(
+            "prober subprocess raised RunnerError:"
+        ).strip()
+        if runner_message.startswith("customer endpoint "):
+            return HandlerError(422, "customer_endpoint_unreachable")
+    return HandlerError(500, "orchestrator_error")
 
 
 # ---------------------------------------------------------------------------
@@ -596,7 +638,7 @@ def _kickoff_live_probe_scan(
     except CredentialResolveError as exc:
         raise HandlerError(500, "credential_resolve_error") from exc
     except OrchestratorError as exc:
-        raise HandlerError(500, "orchestrator_error") from exc
+        raise _handler_error_from_orchestrator_error(exc) from exc
     finally:
         # Hard Invariant #4: the local secret is dropped as the function
         # returns; do not log it, do not place it in any persistent struct.

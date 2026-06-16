@@ -32,10 +32,13 @@ from api.scan_handlers import (
     scan_status_handler,
 )
 from harness.credentials import CredentialVault
+from harness.runner import RunnerError
 from scanners.live_probe_orchestrator import (
+    CorpusSnapshotMismatchError,
     DEFAULT_K_REPLICATES,
     LIVE_PROBE_VARIANCE_BAND,
     DimResult,
+    OrchestratorError,
     ScanRequest,
     ScanResult,
 )
@@ -225,6 +228,125 @@ def test_invalid_credential_ref_yields_422(corpus_hash, stub_runtime):
         scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
     assert exc_info.value.status == 422
     assert exc_info.value.message == "credential_ref_invalid"
+
+
+def test_wrapped_corpus_snapshot_mismatch_yields_422(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        cause = CorpusSnapshotMismatchError(
+            "corpus_snapshot_mismatch: expected pinned hash"
+        )
+        raise OrchestratorError(
+            "prober subprocess raised CorpusSnapshotMismatchError"
+        ) from cause
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "wrapped-corpus-mismatch",
+        )
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "corpus_snapshot_mismatch"
+
+
+def test_serialized_corpus_snapshot_mismatch_yields_422(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        raise OrchestratorError(
+            "prober subprocess raised CorpusSnapshotMismatchError: "
+            "corpus_snapshot_mismatch: expected pinned hash"
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "serialized-corpus-mismatch",
+        )
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "corpus_snapshot_mismatch"
+
+
+def test_wrapped_customer_runner_dns_error_yields_422(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        cause = RunnerError(
+            "customer endpoint transport error: [Errno -2] Name or service not known"
+        )
+        raise OrchestratorError("prober subprocess raised RunnerError") from cause
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "wrapped-runner-dns",
+        )
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "customer_endpoint_unreachable"
+
+
+def test_serialized_customer_runner_dns_error_yields_422(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        raise OrchestratorError(
+            "prober subprocess raised RunnerError: "
+            "customer endpoint transport error: [Errno -2] Name or service not known"
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "serialized-runner-dns",
+        )
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "customer_endpoint_unreachable"
+
+
+def test_wrapped_internal_orchestrator_error_stays_500(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        cause = RunnerError("OPENAI_API_KEY not set")
+        raise OrchestratorError("prober subprocess raised RunnerError") from cause
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "wrapped-internal-runner-error",
+        )
+    assert exc_info.value.status == 500
+    assert exc_info.value.message == "orchestrator_error"
+
+
+def test_serialized_internal_runner_error_stays_500(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del scan_request, secret
+        raise OrchestratorError(
+            "prober subprocess raised RunnerError: OPENAI_API_KEY not set"
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(
+            _good_body(corpus_hash),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "serialized-internal-runner-error",
+        )
+    assert exc_info.value.status == 500
+    assert exc_info.value.message == "orchestrator_error"
 
 
 # ---------------------------------------------------------------------------
