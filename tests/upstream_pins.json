@@ -47,11 +47,59 @@
     "rubric_point_ids": ["P3.1"],
     "probe_mapping_yaml": "rubric/probe_mappings/promptinject.yaml@v0.1.0 (multi-turn variant; formal P3.5 activation deferred per ADR-0032)"
   },
+  "halueval_qa": {
+    "ref": "b7253db3cdaa0ab2c382f92b26b390109174f77e",
+    "ref_type": "git_sha",
+    "source": "https://github.com/RUCAIBox/HaluEval",
+    "subdir": "data/qa_data.json",
+    "release_label": "halueval-acl-2023",
+    "citation": "Li et al., 2023, HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models (ACL-23).",
+    "filter_predicate": "B2B-relevant QA rows where the ground-truth answer is a numeric / short-string factual value extractable from a tool source (price / count / date / identifier). Exclude consumer-belief / political-religious rows per BEAAA-125.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/halueval.yaml@v0.1.0"
+  },
+  "truthfulqa": {
+    "ref": "d71c110897f5d31c5d7f309e7bc316c152f6f031",
+    "ref_type": "git_sha",
+    "source": "https://github.com/sylinrl/TruthfulQA",
+    "subdir": "data/v1.0/TruthfulQA.csv",
+    "release_label": "truthfulqa-acl-2022",
+    "citation": "Lin et al., 2022, TruthfulQA: Measuring How Models Mimic Human Falsehoods (ACL-22).",
+    "filter_predicate": "B2B-domain rows (Health/Law/Finance/Economics/Indexical-error) with a single short-string ground-truth answer extractable from a tool source. Consumer-belief / political-religious excluded per BEAAA-125; mirrors rubric/probe_mappings/truthfulqa.yaml@v0.1.0 UW gate.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/truthfulqa.yaml@v0.1.0"
+  },
+  "halueval_summ": {
+    "ref": "b7253db3cdaa0ab2c382f92b26b390109174f77e",
+    "ref_type": "git_sha",
+    "source": "https://github.com/RUCAIBox/HaluEval",
+    "subdir": "data/summarization_data.json",
+    "release_label": "halueval-acl-2023",
+    "citation": "Li et al., 2023, HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models (ACL-23).",
+    "filter_predicate": "Summarization rows where the model output cites a source document and the cited snippet is verifiable inside the provided source bundle. B2B-relevant only (corporate-filings / financial-reports / KB-articles).",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.2"],
+    "probe_mapping_yaml": "rubric/probe_mappings/halueval.yaml@v0.1.0 (summarization.citation_integrity split)"
+  },
+  "factscore": {
+    "ref": "f28272deffcf33efc1f1117d5479c10bb75221a9",
+    "ref_type": "git_sha",
+    "source": "https://github.com/shmsw25/FActScore",
+    "subdir": "data/labeled_FActScore_biographies",
+    "release_label": "factscore-emnlp-2023",
+    "citation": "Min et al., 2023, FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation (EMNLP-23).",
+    "filter_predicate": "Biographical atomic-fact rows where the atomic fact has a single attributable source URL/doc-id in the FActScore reference corpus. Exclude living-person rows per BEAAA-125 privacy posture.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.2"],
+    "probe_mapping_yaml": "rubric/probe_mappings/factscore.yaml@v0.1.0"
+  },
   "_meta": {
-    "ticket": "BEAAA-5757",
+    "ticket": "BEAAA-5757 (P5 entries) + BEAAA-5752 (P4 entries)",
     "supervision_contract": "contracts/scanner-implementation-supervision-v1.md@v1.1 row 'Wrap an upstream eval framework' = Rule execution",
     "scanner_api": "contracts/are-scanner-api-v1.md@v1.0",
-    "adr": "docs/adr/adr-0032-beaaa5757-p5-injection-judge-pin.md",
-    "judge": "non-LLM regex refusal classifier (mirrors engineering/probe-sdk/src/are_probe/probes/refusal_robustness.py); no model in the loop; ADR-0032 records the decision and the deferred multi-turn rubric_point P3.5 carry-forward."
+    "adr": "docs/adr/adr-0032-beaaa5757-p5-injection-judge-pin.md (P5); BEAAA-5752 R-4 reuses the non-LLM-judge posture established there",
+    "judge": "non-LLM deterministic extractors (regex-based NumericClaimExtractor + CitationExtractor); no model in the loop. The judge-pin decision is recorded by precedent — ADR-0032 covers the policy; R-4 inherits it because the extractors are deterministic-equality not model-graded."
   }
 }
