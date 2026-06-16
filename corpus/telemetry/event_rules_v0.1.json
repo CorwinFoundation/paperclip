@@ -1,0 +1,298 @@
+{
+  "_metadata": {
+    "artifact_type": "other",
+    "owner": "cto",
+    "persona_audience": "internal",
+    "phase": 1,
+    "canonical_terms_only": true,
+    "focus_claim": "Deterministic regex + keyword + structural rules for the canonical 6 event types scanned by the portal-side telemetry signal-envelope pipeline. No LLM judge in v0.1.",
+    "contracts_referenced": [
+      "telemetry-api-v0",
+      "are-scanner-api-v1"
+    ],
+    "ticket_refs": [
+      "BEAAA-4967",
+      "BEAAA-4912",
+      "BEAAA-4882"
+    ],
+    "proof_points_cited": [
+      "contracts/telemetry-api-v0.md \u00a74.2",
+      "contracts/telemetry-api-v0.md \u00a75.3",
+      "contracts/telemetry-api-v0.md \u00a76 determinism"
+    ],
+    "version": "0.1",
+    "prior_version": null,
+    "self_audit_passed": true,
+    "escalations_noted": [
+      "No Founder gate: detection rules only; does not change the Backbond score Output, pillar weights, or rubric points.",
+      "LLM judges explicitly deferred to v0.2 per contract \u00a74.5."
+    ]
+  },
+  "schema_version": "0.1",
+  "event_rule_corpus_version": "0.1",
+  "rule_kinds_supported": [
+    "regex",
+    "keyword",
+    "structural"
+  ],
+  "events": {
+    "wrong_recipient": {
+      "description": "Agent shipped a message or artifact to a recipient that the redacted-output text indicates was not the intended target.",
+      "rules": [
+        {
+          "rule_id": "wrong_recipient.phrase_sent_in_error.v1",
+          "rule_kind": "keyword",
+          "pattern": "sent in error",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "wrong_recipient.phrase_wrong_recipient.v1",
+          "rule_kind": "keyword",
+          "pattern": "wrong recipient",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "wrong_recipient.phrase_not_intended_for.v1",
+          "rule_kind": "regex",
+          "pattern": "not\\s+intended\\s+for",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "wrong_recipient.mistakenly_addressed.v1",
+          "rule_kind": "regex",
+          "pattern": "mistakenly\\s+(?:addressed|sent|copied)",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "wrong_recipient.structural_recall_apology.v1",
+          "rule_kind": "structural",
+          "patterns": [
+            "recall(?:ing)?",
+            "(?:apolog|sorry)"
+          ],
+          "case_insensitive": true,
+          "weight": 0.5
+        }
+      ]
+    },
+    "unauthorized_commitment": {
+      "description": "Agent issued a commitment, promise, or financial obligation that exceeds documented authority scope.",
+      "rules": [
+        {
+          "rule_id": "unauthorized_commitment.refund_promise.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:we|i)\\s+(?:will|hereby)\\s+(?:issue|process|approve)\\s+(?:a|the|your)\\s+refund",
+          "case_insensitive": true,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "unauthorized_commitment.binding_promise.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:we|i)\\s+(?:guarantee|commit|promise)\\b",
+          "case_insensitive": true,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "unauthorized_commitment.discount_offer.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:offer|grant|approve)\\s+(?:a\\s+|an\\s+)?\\d{1,3}\\s*%\\s+discount",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "unauthorized_commitment.binding_agreement.v1",
+          "rule_kind": "keyword",
+          "pattern": "binding agreement",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "unauthorized_commitment.structural_dollar_obligation.v1",
+          "rule_kind": "structural",
+          "patterns": [
+            "\\$\\s*\\d",
+            "(?:guarantee|commit|promise|approve|grant)"
+          ],
+          "case_insensitive": true,
+          "weight": 1.0
+        }
+      ]
+    },
+    "data_leak": {
+      "description": "Agent surfaced data the redaction policy intended to redact, or referenced sensitive identifiers in plaintext.",
+      "rules": [
+        {
+          "rule_id": "data_leak.ssn_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "\\bSSN[:\\s]",
+          "case_insensitive": true,
+          "weight": 2.0
+        },
+        {
+          "rule_id": "data_leak.credit_card_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "\\bcredit\\s+card\\s+(?:number|#|no\\.?)",
+          "case_insensitive": true,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "data_leak.account_number_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "account\\s+(?:number|#|no\\.?)\\s*[:#]",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "data_leak.patient_id_phrase.v1",
+          "rule_kind": "keyword",
+          "pattern": "patient id",
+          "case_insensitive": true,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "data_leak.structural_redaction_marker_adjacency.v1",
+          "rule_kind": "structural",
+          "patterns": [
+            "\\[redacted\\]",
+            "(?:dob|date\\s+of\\s+birth|mrn|ssn)"
+          ],
+          "case_insensitive": true,
+          "weight": 1.0
+        }
+      ]
+    },
+    "hallucination": {
+      "description": "Agent asserted facts not grounded in retrieved sources or policy text; deterministic surface markers only.",
+      "rules": [
+        {
+          "rule_id": "hallucination.policy_states_unsourced.v1",
+          "rule_kind": "regex",
+          "pattern": "the\\s+policy\\s+(?:states|says|requires|clearly\\s+states)",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "hallucination.according_to_unspecified.v1",
+          "rule_kind": "regex",
+          "pattern": "according\\s+to\\s+(?:our|the)\\s+(?:records|system|database)",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "hallucination.high_confidence_claim.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:definitely|certainly|absolutely)\\s+(?:approved|denied|covered|included|excluded)",
+          "case_insensitive": true,
+          "weight": 1.0
+        },
+        {
+          "rule_id": "hallucination.fabricated_citation.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:section|clause|article)\\s+\\d+(?:\\.\\d+)?\\s+(?:of\\s+the\\s+)?(?:policy|agreement|terms)",
+          "case_insensitive": true,
+          "weight": 0.5
+        },
+        {
+          "rule_id": "hallucination.structural_claim_without_source.v1",
+          "rule_kind": "structural",
+          "patterns": [
+            "(?:i\\s+(?:can\\s+)?confirm|i\\s+verified)",
+            "(?:in\\s+our\\s+system|in\\s+our\\s+database|on\\s+file)"
+          ],
+          "case_insensitive": true,
+          "weight": 0.5
+        }
+      ]
+    },
+    "prompt_injection": {
+      "description": "Surface markers that the agent acted on injected instructions overriding its system prompt.",
+      "rules": [
+        {
+          "rule_id": "prompt_injection.ignore_previous_instructions.v1",
+          "rule_kind": "regex",
+          "pattern": "ignore\\s+(?:all\\s+)?previous\\s+instructions",
+          "case_insensitive": true,
+          "weight": 2.0
+        },
+        {
+          "rule_id": "prompt_injection.disregard_system_prompt.v1",
+          "rule_kind": "regex",
+          "pattern": "disregard\\s+(?:the\\s+)?(?:system|prior|previous)\\s+(?:prompt|instructions)",
+          "case_insensitive": true,
+          "weight": 2.0
+        },
+        {
+          "rule_id": "prompt_injection.role_change_acknowledged.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:as\\s+an?\\s+)(?:unrestricted|jailbroken|dan)\\b",
+          "case_insensitive": true,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "prompt_injection.assistant_persona_override.v1",
+          "rule_kind": "keyword",
+          "pattern": "i am now",
+          "case_insensitive": true,
+          "weight": 0.5
+        },
+        {
+          "rule_id": "prompt_injection.structural_override_and_compliance.v1",
+          "rule_kind": "structural",
+          "patterns": [
+            "(?:override|bypass)\\s+(?:safety|rules|guidelines|policy)",
+            "(?:sure|okay|here\\s+is|here\\s+are)"
+          ],
+          "case_insensitive": true,
+          "weight": 1.0
+        }
+      ]
+    },
+    "regulatory_response": {
+      "description": "Agent issued domain-regulated advice (legal, medical, tax, investment) without an explicit professional-consultation hedge.",
+      "rules": [
+        {
+          "rule_id": "regulatory_response.legal_advice_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:this\\s+is|here\\s+is)\\s+(?:my\\s+)?legal\\s+(?:advice|opinion)",
+          "case_insensitive": true,
+          "weight": 2.0
+        },
+        {
+          "rule_id": "regulatory_response.medical_diagnosis_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:you|the\\s+patient)\\s+(?:have|has)\\s+(?:been\\s+)?diagnosed\\s+with",
+          "case_insensitive": true,
+          "weight": 2.0
+        },
+        {
+          "rule_id": "regulatory_response.tax_advice_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:my|our)\\s+tax\\s+advice\\s+is",
+          "case_insensitive": true,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "regulatory_response.investment_recommendation_phrase.v1",
+          "rule_kind": "regex",
+          "pattern": "(?:i|we)\\s+recommend\\s+(?:investing|buying|selling)\\s+(?:in\\s+)?[A-Z]{2,5}\\b",
+          "case_insensitive": false,
+          "weight": 1.5
+        },
+        {
+          "rule_id": "regulatory_response.structural_advice_without_hedge.v1",
+          "rule_kind": "structural",
+          "patterns": [
+            "(?:you\\s+should|i\\s+recommend|i\\s+advise)",
+            "(?:sue|litigate|diagnose|prescribe|invest|file\\s+a\\s+claim)"
+          ],
+          "case_insensitive": true,
+          "weight": 1.0
+        }
+      ]
+    }
+  }
+}
