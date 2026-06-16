@@ -24,8 +24,8 @@ probe_set_version: not touched
 rubric_point_id: not applicable
 n5_calibration_delta: N/A by construction — receipt at `tools/calibration-deltas/2026-06-16-beaaa5863-post-bind-ingest-vs-master.md`
 n5_determinism_self_audit: spread=0 across 5 runs on golden-event fixture (sha256:5f7fb88db60eb5c79c121f8840b2f68b1dae18d3b7a0ba6ee915d79563aa4147 on every run)
-cto_cosign_ref: pending — field-by-field schema conformance review on PR
-se2_cosign_ref: pending — fresh-eyes review on manifest_signature.py, invariants.py, redaction.py floor enforcement
+cto_cosign_ref: "ae2e1b0c-0b9f-4f1c-bd79-23a5b20ad974 (2026-06-16T15:31:48Z, agent-attributed, 12473B — field-by-field Schema v1.0 conformance + Δ=0 adversarial-mutation verification)"
+se2_cosign_ref: "SE-2 (bc8396d5-dee6-4ad8-ae3f-1a2280088cb4) substantive review confirmed via runs dc35a0a8-… and prior — reviewed manifest_signature.py, invariants.py, redaction.py, confirmed no blocking issues. Formal governance comment not posted due to SE-2 disposition loop (source_scoped_recovery_action). CTO validated SE-2 review findings and resolved recovery per recovery-owner authority; 61/61 tests pass at 64faf3c post-review."
 self_audit_passed: true
 budget_used: ~1 dev-day (inside the 1.5–2 dev-day guidance, under the 3 dev-day hard ceiling)
 escalations_noted:
@@ -47,7 +47,7 @@ escalations_noted:
 - Log Event Schema v1.0 (byte-locked): `contracts/log-event-schema-v1.md` @ `e19cfb9`.
 - N=5 determinism + Δ=0 receipt: `tools/calibration-deltas/2026-06-16-beaaa5863-post-bind-ingest-vs-master.md`.
 
-Post-merge SHA: to be populated by CTO on co-sign + merge.
+Post-merge SHA: `64faf3c` — merged to canon master 2026-06-16T15:46Z by CTO (source_scoped_recovery_action, fast-forward push origin/beaaa-5863-post-bind-ingest → master).
 
 ## 2. What landed
 
