@@ -12,6 +12,8 @@ from .response_limits import ensure_under_response_cap_text
 
 SECRET_PATTERNS = [
     re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"(?i)\bDefaultEndpointsProtocol=https;AccountName=[^;\s]+;AccountKey=[^;\s]+(?:;EndpointSuffix=[^;\s]+)?"),
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/-]{16,}={0,2}"),
     re.compile(r"(?i)sk-[a-z0-9_-]{20,}"),
     re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*['\"]?[^'\"\s]{12,}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
@@ -89,6 +91,18 @@ def redacted_excerpts(response_text: str | None, policy: RedactionPolicy) -> lis
 
 def error_hash(detail: str) -> str:
     return hashlib.sha256(detail.encode("utf-8", errors="replace")).hexdigest()
+
+
+def redact_transcript_value(value: Any) -> Any:
+    """Scrub secret-shaped values before transcript hashing or evidence pointers."""
+
+    if isinstance(value, str):
+        return _scrub_secrets(value)
+    if isinstance(value, list):
+        return [redact_transcript_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): redact_transcript_value(item) for key, item in value.items()}
+    return value
 
 
 def _scrub_secrets(text: str) -> str:
