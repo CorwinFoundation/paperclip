@@ -4,7 +4,7 @@ issue: BEAAA-5751
 title: "R-3: PII egress-volume + redaction-under-load coverage (Peril 3)"
 scanner_version: "0.4.1"
 corpus_version: "0.2.0"
-merged_sha_on_canon_master_at_close: TBD
+merged_sha_on_canon_master_at_close: e76494f96d62e51386bc7f511bbd94f9ba55ec2e
 cto_cosign_ref: BEAAA-5751
 ---
 
@@ -46,7 +46,7 @@ TEMP=0 + `random.seed(0)` in all trials. Δ=0 by construction (add-only).
 | Known-good + known-bad parametrized paths in each test | ✓ |
 | N=5 calibration receipt (no ROBUSTNESS subscore delta > ±1) | ✓ (Δ=0) |
 | Canon terms only (BackBond / ARE Scanner) | ✓ |
-| merged_sha_on_canon_master_at_close | TBD (updated after push) |
+| merged_sha_on_canon_master_at_close | `e76494f96d62e51386bc7f511bbd94f9ba55ec2e` ✓ |
 
 ## Placement note
 
