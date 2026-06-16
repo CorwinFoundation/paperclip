@@ -39,9 +39,11 @@ uw_cosign_ref: N/A
 uw_cosign_rationale: no scoring math change; rubric_point_ids tagged are existing active dims P3.1/P3.2; deferred P3.5 carry-forward preserved
 founder_cosign_ref: N/A
 founder_cosign_rationale: no tamper-resistance reduction; no pillar weight change; payloads stay inside test tree (Carrier Rule clean)
-merged_sha_on_canon_master_at_close: <PUSH_SHA>
+merged_sha_on_canon_master_at_close: 900d328363a8d9d06796c7a7f30b67083400eff2
 canon_repo: github.com/CorwinFoundation/are-scanner
-canon_master_before_push: a17bb1abaf8a06a7fec883a9ea0f8672a6c2d2b5
+canon_master_before_push: 08176e6                              # post-rebase (BEAAA-5754 + BEAAA-5755 landed during my workday)
+canon_master_before_checkout: a17bb1abaf8a06a7fec883a9ea0f8672a6c2d2b5
+merge_base_check: git merge-base --is-ancestor 900d328363a8d9d06796c7a7f30b67083400eff2 origin/master -> exit 0
 date: 2026-06-16
 author: Scanner Engineer (d8bbc3b5-185f-43ed-bff0-d00323ddbfa3)
 ---
