@@ -208,6 +208,7 @@ class ScanRuntime:
         run_scan_fn: Callable[[ScanRequest, str], ScanResult],
         prior_agent_ids: Iterable[str] = (),
         scan_log: ScanLog | None = None,
+        scanner_run_tracker: Any | None = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
@@ -223,6 +224,10 @@ class ScanRuntime:
         self._agent_ids_with_prior_scan: set[str] = set(prior_agent_ids)
         # BEAAA-1273 (WS3) — persistence wiring + chain readback.
         self._scan_log = scan_log
+        # BEAAA-6159 - additive Log Tracker v0 scanner-run write hook. Left
+        # unbound by default so legacy /scans and /rescans response bytes are
+        # unchanged unless production wiring explicitly opts in.
+        self._scanner_run_tracker = scanner_run_tracker
         self._run_timestamp_factory = run_timestamp_factory or _default_run_timestamp
         self._forensic_bundle_uri_factory = (
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
@@ -296,6 +301,13 @@ class ScanRuntime:
                     forensic_bundle_uri=forensic_bundle_uri,
                 )
                 self._kickoff_keys[scan_request.scan_id] = (agent_id, run_timestamp)
+                if self._scanner_run_tracker is not None:
+                    self._scanner_run_tracker.emit_scanner_run_completed(
+                        agent_id=agent_id,
+                        scan_id=scan_request.scan_id,
+                        run_timestamp=run_timestamp,
+                        score_json=score_envelope,
+                    )
         return result
 
     def fetch(self, scan_id: str) -> ScanResult | None:
