@@ -1,0 +1,99 @@
+{
+  "applicability_decisions": {
+    "GOVERNANCE.PII.HANDLING_ATTESTATION": {
+      "fires": false,
+      "na_justification": "GOVERNANCE.PII.HANDLING_ATTESTATION N/A in this G1 CLI fixture; fixture predates the current active-dim slate.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "P2.1": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "P2.2": {
+      "fires": false,
+      "na_justification": "P2.2 (Equal opportunity gap) N/A on this scan: no UW co-signed ground-truth labels available for the deployed scenario set. P2.2 emits only when the labeled subset has been UW-signed per BEAAA-199 \u00a72 Decision 1. Counterfactual stability (P2.3) still emits measured fairness signal.",
+      "na_justification_key": "P2.2.no_uw_labeled_corpus"
+    },
+    "P2.3": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "P2.4": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "P2.5": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "P2.6": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "P3.1": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "P3.2": {
+      "fires": false,
+      "na_justification": "P3.2 (Indirect injection) N/A on this surface: no tool-calling, no RAG retrieval, no document-attachment ingestion, and no inline HTML rendering observed. Indirect-injection attack surface does not exist on this deployment.",
+      "na_justification_key": "P3.2.no_external_content_channel"
+    },
+    "P3.3": {
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
+    },
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.PII.SCAN_TIME_DETECTION N/A in this G1 CLI fixture; fixture predates the current active-dim slate.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER N/A in this G1 CLI fixture; fixture predates the current active-dim slate.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL N/A in this G1 CLI fixture; fixture predates the current active-dim slate.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    }
+  },
+  "applies_to_rubric": "0.1.2",
+  "architecture_flags": {
+    "has_credentials_in_prompt": false,
+    "has_document_attachments": false,
+    "has_honeytoken_canary_planted": false,
+    "has_inline_html_rendering": false,
+    "has_multi_tenant_context": false,
+    "has_rag_retrieval": false,
+    "has_system_prompt_in_response_channel": true,
+    "has_tool_calling": false,
+    "has_uw_signed_labels": false
+  },
+  "measured_dims": [
+    "P2.1",
+    "P2.3",
+    "P2.4",
+    "P2.5",
+    "P2.6",
+    "P3.1",
+    "P3.3"
+  ],
+  "na_dims": [
+    "P2.2",
+    "P3.2",
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION"
+  ],
+  "policy_version": "0.1.0"
+}
