@@ -2548,6 +2548,13 @@ class PortalHandler(BaseHTTPRequestHandler):
                 status, body, ctype = pbs_handled
                 self._send(status, body, ctype)
                 return
+            # BEAAA-6165: policy-system claim auto-open MVP read routes.
+            import policy_auto_open_v0_1 as _pao
+            pao_handled = _pao.handle_get(self.service, parts, parse_qs(url.query))
+            if pao_handled is not None:
+                status, body, ctype = pao_handled
+                self._send(status, body, ctype)
+                return
             if url.path in ("/", "/admin"):
                 # BEAAA-4996: /admin gate. "/" reaches admin_summary too, so the gate
                 # covers the full match branch to avoid leaking admin content publicly.
@@ -2646,6 +2653,13 @@ class PortalHandler(BaseHTTPRequestHandler):
             if t_handled is not None:
                 status, tbody, ctype = t_handled
                 self._send(status, tbody, ctype)
+                return
+            # BEAAA-6165: customer loss signal intake route.
+            import policy_auto_open_v0_1 as _pao
+            pao_handled = _pao.handle_post(self.service, parts, body)
+            if pao_handled is not None:
+                status, pbody, ctype = pao_handled
+                self._send(status, pbody, ctype)
                 return
             if url.path == "/admin/invites":
                 # BEAAA-4996: gate runs BEFORE create_invite so no row/audit entry on unauth.
@@ -2820,6 +2834,11 @@ _attach_telemetry(PortalService)
 
 from post_bind_sinks_v0_1 import attach as _attach_post_bind_sinks  # noqa: E402
 _attach_post_bind_sinks(PortalService)
+
+# BEAAA-6165: bind policy-system claim auto-open MVP methods onto PortalService.
+# Additive policy-system surface; no are-scanner-api-v1@v1.0 Output mutation.
+from policy_auto_open_v0_1 import attach as _attach_policy_auto_open  # noqa: E402
+_attach_policy_auto_open(PortalService)
 
 # BEAAA-5016 / BEAAA-4915 -> BEAAA-5739: bind verify-api-v0.2 methods onto PortalService.
 # Additive only; no scoring path, no rubric change, no are-scanner-api-v1@v1.0
