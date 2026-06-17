@@ -47,14 +47,17 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: are-collector-egress
+  name: are-collector-egress-ingest
+  annotations:
+    backbond.ai/egress-host: ingest.backbond.ai
+    backbond.ai/egress-port: "443"
 spec:
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: are-collector
   egress:
     - toFQDNs:
-        - matchName: collector-ingest.backbond.ai
+        - matchName: ingest.backbond.ai
       toPorts:
         - ports:
             - port: "443"

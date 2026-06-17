@@ -42,7 +42,15 @@ Release:
 - `.github/workflows/are-collector-release.yml` builds the scratch-base image on `are-collector-v0.1.*` tags.
 - The release workflow emits a Syft SPDX JSON SBOM artifact.
 - The release workflow signs the image with keyless Cosign.
+- Auditor verification command:
+
+```sh
+cosign verify \
+  --certificate-identity-regexp '^https://github.com/CorwinFoundation/are-scanner/.github/workflows/are-collector-release.yml@refs/tags/are-collector-v0\.1\.[0-9]+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/CorwinFoundation/are-scanner/are-collector:are-collector-v0.1.0
+```
 
 Sandbox:
 
-- `deploy/kubernetes-sandbox.yaml` sets non-root execution, read-only root filesystem, dropped Linux capabilities, RuntimeDefault seccomp, and an egress-only NetworkPolicy intended to be narrowed to the BackBond ingest endpoint in the customer namespace.
+- `deploy/kubernetes-sandbox.yaml` sets non-root execution, read-only root filesystem, dropped Linux capabilities, RuntimeDefault seccomp, and an egress-only CiliumNetworkPolicy pinned to `ingest.backbond.ai:443`.
