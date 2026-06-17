@@ -151,7 +151,8 @@ class TestAGB1WalkerRoundTrip:
         assert dim_ids == {"P1.1", "P2.1", "P3.1", "P4.1"}, dim_ids
         for dim_id, partial in rows:
             assert partial["evidence_uri"] == (
-                f"wrap://inspect_section1_v0/0.1.0/{dim_id}"
+                "https://evidence.are-scanner.local/wrap/"
+                f"inspect_section1_v0/0.1.0/{dim_id}"
             )
             assert partial["evidence_sha256"].startswith("sha256:")
             assert isinstance(partial["raw"], float)

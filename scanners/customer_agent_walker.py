@@ -16,8 +16,9 @@ Per ADR-0030 (BEAAA-5414):
 * Yielded rows pass through the existing
   :func:`scanners.live_probe_workers` IPC validators + closed
   ALLOWED_ROW_FIELDS allow-list.
-* ``evidence_uri`` points at an upstream eval log artifact reference
-  (``wrap://<family>/<version>/<dim_id>``); ``evidence_sha256`` is the
+* ``evidence_uri`` points at an internal HTTPS wrap artifact reference
+  (``https://evidence.are-scanner.local/wrap/<family>/<version>/<dim_id>``);
+  ``evidence_sha256`` is the
   canonical SHA-256 hash over the RAW response payload bytes — NOT
   over the dim_id (distinguishes from the synthetic_v0 walker's
   ``sha256(dim_id)`` rule and gives Auditor a verifiable evidence
@@ -64,13 +65,16 @@ def _resolve_wrap_modules() -> Sequence[Any]:
 def _evidence_uri(wrap_family_id: str, wrap_version: str, dim_id: str) -> str:
     """Build the evidence URI emitted for a wrap'd probe row.
 
-    Shape: ``wrap://<family>/<version>/<dim_id>``. The Auditor
-    dereferences this URI against the wrap module registry at audit
-    time; the follow-on wrap-ticket integrates the real upstream
-    framework's log URI scheme on a per-family basis (e.g., Inspect's
-    session log URI).
+    Shape: ``https://evidence.are-scanner.local/wrap/<family>/<version>/<dim_id>``.
+    The Auditor dereferences this URI against the wrap module registry at
+    audit time; the follow-on wrap-ticket integrates the real upstream
+    framework's log URI scheme on a per-family basis (e.g., Inspect's session
+    log URI).
     """
-    return f"wrap://{wrap_family_id}/{wrap_version}/{dim_id}"
+    return (
+        "https://evidence.are-scanner.local/wrap/"
+        f"{wrap_family_id}/{wrap_version}/{dim_id}"
+    )
 
 
 def _evidence_sha256_bytes(response: str) -> str:
