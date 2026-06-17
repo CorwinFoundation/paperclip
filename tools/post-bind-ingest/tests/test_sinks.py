@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 
+import pytest
+
 from post_bind_ingest.sinks import (
     POST_BIND_SINKS_VERSION,
     build_claims_queue_item,
@@ -25,11 +27,13 @@ def _signal(
     produced_at: str = "2026-06-16T15:00:00Z",
     dp_id: str = "dp-1",
     weight: float = 2.0,
+    claim_id: str | None = None,
 ) -> dict[str, object]:
     return {
         "telemetry_api_version": "0.1",
         "event_rule_corpus_version": "0.1",
         "signal_envelope_id": signal_id,
+        "claim_id": f"synthetic-claim:{signal_id}" if claim_id is None else claim_id,
         "dp_id": dp_id,
         "agent_call_id": f"call-{signal_id}",
         "produced_at": produced_at,
@@ -46,10 +50,24 @@ def test_claims_queue_consumes_canonical_post_bind_events() -> None:
 
     assert events[0]["event_type"] == "claim_candidate_event"
     assert item["sink_version"] == POST_BIND_SINKS_VERSION
+    assert item["claim_id"] == "synthetic-claim:sig-1"
     assert item["peril_code"] == "P4"
     assert item["severity_tier"] == "S3"
     assert item["threshold_policy_governed"] is True
     assert item["pin_block"]["scanner_version"] == "0.2.0"
+
+
+def test_claims_queue_requires_explicit_claim_id() -> None:
+    signal = _signal("sig-1", "hallucination")
+    signal.pop("claim_id")
+    events = canonical_events_from_signal_envelopes(
+        [
+            signal,
+        ]
+    )
+
+    with pytest.raises(ValueError, match="claim_id_required"):
+        build_claims_queue_item(events[0], pin_block=PIN_BLOCK)
 
 
 def test_rescore_and_calibration_feeds_share_canonical_events() -> None:

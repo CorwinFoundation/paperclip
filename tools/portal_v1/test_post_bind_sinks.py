@@ -91,6 +91,7 @@ def test_claims_queue_sink_routes_s2_plus_events(service):
     }
     assert queue["count"] >= 1
     item = queue["items"][0]
+    assert item["claim_id"].startswith("synthetic-claim:")
     assert item["peril_code"] == "P4"
     assert item["severity_tier"] in {"S2", "S3", "S4"}
     assert item["threshold_policy_ref"] == "BEAAA-5817_v0.3"

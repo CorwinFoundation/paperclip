@@ -15,10 +15,14 @@ from .common import (
 def build_claims_queue_item(event: dict[str, Any], *, pin_block: dict[str, Any]) -> dict[str, Any]:
     payload = event["payload"]
     peril_code = payload["peril"]
+    claim_id = payload.get("claim_id")
+    if not isinstance(claim_id, str) or claim_id == "":
+        raise ValueError("claim_id_required")
     policy_governed = peril_code in CLAIMS_THRESHOLD_POLICY_GOVERNED_PERILS
     return {
         "sink_version": POST_BIND_SINKS_VERSION,
         "claims_queue_item_id": payload["source_signal_envelope_id"],
+        "claim_id": claim_id,
         "signal_envelope_id": payload["source_signal_envelope_id"],
         "dp_id": payload["dp_id"],
         "peril_code": peril_code,

@@ -84,7 +84,7 @@ def _init_post_bind_sink_tables(self: PortalService) -> None:
 
 
 def _process_post_bind_signal_envelopes(self: PortalService, signals: list[dict[str, Any]]) -> None:
-    for event in canonical_events_from_signal_envelopes(signals):
+    for event in canonical_events_from_signal_envelopes(_signals_with_synthetic_claim_ids(signals)):
         item = _sink_build_claims_queue_item(event, pin_block=_sink_pin_block())
         if item["severity_tier"] not in {"S2", "S3", "S4"}:
             continue
@@ -134,7 +134,16 @@ def _canonical_post_bind_events(
         args.append(dp_id)
     query += " ORDER BY produced_at ASC, id ASC"
     signals = [json.loads(row["envelope_json"]) for row in self.db.execute(query, args)]
-    return list(canonical_events_from_signal_envelopes(signals))
+    return list(canonical_events_from_signal_envelopes(_signals_with_synthetic_claim_ids(signals)))
+
+
+def _signals_with_synthetic_claim_ids(signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+    for signal in signals:
+        item = dict(signal)
+        item.setdefault("claim_id", f"synthetic-claim:{signal['signal_envelope_id']}")
+        enriched.append(item)
+    return enriched
 
 
 def list_claims_queue(self: PortalService, dp_id: str | None = None) -> dict[str, Any]:
