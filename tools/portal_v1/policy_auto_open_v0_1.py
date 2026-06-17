@@ -680,7 +680,6 @@ def _customer_required_fields() -> tuple[str, ...]:
         "reporter_email",
         "loss_type",
         "summary",
-        "evidence_refs",
     )
 
 

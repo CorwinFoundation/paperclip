@@ -236,6 +236,22 @@ def test_claim_record_guards_and_source_hygiene(service):
     assert "Tool-grounded false output" in row_text
 
 
+def test_customer_loss_with_reference_id_only_opens_record(service):
+    dp, policy_id = _policy_dp(service)
+    payload = _customer_payload(dp, "loss-ref-only")
+    payload.pop("evidence_refs", None)
+    assert "customer_reference_ids" in payload and payload["customer_reference_ids"]
+    result = service.handle_customer_loss_signal(policy_id, payload)
+    assert result["rejection_reason"] is None, result
+    record = service.get_claim_record(result["claim_record_id"])
+    assert record["trigger_source"] == "customer_loss_signal"
+    assert record["coverage_state"] == "unreviewed"
+    assert record["reserve_state"] == "not_set"
+    assert record["payment_state"] == "not_approved"
+    from policy_auto_open_v0_1 import _customer_required_fields
+    assert "evidence_refs" not in _customer_required_fields()
+
+
 def test_adapter_source_does_not_hard_code_wording_section_numbers():
     source = Path(__file__).with_name("policy_auto_open_v0_1.py").read_text(encoding="utf-8").lower()
     assert "section 1" not in source
