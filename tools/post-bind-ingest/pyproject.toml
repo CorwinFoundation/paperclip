@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "post-bind-ingest"
 version = "0.1.0"
-description = "BackBond post-bind push-mode manifest ingest + normalizer"
+description = "BackBond post-bind manifest ingest and Phase 2.5 egress receiver"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["cryptography>=41,<42"]
 
 [project.scripts]
 post-bind-ingest = "post_bind_ingest.cli:main"
