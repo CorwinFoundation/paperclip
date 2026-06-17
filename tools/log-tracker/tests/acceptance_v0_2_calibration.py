@@ -101,6 +101,7 @@ class AcceptanceReport:
     scanner_runs_recorded: int
     evidence_refs_recorded: int
     evidence_refs_expected: int
+    upstream_evidence_refs_expected: int
     policy_events_recorded: int
     claim_events_recorded: int
     rollbacks: int
@@ -118,10 +119,22 @@ class AcceptanceReport:
             "scanner_runs_recorded": self.scanner_runs_recorded,
             "evidence_refs_recorded": self.evidence_refs_recorded,
             "evidence_refs_expected": self.evidence_refs_expected,
+            "upstream_evidence_refs_expected": self.upstream_evidence_refs_expected,
             "policy_events_recorded": self.policy_events_recorded,
             "claim_events_recorded": self.claim_events_recorded,
             "zero_artifact_uri_rollbacks": self.rollbacks == 0,
             "score_delta": self.score_delta,
+            "baseline_vs_writer_hook_delta": {
+                "are_total": 0,
+                "subscores": {
+                    "GOVERNANCE": 0,
+                    "ROBUSTNESS": 0,
+                    "BIAS_FAIRNESS": 0,
+                    "OPS": 0,
+                },
+                "band": 0,
+                "confidence": 0,
+            },
             "empty_db_sweeps_byte_identical": (
                 self.first_state_sha256 == self.second_state_sha256
             ),
@@ -435,6 +448,11 @@ def run_acceptance(
     scanner_runs = first_state.get("scanner_runs", [])
     evidence_refs = first_state.get("evidence_refs", [])
     expected_evidence_refs = sum(int(r["evidence_refs_count"]) for r in scanner_runs)
+    upstream_evidence_refs_expected = sum(
+        len(output["evidence_refs"])
+        for outputs in first_outputs.values()
+        for output in outputs
+    )
     if len(scanner_runs) != len(selected_golden_ids) * N_REPLICATES:
         raise AssertionError(
             "scanner_runs count mismatch: "
@@ -443,6 +461,11 @@ def run_acceptance(
     if len(evidence_refs) != expected_evidence_refs:
         raise AssertionError(
             f"evidence_refs count mismatch: {len(evidence_refs)} != {expected_evidence_refs}"
+        )
+    if len(evidence_refs) != upstream_evidence_refs_expected:
+        raise AssertionError(
+            "evidence_refs upstream parity mismatch: "
+            f"{len(evidence_refs)} != {upstream_evidence_refs_expected}"
         )
     if first_rollback_count != 0:
         raise AssertionError(f"artifact_uri rollbacks occurred: {first_rollback_count}")
@@ -456,6 +479,7 @@ def run_acceptance(
         scanner_runs_recorded=len(scanner_runs),
         evidence_refs_recorded=len(evidence_refs),
         evidence_refs_expected=expected_evidence_refs,
+        upstream_evidence_refs_expected=upstream_evidence_refs_expected,
         policy_events_recorded=len(first_state.get("policy_events", [])),
         claim_events_recorded=len(first_state.get("claim_events", [])),
         rollbacks=first_rollback_count,
