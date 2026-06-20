@@ -23,13 +23,13 @@ classification_per_supervision_contract:
   uw_cosign_required: true
 ---
 
-# ADR-0009 — BEAAA-5267 Output-Contract Carve Cluster (A-001 / 5275 ratified)
+# ADR-0033 — BEAAA-5275 (A-001) `score()` Canonical Total Key `are_total` + `bmi` Shim
+
+> **Numbering note:** CEO cmt 2a0bfbd5 suggested folding the BEAAA-5267 carve cluster into a "single ADR-0009." That number was already taken by the long-standing `adr-0009-scan-log-jcs-storage-format.md` (scan_log persistence invariants, BEAAA-1271, amended by BEAAA-5282). To avoid an ADR-number collision, this 5275 decision is recorded as the next free number, **ADR-0033**. The cluster is documented per-carve, not in one container: 5282 amends ADR-0009 (JCS); 5276 carries its own ADR/co-sign. This ADR is authoritative for **A-001 / BEAAA-5275 only**.
 
 ## BLUF
 
 Decision: **APPROVE and merge** the BEAAA-5275 (A-001, P0 [REPRO]) change — `score()` emits `are_total` as its canonical total key and additionally emits `bmi` as a one-release deprecation shim bound to the same integer; `harness/contract_envelope.py` reader is updated to prefer `are_total` and fall back to `bmi`. This aligns `score()`'s in-process output with `are-scanner-api-v1 §Output`, which already specifies `are_total`. **Supreme-Law delta = 0 by additive identity** — the emitted integer is byte-identical, no scoring math / weights / judges / bands / probes / corpus touched — so the "could move scores" trigger is not met and the N=5 golden-set obligation is retired by a diff-level identity proof plus an in-test equality assertion (`are_total == bmi`).
-
-This ADR is the **cluster container** CEO requested (cmt 2a0bfbd5) for the three BEAAA-5267 / Top-10 reproducibility carves. Only the **A-001 / BEAAA-5275** decision is ratified here, because that is the carve verified and merged in this heartbeat. The sibling carves are listed in §Cluster Context and will be ratified in their own heartbeats against their own diffs — this ADR does not pre-approve their code.
 
 ## Reasoning
 
@@ -66,9 +66,9 @@ Same rollup BEAAA-5267 / Top-10 reproducibility series, re-assigned to CTO by CE
 |---|---|---|---|---|---|
 | BEAAA-5275 (A-001) | P0 [REPRO] | `bmi`→`are_total` canonical key + shim | `beaaa-5275-are-total-rename` (commit `adc33f4`) | HoUW ACCEPT-with-R1 | **YES** |
 | BEAAA-5276 | P0 [REPRO] | require `corpus_version` at `score()` boundary | `beaaa-5276-corpus-version-enforce @ e52db3b` | HoUW ACCEPT | No — own heartbeat |
-| BEAAA-5282 | P1 [REPRO] | `scan_log` storage → JCS canonical | `beaaa-5282-jcs-storage @ c1b466f` | HoUW ACCEPT | No — own heartbeat |
+| BEAAA-5282 | P1 [REPRO] | `scan_log` storage → JCS canonical | `beaaa-5282-jcs-storage @ c1b466f` | HoUW ACCEPT | Separate — amends ADR-0009 (JCS), already on master |
 
-5276 and 5282 each get their own verification + co-sign disposition against their own diffs. This ADR will be amended (version bump) as each is ratified, or each may carry its own ADR — CTO discretion at the time.
+Each carve carries its own ADR/amendment and own co-sign disposition: 5282 amends `adr-0009-scan-log-jcs-storage-format.md` (§4.2, merged to master); 5276 (corpus_version boundary) ratifies in its own heartbeat. This ADR is authoritative for BEAAA-5275 only.
 
 ## Related
 
