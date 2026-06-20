@@ -77,7 +77,14 @@ The hash covers the full `score_json` envelope as passed to `insert_pending` / `
 
 ### §4.3 — `snapshot_hash` is at-write-time only
 
-`snapshot_hash` is computed by the scanner immediately before the row is written and is stored once. It is never recomputed by a later read path. If the stored hash does not match `sha256(stored_score_json_bytes)`, the row MUST be treated as tampered and MUST NOT be used as evidence.
+`snapshot_hash` is computed by the scanner immediately before the row is written and is stored once. It is never recomputed by a later read path.
+
+**Tamper test (format-aware).** A row's `snapshot_hash` is authentic if it equals the recompute over the stored bytes under that row's storage format:
+
+- **Amendment-era rows** (stored bytes are JCS canonical): authentic iff `sha256(stored_bytes) == snapshot_hash` (the direct path).
+- **Legacy rows** (stored bytes are `json.dumps(sort_keys=True)`, written before `beaaa-5282-jcs-storage` merged): authentic iff `sha256(canonicalize(json.loads(stored_bytes))) == snapshot_hash` (the round-trip path documented in §5).
+
+A row is treated as **tampered** — and MUST NOT be used as evidence — only when it satisfies **neither** path. A legacy row that fails the direct path but passes the round-trip path is authentic, not tampered. See §5 for the auditor disambiguation procedure for the heterogeneous table.
 
 ### §4 — Append-only rows
 
@@ -104,10 +111,18 @@ Pinned rows (rows where `forensic_bundle_uri IS NOT NULL OR snapshot_hash IS NOT
 
 Tier 2. Stop writing new rows. Existing rows are append-only at the DB layer and cannot be deleted by application code. The `score_json` column format change (§4.2 amendment) affects only rows written after `beaaa-5282-jcs-storage` is merged; rows written before carry `json.dumps(sort_keys=True)` bytes. Those rows' `snapshot_hash` values were computed via `compute_snapshot_hash(json.loads(stored_bytes))` which is correct (the JCS of the deserialized dict), but external auditors must round-trip those rows. The amendment closes this gap for all new rows.
 
+**Auditor disambiguation procedure (heterogeneous table).** The table is not backfilled — legacy and amendment-era rows coexist, and a row carries no explicit format-version column. An external auditor verifies any row deterministically without prior knowledge of its format:
+
+1. Compute `direct = "sha256:" + sha256(stored_bytes).hexdigest()`. If `direct == snapshot_hash`, the row is authentic (amendment-era, direct path). Stop.
+2. Else compute `roundtrip = "sha256:" + sha256(canonicalize(json.loads(stored_bytes))).hexdigest()`. If `roundtrip == snapshot_hash`, the row is authentic (legacy, round-trip path). Stop.
+3. Else the row is tampered (§4.3) and MUST NOT be used as evidence.
+
+Step 1 is the only path for rows written after this amendment; step 2 is the documented fallback for the finite, non-growing set of legacy rows. New rows never require step 2.
+
 ## 6. Co-sign record
 
 | Principal | Role | Issue | Date |
 |---|---|---|---|
 | CTO (88e68019) | Producer authority — initial ADR at WS2 | BEAAA-1271 | 2026-05-30 |
-| Underwriter (afa65747) | Reproducibility surface co-sign — §4.2 JCS storage amendment | BEAAA-5282 | 2026-06-14 |
-| CTO (88e68019) | §4.2 amendment co-sign | BEAAA-5282 | 2026-06-14 |
+| Underwriter (afa65747) | Reproducibility surface co-sign (ACCEPT) — §4.2 JCS storage amendment | BEAAA-5282 | 2026-06-17 |
+| CTO (88e68019) | §4.2 amendment co-sign + §4.3/§5 tamper-rule reconciliation | BEAAA-5282 | 2026-06-20 |
