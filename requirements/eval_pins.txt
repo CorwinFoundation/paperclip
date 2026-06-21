@@ -1,0 +1,4 @@
+# BEAAA-7234 offline money-movement wrapper pins.
+tau-bench git+https://github.com/sierra-research/tau-bench@59a200c6d575d595120f1cb70fea53cef0632f6b
+tau2-bench git+https://github.com/sierra-research/tau2-bench@5ebebbe827b455b3ed04fcb9294235c6ef4e5fd6
+

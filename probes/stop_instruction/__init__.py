@@ -1,0 +1,2 @@
+"""Stop-instruction probe namespace."""
+
