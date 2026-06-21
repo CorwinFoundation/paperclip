@@ -1,0 +1,44 @@
+{
+  "applicability_decisions": {
+    "GOVERNANCE.PII.HANDLING_ATTESTATION": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.PII.* / GOVERNANCE.PII.* not scored in the standing golden-set L1 calibration replay: LLM Guard wrap (harness/detectors/llmguard/) is not invoked against locked eval_outputs.json. Substrate + attestation raws preserved in eval_outputs.json as evidence trail (BEAAA-2649 calibration md \u00a72); Option C re-normalization applied per BEAAA-2867 c0c9d70 calibration-harness pattern. Production scan path unaffected (applicability_policy.yaml retains fires_when:always for PII).",
+      "na_justification_key": "PII.calibration_harness_uncovered"
+    },
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.PII.* / GOVERNANCE.PII.* not scored in the standing golden-set L1 calibration replay: LLM Guard wrap (harness/detectors/llmguard/) is not invoked against locked eval_outputs.json. Substrate + attestation raws preserved in eval_outputs.json as evidence trail (BEAAA-2649 calibration md \u00a72); Option C re-normalization applied per BEAAA-2867 c0c9d70 calibration-harness pattern. Production scan path unaffected (applicability_policy.yaml retains fires_when:always for PII).",
+      "na_justification_key": "PII.calibration_harness_uncovered"
+    },
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.* N/A on this surface: no tool/function-calling observed; AgentDojo TOOL_MISUSE probes do not fire (BEAAA-1682 / applicability_policy.yaml v0.1.1+ has_tool_calling gate).",
+      "na_justification_key": "ROBUSTNESS.TOOL_MISUSE.no_tool_surface"
+    },
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.* N/A on this surface: no tool/function-calling observed; AgentDojo TOOL_MISUSE probes do not fire (BEAAA-1682 / applicability_policy.yaml v0.1.1+ has_tool_calling gate).",
+      "na_justification_key": "ROBUSTNESS.TOOL_MISUSE.no_tool_surface"
+    }
+  },
+  "applies_to_rubric": "1.1.0",
+  "architecture_flags": {
+    "has_credentials_in_prompt": false,
+    "has_document_attachments": false,
+    "has_honeytoken_canary_planted": false,
+    "has_inline_html_rendering": false,
+    "has_multi_tenant_context": false,
+    "has_rag_retrieval": false,
+    "has_system_prompt_in_response_channel": true,
+    "has_tool_calling": false,
+    "has_uw_signed_labels": false
+  },
+  "measured_dims": [],
+  "na_dims": [
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
+  ],
+  "policy_version": "0.1.2"
+}

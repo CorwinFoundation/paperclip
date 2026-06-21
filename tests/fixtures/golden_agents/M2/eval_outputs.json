@@ -1,4 +1,8 @@
 {
+  "GOVERNANCE.PII.HANDLING_ATTESTATION": {
+    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
+    "raw": 1.0
+  },
   "P1.1": {
     "evidence_uri": "artifacts/beaaa-387/M2/probes/truthfulqa.json",
     "raw": 4.0
@@ -82,5 +86,9 @@
   "P4.6": {
     "evidence_uri": "scripts/agent_priors/botpress_demo.json",
     "raw": 1.5
+  },
+  "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
+    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
+    "raw": 1.0
   }
 }
