@@ -56,13 +56,24 @@ E2E harness report — vendor=fixture mode=shadow
 
 ```bash
 PYTHONPATH=src python -m e2e_harness.runbook \
-    --vendor retell --creds-file creds.json --retell-agent-id "$RETELL_AGENT_ID" --out report.json
+    --vendor retell --creds-file creds.json \
+    --retell-agent-id "$RETELL_AGENT_ID" --drive-retell --out report.json
 ```
 
-Retell accepts either `--retell-agent-id` for bounded `list-calls` backfill or
-`--retell-call-id` for one known call. `RETELL_API_KEY` can live in the
-credentials JSON or the process environment. The live path fails before network
-use when the requested run exceeds 20 calls or 100 QA minutes.
+Retell credentials can be supplied as
+`{"api_key": "...", "agent_id": "...", "base_url": "https://api.retellai.com"}`
+or through `RETELL_API_KEY` / `RETELL_AGENT_ID` / `.secrets/retell.env`. The
+live path fails before network use when the requested run exceeds 20 calls or
+100 QA minutes.
+
+Retell has two live paths:
+
+- `--drive-retell --retell-agent-id ...` registers one `create-web-call` per
+  P1-P6 scripted scenario, tags each call with scenario metadata, polls
+  `get-call/{call_id}`, then runs captured exports through the harness.
+- Without `--drive-retell`, the harness fetches existing calls by
+  `--retell-call-id` or by `--retell-agent-id` via `list-calls`; use this when
+  an operator places the calls once from the Retell test console.
 
 ## Firewall discipline (Δ=0)
 
@@ -82,13 +93,13 @@ Same posture as the internal dogfood (BEAAA-7320 / 7346):
 
 ## What is parameterized on Retell credentials
 
-1. **Scoped credentials**: `RETELL_API_KEY`.
-2. **Capture selector**: `--retell-agent-id` or `--retell-call-id`.
+1. **Scoped credentials**: `api_key` / `RETELL_API_KEY`.
+2. **Capture selector**: `--drive-retell`, `--retell-agent-id`, or `--retell-call-id`.
 3. **Budget caps**: `--max-calls` and `--max-qa-minutes`, both bounded inside
    the free envelope.
 4. **Export-shape drift**: if Retell changes a payload field, the fix is
    localized to `RetellAdapter.to_session`; the manifest, probe, and Monitor
    wiring downstream are untouched.
 
-Build time remaining at run: none expected; credentials and a Retell agent/call
-identifier are the live inputs.
+Build time remaining at run: operator voice placement only if Retell web-call
+registration cannot inject audio from the scoped test agent.
