@@ -31,6 +31,8 @@ def build_claims_queue_item(
     scanner_runs: list[dict[str, Any]] | tuple[dict[str, Any], ...] = (),
     claim_id: str | None = None,
     claim_kind: str = "candidate",
+    mode: str = "manual",
+    dogfood: bool = False,
 ) -> dict[str, Any]:
     if event.get("event_type") != "claim_candidate_event":
         raise ClaimsQueueError("claims queue only accepts claim_candidate_event")
@@ -52,8 +54,15 @@ def build_claims_queue_item(
     )
     redaction_class = _redaction_class_map(event)
     policy_governed = peril_code in CLAIMS_THRESHOLD_POLICY_GOVERNED_PERILS
+    if mode not in {"manual", "shadow"}:
+        raise ClaimsQueueError("mode must be 'manual' or 'shadow'")
     return {
         "sink_version": POST_BIND_SINKS_VERSION,
+        "mode": mode,
+        "dogfood": bool(dogfood),
+        "auto_pay": False,
+        "bind": False,
+        "indemnity": False,
         "claims_queue_item_id": source_id,
         "claim_event_id": source_id,
         "claim_id": _required_claim_id(claim_id or payload.get("claim_id")),

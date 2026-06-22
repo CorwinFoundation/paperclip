@@ -72,6 +72,11 @@ def test_claims_queue_consumes_canonical_post_bind_events() -> None:
 
     assert events[0]["event_type"] == "claim_candidate_event"
     assert item["sink_version"] == POST_BIND_SINKS_VERSION
+    assert item["mode"] == "manual"
+    assert item["dogfood"] is False
+    assert item["auto_pay"] is False
+    assert item["bind"] is False
+    assert item["indemnity"] is False
     assert item["peril_code"] == "P4"
     assert item["severity_tier"] == "S3"
     assert item["severity_class"] == "S3"
@@ -85,6 +90,30 @@ def test_claims_queue_consumes_canonical_post_bind_events() -> None:
     assert item["scan_id_at_bind"] == "00000000-0000-0000-0000-000000000001"
     assert item["scan_id_at_loss"] == "00000000-0000-0000-0000-000000000002"
     assert item["redaction_class"] == {"payload.evidence_refs": "hash"}
+
+
+def test_claims_queue_shadow_mode_is_no_pay_no_bind_for_dogfood() -> None:
+    event = canonical_events_from_signal_envelopes([_signal("sig-shadow", "prompt_injection")])[0]
+    item = build_claims_queue_item(
+        event,
+        pin_block=PIN_BLOCK,
+        policy_context={
+            "policy_id": "shadow-pol-1",
+            "agent_id": "dp-1",
+            "customer_id": "backbond-dogfood",
+            "scan_id_at_bind": "scan-bind",
+        },
+        scanner_runs=[{"scan_id": "scan-loss", "agent_id": "dp-1", "run_timestamp": "2026-06-16T15:00:00Z"}],
+        claim_id="claim-shadow-1",
+        mode="shadow",
+        dogfood=True,
+    )
+
+    assert item["mode"] == "shadow"
+    assert item["dogfood"] is True
+    assert item["auto_pay"] is False
+    assert item["bind"] is False
+    assert item["indemnity"] is False
 
 
 def test_claims_queue_validates_tracker_enums() -> None:
