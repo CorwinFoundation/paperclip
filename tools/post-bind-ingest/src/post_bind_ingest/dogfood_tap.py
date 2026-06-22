@@ -5,6 +5,7 @@ import json
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
+import re
 from typing import Any
 
 from .invariants import canonical_dumps
@@ -25,6 +26,21 @@ CAPTURE_REDACTION_POLICY = {
     "summary": "redact-on-receipt",
     "base_instructions": "redact-on-receipt",
 }
+
+_INJECTION_FEATURE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (label, re.compile(pattern, flags=re.IGNORECASE))
+    for label, pattern in (
+        ("ignore_previous", r"\bignore\s+(?:all\s+)?previous\s+instructions\b"),
+        ("ignore_task", r"\bignore\s+(?:the\s+)?(?:actual\s+)?(?:task|summarization|translation|spell-?check|instructions?)\b"),
+        ("ignore_system", r"\bignore\s+.*(?:system|developer)\s+instructions\b"),
+        ("disregard", r"\bdisregard\s+(?:the\s+)?(?:previous|above|earlier)\s+instructions\b"),
+        ("do_not_follow", r"\bdo\s+not\s+follow\b"),
+        ("act_as", r"\b(?:act\s+as|pretend\s+to\s+be)\b"),
+        ("jailbreak", r"\b(jailbreak|prompt\s+injection|instruction\s+hijack)\b"),
+        ("override_task", r"\b(?:override|overriding|replace)\s+(?:the\s+)?(?:task|answer|response|instructions?)\b"),
+        ("override_safety", r"\boverride\s+(?:all\s+)?safety\b"),
+    )
+)
 
 
 def discover_codex_rollouts(
@@ -229,7 +245,54 @@ def iter_claude_events(path: Path) -> Iterator[dict[str, Any]]:
                 )
 
 
+def iter_harness_poc_events(path: Path) -> Iterator[dict[str, Any]]:
+    for idx, record in _iter_jsonl(path):
+        prompt = record.get("prompt")
+        if not isinstance(prompt, str) or not prompt:
+            continue
+        invocation_id = f"{path.stem}:{record.get('id') or idx}"
+        event_id = _event_id("harness-poc", path, idx, 0, "prompt")
+        payload: dict[str, Any] = {
+            "agent_invocation_id": invocation_id,
+            "source": "harness_poc",
+            "source_fixture": path.name,
+            "source_case_id": record.get("id"),
+            "source_category": record.get("category"),
+            "content_type": "prompt",
+            "content": prompt,
+            "content_sha256": _hash_text(prompt),
+        }
+        markers = _prompt_injection_feature_markers(prompt)
+        if markers:
+            payload["detector_features"] = {"prompt_injection_markers": markers}
+        yield _redacted_event(
+            event_id=event_id,
+            event_type="tool_source_reference",
+            logged_at="2026-06-22T00:00:00Z",
+            payload=payload,
+        )
+        yield _redacted_event(
+            event_id=_event_id("harness-poc", path, idx, 1, "tool_call"),
+            event_type="tool_call",
+            logged_at="2026-06-22T00:00:01Z",
+            payload={
+                "agent_invocation_id": invocation_id,
+                "source": "harness_poc",
+                "tool": "dogfood_fixture_replay",
+                "tool_call_id": f"{invocation_id}:tool",
+                "source_reference_id": event_id,
+                "tool_input": {"source_case_id": record.get("id")},
+            },
+        )
+
+
 def _mapper_for_path(path: Path):
+    if path.name in {
+        "indirect_injection_poc.jsonl",
+        "prompt_injection_poc.jsonl",
+        "secret_exfil_poc.jsonl",
+    }:
+        return iter_harness_poc_events
     if path.name.startswith("rollout-"):
         return iter_codex_events
     return iter_claude_events
@@ -326,6 +389,14 @@ def _utc_now_iso() -> str:
 
 def _hash_text(value: Any) -> str:
     return "sha256:" + hashlib.sha256(canonical_dumps(value)).hexdigest()
+
+
+def _prompt_injection_feature_markers(text: str) -> tuple[str, ...]:
+    return tuple(
+        label
+        for label, pattern in _INJECTION_FEATURE_PATTERNS
+        if pattern.search(text)
+    )
 
 
 def _filter_paths_by_date(paths: Iterable[Path], *, start_date: str | None, end_date: str | None) -> Iterator[Path]:

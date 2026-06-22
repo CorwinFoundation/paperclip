@@ -1,7 +1,14 @@
 from __future__ import annotations
 
-from post_bind_ingest.dogfood_tap import build_dogfood_manifest, iter_claude_events, iter_codex_events
+from post_bind_ingest.dogfood_tap import (
+    build_dogfood_manifest,
+    iter_claude_events,
+    iter_codex_events,
+    iter_harness_poc_events,
+)
 from post_bind_ingest.normalizer import normalize_manifest
+from post_bind_ingest.sinks import build_claims_queue_item
+from post_bind_ingest.sinks.common import canonical_events_from_signal_envelopes
 
 
 def test_adapter_maps_real_shape_codex_rollout_line_to_schema_v1_event(tmp_path):
@@ -65,3 +72,88 @@ def test_signed_dogfood_manifest_is_consumable_by_normalizer(tmp_path):
     assert manifest["signature"]["algorithm"] == "sha256"
     assert {event["event_type"] for event in normalized} >= {"tool_source_reference", "tool_call"}
     assert "jane@example.com" not in repr(manifest)
+
+
+def test_seeded_poc_fixtures_fire_p5_on_dogfood_live_path():
+    fixture_root = __import__("pathlib").Path(__file__).resolve().parents[3] / "harness" / "fixtures"
+    paths = [
+        fixture_root / "indirect_injection_poc.jsonl",
+        fixture_root / "prompt_injection_poc.jsonl",
+        fixture_root / "secret_exfil_poc.jsonl",
+    ]
+
+    manifest = build_dogfood_manifest(paths, issued_at="2026-06-22T09:30:00Z")
+    normalized = normalize_manifest(manifest)
+    claim_events = [event for event in normalized if event["event_type"] == "claim_candidate_event"]
+
+    assert manifest["metadata"]["mode"] == "shadow"
+    assert len(tuple(iter_harness_poc_events(paths[0]))) >= 1
+    assert any(event["payload"]["peril"] == "P5" for event in claim_events)
+    assert all(event["payload"]["evidence_refs"] for event in claim_events)
+    assert all(ref["artifact_uri"].startswith(f"manifest://{manifest['manifest_id']}/events/") for event in claim_events for ref in event["payload"]["evidence_refs"])
+    assert "PWNED001" not in repr(manifest)
+    assert "BEAAI-SECRET" not in repr(manifest)
+
+
+def test_seeded_claim_candidates_emit_p4_and_p5_shadow_queue_items():
+    pin_block = {
+        "scanner_version": "0.4.1",
+        "corpus_version": "unchanged",
+        "rubric_version": "are-scanner-api-v1@v1.3.0",
+    }
+    events = canonical_events_from_signal_envelopes(
+        [
+            {
+                "telemetry_api_version": "0.1",
+                "event_rule_corpus_version": "0.1",
+                "signal_envelope_id": "dogfood-p4-hallucination-seed",
+                "dp_id": "backbond-dogfood-agent",
+                "produced_at": "2026-06-22T09:31:00Z",
+                "event_type": "hallucination",
+                "rule_matches": [{"rule_id": "seeded_hallucination", "weight": 2.0}],
+                "redacted_record_ref": "manifest://dogfood-shadow-seeded/events/p4",
+                "scanner_pins": pin_block,
+            },
+            {
+                "telemetry_api_version": "0.1",
+                "event_rule_corpus_version": "0.1",
+                "signal_envelope_id": "dogfood-p5-prompt-injection-seed",
+                "dp_id": "backbond-dogfood-agent",
+                "produced_at": "2026-06-22T09:32:00Z",
+                "event_type": "prompt_injection",
+                "rule_matches": [{"rule_id": "seeded_prompt_injection", "weight": 1.0}],
+                "redacted_record_ref": "manifest://dogfood-shadow-seeded/events/p5",
+                "scanner_pins": pin_block,
+            },
+        ]
+    )
+
+    items = [
+        build_claims_queue_item(
+            event,
+            pin_block=pin_block,
+            policy_context={
+                "policy_id": "dogfood-shadow-policy",
+                "agent_id": "backbond-dogfood-agent",
+                "customer_id": "backbond-dogfood",
+                "scan_id_at_bind": "dogfood-bind-scan",
+            },
+            scanner_runs=[
+                {
+                    "scan_id": "dogfood-loss-scan",
+                    "agent_id": "backbond-dogfood-agent",
+                    "run_timestamp": "2026-06-22T09:30:00Z",
+                }
+            ],
+            claim_id=f"claim-{event['event_id']}",
+            mode="shadow",
+            dogfood=True,
+        )
+        for event in events
+    ]
+
+    assert {item["peril"] for item in items} == {"P4", "P5"}
+    assert all(item["mode"] == "shadow" for item in items)
+    assert all(item["dogfood"] is True for item in items)
+    assert all(item["auto_pay"] is False and item["bind"] is False and item["indemnity"] is False for item in items)
+    assert all(item["evidence_refs"] for item in items)
