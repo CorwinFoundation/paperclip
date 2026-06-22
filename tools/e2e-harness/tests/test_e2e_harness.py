@@ -21,6 +21,7 @@ if str(_SRC) not in sys.path:
 
 import e2e_harness  # noqa: E402  (triggers path bootstrap)
 from e2e_harness.adapters import RetellAdapter, VoiceflowAdapter, VapiAdapter, get_adapter  # noqa: E402
+from e2e_harness.adapters.retell import _assert_free_envelope  # noqa: E402
 from e2e_harness.adapters.base import session_to_manifest  # noqa: E402
 from e2e_harness.adapters.fixture import FixtureAdapter  # noqa: E402
 from e2e_harness.pipeline import run_full_kit, run_scenario_chain, run_monitor  # noqa: E402
@@ -111,6 +112,17 @@ def test_manifest_is_schema_v1_and_signed():
     run_monitor(manifest, SCENARIOS[0])
 
 
+def test_retell_scenario_kit_uses_locked_custom_functions():
+    tool_names = {
+        turn.tool_name
+        for scenario in SCENARIOS
+        for turn in scenario.conversation
+        if turn.tool_name
+    }
+    for required in {"book", "pay", "transfer", "account_lookup"}:
+        assert required in tool_names
+
+
 # ---- vendor adapters (pre-built top-3) ------------------------------------
 def test_retell_adapter_normalizes_export():
     raw = {
@@ -127,6 +139,38 @@ def test_retell_adapter_normalizes_export():
     types = {e["event_type"] for e in manifest["events"]}
     assert "tool_call" in types
     assert manifest["metadata"]["vendor"] == "retell"
+
+
+def test_retell_adapter_normalizes_call_analyzed_webhook():
+    raw = {
+        "event": "call_analyzed",
+        "call": {
+            "call_id": "retell-webhook-1",
+            "agent_id": "agent-retell-1",
+            "transcript_object": [
+                {"role": "user", "content": "look up my account"},
+                {"role": "agent", "content": "checking", "tool_call_invocation": {
+                    "function": {
+                        "name": "account_lookup",
+                        "arguments": "{\"account_id\":\"acct-1\"}",
+                    }
+                }},
+            ],
+        },
+    }
+    session = RetellAdapter().to_session(raw)
+    assert session.session_id == "retell-webhook-1"
+    assert any(t.tool_name == "account_lookup" and t.tool_input["account_id"] == "acct-1" for t in session.turns)
+
+
+def test_retell_live_budget_preflight_fails_loud():
+    import pytest
+
+    _assert_free_envelope(max_calls=20, max_qa_minutes=100)
+    with pytest.raises(ValueError):
+        _assert_free_envelope(max_calls=21, max_qa_minutes=100)
+    with pytest.raises(ValueError):
+        _assert_free_envelope(max_calls=1, max_qa_minutes=101)
 
 
 def test_voiceflow_adapter_normalizes_export():
@@ -165,7 +209,9 @@ def test_all_three_vendor_adapters_registered():
 def test_live_fetch_is_gated_until_credentials():
     import pytest
 
-    for vendor in ("retell", "voiceflow", "vapi"):
+    with pytest.raises(NotImplementedError, match="RETELL_API_KEY"):
+        get_adapter("retell").fetch({})
+    for vendor in ("voiceflow", "vapi"):
         with pytest.raises(NotImplementedError):
             get_adapter(vendor).fetch({})
 
@@ -175,7 +221,7 @@ def test_harness_does_not_couple_to_pricing_or_portal():
     """The harness exercises probe families but must add no pricing coupling.
 
     It must not import portal / pricing / band / rubric-weight / scoring-engine
-    modules, so it can move no golden score (Delta=0) — same guarantee as the
+    modules, so it can move no golden score (Delta=0) — same invariant as the
     internal dogfood tap (BEAAA-7346 / test_no_score_imports.py).
     """
     import ast
@@ -201,6 +247,14 @@ def test_harness_does_not_couple_to_pricing_or_portal():
 def test_runbook_fixture_mode_emits_report():
     report = run_fixture_mode()
     assert report["summary"]["scenarios_run"] == len(SCENARIOS)
+    assert report["scanner_version"] == "v1.0"
+    assert report["scanner_tag"] == "aa33715d"
+    assert report["rubric_version"] == "1.2.0"
+    assert report["corpus_version"] == "retell-e2e-scenario-kit@0.1.0"
+    assert report["probe_set_version"] == "retell-e2e-probe-set@0.1.0"
+    assert report["contract_version"] == "are-scanner-api-v1@v1.0"
+    assert report["seed"] == 7446
+    assert report["shadow_score"]["status"] == "not_computed_shadow_firewall"
 
 
 def test_runbook_main_writes_report(tmp_path):

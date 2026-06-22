@@ -25,6 +25,14 @@ from .adapters import CaptureAdapter, FixtureAdapter, session_to_manifest
 from .adapters.base import CapturedSession
 from .scenario_kit import SCENARIOS, SCENARIO_KIT_VERSION, AdversarialScenario
 
+SCANNER_VERSION = "v1.0"
+SCANNER_TAG = "aa33715d"
+RUBRIC_VERSION = "1.2.0"
+CORPUS_VERSION = SCENARIO_KIT_VERSION
+PROBE_SET_VERSION = "retell-e2e-probe-set@0.1.0"
+CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
+SEED = 7446
+
 # Shipped scanner probe families (ARE scan-time surface).
 from evals.perils.money_movement import LedgerAction, MoneyMovementScenario  # type: ignore
 from evals.perils.money_movement.scorer import verify_scenario, evidence_refs_for_run  # type: ignore
@@ -245,6 +253,46 @@ def run_scenario_chain(
     }
 
 
+def run_captured_session_chain(
+    session: CapturedSession,
+    scenario: AdversarialScenario,
+    *,
+    mode: str = "shadow",
+) -> dict[str, Any]:
+    """Run an already captured live session through the measured chain."""
+
+    stages: dict[str, float] = {}
+    t0 = time.perf_counter()
+    manifest = session_to_manifest(session, mode=mode)
+    stages["capture_s"] = round(time.perf_counter() - t0, 6)
+
+    t1 = time.perf_counter()
+    are_detections = run_are_scan(scenario)
+    stages["are_scan_s"] = round(time.perf_counter() - t1, 6)
+
+    t2 = time.perf_counter()
+    monitor_detections = run_monitor(manifest, scenario)
+    stages["monitor_s"] = round(time.perf_counter() - t2, 6)
+
+    return {
+        "scenario_id": scenario.scenario_id,
+        "peril": scenario.peril,
+        "peril_label": scenario.peril_label,
+        "attack_family": scenario.attack_family,
+        "severity_target": scenario.severity_target,
+        "capture": {
+            "vendor": session.vendor,
+            "event_count": len(manifest["events"]),
+            "manifest_id": manifest["manifest_id"],
+            "retained_raw_transcripts": manifest["metadata"]["retained_raw_transcripts"],
+            "vendor_session_id": session.session_id,
+        },
+        "are_detections": [_detection_dict(d) for d in are_detections],
+        "monitor_claim_candidates": [_detection_dict(d) for d in monitor_detections],
+        "stages": stages,
+    }
+
+
 def run_full_kit(
     adapter: CaptureAdapter | None = None,
     scenarios: tuple[AdversarialScenario, ...] = SCENARIOS,
@@ -275,8 +323,37 @@ def run_full_kit(
     return {
         "harness_version": HARNESS_VERSION,
         "scenario_kit_version": SCENARIO_KIT_VERSION,
+        "scanner_version": SCANNER_VERSION,
+        "scanner_tag": SCANNER_TAG,
+        "rubric_version": RUBRIC_VERSION,
+        "corpus_version": CORPUS_VERSION,
+        "probe_set_version": PROBE_SET_VERSION,
+        "contract_version": CONTRACT_VERSION,
+        "seed": SEED,
         "mode": mode,
         "firewall": "no pricing/portal/band/rubric imports; Delta=0; test target not customer traffic",
+        "free_envelope": {
+            "vendor": "retell",
+            "max_free_credits_usd": 10,
+            "max_concurrent_calls": 20,
+            "max_qa_minutes": 100,
+            "live_run_default_max_calls": 8,
+        },
+        "shadow_score": {
+            "status": "not_computed_shadow_firewall",
+            "are_total": None,
+            "subscores": {},
+            "reason": (
+                "The E2E harness fires BackBond Scanner probe detections in shadow "
+                "but does not import scoring/rubric modules, preserving Delta=0."
+            ),
+            "scanner_version": SCANNER_VERSION,
+            "scanner_tag": SCANNER_TAG,
+            "rubric_version": RUBRIC_VERSION,
+            "corpus_version": CORPUS_VERSION,
+            "probe_set_version": PROBE_SET_VERSION,
+            "seed": SEED,
+        },
         "summary": summary,
         "scenarios": per_scenario,
     }

@@ -1,22 +1,21 @@
-# E2E production-like test harness + adversarial scenario kit (BEAAA-7427)
+# Retell E2E production-like test harness + adversarial scenario kit (BEAAA-7446)
 
-A vendor-agnostic harness that drives the **full chain** a real customer scan
-exercises — `install → load context → run adversarial traffic → capture →
-ARE scan + score → Monitor post-bind log→claim` — against a self-serve CX AI
-vendor we sign up for, in **SHADOW / no-pay** mode.
+Retell AI is the locked vendor path for the production-like shadow test. The
+harness drives the full chain a real scan exercises: `install -> load context ->
+run adversarial traffic -> capture -> BackBond Scanner probe detection ->
+Monitor post-bind log->claim`, in **SHADOW / no-pay** mode.
 
-Parent: [BEAAA-7424](/BEAAA/issues/BEAAA-7424) — Founder wants an "almost
-production" end-to-end test of **ARE** (scanner) + **Monitor** (log analyzer)
-against a real vendor. This package is the vendor-agnostic prep so the live run
-is **push-button** the moment the Founder picks a vendor and shares credentials.
+Parent: [BEAAA-7427](/BEAAA/issues/BEAAA-7427). Credentials for the live Retell
+run remain tracked on [BEAAA-7424](/BEAAA/issues/BEAAA-7424) and execution
+against real Retell traffic remains [BEAAA-7445](/BEAAA/issues/BEAAA-7445).
 
 ## What's in the box
 
 | Piece | Path | Done item |
 |---|---|---|
 | Adversarial scenario kit (P1–P6) | `src/e2e_harness/scenario_kit.py` | #1 |
-| Capture adapters (Retell / Voiceflow / Vapi + fixture) | `src/e2e_harness/adapters/` | #2 |
-| Scan + score → Monitor claim pipeline | `src/e2e_harness/pipeline.py` | #3 |
+| Capture adapters (Retell live path + fixture; Voiceflow/Vapi remain generic placeholders) | `src/e2e_harness/adapters/` | #2 |
+| Probe detection → Monitor claim pipeline | `src/e2e_harness/pipeline.py` | #3 |
 | Run-book entrypoint | `src/e2e_harness/runbook.py` + this doc | #4 |
 | Unit-exercise against fixtures | `tests/test_e2e_harness.py` | Done |
 
@@ -27,9 +26,9 @@ highest-severity perils — **unauthorized money movement** and **tool misuse**:
 
 | Band | Peril | Scenario family | Measured on |
 |---|---|---|---|
-| P1 | Wrong-recipient / misdirected action | `unauthorized_money_movement` | ARE (money-movement verifier) |
-| P2 | Unauthorized commitment / runaway | `tool_misuse_unauthorized_call`, `tool_misuse_param_tamper`, `stop_instruction_refusal` | ARE (R2.ROB benches, stop-instruction probe) |
-| P3 | Data leak (PII / secret exfil) | `pii_exfiltration` | Monitor-primary (ARE PII bench wired at run) |
+| P1 | Wrong-recipient / misdirected action | `unauthorized_money_movement` | BackBond Scanner (money-movement verifier) |
+| P2 | Unauthorized commitment / runaway | `tool_misuse_unauthorized_call`, `tool_misuse_param_tamper`, `stop_instruction_refusal` | BackBond Scanner (R2.ROB benches, stop-instruction probe) |
+| P3 | Data leak (PII / secret exfil) | `pii_exfiltration` | Monitor-primary (BackBond Scanner PII bench wired at run) |
 | P4 | Hallucination | `grounded_hallucination` | Monitor (signal-envelope seed) |
 | P5 | Prompt injection | `indirect_prompt_injection` | Monitor (`detect_p5_events`, live today) |
 | P6 | Regulatory response | `unauthorized_regulatory_commitment` | Monitor-primary (future detector) |
@@ -53,19 +52,17 @@ E2E harness report — vendor=fixture mode=shadow
   Monitor claim candidates:  1   (P5.prompt_injection.indirect_injection_marker)
 ```
 
-### Live run (push-button once the Founder picks a vendor)
+### Live Retell run (parameterized on credentials)
 
 ```bash
 PYTHONPATH=src python -m e2e_harness.runbook \
-    --vendor retell --creds-file creds.json --out report.json
+    --vendor retell --creds-file creds.json --retell-agent-id "$RETELL_AGENT_ID" --out report.json
 ```
 
-`--vendor ∈ {retell, voiceflow, vapi}`. The live capture (`adapter.fetch`) is
-**gated**: it raises `NotImplementedError` until scoped credentials and a chosen
-vendor are supplied, so a guessed vendor can never silently ship. When the
-Founder lands the vendor pick on the parent, the only remaining work is to point
-`--vendor` at the choice (and, if its export payload diverges from the
-documented schema, tweak that one adapter's `to_session`).
+Retell accepts either `--retell-agent-id` for bounded `list-calls` backfill or
+`--retell-call-id` for one known call. `RETELL_API_KEY` can live in the
+credentials JSON or the process environment. The live path fails before network
+use when the requested run exceeds 20 calls or 100 QA minutes.
 
 ## Firewall discipline (Δ=0)
 
@@ -83,14 +80,15 @@ Same posture as the internal dogfood (BEAAA-7320 / 7346):
   prompt-injection markers are preserved as structured `detector_features`
   (so P5 fires on the redacted event — the dogfood invariant).
 
-## What's parameterized on the vendor pick
+## What is parameterized on Retell credentials
 
-Everything except the live `fetch`:
+1. **Scoped credentials**: `RETELL_API_KEY`.
+2. **Capture selector**: `--retell-agent-id` or `--retell-call-id`.
+3. **Budget caps**: `--max-calls` and `--max-qa-minutes`, both bounded inside
+   the free envelope.
+4. **Export-shape drift**: if Retell changes a payload field, the fix is
+   localized to `RetellAdapter.to_session`; the manifest, probe, and Monitor
+   wiring downstream are untouched.
 
-1. **Vendor choice** — `--vendor`. Adapters for the top-3 candidates are pre-built.
-2. **Scoped credentials** — `--creds-file` (Founder shares at sign-up).
-3. **Export-shape drift** — if a live payload field differs from each vendor's
-   documented schema, the fix is localized to that adapter's `to_session`; the
-   manifest, scan, score and Monitor wiring downstream are untouched.
-
-Build time remaining at run: **~zero**.
+Build time remaining at run: none expected; credentials and a Retell agent/call
+identifier are the live inputs.
