@@ -4,6 +4,9 @@ owner: cto
 persona_audience: prospect_ai_vendor
 phase: 2
 canonical_terms_only: true
+brand_backbone_version: "v1.4"
+brand_backbone_sha256: "241d10820ae194119934a2a58e6d3a6584eac722edc33e5c23d3c0f2389d251b"
+brand_backbone_verified: true
 focus_claim: "These release notes position BackBond Scanner v0.5 RC as the evidence-grade step toward insuring AI agents without making a v1.0 public-label claim."
 contracts_referenced: ["are-scanner-api-v1@v1.3.0"]
 ticket_refs: ["BEAAA-6190", "BEAAA-6188", "BEAAA-6187", "BEAAA-7321"]
