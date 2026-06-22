@@ -1,0 +1,15 @@
+# scanner-regression CI dependency slice.
+#
+# The golden regression job exercises deterministic in-tree scoring,
+# CLI, and tamper-resistance tests only. It intentionally does not run
+# live upstream eval frameworks. Installing the full runtime dependency
+# set in this job currently asks pip to solve incompatible upstream pins:
+# garak==0.10.0 requires datasets<2.17, while pyrit==0.6.0 requires
+# datasets>=3.0.0.
+#
+# Keep the upstream eval pins in requirements.txt as the release contract
+# source of truth. This file is only the non-conflicting dependency slice
+# required by .github/workflows/scanner-regression.yml.
+PyYAML==6.0.2
+httpx==0.27.2
+pytest==9.0.3
