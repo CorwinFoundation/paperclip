@@ -39,7 +39,7 @@ def _scan_result(scan_id: str) -> ScanResult:
     return ScanResult(
         scan_id=scan_id,
         status="complete",
-        scanner_version="0.4.2",
+        scanner_version="0.5.0",
         corpus_version="0.1.0",
         rows_emitted=4,
         k_replicates=5,
@@ -98,7 +98,7 @@ def _body(corpus_hash: str, *, applicability_decisions: dict[str, Any]) -> dict[
         "credential_ref": "phase1-probe.v1",
         "credential_secret": "secret-5486",
         "corpus_snapshot_hash": corpus_hash,
-        "scanner_version": "0.4.2",
+        "scanner_version": "0.5.0",
         "corpus_version": "0.1.0",
         "seed": 42,
         "scan_mode": "live_probe",

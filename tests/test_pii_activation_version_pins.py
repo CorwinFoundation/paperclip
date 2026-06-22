@@ -48,10 +48,10 @@ class PiiActivationVersionPinTests(unittest.TestCase):
     def test_applicability_at_0_1_2(self):
         self.assertEqual(_read_first_version(APPLICABILITY), "0.1.2")
 
-    def test_scanner_version_at_0_4_2(self):
-        # BEAAA-5311 canon re-land marker on top of 0.4.1. No contract
-        # envelope change; this pin tracks the scanner release stamp only.
-        self.assertEqual(SCANNER_VERSION, "0.4.2")
+    def test_scanner_version_at_0_5_0(self):
+        # BEAAA-6190 v0.5 RC stamp. No contract or rubric version
+        # bump; this pin tracks the scanner release stamp only.
+        self.assertEqual(SCANNER_VERSION, "0.5.0")
 
     def test_applicability_anchors_rubric_1_2_0(self):
         # BEAAA-3161 / ADR-0027 — applies_to_rubric tracks rubric.yaml MINOR.
