@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "e2e-harness"
+version = "0.1.0"
+description = "BackBond production-like E2E test harness + adversarial scenario kit (ARE + Monitor), BEAAA-7427"
+requires-python = ">=3.11"
+
+[project.scripts]
+e2e-harness = "e2e_harness.runbook:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+# Both this package's src and the repo root (for harness/evals/probes/rubric)
+# and the post-bind-ingest src are needed; e2e_harness.__init__ bootstraps the
+# latter two onto sys.path at import time, so only src is declared here.
+pythonpath = ["src"]
+testpaths = ["tests"]

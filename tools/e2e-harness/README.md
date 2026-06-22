@@ -1,0 +1,96 @@
+# E2E production-like test harness + adversarial scenario kit (BEAAA-7427)
+
+A vendor-agnostic harness that drives the **full chain** a real customer scan
+exercises — `install → load context → run adversarial traffic → capture →
+ARE scan + score → Monitor post-bind log→claim` — against a self-serve CX AI
+vendor we sign up for, in **SHADOW / no-pay** mode.
+
+Parent: [BEAAA-7424](/BEAAA/issues/BEAAA-7424) — Founder wants an "almost
+production" end-to-end test of **ARE** (scanner) + **Monitor** (log analyzer)
+against a real vendor. This package is the vendor-agnostic prep so the live run
+is **push-button** the moment the Founder picks a vendor and shares credentials.
+
+## What's in the box
+
+| Piece | Path | Done item |
+|---|---|---|
+| Adversarial scenario kit (P1–P6) | `src/e2e_harness/scenario_kit.py` | #1 |
+| Capture adapters (Retell / Voiceflow / Vapi + fixture) | `src/e2e_harness/adapters/` | #2 |
+| Scan + score → Monitor claim pipeline | `src/e2e_harness/pipeline.py` | #3 |
+| Run-book entrypoint | `src/e2e_harness/runbook.py` + this doc | #4 |
+| Unit-exercise against fixtures | `tests/test_e2e_harness.py` | Done |
+
+## Peril coverage (canonical paid-peril taxonomy)
+
+The kit probes every underwritten peril band, with explicit coverage of the two
+highest-severity perils — **unauthorized money movement** and **tool misuse**:
+
+| Band | Peril | Scenario family | Measured on |
+|---|---|---|---|
+| P1 | Wrong-recipient / misdirected action | `unauthorized_money_movement` | ARE (money-movement verifier) |
+| P2 | Unauthorized commitment / runaway | `tool_misuse_unauthorized_call`, `tool_misuse_param_tamper`, `stop_instruction_refusal` | ARE (R2.ROB benches, stop-instruction probe) |
+| P3 | Data leak (PII / secret exfil) | `pii_exfiltration` | Monitor-primary (ARE PII bench wired at run) |
+| P4 | Hallucination | `grounded_hallucination` | Monitor (signal-envelope seed) |
+| P5 | Prompt injection | `indirect_prompt_injection` | Monitor (`detect_p5_events`, live today) |
+| P6 | Regulatory response | `unauthorized_regulatory_commitment` | Monitor-primary (future detector) |
+
+## Run it
+
+### Shadow self-test (no vendor, no credentials — this is what CI runs)
+
+```bash
+cd tools/e2e-harness
+python -m pytest tests/ -q                       # unit-exercise the whole chain
+PYTHONPATH=src python -m e2e_harness.runbook --fixture --out report.json
+```
+
+Emits a measured report and a human summary, e.g.:
+
+```
+E2E harness report — vendor=fixture mode=shadow
+  perils covered:            P1, P2, P3, P4, P5, P6
+  ARE detections fired:      4   (money-movement 1, tool-misuse 2, stop-instruction 1)
+  Monitor claim candidates:  1   (P5.prompt_injection.indirect_injection_marker)
+```
+
+### Live run (push-button once the Founder picks a vendor)
+
+```bash
+PYTHONPATH=src python -m e2e_harness.runbook \
+    --vendor retell --creds-file creds.json --out report.json
+```
+
+`--vendor ∈ {retell, voiceflow, vapi}`. The live capture (`adapter.fetch`) is
+**gated**: it raises `NotImplementedError` until scoped credentials and a chosen
+vendor are supplied, so a guessed vendor can never silently ship. When the
+Founder lands the vendor pick on the parent, the only remaining work is to point
+`--vendor` at the choice (and, if its export payload diverges from the
+documented schema, tweak that one adapter's `to_session`).
+
+## Firewall discipline (Δ=0)
+
+Same posture as the internal dogfood (BEAAA-7320 / 7346):
+
+- The scanned target is an **explicit test target, not customer traffic** —
+  shadow / no-pay, no carrier / reinsurance / counsel / live-bind gate is tripped.
+- The package imports the **shipped** probe families and the **shipped** Monitor
+  normalizer, but imports **no** pricing / portal / band / rubric-weight /
+  scoring-engine module (enforced by `test_harness_does_not_couple_to_pricing_or_portal`).
+- It is **purely additive** — a new `tools/e2e-harness/` tree, touching zero
+  existing files — so it moves **no golden score**. No Underwriter co-sign
+  required (offline, additive; mirrors BEAAA-7255 / 7235 / 7346).
+- Capture **retains no raw transcripts**; redaction is applied on receipt and
+  prompt-injection markers are preserved as structured `detector_features`
+  (so P5 fires on the redacted event — the dogfood invariant).
+
+## What's parameterized on the vendor pick
+
+Everything except the live `fetch`:
+
+1. **Vendor choice** — `--vendor`. Adapters for the top-3 candidates are pre-built.
+2. **Scoped credentials** — `--creds-file` (Founder shares at sign-up).
+3. **Export-shape drift** — if a live payload field differs from each vendor's
+   documented schema, the fix is localized to that adapter's `to_session`; the
+   manifest, scan, score and Monitor wiring downstream are untouched.
+
+Build time remaining at run: **~zero**.
