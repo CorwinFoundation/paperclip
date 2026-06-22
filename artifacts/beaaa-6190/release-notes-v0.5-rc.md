@@ -9,8 +9,8 @@ brand_backbone_sha256: "241d10820ae194119934a2a58e6d3a6584eac722edc33e5c23d3c0f2
 brand_backbone_verified: true
 focus_claim: "These release notes position BackBond Scanner v0.5 RC as the evidence-grade step toward insuring AI agents without making a v1.0 public-label claim."
 contracts_referenced: ["are-scanner-api-v1@v1.3.0"]
-ticket_refs: ["BEAAA-6190", "BEAAA-6188", "BEAAA-6187", "BEAAA-7321"]
-proof_points_cited: ["tools/calibration-deltas/2026-06-22-beaaa6190-v05-rc-n5.md", "artifacts/beaaa-6187/BEAAA-6187_final_merge_closeout_v0.2.md"]
+ticket_refs: ["BEAAA-7343", "BEAAA-7341", "BEAAA-6190", "BEAAA-6188", "BEAAA-6187", "BEAAA-7321"]
+proof_points_cited: ["scripts/verify-brand-backbone.sh exit 0 on 2026-06-22", "tools/calibration-deltas/2026-06-22-beaaa6190-v05-rc-n5.md", "artifacts/beaaa-6187/BEAAA-6187_final_merge_closeout_v0.2.md"]
 version: 0.1
 prior_version: null
 self_audit_passed: true
