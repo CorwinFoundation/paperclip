@@ -109,11 +109,29 @@ any agent's band/price, escalate"), **merge is gated on Underwriter co-sign**
 branch is the concrete artifact for that co-sign; the 9 legacy tests are migrated
 as part of the co-signed merge package (they encode the behavior UW must ratify).
 
-## 5. Disposition
+## 4a. Contract-clean evidence handling (BEAAA-7939 UW condition)
 
+The bare Scanner `/score` ScoreResponse carries **no** `applicability_record` or
+`diagnostics` (verified — keys are `are_total, band, bmi, pillar_floors, pillars,
+…`). The admittance evidence bundle is assembled by the **UW submission record**
+(ADR-0007 §1.4), not the `/score` response. So `quote_handler` now **requires**
+`score.applicability_record.measured_dims` and returns an explicit **422** when it
+is absent — a missing-evidence failure is never silently conflated with a genuine
+`ADM.R3` (under-5-measured) REFUSE. `system_prompt_kind` is read off the request
+(UW submission record); without it `ADM.R1`/`ADM.R4` simply do not fire.
+
+## 5. Disposition — MERGED
+
+- **Co-sign chain complete:** UW BEAAA-7939 (done, conditional) · CEO BEAAA-7940 (done).
 - Acceptance #1 (map): **delivered** (this doc).
-- Acceptance #2 (proof + test): gap **proven**; standing guard test **added** and
-  shown to fail-on-gap / pass-on-fix.
-- Acceptance #3 (merge + Δ=0 or escalate): scoring **Δ=0**; quote-outcome/contract
-  change → **escalated to UW co-sign + CEO pricing gate** (not CTO-unilateral).
-  No `merged_sha` until co-sign lands.
+- Acceptance #2 (proof + test): gap **proven**; standing guard fails-on-gap /
+  passes-on-fix; contract-clean 422 test added.
+- Acceptance #3 (merge + Δ=0): **scoring Δ=0** — diff touches only `api/handlers.py`
+  + tests + this doc; no rubric/scoring/judge/corpus/bands/calibration/rates file.
+  Score path byte-identical to master → are_total/subscores unchanged for every
+  agent (N=5 Δ=0 structural; admittance runs downstream in `quote_handler` and
+  never feeds back into `rubric.scoring.score`). Full `tests/`: **1790 passed, 15
+  failed — all 15 preexisting on origin/master** (golden-L2 / bundle-signing /
+  calibration env fixtures), **zero new failures**. 9 legacy handler tests migrated
+  to the co-signed enforced behavior.
+- `merged_sha` recorded in the BEAAA-7937 closeout comment.
