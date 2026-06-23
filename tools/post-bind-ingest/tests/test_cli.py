@@ -109,6 +109,150 @@ def test_main_writes_normalized_events(tmp_path: Path, monkeypatch: pytest.Monke
     assert event["event_ingest"]["manifest_id"] == "batch-1"
 
 
+def test_main_writes_normalized_events_to_local_output_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "payload.json"
+    output_path = tmp_path / "normalized-events.jsonl"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-public-key",
+            PUBLIC_KEY_B64,
+            "--output-path",
+            str(output_path),
+        ],
+    )
+    main()
+
+    output = capsys.readouterr().out.strip()
+    assert output == f"events_written=1 output_path={output_path}"
+    event = json.loads(output_path.read_text(encoding="utf-8").strip())
+    assert event["event_id"] == "evt-1"
+    assert event["event_ingest"]["manifest_id"] == "batch-1"
+
+
+def test_main_rejects_output_path_with_missing_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    payload_path = tmp_path / "payload.json"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-public-key",
+            PUBLIC_KEY_B64,
+            "--output-path",
+            str(tmp_path / "missing" / "normalized-events.jsonl"),
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert str(exc.value).startswith("output parent does not exist:")
+
+
+def test_main_rejects_egress_url_without_enable_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    payload_path = tmp_path / "payload.json"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-public-key",
+            PUBLIC_KEY_B64,
+            "--egress-url",
+            "https://example.invalid/ingest",
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert str(exc.value) == "egress-url requires --enable-egress"
+
+
+def test_main_rejects_enable_egress_without_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    payload_path = tmp_path / "payload.json"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-public-key",
+            PUBLIC_KEY_B64,
+            "--enable-egress",
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert str(exc.value) == "enable-egress requires --egress-url"
+
+
+def test_main_rejects_output_path_with_egress_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    payload_path = tmp_path / "payload.json"
+    output_path = tmp_path / "normalized-events.jsonl"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-public-key",
+            PUBLIC_KEY_B64,
+            "--output-path",
+            str(output_path),
+            "--egress-url",
+            "https://example.invalid/ingest",
+            "--enable-egress",
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert str(exc.value) == "output-path and egress-url are mutually exclusive"
+
+
+def test_main_rejects_gated_egress_transport(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    payload_path = tmp_path / "payload.json"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-public-key",
+            PUBLIC_KEY_B64,
+            "--egress-url",
+            "https://example.invalid/ingest",
+            "--enable-egress",
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert str(exc.value) == "egress transport is gated and not implemented in this local-only build"
+
+
 def test_main_receiver_mode_requires_public_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     payload_path = tmp_path / "payload.json"
     _write_payload(payload_path)
