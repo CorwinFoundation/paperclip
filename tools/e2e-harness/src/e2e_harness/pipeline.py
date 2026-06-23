@@ -209,6 +209,8 @@ def run_monitor(manifest: dict[str, Any], scenario: AdversarialScenario) -> list
                 detail={
                     "confidence": payload.get("confidence"),
                     "severity": payload.get("severity"),
+                    "local_evidence_ref": payload.get("local_evidence_ref"),
+                    "evidence_sources": payload.get("evidence_sources"),
                     "matched_markers": payload.get("matched_markers"),
                     "claim_event_id": claim.get("event_id"),
                 },

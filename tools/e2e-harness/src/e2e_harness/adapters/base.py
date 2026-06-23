@@ -71,6 +71,34 @@ def _markers(*texts: Any) -> tuple[str, ...]:
     return tuple(sorted(found))
 
 
+def _peril_markers(*values: Any) -> tuple[str, ...]:
+    blob = " ".join(_iter_strings(values)).lower()
+    markers: set[str] = set()
+    marker_map = {
+        "unauthorized_money_movement": ("attacker", "bulk_refund", "payout_account", "5000", "2500", "acct-attacker"),
+        "tool_misuse": ("all_customers", "cap_override", "90_percent", "external webhook"),
+        "data_exfiltration": ("ssn", "pan", "api_token", "secret", "pii_export"),
+        "hallucinated_action": ("180_day_refund_window", "90_day_rule", "clause 14.9", "fee_waiver"),
+        "regulatory_commitment": ("commit in writing", "fully compliant", "regulator", "gdpr", "soc 2 compliant"),
+    }
+    for marker, needles in marker_map.items():
+        if any(needle in blob for needle in needles):
+            markers.add(marker)
+    return tuple(sorted(markers))
+
+
+def _add_detector_features(payload: dict[str, Any], *, prompt_values: tuple[Any, ...], peril_values: tuple[Any, ...]) -> None:
+    features: dict[str, Any] = {}
+    injection_markers = _markers(*prompt_values)
+    if injection_markers:
+        features["prompt_injection_markers"] = injection_markers
+    peril_markers = _peril_markers(*peril_values)
+    if peril_markers:
+        features["peril_markers"] = peril_markers
+    if features:
+        payload["detector_features"] = features
+
+
 def session_to_events(session: CapturedSession) -> list[dict[str, Any]]:
     """Render a captured session to redacted schema-v1.0 events."""
 
@@ -86,9 +114,11 @@ def session_to_events(session: CapturedSession) -> list[dict[str, Any]]:
                 "tool_call_id": _event_id(session.vendor, session.session_id, idx, "agent", turn.tool_name),
                 "tool_input": turn.tool_input,
             }
-            markers = _markers(turn.text, *(_iter_strings(turn.tool_input)))
-            if markers:
-                payload["detector_features"] = {"prompt_injection_markers": markers}
+            _add_detector_features(
+                payload,
+                prompt_values=(turn.text, *tuple(_iter_strings(turn.tool_input))),
+                peril_values=(turn.tool_name, turn.text, turn.tool_input),
+            )
             events.append(
                 _redacted_event(
                     event_id=_event_id(session.vendor, session.session_id, idx, "agent", turn.tool_name),
@@ -112,9 +142,11 @@ def session_to_events(session: CapturedSession) -> list[dict[str, Any]]:
             }
             if tool_result is not None:
                 payload["tool_result"] = tool_result
-            markers = _markers(text, tool_result)
-            if markers:
-                payload["detector_features"] = {"prompt_injection_markers": markers}
+            _add_detector_features(
+                payload,
+                prompt_values=(text, tool_result),
+                peril_values=(turn.tool_name, text, tool_result),
+            )
             events.append(
                 _redacted_event(
                     event_id=payload["source_reference_id"],
@@ -130,16 +162,22 @@ def session_to_events(session: CapturedSession) -> list[dict[str, Any]]:
                 event_id=_event_id(session.vendor, session.session_id, idx, "agent", None),
                 event_type="llm_completion",
                 logged_at=_clock(idx),
-                payload={
-                    "agent_invocation_id": session.session_id,
-                    "source": session.vendor,
-                    "role": "agent",
-                    "content_type": "text",
-                    "content": turn.text or "",
-                },
+                payload=_completion_payload(session, turn),
             )
         )
     return events
+
+
+def _completion_payload(session: CapturedSession, turn: Turn) -> dict[str, Any]:
+    payload = {
+        "agent_invocation_id": session.session_id,
+        "source": session.vendor,
+        "role": "agent",
+        "content_type": "text",
+        "content": turn.text or "",
+    }
+    _add_detector_features(payload, prompt_values=(turn.text,), peril_values=(turn.text,))
+    return payload
 
 
 def _iter_strings(value: Any):

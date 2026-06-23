@@ -310,6 +310,7 @@ def _build_claim_event(
     detector_id = f"{DETECTOR_PERIL}.{DETECTOR_FAMILY}.{detector_name}"
     unique_sources = tuple(dict.fromkeys(evidence_sources))
     event_id = _claim_event_id(manifest_id, manifest_digest, detector_id, "::".join(unique_sources))
+    local_evidence_ref = evidence_refs[0]["artifact_uri"] if evidence_refs else _canonical_artifact_uri(manifest_id, base_event_id)
     return {
         "event_id": event_id,
         "event_type": "claim_candidate_event",
@@ -325,6 +326,7 @@ def _build_claim_event(
             "evidence_sources": list(unique_sources),
             "matched_source_event_ids": sorted(set(matched_source_ids)),
             "matched_markers": markers,
+            "local_evidence_ref": local_evidence_ref,
             "evidence_refs": evidence_refs,
         },
         "provenance": {

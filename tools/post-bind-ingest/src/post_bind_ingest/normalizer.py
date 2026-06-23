@@ -10,6 +10,7 @@ from .invariants import ManifestIdempotencyStore, utc_now_iso
 from .manifest_signature import ALLOWED_SCHEMA_VERSIONS, validate_manifest_schema
 from .manifest_signature import normalize_and_digest_events, parse_manifest
 from .p5_detector import detect_p5_events
+from .passive_detectors import detect_passive_peril_events
 from .redaction import (
     RedactionError,
     RedactedField,
@@ -86,6 +87,14 @@ def normalize_manifest(
             schema_version=manifest["schema_version"],
         )
     )
+    normalized_events.extend(
+        detect_passive_peril_events(
+            normalized_events,
+            manifest_id=manifest["manifest_id"],
+            manifest_digest=manifest_digest,
+            schema_version=manifest["schema_version"],
+        )
+    )
     if idempotency_store is not None:
         idempotency_store.record(manifest["manifest_id"], manifest_digest)
     return tuple(normalized_events)
@@ -122,6 +131,14 @@ def normalize_receiver_events(
         )
     normalized_events.extend(
         detect_p5_events(
+            normalized_events,
+            manifest_id=envelope.batch_id,
+            manifest_digest=envelope.batch_sha256.removeprefix("sha256:"),
+            schema_version=envelope.schema_version,
+        )
+    )
+    normalized_events.extend(
+        detect_passive_peril_events(
             normalized_events,
             manifest_id=envelope.batch_id,
             manifest_digest=envelope.batch_sha256.removeprefix("sha256:"),
