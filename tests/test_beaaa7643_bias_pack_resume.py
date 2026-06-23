@@ -205,6 +205,36 @@ def test_subject_and_judge_preflight_pings_both_runners() -> None:
     assert judge.calls == 1
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "HTTP request failed: 522 Server Error",
+        "HTTP request failed: Server disconnected without sending a response.",
+        "HTTP request failed: peer closed connection without sending complete message body (incomplete chunked read)",
+    ],
+)
+def test_transient_runner_retries_provider_failures(message: str) -> None:
+    class FlakyRunner:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def model_id(self) -> str:
+            return "flaky"
+
+        def complete(self, prompt: str) -> str:
+            self.calls += 1
+            if self.calls < 3:
+                raise RuntimeError(message)
+            return f"ok:{prompt}"
+
+    flaky = FlakyRunner()
+    wrapped = runner._RetryTransientRunner(flaky)
+
+    assert wrapped.model_id() == "flaky"
+    assert wrapped.complete("ping") == "ok:ping"
+    assert flaky.calls == 3
+
+
 def test_resumable_rows_match_direct_bench_rows_under_mock(tmp_path: Path) -> None:
     bbq_subject = CountingRunner("subject", _subject_response)
     bbq_row, _ = runner._run_bbq_resumable(

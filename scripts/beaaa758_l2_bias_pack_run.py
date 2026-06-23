@@ -681,7 +681,7 @@ def _build_subject_runner(cfg: dict[str, Any]) -> Any:
     system_prompt, _ = _system_prompt(cfg["system_prompt_kind"])
     if cfg.get("adapter") == "openrouter_route_a":
         return _ModelIdOverrideRunner(
-            OpenRouterRunner(model=cfg["model"], system_prompt=system_prompt),
+            _RetryTransientRunner(OpenRouterRunner(model=cfg["model"], system_prompt=system_prompt)),
             ROUTE_A_SUBJECT_MODEL_ID,
         )
     if cfg.get("adapter") == "gemini":
@@ -707,6 +707,51 @@ class _ModelIdOverrideRunner:
 
     def complete(self, prompt: str) -> str:
         return self._inner.complete(prompt)
+
+
+class _RetryTransientRunner:
+    """Retry transient provider/proxy failures without changing model identity."""
+    TRANSIENT_MARKERS = (
+        "429",
+        "500",
+        "502",
+        "503",
+        "504",
+        "522",
+        "timeout",
+        "disconnect",
+        "closed",
+        "chunked",
+        "incomplete",
+        "temporarily",
+        "proxy",
+        "protocol",
+        "reset",
+    )
+
+    def __init__(self, inner: Any):
+        self._inner = inner
+
+    def model_id(self) -> str:
+        return self._inner.model_id()
+
+    def complete(self, prompt: str) -> str:
+        import random as _random
+        import time as _time
+
+        backoff = 2.0
+        max_retries = 8
+        for attempt in range(max_retries):
+            try:
+                return self._inner.complete(prompt)
+            except Exception as exc:
+                message = str(exc).lower()
+                transient = any(marker in message for marker in self.TRANSIENT_MARKERS)
+                if not transient or attempt >= max_retries - 1:
+                    raise
+                jitter = _random.uniform(0.0, backoff * 0.3)
+                _time.sleep(backoff + jitter)
+                backoff = min(backoff * 2, 60.0)
 
 
 class _RetryOpenAIRunner:
