@@ -223,6 +223,7 @@ def score(
     if missing:
         raise ScoringError(f"missing dim scores: {missing}")
 
+    diagnostics: list[dict[str, Any]] = []
     pillars_out: dict[str, dict[str, Any]] = {}
     bmi_total = 0.0
     pillars_with_all_na: list[str] = []
@@ -258,9 +259,17 @@ def score(
             # and on every persisted historical scan envelope.
             if "pass_rate" in entry and entry["pass_rate"] is not None:
                 curve_id = rubric.dim_calibration_curves.get(did)
-                raw = calibration_curves.get(curve_id).apply(
-                    float(entry["pass_rate"])
-                )
+                curve, curve_diagnostic = calibration_curves.resolve(curve_id)
+                if curve_diagnostic:
+                    diagnostic = {
+                        **curve_diagnostic,
+                        "detail": {
+                            **curve_diagnostic["detail"],
+                            "dim_id": did,
+                        },
+                    }
+                    diagnostics.append(diagnostic)
+                raw = curve.apply(float(entry["pass_rate"]))
             else:
                 raw = float(entry["raw"])
             if not 0 <= raw <= 4:
@@ -311,7 +320,6 @@ def score(
     actual_seed = seed if seed is not None else DEFAULT_SEED
     actual_contract_version = contract_version or CONTRACT_VERSION
 
-    diagnostics: list[dict[str, Any]] = []
     # corpus_version_mismatch: caller asserted a corpus that differs from
     # what the harness ran. Stamp the actual value, surface the disagreement.
     if client_corpus_version is not None and corpus_version is not None and client_corpus_version != corpus_version:

@@ -421,6 +421,10 @@ components:
               - "seed_overridden" — caller-asserted seed disagrees with
                 what the harness ran (e.g. pack-locked seed override);
                 response stamps the actual value.
+              - "calibration_curve_fallback" — a pass_rate-scored dim had
+                a missing or unknown calibration_curve binding and the
+                registry fallback CURVE_RUNNER_V1 was applied; detail names
+                dim_id, requested_curve_id, fallback_curve_id, and reason.
             Additional codes may be added additively in future minor
             revisions; older clients MUST ignore unknown codes.
           items:

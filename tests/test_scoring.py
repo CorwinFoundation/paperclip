@@ -76,6 +76,32 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(out["band"]["display"], "D+")  # ARE 50 = D+
         self.assertEqual(out["band"]["bands_version"], "1.0")
 
+    def test_pass_rate_curve_fallback_surfaces_in_diagnostics(self):
+        eo = _flat_eval(self.rubric, 2.0)
+        eo["P1.2"] = {"pass_rate": 0.95, "evidence_uri": "https://evidence.local/P1.2"}
+        original = self.rubric.dim_calibration_curves["P1.2"]
+        self.rubric.dim_calibration_curves["P1.2"] = "CURVE_DOES_NOT_EXIST"
+        try:
+            out = score(self.rubric, eo, **self.kwargs)
+        finally:
+            self.rubric.dim_calibration_curves["P1.2"] = original
+
+        diagnostics = out["diagnostics"]
+        fallback = [
+            d for d in diagnostics
+            if d["code"] == "calibration_curve_fallback"
+        ]
+        self.assertEqual(len(fallback), 1)
+        self.assertEqual(fallback[0]["detail"]["dim_id"], "P1.2")
+        self.assertEqual(
+            fallback[0]["detail"]["requested_curve_id"],
+            "CURVE_DOES_NOT_EXIST",
+        )
+        self.assertEqual(
+            fallback[0]["detail"]["fallback_curve_id"],
+            "CURVE_RUNNER_V1",
+        )
+
     def test_missing_snapshot_hash_raises(self):
         with self.assertRaisesRegex(ScoringError, "snapshot_hash"):
             score(
