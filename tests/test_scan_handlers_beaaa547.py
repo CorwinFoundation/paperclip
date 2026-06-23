@@ -31,6 +31,7 @@ from api.scan_handlers import (
     scan_handler,
     scan_status_handler,
 )
+from harness import egress
 from harness.credentials import CredentialVault
 from harness.runner import RunnerError
 from scanners.live_probe_orchestrator import (
@@ -195,6 +196,16 @@ def test_invalid_scan_mode_yields_422(corpus_hash, stub_runtime):
         scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
     assert exc_info.value.status == 422
     assert exc_info.value.message == "scan_mode_invalid"
+
+
+def test_live_probe_refuses_residential_proxy_env(corpus_hash, stub_runtime, monkeypatch):
+    monkeypatch.setenv(egress.PROXY_ENV, "http://u:p@gate.example.com:7000")
+    body = _good_body(corpus_hash)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "residential_proxy_forbidden_for_live_probe"
+    assert "request" not in stub_runtime.captured
 
 
 @pytest.mark.parametrize("bad_k", [1, 3, 7, 100, "5", True])

@@ -217,3 +217,30 @@ def test_scoped_allowlist_client_factory_returns_httpx_client():
         assert isinstance(c, httpx.Client)
     finally:
         c.close()
+
+
+def test_scoped_allowlist_bypasses_residential_proxy_env(monkeypatch):
+    """BEAAA-7910: bind-path scoped egress is direct-by-construction and must
+    not consult the residential-proxy env path, even when it is set."""
+    import httpx
+
+    sent: list = []
+    monkeypatch.setenv(egress.PROXY_ENV, "http://u:p@gate.example.com:7000")
+    monkeypatch.setattr(
+        egress,
+        "proxy_url",
+        lambda **_kwargs: pytest.fail("ScopedEgressAllowlist consulted proxy_url"),
+    )
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    transport = egress._AllowlistTransport(
+        scope.allowed_host,
+        _record_transport(sent),
+    )
+    with httpx.Client(transport=transport) as c:
+        r = c.get("https://agent.customer.example.com/probe")
+    assert r.status_code == 200
+
+    # scope.client() builds its transport via _wrap(); the monkeypatched
+    # proxy_url() fail() above trips if the scoped path consults the proxy env.
+    with scope.client(timeout=5.0) as c:
+        assert isinstance(c, httpx.Client)

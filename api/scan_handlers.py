@@ -48,6 +48,7 @@ from api.sla import (
     evaluate_degradation,
     pillars_from_dim_results,
 )
+from harness import egress
 from harness.runner import RunnerError
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
@@ -424,6 +425,17 @@ def _validate_scan_mode(scan_mode: str) -> None:
         raise HandlerError(422, "scan_mode_invalid")
 
 
+def _enforce_no_residential_proxy_for_live_probe() -> None:
+    """Fail closed when a live customer probe would run with resi proxy config.
+
+    BEAAA-7910 removes residential-proxy transit from the live-bind path. The
+    generic egress adapter still supports the env var for non-bind callers, but
+    this shared `/scan` + `/rescans` entrypoint refuses before runtime kickoff.
+    """
+    if egress.is_enabled():
+        raise HandlerError(422, "residential_proxy_forbidden_for_live_probe")
+
+
 def _validate_k_replicates(k: Any) -> int:
     if k is None:
         return DEFAULT_K_REPLICATES
@@ -681,6 +693,7 @@ def _kickoff_live_probe_scan(
 
     scan_mode = body.get("scan_mode", "live_probe")
     _validate_scan_mode(scan_mode)
+    _enforce_no_residential_proxy_for_live_probe()
     k_replicates = _validate_k_replicates(body.get("k_replicates"))
     requested_pillars = tuple(body.get("requested_pillars", ()))
 

@@ -261,16 +261,21 @@ class ScopedEgressAllowlist:
     def _wrap(self, *, session_id: str | None) -> Any:
         import httpx  # type: ignore
 
-        p = proxy_url(session_id=session_id)
-        inner = httpx.HTTPTransport(proxy=p) if p else httpx.HTTPTransport()
+        # BEAAA-7910: live-bind scoped customer egress must not consult or use
+        # the residential-proxy env path. The shared launch guard refuses if
+        # BEAAA_RESI_PROXY_URL is set; this direct transport is the bypass
+        # proof for callers that construct a scope directly in tests.
+        _ = session_id
+        inner = httpx.HTTPTransport()
         return _AllowlistTransport(self._allowed_hosts, inner)
 
     def client(self, *, timeout: float = 30.0, session_id: str | None = None,
                **kwargs: Any):
         """Return an `httpx.Client` whose transport enforces the allow-list.
 
-        Honors the `BEAAA_RESI_PROXY_*` env vars by routing the inner
-        transport through the configured proxy when one is set.
+        BEAAA-7910: does not honor the `BEAAA_RESI_PROXY_*` env vars. Scoped
+        live-probe traffic is direct-by-construction; generic non-scoped egress
+        wrappers retain proxy support for non-bind use.
         """
         import httpx  # type: ignore
 
