@@ -1,6 +1,14 @@
 """Post-bind ingest package."""
 
 from .manifest_signature import ManifestSchemaError, ManifestSignatureError, validate_manifest_schema
+from .egress import (
+    EgressConfig,
+    EgressGateError,
+    EgressResult,
+    build_monitor_artifact,
+    transmit_monitor_artifact,
+    validate_monitor_artifact,
+)
 from .normalizer import NormalizerError, normalize_manifest, normalize_receiver_events
 from .invariants import ManifestIdempotencyStore
 from .p5_detector import detect_p5_events
@@ -18,6 +26,9 @@ __all__ = [
     "ManifestSchemaError",
     "ManifestSignatureError",
     "ManifestIdempotencyStore",
+    "EgressConfig",
+    "EgressGateError",
+    "EgressResult",
     "ReceiverEnvelope",
     "ReceiverError",
     "ReceiverReplayError",
@@ -30,4 +41,7 @@ __all__ = [
     "normalize_manifest",
     "detect_p5_events",
     "parse_receiver_payload",
+    "build_monitor_artifact",
+    "transmit_monitor_artifact",
+    "validate_monitor_artifact",
 ]
