@@ -79,6 +79,10 @@ _SYLLABLE_REQUEST_FAILED_RE = re.compile(
     r"^syllable (?:start_session|send_message) request failed:",
     re.IGNORECASE,
 )
+_SYLLABLE_SCAN_DEADLINE_RE = re.compile(
+    r"^(?:syllable|customer endpoint) scan deadline exceeded$",
+    re.IGNORECASE,
+)
 
 # BEAAA-1265 (WS1) — purpose values accepted on POST /scanner/v1/rescans.
 # Carried via the request body's ``scanner_invocation_context.purpose`` field
@@ -125,10 +129,18 @@ def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
         return HandlerError(502, "customer_endpoint_http_error")
 
     syllable_request_failed = _SYLLABLE_REQUEST_FAILED_RE.match(message) is not None
-    if not message.startswith("customer endpoint ") and not syllable_request_failed:
+    scan_deadline_exceeded = _SYLLABLE_SCAN_DEADLINE_RE.match(message) is not None
+    if (
+        not message.startswith("customer endpoint ")
+        and not syllable_request_failed
+        and not scan_deadline_exceeded
+    ):
         return None
 
     lowered = message.lower()
+    if scan_deadline_exceeded:
+        return HandlerError(504, "customer_endpoint_unreachable_transport")
+
     if (
         message.startswith("customer endpoint timeout ")
         or (
@@ -194,6 +206,9 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
         customer_error = _customer_endpoint_handler_error(RunnerError(runner_message))
         if customer_error is not None:
             return customer_error
+    customer_error = _customer_endpoint_handler_error(RunnerError(message))
+    if customer_error is not None:
+        return customer_error
     return HandlerError(500, "orchestrator_error")
 
 
@@ -718,7 +733,7 @@ def _kickoff_live_probe_scan(
         raise HandlerError(422, "k_replicates_invalid") from exc
 
     try:
-        runtime.kickoff(
+        result = runtime.kickoff(
             scan_request,
             credential_secret,
             agent_id=agent_id,
@@ -738,11 +753,12 @@ def _kickoff_live_probe_scan(
     # BEAAA-1274 (WS4) additive flags. Default ``false`` on every accept
     # response (per AC #5) — the rescan-side degradation path is the only
     # surface that may flip them to ``true``.
+    partial_completion = bool(result.incomplete)
     return 202, {
         "scan_id": scan_id,
-        "status": "accepted",
-        "partial_completion": False,
-        "confidence_below_adjudication_threshold": False,
+        "status": "partial" if partial_completion else "accepted",
+        "partial_completion": partial_completion,
+        "confidence_below_adjudication_threshold": partial_completion,
     }
 
 

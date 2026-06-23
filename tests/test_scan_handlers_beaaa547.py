@@ -148,6 +148,28 @@ def test_post_scan_returns_202_with_scan_id(corpus_hash, stub_runtime):
     }
 
 
+def test_post_scan_surfaces_bounded_partial_completion(corpus_hash):
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del secret
+        return _synthetic_result(scan_request.scan_id, incomplete=True)
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    status, payload = scan_handler(
+        _good_body(corpus_hash),
+        tenant_header="tenant-001",
+        runtime=runtime,
+        scan_id_factory=lambda: "scan-partial-7887",
+    )
+
+    assert status == 202
+    assert payload == {
+        "scan_id": "scan-partial-7887",
+        "status": "partial",
+        "partial_completion": True,
+        "confidence_below_adjudication_threshold": True,
+    }
+
+
 def test_get_scan_returns_404_for_unknown_id(stub_runtime):
     with pytest.raises(Exception) as exc_info:
         scan_status_handler("nonexistent-scan", runtime=stub_runtime)
@@ -412,6 +434,11 @@ def test_serialized_customer_runner_transport_timeout_yields_504(corpus_hash):
         ),
         (
             "syllable send_message request failed: connection reset by peer",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "syllable scan deadline exceeded",
             504,
             "customer_endpoint_unreachable_transport",
         ),

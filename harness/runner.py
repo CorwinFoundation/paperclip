@@ -572,9 +572,24 @@ class SyllableRunner(ModelRunner):
         self._origin = origin
         self._label = label or f"syllable:{client_id_key[:8]}"
         self._timeout_s = timeout_s
+        self._scan_deadline_monotonic: float | None = None
 
     def model_id(self) -> str:
         return self._label
+
+    def set_scan_deadline(self, deadline_monotonic: float) -> None:
+        """Set the earliest scan-wide deadline for transient retries.
+
+        The customer walker is invoked once per replicate, so later calls must
+        not extend the first budget. A fresh runner is constructed per scan.
+        """
+        if self._scan_deadline_monotonic is None:
+            self._scan_deadline_monotonic = deadline_monotonic
+            return
+        self._scan_deadline_monotonic = min(
+            self._scan_deadline_monotonic,
+            deadline_monotonic,
+        )
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -604,6 +619,23 @@ class SyllableRunner(ModelRunner):
             )
         )
 
+    def _request_timeout_for_deadline(self) -> float:
+        if self._scan_deadline_monotonic is None:
+            return self._timeout_s
+        remaining = self._scan_deadline_monotonic - time.monotonic()
+        if remaining <= 0:
+            raise RunnerError("syllable scan deadline exceeded")
+        return max(0.1, min(self._timeout_s, remaining))
+
+    def _sleep_with_deadline(self, seconds: float) -> None:
+        if self._scan_deadline_monotonic is None:
+            time.sleep(seconds)
+            return
+        remaining = self._scan_deadline_monotonic - time.monotonic()
+        if remaining <= 0:
+            raise RunnerError("syllable scan deadline exceeded")
+        time.sleep(min(seconds, remaining))
+
     def _syllable_post(
         self,
         path: str,
@@ -623,7 +655,7 @@ class SyllableRunner(ModelRunner):
                     url,
                     headers=headers,
                     json=payload,
-                    timeout=self._timeout_s,
+                    timeout=self._request_timeout_for_deadline(),
                     session_id=egress_session_id,
                 )
             except Exception as exc:
@@ -632,7 +664,7 @@ class SyllableRunner(ModelRunner):
                     attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
                     and self._is_transient_transport_error(exc)
                 ):
-                    time.sleep(self.RETRY_BACKOFF_SECONDS[attempt])
+                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
                     continue
                 raise RunnerError(
                     f"syllable {phase} request failed: {exc}"
@@ -642,7 +674,7 @@ class SyllableRunner(ModelRunner):
                 response.status_code in self.TRANSIENT_STATUS_CODES
                 and attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
             ):
-                time.sleep(self.RETRY_BACKOFF_SECONDS[attempt])
+                self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
                 continue
             return response
 

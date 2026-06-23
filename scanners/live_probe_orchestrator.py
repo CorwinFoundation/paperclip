@@ -113,6 +113,19 @@ class OrchestratorError(RuntimeError):
     """
 
 
+class ProbeRunIncompleteError(RuntimeError):
+    """Probe walker stopped after emitting a bounded partial result.
+
+    ``reason`` is carried onto :class:`ScanResult.incomplete_reason` when at
+    least one row reached the Scorer. If no rows reached the Scorer, the
+    orchestrator raises instead of accepting an empty scan.
+    """
+
+    def __init__(self, reason: str, message: str | None = None) -> None:
+        super().__init__(message or reason)
+        self.reason = reason
+
+
 class InvalidKReplicatesError(ValueError):
     """Raised when ``k_replicates`` is outside the v1.1.0 contract allow-list.
 
@@ -440,41 +453,48 @@ def run_scan(
         for _replicate_idx in range(scan_request.k_replicates):
             if cap_reason is not None:
                 break
-            for item in probe_run_fn(active_runner):
-                dim_id, partial_row, probe_tokens = _unpack_probe_yield(item)
-                row = dict(partial_row)
-                # AC#4 — provenance stamped unconditionally from the imported
-                # constant. Any value the probe_run_fn might have placed here
-                # is overwritten so a misbehaving wrapper cannot stamp a row
-                # as anything other than HOSTED_RUNNER.
-                row["runner"] = HOSTED_RUNNER
-                row.setdefault("eval_run_id", eval_run_id)
-                # AC#5 — ``ipc_outbound.send_row`` runs T4's
-                # ``serialize_measurement_row`` which enforces the closed
-                # allow-list. Any field outside the allow-list fails here
-                # before transit, so contract drift surfaces immediately
-                # rather than at the Scorer.
-                ipc_outbound.send_row(dim_id, row)
-                rows_emitted += 1
-                tokens_used += probe_tokens
+            try:
+                for item in probe_run_fn(active_runner):
+                    dim_id, partial_row, probe_tokens = _unpack_probe_yield(item)
+                    row = dict(partial_row)
+                    # AC#4 — provenance stamped unconditionally from the imported
+                    # constant. Any value the probe_run_fn might have placed here
+                    # is overwritten so a misbehaving wrapper cannot stamp a row
+                    # as anything other than HOSTED_RUNNER.
+                    row["runner"] = HOSTED_RUNNER
+                    row.setdefault("eval_run_id", eval_run_id)
+                    # AC#5 — ``ipc_outbound.send_row`` runs T4's
+                    # ``serialize_measurement_row`` which enforces the closed
+                    # allow-list. Any field outside the allow-list fails here
+                    # before transit, so contract drift surfaces immediately
+                    # rather than at the Scorer.
+                    ipc_outbound.send_row(dim_id, row)
+                    rows_emitted += 1
+                    tokens_used += probe_tokens
 
-                # T5 — accumulate per-dim raws for median + spread.
-                raw_value = row.get("raw")
-                if isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool):
-                    raws_by_dim.setdefault(dim_id, []).append(float(raw_value))
+                    # T5 — accumulate per-dim raws for median + spread.
+                    raw_value = row.get("raw")
+                    if isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool):
+                        raws_by_dim.setdefault(dim_id, []).append(float(raw_value))
 
-                # T9 — cap checks after the row lands so the row that
-                # tripped the cap still reaches the Scorer as evidence
-                # (partial-result emission, AC#5 on BEAAA-545).
-                if rows_emitted >= MAX_PROBES_PER_SCAN:
-                    cap_reason = "probe_cap"
-                    break
-                if tokens_used > MAX_TOKENS_PER_SCAN:
-                    cap_reason = "token_cap"
-                    break
-                if _now() - scan_started_at > MAX_WALL_CLOCK_SECONDS:
-                    cap_reason = "wallclock_cap"
-                    break
+                    # T9 — cap checks after the row lands so the row that
+                    # tripped the cap still reaches the Scorer as evidence
+                    # (partial-result emission, AC#5 on BEAAA-545).
+                    if rows_emitted >= MAX_PROBES_PER_SCAN:
+                        cap_reason = "probe_cap"
+                        break
+                    if tokens_used > MAX_TOKENS_PER_SCAN:
+                        cap_reason = "token_cap"
+                        break
+                    if _now() - scan_started_at > MAX_WALL_CLOCK_SECONDS:
+                        cap_reason = "wallclock_cap"
+                        break
+            except ProbeRunIncompleteError as exc:
+                cap_reason = exc.reason
+                if rows_emitted == 0:
+                    ipc_outbound.send_end_of_scan()
+                    raise OrchestratorError(str(exc)) from exc
+                break
 
         # --- 6. END_OF_SCAN sentinel so the Scorer's drain loop returns. ---
         ipc_outbound.send_end_of_scan()
@@ -617,6 +637,7 @@ __all__ = [
     "MAX_TOKENS_PER_SCAN",
     "MAX_WALL_CLOCK_SECONDS",
     "OrchestratorError",
+    "ProbeRunIncompleteError",
     "ProbeRunFn",
     "ScanRequest",
     "ScanResult",

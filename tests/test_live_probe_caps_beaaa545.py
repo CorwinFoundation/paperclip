@@ -33,6 +33,7 @@ from scanners.live_probe_orchestrator import (
     MAX_PROBES_PER_SCAN,
     MAX_TOKENS_PER_SCAN,
     MAX_WALL_CLOCK_SECONDS,
+    ProbeRunIncompleteError,
     ScanRequest,
     run_scan,
 )
@@ -337,6 +338,64 @@ def test_orchestrator_rejects_wrong_tuple_arity(corpus_tarball, corpus_hash, loa
 
     channel = WorkerChannel(max_queue=8)
     with pytest.raises(orch.OrchestratorError):
+        run_scan(
+            _request(corpus_hash),
+            loaded_vault,
+            channel,
+            corpus_tarball_path=corpus_tarball,
+            probe_run_fn=fn,
+            runner=_runner(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# BEAAA-7887 — bounded walker deadline preserves partial rows.
+# ---------------------------------------------------------------------------
+
+
+def test_probe_run_incomplete_flushes_partial_rows(
+    corpus_tarball, corpus_hash, loaded_vault
+):
+    def fn(_runner):
+        yield "P1.1", {
+            "raw": 1.0,
+            "evidence_uri": "https://evidence.local/deadline-row",
+            "evidence_sha256": "sha256:" + "1" * 64,
+        }
+        raise ProbeRunIncompleteError(
+            "customer_endpoint_unreachable_transport",
+            "customer endpoint scan deadline exceeded",
+        )
+
+    channel = WorkerChannel(max_queue=8)
+    result = run_scan(
+        _request(corpus_hash),
+        loaded_vault,
+        channel,
+        corpus_tarball_path=corpus_tarball,
+        probe_run_fn=fn,
+        runner=_runner(),
+    )
+
+    assert result.status == "incomplete"
+    assert result.incomplete is True
+    assert result.incomplete_reason == "customer_endpoint_unreachable_transport"
+    assert result.rows_emitted == 1
+    assert len(_drain_channel(channel)) == 1
+
+
+def test_probe_run_incomplete_without_rows_is_rejected(
+    corpus_tarball, corpus_hash, loaded_vault
+):
+    def fn(_runner):
+        raise ProbeRunIncompleteError(
+            "customer_endpoint_unreachable_transport",
+            "customer endpoint scan deadline exceeded",
+        )
+        yield  # pragma: no cover
+
+    channel = WorkerChannel(max_queue=8)
+    with pytest.raises(orch.OrchestratorError, match="scan deadline exceeded"):
         run_scan(
             _request(corpus_hash),
             loaded_vault,

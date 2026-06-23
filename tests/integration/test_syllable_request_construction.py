@@ -10,7 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import pytest
+
 from harness.customer_runner import customer_agent_http_runner_factory
+from harness.runner import RunnerError
 
 
 @dataclass
@@ -139,3 +142,41 @@ def test_apichat_retries_transient_proxy_exception(monkeypatch) -> None:
     assert [call["url"] for call in calls].count(
         "https://apichat.syllable.cloud/api/v1/chats/send_message"
     ) == 2
+
+
+def test_apichat_retry_respects_scan_deadline(monkeypatch) -> None:
+    monkeypatch.setenv("SYLLABLE_CLIENT_ID_KEY", "client-key-fixture")
+    monkeypatch.setenv("SYLLABLE_HOST_KEY", "https://syllable.example")
+
+    now = {"t": 100.0}
+    sleeps: list[float] = []
+
+    def fake_monotonic() -> float:
+        return now["t"]
+
+    def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        now["t"] += seconds
+
+    calls: list[dict[str, Any]] = []
+
+    def fake_post(url: str, **kwargs: Any) -> _Response:
+        calls.append({"url": url, **kwargs})
+        now["t"] += float(kwargs["timeout"])
+        raise RuntimeError("ReadTimeout: request timed out")
+
+    monkeypatch.setattr("time.monotonic", fake_monotonic)
+    monkeypatch.setattr("time.sleep", fake_sleep)
+    monkeypatch.setattr("harness.egress.post", fake_post)
+
+    runner = customer_agent_http_runner_factory(
+        "https://apichat.syllable.cloud",
+        "scanner-vault-secret-must-not-be-used-as-syllable-client-id",
+    )
+    runner.set_scan_deadline(101.0)  # type: ignore[attr-defined]
+
+    with pytest.raises(RunnerError, match="syllable scan deadline exceeded"):
+        runner.complete("probe prompt")
+
+    assert [call["timeout"] for call in calls] == [1.0]
+    assert sleeps == []

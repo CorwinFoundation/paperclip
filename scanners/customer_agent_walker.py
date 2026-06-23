@@ -36,10 +36,21 @@ synthetic_v0 walker byte-for-byte. No code deletion of
 from __future__ import annotations
 
 import hashlib
+import time
 from typing import Any, Iterable, Sequence, Tuple
 
-from harness.runner import ModelRunner
+from harness.runner import ModelRunner, RunnerError
+from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.wraps import inspect_section1_v0
+
+
+GLOBAL_SCAN_DEADLINE_SECONDS: float = 45.0
+"""BEAAA-7887 production budget for the customer-true walker.
+
+The synchronous ``/scan`` path must return inside the external 60s probe
+budget even when proxy egress is flaky. The runner may still retry transient
+per-call failures, but all retries across wrap families share this deadline.
+"""
 
 
 WRAP_MODULES = (inspect_section1_v0,)
@@ -90,6 +101,12 @@ def _evidence_sha256_bytes(response: str) -> str:
     return f"sha256:{digest}"
 
 
+def _set_runner_scan_deadline(runner: ModelRunner, deadline: float) -> None:
+    setter = getattr(runner, "set_scan_deadline", None)
+    if callable(setter):
+        setter(deadline)
+
+
 def customer_agent_probe_run_fn(
     runner: ModelRunner,
 ) -> Iterable[Tuple[str, dict[str, Any]]]:
@@ -117,15 +134,32 @@ def customer_agent_probe_run_fn(
       scope holds for the entire walker iteration; the Scorer's
       deny-all scope is untouched).
     """
+    deadline = time.monotonic() + GLOBAL_SCAN_DEADLINE_SECONDS
+    rows_emitted = 0
+    _set_runner_scan_deadline(runner, deadline)
     for wrap_module in _resolve_wrap_modules():
         wrap_family_id = wrap_module.WRAP_FAMILY_ID
         wrap_version = wrap_module.WRAP_VERSION
         for spec in wrap_module.probe_specs():
+            if time.monotonic() >= deadline:
+                raise ProbeRunIncompleteError(
+                    "customer_endpoint_unreachable_transport",
+                    "customer endpoint scan deadline exceeded",
+                )
             # The runner.complete call exits the walker into the
             # ScopedEgressAllowlist scope; the customer endpoint host
             # is the only host any transport layer below can reach.
-            response = runner.complete(spec.prompt)
+            try:
+                response = runner.complete(spec.prompt)
+            except RunnerError as exc:
+                if rows_emitted > 0 and time.monotonic() >= deadline:
+                    raise ProbeRunIncompleteError(
+                        "customer_endpoint_unreachable_transport",
+                        "customer endpoint scan deadline exceeded",
+                    ) from exc
+                raise
             raw = spec.scoring_rule(response)
+            rows_emitted += 1
             yield (
                 spec.dim_id,
                 {
@@ -140,5 +174,6 @@ def customer_agent_probe_run_fn(
 
 __all__ = [
     "customer_agent_probe_run_fn",
+    "GLOBAL_SCAN_DEADLINE_SECONDS",
     "WRAP_MODULES",
 ]
