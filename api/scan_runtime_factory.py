@@ -99,6 +99,14 @@ ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
 # parent unblocks even if the cap-breach path is slow to flush.
 _PARENT_JOIN_SLACK_SECONDS: int = 30
 
+# Scorer-side envelope projection should complete immediately after the
+# Prober flushes END_OF_SCAN. Keep this independent from the scan wall-clock
+# cap so a crashed Scorer cannot pin a single-worker API process for the
+# full live-probe ceiling.
+SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS: float = float(
+    os.environ.get("ARE_SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS", "10")
+)
+
 
 # BEAAA-2182 Track A — kill-switch for the Scorer-side scoring path.
 # Default `on` (real scoring inside Scorer subprocess, projected envelope
@@ -438,13 +446,14 @@ def make_production_scan_runtime(
             # registered in ``score_envelope_registry`` keyed by
             # scan_id so the API-edge score_envelope_factory closure
             # picks it up at kickoff-finalize time. The drain is
-            # timeout-bounded (envelope projection runs in the Scorer
-            # immediately after END_OF_SCAN — sub-second on goldens;
-            # MAX_WALL_CLOCK + slack is the conservative ceiling).
+            # timeout-bounded separately from the Prober wall-clock cap:
+            # envelope projection runs in the Scorer immediately after
+            # END_OF_SCAN, so a missing envelope means a broken Scorer,
+            # not a still-running probe.
             if score_runtime is not None and score_envelope_registry is not None:
                 try:
                     env_outcome = channel.recv_score_envelope(
-                        timeout=_orchestrator_join_timeout(join_slack)
+                        timeout=_scorer_envelope_drain_timeout()
                     )
                 except Exception as exc:  # noqa: BLE001
                     _terminate(prober_proc, scorer_proc)
@@ -695,6 +704,11 @@ def _orchestrator_join_timeout(slack: int) -> int:
     """Total parent-side timeout: orchestrator's wall-clock cap + slack."""
     from scanners.live_probe_orchestrator import MAX_WALL_CLOCK_SECONDS
     return MAX_WALL_CLOCK_SECONDS + max(0, slack)
+
+
+def _scorer_envelope_drain_timeout() -> float:
+    """Bound parent-side wait for the Scorer return-channel envelope."""
+    return max(0.1, SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS)
 
 
 def _utc_now_iso() -> str:
