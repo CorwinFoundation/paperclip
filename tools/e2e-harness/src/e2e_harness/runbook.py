@@ -41,6 +41,7 @@ from .pipeline import (
     SCANNER_VERSION,
     SEED,
     live_detector_gaps,
+    red_taxonomy_counts,
     run_captured_session_chain,
     run_full_kit,
 )
@@ -156,6 +157,7 @@ def run_live_mode(
     summary["clean_false_positive_count"] = len(clean_detections)
     summary["clean_false_positive_rate"] = round(len(clean_detections) / len(clean), 6) if clean else None
     summary["known_live_gaps"] = live_detector_gaps(summary["perils_covered"], summary["live_detector_perils"])
+    summary["red_taxonomy_counts"] = red_taxonomy_counts(per_scenario)
     return {
         "vendor": vendor,
         "mode": mode,
@@ -204,6 +206,7 @@ def _human_summary(report: dict[str, Any]) -> str:
         f"    stop-instruction:        {s.get('are_stop_instruction_detections')}",
         f"  Monitor claim candidates:  {s.get('monitor_claim_candidates')}",
         f"  clean FP rate:             {s.get('clean_false_positive_rate')}",
+        f"  RED taxonomy:              {s.get('red_taxonomy_counts')}",
     ]
     return "\n".join(lines)
 
