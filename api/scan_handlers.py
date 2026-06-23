@@ -74,6 +74,10 @@ _CUSTOMER_ENDPOINT_HTTP_RE = re.compile(
     r"syllable (?:start_session|send_message) HTTP) (?P<status>\d{3})(?::|$)",
     re.IGNORECASE,
 )
+_SYLLABLE_REQUEST_FAILED_RE = re.compile(
+    r"^syllable (?:start_session|send_message) request failed:",
+    re.IGNORECASE,
+)
 
 # BEAAA-1265 (WS1) — purpose values accepted on POST /scanner/v1/rescans.
 # Carried via the request body's ``scanner_invocation_context.purpose`` field
@@ -119,7 +123,8 @@ def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
             return HandlerError(422, "customer_endpoint_route_not_found")
         return HandlerError(502, "customer_endpoint_http_error")
 
-    if not message.startswith("customer endpoint "):
+    syllable_request_failed = _SYLLABLE_REQUEST_FAILED_RE.match(message) is not None
+    if not message.startswith("customer endpoint ") and not syllable_request_failed:
         return None
 
     lowered = message.lower()
@@ -146,6 +151,25 @@ def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
         for token in ("connection reset", "tls", "ssl")
     ):
         return HandlerError(504, "customer_endpoint_unreachable_transport")
+
+    if syllable_request_failed:
+        if any(
+            token in lowered
+            for token in (
+                "522",
+                "502",
+                "503",
+                "unexpected_eof",
+                "eof occurred in violation of protocol",
+                "connection reset",
+                "tls",
+                "ssl",
+                "timeout",
+                "timed out",
+            )
+        ):
+            return HandlerError(504, "customer_endpoint_unreachable_transport")
+        return HandlerError(422, "customer_endpoint_unreachable")
 
     return HandlerError(422, "customer_endpoint_unreachable")
 

@@ -555,6 +555,9 @@ class SyllableRunner(ModelRunner):
 
     DEFAULT_BASE_URL = "https://apichat.syllable.cloud"
     DEFAULT_ORIGIN = "https://webchat.syllable.cloud"
+    TRANSIENT_STATUS_CODES = frozenset({502, 503, 522})
+    MAX_TRANSIENT_ATTEMPTS = 3
+    RETRY_BACKOFF_SECONDS = (0.5, 1.0)
 
     def __init__(self, *, client_id_key: str, host_key: str,
                  base_url: str = DEFAULT_BASE_URL,
@@ -581,24 +584,90 @@ class SyllableRunner(ModelRunner):
             "Origin": self._origin,
         }
 
+    @staticmethod
+    def _is_transient_transport_error(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return any(
+            token in message
+            for token in (
+                "522",
+                "502",
+                "503",
+                "unexpected_eof",
+                "eof occurred in violation of protocol",
+                "connection reset",
+                "readtimeout",
+                "connecttimeout",
+                "pooltimeout",
+                "timed out",
+                "timeout",
+            )
+        )
+
+    def _syllable_post(
+        self,
+        path: str,
+        *,
+        phase: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+        egress_session_id: str,
+    ):
+        from harness import egress
+
+        last_exc: Exception | None = None
+        url = f"{self._base}{path}"
+        for attempt in range(self.MAX_TRANSIENT_ATTEMPTS):
+            try:
+                response = egress.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=self._timeout_s,
+                    session_id=egress_session_id,
+                )
+            except Exception as exc:
+                last_exc = exc
+                if (
+                    attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
+                    and self._is_transient_transport_error(exc)
+                ):
+                    time.sleep(self.RETRY_BACKOFF_SECONDS[attempt])
+                    continue
+                raise RunnerError(
+                    f"syllable {phase} request failed: {exc}"
+                ) from exc
+
+            if (
+                response.status_code in self.TRANSIENT_STATUS_CODES
+                and attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
+            ):
+                time.sleep(self.RETRY_BACKOFF_SECONDS[attempt])
+                continue
+            return response
+
+        if last_exc is not None:
+            raise RunnerError(
+                f"syllable {phase} request failed: {last_exc}"
+            ) from last_exc
+        raise RunnerError(f"syllable {phase} request failed without response")
+
     def complete(self, prompt: str) -> str:
         try:
             import httpx  # type: ignore
         except ImportError as exc:
             raise RunnerError("httpx not installed; pip install httpx") from exc
         headers = self._headers()
-        from harness import egress
         # One Syllable conversation = one egress session; derive a stable id
         # for sticky-IP rotation modes (per_session) from a fresh token.
         egress_session_id = secrets.token_hex(8)
-        try:
-            r = egress.post(
-                f"{self._base}/api/v1/chats/start_session",
-                headers=headers, json={}, timeout=self._timeout_s,
-                session_id=egress_session_id,
-            )
-        except Exception as exc:
-            raise RunnerError(f"syllable start_session request failed: {exc}") from exc
+        r = self._syllable_post(
+            "/api/v1/chats/start_session",
+            phase="start_session",
+            headers=headers,
+            payload={},
+            egress_session_id=egress_session_id,
+        )
         if r.status_code >= 400:
             raise RunnerError(
                 f"syllable start_session HTTP {r.status_code}: {r.text[:300]}"
@@ -614,16 +683,13 @@ class SyllableRunner(ModelRunner):
             raise RunnerError(
                 f"syllable start_session missing id: {str(session)[:300]}"
             )
-        try:
-            r = egress.post(
-                f"{self._base}/api/v1/chats/send_message",
-                headers=headers,
-                json={"session_id": session_id, "message": prompt},
-                timeout=self._timeout_s,
-                session_id=egress_session_id,
-            )
-        except Exception as exc:
-            raise RunnerError(f"syllable send_message request failed: {exc}") from exc
+        r = self._syllable_post(
+            "/api/v1/chats/send_message",
+            phase="send_message",
+            headers=headers,
+            payload={"session_id": session_id, "message": prompt},
+            egress_session_id=egress_session_id,
+        )
         if r.status_code >= 400:
             raise RunnerError(
                 f"syllable send_message HTTP {r.status_code}: {r.text[:300]}"

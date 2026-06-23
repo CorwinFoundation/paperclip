@@ -388,6 +388,27 @@ def test_serialized_customer_runner_transport_timeout_yields_504(corpus_hash):
             502,
             "customer_endpoint_http_error",
         ),
+        (
+            "syllable send_message request failed: 522 Server Error",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "syllable start_session request failed: "
+            "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "syllable send_message request failed: connection reset by peer",
+            504,
+            "customer_endpoint_unreachable_transport",
+        ),
+        (
+            "syllable start_session request failed: [Errno -2] Name or service not known",
+            422,
+            "customer_endpoint_unreachable",
+        ),
     ),
 )
 def test_serialized_customer_runner_adjacent_transport_classes(
