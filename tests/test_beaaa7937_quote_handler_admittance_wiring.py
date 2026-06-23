@@ -89,6 +89,21 @@ class QuoteHandlerAdmittanceWiringTests(unittest.TestCase):
                              "admittance_decision threaded as None on the bind path")
         self.assertIsInstance(captured["admittance_decision"], admittance.AdmittanceDecision)
 
+    def test_missing_applicability_record_is_contract_clean_422(self):
+        """BEAAA-7939 UW condition: a missing admittance evidence bundle is a
+        contract error (422), NOT a silent ADM.R3 REFUSE. The bare Scanner
+        /score ScoreResponse carries no applicability_record; the UW submission
+        record assembles it (ADR-0007 §1.4)."""
+        from api.handlers import HandlerError
+
+        with self.assertRaises(HandlerError) as ctx:
+            handlers.quote_handler(
+                {"score": {"bmi": 78}, "customer": STD_CUSTOMER},
+                rates=self.rates,
+            )
+        self.assertEqual(ctx.exception.status, 422)
+        self.assertIn("applicability_record", ctx.exception.message)
+
     # ---- end-to-end enforcement through the real handler -------------------
 
     def test_refuse_below_50_returns_ineligible(self):

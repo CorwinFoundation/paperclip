@@ -169,6 +169,22 @@ def quote_handler(
     # not a Scanner contract output (ADR-0007 §1.4) — the UW submission record
     # carries it, so accept it off the request and fall back to the score
     # envelope when absent (R1/R4 simply do not fire without it).
+    #
+    # Contract-clean evidence handling (BEAAA-7939 UW co-sign condition):
+    # admittance keys on the applicability record (measured_dims / na_dims).
+    # The bare Scanner /score ScoreResponse does NOT carry it — the admittance
+    # evidence bundle is assembled by the UW submission record (ADR-0007 §1.4).
+    # If it is absent we MUST fail with an explicit contract error (422) rather
+    # than let evaluate() silently fire ADM.R3 (under-5-measured) REFUSE — a
+    # missing-evidence 422 must never be conflated with a genuine REFUSE.
+    applicability = score_input.get("applicability_record") or score_input.get("applicability")
+    if not isinstance(applicability, dict) or not isinstance(applicability.get("measured_dims"), list):
+        raise HandlerError(
+            422,
+            "score.applicability_record.measured_dims required for admittance "
+            "evaluation on the bind path (ADR-0007 §1.3/§1.4; assembled by the "
+            "UW submission record, not the bare /score response)",
+        )
     decision = admittance.evaluate(
         score_input,
         system_prompt_kind=body.get("system_prompt_kind"),
