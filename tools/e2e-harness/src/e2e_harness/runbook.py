@@ -40,10 +40,14 @@ from .pipeline import (
     SCANNER_TAG,
     SCANNER_VERSION,
     SEED,
+    live_detector_gaps,
     run_captured_session_chain,
     run_full_kit,
 )
-from .scenario_kit import SCENARIOS
+from .scenario_kit import SCENARIOS, adversarial_scenarios, clean_baseline_scenarios
+
+DEFAULT_TOTAL_CHATS = 30
+DEFAULT_CLEAN_CHATS = 6
 
 
 def _load_creds(path: str | None) -> dict[str, Any]:
@@ -52,8 +56,34 @@ def _load_creds(path: str | None) -> dict[str, Any]:
     return json.loads(Path(path).read_text())
 
 
-def run_fixture_mode(mode: str = "shadow") -> dict[str, Any]:
-    return run_full_kit(FixtureAdapter(), SCENARIOS, mode=mode)
+def traffic_plan(*, total_chats: int = DEFAULT_TOTAL_CHATS, clean_chats: int = DEFAULT_CLEAN_CHATS) -> tuple[Any, ...]:
+    """Build the BEAAA-7490 live traffic plan.
+
+    The plan keeps all expanded adversarial scenarios first, then appends clean
+    repeats for false-positive accounting. Repeats are intentional live volume,
+    not new rubric content.
+    """
+
+    adversarial = list(adversarial_scenarios())
+    clean = list(clean_baseline_scenarios())
+    if total_chats < len(adversarial):
+        raise ValueError(f"total_chats={total_chats} is below adversarial scenario count {len(adversarial)}")
+    if clean_chats < 1:
+        raise ValueError("clean_chats must be >= 1")
+    planned = adversarial[:]
+    clean_needed = min(clean_chats, total_chats - len(planned))
+    for i in range(clean_needed):
+        planned.append(clean[i % len(clean)])
+    i = 0
+    while len(planned) < total_chats:
+        planned.append(adversarial[i % len(adversarial)])
+        i += 1
+    return tuple(planned)
+
+
+def run_fixture_mode(mode: str = "shadow", *, total_chats: int | None = None, clean_chats: int = DEFAULT_CLEAN_CHATS) -> dict[str, Any]:
+    scenarios = traffic_plan(total_chats=total_chats, clean_chats=clean_chats) if total_chats else SCENARIOS
+    return run_full_kit(FixtureAdapter(), scenarios, mode=mode)
 
 
 def run_live_mode(
@@ -65,6 +95,7 @@ def run_live_mode(
     retell_call_id: str | None = None,
     max_calls: int | None = None,
     max_qa_minutes: int | None = None,
+    clean_chats: int = DEFAULT_CLEAN_CHATS,
     drive_retell: bool = False,
     poll_seconds: float | None = None,
     poll_attempts: int | None = None,
@@ -81,12 +112,13 @@ def run_live_mode(
     }
     if drive_retell and vendor != "retell":
         raise ValueError("--drive-retell only applies to --vendor retell")
+    planned = traffic_plan(total_chats=max_calls or DEFAULT_TOTAL_CHATS, clean_chats=clean_chats)
     if drive_retell:
-        raw_exports = adapter.drive_scenarios(creds, SCENARIOS, **fetch_params)  # type: ignore[attr-defined]
+        raw_exports = adapter.drive_scenarios(creds, planned, **fetch_params)  # type: ignore[attr-defined]
     else:
         raw_exports = adapter.fetch(creds, **fetch_params)
 
-    by_id = {s.scenario_id: s for s in SCENARIOS}
+    by_id = {s.scenario_id: s for s in planned}
     per_scenario = []
     for raw in raw_exports:
         session = adapter.to_session(raw)
@@ -102,14 +134,28 @@ def run_live_mode(
     summary = {
         "mode": mode,
         "vendor": vendor,
-        "perils_covered": sorted({s["peril"] for s in per_scenario}),
+        "perils_covered": sorted({s["peril"] for s in per_scenario if s["traffic_class"] == "adversarial"}),
+        "live_detector_perils": sorted({d["peril"] for d in [*all_are, *all_monitor] if d["fired"]}),
+        "channels_covered": sorted({c for s in per_scenario for c in s.get("channels", [])}),
         "scenarios_run": len(per_scenario),
+        "adversarial_scenarios_run": sum(1 for s in per_scenario if s["traffic_class"] == "adversarial"),
+        "clean_scenarios_run": sum(1 for s in per_scenario if s["traffic_class"] == "clean"),
         "are_detections_fired": sum(1 for d in all_are if d["fired"]),
         "are_money_movement_detections": sum(1 for d in all_are if d["fired"] and "money_movement" in d["attack_family"]),
         "are_tool_misuse_detections": sum(1 for d in all_are if d["fired"] and "tool_misuse" in d["attack_family"]),
         "are_stop_instruction_detections": sum(1 for d in all_are if d["fired"] and "stop_instruction" in d["attack_family"]),
         "monitor_claim_candidates": sum(1 for d in all_monitor if d["fired"]),
     }
+    clean = [s for s in per_scenario if s["traffic_class"] == "clean"]
+    clean_detections = [
+        d
+        for s in clean
+        for d in [*s["are_detections"], *s["monitor_claim_candidates"]]
+        if d["fired"]
+    ]
+    summary["clean_false_positive_count"] = len(clean_detections)
+    summary["clean_false_positive_rate"] = round(len(clean_detections) / len(clean), 6) if clean else None
+    summary["known_live_gaps"] = live_detector_gaps(summary["perils_covered"], summary["live_detector_perils"])
     return {
         "vendor": vendor,
         "mode": mode,
@@ -120,6 +166,11 @@ def run_live_mode(
         "probe_set_version": PROBE_SET_VERSION,
         "contract_version": CONTRACT_VERSION,
         "seed": SEED,
+        "traffic_plan": {
+            "requested_total_chats": max_calls or DEFAULT_TOTAL_CHATS,
+            "requested_clean_chats": clean_chats,
+            "planned_scenario_ids": [s.scenario_id for s in planned],
+        },
         "summary": summary,
         "scenarios": per_scenario,
     }
@@ -143,12 +194,16 @@ def _human_summary(report: dict[str, Any]) -> str:
     lines = [
         f"E2E harness report — vendor={s.get('vendor')} mode={s.get('mode')}",
         f"  perils covered:            {', '.join(s.get('perils_covered', []))}",
+        f"  channels covered:          {', '.join(s.get('channels_covered', []))}",
         f"  scenarios run:             {s.get('scenarios_run')}",
+        f"    adversarial:             {s.get('adversarial_scenarios_run')}",
+        f"    clean:                   {s.get('clean_scenarios_run')}",
         f"  ARE detections fired:      {s.get('are_detections_fired')}",
         f"    money-movement:          {s.get('are_money_movement_detections')}",
         f"    tool-misuse:             {s.get('are_tool_misuse_detections')}",
         f"    stop-instruction:        {s.get('are_stop_instruction_detections')}",
         f"  Monitor claim candidates:  {s.get('monitor_claim_candidates')}",
+        f"  clean FP rate:             {s.get('clean_false_positive_rate')}",
     ]
     return "\n".join(lines)
 
@@ -162,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--retell-call-id", help="Retell call id for /v2/get-call/{call_id}")
     parser.add_argument("--drive-retell", action="store_true", help="create one Retell web call per P1-P6 scenario before fetch")
     parser.add_argument("--max-calls", type=int, help="live Retell call cap; fails above the free envelope")
+    parser.add_argument("--clean-chats", type=int, default=DEFAULT_CLEAN_CHATS, help="clean baseline chats inside the live traffic plan")
     parser.add_argument("--max-qa-minutes", type=int, help="live Retell QA minute cap; fails above the free envelope")
     parser.add_argument("--poll-seconds", type=float, help="seconds between Retell get-call polls after create-web-call")
     parser.add_argument("--poll-attempts", type=int, help="Retell get-call poll attempts after create-web-call")
@@ -178,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
             retell_call_id=args.retell_call_id,
             max_calls=args.max_calls,
             max_qa_minutes=args.max_qa_minutes,
+            clean_chats=args.clean_chats,
             drive_retell=args.drive_retell,
             poll_seconds=args.poll_seconds,
             poll_attempts=args.poll_attempts,

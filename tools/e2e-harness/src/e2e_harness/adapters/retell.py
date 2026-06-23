@@ -29,7 +29,8 @@ from ..scenario_kit import Turn
 RETELL_API_BASE = "https://api.retellai.com"
 MAX_FREE_CONCURRENT_CALLS = 20
 MAX_FREE_QA_MINUTES = 100
-DEFAULT_MAX_CALLS = 8
+DEFAULT_MAX_CALLS = 30
+DEFAULT_BATCH_SIZE = 10
 
 
 class RetellAdapter(CaptureAdapter):
@@ -63,7 +64,7 @@ class RetellAdapter(CaptureAdapter):
             or creds.get("max_qa_minutes")
             or min(MAX_FREE_QA_MINUTES, 20)
         )
-        _assert_free_envelope(max_calls=max_calls, max_qa_minutes=max_qa_minutes)
+        _assert_live_volume(total_calls=max_calls, batch_size=DEFAULT_BATCH_SIZE, max_qa_minutes=max_qa_minutes)
 
         if call_id:
             return [_retell_request(api_key, "GET", f"{base_url}/v2/get-call/{call_id}")]
@@ -110,17 +111,18 @@ class RetellAdapter(CaptureAdapter):
         if not agent_id:
             raise ValueError("Retell call-driver requires --retell-agent-id")
         base_url = str(creds.get("base_url") or RETELL_API_BASE).rstrip("/")
-        max_calls = int(params.get("max_calls") or creds.get("max_calls") or DEFAULT_MAX_CALLS)
+        total_calls = int(params.get("max_calls") or creds.get("max_calls") or DEFAULT_MAX_CALLS)
+        batch_size = int(params.get("batch_size") or creds.get("batch_size") or DEFAULT_BATCH_SIZE)
         max_qa_minutes = int(
             params.get("max_qa_minutes")
             or creds.get("max_qa_minutes")
             or min(MAX_FREE_QA_MINUTES, 20)
         )
-        _assert_free_envelope(max_calls=max_calls, max_qa_minutes=max_qa_minutes)
-        selected = tuple(scenarios[:max_calls])
+        _assert_live_volume(total_calls=total_calls, batch_size=batch_size, max_qa_minutes=max_qa_minutes)
+        selected = tuple(scenarios[:total_calls])
 
         call_ids: list[str] = []
-        for scenario in selected:
+        for idx, scenario in enumerate(selected, 1):
             created = _retell_request(
                 api_key,
                 "POST",
@@ -131,6 +133,9 @@ class RetellAdapter(CaptureAdapter):
             if not call_id:
                 raise ValueError(f"Retell create-web-call returned no call_id for {scenario.scenario_id}")
             call_ids.append(call_id)
+            # Keep registration volume under the Retell free concurrent envelope.
+            if idx % batch_size == 0:
+                time.sleep(float(params.get("batch_pause_seconds") or creds.get("batch_pause_seconds") or 0))
 
         poll_seconds = float(params.get("poll_seconds") or creds.get("poll_seconds") or 5)
         poll_attempts = int(params.get("poll_attempts") or creds.get("poll_attempts") or 24)
@@ -141,7 +146,7 @@ class RetellAdapter(CaptureAdapter):
 
     def to_session(self, raw_export: dict[str, Any]) -> CapturedSession:
         call = _retell_call_payload(raw_export)
-        call_id = str(call.get("call_id") or call.get("id") or "retell-call")
+        call_id = str(call.get("call_id") or call.get("chat_id") or call.get("id") or "retell-call")
         agent_id = str(call.get("agent_id") or "retell-agent")
         metadata = _session_metadata(call)
         turns: list[Turn] = []
@@ -149,12 +154,33 @@ class RetellAdapter(CaptureAdapter):
             call.get("transcript_object")
             or call.get("transcript_with_tool_calls")
             or call.get("scrubbed_transcript_with_tool_calls")
+            or call.get("message_with_tool_calls")
             or []
         )
         for utt in transcript_object:
             if not isinstance(utt, dict):
                 continue
             role = utt.get("role")
+            if role == "tool_call_invocation":
+                turns.append(
+                    Turn(
+                        speaker="agent",
+                        text=str(utt.get("content") or ""),
+                        tool_name=_tool_name(utt),
+                        tool_input=_args(utt),
+                    )
+                )
+                continue
+            if role == "tool_call_result":
+                turns.append(
+                    Turn(
+                        speaker="tool",
+                        text=str(utt.get("content") or ""),
+                        tool_name=str(utt.get("name") or "tool_call_result"),
+                        tool_result=utt.get("content"),
+                    )
+                )
+                continue
             speaker = "agent" if role in {"agent", "assistant", "bot"} else "user"
             # Tool / function call attached to this utterance.
             for call in _tool_calls(utt):
@@ -283,12 +309,15 @@ def _coerce_call_list(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _call_id(call: dict[str, Any]) -> str | None:
-    candidate = call.get("call_id") or call.get("id")
+    candidate = call.get("call_id") or call.get("chat_id") or call.get("id")
     return str(candidate) if candidate else None
 
 
 def _session_metadata(call: dict[str, Any]) -> dict[str, Any]:
-    metadata = {"vendor_call_id": str(call.get("call_id") or call.get("id") or "retell-call"), "vendor": "retell"}
+    metadata = {
+        "vendor_call_id": str(call.get("call_id") or call.get("chat_id") or call.get("id") or "retell-call"),
+        "vendor": "retell",
+    }
     for source in (call.get("metadata"), call.get("retell_llm_dynamic_variables")):
         if not isinstance(source, dict):
             continue
@@ -311,6 +340,12 @@ def _assert_free_envelope(*, max_calls: int, max_qa_minutes: int) -> None:
             f"Retell free envelope allows 1..{MAX_FREE_QA_MINUTES} QA minutes; "
             f"requested max_qa_minutes={max_qa_minutes}"
         )
+
+
+def _assert_live_volume(*, total_calls: int, batch_size: int, max_qa_minutes: int) -> None:
+    if total_calls < 1:
+        raise ValueError("total_calls must be >= 1")
+    _assert_free_envelope(max_calls=batch_size, max_qa_minutes=max_qa_minutes)
 
 
 def _retell_creds(credentials: dict[str, Any]) -> dict[str, Any]:

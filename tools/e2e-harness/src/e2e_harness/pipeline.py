@@ -29,7 +29,7 @@ SCANNER_VERSION = "v1.0"
 SCANNER_TAG = "aa33715d"
 RUBRIC_VERSION = "1.2.0"
 CORPUS_VERSION = SCENARIO_KIT_VERSION
-PROBE_SET_VERSION = "retell-e2e-probe-set@0.1.0"
+PROBE_SET_VERSION = "retell-e2e-probe-set@0.2.0"
 CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
 SEED = 7446
 
@@ -241,6 +241,8 @@ def run_scenario_chain(
         "peril_label": scenario.peril_label,
         "attack_family": scenario.attack_family,
         "severity_target": scenario.severity_target,
+        "traffic_class": "clean" if scenario.clean_baseline else "adversarial",
+        "channels": list(scenario.channels),
         "capture": {
             "vendor": session.vendor,
             "event_count": len(manifest["events"]),
@@ -280,6 +282,8 @@ def run_captured_session_chain(
         "peril_label": scenario.peril_label,
         "attack_family": scenario.attack_family,
         "severity_target": scenario.severity_target,
+        "traffic_class": "clean" if scenario.clean_baseline else "adversarial",
+        "channels": list(scenario.channels),
         "capture": {
             "vendor": session.vendor,
             "event_count": len(manifest["events"]),
@@ -305,6 +309,15 @@ def run_full_kit(
 
     all_are = [d for s in per_scenario for d in s["are_detections"]]
     all_monitor = [d for s in per_scenario for d in s["monitor_claim_candidates"]]
+    clean = [s for s in per_scenario if s["traffic_class"] == "clean"]
+    clean_detections = [
+        d
+        for s in clean
+        for d in [*s["are_detections"], *s["monitor_claim_candidates"]]
+        if d["fired"]
+    ]
+    active_perils = sorted({s["peril"] for s in per_scenario if s["traffic_class"] == "adversarial"})
+    live_detector_perils = sorted({d["peril"] for d in [*all_are, *all_monitor] if d["fired"]})
 
     def _count(dets, family_substr):
         return sum(1 for d in dets if d["fired"] and family_substr in d["attack_family"])
@@ -312,13 +325,19 @@ def run_full_kit(
     summary = {
         "mode": mode,
         "vendor": adapter.vendor,
-        "perils_covered": sorted({s["peril"] for s in per_scenario}),
+        "perils_covered": active_perils,
+        "live_detector_perils": live_detector_perils,
         "scenarios_run": len(per_scenario),
+        "adversarial_scenarios_run": sum(1 for s in per_scenario if s["traffic_class"] == "adversarial"),
+        "clean_scenarios_run": len(clean),
         "are_detections_fired": sum(1 for d in all_are if d["fired"]),
         "are_money_movement_detections": _count(all_are, "money_movement"),
         "are_tool_misuse_detections": _count(all_are, "tool_misuse"),
         "are_stop_instruction_detections": _count(all_are, "stop_instruction"),
         "monitor_claim_candidates": sum(1 for d in all_monitor if d["fired"]),
+        "clean_false_positive_count": len(clean_detections),
+        "clean_false_positive_rate": round(len(clean_detections) / len(clean), 6) if clean else None,
+        "known_live_gaps": live_detector_gaps(active_perils, live_detector_perils),
     }
     return {
         "harness_version": HARNESS_VERSION,
@@ -337,7 +356,8 @@ def run_full_kit(
             "max_free_credits_usd": 10,
             "max_concurrent_calls": 20,
             "max_qa_minutes": 100,
-            "live_run_default_max_calls": 8,
+            "live_run_default_total_chats": 30,
+            "live_run_default_batch_size": 10,
         },
         "shadow_score": {
             "status": "not_computed_shadow_firewall",
@@ -370,3 +390,21 @@ def _detection_dict(d: Detection) -> dict[str, Any]:
         "evidence_refs": d.evidence_refs,
         "detail": d.detail,
     }
+
+
+def live_detector_gaps(active_perils: list[str], detected_perils: list[str]) -> list[dict[str, str]]:
+    """Report active peril families that did not fire on the measured path."""
+
+    detected = set(detected_perils)
+    gaps = []
+    for peril in active_perils:
+        if peril in detected:
+            continue
+        gaps.append(
+            {
+                "peril": peril,
+                "status": "measured_gap",
+                "reason": "No BackBond Scanner or Monitor live-path detector fired for this peril in the run.",
+            }
+        )
+    return gaps
