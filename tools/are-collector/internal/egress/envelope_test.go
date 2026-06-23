@@ -25,6 +25,7 @@ func TestSignedBatchUsesSchemaPinnedEventsAndJWTEnvelope(t *testing.T) {
 		"customer-1",
 		"agent-1",
 		"batch-1",
+		"bind-key-1",
 		time.Date(2026, 6, 16, 18, 1, 0, 0, time.UTC),
 		[]schemav1.Event{event},
 		privateKey,

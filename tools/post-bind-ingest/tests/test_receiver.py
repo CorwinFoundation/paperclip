@@ -24,16 +24,26 @@ from post_bind_ingest.receiver.schema import compute_batch_sha256
 
 
 PRIVATE_KEY = ed25519.Ed25519PrivateKey.generate()
+KEY_ID = "bind-key-1"
 PUBLIC_KEY_B64 = base64.urlsafe_b64encode(
     PRIVATE_KEY.public_key().public_bytes(
         encoding=serialization.Encoding.Raw,
         format=serialization.PublicFormat.Raw,
     )
 ).rstrip(b"=").decode("ascii")
+KEYRING = {KEY_ID: PUBLIC_KEY_B64}
 
 
-def _jwt_token(payload: dict, *, private_key: ed25519.Ed25519PrivateKey = PRIVATE_KEY) -> str:
-    header = {"alg": "ed25519", "typ": "JWT"}
+def _jwt_token(
+    payload: dict,
+    *,
+    private_key: ed25519.Ed25519PrivateKey = PRIVATE_KEY,
+    key_id: str | None = KEY_ID,
+    algorithm: str = "EdDSA",
+) -> str:
+    header = {"alg": algorithm, "typ": "JWT"}
+    if key_id is not None:
+        header["kid"] = key_id
     header_b64 = base64.urlsafe_b64encode(json.dumps(header, separators=(",", ":")).encode("utf-8")).rstrip(b"=").decode(
         "ascii"
     )
@@ -107,7 +117,7 @@ def test_parse_receiver_payload_accepts_valid_batch() -> None:
     token = _signed_receiver_payload(payload)
     payload["jwt"] = token
 
-    env = parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64)
+    env = parse_receiver_payload(payload, jwt_keyring=KEYRING)
     assert env.batch_id == "batch-1"
     assert env.batch_sha256 == payload["batch_sha256"]
     assert env.event_count == 1
@@ -119,7 +129,53 @@ def test_parse_receiver_payload_rejects_bad_signature() -> None:
     payload["jwt"] = payload["jwt"][:-2] + "aa"
 
     with pytest.raises(ReceiverSignatureError, match="JWT signature mismatch"):
-        parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64)
+        parse_receiver_payload(payload, jwt_keyring=KEYRING)
+
+
+def test_parse_receiver_payload_rejects_missing_kid() -> None:
+    payload = _receiver_payload()
+    payload["jwt"] = _jwt_token(
+        {
+            "agent": payload["agent"],
+            "batch_id": payload["batch_id"],
+            "batch_sha256": payload["batch_sha256"],
+            "event_count": payload["event_count"],
+            "issued_at": payload["issued_at"],
+            "schema_version": payload["schema_version"],
+            "sub": payload["customer_id"],
+        },
+        key_id=None,
+    )
+
+    with pytest.raises(ReceiverSignatureError, match="kid header is required"):
+        parse_receiver_payload(payload, jwt_keyring=KEYRING)
+
+
+def test_parse_receiver_payload_rejects_unknown_kid() -> None:
+    payload = _receiver_payload()
+    payload["jwt"] = _signed_receiver_payload(payload)
+
+    with pytest.raises(ReceiverSignatureError, match="unknown JWT kid"):
+        parse_receiver_payload(payload, jwt_keyring={"other-key": PUBLIC_KEY_B64})
+
+
+def test_parse_receiver_payload_rejects_hs256_downgrade() -> None:
+    payload = _receiver_payload()
+    payload["jwt"] = _jwt_token(
+        {
+            "agent": payload["agent"],
+            "batch_id": payload["batch_id"],
+            "batch_sha256": payload["batch_sha256"],
+            "event_count": payload["event_count"],
+            "issued_at": payload["issued_at"],
+            "schema_version": payload["schema_version"],
+            "sub": payload["customer_id"],
+        },
+        algorithm="HS256",
+    )
+
+    with pytest.raises(ReceiverSignatureError, match="unsupported JWT algorithm"):
+        parse_receiver_payload(payload, jwt_keyring=KEYRING)
 
 
 def test_parse_receiver_payload_skew_rejects_out_of_window() -> None:
@@ -138,7 +194,7 @@ def test_parse_receiver_payload_skew_rejects_out_of_window() -> None:
     )
 
     with pytest.raises(ReceiverSignatureError, match="outside allowed clock skew"):
-        parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64, clock_skew_seconds=1)
+        parse_receiver_payload(payload, jwt_keyring=KEYRING, clock_skew_seconds=1)
 
 
 def test_parse_receiver_payload_t_emitted_alias() -> None:
@@ -147,7 +203,7 @@ def test_parse_receiver_payload_t_emitted_alias() -> None:
     payload["t_emitted"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     payload["jwt"] = _signed_payload_with_alias(payload)
 
-    env = parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64)
+    env = parse_receiver_payload(payload, jwt_keyring=KEYRING)
     assert env.batch_id == "batch-1"
 
 
@@ -167,10 +223,10 @@ def test_normalize_receiver_events_replay_batch_id_rejected(tmp_path: Path) -> N
         },
     )
     payload["jwt"] = token
-    first = normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64, idempotency_store=store)
+    first = normalize_receiver_events(payload, jwt_keyring=KEYRING, idempotency_store=store)
     assert first
     with pytest.raises(ReceiverReplayError, match="replay batch_id rejected"):
-        normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64, idempotency_store=store)
+        normalize_receiver_events(payload, jwt_keyring=KEYRING, idempotency_store=store)
 
 
 def test_normalize_receiver_events_rejects_unredacted_secret_candidate() -> None:
@@ -194,7 +250,7 @@ def test_normalize_receiver_events_rejects_unredacted_secret_candidate() -> None
     )
 
     with pytest.raises(RedactionConformanceError, match="unredacted secret-like value"):
-        normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64)
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
 
 
 def test_normalize_receiver_events_accepts_schema_verified_redacted_secret() -> None:
@@ -217,7 +273,7 @@ def test_normalize_receiver_events_accepts_schema_verified_redacted_secret() -> 
         },
     )
 
-    events = normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64)
+    events = normalize_receiver_events(payload, jwt_keyring=KEYRING)
     assert len(events) == 1
     assert events[0]["event_type"] == "tool_call"
     assert events[0]["redactions"] == ({"path": "arg", "redaction_class": "validated"},)
@@ -241,7 +297,7 @@ def test_normalizer_rejects_invalid_redaction_claim_type() -> None:
     )
 
     with pytest.raises((ReceiverSchemaError, NormalizerError)):
-        normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64)
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
 
 
 def test_parse_receiver_payload_rejects_wrong_schema_version() -> None:
@@ -250,7 +306,7 @@ def test_parse_receiver_payload_rejects_wrong_schema_version() -> None:
     payload["jwt"] = _signed_receiver_payload(payload)
 
     with pytest.raises(ReceiverSchemaError, match="unsupported schema_version"):
-        parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64)
+        parse_receiver_payload(payload, jwt_keyring=KEYRING)
 
 
 def test_parse_receiver_payload_rejects_wrong_batch_sha() -> None:
@@ -259,7 +315,7 @@ def test_parse_receiver_payload_rejects_wrong_batch_sha() -> None:
     payload["jwt"] = _signed_receiver_payload(payload)
 
     with pytest.raises(ReceiverSchemaError, match="batch_sha256 does not match"):
-        parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64)
+        parse_receiver_payload(payload, jwt_keyring=KEYRING)
 
 
 def test_receiver_schema_conformance_n5_is_stable() -> None:
@@ -268,7 +324,7 @@ def test_receiver_schema_conformance_n5_is_stable() -> None:
         payload["batch_id"] = f"batch-n5-{idx}"
         payload["batch_sha256"] = f"sha256:{compute_batch_sha256(payload['events'])}"
         payload["jwt"] = _signed_receiver_payload(payload)
-        envelope = parse_receiver_payload(payload, jwt_public_key=PUBLIC_KEY_B64)
+        envelope = parse_receiver_payload(payload, jwt_keyring=KEYRING)
         assert envelope.event_count == 1
         assert envelope.schema_version == "log-event-schema-v1.0"
 
@@ -279,9 +335,9 @@ def test_receiver_replay_defense_n5_rejects_replays(tmp_path: Path) -> None:
         payload["batch_id"] = f"batch-replay-{idx}"
         payload["jwt"] = _signed_receiver_payload(payload)
         store = ManifestIdempotencyStore(path=tmp_path / f"replay-{idx}.state")
-        normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64, idempotency_store=store)
+        normalize_receiver_events(payload, jwt_keyring=KEYRING, idempotency_store=store)
         with pytest.raises(ReceiverReplayError):
-            normalize_receiver_events(payload, jwt_public_key=PUBLIC_KEY_B64, idempotency_store=store)
+            normalize_receiver_events(payload, jwt_keyring=KEYRING, idempotency_store=store)
 
 
 def test_mtls_context_requires_tls13_and_client_certificate() -> None:

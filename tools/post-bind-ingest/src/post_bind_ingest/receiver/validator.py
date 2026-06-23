@@ -55,7 +55,7 @@ def _load_ed25519_public_key(
     public_key: ed25519.Ed25519PublicKey | bytes | str | None,
 ) -> ed25519.Ed25519PublicKey:
     if public_key is None:
-        raise ReceiverSignatureError("jwt_public_key is required to verify receiver token")
+        raise ReceiverSignatureError("jwt keyring entry is required to verify receiver token")
     if isinstance(public_key, ed25519.Ed25519PublicKey):
         return public_key
     key_bytes = public_key if isinstance(public_key, bytes) else str(public_key).encode("utf-8")
@@ -63,18 +63,18 @@ def _load_ed25519_public_key(
         if b"BEGIN PUBLIC KEY" in key_bytes:
             loaded = serialization.load_pem_public_key(key_bytes)
             if not isinstance(loaded, ed25519.Ed25519PublicKey):
-                raise ReceiverSignatureError("jwt_public_key must be ed25519")
+                raise ReceiverSignatureError("jwt keyring entry must be ed25519")
             return loaded
         return ed25519.Ed25519PublicKey.from_public_bytes(_b64url_decode(key_bytes.decode("ascii").strip()))
     except ReceiverSignatureError:
         raise
     except Exception as exc:  # noqa: BLE001
-        raise ReceiverSignatureError("jwt_public_key is not a valid ed25519 public key") from exc
+        raise ReceiverSignatureError("jwt keyring entry is not a valid ed25519 public key") from exc
 
 
 def verify_jwt_signature(
     token: str,
-    public_key: ed25519.Ed25519PublicKey | bytes | str | None,
+    public_keyring: Mapping[str, ed25519.Ed25519PublicKey | bytes | str] | None,
 ) -> Mapping[str, Any]:
     if not token:
         raise ReceiverSignatureError("JWT token is required for receiver mode")
@@ -93,8 +93,16 @@ def verify_jwt_signature(
     if not isinstance(header, Mapping) or not isinstance(payload_raw, Mapping):
         raise ReceiverSignatureError("JWT header and payload must be objects")
     algorithm = header.get("alg")
-    if algorithm not in {"ed25519", "EdDSA"}:
+    if algorithm != "EdDSA":
         raise ReceiverSignatureError(f"unsupported JWT algorithm: {algorithm!r}")
+    key_id = header.get("kid")
+    if not isinstance(key_id, str) or not key_id:
+        raise ReceiverSignatureError("JWT kid header is required")
+    if public_keyring is None:
+        raise ReceiverSignatureError("jwt_keyring is required to verify receiver token")
+    public_key = public_keyring.get(key_id)
+    if public_key is None:
+        raise ReceiverSignatureError(f"unknown JWT kid: {key_id!r}")
 
     verifier = _load_ed25519_public_key(public_key)
     try:
@@ -142,7 +150,7 @@ def _parse_expiration(payload: Mapping[str, Any]) -> None:
 def parse_receiver_payload(
     payload: str | Mapping[str, Any],
     *,
-    jwt_public_key: ed25519.Ed25519PublicKey | bytes | str | None = None,
+    jwt_keyring: Mapping[str, ed25519.Ed25519PublicKey | bytes | str] | None = None,
     clock_skew_seconds: int = 300,
     allow_unsigned: bool = False,
 ) -> ReceiverEnvelope:
@@ -159,7 +167,7 @@ def parse_receiver_payload(
     if "jwt" in raw_payload or "authorization" in raw_payload:
         token = str(raw_payload.get("jwt") or raw_payload.get("authorization", ""))
         token = token.removeprefix("Bearer ").strip()
-        envelope_payload = verify_jwt_signature(token, jwt_public_key)
+        envelope_payload = verify_jwt_signature(token, jwt_keyring)
         signed = True
         envelope_claims = envelope_payload
     elif not allow_unsigned:

@@ -94,13 +94,13 @@ def normalize_manifest(
 def normalize_receiver_events(
     receiver_payload: str | dict[str, Any],
     *,
-    jwt_public_key: Any = None,
+    jwt_keyring: dict[str, Any] | None = None,
     idempotency_store: ManifestIdempotencyStore | None = None,
     clock_skew_seconds: int = 300,
 ) -> tuple[dict[str, Any], ...]:
     envelope = parse_receiver_payload(
         receiver_payload,
-        jwt_public_key=jwt_public_key,
+        jwt_keyring=jwt_keyring,
         clock_skew_seconds=clock_skew_seconds,
     )
     if idempotency_store is not None and idempotency_store.is_duplicate(
