@@ -42,11 +42,12 @@ is not.
 from __future__ import annotations
 
 import json as _json
+import os
 from typing import Any
 from urllib.parse import urlparse
 
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
-from harness.runner import ModelRunner, RunnerError
+from harness.runner import ModelRunner, RunnerError, SyllableRunner
 
 
 _MAX_RESPONSE_BYTES: int = 256 * 1024
@@ -277,6 +278,20 @@ def customer_agent_http_runner_factory(
     ``runner_factory`` parameter — same shape as
     :func:`api.scan_runtime_factory.v0_mock_runner_factory`.
     """
+    host = _extract_host(agent_endpoint)
+    if host == "apichat.syllable.cloud":
+        # Syllable's public apichat surface is not a single root POST
+        # endpoint. It requires the two-step /api/v1/chats protocol and
+        # Syllable-specific public headers; the generic runner would POST to
+        # "/" and report the resulting app-layer 404 as a transport failure.
+        return SyllableRunner(
+            client_id_key=os.environ.get(
+                "SYLLABLE_CLIENT_ID_KEY", "hlw3qyTAx5inYzm2"
+            ),
+            host_key=os.environ.get("SYLLABLE_HOST_KEY", "https://syllable.ai"),
+            base_url=agent_endpoint.rstrip("/"),
+            label="syllable:apichat",
+        )
     return _CustomerAgentHttpRunner(agent_endpoint, secret)
 
 

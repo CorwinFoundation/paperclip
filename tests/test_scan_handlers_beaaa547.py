@@ -374,6 +374,16 @@ def test_serialized_customer_runner_transport_timeout_yields_504(corpus_hash):
             "customer_endpoint_http_error",
         ),
         (
+            "customer endpoint HTTP 404: Not Found",
+            422,
+            "customer_endpoint_route_not_found",
+        ),
+        (
+            "syllable start_session HTTP 404: Not Found",
+            422,
+            "customer_endpoint_route_not_found",
+        ),
+        (
             "customer endpoint HTTP 503: Service Unavailable",
             502,
             "customer_endpoint_http_error",

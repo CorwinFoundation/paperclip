@@ -70,7 +70,8 @@ _CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
 _CUSTOMER_ENDPOINT_HTTP_RE = re.compile(
-    r"^customer endpoint (?:(?:http error: )?HTTP) (?P<status>\d{3})(?::|$)",
+    r"^(?:customer endpoint (?:(?:http error: )?HTTP)|"
+    r"syllable (?:start_session|send_message) HTTP) (?P<status>\d{3})(?::|$)",
     re.IGNORECASE,
 )
 
@@ -111,12 +112,15 @@ def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
     generic ``orchestrator_error`` bucket.
     """
     message = str(exc)
-    if not message.startswith("customer endpoint "):
-        return None
 
     http_match = _CUSTOMER_ENDPOINT_HTTP_RE.match(message)
     if http_match is not None:
+        if http_match.group("status") == "404":
+            return HandlerError(422, "customer_endpoint_route_not_found")
         return HandlerError(502, "customer_endpoint_http_error")
+
+    if not message.startswith("customer endpoint "):
+        return None
 
     lowered = message.lower()
     if (
