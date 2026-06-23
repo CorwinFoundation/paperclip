@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 import api.scan_runtime_factory as scan_runtime_factory
+from scanners import live_probe_workers
 from api.scan_runtime_factory import (
     build_v0_corpus_tarball,
     make_production_scan_runtime,
@@ -74,6 +75,22 @@ def _fake_prober_target(
     result_queue.put(("ok", _scan_result(scan_request.scan_id)))
 
 
+def _fake_prober_target_without_end_of_scan(
+    *,  # noqa: ARG001 — mirrors production kwargs surface
+    scan_request: ScanRequest,
+    vault: Any,
+    channel: Any,
+    corpus_tarball_path: str,
+    probe_run_fn: Any,
+    runner_factory: Any,
+    agent_endpoint_host: str,
+    result_queue: Any,
+) -> None:
+    del vault, channel, corpus_tarball_path, probe_run_fn, runner_factory
+    del agent_endpoint_host
+    result_queue.put(("ok", _scan_result(scan_request.scan_id)))
+
+
 def _scan_request(corpus_hash: str) -> ScanRequest:
     return ScanRequest(
         scan_id="scan-beaaa7840",
@@ -118,6 +135,54 @@ def test_dead_scorer_envelope_recv_uses_short_bound(
     started = time.monotonic()
     with pytest.raises(OrchestratorError, match="scorer envelope queue drain failed"):
         runtime._run_scan_fn(_scan_request(corpus_hash), "secret-beaaa7840")
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 1.5
+
+
+def test_live_scorer_row_timeout_surfaces_before_parent_envelope_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus_tarball_path = build_v0_corpus_tarball(tmp_path / "corpus")
+    corpus_hash = v0_corpus_snapshot_hash(corpus_tarball_path)
+    runtime = make_production_scan_runtime(
+        corpus_tarball_path=corpus_tarball_path,
+        runner_factory=lambda *_: None,
+        probe_run_fn=lambda _runner: iter(()),
+        score_runtime=object(),
+        score_envelope_registry={},
+    )
+
+    def spawn_scorer_with_short_row_timeout(**kwargs: Any) -> Any:
+        kwargs.pop("row_recv_timeout_seconds", None)
+        return live_probe_workers.spawn_scorer(
+            **kwargs,
+            row_recv_timeout_seconds=0.2,
+        )
+
+    monkeypatch.setattr(scan_runtime_factory, "spawn_scorer", spawn_scorer_with_short_row_timeout)
+    monkeypatch.setattr(
+        scan_runtime_factory,
+        "_prober_target",
+        _fake_prober_target_without_end_of_scan,
+    )
+    monkeypatch.setattr(
+        scan_runtime_factory,
+        "SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS",
+        0.1,
+    )
+    monkeypatch.setattr(
+        scan_runtime_factory,
+        "SCORER_ROW_RECV_TIMEOUT_SECONDS",
+        0.2,
+    )
+
+    started = time.monotonic()
+    with pytest.raises(
+        OrchestratorError,
+        match="scorer subprocess raised TimeoutError: scorer row queue receive timed out",
+    ):
+        runtime._run_scan_fn(_scan_request(corpus_hash), "secret-beaaa7843")
     elapsed = time.monotonic() - started
 
     assert elapsed < 1.5

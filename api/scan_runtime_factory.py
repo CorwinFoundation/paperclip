@@ -79,6 +79,7 @@ from scanners.live_probe_orchestrator import (
     run_scan,
 )
 from scanners.live_probe_workers import (
+    DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS,
     WorkerChannel,
     spawn_scorer,
     validate_inbound_envelope,
@@ -105,6 +106,13 @@ _PARENT_JOIN_SLACK_SECONDS: int = 30
 # full live-probe ceiling.
 SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS: float = float(
     os.environ.get("ARE_SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS", "10")
+)
+
+SCORER_ROW_RECV_TIMEOUT_SECONDS: float = float(
+    os.environ.get(
+        "ARE_SCORER_ROW_RECV_TIMEOUT_SECONDS",
+        str(DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS),
+    )
 )
 
 
@@ -404,6 +412,7 @@ def make_production_scan_runtime(
                 on_validated_row=_noop_validated_row,
                 score_runtime=score_runtime,
                 score_inputs=score_inputs,
+                row_recv_timeout_seconds=_scorer_row_recv_timeout(),
             )
 
             # AC#1 step (d) — Prober subprocess. Fork-multiprocessing so
@@ -453,7 +462,7 @@ def make_production_scan_runtime(
             if score_runtime is not None and score_envelope_registry is not None:
                 try:
                     env_outcome = channel.recv_score_envelope(
-                        timeout=_scorer_envelope_drain_timeout()
+                        timeout=_scorer_envelope_drain_timeout(scorer_proc)
                     )
                 except Exception as exc:  # noqa: BLE001
                     _terminate(prober_proc, scorer_proc)
@@ -706,9 +715,26 @@ def _orchestrator_join_timeout(slack: int) -> int:
     return MAX_WALL_CLOCK_SECONDS + max(0, slack)
 
 
-def _scorer_envelope_drain_timeout() -> float:
-    """Bound parent-side wait for the Scorer return-channel envelope."""
-    return max(0.1, SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS)
+def _scorer_row_recv_timeout() -> float:
+    """Bound scorer-side wait for a row or END_OF_SCAN sentinel."""
+    return max(0.1, SCORER_ROW_RECV_TIMEOUT_SECONDS)
+
+
+def _scorer_envelope_drain_timeout(scorer_proc: Any) -> float:
+    """Bound parent-side wait for the Scorer return-channel envelope.
+
+    Dead scorers use the short envelope-drain bound from BEAAA-7840. A live
+    scorer may still be inside its own row-receive timeout, so the parent waits
+    long enough to receive the scorer's typed error tuple instead of masking it
+    with an earlier parent-side Queue.Empty.
+    """
+    envelope_timeout = max(0.1, SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS)
+    try:
+        if scorer_proc.is_alive():
+            return max(envelope_timeout, _scorer_row_recv_timeout() + 1.0)
+    except Exception:  # noqa: BLE001
+        pass
+    return envelope_timeout
 
 
 def _utc_now_iso() -> str:
