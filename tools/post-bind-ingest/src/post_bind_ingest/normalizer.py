@@ -9,6 +9,7 @@ from typing import Any
 from .invariants import ManifestIdempotencyStore, utc_now_iso
 from .manifest_signature import ALLOWED_SCHEMA_VERSIONS, validate_manifest_schema
 from .manifest_signature import normalize_and_digest_events, parse_manifest
+from .p4_detector import detect_p4_events
 from .p5_detector import detect_p5_events
 from .redaction import (
     RedactionError,
@@ -79,6 +80,14 @@ def normalize_manifest(
             )
         )
     normalized_events.extend(
+        detect_p4_events(
+            normalized_events,
+            manifest_id=manifest["manifest_id"],
+            manifest_digest=manifest_digest,
+            schema_version=manifest["schema_version"],
+        )
+    )
+    normalized_events.extend(
         detect_p5_events(
             normalized_events,
             manifest_id=manifest["manifest_id"],
@@ -120,6 +129,14 @@ def normalize_receiver_events(
                 batch_sha256=envelope.batch_sha256.removeprefix("sha256:"),
             )
         )
+    normalized_events.extend(
+        detect_p4_events(
+            normalized_events,
+            manifest_id=envelope.batch_id,
+            manifest_digest=envelope.batch_sha256.removeprefix("sha256:"),
+            schema_version=envelope.schema_version,
+        )
+    )
     normalized_events.extend(
         detect_p5_events(
             normalized_events,
