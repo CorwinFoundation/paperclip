@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"backbond/are-collector/internal/schemav1"
@@ -25,9 +24,9 @@ type Batch struct {
 	JWT           string           `json:"jwt"`
 }
 
-func NewSignedBatch(customerID, agentID, batchID string, issuedAt time.Time, events []schemav1.Event, privateKey ed25519.PrivateKey) (Batch, error) {
-	if customerID == "" || agentID == "" || batchID == "" {
-		return Batch{}, fmt.Errorf("customer_id, agent, and batch_id are required")
+func NewSignedBatch(customerID, agentID, batchID, keyID string, issuedAt time.Time, events []schemav1.Event, privateKey ed25519.PrivateKey) (Batch, error) {
+	if customerID == "" || agentID == "" || batchID == "" || keyID == "" {
+		return Batch{}, fmt.Errorf("customer_id, agent, batch_id, and key_id are required")
 	}
 	if len(privateKey) != ed25519.PrivateKeySize {
 		return Batch{}, fmt.Errorf("ed25519 private key is required")
@@ -54,7 +53,7 @@ func NewSignedBatch(customerID, agentID, batchID string, issuedAt time.Time, eve
 		"issued_at":      issued,
 		"exp":            issuedAt.UTC().Add(10 * time.Minute).Unix(),
 	}
-	jwt, err := signJWT(claims, privateKey)
+	jwt, err := signJWT(claims, privateKey, keyID)
 	if err != nil {
 		return Batch{}, err
 	}
@@ -72,22 +71,27 @@ func NewSignedBatch(customerID, agentID, batchID string, issuedAt time.Time, eve
 }
 
 func ComputeBatchSHA256(events []schemav1.Event) (string, error) {
-	digests := make([]string, 0, len(events))
-	for _, event := range events {
-		canonical, err := schemav1.CanonicalJSON(event)
-		if err != nil {
-			return "", err
-		}
-		sum := sha256.Sum256(canonical)
-		digests = append(digests, hex.EncodeToString(sum[:]))
+	raw, err := json.Marshal(events)
+	if err != nil {
+		return "", err
 	}
-	joined := strings.Join(digests, "\n")
-	sum := sha256.Sum256([]byte(joined))
+	var normalized any
+	if err := json.Unmarshal(raw, &normalized); err != nil {
+		return "", err
+	}
+	canonical, err := schemav1.CanonicalJSON(normalized)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(canonical)
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func signJWT(claims map[string]any, privateKey ed25519.PrivateKey) (string, error) {
-	header := map[string]any{"alg": "EdDSA", "typ": "JWT"}
+func signJWT(claims map[string]any, privateKey ed25519.PrivateKey, keyID string) (string, error) {
+	if keyID == "" {
+		return "", fmt.Errorf("jwt key id is required")
+	}
+	header := map[string]any{"alg": "EdDSA", "typ": "JWT", "kid": keyID}
 	headerJSON, err := json.Marshal(header)
 	if err != nil {
 		return "", err

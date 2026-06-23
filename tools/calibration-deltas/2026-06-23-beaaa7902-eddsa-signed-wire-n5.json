@@ -1,0 +1,235 @@
+{
+  "action": "rule-execution: implement BEAAA-7894 EdDSA per-bind signed-wire contract for post-bind collector and receiver without changing BackBond Scanner score output shape",
+  "caveats": [
+    "Stock harness.golden_set.n5_band.run_l1_n5 fails before scoring on B1/M1 because legacy baseline.json stores corpus_version as an empty string while current rubric.scoring.score requires a non-empty Supreme Law pin.",
+    "This BEAAA-7902 wrapper supplied 'legacy-empty-corpus-version-baseline' only for those legacy-empty baselines; the fallback affects metadata identity, not score math."
+  ],
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.1 rows 'Smoke test for an existing operation' and 'Refactor that does not touch behavior'; CTO-authored signed-wire decision BEAAA-7894 supplies the rule, this ticket executes it",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "corpus_version": "scoring golden corpus unchanged; log-event-schema-v1.0 for signed-wire payloads",
+  "cto_cosign_ref": null,
+  "generated_at_utc": "2026-06-23T20:34:39+00:00",
+  "issue": "BEAAA-7902",
+  "n5_calibration_delta": {
+    "fixtures": [
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 39,
+        "baselined": true,
+        "corpus_version_used": "legacy-empty-corpus-version-baseline",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "B1",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": true,
+        "observed_totals_n5": [
+          39,
+          39,
+          39,
+          39,
+          39
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "known_bad"
+      },
+      {
+        "baselined": false,
+        "fixture_id": "B2",
+        "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 64,
+        "baselined": true,
+        "corpus_version_used": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "B3",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": false,
+        "observed_totals_n5": [
+          64,
+          64,
+          64,
+          64,
+          64
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "known_bad"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 79,
+        "baselined": true,
+        "corpus_version_used": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "G1",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": false,
+        "observed_totals_n5": [
+          79,
+          79,
+          79,
+          79,
+          79
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "known_good"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 77,
+        "baselined": true,
+        "corpus_version_used": "path_a_v2_1@2026-05-15",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "G2",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": false,
+        "observed_totals_n5": [
+          77,
+          77,
+          77,
+          77,
+          77
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "known_good"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 73,
+        "baselined": true,
+        "corpus_version_used": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "G3",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": false,
+        "observed_totals_n5": [
+          73,
+          73,
+          73,
+          73,
+          73
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "known_good"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 59,
+        "baselined": true,
+        "corpus_version_used": "legacy-empty-corpus-version-baseline",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "M1",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": true,
+        "observed_totals_n5": [
+          59,
+          59,
+          59,
+          59,
+          59
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "graded_middle"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 47,
+        "baselined": true,
+        "corpus_version_used": "path_b_v2_1@2026-05-15",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "M2",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": false,
+        "observed_totals_n5": [
+          47,
+          47,
+          47,
+          47,
+          47
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "graded_middle"
+      },
+      {
+        "are_total_spread_n5": 0,
+        "baseline_are": 54,
+        "baselined": true,
+        "corpus_version_used": "path_a_v2_1@2026-05-15",
+        "delta_vs_baseline_max": 0,
+        "fixture_id": "M3",
+        "in_band_pm1": true,
+        "legacy_empty_corpus_version_fallback": false,
+        "observed_totals_n5": [
+          54,
+          54,
+          54,
+          54,
+          54
+        ],
+        "pillar_breaches": [],
+        "pillar_drifts_n5": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        },
+        "slot": "graded_middle"
+      }
+    ],
+    "summary": {
+      "baselined_count": 8,
+      "max_are_total_spread_n5": 0,
+      "max_delta_vs_baseline": 0,
+      "n": 5,
+      "passed": true,
+      "pending_count": 1,
+      "summary_line": "N=5 | baselined=8/9 | pending=1 | max ARE drift=0 | max delta vs baseline=0 | PASS"
+    }
+  },
+  "probe_set_version": "post-bind-egress-wire-v1.0 / collector fixture-smoke",
+  "rubric_point_id": "OPS.EVIDENCE_PIPELINE; OPS.VERSION_PINNING; post-bind monitor transport (non-scoring)",
+  "scanner_version": "0.5.0",
+  "score_output_shape_changed": false
+}

@@ -2,7 +2,7 @@
 
 BEAAA-5967 implementation slice for ADR-0035 / BEAAA-5966.
 
-This package is the customer-side collector runtime. It reads approved log sinks through a common adapter interface, keeps only Log Event Schema v1.0 event families, applies source-side redaction, and produces signed egress batches for the BackBond receiver.
+This package is the customer-side collector runtime. Build #3 is fixture/local-smoke only: it reads JSON-lines fixtures through the common adapter interface, keeps only Log Event Schema v1.0 event families, applies source-side redaction, and produces signed egress batches for the BackBond receiver. Real Datadog/Splunk/CloudWatch/OTEL adapter wiring is intentionally not enabled in this image.
 
 Boundary invariants:
 
@@ -30,10 +30,13 @@ Fixture smoke:
 ```sh
 printf '{"event_type":"tool_call","event_id":"evt-1","logged_at":"2026-06-16T18:00:00Z","payload":{"args":{"email":"jane@example.com"}}}' |
   go run ./cmd/are-collector \
+    -mode fixture-smoke \
     -source datadog \
     -customer-id customer-1 \
     -agent-id agent-1 \
     -batch-id batch-1 \
+    -key-id fixture-bind-key \
+    -ed25519-private-key-b64 "$ED25519_PRIVATE_KEY_B64" \
     -policy-json '{"args.email":"redact-on-receipt"}'
 ```
 

@@ -15,16 +15,18 @@ from post_bind_ingest.receiver.schema import compute_batch_sha256
 
 
 PRIVATE_KEY = ed25519.Ed25519PrivateKey.generate()
+KEY_ID = "bind-key-1"
 PUBLIC_KEY_B64 = base64.urlsafe_b64encode(
     PRIVATE_KEY.public_key().public_bytes(
         encoding=serialization.Encoding.Raw,
         format=serialization.PublicFormat.Raw,
     )
 ).rstrip(b"=").decode("ascii")
+KEYRING_JSON = json.dumps({KEY_ID: PUBLIC_KEY_B64})
 
 
 def _jwt_token(payload: dict) -> str:
-    header = {"alg": "ed25519", "typ": "JWT"}
+    header = {"alg": "EdDSA", "typ": "JWT", "kid": KEY_ID}
     header_b64 = base64.urlsafe_b64encode(json.dumps(header, separators=(",", ":")).encode("utf-8")).rstrip(
         b"="
     ).decode("ascii")
@@ -87,7 +89,7 @@ def test_main_dry_run_prints_event_count(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setattr(
         sys,
         "argv",
-        ["post-bind-ingest", str(payload_path), "--jwt-public-key", PUBLIC_KEY_B64, "--dry-run"],
+        ["post-bind-ingest", str(payload_path), "--jwt-keyring-json", KEYRING_JSON, "--dry-run"],
     )
     main()
 
@@ -99,7 +101,7 @@ def test_main_writes_normalized_events(tmp_path: Path, monkeypatch: pytest.Monke
     payload_path = tmp_path / "payload.json"
     _write_payload(payload_path)
 
-    monkeypatch.setattr(sys, "argv", ["post-bind-ingest", str(payload_path), "--jwt-public-key", PUBLIC_KEY_B64])
+    monkeypatch.setattr(sys, "argv", ["post-bind-ingest", str(payload_path), "--jwt-keyring-json", KEYRING_JSON])
     main()
 
     first_line, *_ = capsys.readouterr().out.strip().splitlines()
@@ -124,8 +126,8 @@ def test_main_writes_normalized_events_to_local_output_path(
         [
             "post-bind-ingest",
             str(payload_path),
-            "--jwt-public-key",
-            PUBLIC_KEY_B64,
+            "--jwt-keyring-json",
+            KEYRING_JSON,
             "--output-path",
             str(output_path),
         ],
@@ -149,8 +151,8 @@ def test_main_rejects_output_path_with_missing_parent(tmp_path: Path, monkeypatc
         [
             "post-bind-ingest",
             str(payload_path),
-            "--jwt-public-key",
-            PUBLIC_KEY_B64,
+            "--jwt-keyring-json",
+            KEYRING_JSON,
             "--output-path",
             str(tmp_path / "missing" / "normalized-events.jsonl"),
         ],
@@ -171,8 +173,8 @@ def test_main_rejects_egress_url_without_enable_flag(tmp_path: Path, monkeypatch
         [
             "post-bind-ingest",
             str(payload_path),
-            "--jwt-public-key",
-            PUBLIC_KEY_B64,
+            "--jwt-keyring-json",
+            KEYRING_JSON,
             "--egress-url",
             "https://example.invalid/ingest",
         ],
@@ -193,8 +195,8 @@ def test_main_rejects_enable_egress_without_url(tmp_path: Path, monkeypatch: pyt
         [
             "post-bind-ingest",
             str(payload_path),
-            "--jwt-public-key",
-            PUBLIC_KEY_B64,
+            "--jwt-keyring-json",
+            KEYRING_JSON,
             "--enable-egress",
         ],
     )
@@ -215,8 +217,8 @@ def test_main_rejects_output_path_with_egress_url(tmp_path: Path, monkeypatch: p
         [
             "post-bind-ingest",
             str(payload_path),
-            "--jwt-public-key",
-            PUBLIC_KEY_B64,
+            "--jwt-keyring-json",
+            KEYRING_JSON,
             "--output-path",
             str(output_path),
             "--egress-url",
@@ -240,8 +242,8 @@ def test_main_rejects_gated_egress_transport(tmp_path: Path, monkeypatch: pytest
         [
             "post-bind-ingest",
             str(payload_path),
-            "--jwt-public-key",
-            PUBLIC_KEY_B64,
+            "--jwt-keyring-json",
+            KEYRING_JSON,
             "--egress-url",
             "https://example.invalid/ingest",
             "--enable-egress",
@@ -266,10 +268,10 @@ def test_main_receiver_mode_requires_public_key(tmp_path: Path, monkeypatch: pyt
     with pytest.raises(SystemExit) as exc:
         main()
 
-    assert str(exc.value) == "receiver mode requires --jwt-public-key"
+    assert str(exc.value) == "receiver mode requires --jwt-keyring-json"
 
 
-def test_main_rejects_missing_jwt_public_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_rejects_missing_jwt_keyring(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     payload_path = tmp_path / "payload.json"
     _write_payload(payload_path)
 
@@ -285,8 +287,8 @@ def test_main_rejects_empty_payload(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(sys, "argv", [
         "post-bind-ingest",
         str(payload_path),
-        "--jwt-public-key",
-        PUBLIC_KEY_B64,
+        "--jwt-keyring-json",
+        KEYRING_JSON,
     ])
     with pytest.raises(SystemExit) as exc:
         main()

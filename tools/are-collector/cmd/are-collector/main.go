@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -28,17 +27,25 @@ func main() {
 func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	flags := flag.NewFlagSet("are-collector", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	mode := flags.String("mode", "", "collector mode; currently only fixture-smoke is enabled")
 	source := flags.String("source", "", "one of datadog, splunk, cloudwatch, otel")
 	customerID := flags.String("customer-id", "", "BackBond customer id")
 	agentID := flags.String("agent-id", "", "BackBond agent id")
 	batchID := flags.String("batch-id", "", "batch id")
+	keyID := flags.String("key-id", "", "per-bind Ed25519 public key id")
 	policyJSON := flags.String("policy-json", "{}", "JSON object mapping payload paths to redaction classes")
 	privateKeyB64 := flags.String("ed25519-private-key-b64", "", "raw base64 Ed25519 private key")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if *source == "" || *customerID == "" || *agentID == "" || *batchID == "" {
-		return fmt.Errorf("source, customer-id, agent-id, and batch-id are required")
+	if *mode == "" || *source == "" || *customerID == "" || *agentID == "" || *batchID == "" || *keyID == "" {
+		return fmt.Errorf("mode, source, customer-id, agent-id, batch-id, and key-id are required")
+	}
+	if *mode != "fixture-smoke" {
+		return fmt.Errorf("collector mode %q is not wired; only fixture-smoke is enabled in this image", *mode)
+	}
+	if *privateKeyB64 == "" {
+		return fmt.Errorf("ed25519-private-key-b64 is required")
 	}
 	policy, err := parsePolicy(*policyJSON)
 	if err != nil {
@@ -56,7 +63,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	batch, err := egress.NewSignedBatch(*customerID, *agentID, *batchID, time.Now().UTC(), events, privateKey)
+	batch, err := egress.NewSignedBatch(*customerID, *agentID, *batchID, *keyID, time.Now().UTC(), events, privateKey)
 	if err != nil {
 		return err
 	}
@@ -84,8 +91,7 @@ func parsePolicy(raw string) (redaction.Policy, error) {
 
 func parsePrivateKey(raw string) (ed25519.PrivateKey, error) {
 	if raw == "" {
-		_, privateKey, err := ed25519.GenerateKey(rand.Reader)
-		return privateKey, err
+		return nil, fmt.Errorf("ed25519 private key is required")
 	}
 	decoded, err := base64.StdEncoding.DecodeString(raw)
 	if err != nil {

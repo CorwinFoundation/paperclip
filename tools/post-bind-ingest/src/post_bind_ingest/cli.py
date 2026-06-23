@@ -33,8 +33,8 @@ def main() -> None:
         help="Optional signature secret; if set, validate manifest signature",
     )
     parser.add_argument(
-        "--jwt-public-key",
-        help="ed25519 JWT public key for receiver mode, as PEM text or unpadded base64url raw key bytes",
+        "--jwt-keyring-json",
+        help="Receiver keyring as JSON object mapping kid to PEM text or unpadded base64url raw Ed25519 public key bytes",
     )
     parser.add_argument(
         "--clock-skew-seconds",
@@ -70,7 +70,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    receiver_mode = args.mode == "receiver" or bool(args.jwt_public_key)
+    receiver_mode = args.mode == "receiver" or bool(args.jwt_keyring_json)
     if os.path.getsize(args.payload_path) <= 0:
         raise SystemExit("receiver payload is empty" if receiver_mode else "manifest payload is empty")
     if args.egress_url and not args.enable_egress:
@@ -82,11 +82,17 @@ def main() -> None:
 
     payload = _read_payload(Path(args.payload_path))
     if receiver_mode:
-        if not args.jwt_public_key:
-            raise SystemExit("receiver mode requires --jwt-public-key")
+        if not args.jwt_keyring_json:
+            raise SystemExit("receiver mode requires --jwt-keyring-json")
+        try:
+            keyring = json.loads(args.jwt_keyring_json)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"jwt-keyring-json must be valid JSON: {exc}") from exc
+        if not isinstance(keyring, dict) or not all(isinstance(key, str) and isinstance(value, str) for key, value in keyring.items()):
+            raise SystemExit("jwt-keyring-json must be an object mapping kid strings to public-key strings")
         normalized = normalize_receiver_events(
             payload,
-            jwt_public_key=args.jwt_public_key,
+            jwt_keyring=keyring,
             clock_skew_seconds=args.clock_skew_seconds,
         )
         if args.dry_run:
