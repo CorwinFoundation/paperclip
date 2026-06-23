@@ -44,8 +44,11 @@ Existing single-string callers are unchanged.
 from __future__ import annotations
 
 import os
+import ipaddress
 import secrets
-from typing import Any
+import socket
+from dataclasses import dataclass
+from typing import Any, Callable, Iterable
 from urllib.parse import urlparse, urlunparse
 
 PROXY_ENV = "BEAAA_RESI_PROXY_URL"
@@ -136,6 +139,96 @@ class EgressNotAllowed(RuntimeError):
     """Outbound request targeted a host outside the active scoped allow-list."""
 
 
+Resolver = Callable[[str, int], Iterable[str]]
+
+
+@dataclass(frozen=True)
+class _AllowedEndpoint:
+    host: str
+    scheme: str | None
+    port: int | None
+    host_is_ip_literal: bool
+
+    @property
+    def pins_scheme_port(self) -> bool:
+        return self.scheme is not None and self.port is not None
+
+
+def _default_port(scheme: str) -> int | None:
+    if scheme == "https":
+        return 443
+    if scheme == "http":
+        return 80
+    return None
+
+
+def _is_ip_literal(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+def _parse_allowed_endpoint(value: str) -> _AllowedEndpoint:
+    raw = value.strip()
+    if "://" not in raw:
+        host = raw.lower()
+        return _AllowedEndpoint(
+            host=host,
+            scheme=None,
+            port=None,
+            host_is_ip_literal=_is_ip_literal(host),
+        )
+    parsed = urlparse(raw)
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https"):
+        raise ValueError(
+            "ScopedEgressAllowlist endpoint URLs must use http/https; "
+            f"got {parsed.scheme!r}"
+        )
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise ValueError(
+            f"ScopedEgressAllowlist endpoint URL has no host: {value!r}"
+        )
+    port = parsed.port or _default_port(scheme)
+    if port is None:
+        raise ValueError(
+            f"ScopedEgressAllowlist endpoint URL has no effective port: {value!r}"
+        )
+    return _AllowedEndpoint(
+        host=host,
+        scheme=scheme,
+        port=port,
+        host_is_ip_literal=_is_ip_literal(host),
+    )
+
+
+def _default_resolver(host: str, port: int) -> tuple[str, ...]:
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    resolved: list[str] = []
+    seen: set[str] = set()
+    for info in infos:
+        address = info[4][0]
+        if address not in seen:
+            resolved.append(address)
+            seen.add(address)
+    return tuple(resolved)
+
+
+def _is_forbidden_resolved_ip(address: str) -> bool:
+    ip = ipaddress.ip_address(address)
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_unspecified
+        or ip.is_reserved
+    )
+
+
 class _AllowlistTransport:
     """httpx transport wrapper that enforces a host allow-list.
 
@@ -144,44 +237,106 @@ class _AllowlistTransport:
     (httpx routes redirected requests back through the transport). A
     rejected request raises before any bytes leave the process.
 
-    Accepts either a single host string (legacy single-host scope) or an
-    iterable of host strings (BEAAA-542 list form; empty iterable means
-    deny-all and is used by the Scorer worker).
+    Accepts either a single host string (legacy single-host scope), a full
+    http(s) endpoint URL (scheme + effective port pinned), or an iterable of
+    either form (BEAAA-542 list form; empty iterable means deny-all and is used
+    by the Scorer worker).
     """
 
-    def __init__(self, allowed_host, inner: Any):
+    def __init__(
+        self,
+        allowed_host,
+        inner: Any,
+        *,
+        resolver: Resolver = _default_resolver,
+    ):
         if isinstance(allowed_host, str):
-            self._allowed_hosts: tuple[str, ...] = (
-                (allowed_host.lower(),) if allowed_host else ()
+            self._allowed_endpoints: tuple[_AllowedEndpoint, ...] = (
+                (_parse_allowed_endpoint(allowed_host),) if allowed_host else ()
             )
         else:
-            self._allowed_hosts = tuple(
-                h.lower() for h in allowed_host if h
+            self._allowed_endpoints = tuple(
+                _parse_allowed_endpoint(h) for h in allowed_host if h
             )
         self._inner = inner
+        self._resolver = resolver
 
     @property
     def _allowed_host(self) -> str:
         # Back-compat accessor used by older callers / tests that inspect
         # the transport for the single declared host.
-        return self._allowed_hosts[0] if self._allowed_hosts else ""
+        return self._allowed_endpoints[0].host if self._allowed_endpoints else ""
+
+    def _matching_endpoints(self, host: str) -> tuple[_AllowedEndpoint, ...]:
+        return tuple(e for e in self._allowed_endpoints if e.host == host)
+
+    def _permitted_repr(self) -> str:
+        if not self._allowed_endpoints:
+            return "[] (deny-all)"
+        if len(self._allowed_endpoints) == 1:
+            return repr(self._allowed_endpoints[0].host)
+        return repr([e.host for e in self._allowed_endpoints])
+
+    def _effective_request_port(self, request: Any) -> int | None:
+        if request.url.port:
+            return int(request.url.port)
+        return _default_port((request.url.scheme or "").lower())
+
+    def _enforce_scheme_port(
+        self,
+        *,
+        host: str,
+        scheme: str,
+        port: int | None,
+        matches: tuple[_AllowedEndpoint, ...],
+    ) -> _AllowedEndpoint:
+        host_only = tuple(e for e in matches if not e.pins_scheme_port)
+        if host_only:
+            return host_only[0]
+        for endpoint in matches:
+            if endpoint.scheme == scheme and endpoint.port == port:
+                return endpoint
+        allowed = ", ".join(
+            f"{endpoint.scheme}://{endpoint.host}:{endpoint.port}"
+            for endpoint in matches
+        )
+        raise EgressNotAllowed(
+            f"egress to {scheme}://{host}:{port} not allowed; "
+            f"scoped allow-list permits only {allowed}"
+        )
+
+    def _enforce_resolved_address(self, endpoint: _AllowedEndpoint) -> None:
+        if not endpoint.pins_scheme_port or endpoint.host_is_ip_literal:
+            return
+        assert endpoint.port is not None
+        try:
+            addresses = tuple(self._resolver(endpoint.host, endpoint.port))
+        except OSError as exc:
+            raise EgressNotAllowed(
+                f"egress host {endpoint.host!r} could not be resolved"
+            ) from exc
+        for address in addresses:
+            if _is_forbidden_resolved_ip(address):
+                raise EgressNotAllowed(
+                    f"egress host {endpoint.host!r} resolved to forbidden "
+                    f"address {address!r}"
+                )
 
     def handle_request(self, request: Any) -> Any:
         host = (request.url.host or "").lower()
-        if host not in self._allowed_hosts:
-            permitted = (
-                repr(self._allowed_hosts[0])
-                if len(self._allowed_hosts) == 1
-                else (
-                    repr(list(self._allowed_hosts))
-                    if self._allowed_hosts
-                    else "[] (deny-all)"
-                )
-            )
+        matches = self._matching_endpoints(host)
+        if not matches:
             raise EgressNotAllowed(
                 f"egress to host {host!r} not allowed; "
-                f"scoped allow-list permits only {permitted}"
+                f"scoped allow-list permits only {self._permitted_repr()}"
             )
+        endpoint = self._enforce_scheme_port(
+            host=host,
+            scheme=(request.url.scheme or "").lower(),
+            port=self._effective_request_port(request),
+            matches=matches,
+        )
+        self._enforce_resolved_address(endpoint)
         return self._inner.handle_request(request)
 
     def close(self) -> None:
@@ -208,7 +363,12 @@ class ScopedEgressAllowlist:
     Construction accepts either form:
 
     * ``ScopedEgressAllowlist("agent.customer.example.com")`` — single
-      declared host. The original Prober use case.
+      declared host. The original Prober use case; legacy host-only scopes
+      are intentionally host-scoped for compatibility.
+    * ``ScopedEgressAllowlist("https://agent.customer.example.com/probe")`` —
+      endpoint-scoped form. Scheme and effective port are pinned, and DNS
+      resolution to private, loopback, link-local, multicast, unspecified,
+      or reserved address ranges is rejected before bytes leave the process.
     * ``ScopedEgressAllowlist([])`` — deny all egress. BEAAA-542 Scorer
       worker posture: the Scorer process has no credential read path AND
       no network surface, so any HTTP attempt raises.
@@ -223,34 +383,50 @@ class ScopedEgressAllowlist:
                 r = c.post("https://agent.customer.example.com/probe", json=...)
     """
 
-    def __init__(self, allowed_host):
+    def __init__(self, allowed_host, *, resolver: Resolver = _default_resolver):
         if isinstance(allowed_host, str):
             if not allowed_host:
                 raise ValueError(
                     "ScopedEgressAllowlist requires a non-empty allowed_host "
                     "or a list (possibly empty) of hosts"
                 )
-            self._allowed_hosts: tuple[str, ...] = (allowed_host,)
+            self._allowed_endpoints: tuple[_AllowedEndpoint, ...] = (
+                _parse_allowed_endpoint(allowed_host),
+            )
         elif isinstance(allowed_host, (list, tuple)):
             # BEAAA-542: empty list expresses the Scorer deny-all posture.
             # Net-increase in tamper resistance, not a reduction.
-            self._allowed_hosts = tuple(h for h in allowed_host if h)
+            self._allowed_endpoints = tuple(
+                _parse_allowed_endpoint(h) for h in allowed_host if h
+            )
         else:
             raise ValueError(
                 "ScopedEgressAllowlist expects str or list[str], "
                 f"got {type(allowed_host).__name__}"
             )
+        self._resolver = resolver
 
     @property
     def allowed_host(self) -> str:
         # Legacy single-host accessor. Empty string under the deny-all
         # (list = []) form, since there is no single declared host.
-        return self._allowed_hosts[0] if self._allowed_hosts else ""
+        return self._allowed_endpoints[0].host if self._allowed_endpoints else ""
 
     @property
     def allowed_hosts(self) -> tuple[str, ...]:
         """All declared hosts. Empty tuple under deny-all (BEAAA-542)."""
-        return self._allowed_hosts
+        return tuple(endpoint.host for endpoint in self._allowed_endpoints)
+
+    @property
+    def allowed_targets(self) -> tuple[str, ...]:
+        """Declared allow-list targets as transport-parseable strings."""
+        out: list[str] = []
+        for endpoint in self._allowed_endpoints:
+            if endpoint.pins_scheme_port:
+                out.append(f"{endpoint.scheme}://{endpoint.host}:{endpoint.port}")
+            else:
+                out.append(endpoint.host)
+        return tuple(out)
 
     def __enter__(self) -> "ScopedEgressAllowlist":
         return self
@@ -267,7 +443,11 @@ class ScopedEgressAllowlist:
         # proof for callers that construct a scope directly in tests.
         _ = session_id
         inner = httpx.HTTPTransport()
-        return _AllowlistTransport(self._allowed_hosts, inner)
+        return _AllowlistTransport(
+            self.allowed_targets,
+            inner,
+            resolver=self._resolver,
+        )
 
     def client(self, *, timeout: float = 30.0, session_id: str | None = None,
                **kwargs: Any):

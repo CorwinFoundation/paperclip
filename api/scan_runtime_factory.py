@@ -34,7 +34,7 @@ Hard Invariants reinforced
   subprocess via fork-only copy-on-write memory. The Scorer subprocess
   imports no credential code. ``forget_all`` runs on every exit path.
 * **#5 — Tamper resistance posture unchanged.** The Prober opens
-  ``ScopedEgressAllowlist(agent_endpoint_host)`` around the ``run_scan``
+  ``ScopedEgressAllowlist(agent_endpoint)`` around the ``run_scan``
   call; the Scorer's ``ScopedEgressAllowlist([])`` (deny-all) lives
   inside :func:`run_scorer` for its entire lifetime.
 
@@ -273,9 +273,10 @@ def _prober_target(
     """Prober subprocess entrypoint.
 
     Opens :class:`ScopedEgressAllowlist` scoped to the customer's
-    ``agent_endpoint_host`` for the lifetime of the ``run_scan`` call —
-    customer-endpoint traffic from ``runner_factory``'s adapter is allowed,
-    everything else is denied at the transport layer. After ``run_scan``
+    ``agent_endpoint`` for the lifetime of the ``run_scan`` call —
+    customer-endpoint traffic from ``runner_factory``'s adapter is allowed
+    only on the declared scheme/port, and everything else is denied at
+    the transport layer. After ``run_scan``
     returns (or raises), the result tuple is enqueued on ``result_queue``
     and the channel's END_OF_SCAN sentinel is best-effort flushed so the
     Scorer's drain loop terminates cleanly on error paths too.
@@ -421,9 +422,9 @@ def make_production_scan_runtime(
             # pickle, so spawn-mode would silently detach the vault).
             result_queue: Any = ctx.Queue(maxsize=1)
             # The orchestrator carries the full URL on ``scan_request
-            # .agent_endpoint``; the egress scope keys on the bare host
-            # so the allow-list shape matches T4 invariants.
-            agent_endpoint_host = _extract_host(scan_request.agent_endpoint)
+            # .agent_endpoint``; pass that through to the egress scope so
+            # scheme/port and DNS-rebind guards bind to the declared endpoint.
+            agent_endpoint_host = scan_request.agent_endpoint
             prober_proc = ctx.Process(
                 target=_prober_target,
                 kwargs={

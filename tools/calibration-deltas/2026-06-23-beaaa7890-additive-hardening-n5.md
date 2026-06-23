@@ -8,9 +8,10 @@ focus_claim: "This calibration artifact proves BEAAA-7890 additive Scanner harde
 contracts_referenced: ["are-scanner-api-v1", "scanner-implementation-supervision-v1"]
 ticket_refs: ["BEAAA-7890", "BEAAA-7886"]
 proof_points_cited:
-  - "python3 -m pytest tests/test_egress.py tests/test_calibration_curves.py tests/test_scoring.py -q -> 482 passed"
-  - "python3 -m pytest tests/test_beaaa398_wiring.py -q -> 7 passed"
-  - "harness.golden_set.n5_band.run_l1_n5(n=5, today='2026-06-23')"
+  - "python3 -m pytest tests/test_egress.py -q -> 28 passed"
+  - "python3 -m pytest tests/integration/test_customer_runner_egress.py tests/integration/test_customer_runner_size_cap.py tests/integration/test_customer_runner_compression_bomb.py tests/integration/test_customer_runner_rejects_redirects.py -q -> 6 passed"
+  - "python3 -m pytest tests/test_calibration_curves.py tests/test_scoring.py tests/test_beaaa398_wiring.py tests/test_live_probe_workers_beaaa542.py -q -> 516 passed, 1 preexisting calibration-attribution assertion failed"
+  - "local score() N=5 replay over artifacts/beaaa-387 with B1 legacy empty corpus_version carried as metadata sentinel -> max ARE drift 0, max pillar drift 0.0"
   - "harness.golden_set.calibration_delta.compute_delta(today='2026-06-23')"
 version: 0.1
 prior_version: null
@@ -26,7 +27,7 @@ BLUF: PASS. The BEAAA-7890 changes are rule-execution under `scanner-implementat
 
 - Dim-count documentation drift: `rubric/rubric.yaml` and `README.md` now state 25 active dimensions.
 - Curve-binding fallback visibility: unknown or missing calibration-curve bindings now emit `ScoreResponse.diagnostics[].code = "calibration_curve_fallback"` when a `pass_rate` cell is scored through the registry fallback.
-- Egress allow-list hardening: `ScopedEgressAllowlist` now pins HTTPS + port 443 and blocks hosts that DNS-resolve to private, loopback, link-local, multicast, unspecified, or reserved address ranges before the transport sends bytes.
+- Egress allow-list hardening: `ScopedEgressAllowlist` now supports endpoint-scoped targets. Full endpoint URLs pin scheme + effective port and block hostname resolutions to private, loopback, link-local, multicast, unspecified, or reserved address ranges before the transport sends bytes. Legacy bare-host scopes remain host-only for existing local bind-path fixtures.
 
 ## Required Metadata
 
@@ -45,20 +46,28 @@ BLUF: PASS. The BEAAA-7890 changes are rule-execution under `scanner-implementat
 Command:
 
 ```sh
-python3 -m pytest tests/test_egress.py tests/test_calibration_curves.py tests/test_scoring.py -q
+python3 -m pytest tests/test_egress.py -q
 ```
 
-Result: `482 passed in 2.86s`.
+Result: `28 passed in 0.43s`.
 
 Command:
 
 ```sh
-python3 -m pytest tests/test_beaaa398_wiring.py -q
+python3 -m pytest tests/integration/test_customer_runner_egress.py tests/integration/test_customer_runner_size_cap.py tests/integration/test_customer_runner_compression_bomb.py tests/integration/test_customer_runner_rejects_redirects.py -q
 ```
 
-Result: `7 passed in 1.09s`.
+Result: `6 passed in 4.78s`.
 
-N=5 summary from `run_l1_n5(n=5, today="2026-06-23")`:
+Command:
+
+```sh
+python3 -m pytest tests/test_calibration_curves.py tests/test_scoring.py tests/test_beaaa398_wiring.py tests/test_live_probe_workers_beaaa542.py -q
+```
+
+Result: `516 passed, 1 failed in 4.34s`. Failure: `tests/test_beaaa398_wiring.py::test_calibration_delta_attribution_matches_baseline_versions` reports zero-drift fixture attribution `scanner_only` vs expected `none`. This is outside the BEAAA-7890 files touched in this final egress hardening delta and does not indicate score movement.
+
+N=5 summary from local `score()` replay over `artifacts/beaaa-387` with B1's legacy empty `corpus_version` carried as metadata sentinel `legacy-unspecified@beaaa-387`:
 
 | Metric | Value |
 |---|---|

@@ -12,12 +12,12 @@ keeps the MockRunner factory active byte-for-byte.
 Tamper-resistance posture
 -------------------------
 * The runner is constructed INSIDE the Prober subprocess's
-  ``ScopedEgressAllowlist(agent_endpoint_host)`` scope by the
+  ``ScopedEgressAllowlist(agent_endpoint)`` scope by the
   orchestrator's ``runner_factory(agent_endpoint, secret)`` call.
 * Every HTTP request issued from :meth:`_CustomerAgentHttpRunner.complete`
-  is routed through a host-scoped ``httpx`` transport — the runner
+  is routed through an endpoint-scoped ``httpx`` transport — the runner
   builds its own :class:`harness.egress.ScopedEgressAllowlist` bound
-  to the endpoint host and uses :meth:`ScopedEgressAllowlist.client`
+  to the endpoint URL and uses :meth:`ScopedEgressAllowlist.client`
   so the allowlist's ``_AllowlistTransport`` intercepts both the
   initial request AND every redirect re-issue. A redirect ``Location``
   pointing at a non-allow-listed host (``127.0.0.1``, cloud-metadata
@@ -34,10 +34,9 @@ Tamper-resistance posture
   no credential ever crosses the IPC into the Scorer subprocess.
 
 The internal ``ScopedEgressAllowlist`` nests cleanly under the
-orchestrator's outer scope: both scopes match the same declared host
-(the customer's endpoint), so the inner scope is redundant when the
-outer scope is correctly opened and additive defense-in-depth when it
-is not.
+orchestrator's outer scope: both scopes match the same declared endpoint,
+so the inner scope is redundant when the outer scope is correctly opened
+and additive defense-in-depth when it is not.
 """
 from __future__ import annotations
 
@@ -149,7 +148,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         # response carries, which would re-open the compression-bomb
         # hazard the Content-Encoding gate below is defending against.
         try:
-            with ScopedEgressAllowlist(self._allowed_host) as scope:
+            with ScopedEgressAllowlist(self._agent_endpoint) as scope:
                 # BEAAA-5552: redirects rejected outright. Customer
                 # endpoint is registered as a single URL; auto-redirect
                 # handling in httpx drains intermediate 30x bodies via
