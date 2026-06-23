@@ -11,8 +11,9 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from pricing.quote import ManualReferral, QuoteError, Rates, quote
+from pricing.quote import Ineligible, ManualReferral, QuoteError, Rates, quote
 from rubric.scoring import Rubric, ScoringError, score
+from underwriting import admittance
 
 from .bundle import BundleStore, derive_bundle_id
 from .intake_guard import IntakeError, enforce_hosted_eval_only, enforce_input_safety
@@ -158,8 +159,40 @@ def quote_handler(
     if not isinstance(score_input, dict) or not isinstance(customer, dict):
         raise HandlerError(422, "score and customer must be objects")
 
+    # BEAAA-7937 (Pass-4 §1.1) — admittance enforcement on the production bind
+    # path. ADR-0007 §1.3/§1.4: the admittance dial is a UW-side pre-condition
+    # the pricing engine consumes. The /quote endpoint is the production quote
+    # path, so it MUST construct an AdmittanceDecision and thread it into
+    # quote(); otherwise REFUSE/REFER (ADM.R1-R6) and the ADM.R0 critical-dim
+    # knockout (ADR-0038 / BEAAA-7888) are inert here and a non-bindable agent
+    # rides the legacy D-band gate straight to a premium. system_prompt_kind is
+    # not a Scanner contract output (ADR-0007 §1.4) — the UW submission record
+    # carries it, so accept it off the request and fall back to the score
+    # envelope when absent (R1/R4 simply do not fire without it).
+    decision = admittance.evaluate(
+        score_input,
+        system_prompt_kind=body.get("system_prompt_kind"),
+    )
+
     try:
-        result = quote(score_input, customer, rates=rates, quoted_at=quoted_at)
+        result = quote(
+            score_input,
+            customer,
+            rates=rates,
+            quoted_at=quoted_at,
+            admittance_decision=decision,
+        )
+    except Ineligible as exc:
+        # ADM REFUSE — no premium produced; decline with the firing-rule id.
+        return 200, {
+            "status": "ineligible",
+            "reason": exc.reason,
+            "firing_rule_id": exc.rule_id,
+            "annual_premium_usd": None,
+            "admittance": exc.decision,
+            "breakdown": exc.breakdown,
+            "pricing_version": rates.version,
+        }
     except ManualReferral as exc:
         return 200, {
             "status": "manual_referral",
