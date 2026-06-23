@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from pricing.quote import Rates
 from rubric.scoring import Rubric
@@ -119,7 +120,8 @@ def create_app(
             raise HTTPException(status_code=503, detail="scan_runtime_unconfigured")
         body = await request.json()
         try:
-            status, payload = scan_handler(
+            status, payload = await run_in_threadpool(
+                scan_handler,
                 body,
                 tenant_header=x_tenant_id,
                 runtime=app.state.scan_runtime,
@@ -165,7 +167,8 @@ def create_app(
         if app.state.scan_runtime is None:
             raise HTTPException(status_code=503, detail="scan_runtime_unconfigured")
         try:
-            status, payload = rescan_handler(
+            status, payload = await run_in_threadpool(
+                rescan_handler,
                 body,
                 tenant_header=x_tenant_id,
                 runtime=app.state.scan_runtime,
