@@ -43,6 +43,7 @@ CTO requirements baked in:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import contextlib
 import json
 import os
@@ -323,8 +324,16 @@ def _record_key(record: dict[str, Any]) -> tuple[str, str, str, int]:
     )
 
 
-def _load_terminal_records(path: Path, *, seed: int, probe: str) -> dict[tuple[str, str, str, int], dict[str, Any]]:
+def _load_terminal_records(
+    path: Path,
+    *,
+    seed: int,
+    probe: str,
+    max_item_attempts: int,
+) -> dict[tuple[str, str, str, int], dict[str, Any]]:
     terminals: dict[tuple[str, str, str, int], dict[str, Any]] = {}
+    timeout_counts: Counter[tuple[str, str, str, int]] = Counter()
+    latest_timeout: dict[tuple[str, str, str, int], dict[str, Any]] = {}
     if not path.exists():
         return terminals
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -335,7 +344,15 @@ def _load_terminal_records(path: Path, *, seed: int, probe: str) -> dict[tuple[s
             continue
         if record.get("status") not in {"scored", "runner_timeout"}:
             continue
-        terminals[_record_key(record)] = record
+        key = _record_key(record)
+        if record["status"] == "scored":
+            terminals[key] = record
+        elif key not in terminals:
+            timeout_counts[key] += 1
+            latest_timeout[key] = record
+    for key, count in timeout_counts.items():
+        if key not in terminals and count >= max_item_attempts:
+            terminals[key] = latest_timeout[key]
     return terminals
 
 
@@ -541,10 +558,13 @@ def _run_bbq_resumable(
     partial_path: Path,
     ensemble_n: int,
     item_timeout_s: float,
+    max_item_attempts: int,
     window_started_at: float,
     window_wall_budget_s: float | None,
 ) -> tuple[dict[str, Any], int]:
-    records = _load_terminal_records(partial_path, seed=seed, probe="bbq")
+    records = _load_terminal_records(
+        partial_path, seed=seed, probe="bbq", max_item_attempts=max_item_attempts,
+    )
     skipped = 0
     for item in items:
         item_id = _bbq_item_id(item)
@@ -601,10 +621,13 @@ def _run_dna_resumable(
     partial_path: Path,
     ensemble_n: int,
     item_timeout_s: float,
+    max_item_attempts: int,
     window_started_at: float,
     window_wall_budget_s: float | None,
 ) -> tuple[dict[str, Any], int]:
-    records = _load_terminal_records(partial_path, seed=seed, probe="dna")
+    records = _load_terminal_records(
+        partial_path, seed=seed, probe="dna", max_item_attempts=max_item_attempts,
+    )
     skipped = 0
     for item in items:
         item_id = _dna_item_id(item)
@@ -832,6 +855,7 @@ def run_fixture_seed(
     seed: int,
     use_mock: bool = False,
     item_timeout_s: float = 90.0,
+    max_item_attempts: int = 3,
     window_wall_budget_s: float | None = None,
 ) -> dict[str, Any]:
     """Run bias-pack on one fixture at one seed; persist per-seed rich rows.
@@ -882,6 +906,7 @@ def run_fixture_seed(
         partial_path=partial_path,
         ensemble_n=ENSEMBLE_N,
         item_timeout_s=item_timeout_s,
+        max_item_attempts=max_item_attempts,
         window_started_at=window_started_at,
         window_wall_budget_s=window_wall_budget_s,
     )
@@ -894,6 +919,7 @@ def run_fixture_seed(
         partial_path=partial_path,
         ensemble_n=ENSEMBLE_N,
         item_timeout_s=item_timeout_s,
+        max_item_attempts=max_item_attempts,
         window_started_at=window_started_at,
         window_wall_budget_s=window_wall_budget_s,
     )
@@ -931,6 +957,7 @@ def run_fixture_seed(
         "p2_1_raw": details["P2.1"]["raw"],
         "p2_4_raw": details["P2.4"]["raw"],
         "preflight": preflight,
+        "max_item_attempts": max_item_attempts,
         "partial_artifact": str(partial_path.relative_to(REPO)),
         "skipped_completed": {
             "bbq": bbq_skipped,
@@ -1341,12 +1368,16 @@ def main() -> None:
                     help="Route --aggregate / --calibration-delta to artifacts/_beaaa758_dry_execute/ sandbox")
     ap.add_argument("--item-timeout-s", type=float, default=90.0,
                     help="Per BBQ/DNA item wall budget; runner_timeout terminals block seed envelope promotion")
+    ap.add_argument("--max-item-attempts", type=int, default=3,
+                    help="Max attempts per item before runner_timeout becomes terminal")
     ap.add_argument("--window-wall-budget-s", type=float, default=None,
                     help="Optional wall ceiling for this invocation; exceeded items become runner_timeout terminals")
     ap.add_argument("--cto-cosign-ref", default=os.environ.get("BEAAA_758_CTO_REF"))
     ap.add_argument("--uw-cosign-ref", default=os.environ.get("BEAAA_758_UW_REF"))
     ap.add_argument("--budget-approval-ref", default=os.environ.get("BEAAA_758_BUDGET_REF"))
     args = ap.parse_args()
+    if args.max_item_attempts < 1:
+        raise SystemExit("--max-item-attempts must be >= 1")
 
     targets = L2_FIXTURES_PATH_A_V2 if args.fixture == "all" else [args.fixture]
 
@@ -1394,6 +1425,7 @@ def main() -> None:
             seed=args.seed,
             use_mock=use_mock,
             item_timeout_s=args.item_timeout_s,
+            max_item_attempts=args.max_item_attempts,
             window_wall_budget_s=args.window_wall_budget_s,
         )
         for fid in targets

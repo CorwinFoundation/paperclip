@@ -98,6 +98,7 @@ def test_bbq_checkpoint_resume_skips_completed_items(tmp_path: Path) -> None:
         partial_path=partial,
         ensemble_n=1,
         item_timeout_s=5,
+        max_item_attempts=1,
         window_started_at=time.monotonic(),
         window_wall_budget_s=None,
     )
@@ -115,6 +116,7 @@ def test_bbq_checkpoint_resume_skips_completed_items(tmp_path: Path) -> None:
         partial_path=partial,
         ensemble_n=1,
         item_timeout_s=5,
+        max_item_attempts=1,
         window_started_at=time.monotonic(),
         window_wall_budget_s=None,
     )
@@ -140,6 +142,7 @@ def test_dna_checkpoint_resume_skips_completed_items(tmp_path: Path) -> None:
         partial_path=partial,
         ensemble_n=1,
         item_timeout_s=5,
+        max_item_attempts=1,
         window_started_at=time.monotonic(),
         window_wall_budget_s=None,
     )
@@ -160,6 +163,7 @@ def test_dna_checkpoint_resume_skips_completed_items(tmp_path: Path) -> None:
         partial_path=partial,
         ensemble_n=1,
         item_timeout_s=5,
+        max_item_attempts=1,
         window_started_at=time.monotonic(),
         window_wall_budget_s=None,
     )
@@ -185,12 +189,88 @@ def test_runner_timeout_terminal_blocks_bbq_promotion(tmp_path: Path) -> None:
             partial_path=partial,
             ensemble_n=1,
             item_timeout_s=0.01,
+            max_item_attempts=1,
             window_started_at=time.monotonic(),
             window_wall_budget_s=None,
         )
 
     records = [json.loads(line) for line in partial.read_text().splitlines()]
     assert records[0]["status"] == "runner_timeout"
+
+
+def test_runner_timeout_below_cap_retries_and_scored_supersedes(tmp_path: Path) -> None:
+    partial = tmp_path / "partial.jsonl"
+    first_item_id = "Age:ambig:1"
+    runner._append_jsonl(
+        partial,
+        runner._timeout_record(
+            fixture_id="M1",
+            seed=0,
+            probe="bbq",
+            item_id=first_item_id,
+            model_id="subject",
+            error="per-item wall budget exceeded: 90.0s",
+        ),
+    )
+    subject = CountingRunner("subject", _subject_response)
+
+    row, skipped = runner._run_bbq_resumable(
+        fixture_id="M1",
+        seed=0,
+        runner=subject,
+        items=_bbq_items(),
+        partial_path=partial,
+        ensemble_n=1,
+        item_timeout_s=5,
+        max_item_attempts=3,
+        window_started_at=time.monotonic(),
+        window_wall_budget_s=None,
+    )
+
+    assert skipped == 0
+    assert subject.calls == 2
+    assert len(row["trace"]) == 2
+    records = [json.loads(line) for line in partial.read_text().splitlines()]
+    assert [record["status"] for record in records].count("runner_timeout") == 1
+    scored_first = [
+        record for record in records
+        if record["item_id"] == first_item_id and record["status"] == "scored"
+    ]
+    assert len(scored_first) == 1
+
+
+def test_runner_timeout_at_cap_still_blocks_without_retry(tmp_path: Path) -> None:
+    partial = tmp_path / "partial.jsonl"
+    first_item_id = "Age:ambig:1"
+    for _ in range(2):
+        runner._append_jsonl(
+            partial,
+            runner._timeout_record(
+                fixture_id="M1",
+                seed=0,
+                probe="bbq",
+                item_id=first_item_id,
+                model_id="subject",
+                error="per-item wall budget exceeded: 90.0s",
+            ),
+        )
+    no_call_runner = CountingRunner("subject", lambda _prompt: pytest.fail("cap-exhausted item retried"))
+
+    with pytest.raises(SystemExit, match="timed out; envelope promotion blocked"):
+        runner._run_bbq_resumable(
+            fixture_id="M1",
+            seed=0,
+            runner=no_call_runner,
+            items=_bbq_items()[:1],
+            partial_path=partial,
+            ensemble_n=1,
+            item_timeout_s=5,
+            max_item_attempts=2,
+            window_started_at=time.monotonic(),
+            window_wall_budget_s=None,
+        )
+
+    assert no_call_runner.calls == 0
 
 
 def test_subject_and_judge_preflight_pings_both_runners() -> None:
@@ -245,6 +325,7 @@ def test_resumable_rows_match_direct_bench_rows_under_mock(tmp_path: Path) -> No
         partial_path=tmp_path / "bbq.jsonl",
         ensemble_n=1,
         item_timeout_s=5,
+        max_item_attempts=1,
         window_started_at=time.monotonic(),
         window_wall_budget_s=None,
     )
@@ -262,6 +343,7 @@ def test_resumable_rows_match_direct_bench_rows_under_mock(tmp_path: Path) -> No
         partial_path=tmp_path / "dna.jsonl",
         ensemble_n=1,
         item_timeout_s=5,
+        max_item_attempts=1,
         window_started_at=time.monotonic(),
         window_wall_budget_s=None,
     )
