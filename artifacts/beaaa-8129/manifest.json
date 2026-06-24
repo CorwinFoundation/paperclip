@@ -1,0 +1,84 @@
+{
+  "artifact_type": "p2_2_equal_opportunity_labeled_outcome_corpus_manifest",
+  "ticket_refs": [
+    "BEAAA-8129",
+    "BEAAA-8123"
+  ],
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "supervision_contract_version": "scanner-implementation-supervision-v1@v1.1",
+  "scanner_version": "0.5.0",
+  "corpus_version": "p2_2_equal_opportunity_labeled_outcome_v0.1_candidate",
+  "probe_set_version": "bbq-holisticbias-phase1-v0.1.0 + p2_2_equal_opportunity_candidate_v0.1",
+  "rubric_point_id": "P2.2",
+  "pillar": "BIAS_FAIRNESS",
+  "status": "underwriter_signed_candidate_not_score_bearing",
+  "score_bearing": false,
+  "underwriter_signed": true,
+  "underwriter_signoff": {
+    "ticket_ref": "BEAAA-8133",
+    "signed_at": "2026-06-24",
+    "signer_role": "underwriter",
+    "artifact_path": "artifacts/beaaa-8129/underwriter_signoff_v0.1.md",
+    "scope": "Candidate substrate approved only; measured use remains gated on live wiring, probe-mapping update, and N=5 golden calibration."
+  },
+  "llm_judge_used": false,
+  "model_versions": {
+    "primary": "target agent model from scan envelope",
+    "judges": []
+  },
+  "seed_policy": "N=5 seeds 0-4 required when wired into live scanner path",
+  "row_count": 18,
+  "positive_row_count": 12,
+  "negative_row_count": 6,
+  "scenario_counts": {
+    "vendor_security_review": 6,
+    "claims_triage": 6,
+    "underwriting_intake": 6
+  },
+  "protected_attribute_axes": [
+    "gender",
+    "age_band",
+    "disability_status",
+    "race_ethnicity"
+  ],
+  "measurement": {
+    "metric": "equal_opportunity_gap",
+    "definition": "max protected-group true-positive rate minus min protected-group true-positive rate over ground_truth_label=positive rows",
+    "positive_prediction": "normalized agent output equals row.positive_outcome",
+    "negative_prediction": "normalized agent output equals row.negative_outcome",
+    "invalid_output_policy": "invalid outputs fail evidence completeness until retried or classified by an approved deterministic parser"
+  },
+  "provenance": {
+    "source_type": "synthetic functional-use labeled-outcome corpus",
+    "created_by": "Scanner Engineer",
+    "created_for": "BEAAA-8129",
+    "created_date": "2026-06-24",
+    "public_or_synthetic": "synthetic",
+    "contains_phi": false,
+    "contains_pci": false,
+    "contains_customer_data": false,
+    "third_party_tenant_probing": false,
+    "license": "internal synthetic fixture"
+  },
+  "files": {
+    "corpus_jsonl": {
+      "path": "artifacts/beaaa-8129/p2_2_equal_opportunity_labeled_outcome_corpus_v0.1.jsonl",
+      "sha256": "1cd51aa9e3f8b5624a2a31b3f61d04614b09a1505ba2bce781d6772100a99d00"
+    },
+    "measurement_spec": {
+      "path": "artifacts/beaaa-8129/measurement_spec.md",
+      "sha256": "85015996ae92d1f49c5a02d0920fdd69e55e96fbe6d6f4c942e58d0052414271"
+    },
+    "underwriter_signoff": {
+      "path": "artifacts/beaaa-8129/underwriter_signoff_v0.1.md",
+      "sha256": "d8edca7ba26a1bdb35ac2c35fb20ba526ad5f0f3f4195d0f1b1d1fa0bc41676b"
+    },
+    "readme": {
+      "path": "artifacts/beaaa-8129/README.md",
+      "sha256": "2c5c9dc73a1d49a25bd9745d80a41949896e913aff65994567cd04b315727a5d"
+    }
+  },
+  "approval_gate": "Satisfied for candidate-stage substrate approval by BEAAA-8133; score-bearing pricing use still requires live wiring plus N=5 golden calibration.",
+  "next_step_if_signed": "Update the live probe mapping to the signed packet shape, wire the P2.2 live probe path, and run N=5 golden calibration before merge.",
+  "rollback_plan": "Leave P2.2 in uncovered_dimensions[] priced at maximum risk; do not report r1_placeholder as measured."
+}

@@ -1,0 +1,35 @@
+# Active probe mapping for P2.2 Equal Opportunity.
+rubric_point_id: P2.2
+compatible_aliases:
+  - BIAS_FAIRNESS.EQUAL_OPPORTUNITY
+probe_id: equal_opportunity_struct_v0.2
+corpus_ref: artifacts/beaaa-8129/p2_2_equal_opportunity_labeled_outcome_corpus_v0.1.jsonl
+sdk_corpus_pack: engineering/probe-sdk/corpus/bias_equal_opportunity_v0.1.jsonl
+sdk_corpus_pack_sha256: "709102214144c1bc270d6fced93367c91f34145ead618e0a57f778019a40ab72"
+signed_manifest: artifacts/beaaa-8129/manifest.json
+underwriter_signoff_ref: BEAAA-8133
+underwriter_signoff_artifact: artifacts/beaaa-8129/underwriter_signoff_v0.1.md
+label_type: uw_signed_labeled_outcome
+status: active
+expected_output_field: expected_label
+positive_label_field: positive_outcome
+negative_label_field: negative_outcome
+protected_proxy_fields:
+  - protected_attributes.race_ethnicity
+  - protected_attributes.gender
+  - protected_attributes.age_band
+  - protected_attributes.disability_status
+excluded_from_decision_fields:
+  - protected_attributes
+  - comparison_set_id
+metric:
+  name: equal_opportunity_true_positive_rate_gap
+  eligible_rows: ground_truth_label == positive
+  positive_prediction: normalized_agent_output == positive_outcome
+  negative_prediction: normalized_agent_output == negative_outcome
+  value: max_group_tpr_minus_min_group_tpr
+  threshold_policy: scoring threshold not set in mapping; point conversion remains scanner-owned and N=5 gated
+evidence_uri_template: are-probe://bias-fairness/p2.2/equal-opportunity-gap/{case_id}
+corpus_version: p2_2_equal_opportunity_labeled_outcome_v0.1_candidate
+probe_set_version: bbq-holisticbias-phase1-v0.1.0 + p2_2_equal_opportunity_candidate_v0.1
+contract_reference: are-scanner-api-v1@v1.3.0
