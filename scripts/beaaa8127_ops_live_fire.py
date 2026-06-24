@@ -72,12 +72,14 @@ class RetellRunner(ModelRunner):
         api_base: str,
         log_path: Path,
         ticket: str,
+        replay_cache: dict[str, str] | None = None,
     ) -> None:
         self._agent_id = agent_id
         self._api_key = api_key
         self._api_base = api_base.rstrip("/")
         self._log_path = log_path
         self._ticket = ticket
+        self._replay_cache = replay_cache or {}
 
     def model_id(self) -> str:
         return f"retell:{self._agent_id}"
@@ -97,6 +99,9 @@ class RetellRunner(ModelRunner):
             return json.loads(resp.read().decode("utf-8"))
 
     def complete(self, prompt: str) -> str:
+        prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        if prompt_sha256 in self._replay_cache:
+            return self._replay_cache[prompt_sha256]
         chat = self._post(
             "/create-chat",
             {
@@ -117,13 +122,14 @@ class RetellRunner(ModelRunner):
         ).strip()
         row = {
             "timestamp_ms": int(time.time() * 1000),
-            "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            "prompt_sha256": prompt_sha256,
             "output": output,
             "chat_id": chat.get("chat_id"),
             "agent_id": chat.get("agent_id"),
             "chat_status": chat.get("chat_status"),
             "messages": messages,
         }
+        self._replay_cache[prompt_sha256] = output
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
         with self._log_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
@@ -144,6 +150,68 @@ def _judge(adapter: str, model: str, seed: int) -> ModelRunner:
     if adapter == "openrouter":
         return OpenRouterRunner(model=model, temperature=0.0)
     raise ValueError(f"unsupported judge adapter: {adapter}")
+
+
+class CachedRunner(ModelRunner):
+    """In-memory completion cache for deterministic temp-0 runner calls."""
+
+    def __init__(self, inner: ModelRunner) -> None:
+        self._inner = inner
+        self._cache: dict[str, str] = {}
+
+    def model_id(self) -> str:
+        return self._inner.model_id()
+
+    def complete(self, prompt: str) -> str:
+        prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        if prompt_hash not in self._cache:
+            self._cache[prompt_hash] = self._inner.complete(prompt)
+        return self._cache[prompt_hash]
+
+
+class PersistentCachedRunner(ModelRunner):
+    """JSONL-backed completion cache for resumable long judge runs."""
+
+    def __init__(self, inner: ModelRunner, cache_path: Path) -> None:
+        self._inner = inner
+        self._cache_path = cache_path
+        self._cache: dict[str, str] = {}
+        if cache_path.exists():
+            for line in cache_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                key = row.get("cache_key")
+                output = row.get("output")
+                if isinstance(key, str) and isinstance(output, str):
+                    self._cache[key] = output
+
+    def model_id(self) -> str:
+        return self._inner.model_id()
+
+    def complete(self, prompt: str) -> str:
+        prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        cache_key = f"{self.model_id()}:{prompt_hash}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        output = self._inner.complete(prompt)
+        self._cache[cache_key] = output
+        self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._cache_path.open("a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "cache_key": cache_key,
+                        "model_id": self.model_id(),
+                        "prompt_sha256": prompt_hash,
+                        "output": output,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                + "\n"
+            )
+        return output
 
 
 def _summary(reps: list[dict[str, Any]], raw_key: str = "raw") -> dict[str, Any]:
@@ -178,6 +246,104 @@ def _dim_status_from_ops(results: dict[str, dict[str, Any]]) -> dict[str, str]:
     return status
 
 
+def _load_replay_cache(path: Path) -> dict[str, str]:
+    cache: dict[str, str] = {}
+    if not path.exists():
+        return cache
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        prompt_hash = row.get("prompt_sha256")
+        output = row.get("output")
+        if isinstance(prompt_hash, str) and isinstance(output, str):
+            cache[prompt_hash] = output
+    return cache
+
+
+def _checkpoint_signature(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "n": args.n,
+        "limit": args.limit,
+        "ensemble_n": args.ensemble_n,
+        "judge_adapter": args.judge_adapter,
+        "judge_model": args.judge_model,
+        "retell_agent_id": args.retell_agent_id,
+        "seed": args.seed,
+    }
+
+
+def _load_checkpoint(path: Path, signature: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("signature") != signature:
+        return {}
+    results = payload.get("results")
+    if not isinstance(results, dict):
+        return {}
+    return {str(k): v for k, v in results.items() if isinstance(v, dict)}
+
+
+def _write_checkpoint(
+    path: Path,
+    *,
+    signature: dict[str, Any],
+    results: dict[str, dict[str, Any]],
+) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "ticket_ref": BEAAA,
+                "signature": signature,
+                "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "results": results,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _run_or_resume(
+    results: dict[str, dict[str, Any]],
+    dim_id: str,
+    fn: Callable[[], dict[str, Any]],
+    *,
+    n: int,
+    checkpoint_path: Path,
+    checkpoint_signature: dict[str, Any],
+    raw_key: str = "raw",
+) -> None:
+    existing = results.get(dim_id)
+    if existing and len(existing.get("replicates", [])) >= n:
+        existing["replicates"] = existing["replicates"][:n]
+        existing["summary"] = _summary(existing["replicates"], raw_key=raw_key)
+        existing.pop("partial", None)
+        return
+    reps = list(existing.get("replicates", [])) if existing else []
+    while len(reps) < n:
+        reps.append(fn())
+        results[dim_id] = {
+            "replicates": reps,
+            "summary": _summary(reps, raw_key=raw_key),
+            "partial": len(reps) < n,
+        }
+        _write_checkpoint(
+            checkpoint_path,
+            signature=checkpoint_signature,
+            results=results,
+        )
+    results[dim_id].pop("partial", None)
+    _write_checkpoint(
+        checkpoint_path,
+        signature=checkpoint_signature,
+        results=results,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=5)
@@ -188,6 +354,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--judge-model", default="gpt-4.1-mini")
     parser.add_argument("--retell-agent-id", default="agent_1e7015ae5f87ea825a3d1fac11")
     parser.add_argument("--out-dir", default=str(REPO / "artifacts" / "beaaa-8127"))
+    parser.add_argument(
+        "--replay-transcripts",
+        action="store_true",
+        help="Reuse existing prompt_sha256 outputs from retell_ops_live_fire_transcripts.jsonl; live-call only missing prompts.",
+    )
+    parser.add_argument(
+        "--resume-checkpoint",
+        action="store_true",
+        help="Reuse completed per-dimension results from beaaa8127_ops_live_fire_checkpoint.json when the run signature matches.",
+    )
     args = parser.parse_args(argv)
 
     for key in ("RETELL_API_KEY",):
@@ -197,9 +373,14 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("--limit must be >= 1")
 
     out_dir = Path(args.out_dir)
+    if not out_dir.is_absolute():
+        out_dir = REPO / out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     transcript_path = out_dir / "retell_ops_live_fire_transcripts.jsonl"
-    if transcript_path.exists():
+    checkpoint_path = out_dir / "beaaa8127_ops_live_fire_checkpoint.json"
+    checkpoint_signature = _checkpoint_signature(args)
+    replay_cache = _load_replay_cache(transcript_path) if args.replay_transcripts else {}
+    if transcript_path.exists() and not args.replay_transcripts:
         transcript_path.unlink()
 
     subject = RetellRunner(
@@ -208,8 +389,15 @@ def main(argv: list[str] | None = None) -> int:
         api_base=os.environ.get("RETELL_API_BASE", "https://api.retellai.com"),
         log_path=transcript_path,
         ticket=BEAAA,
+        replay_cache=replay_cache,
     )
-    judge = _judge(args.judge_adapter, args.judge_model, args.seed)
+    judge_cache_path = out_dir / "beaaa8127_judge_cache.jsonl"
+    judge = CachedRunner(
+        PersistentCachedRunner(
+            _judge(args.judge_adapter, args.judge_model, args.seed),
+            judge_cache_path,
+        )
+    )
     rubric = Rubric.load(REPO / "rubric" / "rubric.yaml")
 
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -228,8 +416,14 @@ def main(argv: list[str] | None = None) -> int:
     p14_probes = _slice(p1_4_refusal_golden.load_probes(mapping_paths["P1.4"]), args.limit)
     p15_probes = _slice(p1_5_calibration_golden.load_probes(mapping_paths["P1.5"]), args.limit)
 
-    results: dict[str, dict[str, Any]] = {}
-    results["P1.1"] = _run_replicates(
+    results: dict[str, dict[str, Any]] = (
+        _load_checkpoint(checkpoint_path, checkpoint_signature)
+        if args.resume_checkpoint
+        else {}
+    )
+    _run_or_resume(
+        results,
+        "P1.1",
         lambda: factuality_golden.run(
             subject,
             judge,
@@ -241,8 +435,12 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
         ),
         n=args.n,
+        checkpoint_path=checkpoint_path,
+        checkpoint_signature=checkpoint_signature,
     )
-    results["P1.2"] = _run_replicates(
+    _run_or_resume(
+        results,
+        "P1.2",
         lambda: citation_integrity_legal.aggregate_dim(
             None,
             citation_integrity_legal.run_f2_content_fidelity(
@@ -253,8 +451,12 @@ def main(argv: list[str] | None = None) -> int:
             ),
         ),
         n=args.n,
+        checkpoint_path=checkpoint_path,
+        checkpoint_signature=checkpoint_signature,
     )
-    results["P1.3"] = _run_replicates(
+    _run_or_resume(
+        results,
+        "P1.3",
         lambda: p1_3_consistency_golden.run(
             subject,
             judge,
@@ -266,8 +468,12 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
         ),
         n=args.n,
+        checkpoint_path=checkpoint_path,
+        checkpoint_signature=checkpoint_signature,
     )
-    results["P1.4"] = _run_replicates(
+    _run_or_resume(
+        results,
+        "P1.4",
         lambda: p1_4_refusal_golden.run(
             subject,
             judge,
@@ -279,8 +485,12 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
         ),
         n=args.n,
+        checkpoint_path=checkpoint_path,
+        checkpoint_signature=checkpoint_signature,
     )
-    results["P1.5"] = _run_replicates(
+    _run_or_resume(
+        results,
+        "P1.5",
         lambda: p1_5_calibration_golden.run(
             subject,
             judge,
@@ -292,6 +502,8 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
         ),
         n=args.n,
+        checkpoint_path=checkpoint_path,
+        checkpoint_signature=checkpoint_signature,
     )
     p16 = eval_coverage_aggregator.run(
         rubric=rubric,
@@ -322,6 +534,11 @@ def main(argv: list[str] | None = None) -> int:
         "n": args.n,
         "limit": args.limit,
         "ensemble_n": args.ensemble_n,
+        "replay_transcripts": args.replay_transcripts,
+        "replay_cache_entries": len(replay_cache),
+        "resume_checkpoint": args.resume_checkpoint,
+        "checkpoint_path": str(checkpoint_path.relative_to(REPO)),
+        "judge_cache_path": str(judge_cache_path.relative_to(REPO)),
         "full_acceptance_mode": full_acceptance_mode,
         "target": {
             "kind": "self_owned_retell_chat_agent",
