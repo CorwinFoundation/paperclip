@@ -15,6 +15,8 @@ from scripts import beaaa8225_consolidated_full_coverage as runner  # noqa: E402
 
 
 REQUIRED_SOURCE_ARTIFACTS = (
+    Path("beaaa-8127") / "p1_1_p1_6_ops_live_fire_n5.json",
+    Path("beaaa-8128") / "retell" / "retell_bias_replay_n5_summary.json",
     Path("beaaa-8126") / "retell_rpii_replay_n5_summary.json",
 )
 
@@ -50,39 +52,32 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
         card_html = card_path.read_text(encoding="utf-8")
         assert "<!DOCTYPE html>" in card_html
         assert "Reproducibility (n=5)" in card_html
+        assert "REFER_TO_UW" in card_html
+        assert "Manual Underwriter referral required" in card_html
+        assert "Quote status: manual_referral" in card_html
+        assert "BIND</div>" not in card_html
+        assert "Eligible for primary cover" not in card_html
+        assert "P2.2" in card_html
+        assert ">N/A<" in card_html
+        assert "0.0/4" not in card_html
         assert (out_dir / "consolidated_summary.json").exists()
         assert len(list(out_dir.glob("consolidated_envelope_seed*.json"))) == 5
 
     envelope = summary["primary_envelope"]
     assert envelope["cli_meta"]["tool"] == "bin/are-scan"
-    assert envelope["are_total"] == 44
+    assert envelope["are_total"] == 75
     assert envelope["subscores"] == {
         "OPS": 21.3542,
-        "BIAS_FAIRNESS": 0.0,
-        "ROBUSTNESS": 22.5,
-        "GOVERNANCE": 0.0,
+        "BIAS_FAIRNESS": 18.75,
+        "ROBUSTNESS": 22.3958,
+        "GOVERNANCE": 12.5,
     }
 
     assert summary["potential_probeable_dims_count"] == 18
-    assert summary["measured_dims_count"] == 11
-    assert summary["na_dims_count"] == 14
-    assert summary["pillars_with_all_na_count"] == 2
-    assert set(envelope["uncovered_dimensions"]) == {
-        "GOVERNANCE.PII.HANDLING_ATTESTATION",
-        "P2.1",
-        "P2.2",
-        "P2.3",
-        "P2.4",
-        "P2.5",
-        "P2.6",
-        "P3.1",
-        "P4.1",
-        "P4.2",
-        "P4.3",
-        "P4.4",
-        "P4.5",
-        "P4.6",
-    }
+    assert summary["measured_dims_count"] == 24
+    assert summary["na_dims_count"] == 1
+    assert summary["pillars_with_all_na_count"] == 0
+    assert set(envelope["uncovered_dimensions"]) == {"P2.2"}
 
     assert summary["spread"] == {
         "are_total": 0.0,
@@ -98,8 +93,8 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
     na_refs = [
         ref for ref in envelope["evidence_refs"] if ref["verdict"] == "n/a"
     ]
-    assert len(measured_refs) == 11
-    assert len(na_refs) == 14
+    assert len(measured_refs) == 24
+    assert len(na_refs) == 1
     assert {ref["rubric_point_id"] for ref in measured_refs} == set(summary["rubric_point_id"])
     assert {ref["rubric_point_id"] for ref in na_refs} == set(envelope["uncovered_dimensions"])
     for ref in measured_refs:
@@ -110,8 +105,9 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
     assert summary["rpii_placeholder_present"] is False
 
     decision = summary["admittance_decision"]
-    assert decision["admittance_class"] == "REFUSE"
-    assert decision["firing_rule_id"] == "ADM.R2"
-    assert summary["quote_result"]["status"] == "ineligible"
-    assert summary["quote_result"]["rule_id"] == "ADM.R2"
+    assert decision["admittance_class"] == "REFER_TO_UW"
+    assert decision["firing_rule_id"] == "ADM.R0"
+    assert decision["measured_dims_count"] == 24
+    assert decision["na_dims_count"] == 1
+    assert summary["quote_result"]["status"] == "manual_referral"
     assert summary["cto_cosign_ref"] == "BEAAA-8230"

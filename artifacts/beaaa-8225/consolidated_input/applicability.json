@@ -1,74 +1,9 @@
 {
   "applicability_decisions": {
-    "GOVERNANCE.PII.HANDLING_ATTESTATION": {
-      "fires": false,
-      "na_justification": "GOVERNANCE.PII.HANDLING_ATTESTATION is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "GOVERNANCE.PII.HANDLING_ATTESTATION.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P2.1": {
-      "fires": false,
-      "na_justification": "P2.1 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P2.1.not_probeable_in_beaaa8225_retell_run"
-    },
     "P2.2": {
       "fires": false,
       "na_justification": "P2.2 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
       "na_justification_key": "P2.2.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P2.3": {
-      "fires": false,
-      "na_justification": "P2.3 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P2.3.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P2.4": {
-      "fires": false,
-      "na_justification": "P2.4 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P2.4.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P2.5": {
-      "fires": false,
-      "na_justification": "P2.5 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P2.5.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P2.6": {
-      "fires": false,
-      "na_justification": "P2.6 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P2.6.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P3.1": {
-      "fires": false,
-      "na_justification": "P3.1 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P3.1.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P4.1": {
-      "fires": false,
-      "na_justification": "P4.1 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P4.1.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P4.2": {
-      "fires": false,
-      "na_justification": "P4.2 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P4.2.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P4.3": {
-      "fires": false,
-      "na_justification": "P4.3 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P4.3.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P4.4": {
-      "fires": false,
-      "na_justification": "P4.4 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P4.4.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P4.5": {
-      "fires": false,
-      "na_justification": "P4.5 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P4.5.not_probeable_in_beaaa8225_retell_run"
-    },
-    "P4.6": {
-      "fires": false,
-      "na_justification": "P4.6 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
-      "na_justification_key": "P4.6.not_probeable_in_beaaa8225_retell_run"
     }
   },
   "applies_to_rubric": "1.2.0",
@@ -83,11 +18,8 @@
     "P3.3",
     "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
-    "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
-  ],
-  "na_dims": [
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
     "P2.1",
-    "P2.2",
     "P2.3",
     "P2.4",
     "P2.5",
@@ -100,6 +32,9 @@
     "P4.5",
     "P4.6",
     "GOVERNANCE.PII.HANDLING_ATTESTATION"
+  ],
+  "na_dims": [
+    "P2.2"
   ],
   "policy_version": "0.1.2"
 }

@@ -208,6 +208,7 @@ body {
 }
 .eligibility.pass { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
 .eligibility.fail { background: #fff5f5; border-color: #c62828; color: #7f1d1d; }
+.eligibility.refer { background: #fffbeb; border-color: #d97706; color: #78350f; }
 .verdict-badge {
   flex-shrink: 0; font: 700 12px/1 ui-monospace, monospace;
   padding: 8px 13px; border-radius: 6px; color: #fff;
@@ -215,6 +216,7 @@ body {
 }
 .eligibility.pass .verdict-badge { background: #2e7d32; }
 .eligibility.fail .verdict-badge { background: #c62828; }
+.eligibility.refer .verdict-badge { background: #d97706; }
 .eligibility-body { font-size: 13px; }
 .eligibility-body strong { display: block; margin-bottom: 5px; font-size: 13px; }
 .fail-reasons { margin: 0; padding-left: 16px; font: 12px/1.6 ui-monospace, Menlo, monospace; }
@@ -638,6 +640,13 @@ def _cover_label_from_p1_6(score_response: dict[str, Any]) -> tuple[str, dict[st
     return label_for(float(pct), str(path)), p1_6_block
 
 
+def _has_coverage_gate_metadata(p1_6_block: dict[str, Any]) -> bool:
+    return (
+        p1_6_block.get("coverage_breadth_pct") is not None
+        and p1_6_block.get("evidence_path") is not None
+    )
+
+
 def render(
     score_response: dict[str, Any],
     rubric: Rubric,
@@ -650,6 +659,8 @@ def render(
     prior_score_response: dict[str, Any] | None = None,
     remediation_threshold: float = 2.5,
     display_pillar_weights: dict[str, int] | None = None,
+    admittance_decision: dict[str, Any] | None = None,
+    quote_status: str | None = None,
 ) -> str:
     """Render a ScoreResponse to a single self-contained HTML document.
 
@@ -693,13 +704,20 @@ def render(
     band_letter = band["letter"]
     band_color = _BAND_COLOR.get(band_letter, "#444")
     band_tier = escape(_BAND_TIER.get(band_letter, ""))
-    eligibility = evaluate_bind_eligibility(score_response)
+    eligibility = (
+        _eligibility_from_admittance(admittance_decision, quote_status)
+        if admittance_decision is not None
+        else evaluate_bind_eligibility(score_response)
+    )
     score_deg = f"{(bmi / 100) * 360:.1f}deg"
 
     # BEAAA-209 v0.2.4: cover-label gate. Reads P1.6.coverage_breadth_pct
     # + P1.6.evidence_path. "ARE Score" only when Path B coverage ≥ 80%;
     # otherwise "ARE Spot-Scan". Anti-over-claim governor per BEAAA-193.
     cover_label, _p1_6_block = _cover_label_from_p1_6(score_response)
+    coverage_aware_partial = (
+        _has_coverage_gate_metadata(_p1_6_block) and cover_label != "ARE Score"
+    )
     prov_html = _provenance_block(provenance, dim_provenance)
     # BEAAA-390 / BEAAA-388: LOI-stage caveat above the score band. Sources
     # rubric_version + contract_version + scanner_version from the underlying
@@ -728,7 +746,11 @@ def render(
         )
         for pid in pillars
     )
-    sensitivity_html = render_sensitivity_block(_display_sr) if include_sensitivity else ""
+    sensitivity_html = (
+        render_sensitivity_block(_display_sr)
+        if include_sensitivity and not coverage_aware_partial
+        else ""
+    )
     repro_html = render_reproducibility_block(reproducibility) if reproducibility else ""
     diff_html = render_diff_block(diff) if diff else ""
 
@@ -751,12 +773,48 @@ def render(
             f"claims trip-wire fires]</span>"
         )
 
+    coverage_pct = _p1_6_block.get("coverage_breadth_pct")
+    if coverage_pct is not None:
+        coverage_meta = f"measured surface = {float(coverage_pct):.1f}%"
+    else:
+        coverage_meta = "measured surface = partial"
+
+    if not coverage_aware_partial:
+        title_suffix = f"({bmi}/100)"
+        score_denominator_html = '<span class="score-denom">/100</span>'
+        band_block_html = (
+            f'      <div class="band-block">\n'
+            f'        <div class="band-badge">\n'
+            f'          <span class="band-letter">{escape(band["display"])}</span>\n'
+            f'          <span class="band-tier">{band_tier}</span>\n'
+            f"        </div>\n"
+            f'        <div class="band-meta">\u00d7{band["modifier_factor"]:.2f} pricing'
+            f' \u00b7 bands v{escape(str(band["bands_version"]))}</div>\n'
+            f"      </div>\n"
+        )
+        hero_stat_html = (
+            f'        <div class="posture-label">{escape(band["posture"])}</div>\n'
+            f'        <span class="pricing-tag">modifier_factor = \u00d7{band["modifier_factor"]:.2f}</span>\n'
+        )
+    else:
+        title_suffix = "(partial coverage)"
+        score_denominator_html = '<span class="score-denom">measured surface</span>'
+        band_block_html = (
+            f'      <div class="band-block">\n'
+            f'        <div class="band-meta">No full-coverage band on Spot-Scan</div>\n'
+            f"      </div>\n"
+        )
+        hero_stat_html = (
+            f'        <div class="posture-label">Measured aggregate only</div>\n'
+            f'        <span class="pricing-tag">{escape(coverage_meta)}</span>\n'
+        )
+
     return (
         f"<!DOCTYPE html>\n"
         f'<html lang="en">\n'
         f"<head>\n"
         f'<meta charset="utf-8" />\n'
-        f"<title>{escape(cover_label)} \u2014 {escape(band['display'])} ({bmi}/100)</title>\n"
+        f"<title>{escape(cover_label)} \u2014 {escape(title_suffix)}</title>\n"
         f"<style>{_STYLE}</style>\n"
         f"</head>\n"
         f"<body>\n"
@@ -780,20 +838,12 @@ def render(
         f'      <div class="score-ring" style="--score-deg:{score_deg};">\n'
         f'        <div class="score-inner">\n'
         f'          <span class="score-number">{bmi}</span>\n'
-        f'          <span class="score-denom">/100</span>\n'
+        f"          {score_denominator_html}\n"
         f"        </div>\n"
         f"      </div>\n"
-        f'      <div class="band-block">\n'
-        f'        <div class="band-badge">\n'
-        f'          <span class="band-letter">{escape(band["display"])}</span>\n'
-        f'          <span class="band-tier">{band_tier}</span>\n'
-        f"        </div>\n"
-        f'        <div class="band-meta">\u00d7{band["modifier_factor"]:.2f} pricing'
-        f' \u00b7 bands v{escape(str(band["bands_version"]))}</div>\n'
-        f"      </div>\n"
+        f"{band_block_html}"
         f'      <div class="hero-stats">\n'
-        f'        <div class="posture-label">{escape(band["posture"])}</div>\n'
-        f'        <span class="pricing-tag">modifier_factor = \u00d7{band["modifier_factor"]:.2f}</span>\n'
+        f"{hero_stat_html}"
         f"      </div>\n"
         f"    </div>\n"
         f"\n"
@@ -875,6 +925,22 @@ def render(
 
 
 def _eligibility_block(eligibility: dict[str, Any]) -> str:
+    status = eligibility.get("status", "pass" if eligibility.get("eligible") else "fail")
+    if status == "refer":
+        items = "".join(f"<li>{escape(r)}</li>" for r in eligibility.get("reasons", []))
+        quote_line = ""
+        if eligibility.get("quote_status"):
+            quote_line = f'<strong>Quote status: {escape(str(eligibility["quote_status"]))}</strong>'
+        return (
+            '<div class="eligibility refer">'
+            '<div class="verdict-badge">REFER_TO_UW</div>'
+            '<div class="eligibility-body">'
+            "<strong>Manual Underwriter referral required. Not eligible for automatic bind.</strong>"
+            f"{quote_line}"
+            f'<ul class="fail-reasons">{items}</ul>'
+            "</div>"
+            "</div>"
+        )
     if eligibility["eligible"]:
         return (
             '<div class="eligibility pass">'
@@ -893,6 +959,30 @@ def _eligibility_block(eligibility: dict[str, Any]) -> str:
         "</div>"
         "</div>"
     )
+
+
+def _eligibility_from_admittance(
+    decision: dict[str, Any],
+    quote_status: str | None,
+) -> dict[str, Any]:
+    admittance_class = str(decision.get("admittance_class", "")).upper()
+    rule_id = str(decision.get("firing_rule_id") or decision.get("rule_id") or "")
+    rationale = str(decision.get("rationale") or decision.get("reason") or "")
+    reasons = []
+    if rule_id:
+        reasons.append(f"{rule_id}: {rationale}" if rationale else rule_id)
+    elif rationale:
+        reasons.append(rationale)
+    if admittance_class == "REFER_TO_UW":
+        return {
+            "eligible": False,
+            "status": "refer",
+            "reasons": reasons,
+            "quote_status": quote_status,
+        }
+    if admittance_class in {"AUTO_BIND", "CONSTRAINED_BIND", "BIND"}:
+        return {"eligible": True, "status": "pass", "reasons": reasons}
+    return {"eligible": False, "status": "fail", "reasons": reasons}
 
 
 def _pillar_card(
@@ -986,19 +1076,23 @@ def _pillar_section(
     rows = []
     for did in rubric_pillar["dim_ids"]:
         entry = pdata["dimensions"].get(did, {})
-        raw = float(entry.get("raw", 0))
-        dim_pct = (raw / 4) * 100
+        applicable = entry.get("applicable") is not False and entry.get("raw") is not None
+        raw = float(entry.get("raw", 0)) if applicable else None
+        dim_pct = (raw / 4) * 100 if raw is not None else 0.0
         dim_fill = max(0.0, min(100.0, dim_pct))
         dim_name = escape(dim_names.get(did, ""))
 
         warn = ""
         thr = entry.get("applied_threshold") or {}
-        if thr.get("kind") == "bind_blocking_floor" and raw < float(thr.get("min_raw", 0)):
+        if raw is not None and thr.get("kind") == "bind_blocking_floor" and raw < float(thr.get("min_raw", 0)):
             warn = '<span class="warn-badge">BIND BLOCKED</span>'
 
         fw_html = _framework_badges(dim_frameworks.get(did))
         delta_html = render_dim_delta_pill(diff, did)
-        below_threshold = raw < remediation_threshold
+        below_threshold = raw is not None and raw < remediation_threshold
+        if not applicable:
+            justification = entry.get("na_justification") or "Not applicable to this scan."
+            warn = f'<span class="warn-badge" title="{escape(str(justification))}">N/A</span>'
         rem_html = (
             _remediation_block(did, dim_remediation.get(did))
             if (below_threshold and dim_remediation.get(did))
@@ -1015,7 +1109,7 @@ def _pillar_section(
             f'            <td class="dim-id-col">{escape(did)}</td>\n'
             f'            <td class="dim-name-col">{dim_name}{fw_html}{warn}'
             f"{probe_html}</td>\n"
-            f'            <td class="dim-raw-col">{raw:.1f}/4{delta_html}</td>\n'
+            f'            <td class="dim-raw-col">{("N/A" if raw is None else f"{raw:.1f}/4")}{delta_html}</td>\n'
             f'            <td class="dim-bar-col">'
             f'<div class="dim-bar-track">'
             f'<div class="dim-bar-fill" style="width:{dim_fill:.1f}%;"></div>'

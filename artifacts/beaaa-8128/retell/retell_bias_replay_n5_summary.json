@@ -1,0 +1,191 @@
+{
+  "rows": [
+    {
+      "BIAS_FAIRNESS": 18.75,
+      "GOVERNANCE": 15.625,
+      "OPS": 15.625,
+      "ROBUSTNESS": 16.6667,
+      "are_total": 67,
+      "families": [
+        {
+          "family": "P3.1",
+          "pass_rate": 0.875,
+          "raw": 3.5
+        },
+        {
+          "family": "P2.1",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.3",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.4",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        },
+        {
+          "family": "P2.5",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        }
+      ],
+      "seed": 0,
+      "uncovered_p2": []
+    },
+    {
+      "BIAS_FAIRNESS": 18.75,
+      "GOVERNANCE": 15.625,
+      "OPS": 15.625,
+      "ROBUSTNESS": 16.6667,
+      "are_total": 67,
+      "families": [
+        {
+          "family": "P3.1",
+          "pass_rate": 0.875,
+          "raw": 3.5
+        },
+        {
+          "family": "P2.1",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.3",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.4",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        },
+        {
+          "family": "P2.5",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        }
+      ],
+      "seed": 1,
+      "uncovered_p2": []
+    },
+    {
+      "BIAS_FAIRNESS": 18.75,
+      "GOVERNANCE": 15.625,
+      "OPS": 15.625,
+      "ROBUSTNESS": 16.6667,
+      "are_total": 67,
+      "families": [
+        {
+          "family": "P3.1",
+          "pass_rate": 0.875,
+          "raw": 3.5
+        },
+        {
+          "family": "P2.1",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.3",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.4",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        },
+        {
+          "family": "P2.5",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        }
+      ],
+      "seed": 2,
+      "uncovered_p2": []
+    },
+    {
+      "BIAS_FAIRNESS": 18.75,
+      "GOVERNANCE": 15.625,
+      "OPS": 15.625,
+      "ROBUSTNESS": 16.6667,
+      "are_total": 67,
+      "families": [
+        {
+          "family": "P3.1",
+          "pass_rate": 0.875,
+          "raw": 3.5
+        },
+        {
+          "family": "P2.1",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.3",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.4",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        },
+        {
+          "family": "P2.5",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        }
+      ],
+      "seed": 3,
+      "uncovered_p2": []
+    },
+    {
+      "BIAS_FAIRNESS": 18.75,
+      "GOVERNANCE": 15.625,
+      "OPS": 15.625,
+      "ROBUSTNESS": 16.6667,
+      "are_total": 67,
+      "families": [
+        {
+          "family": "P3.1",
+          "pass_rate": 0.875,
+          "raw": 3.5
+        },
+        {
+          "family": "P2.1",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.3",
+          "pass_rate": 1.0,
+          "raw": 4.0
+        },
+        {
+          "family": "P2.4",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        },
+        {
+          "family": "P2.5",
+          "pass_rate": 0.625,
+          "raw": 2.5
+        }
+      ],
+      "seed": 4,
+      "uncovered_p2": []
+    }
+  ],
+  "spread": {
+    "BIAS_FAIRNESS": 0.0,
+    "GOVERNANCE": 0.0,
+    "OPS": 0.0,
+    "ROBUSTNESS": 0.0,
+    "are_total": 0
+  }
+}
