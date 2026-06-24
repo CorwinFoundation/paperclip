@@ -394,7 +394,7 @@ class _LiveBindNftScope:
                 "0",
                 "accept",
                 "comment",
-                comment,
+                json.dumps(comment),
             ])
             self._comments.append(comment)
         return self
