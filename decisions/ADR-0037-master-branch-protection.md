@@ -58,26 +58,34 @@ Mapping to the task requirements:
 | No bypass except admin emergency override | `enforce_admins: false` — admins (the emergency lever) may merge an urgent fix, but only through a PR, preserving the traceable path. Non-admins cannot bypass. |
 | Required status checks | `null` in Phase 1 — CI is currently red (see Diagnosis); requiring it now would lock out all merges. |
 
-## Phase 2 settings (apply after the failing check is green and stable)
+## Phase 2 settings — APPLIED 2026-06-24
 
-Add to the protection payload:
+Required status checks (live on `master`):
 
 ```json
 "required_status_checks": {
   "strict": true,
-  "contexts": ["python pytest", "scanner-regression"]
+  "contexts": ["golden scanner regression", "python pytest"]
 }
 ```
 
-- `python pytest` — the `tests` workflow, our main Python test suite.
-  **Currently RED on master — do NOT require until a clean passing run
-  exists.** See Diagnosis.
-- `scanner-regression` — the scanner regression / golden N=5 gate. This
-  job is **green on every recent master commit** and is safe to require
-  as soon as we move to Phase 2.
-- `strict: true` requires branches to be up to date before merge. Hold
-  this only if it creates excessive rebase friction for the fleet;
-  otherwise keep it for audit-safety.
+**Important — contexts are GitHub Actions *job* names, not workflow
+names.** A required status check matches the check-run's name, which for
+Actions is the `jobs.<id>.name`. Using the workflow file name (e.g.
+`scanner-regression` or `tests`) would never match a check and would
+block every merge. The correct contexts are:
+
+- `python pytest` — the **job** in the `tests` workflow
+  (`.github/workflows/tests.yml`), our main Python test suite. Required
+  only after a clean, stable passing run existed on `master` (two
+  consecutive green runs, `8dff2576` and `7d7ceef0`, after the
+  BEAAA-8295 fix; CI verified `1828 passed, 0 failed`).
+- `golden scanner regression` — the **job** in the `scanner-regression`
+  workflow, the scanner regression / golden N=5 gate. Green on every
+  recent master commit.
+- `strict: true` requires branches to be up to date before merge. Kept
+  for audit-safety; revisit only if it creates excessive rebase friction
+  for the fleet.
 
 ## Diagnosis of the currently-failing check (Phase 2 precondition)
 
@@ -104,6 +112,11 @@ regression, not a dependency or CI-config issue.** Evidence:
 the scanner scoring path is stable; the failures are in
 tool-misuse live-fire wiring and the L2 gate tests. Fixing these is
 tracked separately and is the gate for moving to Phase 2.
+
+**RESOLVED 2026-06-24** (BEAAA-8258 → BEAAA-8295): the suite was repaired
+and `master` CI went green (`1828 passed, 0 failed` on `7d7ceef0`, then
+again on `8dff2576`). Phase 2 was applied on the strength of two
+consecutive green runs.
 
 ## Blockers (account owner / Founder)
 
