@@ -1,0 +1,6 @@
+{
+  "judges": [
+    "detector-harness-beaaa7653-v0.1"
+  ],
+  "primary": "rasa/rasa:3.6.21@sha256:7c0204065d4859e1b7a691c972ca3d26f5d39ad23fbd992b654084721226d813;model_sha256:419038f7da6d9fee4cc49229c0158ee38b5de599eb2a758b6500f5e4345a0ba5"
+}
