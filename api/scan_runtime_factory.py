@@ -33,10 +33,12 @@ Hard Invariants reinforced
   registered on the API-edge side and inherited into the Prober
   subprocess via fork-only copy-on-write memory. The Scorer subprocess
   imports no credential code. ``forget_all`` runs on every exit path.
-* **#5 — Tamper resistance posture unchanged.** The Prober opens
+* **#5 — Tamper resistance posture preserved.** The Prober opens
   ``ScopedEgressAllowlist(agent_endpoint)`` around the ``run_scan``
   call; the Scorer's ``ScopedEgressAllowlist([])`` (deny-all) lives
-  inside :func:`run_scorer` for its entire lifetime.
+  inside :func:`run_scorer` for its entire lifetime. BEAAA-8263 adds an
+  env-gated host nft rule for direct live-bind egress; the rule mirrors the
+  same declared endpoint and is removed at teardown.
 
 Anti-pattern guards
 -------------------
@@ -424,72 +426,81 @@ def make_production_scan_runtime(
             # The orchestrator carries the full URL on ``scan_request
             # .agent_endpoint``; pass that through to the egress scope so
             # scheme/port and DNS-rebind guards bind to the declared endpoint.
+            # BEAAA-8263 mirrors that declared endpoint into the host nft
+            # allowlist while the Prober is alive when the env gate is on.
             agent_endpoint_host = scan_request.agent_endpoint
-            prober_proc = ctx.Process(
-                target=_prober_target,
-                kwargs={
-                    "scan_request": scan_request,
-                    "vault": vault,
-                    "channel": channel,
-                    "corpus_tarball_path": str(corpus_tarball_path),
-                    "probe_run_fn": probe_run_fn,
-                    "runner_factory": runner_factory,
-                    "agent_endpoint_host": agent_endpoint_host,
-                    "result_queue": result_queue,
-                },
-                name="are-prober",
-            )
-            prober_proc.start()
+            prober_proc = None
+            with ScopedEgressAllowlist(
+                agent_endpoint_host,
+                live_bind_scope_id=scan_request.scan_id,
+            ):
+                prober_proc = ctx.Process(
+                    target=_prober_target,
+                    kwargs={
+                        "scan_request": scan_request,
+                        "vault": vault,
+                        "channel": channel,
+                        "corpus_tarball_path": str(corpus_tarball_path),
+                        "probe_run_fn": probe_run_fn,
+                        "runner_factory": runner_factory,
+                        "agent_endpoint_host": agent_endpoint_host,
+                        "result_queue": result_queue,
+                    },
+                    name="are-prober",
+                )
+                prober_proc.start()
 
-            # AC#1 step (e) — drain result Queue + join both subprocesses.
-            try:
-                outcome = result_queue.get(timeout=_orchestrator_join_timeout(join_slack))
-            except Exception as exc:  # noqa: BLE001 — Queue.Empty / timeout
-                _terminate(prober_proc, scorer_proc)
-                raise OrchestratorError(
-                    f"prober result queue drain failed: {type(exc).__name__}: {exc}"
-                ) from exc
-
-            # BEAAA-2182 Track A — when the Scorer ran with a
-            # score_runtime, drain the envelope return channel BEFORE
-            # joining so the Scorer's send completes. The envelope is
-            # registered in ``score_envelope_registry`` keyed by
-            # scan_id so the API-edge score_envelope_factory closure
-            # picks it up at kickoff-finalize time. The drain is
-            # timeout-bounded separately from the Prober wall-clock cap:
-            # envelope projection runs in the Scorer immediately after
-            # END_OF_SCAN, so a missing envelope means a broken Scorer,
-            # not a still-running probe.
-            if score_runtime is not None and score_envelope_registry is not None:
+                # AC#1 step (e) — drain result Queue + join both subprocesses.
                 try:
-                    env_outcome = channel.recv_score_envelope(
-                        timeout=_scorer_envelope_drain_timeout(scorer_proc)
+                    outcome = result_queue.get(
+                        timeout=_orchestrator_join_timeout(join_slack)
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:  # noqa: BLE001 — Queue.Empty / timeout
                     _terminate(prober_proc, scorer_proc)
                     raise OrchestratorError(
-                        f"scorer envelope queue drain failed: "
-                        f"{type(exc).__name__}: {exc}"
+                        f"prober result queue drain failed: {type(exc).__name__}: {exc}"
                     ) from exc
-                if env_outcome[0] == "ok":
-                    # Defense-in-depth re-validation on the receiver side
-                    # — Hard Invariant #4 is not contingent on Scorer
-                    # being well-behaved.
-                    score_envelope_registry[scan_request.scan_id] = (
-                        validate_inbound_envelope(env_outcome[1])
-                    )
-                else:
-                    # ("err", type_name, message) — surface as
-                    # OrchestratorError on the kickoff path.
-                    _terminate(prober_proc, scorer_proc)
-                    raise OrchestratorError(
-                        f"scorer subprocess raised {env_outcome[1]}: "
-                        f"{env_outcome[2]}"
-                    )
 
-            prober_proc.join(timeout=join_slack)
-            scorer_proc.join(timeout=join_slack)
-            _terminate(prober_proc, scorer_proc)
+                # BEAAA-2182 Track A — when the Scorer ran with a
+                # score_runtime, drain the envelope return channel BEFORE
+                # joining so the Scorer's send completes. The envelope is
+                # registered in ``score_envelope_registry`` keyed by
+                # scan_id so the API-edge score_envelope_factory closure
+                # picks it up at kickoff-finalize time. The drain is
+                # timeout-bounded separately from the Prober wall-clock cap:
+                # envelope projection runs in the Scorer immediately after
+                # END_OF_SCAN, so a missing envelope means a broken Scorer,
+                # not a still-running probe.
+                if score_runtime is not None and score_envelope_registry is not None:
+                    try:
+                        env_outcome = channel.recv_score_envelope(
+                            timeout=_scorer_envelope_drain_timeout(scorer_proc)
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        _terminate(prober_proc, scorer_proc)
+                        raise OrchestratorError(
+                            f"scorer envelope queue drain failed: "
+                            f"{type(exc).__name__}: {exc}"
+                        ) from exc
+                    if env_outcome[0] == "ok":
+                        # Defense-in-depth re-validation on the receiver side
+                        # — Hard Invariant #4 is not contingent on Scorer
+                        # being well-behaved.
+                        score_envelope_registry[scan_request.scan_id] = (
+                            validate_inbound_envelope(env_outcome[1])
+                        )
+                    else:
+                        # ("err", type_name, message) — surface as
+                        # OrchestratorError on the kickoff path.
+                        _terminate(prober_proc, scorer_proc)
+                        raise OrchestratorError(
+                            f"scorer subprocess raised {env_outcome[1]}: "
+                            f"{env_outcome[2]}"
+                        )
+
+                prober_proc.join(timeout=join_slack)
+                scorer_proc.join(timeout=join_slack)
+                _terminate(prober_proc, scorer_proc)
 
             if outcome[0] == "ok":
                 return outcome[1]

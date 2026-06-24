@@ -45,14 +45,29 @@ from __future__ import annotations
 
 import os
 import ipaddress
+import json
 import secrets
 import socket
+import subprocess
+import time
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 from urllib.parse import urlparse, urlunparse
 
 PROXY_ENV = "BEAAA_RESI_PROXY_URL"
 ROTATE_ENV = "BEAAA_RESI_PROXY_ROTATE"
+LIVE_BIND_NFT_ENV = "ARE_LIVE_BIND_NFT"
+DIRECT_EGRESS_NFT_ENV = "ARE_DIRECT_EGRESS_NFT"
+LIVE_BIND_NFT_TTL_ENV = "ARE_LIVE_BIND_NFT_TTL_SECONDS"
+NFT_BIN_ENV = "ARE_LIVE_BIND_NFT_BIN"
+NFT_FAMILY_ENV = "ARE_LIVE_BIND_NFT_FAMILY"
+NFT_TABLE_ENV = "ARE_LIVE_BIND_NFT_TABLE"
+NFT_CHAIN_ENV = "ARE_LIVE_BIND_NFT_CHAIN"
+DEFAULT_LIVE_BIND_NFT_TTL_SECONDS = 3600
+DEFAULT_NFT_FAMILY = "inet"
+DEFAULT_NFT_TABLE = "are_egress_filter"
+DEFAULT_NFT_CHAIN = "output"
+LIVE_BIND_COMMENT_PREFIX = "BEAAA-8263-direct-live-bind"
 
 
 def _inject_session(proxy_url: str, session_id: str) -> str:
@@ -140,6 +155,7 @@ class EgressNotAllowed(RuntimeError):
 
 
 Resolver = Callable[[str, int], Iterable[str]]
+CommandExecutor = Callable[[list[str]], str]
 
 
 @dataclass(frozen=True)
@@ -217,6 +233,16 @@ def _default_resolver(host: str, port: int) -> tuple[str, ...]:
     return tuple(resolved)
 
 
+def _default_command_executor(cmd: list[str]) -> str:
+    completed = subprocess.run(  # noqa: S603 - argv is fixed by this module.
+        cmd,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return completed.stdout
+
+
 def _is_forbidden_resolved_ip(address: str) -> bool:
     ip = ipaddress.ip_address(address)
     return (
@@ -227,6 +253,202 @@ def _is_forbidden_resolved_ip(address: str) -> bool:
         or ip.is_unspecified
         or ip.is_reserved
     )
+
+
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _live_bind_ttl_seconds() -> int:
+    raw = os.environ.get(LIVE_BIND_NFT_TTL_ENV, "")
+    if not raw:
+        return DEFAULT_LIVE_BIND_NFT_TTL_SECONDS
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_LIVE_BIND_NFT_TTL_SECONDS
+    return max(60, min(value, 24 * 60 * 60))
+
+
+def _parse_live_bind_target(
+    allowed_endpoints: tuple[_AllowedEndpoint, ...],
+) -> tuple[str, int] | None:
+    if len(allowed_endpoints) != 1:
+        return None
+    endpoint = allowed_endpoints[0]
+    return endpoint.host, endpoint.port or 443
+
+
+def _comment_expr_value(expr: Any) -> str | None:
+    if isinstance(expr, dict):
+        value = expr.get("comment")
+        if isinstance(value, str):
+            return value
+    return None
+
+
+def _comment_field(rule: dict[str, Any]) -> str:
+    for expr in rule.get("expr", []):
+        comment = _comment_expr_value(expr)
+        if comment is not None:
+            return comment
+    return ""
+
+
+def _iter_live_bind_rule_handles(
+    list_output: str,
+    *,
+    family: str,
+    table: str,
+    chain: str,
+    predicate: Callable[[str], bool],
+) -> Iterable[int]:
+    try:
+        payload = json.loads(list_output or "{}")
+    except json.JSONDecodeError:
+        return ()
+    handles: list[int] = []
+    for item in payload.get("nftables", []):
+        rule = item.get("rule") if isinstance(item, dict) else None
+        if not isinstance(rule, dict):
+            continue
+        if (
+            rule.get("family") != family
+            or rule.get("table") != table
+            or rule.get("chain") != chain
+        ):
+            continue
+        comment = _comment_field(rule)
+        if not predicate(comment):
+            continue
+        handle = rule.get("handle")
+        if isinstance(handle, int):
+            handles.append(handle)
+    return tuple(handles)
+
+
+class _LiveBindNftScope:
+    """Short-lived host nft rule for direct customer endpoint egress."""
+
+    def __init__(
+        self,
+        *,
+        allowed_endpoints: tuple[_AllowedEndpoint, ...],
+        scope_id: str | None,
+        resolver: Resolver = _default_resolver,
+        command_executor: CommandExecutor | None = None,
+    ):
+        self._scope_id = scope_id or ""
+        self._enabled = bool(self._scope_id) and (
+            _env_truthy(DIRECT_EGRESS_NFT_ENV) or _env_truthy(LIVE_BIND_NFT_ENV)
+        )
+        self._target = _parse_live_bind_target(allowed_endpoints)
+        self._resolver = resolver
+        self._exec = command_executor or _default_command_executor
+        self._nft = os.environ.get(NFT_BIN_ENV, "nft")
+        self._family = os.environ.get(NFT_FAMILY_ENV, DEFAULT_NFT_FAMILY)
+        self._table = os.environ.get(NFT_TABLE_ENV, DEFAULT_NFT_TABLE)
+        self._chain = os.environ.get(NFT_CHAIN_ENV, DEFAULT_NFT_CHAIN)
+        self._comments: list[str] = []
+
+    def __enter__(self) -> "_LiveBindNftScope":
+        if not self._enabled:
+            return self
+        if self._target is None:
+            raise EgressNotAllowed(
+                "direct live-bind nft scope requires exactly one declared endpoint"
+            )
+        self._sweep_expired()
+        host, port = self._target
+        addresses = tuple(self._resolver(host, port))
+        if not addresses:
+            raise EgressNotAllowed(
+                f"direct live-bind nft scope resolved no addresses for {host!r}"
+            )
+        expires = int(time.time()) + _live_bind_ttl_seconds()
+        for address in addresses:
+            if _is_forbidden_resolved_ip(address):
+                raise EgressNotAllowed(
+                    f"direct live-bind nft scope resolved forbidden address {address!r}"
+                )
+            family = "ip6" if ipaddress.ip_address(address).version == 6 else "ip"
+            comment = (
+                f"{LIVE_BIND_COMMENT_PREFIX} scan_id={self._scope_id} "
+                f"host={host} port={port} expires={expires}"
+            )
+            self._exec([
+                self._nft,
+                "add",
+                "rule",
+                self._family,
+                self._table,
+                self._chain,
+                "meta",
+                "skuid",
+                "0",
+                family,
+                "daddr",
+                address,
+                "tcp",
+                "dport",
+                str(port),
+                "accept",
+                "comment",
+                comment,
+            ])
+            self._comments.append(comment)
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._enabled:
+            self._delete_matching(lambda comment: comment in set(self._comments))
+        return None
+
+    def _sweep_expired(self) -> None:
+        now = int(time.time())
+
+        def expired(comment: str) -> bool:
+            if not comment.startswith(LIVE_BIND_COMMENT_PREFIX):
+                return False
+            for part in comment.split():
+                if part.startswith("expires="):
+                    try:
+                        return int(part.split("=", 1)[1]) <= now
+                    except ValueError:
+                        return False
+            return False
+
+        self._delete_matching(expired)
+
+    def _delete_matching(self, predicate: Callable[[str], bool]) -> None:
+        output = self._exec([
+            self._nft,
+            "-j",
+            "-a",
+            "list",
+            "chain",
+            self._family,
+            self._table,
+            self._chain,
+        ])
+        handles = _iter_live_bind_rule_handles(
+            output,
+            family=self._family,
+            table=self._table,
+            chain=self._chain,
+            predicate=predicate,
+        )
+        for handle in handles:
+            self._exec([
+                self._nft,
+                "delete",
+                "rule",
+                self._family,
+                self._table,
+                self._chain,
+                "handle",
+                str(handle),
+            ])
 
 
 class _AllowlistTransport:
@@ -383,7 +605,15 @@ class ScopedEgressAllowlist:
                 r = c.post("https://agent.customer.example.com/probe", json=...)
     """
 
-    def __init__(self, allowed_host, *, resolver: Resolver = _default_resolver):
+    def __init__(
+        self,
+        allowed_host,
+        *,
+        resolver: Resolver = _default_resolver,
+        live_bind_scope_id: str | None = None,
+        live_bind_resolver: Resolver | None = None,
+        live_bind_command_executor: CommandExecutor | None = None,
+    ):
         if isinstance(allowed_host, str):
             if not allowed_host:
                 raise ValueError(
@@ -405,6 +635,12 @@ class ScopedEgressAllowlist:
                 f"got {type(allowed_host).__name__}"
             )
         self._resolver = resolver
+        self._live_bind = _LiveBindNftScope(
+            allowed_endpoints=self._allowed_endpoints,
+            scope_id=live_bind_scope_id,
+            resolver=live_bind_resolver or resolver,
+            command_executor=live_bind_command_executor,
+        )
 
     @property
     def allowed_host(self) -> str:
@@ -429,9 +665,11 @@ class ScopedEgressAllowlist:
         return tuple(out)
 
     def __enter__(self) -> "ScopedEgressAllowlist":
+        self._live_bind.__enter__()
         return self
 
     def __exit__(self, *exc) -> None:
+        self._live_bind.__exit__(*exc)
         return None
 
     def _wrap(self, *, session_id: str | None) -> Any:

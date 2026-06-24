@@ -118,6 +118,13 @@ def main() -> int:
         fdir = FIXTURES_DIR / fid
         eval_outputs = _load_json(fdir / "eval_outputs.json")
         expected = _load_json(fdir / "expected_score.json")
+        applicability_path = fdir / "applicability.json"
+        applicability_decisions = None
+        if applicability_path.exists():
+            applicability_payload = _load_json(applicability_path)
+            applicability_decisions = applicability_payload.get(
+                "applicability_decisions"
+            )
         expected_hash = _bytes_hash(expected)
         per_run = []
         for _ in range(n):
@@ -127,6 +134,11 @@ def main() -> int:
                 forensic_bundle_uri=f"https://golden.local/{fid}",
                 scored_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 snapshot_hash="N5-CALIBRATION-BEAAA-5528",
+                scanner_version="0.4.2",
+                corpus_version="0.1.0",
+                seed=42,
+                model_versions={},
+                applicability_decisions=applicability_decisions,
             )
             per_run.append({
                 "are_total": scored["bmi"],
