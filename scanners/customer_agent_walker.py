@@ -152,7 +152,10 @@ def customer_agent_probe_run_fn(
             try:
                 response = runner.complete(spec.prompt)
             except RunnerError as exc:
-                if rows_emitted > 0 and time.monotonic() >= deadline:
+                if (
+                    time.monotonic() >= deadline
+                    or str(exc).lower() == "syllable scan deadline exceeded"
+                ):
                     raise ProbeRunIncompleteError(
                         "customer_endpoint_unreachable_transport",
                         "customer endpoint scan deadline exceeded",

@@ -568,6 +568,9 @@ def _production_score_envelope_factory(
                 # mutated for later observers (e.g., audit re-reads).
                 envelope = dict(scorer_envelope)
                 envelope["prior_scan_refs"] = prior_refs
+                if result.incomplete:
+                    envelope["partial_completion"] = True
+                    envelope["confidence_below_adjudication_threshold"] = True
                 # The kickoff-finalize timestamp wins; the Scorer-side
                 # _utc_now_iso() stamp at spawn is overwritten so the
                 # envelope timestamp matches the scan_log row exactly.

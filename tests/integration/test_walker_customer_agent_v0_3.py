@@ -52,8 +52,9 @@ from api.scan_runtime_factory import (
 )
 from harness.credentials import CredentialVault
 from harness.customer_runner import customer_agent_http_runner_factory
-from harness.runner import MockRunner
+from harness.runner import MockRunner, RunnerError
 from scanners.customer_agent_walker import customer_agent_probe_run_fn
+from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.live_probe_workers import (
     serialize_measurement_row,
     serialize_score_envelope,
@@ -137,6 +138,25 @@ def score_runtime(rubric_path: Path) -> ScoreRuntime:
 
 
 class TestAGB1WalkerRoundTrip:
+    def test_minimal_wrap_runs_liveness_probe_first(self) -> None:
+        """BEAAA-8303: seed one cheap evidence row before slower prompts."""
+        specs = inspect_section1_v0.probe_specs()
+
+        assert [spec.dim_id for spec in specs] == ["P4.1", "P1.1", "P2.1", "P3.1"]
+
+    def test_syllable_deadline_error_maps_to_partial_completion(self) -> None:
+        class _DeadlineRunner:
+            def model_id(self) -> str:
+                return "deadline-runner"
+
+            def complete(self, _prompt: str) -> str:
+                raise RunnerError("syllable scan deadline exceeded")
+
+        with pytest.raises(ProbeRunIncompleteError) as exc_info:
+            list(customer_agent_probe_run_fn(_DeadlineRunner()))  # type: ignore[arg-type]
+
+        assert exc_info.value.reason == "customer_endpoint_unreachable_transport"
+
     def test_walker_yields_rows_against_echo_server(
         self, echo_server: Tuple[str, HTTPServer]
     ) -> None:

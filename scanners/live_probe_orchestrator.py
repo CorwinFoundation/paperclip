@@ -491,9 +491,6 @@ def run_scan(
                         break
             except ProbeRunIncompleteError as exc:
                 cap_reason = exc.reason
-                if rows_emitted == 0:
-                    ipc_outbound.send_end_of_scan()
-                    raise OrchestratorError(str(exc)) from exc
                 break
 
         # --- 6. END_OF_SCAN sentinel so the Scorer's drain loop returns. ---

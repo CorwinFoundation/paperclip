@@ -384,7 +384,7 @@ def test_probe_run_incomplete_flushes_partial_rows(
     assert len(_drain_channel(channel)) == 1
 
 
-def test_probe_run_incomplete_without_rows_is_rejected(
+def test_probe_run_incomplete_without_rows_returns_partial_result(
     corpus_tarball, corpus_hash, loaded_vault
 ):
     def fn(_runner):
@@ -395,15 +395,20 @@ def test_probe_run_incomplete_without_rows_is_rejected(
         yield  # pragma: no cover
 
     channel = WorkerChannel(max_queue=8)
-    with pytest.raises(orch.OrchestratorError, match="scan deadline exceeded"):
-        run_scan(
-            _request(corpus_hash),
-            loaded_vault,
-            channel,
-            corpus_tarball_path=corpus_tarball,
-            probe_run_fn=fn,
-            runner=_runner(),
-        )
+    result = run_scan(
+        _request(corpus_hash),
+        loaded_vault,
+        channel,
+        corpus_tarball_path=corpus_tarball,
+        probe_run_fn=fn,
+        runner=_runner(),
+    )
+
+    assert result.status == "incomplete"
+    assert result.incomplete is True
+    assert result.incomplete_reason == "customer_endpoint_unreachable_transport"
+    assert result.rows_emitted == 0
+    assert _drain_channel(channel) == []
 
 
 # ---------------------------------------------------------------------------
