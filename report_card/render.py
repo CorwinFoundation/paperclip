@@ -246,6 +246,12 @@ body {
 .pillar-score-val { font: 600 17px/1 ui-monospace, monospace; color: #1a2027; }
 .pillar-score-wt { font-size: 12px; color: #718096; }
 .pillar-pct { font-size: 12px; font-weight: 600; color: var(--pillar-color, #1565c0); }
+.pillar-na-badge {
+  display: inline-block; font: 700 12px/1 ui-monospace, monospace;
+  padding: 7px 10px; border-radius: 6px; color: #78350f;
+  background: #fffbeb; border: 1px solid #d97706;
+}
+.pillar-na-note { font-size: 12px; color: #718096; }
 .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 7px; }
 .progress-fill { height: 100%; border-radius: 4px; background: var(--pillar-color, #1565c0); }
 .floor-line { font: 11px/1.6 ui-monospace, Menlo, monospace; color: #718096; }
@@ -994,12 +1000,18 @@ def _pillar_card(
     name = rubric_pillar["name"]
     score = float(pdata["score"])
     weight = int(pdata["weight"])
+    dimensions = pdata.get("dimensions") or {}
+    has_measured_dim = any(
+        entry.get("applicable") is not False and entry.get("raw") is not None
+        for entry in dimensions.values()
+    )
+    all_na = bool(dimensions) and not has_measured_dim
     pct = (score / weight) * 100 if weight else 0
     fill_pct = max(0.0, min(100.0, pct))
     color = _pillar_pct_color(pct)
 
     floor_html = ""
-    if floor:
+    if floor and not all_na:
         min_pillar = float(floor.get("min_pillar_score", 0))
         if min_pillar > 0:
             if score >= min_pillar:
@@ -1032,18 +1044,33 @@ def _pillar_card(
         if raw_mapping
         else ""
     )
+    if all_na:
+        score_html = (
+            f'        <div class="pillar-score-row">\n'
+            f'          <span class="pillar-na-badge">N/A</span>\n'
+            f'          <span class="pillar-na-note">No measured dimensions</span>\n'
+            f"        </div>\n"
+        )
+        bar_html = ""
+    else:
+        score_html = (
+            f'        <div class="pillar-score-row">\n'
+            f'          <span class="pillar-score-val">{score:.2f}</span>'
+            f'<span class="pillar-score-wt"> / {weight}</span>\n'
+            f'          <span class="pillar-pct">{pct:.1f}%</span>\n'
+            f"        </div>\n"
+        )
+        bar_html = (
+            f'        <div class="progress-track">'
+            f'<div class="progress-fill" style="width:{fill_pct:.1f}%;"></div></div>\n'
+        )
 
     return (
         f'      <div class="pillar-card" style="--pillar-color:{color};">\n'
         f'        <div class="pillar-id">{escape(pid)}</div>\n'
         f'        <div class="pillar-name">{escape(name)}</div>\n'
-        f'        <div class="pillar-score-row">\n'
-        f'          <span class="pillar-score-val">{score:.2f}</span>'
-        f'<span class="pillar-score-wt"> / {weight}</span>\n'
-        f'          <span class="pillar-pct">{pct:.1f}%</span>\n'
-        f"        </div>\n"
-        f'        <div class="progress-track">'
-        f'<div class="progress-fill" style="width:{fill_pct:.1f}%;"></div></div>\n'
+        f"{score_html}"
+        f"{bar_html}"
         f"        {floor_html}\n"
         f"{purpose_html}"
         f"{chips_html}"

@@ -25,7 +25,7 @@ BLUF: one consolidated Rasa scan envelope was run through admittance, pricing di
 - scanner_version: `0.5.0`
 - corpus_version: `rasa-consolidated-red-battery@2026-06-24`
 - probe-set-version: `rasa-red-battery-detector-harness@2026-06-24`
-- rubric_version: `1.4.0`
+- rubric_version: `1.2.0`
 - rates_version: `pricing-v1`
 - rubric_point_id: `P1.1, ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL, ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER, P3.1, P3.2, P3.3, ROBUSTNESS.PII.SCAN_TIME_DETECTION, P4.4`
 - are_total: `1`

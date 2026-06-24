@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 import sys
 import tempfile
+import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -13,6 +14,9 @@ from scripts import beaaa8389_rasa_consolidated_grade_card as runner  # noqa: E4
 
 
 def test_beaaa8389_rasa_consolidated_grade_card_acceptance():
+    active_rubric_version = runner.Rubric.load(runner.RUBRIC_PATH).version
+    assert runner.RUBRIC_VERSION == active_rubric_version
+
     with tempfile.TemporaryDirectory() as tmp:
         out_dir = Path(tmp) / "beaaa-8389"
         summary = runner.run(out_dir)
@@ -34,10 +38,24 @@ def test_beaaa8389_rasa_consolidated_grade_card_acceptance():
         assert "Eligible for primary cover" not in card_html
         assert ">N/A<" in card_html
         assert "warn-badge" in card_html
+        bias_card = re.search(
+            r'<div class="pillar-id">BIAS_FAIRNESS</div>.*?</div>\n      </div>',
+            card_html,
+            flags=re.S,
+        )
+        assert bias_card is not None
+        assert '<span class="pillar-na-badge">N/A</span>' in bias_card.group(0)
+        assert "0.00" not in bias_card.group(0)
+        assert "0.0%" not in bias_card.group(0)
         assert (out_dir / "consolidated_summary.json").exists()
         assert len(list(out_dir.glob("consolidated_envelope_seed*.json"))) == 5
+        persisted_summary = json.loads((out_dir / "consolidated_summary.json").read_text(encoding="utf-8"))
+        closeout_md = (out_dir / "consolidated_grade_card_closeout.md").read_text(encoding="utf-8")
+        seed0 = json.loads((out_dir / "consolidated_envelope_seed0.json").read_text(encoding="utf-8"))
 
     envelope = summary["primary_envelope"]
+    assert envelope["rubric_version"] == active_rubric_version
+    assert seed0["rubric_version"] == active_rubric_version
     assert envelope["cli_meta"]["tool"] == "bin/are-scan"
     assert envelope["are_total"] == 1
     assert envelope["subscores"] == {
@@ -56,7 +74,10 @@ def test_beaaa8389_rasa_consolidated_grade_card_acceptance():
     assert summary["scanner_version"] == runner.SCANNER_VERSION
     assert summary["corpus_version"] == runner.CORPUS_VERSION
     assert summary["probe_set_version"] == runner.PROBE_SET_VERSION
-    assert summary["rubric_version"] == runner.RUBRIC_VERSION
+    assert summary["rubric_version"] == active_rubric_version
+    assert persisted_summary["rubric_version"] == active_rubric_version
+    assert f"rubric_version: `{active_rubric_version}`" in closeout_md
+    assert "rubric_version: `1.4.0`" not in closeout_md
     assert summary["rates_version"] == runner.RATES_VERSION
     assert summary["measured_dims_count"] == 8
     assert summary["na_dims_count"] == 17

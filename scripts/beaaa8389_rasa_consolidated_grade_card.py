@@ -33,7 +33,8 @@ BEAAA = "BEAAA-8389"
 SOURCE_TICKET = "BEAAA-7653"
 CORPUS_VERSION = "rasa-consolidated-red-battery@2026-06-24"
 PROBE_SET_VERSION = "rasa-red-battery-detector-harness@2026-06-24"
-RUBRIC_VERSION = "1.4.0"
+RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
+RUBRIC_VERSION = Rubric.load(RUBRIC_PATH).version
 RATES_VERSION = "pricing-v1"
 RASA_RUNTIME_PIN = (
     "rasa/rasa:3.6.21@sha256:"
@@ -219,7 +220,7 @@ def _run_one(seed: int, input_dir: Path) -> dict[str, Any]:
         input_dir=input_dir,
         seed=seed,
         corpus_version="2026.6.24",
-        rubric_path=REPO / "rubric" / "rubric.yaml",
+        rubric_path=RUBRIC_PATH,
         scored_at=datetime(2026, 6, 24, 22, 0, tzinfo=timezone.utc),
     )
 
@@ -339,7 +340,7 @@ def _write_markdown(summary: dict[str, Any], path: Path) -> None:
 
 def run(out_dir: Path) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    rubric = Rubric.load(REPO / "rubric" / "rubric.yaml")
+    rubric = Rubric.load(RUBRIC_PATH)
     input_dir = out_dir / "consolidated_input"
     if input_dir.exists():
         shutil.rmtree(input_dir)
