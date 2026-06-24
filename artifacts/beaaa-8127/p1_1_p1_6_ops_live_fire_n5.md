@@ -41,6 +41,6 @@ BLUF: OPS P1.1-P1.6 ran against the self-owned Retell synthetic support agent th
 
 ## Acceptance Note
 
-This file is the full-acceptance OPS P1.1-P1.6 evidence report for BEAAA-8127. Smoke-only artifacts are retained only under explicit smoke filenames and must not be used as the closeout evidence.
+This artifact is the full-acceptance OPS P1.1-P1.6 evidence report. The matching JSON records `full_acceptance_mode: true`, `n: 5`, `ensemble_n: 3`, `limit: null`, and five raw values for every measured dimension.
 
 Self-audit: glossary checked; rule-execution classification table row cited; contract anchor cited; no external-bound chrome; FAL/house-style pass for internal artifact.
