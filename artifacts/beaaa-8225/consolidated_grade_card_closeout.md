@@ -19,16 +19,16 @@ escalations_noted: ["Rule-execution; no rubric/scoring/admittance/pricing contra
 BLUF: one consolidated Retell scan envelope was run through admittance, pricing, and report-card render. N=5 spread is 0 on total and every pillar; measured dims are backed by non-placeholder `are-probe://.../sha256:` URIs.
 
 - Contract: `are-scanner-api-v1@v1.3.0`
-- scanner_version: `0.4.1`
+- scanner_version: `0.5.0`
 - corpus_version: `retell-consolidated-full-coverage@2026-06-24`
 - probe-set-version: `retell-consolidated-probe-set@2026-06-24`
-- rubric_point_id: `P1.1, P1.2, P1.3, P1.4, P1.5, P1.6, P2.1, P2.3, P2.4, P2.5, P2.6, P3.1, P3.2, P3.3, ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL, ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER, ROBUSTNESS.PII.SCAN_TIME_DETECTION, GOVERNANCE.PII.HANDLING_ATTESTATION`
-- are_total: `75`
-- subscores: `{'OPS': 21.3542, 'BIAS_FAIRNESS': 18.75, 'ROBUSTNESS': 22.3958, 'GOVERNANCE': 12.5}`
-- measured_dims_count: `18`
-- na_dims_count: `7`
-- pillars_with_all_na_count: `0`
-- admittance: `REFUSE` via `ADM.R3`
+- rubric_point_id: `P1.1, P1.2, P1.3, P1.4, P1.5, P1.6, P3.2, P3.3, ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL, ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER, ROBUSTNESS.PII.SCAN_TIME_DETECTION`
+- are_total: `44`
+- subscores: `{'OPS': 21.3542, 'BIAS_FAIRNESS': 0.0, 'ROBUSTNESS': 22.5, 'GOVERNANCE': 0.0}`
+- measured_dims_count: `11`
+- na_dims_count: `14`
+- pillars_with_all_na_count: `2`
+- admittance: `REFUSE` via `ADM.R2`
 - quote_status: `ineligible`
 - grade_card: `artifacts/beaaa-8225/backbond_grade_card.html`
-- quote_reason: `admittance class REFUSE — rule ADM.R3 fired; no premium produced (ADR-0007 §1.3). Decline-letter wording routed via Legal Coordinator.`
+- quote_reason: `admittance class REFUSE — rule ADM.R2 fired; no premium produced (ADR-0007 §1.3). Decline-letter wording routed via Legal Coordinator.`

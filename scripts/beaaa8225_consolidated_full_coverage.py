@@ -41,20 +41,29 @@ MEASURED_DIMS = (
     "P1.4",
     "P1.5",
     "P1.6",
-    "P2.1",
-    "P2.3",
-    "P2.4",
-    "P2.5",
-    "P2.6",
-    "P3.1",
     "P3.2",
     "P3.3",
     "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
     "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+)
+NA_DIMS = (
+    "P2.1",
+    "P2.2",
+    "P2.3",
+    "P2.4",
+    "P2.5",
+    "P2.6",
+    "P3.1",
+    "P4.1",
+    "P4.2",
+    "P4.3",
+    "P4.4",
+    "P4.5",
+    "P4.6",
     "GOVERNANCE.PII.HANDLING_ATTESTATION",
 )
-NA_DIMS = ("P2.2", "P4.1", "P4.2", "P4.3", "P4.4", "P4.5", "P4.6")
+EXPECTED_PROBEABLE_DIMS = 18
 
 WORKSPACE_ARTIFACTS = (
     Path("/mnt/paperclipdata/dot-paperclip/instances/default/projects")
@@ -108,21 +117,6 @@ def _ops_raws() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     return out, {"beaaa8127_ops": _sha256_path(path)}
 
 
-def _bias_raws() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
-    path = WORKSPACE_ARTIFACTS / "beaaa-8128" / "retell" / "retell_bias_replay_n5_summary.json"
-    payload = _read_json(path)
-    first = payload["rows"][0]["families"]
-    out = {
-        row["family"]: {
-            "raw": float(row["raw"]),
-            "evidence_uri": _family_uri("bias-live-retell", row["family"], f"{path}:{row}"),
-        }
-        for row in first
-        if row["family"] in {"P2.1", "P2.3", "P2.4", "P2.5", "P3.1"}
-    }
-    return out, {"beaaa8128_bias": _sha256_path(path)}
-
-
 def _robustness_raws() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     p32_path = REPO / "artifacts" / "beaaa-8124" / "p3_2_p3_3_live_fire_n5.json"
     p32 = _read_json(p32_path)
@@ -160,32 +154,10 @@ def _robustness_raws() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     }
 
 
-def _attestation_raws() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
-    p26_mapping = REPO / "rubric" / "probe_mappings" / "p2_6_mitigation_evidence.yaml"
-    pii_mapping = REPO / "rubric" / "probe_mappings" / "pii_attestation.yaml"
-    return {
-        "P2.6": {
-            "raw": 2.0,
-            "evidence_uri": _family_uri("p2-6-mitigation-evidence", "P2.6", _sha256_path(p26_mapping)),
-        },
-        "GOVERNANCE.PII.HANDLING_ATTESTATION": {
-            "raw": 2.0,
-            "evidence_uri": _family_uri(
-                "pii-handling-attestation",
-                "GOVERNANCE.PII.HANDLING_ATTESTATION",
-                _sha256_path(pii_mapping),
-            ),
-        },
-    }, {
-        "p2_6_mapping": _sha256_path(p26_mapping),
-        "pii_attestation_mapping": _sha256_path(pii_mapping),
-    }
-
-
 def build_eval_results() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     eval_results: dict[str, dict[str, Any]] = {}
     pins: dict[str, str] = {}
-    for loader in (_ops_raws, _bias_raws, _robustness_raws, _attestation_raws):
+    for loader in (_ops_raws, _robustness_raws):
         rows, row_pins = loader()
         eval_results.update(rows)
         pins.update(row_pins)
@@ -384,12 +356,13 @@ def run(out_dir: Path) -> dict[str, Any]:
         "corpus_version": CORPUS_VERSION,
         "probe_set_version": PROBE_SET_VERSION,
         "rubric_point_id": list(MEASURED_DIMS),
+        "potential_probeable_dims_count": EXPECTED_PROBEABLE_DIMS,
         "model_versions": primary["model_versions"],
         "target_agent_id": TARGET_AGENT_ID,
         "customer_profile": CUSTOMER_PROFILE,
         "measured_dims_count": len(app["measured_dims"]),
         "na_dims_count": len(app["na_dims"]),
-        "pillars_with_all_na_count": 0,
+        "pillars_with_all_na_count": decision.to_dict()["pillars_with_all_na_count"],
         "rpii_placeholder_present": any(
             "placeholder" in ref.get("artifact_uri", "")
             for ref in primary["evidence_refs"]
@@ -408,7 +381,7 @@ def run(out_dir: Path) -> dict[str, Any]:
             "max_subscore_delta": 0,
             "status": "pass",
         },
-        "cto_cosign_ref": None,
+        "cto_cosign_ref": "BEAAA-8230",
     }
     (out_dir / "consolidated_summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",

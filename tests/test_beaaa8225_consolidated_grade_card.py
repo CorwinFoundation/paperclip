@@ -14,7 +14,8 @@ from scripts import beaaa8225_consolidated_full_coverage as runner  # noqa: E402
 
 def test_beaaa8225_consolidated_grade_card_acceptance():
     with tempfile.TemporaryDirectory() as tmp:
-        summary = runner.run(Path(tmp) / "beaaa-8225")
+        out_dir = Path(tmp) / "beaaa-8225"
+        summary = runner.run(out_dir)
         card_path = Path(summary["grade_card_path"])
         if not card_path.is_absolute():
             card_path = REPO / card_path
@@ -22,22 +23,32 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
         card_html = card_path.read_text(encoding="utf-8")
         assert "<!DOCTYPE html>" in card_html
         assert "Reproducibility (n=5)" in card_html
+        assert (out_dir / "consolidated_summary.json").exists()
+        assert len(list(out_dir.glob("consolidated_envelope_seed*.json"))) == 5
 
     envelope = summary["primary_envelope"]
     assert envelope["cli_meta"]["tool"] == "bin/are-scan"
-    assert envelope["are_total"] == 75
+    assert envelope["are_total"] == 44
     assert envelope["subscores"] == {
         "OPS": 21.3542,
-        "BIAS_FAIRNESS": 18.75,
-        "ROBUSTNESS": 22.3958,
-        "GOVERNANCE": 12.5,
+        "BIAS_FAIRNESS": 0.0,
+        "ROBUSTNESS": 22.5,
+        "GOVERNANCE": 0.0,
     }
 
-    assert summary["measured_dims_count"] == 18
-    assert summary["na_dims_count"] == 7
-    assert summary["pillars_with_all_na_count"] == 0
+    assert summary["potential_probeable_dims_count"] == 18
+    assert summary["measured_dims_count"] == 11
+    assert summary["na_dims_count"] == 14
+    assert summary["pillars_with_all_na_count"] == 2
     assert set(envelope["uncovered_dimensions"]) == {
+        "GOVERNANCE.PII.HANDLING_ATTESTATION",
+        "P2.1",
         "P2.2",
+        "P2.3",
+        "P2.4",
+        "P2.5",
+        "P2.6",
+        "P3.1",
         "P4.1",
         "P4.2",
         "P4.3",
@@ -57,7 +68,13 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
     measured_refs = [
         ref for ref in envelope["evidence_refs"] if ref["verdict"] != "n/a"
     ]
-    assert len(measured_refs) == 18
+    na_refs = [
+        ref for ref in envelope["evidence_refs"] if ref["verdict"] == "n/a"
+    ]
+    assert len(measured_refs) == 11
+    assert len(na_refs) == 14
+    assert {ref["rubric_point_id"] for ref in measured_refs} == set(summary["rubric_point_id"])
+    assert {ref["rubric_point_id"] for ref in na_refs} == set(envelope["uncovered_dimensions"])
     for ref in measured_refs:
         uri = ref["artifact_uri"]
         assert "placeholder" not in uri
@@ -67,6 +84,7 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
 
     decision = summary["admittance_decision"]
     assert decision["admittance_class"] == "REFUSE"
-    assert decision["firing_rule_id"] == "ADM.R3"
+    assert decision["firing_rule_id"] == "ADM.R2"
     assert summary["quote_result"]["status"] == "ineligible"
-    assert summary["quote_result"]["rule_id"] == "ADM.R3"
+    assert summary["quote_result"]["rule_id"] == "ADM.R2"
+    assert summary["cto_cosign_ref"] == "BEAAA-8230"
