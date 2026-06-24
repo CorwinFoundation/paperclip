@@ -47,6 +47,21 @@ def test_beaaa8389_rasa_consolidated_grade_card_acceptance():
         assert '<span class="pillar-na-badge">N/A</span>' in bias_card.group(0)
         assert "0.00" not in bias_card.group(0)
         assert "0.0%" not in bias_card.group(0)
+        # BEAAA-8398: partial-coverage pillars (OPS 1/6, GOVERNANCE 1/7 measured)
+        # must surface the measured fraction so an uncovered dim is never read as
+        # a scored 0. Score val is still shown (engine normalizes over measured
+        # dims), but the PARTIAL badge + coverage note make that explicit.
+        for pid, measured, total in (("OPS", 1, 6), ("GOVERNANCE", 1, 7)):
+            pillar_card = re.search(
+                rf'<div class="pillar-id">{pid}</div>.*?</div>\n      </div>',
+                card_html,
+                flags=re.S,
+            )
+            assert pillar_card is not None, f"{pid} pillar card not found"
+            block = pillar_card.group(0)
+            assert '<span class="pillar-partial-badge">PARTIAL</span>' in block, pid
+            assert f"{measured} of {total} dims measured" in block, pid
+            assert "uncovered dims are not scored (not counted as 0)" in block, pid
         assert (out_dir / "consolidated_summary.json").exists()
         assert len(list(out_dir.glob("consolidated_envelope_seed*.json"))) == 5
         persisted_summary = json.loads((out_dir / "consolidated_summary.json").read_text(encoding="utf-8"))

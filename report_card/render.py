@@ -252,6 +252,12 @@ body {
   background: #fffbeb; border: 1px solid #d97706;
 }
 .pillar-na-note { font-size: 12px; color: #718096; }
+.pillar-partial-badge {
+  display: inline-block; font: 700 10px/1 ui-monospace, monospace;
+  padding: 3px 6px; border-radius: 4px; color: #78350f;
+  background: #fffbeb; border: 1px solid #d97706; margin-left: 6px;
+}
+.pillar-partial-note { font-size: 11px; line-height: 1.4; color: #92400e; margin-bottom: 6px; }
 .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 7px; }
 .progress-fill { height: 100%; border-radius: 4px; background: var(--pillar-color, #1565c0); }
 .floor-line { font: 11px/1.6 ui-monospace, Menlo, monospace; color: #718096; }
@@ -1001,11 +1007,21 @@ def _pillar_card(
     score = float(pdata["score"])
     weight = int(pdata["weight"])
     dimensions = pdata.get("dimensions") or {}
-    has_measured_dim = any(
-        entry.get("applicable") is not False and entry.get("raw") is not None
+    measured_count = sum(
+        1
         for entry in dimensions.values()
+        if entry.get("applicable") is not False and entry.get("raw") is not None
     )
+    total_count = len(dimensions)
+    has_measured_dim = measured_count > 0
     all_na = bool(dimensions) and not has_measured_dim
+    # BEAAA-8398: a pillar with SOME (but not all) measured dims is "partial".
+    # The engine re-normalizes the pillar score across the measured dims only
+    # (rubric/scoring.py: uncovered/N/A dims are excluded from the mean, NOT
+    # imputed as 0), so the score is honest — but a bare "X / 25" reads as a
+    # full-coverage result. Surface the measured fraction so an uncovered dim
+    # is never mistaken for a scored 0.
+    partial = bool(dimensions) and 0 < measured_count < total_count
     pct = (score / weight) * 100 if weight else 0
     fill_pct = max(0.0, min(100.0, pct))
     color = _pillar_pct_color(pct)
@@ -1053,13 +1069,27 @@ def _pillar_card(
         )
         bar_html = ""
     else:
+        partial_badge = (
+            f'          <span class="pillar-partial-badge">PARTIAL</span>\n'
+            if partial
+            else ""
+        )
         score_html = (
             f'        <div class="pillar-score-row">\n'
             f'          <span class="pillar-score-val">{score:.2f}</span>'
             f'<span class="pillar-score-wt"> / {weight}</span>\n'
             f'          <span class="pillar-pct">{pct:.1f}%</span>\n'
+            f"{partial_badge}"
             f"        </div>\n"
         )
+        if partial:
+            score_html += (
+                f'        <div class="pillar-partial-note">'
+                f"{measured_count} of {total_count} dims measured "
+                f"· score normalized over measured dims only; "
+                f"uncovered dims are not scored (not counted as 0)"
+                f"</div>\n"
+            )
         bar_html = (
             f'        <div class="progress-track">'
             f'<div class="progress-fill" style="width:{fill_pct:.1f}%;"></div></div>\n'
