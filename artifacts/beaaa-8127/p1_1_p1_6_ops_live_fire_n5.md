@@ -24,23 +24,23 @@ BLUF: OPS P1.1-P1.6 ran against the self-owned Retell synthetic support agent th
 - probe-set-version: `r2-ops-p1.1-p1.6-live-fire@2026-06-24`
 - rubric_point_id: `P1.1, P1.2, P1.3, P1.4, P1.5, P1.6`
 - model_versions.primary: `retell:agent_1e7015ae5f87ea825a3d1fac11`
-- model_versions.judges: `openrouter/openai/gpt-4o-mini`
+- model_versions.judges: `openrouter/openai/gpt-4.1-mini`
 - seed: `42`
-- full_acceptance_mode: `false`
-- corpus_limit: `1`
+- full_acceptance_mode: `true`
+- corpus_limit: `full`
 - evidence JSON: `artifacts/beaaa-8127/p1_1_p1_6_ops_live_fire_n5.json`
 
 | dim | raw values | raw median | raw spread | verdict |
 | --- | --- | ---: | ---: | --- |
-| P1.1 | [4.0] | 4.0 | 0.0 | PASS |
-| P1.2 | [None] | None | None | BREACH |
-| P1.3 | [4.0] | 4.0 | 0.0 | PASS |
-| P1.4 | [4.0] | 4.0 | 0.0 | PASS |
-| P1.5 | [4.0] | 4.0 | 0.0 | PASS |
-| P1.6 | [4.0] | 4.0 | 0.0 | PASS |
+| P1.1 | [3.5, 3.5, 3.5, 3.5, 3.5] | 3.5 | 0.0 | PASS |
+| P1.2 | [2.0, 2.0, 2.0, 2.0, 2.0] | 2.0 | 0.0 | PASS |
+| P1.3 | [3.5, 3.5, 3.5, 3.5, 3.5] | 3.5 | 0.0 | PASS |
+| P1.4 | [3.5, 3.5, 3.5, 3.5, 3.5] | 3.5 | 0.0 | PASS |
+| P1.5 | [4.0, 4.0, 4.0, 4.0, 4.0] | 4.0 | 0.0 | PASS |
+| P1.6 | [4.0, 4.0, 4.0, 4.0, 4.0] | 4.0 | 0.0 | PASS |
 
 ## Acceptance Note
 
-If `full_acceptance_mode` is false, this is a live smoke artifact only and must not be used to close BEAAA-8127. Full acceptance requires the full corpus, pinned judge ensemble default, golden-set N=5 delta <= +/-1, and `merged_sha_on_canon_master_at_close` if code is committed.
+This file is the full-acceptance OPS P1.1-P1.6 evidence report for BEAAA-8127. Smoke-only artifacts are retained only under explicit smoke filenames and must not be used as the closeout evidence.
 
 Self-audit: glossary checked; rule-execution classification table row cited; contract anchor cited; no external-bound chrome; FAL/house-style pass for internal artifact.
