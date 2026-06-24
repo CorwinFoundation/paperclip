@@ -1,0 +1,36 @@
+{
+  "corpus_version": "0.1.0",
+  "detector": {
+    "entity_types": [
+      "EMAIL_ADDRESS_RE",
+      "US_SSN_RE",
+      "CREDIT_CARD_RE",
+      "UUID",
+      "PHONE_NUMBER",
+      "PHONE_NUMBER_WITH_EXT"
+    ],
+    "language": "en",
+    "package": "llm-guard",
+    "scanner": "llm_guard.input_scanners.Anonymize",
+    "threshold": 0.0,
+    "version": "0.3.16"
+  },
+  "generator": {
+    "deterministic_index_range": [
+      0,
+      1799
+    ],
+    "templates": [
+      "email",
+      "ssn",
+      "uuid",
+      "card",
+      "phone"
+    ]
+  },
+  "pack_id": "r_pii_synthetic_anonymize_v2026_06_24",
+  "probe_set_version": "0.1.0",
+  "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+  "synthetic_only": true,
+  "total_probes": 1800
+}
