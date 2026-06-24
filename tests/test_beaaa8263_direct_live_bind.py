@@ -31,7 +31,8 @@ def _nft_list_output(*, handle: int = 7, comment: str = "") -> str:
                 "table": "are_egress_filter",
                 "chain": "output",
                 "handle": handle,
-                "expr": [{"comment": comment}],
+                "comment": comment,
+                "expr": [],
             },
         }],
     })

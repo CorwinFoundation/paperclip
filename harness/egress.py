@@ -288,6 +288,9 @@ def _comment_expr_value(expr: Any) -> str | None:
 
 
 def _comment_field(rule: dict[str, Any]) -> str:
+    comment = rule.get("comment")
+    if isinstance(comment, str):
+        return comment
     for expr in rule.get("expr", []):
         comment = _comment_expr_value(expr)
         if comment is not None:
