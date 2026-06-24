@@ -136,8 +136,9 @@ def test_rescans_includes_invocation_context_in_score_inputs(
         on_validated_row: Any,
         score_runtime: Any,
         score_inputs: dict[str, Any] | None,
+        row_recv_timeout_seconds: float | None = None,
     ) -> _DummyScorerProcess:
-        del channel, on_validated_row, score_runtime
+        del channel, on_validated_row, score_runtime, row_recv_timeout_seconds
         captured["score_inputs"] = score_inputs
         return _DummyScorerProcess()
 

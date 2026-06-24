@@ -23,7 +23,7 @@
   "lock_source": "deterministic_replay",
   "locked_at": "2026-06-23T13:42:45+00:00",
   "rubric_version": "1.2.0",
-  "scanner_version": "0.4.2",
+  "scanner_version": "0.5.0",
   "seed": 42,
   "_bias_pack_v0_3_rebaseline": {
     "co_sign_refs": {

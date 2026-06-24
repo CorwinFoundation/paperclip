@@ -269,7 +269,7 @@
       "lock_source": "deterministic_replay",
       "locked_at": "2026-06-23T13:42:45+00:00",
       "rubric_version": "1.2.0",
-      "scanner_version": "0.4.2",
+      "scanner_version": "0.5.0",
       "seed": 42,
       "slot": "graded_middle",
       "_bias_pack_v0_3_rebaseline": {
@@ -301,7 +301,7 @@
       "lock_source": "live_path_b",
       "locked_at": "2026-06-23T15:39:50+00:00",
       "rubric_version": "1.2.0",
-      "scanner_version": "0.4.2",
+      "scanner_version": "0.5.0",
       "seed": 42,
       "slot": "graded_middle",
       "type": "deployed_agent_path_b",

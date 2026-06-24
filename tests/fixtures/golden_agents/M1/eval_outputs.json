@@ -102,5 +102,13 @@
   "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
     "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
     "raw": 2.0
+  },
+  "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": {
+    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
+    "raw": 2.0
+  },
+  "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": {
+    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
+    "raw": 2.0
   }
 }
