@@ -42,11 +42,13 @@ from __future__ import annotations
 
 import json as _json
 import os
+import secrets
+import time
 from typing import Any
 from urllib.parse import urlparse
 
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
-from harness.runner import ModelRunner, RunnerError, SyllableRunner
+from harness.runner import ModelRunner, RunnerError
 
 
 _MAX_RESPONSE_BYTES: int = 256 * 1024
@@ -266,6 +268,247 @@ class _CustomerAgentHttpRunner(ModelRunner):
         return text
 
 
+class _SyllableCustomerAgentRunner(ModelRunner):
+    """Hardened customer-path runner for Syllable apichat.
+
+    Syllable's public apichat surface requires public Syllable headers and a
+    two-step session protocol. This runner preserves the customer endpoint
+    hardening in :class:`_CustomerAgentHttpRunner`: scoped egress, redirect
+    rejection, raw streaming response caps, and Content-Encoding refusal.
+    """
+
+    TRANSIENT_STATUS_CODES = frozenset({502, 503, 522})
+    MAX_TRANSIENT_ATTEMPTS = 3
+    RETRY_BACKOFF_SECONDS = (0.5, 1.0)
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        client_id_key: str,
+        host_key: str,
+        origin: str = "https://webchat.syllable.cloud",
+        label: str = "syllable:apichat",
+        timeout_s: float = _REQUEST_TIMEOUT_SECONDS,
+    ) -> None:
+        if not client_id_key or not host_key:
+            raise RunnerError("Syllable customer runner requires Syllable headers")
+        self._base_url = base_url.rstrip("/")
+        self._client_id_key = client_id_key
+        self._host_key = host_key
+        self._origin = origin
+        self._label = label
+        self._timeout_s = timeout_s
+        self._scan_deadline_monotonic: float | None = None
+
+    def model_id(self) -> str:
+        return self._label
+
+    def set_scan_deadline(self, deadline_monotonic: float) -> None:
+        if self._scan_deadline_monotonic is None:
+            self._scan_deadline_monotonic = deadline_monotonic
+            return
+        self._scan_deadline_monotonic = min(
+            self._scan_deadline_monotonic,
+            deadline_monotonic,
+        )
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Accept-Encoding": "identity",
+            "Syllable-Client-Id-Key": self._client_id_key,
+            "Syllable-Host-Key": self._host_key,
+            "Origin": self._origin,
+        }
+
+    @staticmethod
+    def _is_transient_transport_error(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return any(
+            token in message
+            for token in (
+                "522",
+                "502",
+                "503",
+                "unexpected_eof",
+                "eof occurred in violation of protocol",
+                "connection reset",
+                "readtimeout",
+                "connecttimeout",
+                "pooltimeout",
+                "timed out",
+                "timeout",
+            )
+        )
+
+    def _request_timeout_for_deadline(self) -> float:
+        if self._scan_deadline_monotonic is None:
+            return self._timeout_s
+        remaining = self._scan_deadline_monotonic - time.monotonic()
+        if remaining <= 0:
+            raise RunnerError("syllable scan deadline exceeded")
+        return max(0.1, min(self._timeout_s, remaining))
+
+    def _sleep_with_deadline(self, seconds: float) -> None:
+        if self._scan_deadline_monotonic is None:
+            time.sleep(seconds)
+            return
+        remaining = self._scan_deadline_monotonic - time.monotonic()
+        if remaining <= 0:
+            raise RunnerError("syllable scan deadline exceeded")
+        time.sleep(min(seconds, remaining))
+
+    def _post_json(
+        self,
+        path: str,
+        *,
+        phase: str,
+        payload: dict[str, Any],
+        egress_session_id: str,
+    ) -> dict[str, Any]:
+        import httpx  # type: ignore
+
+        url = f"{self._base_url}{path}"
+        body_bytes = _json.dumps(payload).encode("utf-8")
+        headers = self._headers()
+        last_exc: Exception | None = None
+
+        for attempt in range(self.MAX_TRANSIENT_ATTEMPTS):
+            try:
+                with ScopedEgressAllowlist(self._base_url) as scope:
+                    with scope.client(
+                        timeout=self._request_timeout_for_deadline(),
+                        follow_redirects=False,
+                        session_id=egress_session_id,
+                    ) as client:
+                        with client.stream(
+                            "POST",
+                            url,
+                            content=body_bytes,
+                            headers=headers,
+                        ) as resp:
+                            if 300 <= resp.status_code < 400:
+                                raise RunnerError(
+                                    f"syllable {phase} returned redirect: "
+                                    f"{resp.status_code} {resp.reason_phrase}"
+                                )
+                            if (
+                                resp.status_code in self.TRANSIENT_STATUS_CODES
+                                and attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
+                            ):
+                                self._sleep_with_deadline(
+                                    self.RETRY_BACKOFF_SECONDS[attempt]
+                                )
+                                continue
+                            if resp.status_code >= 400:
+                                raise RunnerError(
+                                    f"syllable {phase} HTTP {resp.status_code}: "
+                                    f"{resp.reason_phrase}"
+                                )
+                            encoding = (
+                                resp.headers.get("Content-Encoding", "")
+                                .strip()
+                                .lower()
+                            )
+                            if encoding not in ("", "identity"):
+                                raise RunnerError(
+                                    f"syllable {phase} returned unsupported "
+                                    f"Content-Encoding: {encoding}"
+                                )
+                            buf = bytearray()
+                            for chunk in resp.iter_raw():
+                                if len(buf) + len(chunk) > _MAX_RESPONSE_BYTES:
+                                    raise RunnerError(
+                                        f"syllable {phase} response exceeded "
+                                        f"{_MAX_RESPONSE_BYTES} bytes"
+                                    )
+                                buf.extend(chunk)
+                            raw = bytes(buf)
+            except RunnerError:
+                raise
+            except EgressNotAllowed as exc:
+                raise RunnerError(
+                    f"syllable {phase} egress refused by scoped allow-list: {exc}"
+                ) from exc
+            except httpx.TimeoutException as exc:
+                last_exc = exc
+                if (
+                    attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
+                    and self._is_transient_transport_error(exc)
+                ):
+                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
+                    continue
+                raise RunnerError(
+                    f"syllable {phase} request failed: {exc}"
+                ) from exc
+            except httpx.HTTPError as exc:
+                last_exc = exc
+                if (
+                    attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
+                    and self._is_transient_transport_error(exc)
+                ):
+                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
+                    continue
+                raise RunnerError(
+                    f"syllable {phase} request failed: {exc}"
+                ) from exc
+            except Exception as exc:
+                last_exc = exc
+                if (
+                    attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
+                    and self._is_transient_transport_error(exc)
+                ):
+                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
+                    continue
+                raise RunnerError(
+                    f"syllable {phase} request failed: {exc}"
+                ) from exc
+
+            text = raw.decode("utf-8", errors="replace")
+            try:
+                parsed = _json.loads(text)
+            except _json.JSONDecodeError as exc:
+                raise RunnerError(
+                    f"syllable {phase} response not JSON: {text[:300]}"
+                ) from exc
+            if not isinstance(parsed, dict):
+                raise RunnerError(
+                    f"syllable {phase} response not JSON object: {text[:300]}"
+                )
+            return parsed
+
+        if last_exc is not None:
+            raise RunnerError(f"syllable {phase} request failed: {last_exc}") from last_exc
+        raise RunnerError(f"syllable {phase} request failed without response")
+
+    def complete(self, prompt: str) -> str:
+        egress_session_id = secrets.token_hex(8)
+        session = self._post_json(
+            "/api/v1/chats/start_session",
+            phase="start_session",
+            payload={},
+            egress_session_id=egress_session_id,
+        )
+        session_id = session.get("id")
+        if not session_id:
+            raise RunnerError(
+                f"syllable start_session missing id: {str(session)[:300]}"
+            )
+        body = self._post_json(
+            "/api/v1/chats/send_message",
+            phase="send_message",
+            payload={"session_id": session_id, "message": prompt},
+            egress_session_id=egress_session_id,
+        )
+        msg = body.get("message")
+        if isinstance(msg, dict):
+            text = msg.get("message")
+            if isinstance(text, str):
+                return text
+        return ""
+
+
 def customer_agent_http_runner_factory(
     agent_endpoint: str, secret: str
 ) -> ModelRunner:
@@ -281,14 +524,14 @@ def customer_agent_http_runner_factory(
     if host == "apichat.syllable.cloud":
         # Syllable's public apichat surface is not a single root POST
         # endpoint. It requires the two-step /api/v1/chats protocol and
-        # Syllable-specific public headers; the generic runner would POST to
-        # "/" and report the resulting app-layer 404 as a transport failure.
-        return SyllableRunner(
+        # Syllable-specific public headers. Keep the customer-path HTTP
+        # hardening here rather than routing through harness.runner.SyllableRunner.
+        return _SyllableCustomerAgentRunner(
             client_id_key=os.environ.get(
                 "SYLLABLE_CLIENT_ID_KEY", "hlw3qyTAx5inYzm2"
             ),
             host_key=os.environ.get("SYLLABLE_HOST_KEY", "https://syllable.ai"),
-            base_url=agent_endpoint.rstrip("/"),
+            base_url=agent_endpoint,
             label="syllable:apichat",
         )
     return _CustomerAgentHttpRunner(agent_endpoint, secret)

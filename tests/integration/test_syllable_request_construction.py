@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+import json
 
 import pytest
 
@@ -21,19 +22,86 @@ class _Response:
     status_code: int
     payload: dict[str, Any]
     text: str = ""
+    headers: dict[str, str] | None = None
+    reason_phrase: str = "OK"
 
-    def json(self) -> dict[str, Any]:
-        return self.payload
+    def __post_init__(self) -> None:
+        if self.headers is None:
+            self.headers = {}
+
+    def __enter__(self) -> "_Response":
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        return None
+
+    def iter_raw(self) -> list[bytes]:
+        return [json.dumps(self.payload).encode("utf-8")]
+
+
+def _install_fake_scope(monkeypatch, responder):
+    calls: list[dict[str, Any]] = []
+
+    class _Client:
+        def __init__(self, timeout: float, follow_redirects: bool, session_id: str):
+            self._timeout = timeout
+            self._follow_redirects = follow_redirects
+            self._session_id = session_id
+
+        def __enter__(self) -> "_Client":
+            return self
+
+        def __exit__(self, *exc: Any) -> None:
+            return None
+
+        def stream(
+            self,
+            method: str,
+            url: str,
+            *,
+            content: bytes,
+            headers: dict[str, str],
+        ) -> _Response:
+            call = {
+                "method": method,
+                "url": url,
+                "json": json.loads(content.decode("utf-8")),
+                "headers": headers,
+                "timeout": self._timeout,
+                "follow_redirects": self._follow_redirects,
+                "session_id": self._session_id,
+            }
+            calls.append(call)
+            return responder(url, call, calls)
+
+    class _Scope:
+        def __init__(self, allowed_host: str):
+            self.allowed_host = allowed_host
+
+        def __enter__(self) -> "_Scope":
+            return self
+
+        def __exit__(self, *exc: Any) -> None:
+            return None
+
+        def client(
+            self,
+            *,
+            timeout: float,
+            follow_redirects: bool,
+            session_id: str,
+        ) -> _Client:
+            return _Client(timeout, follow_redirects, session_id)
+
+    monkeypatch.setattr("harness.customer_runner.ScopedEgressAllowlist", _Scope)
+    return calls
 
 
 def test_apichat_factory_uses_syllable_two_step_route(monkeypatch) -> None:
     monkeypatch.setenv("SYLLABLE_CLIENT_ID_KEY", "client-key-fixture")
     monkeypatch.setenv("SYLLABLE_HOST_KEY", "https://syllable.example")
 
-    calls: list[dict[str, Any]] = []
-
-    def fake_post(url: str, **kwargs: Any) -> _Response:
-        calls.append({"url": url, **kwargs})
+    def responder(url: str, _call: dict[str, Any], _calls: list[dict[str, Any]]) -> _Response:
         if url.endswith("/api/v1/chats/start_session"):
             return _Response(200, {"id": "session-7791"})
         if url.endswith("/api/v1/chats/send_message"):
@@ -43,7 +111,7 @@ def test_apichat_factory_uses_syllable_two_step_route(monkeypatch) -> None:
             )
         return _Response(404, {}, "not found")
 
-    monkeypatch.setattr("harness.egress.post", fake_post)
+    calls = _install_fake_scope(monkeypatch, responder)
 
     runner = customer_agent_http_runner_factory(
         "https://apichat.syllable.cloud",
@@ -57,15 +125,22 @@ def test_apichat_factory_uses_syllable_two_step_route(monkeypatch) -> None:
         "https://apichat.syllable.cloud/api/v1/chats/send_message",
     ]
     for call in calls:
+        assert call["method"] == "POST"
+        assert call["follow_redirects"] is False
         headers = call["headers"]
         assert headers["Syllable-Client-Id-Key"] == "client-key-fixture"
         assert headers["Syllable-Host-Key"] == "https://syllable.example"
+        assert headers["Origin"] == "https://webchat.syllable.cloud"
+        assert headers["Accept-Encoding"] == "identity"
         assert "Authorization" not in headers
     assert calls[0]["json"] == {}
     assert calls[1]["json"] == {
         "session_id": "session-7791",
         "message": "probe prompt",
     }
+    assert {call["session_id"] for call in calls} and len(
+        {call["session_id"] for call in calls}
+    ) == 1
 
 
 def test_apichat_retries_transient_proxy_status(monkeypatch) -> None:
@@ -73,16 +148,13 @@ def test_apichat_retries_transient_proxy_status(monkeypatch) -> None:
     monkeypatch.setenv("SYLLABLE_HOST_KEY", "https://syllable.example")
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
 
-    calls: list[dict[str, Any]] = []
-
-    def fake_post(url: str, **kwargs: Any) -> _Response:
-        calls.append({"url": url, **kwargs})
+    def responder(url: str, _call: dict[str, Any], calls: list[dict[str, Any]]) -> _Response:
         if url.endswith("/api/v1/chats/start_session"):
             start_attempts = [
                 c for c in calls if c["url"].endswith("/api/v1/chats/start_session")
             ]
             if len(start_attempts) < 3:
-                return _Response(522, {}, "proxy tunnel failed")
+                return _Response(522, {}, "proxy tunnel failed", reason_phrase="Proxy Error")
             return _Response(200, {"id": "session-7846"})
         if url.endswith("/api/v1/chats/send_message"):
             return _Response(
@@ -91,7 +163,7 @@ def test_apichat_retries_transient_proxy_status(monkeypatch) -> None:
             )
         return _Response(404, {}, "not found")
 
-    monkeypatch.setattr("harness.egress.post", fake_post)
+    calls = _install_fake_scope(monkeypatch, responder)
 
     runner = customer_agent_http_runner_factory(
         "https://apichat.syllable.cloud",
@@ -111,10 +183,7 @@ def test_apichat_retries_transient_proxy_exception(monkeypatch) -> None:
     monkeypatch.setenv("SYLLABLE_HOST_KEY", "https://syllable.example")
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
 
-    calls: list[dict[str, Any]] = []
-
-    def fake_post(url: str, **kwargs: Any) -> _Response:
-        calls.append({"url": url, **kwargs})
+    def responder(url: str, _call: dict[str, Any], calls: list[dict[str, Any]]) -> _Response:
         if url.endswith("/api/v1/chats/start_session"):
             return _Response(200, {"id": "session-7846"})
         if url.endswith("/api/v1/chats/send_message"):
@@ -131,7 +200,7 @@ def test_apichat_retries_transient_proxy_exception(monkeypatch) -> None:
             )
         return _Response(404, {}, "not found")
 
-    monkeypatch.setattr("harness.egress.post", fake_post)
+    calls = _install_fake_scope(monkeypatch, responder)
 
     runner = customer_agent_http_runner_factory(
         "https://apichat.syllable.cloud",
@@ -158,16 +227,17 @@ def test_apichat_retry_respects_scan_deadline(monkeypatch) -> None:
         sleeps.append(seconds)
         now["t"] += seconds
 
-    calls: list[dict[str, Any]] = []
-
-    def fake_post(url: str, **kwargs: Any) -> _Response:
-        calls.append({"url": url, **kwargs})
-        now["t"] += float(kwargs["timeout"])
+    def responder(
+        _url: str,
+        call: dict[str, Any],
+        _calls: list[dict[str, Any]],
+    ) -> _Response:
+        now["t"] += float(call["timeout"])
         raise RuntimeError("ReadTimeout: request timed out")
 
     monkeypatch.setattr("time.monotonic", fake_monotonic)
     monkeypatch.setattr("time.sleep", fake_sleep)
-    monkeypatch.setattr("harness.egress.post", fake_post)
+    calls = _install_fake_scope(monkeypatch, responder)
 
     runner = customer_agent_http_runner_factory(
         "https://apichat.syllable.cloud",
