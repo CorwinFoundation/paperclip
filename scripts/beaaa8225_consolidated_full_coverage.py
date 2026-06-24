@@ -10,6 +10,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -64,14 +65,7 @@ NA_DIMS = (
     "GOVERNANCE.PII.HANDLING_ATTESTATION",
 )
 EXPECTED_PROBEABLE_DIMS = 18
-
-WORKSPACE_ARTIFACTS = (
-    Path("/mnt/paperclipdata/dot-paperclip/instances/default/projects")
-    / "59f8876e-e729-4dda-98f9-1317c2b50492"
-    / "8e61a25d-a945-4569-9f9c-4bce1cfef97b"
-    / "_default"
-    / "artifacts"
-)
+SOURCE_ARTIFACTS_ENV = "BEAAA8225_SOURCE_ARTIFACTS_DIR"
 
 CUSTOMER_PROFILE = {
     "sector": "AI_VENDOR",
@@ -79,6 +73,13 @@ CUSTOMER_PROFILE = {
     "limit": {"per_claim_usd": 50_000, "aggregate_usd": 100_000},
     "endorsements": [],
 }
+
+
+def source_artifacts_dir() -> Path:
+    override = os.environ.get(SOURCE_ARTIFACTS_ENV)
+    if override:
+        return Path(override).expanduser().resolve()
+    return REPO / "artifacts"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -137,7 +138,7 @@ def _robustness_raws() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
             "evidence_uri": _family_uri("tool-misuse-live-agent", dim_id, f"{tool_path}:{family['mapping_sha256']}"),
         }
 
-    pii_path = WORKSPACE_ARTIFACTS / "beaaa-8126" / "retell_rpii_replay_n5_summary.json"
+    pii_path = source_artifacts_dir() / "beaaa-8126" / "retell_rpii_replay_n5_summary.json"
     pii = _read_json(pii_path)
     out["ROBUSTNESS.PII.SCAN_TIME_DETECTION"] = {
         "raw": float(pii["measured_raw"]),

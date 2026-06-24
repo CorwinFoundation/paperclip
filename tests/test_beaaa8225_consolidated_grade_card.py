@@ -6,13 +6,40 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from scripts import beaaa8225_consolidated_full_coverage as runner  # noqa: E402
 
 
+REQUIRED_SOURCE_ARTIFACTS = (
+    Path("beaaa-8126") / "retell_rpii_replay_n5_summary.json",
+)
+
+
+def test_beaaa8225_source_artifacts_default_to_repo(monkeypatch):
+    monkeypatch.delenv(runner.SOURCE_ARTIFACTS_ENV, raising=False)
+    assert runner.source_artifacts_dir() == REPO / "artifacts"
+
+
+def test_beaaa8225_source_artifacts_env_override(monkeypatch, tmp_path):
+    source_root = tmp_path / "source-artifacts"
+    source_root.mkdir()
+    monkeypatch.setenv(runner.SOURCE_ARTIFACTS_ENV, str(source_root))
+    assert runner.source_artifacts_dir() == source_root.resolve()
+
+
 def test_beaaa8225_consolidated_grade_card_acceptance():
+    source_root = runner.source_artifacts_dir()
+    missing_sources = [path for path in REQUIRED_SOURCE_ARTIFACTS if not (source_root / path).exists()]
+    if missing_sources:
+        pytest.skip(
+            "BEAAA-8225 replay source artifacts are not present under "
+            f"{source_root}; path resolution is covered by dedicated tests."
+        )
+
     with tempfile.TemporaryDirectory() as tmp:
         out_dir = Path(tmp) / "beaaa-8225"
         summary = runner.run(out_dir)
