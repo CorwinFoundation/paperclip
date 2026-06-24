@@ -1,0 +1,135 @@
+# ARE Probe SDK R2 internal lockfile.
+# Every component the SDK touches is pinned here. The `build_hash` at the
+# bottom is sha256(canonical_json(pinned)) and is the single reproducibility
+# anchor: same target + same R2 build_hash + same seed => byte-identical
+# are_total and pillar subscores per acceptance criterion.
+#
+# R1 is on the shelf; corpus refs and scanner refs may rev between R1 and
+# R2 — the build_hash will change with them.
+
+probe_sdk_version = "0.1.1"
+probe_sdk_release = "R2-internal"
+
+[python]
+required_min = "3.11"
+tested_on = "3.12.3"
+
+[deps]
+PyYAML = "6.0.1"
+cryptography = "41.0.7"
+
+# Standard library only beyond the two deps above. R2 live-target shim
+# uses urllib and local transcript parsing; no model client libs are added.
+
+[scanner_master]
+# `bin/are-scan` is the scoring engine the SDK wraps. R1 does NOT vendor
+# it; the SDK invokes the master CLI by absolute path through env var
+# ARE_SCAN_BIN or `--scanner-bin`. R2 will publish a redistributable
+# scoring snapshot.
+expected_version = "0.5.0"
+expected_path_env_var = "ARE_SCAN_BIN"
+default_path = "/mnt/paperclipdata/dot-paperclip/instances/default/workspaces/d8bbc3b5-185f-43ed-bff0-d00323ddbfa3/are-scanner/bin/are-scan"
+
+[scanner_master.contract]
+contract_path = "contracts/are-scanner-api-v1.md"
+contract_version = "v1.0"
+
+[corpus]
+# R2 ships refusal-robustness plus BIAS_FAIRNESS live-fire packs. SHA is
+# verified by the loader before use.
+default_pack = "refusal_robustness_v0.1"
+
+[corpus.packs.refusal_robustness_v0_1]
+path = "corpus/refusal_robustness_v0.1.jsonl"
+corpus_version = "0.1.0"
+probe_set_version = "0.1.0"
+rubric_point_ids = ["ROBUSTNESS.REFUSAL.DONOTANSWER_SMOKE"]
+# sha256 of the jsonl bytes — populated by build_lockfile.py at scaffold time.
+sha256 = "ef919312913e9e19197427faf4ba54ade3788e446dcc7fa16960ced92fb2b3a5"
+
+[corpus.packs.refusal_robustness_v0_1.upstream_source]
+repo = "https://github.com/backbond-ai/are-corpus"
+path = "corpus/refusal_robustness_v0.1.jsonl"
+commit_sha = "d801736000000000000000000000000000000000"
+
+[corpus.packs.bias_demographic_parity_v0_1]
+path = "corpus/bias_demographic_parity_v0.1.jsonl"
+corpus_version = "0.1.0"
+probe_set_version = "0.1.0"
+rubric_point_ids = ["P2.1"]
+sha256 = "d3d96eee14b5d145fb81389a29bda4794eceef18cf71b1b3ad4111484cd804b6"
+
+[corpus.packs.bias_demographic_parity_v0_1.upstream_source]
+repo = "https://github.com/backbond-ai/are-corpus"
+path = "corpus/bias_demographic_parity_v0.1.jsonl"
+commit_sha = "b1a5000000000000000000000000000000000000"
+
+[corpus.packs.bias_equal_opportunity_v0_1]
+path = "corpus/bias_equal_opportunity_v0.1.jsonl"
+corpus_version = "0.1.0"
+probe_set_version = "0.1.0"
+rubric_point_ids = ["P2.2"]
+sha256 = "709102214144c1bc270d6fced93367c91f34145ead618e0a57f778019a40ab72"
+
+[corpus.packs.bias_equal_opportunity_v0_1.upstream_source]
+repo = "https://github.com/backbond-ai/are-corpus"
+path = "corpus/bias_equal_opportunity_v0.1.jsonl"
+commit_sha = "b1a5000000000000000000000000000000000000"
+
+[corpus.packs.bias_counterfactual_stability_v0_1]
+path = "corpus/bias_counterfactual_stability_v0.1.jsonl"
+corpus_version = "0.1.0"
+probe_set_version = "0.1.0"
+rubric_point_ids = ["P2.3"]
+sha256 = "09dc06355d229c3e16cc0c889b9bc28b0ca1c7a76e5954a0f4f2b6e6b370cbad"
+
+[corpus.packs.bias_counterfactual_stability_v0_1.upstream_source]
+repo = "https://github.com/backbond-ai/are-corpus"
+path = "corpus/bias_counterfactual_stability_v0.1.jsonl"
+commit_sha = "b1a5000000000000000000000000000000000000"
+
+[corpus.packs.bias_eval_representation_v0_1]
+path = "corpus/bias_eval_representation_v0.1.jsonl"
+corpus_version = "0.1.0"
+probe_set_version = "0.1.0"
+rubric_point_ids = ["P2.4"]
+sha256 = "0973a8217d5e94b7278f51dc733a001cd20f645ab002c0dd6ffa0082afa3d98f"
+
+[corpus.packs.bias_eval_representation_v0_1.upstream_source]
+repo = "https://github.com/backbond-ai/are-corpus"
+path = "corpus/bias_eval_representation_v0.1.jsonl"
+commit_sha = "b1a5000000000000000000000000000000000000"
+
+[corpus.packs.bias_sentiment_skew_v0_1]
+path = "corpus/bias_sentiment_skew_v0.1.jsonl"
+corpus_version = "0.1.0"
+probe_set_version = "0.1.0"
+rubric_point_ids = ["P2.5"]
+sha256 = "2078eb7573b3fd5a457e44a6bc1376e204d2eaf92b90fc2c2ca9bb5f1c75a762"
+
+[corpus.packs.bias_sentiment_skew_v0_1.upstream_source]
+repo = "https://github.com/backbond-ai/are-corpus"
+path = "corpus/bias_sentiment_skew_v0.1.jsonl"
+commit_sha = "b1a5000000000000000000000000000000000000"
+
+[signing]
+# R1 portal CA signer is the cto-attest-v1 Ed25519 key per the same
+# discipline as the public probe ledger (BEAAA-4900). The SDK signs the
+# envelope when --sign is passed; unsigned mode is default so DP
+# users without BackBond-issued keys can still produce envelopes (CTO
+# counter-signs on portal ingest).
+algorithm = "Ed25519"
+key_id = "cto-attest-v1"
+key_path_default = "~/.config/backbond/keys/cto-attest-v1.json"
+
+[determinism]
+# Acceptance: spread = 0 on are_total + every pillar subscore across N=5
+# runs on the fixture target with the same seed. `run_timestamp` is the
+# one envelope field that may vary across runs; tests project it out
+# before byte-equality comparison.
+fixture_target_seed = 7
+n5_replicates = 5
+spread_threshold = 0
+
+# Built once R1 contents settle.
+build_hash = "7bb7a54c42c28a3363b81bfdf23cb380a0912114ff3e287d25c11d7c994ebc4e"

@@ -1,0 +1,32 @@
+probe_sdk_version: 0.1.1
+probe_sdk_release: R2-internal
+target:
+  url: file:///mnt/paperclipdata/dot-paperclip/instances/default/projects/59f8876e-e729-4dda-98f9-1317c2b50492/8e61a25d-a945-4569-9f9c-4bce1cfef97b/_default/artifacts/beaaa-8127/retell_ops_p14_live_transcripts.jsonl
+  shape: transcript_export
+  response_json_paths:
+  - output
+  auth:
+    mode: none
+    bearer_env_var: ARE_PROBE_BEARER
+  timeout_seconds: 30
+scanner_version: 0.4.2
+corpus_version: 0.1.0
+probe_set_version: 0.1.0
+seed: 7
+model_versions:
+  primary: retell-chat-agent-gpt-4.1-mini
+  judges: []
+probes:
+- family: ops_refusal_accuracy
+  corpus_pack: refusal_robustness_v0.1
+output:
+  envelope_path: artifacts/beaaa-8127/retell_ops_p14_replay_envelope.json
+  freeze_timestamp: true
+signing:
+  sign: false
+  key_id: cto-attest-v1
+  key_path: ~/.config/backbond/keys/cto-attest-v1.json
+scanner_bin_env_var: ARE_SCAN_BIN
+scanner_bin_default: /mnt/paperclipdata/dot-paperclip/instances/default/workspaces/d8bbc3b5-185f-43ed-bff0-d00323ddbfa3/are-scanner/bin/are-scan
+telemetry:
+  enabled: false
