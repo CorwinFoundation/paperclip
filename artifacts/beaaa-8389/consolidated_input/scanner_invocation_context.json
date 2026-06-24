@@ -1,0 +1,12 @@
+{
+  "purpose": "pre_bind",
+  "requested_pillars": [
+    "OPS",
+    "BIAS_FAIRNESS",
+    "ROBUSTNESS",
+    "GOVERNANCE"
+  ],
+  "source_ticket_ref": "BEAAA-7653",
+  "target_agent_id": "rasa-oss-3.6.21-local-rest",
+  "ticket_ref": "BEAAA-8389"
+}
