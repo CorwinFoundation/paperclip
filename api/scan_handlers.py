@@ -931,6 +931,11 @@ def rescan_handler(
                 payload_for_event["scan_id"] = scan_id
             payload_for_event["agent_id"] = agent_id
             routing_event_sink.emit(decision.routing_event_name, payload_for_event)
+    else:
+        # For claim_review below the 12-hour ceiling, an incomplete
+        # orchestrator result is still an accepted extension path. The
+        # degradation decision owns the rescan status label.
+        payload["status"] = "accepted"
 
     # BEAAA-2139 / ADR-0017 addendum-1 §2.3 + CTO interaction e5ab2af2
     # (`ag5_resolution_path: path_a`, resolved 2026-06-03T08:45:18Z) — Path A

@@ -186,13 +186,21 @@ def compute_delta(
 
         b_rubric = baseline.get("rubric_version")
         b_scanner = baseline.get("scanner_version")
-        attribution = _attribute_drift(
-            baseline_rubric=b_rubric,
-            baseline_scanner=b_scanner,
-            current_rubric=rubric.version,
-            current_scanner=SCANNER_VERSION,
-            are_delta=are_delta,
-        )
+        rubric_changed = b_rubric and b_rubric != rubric.version
+        if (
+            not rubric_changed
+            and are_delta == 0
+            and all(d == 0 for d in pillar_deltas.values())
+        ):
+            attribution = "none"
+        else:
+            attribution = _attribute_drift(
+                baseline_rubric=b_rubric,
+                baseline_scanner=b_scanner,
+                current_rubric=rubric.version,
+                current_scanner=SCANNER_VERSION,
+                are_delta=are_delta,
+            )
 
         # A breach is a Supreme-Law breach only when versions match (same
         # rubric/scanner) and the math still moved. When versions differ, the

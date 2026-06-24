@@ -5,8 +5,12 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+
+pytest.importorskip("agentdojo")
 
 from harness.live_tool_agent import OpenAIToolAgentRunner  # noqa: E402
 from scripts import beaaa8142_tool_misuse_real_agent_live_fire as live_fire  # noqa: E402

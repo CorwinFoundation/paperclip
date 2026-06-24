@@ -27,11 +27,14 @@ def _baseline_replicate() -> dict:
     """Build a deterministic baseline ScoreResponse from the M1 fixture."""
     rubric = Rubric.load(RUBRIC_PATH)
     eo = json.loads((FIXTURES / "M1" / "eval_outputs.json").read_text())
+    applicability = json.loads((FIXTURES / "M1" / "applicability.json").read_text())
     res = score(
         rubric, eo,
         snapshot_hash=SNAPSHOT_HASH,
         forensic_bundle_uri="https://golden.local/M1",
         scored_at=SCORED_AT,
+        applicability_decisions=applicability.get("applicability_decisions"),
+        applicability_policy_version=applicability.get("policy_version"),
     )
     res["corpus_version"] = "halueval-qa@1.0+jbb@1.0+advbench@1.0+tqa@1.0"
     res["seed"] = 42

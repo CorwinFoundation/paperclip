@@ -96,10 +96,13 @@ def evaluate_replicates(
 
         first_pillar = replicates[0]["pillars"][pid]
         for did in first_pillar.get("dimensions", {}):
-            raws = [
-                float(r["pillars"][pid]["dimensions"][did]["raw"])
+            raw_values = [
+                r["pillars"][pid]["dimensions"][did]["raw"]
                 for r in replicates
             ]
+            if any(raw is None for raw in raw_values):
+                continue
+            raws = [float(raw) for raw in raw_values]
             r_min, r_max = min(raws), max(raws)
             if (r_max - r_min) > dim_tolerance:
                 dim_breaches[did] = (r_min, r_max)
