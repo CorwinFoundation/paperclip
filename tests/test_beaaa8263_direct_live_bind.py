@@ -101,8 +101,10 @@ def test_direct_egress_env_alias_adds_root_only_rule_and_removes_on_exit(
 
     add_cmd = next(cmd for cmd in calls if cmd[:3] == ["nft", "add", "rule"])
     assert add_cmd[:6] == ["nft", "add", "rule", "inet", "are_egress_filter", "output"]
-    assert add_cmd[6:9] == ["meta", "skuid", "0"]
-    assert add_cmd[-6:] == ["tcp", "dport", "443", "accept", "comment", comments[0]]
+    assert add_cmd[6:15] == [
+        "ip", "daddr", "57.152.30.223", "tcp", "dport", "443", "meta", "skuid", "0",
+    ]
+    assert add_cmd[-3:] == ["accept", "comment", comments[0]]
     assert "BEAAA-8263-direct-live-bind" in comments[0]
     assert "scan_id=scan-beaaa8263" in comments[0]
     assert "host=apichat.syllable.cloud" in comments[0]
