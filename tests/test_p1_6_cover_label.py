@@ -94,6 +94,12 @@ class RenderHtmlCoverLabelTests(unittest.TestCase):
         sr["snapshot_hash"] = "sha256:abc"
         html = self._render(sr)
         self.assertIn(">ARE Spot-Scan \u2014 Agent Risk Exposure Report Card<", html)
+        self.assertIn("<title>ARE Spot-Scan \u2014 (partial coverage)</title>", html)
+        self.assertIn("measured surface", html)
+        self.assertIn("No full-coverage band on Spot-Scan", html)
+        self.assertNotIn("/100", html)
+        self.assertNotIn('class="band-badge"', html)
+        self.assertNotIn("Weight Sensitivity", html)
 
 
 if __name__ == "__main__":

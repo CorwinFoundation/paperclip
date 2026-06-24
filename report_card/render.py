@@ -638,6 +638,13 @@ def _cover_label_from_p1_6(score_response: dict[str, Any]) -> tuple[str, dict[st
     return label_for(float(pct), str(path)), p1_6_block
 
 
+def _has_coverage_gate_metadata(p1_6_block: dict[str, Any]) -> bool:
+    return (
+        p1_6_block.get("coverage_breadth_pct") is not None
+        and p1_6_block.get("evidence_path") is not None
+    )
+
+
 def render(
     score_response: dict[str, Any],
     rubric: Rubric,
@@ -700,6 +707,9 @@ def render(
     # + P1.6.evidence_path. "ARE Score" only when Path B coverage ≥ 80%;
     # otherwise "ARE Spot-Scan". Anti-over-claim governor per BEAAA-193.
     cover_label, _p1_6_block = _cover_label_from_p1_6(score_response)
+    coverage_aware_partial = (
+        _has_coverage_gate_metadata(_p1_6_block) and cover_label != "ARE Score"
+    )
     prov_html = _provenance_block(provenance, dim_provenance)
     # BEAAA-390 / BEAAA-388: LOI-stage caveat above the score band. Sources
     # rubric_version + contract_version + scanner_version from the underlying
@@ -728,7 +738,11 @@ def render(
         )
         for pid in pillars
     )
-    sensitivity_html = render_sensitivity_block(_display_sr) if include_sensitivity else ""
+    sensitivity_html = (
+        render_sensitivity_block(_display_sr)
+        if include_sensitivity and not coverage_aware_partial
+        else ""
+    )
     repro_html = render_reproducibility_block(reproducibility) if reproducibility else ""
     diff_html = render_diff_block(diff) if diff else ""
 
@@ -751,12 +765,48 @@ def render(
             f"claims trip-wire fires]</span>"
         )
 
+    coverage_pct = _p1_6_block.get("coverage_breadth_pct")
+    if coverage_pct is not None:
+        coverage_meta = f"measured surface = {float(coverage_pct):.1f}%"
+    else:
+        coverage_meta = "measured surface = partial"
+
+    if not coverage_aware_partial:
+        title_suffix = f"({bmi}/100)"
+        score_denominator_html = '<span class="score-denom">/100</span>'
+        band_block_html = (
+            f'      <div class="band-block">\n'
+            f'        <div class="band-badge">\n'
+            f'          <span class="band-letter">{escape(band["display"])}</span>\n'
+            f'          <span class="band-tier">{band_tier}</span>\n'
+            f"        </div>\n"
+            f'        <div class="band-meta">\u00d7{band["modifier_factor"]:.2f} pricing'
+            f' \u00b7 bands v{escape(str(band["bands_version"]))}</div>\n'
+            f"      </div>\n"
+        )
+        hero_stat_html = (
+            f'        <div class="posture-label">{escape(band["posture"])}</div>\n'
+            f'        <span class="pricing-tag">modifier_factor = \u00d7{band["modifier_factor"]:.2f}</span>\n'
+        )
+    else:
+        title_suffix = "(partial coverage)"
+        score_denominator_html = '<span class="score-denom">measured surface</span>'
+        band_block_html = (
+            f'      <div class="band-block">\n'
+            f'        <div class="band-meta">No full-coverage band on Spot-Scan</div>\n'
+            f"      </div>\n"
+        )
+        hero_stat_html = (
+            f'        <div class="posture-label">Measured aggregate only</div>\n'
+            f'        <span class="pricing-tag">{escape(coverage_meta)}</span>\n'
+        )
+
     return (
         f"<!DOCTYPE html>\n"
         f'<html lang="en">\n'
         f"<head>\n"
         f'<meta charset="utf-8" />\n'
-        f"<title>{escape(cover_label)} \u2014 {escape(band['display'])} ({bmi}/100)</title>\n"
+        f"<title>{escape(cover_label)} \u2014 {escape(title_suffix)}</title>\n"
         f"<style>{_STYLE}</style>\n"
         f"</head>\n"
         f"<body>\n"
@@ -780,20 +830,12 @@ def render(
         f'      <div class="score-ring" style="--score-deg:{score_deg};">\n'
         f'        <div class="score-inner">\n'
         f'          <span class="score-number">{bmi}</span>\n'
-        f'          <span class="score-denom">/100</span>\n'
+        f"          {score_denominator_html}\n"
         f"        </div>\n"
         f"      </div>\n"
-        f'      <div class="band-block">\n'
-        f'        <div class="band-badge">\n'
-        f'          <span class="band-letter">{escape(band["display"])}</span>\n'
-        f'          <span class="band-tier">{band_tier}</span>\n'
-        f"        </div>\n"
-        f'        <div class="band-meta">\u00d7{band["modifier_factor"]:.2f} pricing'
-        f' \u00b7 bands v{escape(str(band["bands_version"]))}</div>\n'
-        f"      </div>\n"
+        f"{band_block_html}"
         f'      <div class="hero-stats">\n'
-        f'        <div class="posture-label">{escape(band["posture"])}</div>\n'
-        f'        <span class="pricing-tag">modifier_factor = \u00d7{band["modifier_factor"]:.2f}</span>\n'
+        f"{hero_stat_html}"
         f"      </div>\n"
         f"    </div>\n"
         f"\n"
