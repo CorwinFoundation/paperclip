@@ -62,6 +62,7 @@ _CUSTOMER_VPC_MODE = "customer_vpc"
 _REPO_LOCAL_MODE = "repo_local"
 _TENANT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
 _RUN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_SCORED_VERDICTS = {"pass", "partial", "fail"}
 
 
 def _numeric_to_verdict(score: float) -> str:
@@ -194,6 +195,62 @@ def _project_evidence_refs(
     return projected
 
 
+def _raise_evidence_error(message: str) -> None:
+    # Lazy import to break the cli_runner ↔ contract_envelope cycle.
+    from harness.cli_runner import CliEvidenceError
+    raise CliEvidenceError(message)
+
+
+def _validate_scored_evidence_refs(
+    evidence_refs: list[dict[str, Any]],
+    *,
+    scored_rubric_point_ids: set[str],
+) -> None:
+    """Enforce are-scanner-api-v1 evidence completeness for scored points.
+
+    N/A rows can carry empty artifact_uri by design because they are also
+    listed in uncovered_dimensions. Every scored rubric point must have
+    exactly one complete evidence_refs row with the v1.0 required fields.
+    """
+    errors: list[str] = []
+    seen: dict[str, int] = {}
+    for idx, ref in enumerate(evidence_refs):
+        rubric_point_id = ref.get("rubric_point_id")
+        if not isinstance(rubric_point_id, str) or not rubric_point_id:
+            errors.append(f"row[{idx}].rubric_point_id")
+            continue
+        seen[rubric_point_id] = seen.get(rubric_point_id, 0) + 1
+
+        verdict = ref.get("verdict")
+        if verdict == "n/a":
+            continue
+
+        if rubric_point_id not in scored_rubric_point_ids:
+            errors.append(f"{rubric_point_id}.unexpected_scored_ref")
+        test_id = ref.get("test_id")
+        if not isinstance(test_id, str) or not test_id:
+            errors.append(f"{rubric_point_id}.test_id")
+        artifact_uri = ref.get("artifact_uri")
+        if not isinstance(artifact_uri, str) or not artifact_uri:
+            errors.append(f"{rubric_point_id}.artifact_uri")
+        if verdict not in _SCORED_VERDICTS:
+            errors.append(f"{rubric_point_id}.verdict")
+        weight = ref.get("weight")
+        if not isinstance(weight, (int, float)) or isinstance(weight, bool):
+            errors.append(f"{rubric_point_id}.weight")
+        elif not 0 <= float(weight) <= 1:
+            errors.append(f"{rubric_point_id}.weight")
+
+    missing = sorted(rp for rp in scored_rubric_point_ids if rp not in seen)
+    duplicates = sorted(rp for rp, count in seen.items() if count > 1)
+    if missing:
+        errors.append("missing:" + ",".join(missing))
+    if duplicates:
+        errors.append("duplicate:" + ",".join(duplicates))
+    if errors:
+        _raise_evidence_error("evidence_refs incomplete: " + "; ".join(errors))
+
+
 def _governance_attestation_refs(
     governance_attestations: dict[str, Any] | None,
     score_result: dict[str, Any],
@@ -286,6 +343,7 @@ def to_contract_output(
     subscores: dict[str, float] = {}
     evidence_refs: list[dict[str, Any]] = []
     uncovered: list[str] = []
+    scored_rubric_point_ids: set[str] = set()
     for pid, pdata in pillars.items():
         pscore = float(pdata.get("score", 0.0))
         subscores[pid] = pscore
@@ -305,6 +363,7 @@ def to_contract_output(
             raw = float(dim_block.get("raw") or 0.0)
             numeric_score = raw / 4.0
             evidence_uri = dim_block.get("evidence_uri") or ""
+            scored_rubric_point_ids.add(dim_id)
             evidence_refs.append({
                 "rubric_point_id": dim_id,
                 "test_id": dim_id,
@@ -329,21 +388,12 @@ def to_contract_output(
         scored_at=scored_at,
     )
 
-    # Hard guarantee #2 from the contract: every active rubric point must
-    # have a reachable artifact_uri. The CLI surface is the place to
-    # enforce this — the in-agent path defers it to the Underwriter intake.
-    missing_artifact = [
-        ref["rubric_point_id"]
-        for ref in evidence_refs
-        if ref["verdict"] != "n/a" and not ref["artifact_uri"]
-    ]
-    if missing_artifact:
-        # Lazy import to break the cli_runner ↔ contract_envelope cycle.
-        from harness.cli_runner import CliEvidenceError
-        raise CliEvidenceError(
-            "evidence_refs incomplete: dims with empty artifact_uri: "
-            + ",".join(sorted(missing_artifact))
-        )
+    # Hard guarantee #2 from the contract: every scored rubric point must
+    # have exactly one complete evidence_refs row with a reachable artifact_uri.
+    _validate_scored_evidence_refs(
+        evidence_refs,
+        scored_rubric_point_ids=scored_rubric_point_ids,
+    )
 
     # BEAAA-796 / v1.0.3 §Output promotion #4 — per-P4-dim review_state +
     # tier MUST emit on every P4 evidence_refs row. Reads review_state +

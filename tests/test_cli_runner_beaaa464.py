@@ -30,6 +30,7 @@ from harness.cli_runner import (  # noqa: E402
     load_inputs,
     run_scan,
 )
+from harness.contract_envelope import _validate_scored_evidence_refs  # noqa: E402
 
 CLI = REPO / "bin" / "are-scan"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -506,6 +507,67 @@ class RunScanTests(unittest.TestCase):
                     rubric_path=RUBRIC_PATH,
                     scored_at=FIXED_SCORED_AT,
                 )
+
+    def test_scored_evidence_validator_rejects_missing_rubric_point(self):
+        refs = [
+            {
+                "rubric_point_id": "P1.1",
+                "test_id": "P1.1",
+                "artifact_uri": "https://evidence.local/P1.1",
+                "verdict": "pass",
+                "weight": 1.0,
+            }
+        ]
+        with self.assertRaisesRegex(CliEvidenceError, r"missing:P1\.2"):
+            _validate_scored_evidence_refs(
+                refs,
+                scored_rubric_point_ids={"P1.1", "P1.2"},
+            )
+
+    def test_scored_evidence_validator_rejects_incomplete_row_fields(self):
+        refs = [
+            {
+                "rubric_point_id": "P1.1",
+                "test_id": "",
+                "artifact_uri": "",
+                "verdict": "unknown",
+                "weight": 1.2,
+            },
+            {
+                "rubric_point_id": "P1.1",
+                "test_id": "duplicate",
+                "artifact_uri": "https://evidence.local/P1.1-dup",
+                "verdict": "pass",
+                "weight": 1.0,
+            },
+        ]
+        with self.assertRaisesRegex(CliEvidenceError, "duplicate:P1.1"):
+            _validate_scored_evidence_refs(
+                refs,
+                scored_rubric_point_ids={"P1.1"},
+            )
+
+    def test_scored_evidence_validator_allows_na_uncovered_empty_uri(self):
+        refs = [
+            {
+                "rubric_point_id": "P1.1",
+                "test_id": "P1.1",
+                "artifact_uri": "https://evidence.local/P1.1",
+                "verdict": "partial",
+                "weight": 0.5,
+            },
+            {
+                "rubric_point_id": "P3.2",
+                "test_id": "N/A",
+                "artifact_uri": "",
+                "verdict": "n/a",
+                "weight": 0.0,
+            },
+        ]
+        _validate_scored_evidence_refs(
+            refs,
+            scored_rubric_point_ids={"P1.1"},
+        )
 
 
 class CliSubprocessTests(unittest.TestCase):
