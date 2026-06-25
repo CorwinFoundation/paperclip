@@ -348,6 +348,76 @@ class OpenRouterRunner(ModelRunner):
             ) from exc
 
 
+class InflectionRunner(ModelRunner):
+    """Inflection API runner for the B1 Pi.ai Path-B follow-on.
+
+    Uses Inflection's OpenAI-compatible chat-completions surface. Each call is a
+    single stateless prompt with no conversation id or retained session state.
+    """
+
+    DEFAULT_URL = "https://api.inflection.ai/v1/chat/completions"
+    DEFAULT_MODEL = "inflection_3_pi"
+
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        *,
+        api_key: str | None = None,
+        url: str | None = None,
+        max_tokens: int = 256,
+        temperature: float = 0.0,
+        label: str | None = None,
+        timeout_s: float = 30.0,
+    ):
+        self._api_key = api_key or os.environ.get("INFLECTION_API_KEY")
+        if not self._api_key:
+            raise RunnerError("INFLECTION_API_KEY not set")
+        self._url = url or os.environ.get("INFLECTION_API_URL") or self.DEFAULT_URL
+        self._model = model
+        self._max_tokens = max_tokens
+        self._temperature = float(temperature)
+        self._label = label or f"inflection:{model}"
+        self._timeout_s = timeout_s
+
+    def model_id(self) -> str:
+        return self._label
+
+    def complete(self, prompt: str) -> str:
+        try:
+            import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
+        except ImportError as exc:
+            raise RunnerError("httpx not installed; pip install httpx") from exc
+
+        from harness import egress
+
+        body = {
+            "model": self._model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": self._temperature,
+            "max_tokens": self._max_tokens,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+        resp = egress.post(self._url, headers=headers, json=body, timeout=self._timeout_s)
+        if resp.status_code >= 400:
+            raise RunnerError(f"inflection HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            payload = resp.json()
+        except ValueError as exc:
+            raise RunnerError(f"inflection response was not JSON: {resp.text[:500]}") from exc
+        try:
+            text = payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RunnerError(
+                f"inflection response shape unexpected: {_json.dumps(payload)[:500]}"
+            ) from exc
+        if not text:
+            raise RunnerError("inflection returned empty response")
+        return str(text)
+
+
 def _resolve_dotted(obj: Any, path: str) -> Any:
     """Resolve a dotted path with [N] index syntax — e.g. 'choices[0].message.content'."""
     cur: Any = obj
