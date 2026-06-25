@@ -14,7 +14,7 @@ The gate bundle (`brand/` + `scripts/verify-brand-backbone.sh`) exists in two ch
 Rules so both agents resolve the same path:
 
 1. **"The project root" = the root of whichever checkout you are in.** `scripts/verify-brand-backbone.sh` self-resolves its own root (`dirname/..`), so `bash scripts/verify-brand-backbone.sh` is correct from either root. Do not hard-code an absolute path.
-2. **Both copies MUST hash to the pinned SHA** (`587587bde645752c…`). The verifier passing in one checkout does not vouch for the other — run it in the checkout you are shipping from.
+2. **Both copies MUST hash to the pinned SHA** (`b1ae308e0f150ff5…`). The verifier passing in one checkout does not vouch for the other — run it in the checkout you are shipping from.
 3. **On divergence, the Scanner-repo copy wins** and the `_default` mirror is re-synced from it (copy the PDF, `.sha256`, and `scripts/verify-brand-backbone.sh` across; never hand-edit either to "fix" a mismatch).
 4. **The PDF lives in `brand/` only** — never at the bare workspace/repo root, never duplicated elsewhere in a checkout.
 
@@ -26,12 +26,12 @@ Rules so both agents resolve the same path:
 |---|---|
 | Document | `BackBond-Brand-Backbone-v1.5.pdf` |
 | Version | v1.5 |
-| SHA-256 | `587587bde645752c55eb21196fb789ed3910ffd024f8cc3474aca36bb0b834a6` |
+| SHA-256 | `b1ae308e0f150ff5d0a6bdf05071ee98540e296bb3a86a4626b03041a266838f` |
 | Pinned at | 2026-06-25 |
-| Source issue | [BEAAA-8354](/BEAAA/issues/BEAAA-8354) |
-| Pin authority | Founder (`local-board`); content ratified 2026-06-24 via [BEAAA-8299](/BEAAA/issues/BEAAA-8299) (interaction `eaa7565c`), board-locked re-pin ratified 2026-06-25 via [BEAAA-8354](/BEAAA/issues/BEAAA-8354) |
+| Source issue | [BEAAA-8466](/BEAAA/issues/BEAAA-8466) (Founder file attached on [BEAAA-8369](/BEAAA/issues/BEAAA-8369)) |
+| Pin authority | Founder (`local-board`), board-locked. Authoritative corrected v1.5 PDF attached directly by the Founder on [BEAAA-8369](/BEAAA/issues/BEAAA-8369) (attachment `4c0a313f`, `createdByUserId: local-board`) with the comment *"This is the correct BackBond Brand backbone"*; carried to CEO for the board-locked re-pin via [BEAAA-8466](/BEAAA/issues/BEAAA-8466) |
 
-> **Re-pinned 2026-06-25 (BEAAA-8354).** v1.5 folds the two Founder-ratified decisions into the canon: (1) the production **logo** — p.10 + Appendix B now point at the board-locked **two-PNG asset set** (`brand/assets/BackBond_Logo_{light,dark}.png`, [BEAAA-8361](/BEAAA/issues/BEAAA-8361)); the "concept-stage raster / vectorize before scaled production" language is removed and re-tracing / vector / 2x-3x derivation is prohibited; and (2) **running-text case** — "BackBond" (camel-case) is LOCKED on p.4 + p.12 (previously open "RATIFY" / "AWAITING RATIFICATION" items). Cover label is now VERSION 1.5. Everything else is faithful to v1.4 (Copper Law, score-card spec, bands, type, Carrier Rule). The superseded `BackBond-Brand-Backbone-v1.4.pdf` (SHA `241d1082…`) is preserved as a historical artifact; its row is in `CHANGELOG.md`.
+> **Re-pinned 2026-06-25 (BEAAA-8466).** This is the Founder's authoritative corrected v1.5 build (SHA `b1ae308e…`), attached directly by the board on [BEAAA-8369](/BEAAA/issues/BEAAA-8369). It **supersedes** the prior v1.5 build (SHA `587587bd…`, pinned earlier the same day via [BEAAA-8354](/BEAAA/issues/BEAAA-8354)). Same 14-page content family and all prior locks intact — the Founder build resolves the cover version-label rendering natively (`VERSION 1.5` renders as native muted-gray footer text on the Ink Navy field — no white-box patch, no clipped `5`, no halo) and the pages 4 & 12 callout panels render natively (no patch outline), without any post-hoc patching. Logo fold (founder-ratified two-PNG set, [BEAAA-8361](/BEAAA/issues/BEAAA-8361)), words-first A–D bands, Copper Law, "BackBond" camel-case running-text lock, and Carrier Rule are all preserved. The superseded `587587bd…` build is retained as the historical artifact `BackBond-Brand-Backbone-v1.5-superseded-587587bd.pdf`; the superseded `BackBond-Brand-Backbone-v1.4.pdf` (SHA `241d1082…`) is also retained. Both rows are in `CHANGELOG.md`.
 
 The SHA-pinned filename and hash in `BackBond-Brand-Backbone-v1.5.sha256` are the contract. If the PDF on disk does not hash to that value, the local copy is stale or tampered — re-pull from Paperclip and re-verify before shipping anything external.
 
@@ -66,7 +66,7 @@ When any item below the Backbone disagrees with it, the Backbone wins and the lo
 
 Every external-bound artifact MUST satisfy all four before shipping:
 
-1. **Pinned-version cite.** The artifact's metadata carries `brand_backbone_version: "v1.5"` and `brand_backbone_sha256: "587587bd…"`.
+1. **Pinned-version cite.** The artifact's metadata carries `brand_backbone_version: "v1.5"` and `brand_backbone_sha256: "b1ae308e…"`.
 2. **Visual compliance.** Colours (Ink Navy `#0B1A38` + Copper `#D58E5C` dark / `#BD6A34` white), type (Archivo / Inter / IBM Plex Mono), Copper Law (copper marks bond/capital/payout only — never decoration, never traffic-light bands), and **logo** — the asset carries one of the two canonical files from `brand/assets/LOGO-CANON.md` (`BackBond_Logo_light.png` / `BackBond_Logo_dark.png`), not a retired mark, concept lockup, or typeset CSS wordmark. The nightly Auditor / brand gate reads `LOGO-CANON.md` for the current logo of record.
 3. **Voice + canon compliance.** No anti-patterns from `voice-and-anti-patterns.md`; no banned vocab; "per agent, per run" is verbatim when used; bands are words-first (Preferred·A / Standard·B / Constrained·C / Decline·D).
 4. **Local hash matches the pin.** Run `scripts/verify-brand-backbone.sh` — exits 0 if the on-disk PDF matches `BackBond-Brand-Backbone-v1.5.sha256`, non-zero if not.
@@ -92,6 +92,7 @@ Anyone editing brand-canon files without a Founder-attached PDF and an originati
 |---|---|
 | `BackBond-Brand-Backbone-v1.5.pdf` | The pinned source of truth |
 | `BackBond-Brand-Backbone-v1.5.sha256` | One-line `<sha256>  BackBond-Brand-Backbone-v1.5.pdf` for `sha256sum -c` |
+| `BackBond-Brand-Backbone-v1.5-superseded-587587bd.pdf` | Prior v1.5 build (SHA `587587bd…`, BEAAA-8354), superseded 2026-06-25 by the Founder's corrected v1.5 build (BEAAA-8466); retained as historical artifact (never deleted) |
 | `BackBond-Brand-Backbone-v1.4.pdf` (+ `.sha256`) | Superseded 2026-06-25 by v1.5; retained as historical artifact (never deleted) |
 | `README.md` | This file — protocol + currently-pinned table |
 | `CHANGELOG.md` | History of pinned versions and what changed |

@@ -8,7 +8,7 @@
 # Exit codes:
 #   0  pinned SHA matches → safe to ship (visual/voice review still required)
 #   1  brand/ directory missing or .sha256 pin file missing
-#   2  PDF missing on disk — re-pull from Paperclip (BEAAA-8354 attachment) and retry
+#   2  PDF missing on disk — re-pull from Paperclip (BEAAA-8369 Founder attachment) and retry
 #   3  SHA mismatch — on-disk PDF is stale or tampered; do NOT ship; escalate to CMO
 set -euo pipefail
 
@@ -23,13 +23,13 @@ if [[ ! -d "${BRAND_DIR}" || ! -f "${PIN_FILE}" ]]; then
 fi
 
 if [[ ! -f "${PDF_FILE}" ]]; then
-  echo "FAIL: ${PDF_FILE} missing — re-pull from Paperclip attachment on BEAAA-8354" >&2
+  echo "FAIL: ${PDF_FILE} missing — re-pull from Paperclip Founder attachment on BEAAA-8369" >&2
   exit 2
 fi
 
 cd "${BRAND_DIR}"
 if sha256sum -c "$(basename "${PIN_FILE}")" >/dev/null 2>&1; then
-  echo "OK: Brand Backbone v1.5 SHA matches pin (587587bd…)"
+  echo "OK: Brand Backbone v1.5 SHA matches pin (b1ae308e…)"
   exit 0
 fi
 
@@ -38,5 +38,5 @@ EXPECTED="$(awk '{print $1}' "$(basename "${PIN_FILE}")")"
 echo "FAIL: SHA mismatch — on-disk PDF is NOT the pinned Backbone." >&2
 echo "  expected: ${EXPECTED}" >&2
 echo "  actual:   ${ACTUAL}" >&2
-echo "  Do NOT ship. Re-pull from Paperclip BEAAA-8354 attachment and escalate to CMO." >&2
+echo "  Do NOT ship. Re-pull from Paperclip BEAAA-8369 Founder attachment and escalate to CMO." >&2
 exit 3
