@@ -2,6 +2,24 @@
 
 This directory is the **single source of truth** for the BackBond brand. Every external-bound asset (deck, one-pager, web copy, PDF, press release, partner kit, investor doc, design comp) MUST conform to the document pinned here.
 
+## Canonical location (resolve this before "the project root")
+
+The gate bundle (`brand/` + `scripts/verify-brand-backbone.sh`) exists in two checkouts. They are byte-identical and both hash to the same pin, but only one is version-controlled. When an instruction says "run the verifier from the project root," resolve it as follows:
+
+| Checkout | Path (root) | Role | Authority |
+|---|---|---|---|
+| **Scanner code repo (`are-scanner`)** | repo root → `brand/`, `scripts/verify-brand-backbone.sh` | **Canonical.** Version-controlled, survives a clean checkout, travels with the code that ships external assets. | **Source of truth for the gate bundle.** |
+| CMO `_default` brand workspace | workspace root → `brand/`, `scripts/verify-brand-backbone.sh` | Authoring mirror. Where the CMO drafts deliverables and keeps the full canon (superseded PDFs, working assets). | Must match the canonical pin. |
+
+Rules so both agents resolve the same path:
+
+1. **"The project root" = the root of whichever checkout you are in.** `scripts/verify-brand-backbone.sh` self-resolves its own root (`dirname/..`), so `bash scripts/verify-brand-backbone.sh` is correct from either root. Do not hard-code an absolute path.
+2. **Both copies MUST hash to the pinned SHA** (`587587bde645752c…`). The verifier passing in one checkout does not vouch for the other — run it in the checkout you are shipping from.
+3. **On divergence, the Scanner-repo copy wins** and the `_default` mirror is re-synced from it (copy the PDF, `.sha256`, and `scripts/verify-brand-backbone.sh` across; never hand-edit either to "fix" a mismatch).
+4. **The PDF lives in `brand/` only** — never at the bare workspace/repo root, never duplicated elsewhere in a checkout.
+
+> Why this section exists: the gate bundle originally lived only in the CMO `_default` workspace, so a clean `are-scanner` checkout was missing it (BEAAA-8464). It is now committed to the Scanner repo (canonical) and this note pins which root is authoritative so the ambiguity cannot recur (BEAAA-8465).
+
 ## Currently pinned
 
 | Item | Value |
