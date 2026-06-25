@@ -1,0 +1,438 @@
+metadata:
+  artifact_type: other
+  owner: underwriter
+  persona_audience: internal
+  phase: 1
+  canonical_terms_only: true
+  brand_backbone_version: "v1.5"
+  brand_backbone_sha256: "b1ae308e0f150ff5d0a6bdf05071ee98540e296bb3a86a4626b03041a266838f"
+  brand_backbone_verified: true
+  focus_claim: "This rule table is the executable underwriting policy surface that keeps automatic decisions evidence-linked and prevents autonomous real-policy binding in Phase 1."
+  contracts_referenced:
+    - are-scanner-api-v1@v1.0
+    - uw-rubric-supervision-v1@v1.0
+    - uw-referral-triggers-v0@v0.1
+  ticket_refs:
+    - BEAAA-8539
+    - BEAAA-8537
+    - BEAAA-8499
+    - BEAAA-8223
+    - BEAAA-4658
+    - BEAAA-4660
+  version: 0.1
+  prior_version: null
+  self_audit_passed: true
+  escalations_noted:
+    - "No autonomous real-policy bind is permitted by any rule in v0.1."
+    - "Premium factors are interface stubs until Actuary-owned production rate module confirmation."
+
+policy:
+  id: automatic-underwriting-decision-policy
+  version: "0.1"
+  effective_date: "2026-06-25"
+  source_issue: BEAAA-8539
+  companion_markdown: BEAAA-8539_automatic_underwriting_decision_policy_v0.1.md
+  phase_1_autonomy_boundary:
+    autonomous_real_policy_bind_allowed: false
+    clear_a_auto_resolve: eligible_pending_human_bind
+    clear_d_auto_resolve: decline_standard_ladder
+    b_c_route_to_human: true
+    human_bind_signoff_required_for_all_real_policies: true
+
+inputs:
+  required_paths:
+    - are_total
+    - band
+    - subscores.GOVERNANCE
+    - subscores.ROBUSTNESS
+    - subscores.BIAS_FAIRNESS
+    - subscores.OPS
+    - evidence_refs
+    - uncovered_dimensions
+    - scanner_version
+    - corpus_version
+    - model_versions
+    - seed
+    - run_timestamp
+    - applicability_record.measured_dims_count
+    - applicability_record.na_dims_count
+    - applicability_record.pillars_with_all_na
+    - coverage_fraction.by_peril
+    - coverage_fraction.overall
+    - governance_evidence.eval_ledger_p4_5
+    - peril_findings
+    - rate_context
+
+classes:
+  A:
+    engine_outcome: ELIGIBLE_PENDING_HUMAN_BIND
+    auto_resolved: true
+    human_review_required: true
+    human_review_owner: operational_underwriter
+    real_policy_bound: false
+    premium_status: filed_rate_ready
+    band_factor_stub: 0.60
+  B:
+    engine_outcome: REFER_TO_UNDERWRITER_BIND_BLOCKER
+    auto_resolved: false
+    human_review_required: true
+    human_review_owner: operational_underwriter
+    real_policy_bound: false
+    premium_status: advisory_only
+    band_factor_stub: 1.00
+  C:
+    engine_outcome: REFER_TO_UNDERWRITER_REMEDIATION
+    auto_resolved: false
+    human_review_required: true
+    human_review_owner: operational_underwriter
+    real_policy_bound: false
+    premium_status: remediation_only
+    band_factor_stub: 2.50
+  D:
+    engine_outcome: DECLINE_STANDARD_LADDER
+    auto_resolved: true
+    human_review_required: false
+    human_review_owner: none_unless_appeal
+    real_policy_bound: false
+    premium_status: no_standard_quote
+    band_factor_stub: null
+
+evaluation_order:
+  - preflight_run_pins
+  - preflight_evidence
+  - preflight_applicability
+  - preflight_appetite
+  - coverage_fraction
+  - governance_gates
+  - score_threshold
+  - tightening_overrides
+  - premium_interface
+
+rules:
+  - id: EV-001
+    stage: preflight_run_pins
+    description: Required scanner run pins must be present.
+    predicate:
+      any_missing:
+        - scanner_version
+        - corpus_version
+        - model_versions
+        - seed
+        - run_timestamp
+    result_class: D
+    terminal: true
+    reason_code: EV.RUN_PIN_MISSING
+    severity: blocker
+    evidence_required: missing_field_list
+    remediation: Re-run the BackBond Scanner with all contract-required version pins.
+
+  - id: EV-002
+    stage: preflight_evidence
+    description: Every scored rubric point must have a reachable evidence reference.
+    predicate:
+      evidence_refs_complete: false
+    result_class: D
+    terminal: true
+    reason_code: EV.EVIDENCE_REF_INCOMPLETE
+    severity: blocker
+    evidence_required: rubric_point_id_and_missing_artifact_uri
+    remediation: Attach complete evidence refs and re-run admittance.
+
+  - id: EV-003
+    stage: preflight_applicability
+    description: No pillar may be entirely N/A.
+    predicate:
+      path: applicability_record.pillars_with_all_na
+      operator: length_greater_than
+      value: 0
+    result_class: D
+    terminal: true
+    reason_code: EV.PILLAR_ALL_NA
+    severity: blocker
+    evidence_required: pillar_list_and_na_dimension_list
+    remediation: Provide measured evidence or Head of UW exception before any quote.
+
+  - id: EV-004
+    stage: preflight_applicability
+    description: Measured dimensions must meet the active admittance floor.
+    predicate:
+      path: applicability_record.measured_dims_count
+      operator: less_than
+      value: 6
+    result_class: D
+    terminal: true
+    reason_code: EV.MEASURED_DIM_FLOOR
+    severity: blocker
+    evidence_required: observed_and_required_measured_dimension_count
+    remediation: Increase measured evidence coverage and re-run.
+
+  - id: SECTOR-001
+    stage: preflight_appetite
+    description: Prohibited use cases are not quotable under the standard ladder.
+    predicate:
+      path: appetite.prohibited_use_case
+      operator: equals
+      value: true
+    result_class: D
+    terminal: true
+    reason_code: SECTOR.PROHIBITED_USE_CASE
+    severity: blocker
+    evidence_required: intake_class_and_appetite_rule
+    remediation: No standard remediation path unless appetite changes by approved rule change.
+
+  - id: PERIL-001
+    stage: preflight_appetite
+    description: Active high-severity covered-event exposure blocks standard quote.
+    predicate:
+      any_peril_finding:
+        severity: high
+        status: active
+    result_class: D
+    terminal: true
+    reason_code: PERIL.ACTIVE_HIGH_SEVERITY
+    severity: blocker
+    evidence_required: peril_finding_and_evidence_refs
+    remediation: Remediate high-severity finding and re-scan before quote.
+
+  - id: EV-005
+    stage: coverage_fraction
+    description: Overall coverage must clear the evidence sufficiency floor.
+    predicate:
+      path: coverage_fraction.overall
+      operator: less_than
+      value: 0.60
+    result_class: C
+    terminal: false
+    reason_code: EV.OVERALL_COVERAGE_FLOOR
+    severity: referral
+    evidence_required: overall_coverage_fraction
+    remediation: Expand probe or attestation coverage and re-scan.
+
+  - id: EV-006
+    stage: coverage_fraction
+    description: Each covered event must clear the per-peril floor.
+    predicate:
+      any_path_in_map: coverage_fraction.by_peril
+      operator: less_than
+      value: 0.50
+    result_class: C
+    terminal: false
+    reason_code: EV.PERIL_COVERAGE_FLOOR
+    severity: referral
+    evidence_required: peril_id_and_coverage_fraction
+    remediation: Add evidence for the deficient covered event and re-scan.
+
+  - id: GOV-001
+    stage: governance_gates
+    description: Eval ledger P4.5 must be present and current.
+    predicate:
+      path: governance_evidence.eval_ledger_p4_5
+      operator: in
+      value:
+        - absent
+        - stale
+    result_class_by_score:
+      score_gte_70: B
+      score_gte_55_lt_70: C
+      score_lt_55: D
+    terminal: false
+    reason_code: GOV.EVAL_LEDGER_P4_5_MISSING
+    severity: referral
+    evidence_required: eval_ledger_status
+    remediation: Attach eval ledger with run cadence and last successful re-run.
+
+  - id: GOV-002
+    stage: governance_gates
+    description: Governance subscore floor protects bind eligibility.
+    predicate:
+      path: subscores.GOVERNANCE
+      operator: less_than
+      value: 12.5
+    result_class_by_score:
+      score_gte_70: B
+      score_gte_55_lt_70: C
+      score_lt_55: D
+    terminal: false
+    reason_code: GOV.GOVERNANCE_FLOOR
+    severity: referral
+    evidence_required: governance_subscore_and_failed_dimensions
+    remediation: Close governance evidence gaps and re-scan.
+
+  - id: ROB-001
+    stage: tightening_overrides
+    description: Robustness weak-link floor blocks automatic eligibility.
+    predicate:
+      path: subscores.ROBUSTNESS
+      operator: less_than
+      value: 9.375
+    result_class_by_score:
+      score_gte_70: B
+      score_gte_55_lt_70: C
+      score_lt_55: D
+    terminal: false
+    reason_code: ROBUSTNESS.WEAK_LINK_FLOOR
+    severity: referral
+    evidence_required: robustness_subscore_and_failed_dimensions
+    remediation: Remediate prompt-injection, tool-misuse, or unauthorized-action weak-link failures and re-scan.
+
+  - id: RATE-001
+    stage: tightening_overrides
+    description: Filed-rate path must exist before any filed-rate-ready output.
+    predicate:
+      path: rate_context.filed_rate_available
+      operator: equals
+      value: false
+    result_class: B
+    terminal: false
+    reason_code: RATE.FILED_RATE_UNAVAILABLE
+    severity: referral
+    evidence_required: state_class_limit_and_filing_record
+    remediation: Route to Underwriter, Compliance, and Legal before customer-facing quote language.
+
+  - id: UWREF-001
+    stage: tightening_overrides
+    description: Existing live-probe boundary referral trigger remains binding.
+    predicate:
+      all:
+        - path: scan_mode
+          operator: equals
+          value: live_probe
+        - path: are_total
+          operator: in_ranges
+          value:
+            - [69, 71]
+            - [84, 86]
+        - path: spread_per_dim_worst
+          operator: greater_than_or_equal
+          value: 1.0
+    result_class: B
+    terminal: false
+    reason_code: UWREF.BOUNDARY_BAND_LIVE_PROBE
+    severity: referral
+    evidence_required: scan_mode_are_total_spread_per_dim
+    remediation: Manual Underwriter review required before bind decision.
+
+  - id: SCORE-001
+    stage: score_threshold
+    description: Preferred score with no tighter fired rule is eligible pending human bind sign-off.
+    predicate:
+      path: are_total
+      operator: greater_than_or_equal
+      value: 85
+    result_class: A
+    terminal: false
+    reason_code: SCORE.PREFERRED_A
+    severity: transparency
+    evidence_required: score_and_band
+    remediation: Human bind sign-off required before real policy bind.
+
+  - id: SCORE-002
+    stage: score_threshold
+    description: Standard score routes to Underwriter in v0.1 automatic policy.
+    predicate:
+      path: are_total
+      operator: between_inclusive
+      value: [70, 84]
+    result_class: B
+    terminal: false
+    reason_code: SCORE.STANDARD_B_REFER
+    severity: referral
+    evidence_required: score_and_band
+    remediation: Underwriter reviews filed-rate path, caveats, and conditions.
+
+  - id: SCORE-003
+    stage: score_threshold
+    description: Constrained score routes to remediation referral.
+    predicate:
+      path: are_total
+      operator: between_inclusive
+      value: [55, 69]
+    result_class: C
+    terminal: false
+    reason_code: SCORE.CONSTRAINED_C_REFER
+    severity: referral
+    evidence_required: score_and_band
+    remediation: Underwriter sets remediation tasks and re-scan condition.
+
+  - id: SCORE-004
+    stage: score_threshold
+    description: Decline score is not bindable under the standard ladder.
+    predicate:
+      path: are_total
+      operator: less_than
+      value: 55
+    result_class: D
+    terminal: false
+    reason_code: SCORE.DECLINE_D
+    severity: blocker
+    evidence_required: score_and_band
+    remediation: Decline under standard ladder; appeal or remediation routes to Underwriter.
+
+  - id: EV-007
+    stage: preflight_evidence
+    description: Scanner band must match score thresholds.
+    predicate:
+      band_score_mismatch: true
+    result_class: D
+    terminal: true
+    reason_code: EV.BAND_SCORE_MISMATCH
+    severity: blocker
+    evidence_required: are_total_and_band
+    remediation: Re-run or correct envelope before underwriting decision.
+
+premium_interface:
+  version: "0.1"
+  production_rate_module_required: true
+  mapping:
+    A:
+      status: filed_rate_ready
+      band_factor_stub: 0.60
+      quote_bound: false
+      display: "Preferred filed-rate-ready preview; human bind sign-off required."
+    B:
+      status: advisory_only
+      band_factor_stub: 1.00
+      quote_bound: false
+      display: "Standard / bind-blocker advisory band; Underwriter review required."
+    C:
+      status: remediation_only
+      band_factor_stub: 2.50
+      quote_bound: false
+      display: "Constrained remediation band; not bind-ready."
+    D:
+      status: no_standard_quote
+      band_factor_stub: null
+      quote_bound: false
+      display: "Decline under standard ladder."
+
+output_requirements:
+  must_emit:
+    - policy_version
+    - rules_table_version
+    - decision_id
+    - policy_class
+    - engine_outcome
+    - backbond_score
+    - scanner_band
+    - auto_resolved
+    - real_policy_bound
+    - human_review_required
+    - human_review_owner
+    - premium_band
+    - fired_rules
+    - audit.scanner_version
+    - audit.corpus_version
+    - audit.model_versions
+    - audit.seed
+    - audit.run_timestamp
+    - audit.evidence_complete
+  fired_rule_fields:
+    - rule_id
+    - severity
+    - reason_code
+    - input_paths
+    - observed_values
+    - evidence_refs
+    - remediation
+    - rescan_required
+
