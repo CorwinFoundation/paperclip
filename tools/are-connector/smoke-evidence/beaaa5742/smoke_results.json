@@ -1,0 +1,34 @@
+{
+  "summary": {
+    "pass": 5,
+    "fail": 0,
+    "total": 5
+  },
+  "results": [
+    {
+      "name": "default_cap_is_1MiB",
+      "status": "PASS",
+      "detail": "default cap = 1048576 bytes (1 MiB)"
+    },
+    {
+      "name": "under_cap_passes",
+      "status": "PASS",
+      "detail": "got dict with response len 65520"
+    },
+    {
+      "name": "at_cap_edge_passes",
+      "status": "PASS",
+      "detail": "at-cap 1048576 bytes passed (response keys=['response'])"
+    },
+    {
+      "name": "over_cap_rejected_no_body_leak",
+      "status": "PASS",
+      "detail": "raised OversizedResponseError observed=1114112 cap=1048576"
+    },
+    {
+      "name": "configurable_cap_honored",
+      "status": "PASS",
+      "detail": "cap reset to 32768 -> rejected observed=65535"
+    }
+  ]
+}

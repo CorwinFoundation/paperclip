@@ -102,6 +102,33 @@ class AdmittanceBranchTests(unittest.TestCase):
         self.assertEqual(len(self.sink.events), 1)
         self.assertEqual(self.sink.events[0]["firing_rule_id"], "ADM.R1")
 
+    def test_adm_r0_floor_breach_refuse_produces_no_premium(self):
+        report = {
+            "are_total": 96,
+            "system_prompt_kind": "hardened",
+            "applicability_record": {
+                "measured_dims": ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"],
+                "na_dims": [],
+            },
+            "pillars": {
+                "ROBUSTNESS": {
+                    "dimensions": {
+                        "P3.3": {"raw": 0.0, "applicable": True},
+                        "P3.1": {"raw": 4.0, "applicable": True},
+                    }
+                }
+            },
+            "pillar_floors": {"ROBUSTNESS": {"min_dim_raw": 1.5}},
+            "diagnostics": [{"code": "coverage_caveat", "detail": {"pillars_with_all_na": []}}],
+        }
+        decision = admittance.evaluate(report)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0")
+        self.assertEqual(decision.admittance_class, admittance.REFUSE)
+        with self.assertRaises(Ineligible) as ctx:
+            quote(_score(96), STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        self.assertEqual(ctx.exception.rule_id, "ADM.R0")
+        self.assertNotIn("annual_premium_usd", ctx.exception.breakdown)
+
     def test_refer_to_uw_raises_manual_referral_with_evidence(self):
         # ADM.R4: posture=none AND are_total>=50 → REFER_TO_UW.
         report = {
@@ -128,7 +155,7 @@ class AdmittanceBranchTests(unittest.TestCase):
     def test_constrained_bind_applies_f_caveat_and_appends_endorsement(self):
         # ADM.R7: are_total in [70,84] AND measured>=6 → CONSTRAINED_BIND.
         measured = ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"]
-        na = ["P2.2", "P3.2"]
+        na = ["P4.2", "P4.3"]
         report = {
             "are_total": 79,
             "system_prompt_kind": "hardened",
@@ -160,7 +187,7 @@ class AdmittanceBranchTests(unittest.TestCase):
     def test_auto_bind_no_uplift_emits_transparency_row(self):
         # ADM.R8: are_total>=85 AND measured>=6 AND na<=2 → AUTO_BIND.
         measured = ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"]
-        na = ["P2.2", "P3.2"]
+        na = ["P4.2", "P4.3"]
         report = {
             "are_total": 92,
             "system_prompt_kind": "hardened",
@@ -297,35 +324,34 @@ class BeaAA461DryRunIntegrationTests(unittest.TestCase):
     def _customer(self) -> dict:
         return dict(STD_CUSTOMER)
 
-    def test_G1_constrained_bind_r7_premium_uplifted(self):
+    def test_G1_safety_critical_na_routes_to_manual_referral(self):
         report = self._load_report("G1")
         self.assertEqual(report["are_total"], 79)
         decision = admittance.evaluate(report)
-        self.assertEqual(decision.admittance_class, admittance.CONSTRAINED_BIND)
-        self.assertEqual(decision.firing_rule_id, "ADM.R7")
+        self.assertEqual(decision.admittance_class, admittance.REFER_TO_UW)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0")
         score = _score(
             report["are_total"],
             na_dims=report["applicability_record"]["na_dims"],
             measured_dims=report["applicability_record"]["measured_dims"],
         )
-        q = quote(score, self._customer(), rates=self.rates, admittance_decision=decision)
-        self.assertAlmostEqual(q["breakdown"]["f_caveat"], 1.10)
-        codes = [e["code"] for e in q["endorsements"]]
-        self.assertIn("coverage_caveat_exclusion", codes)
+        with self.assertRaises(ManualReferral) as ctx:
+            quote(score, self._customer(), rates=self.rates, admittance_decision=decision)
+        self.assertEqual(ctx.exception.breakdown["admittance"]["firing_rule_id"], "ADM.R0")
 
-    def test_G2_constrained_bind_r7(self):
+    def test_G2_safety_critical_na_routes_to_manual_referral(self):
         report = self._load_report("G2")
         self.assertEqual(report["are_total"], 77)
         decision = admittance.evaluate(report)
-        self.assertEqual(decision.admittance_class, admittance.CONSTRAINED_BIND)
-        self.assertEqual(decision.firing_rule_id, "ADM.R7")
+        self.assertEqual(decision.admittance_class, admittance.REFER_TO_UW)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0")
 
-    def test_G3_constrained_bind_r7(self):
+    def test_G3_safety_critical_na_routes_to_manual_referral(self):
         report = self._load_report("G3")
         self.assertEqual(report["are_total"], 73)
         decision = admittance.evaluate(report)
-        self.assertEqual(decision.admittance_class, admittance.CONSTRAINED_BIND)
-        self.assertEqual(decision.firing_rule_id, "ADM.R7")
+        self.assertEqual(decision.admittance_class, admittance.REFER_TO_UW)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0")
 
     def test_B3_refuse_r1_no_premium(self):
         report = self._load_report("B3")

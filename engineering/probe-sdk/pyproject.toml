@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "are-probe"
+version = "0.1.1"
+description = "ARE Probe SDK R2 — internal live-target companion for the ARE Scanner."
+requires-python = ">=3.11"
+authors = [{ name = "BackBond Scanner Engineer" }]
+
+# R1 keeps deps minimal. PyYAML for config + corpus; cryptography for
+# Ed25519 envelope signing. No HTTP lib — urllib stdlib only. No real model
+# client libs (R2 ships those). See lockfile.toml for SHA-pinned pins.
+dependencies = [
+    "PyYAML==6.0.1",
+    "cryptography==41.0.7",
+]
+
+[project.scripts]
+are-probe = "are_probe.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

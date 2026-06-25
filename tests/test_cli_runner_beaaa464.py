@@ -14,6 +14,7 @@ Coverage:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import unittest
@@ -248,6 +249,82 @@ class RunScanTests(unittest.TestCase):
         self.assertEqual(result["corpus_version"], "0.1.1")
         self.assertEqual(result["agent_id"], "G1")
 
+    def test_customer_vpc_emit_mode_rewrites_artifact_uris(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            (d / "scanner_invocation_context.json").write_text(
+                json.dumps(
+                    {
+                        "purpose": "pre_bind",
+                        "requested_pillars": [
+                            "GOVERNANCE",
+                            "ROBUSTNESS",
+                            "BIAS_FAIRNESS",
+                            "OPS",
+                        ],
+                        "tenant_id": "dp-acme",
+                        "run_id": "scan-run-6187",
+                    }
+                )
+            )
+            old_emit_mode = os.environ.get("BACKBOND_EMIT_MODE")
+            os.environ["BACKBOND_EMIT_MODE"] = "customer_vpc"
+            try:
+                result = run_scan(
+                    agent_id="G1",
+                    input_dir=d,
+                    seed=42,
+                    corpus_version="0.1.1",
+                    rubric_path=RUBRIC_PATH,
+                    scored_at=FIXED_SCORED_AT,
+                )
+            finally:
+                if old_emit_mode is None:
+                    os.environ.pop("BACKBOND_EMIT_MODE", None)
+                else:
+                    os.environ["BACKBOND_EMIT_MODE"] = old_emit_mode
+
+        active_refs = [
+            ref for ref in result["evidence_refs"]
+            if ref["verdict"] != "n/a"
+        ]
+        self.assertTrue(active_refs)
+        for ref in active_refs:
+            self.assertTrue(
+                ref["artifact_uri"].startswith(
+                    "s3://customer-dp-acme/are-scans/scan-run-6187/evidence/"
+                ),
+                ref["artifact_uri"],
+            )
+            self.assertNotIn("yaml://", ref["artifact_uri"])
+            self.assertNotIn("scripts/agent_priors", ref["artifact_uri"])
+
+    def test_customer_vpc_emit_mode_requires_valid_tenant(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            (d / "scanner_invocation_context.json").write_text(
+                json.dumps({"tenant_id": "../bad", "run_id": "scan-run-6187"})
+            )
+            old_emit_mode = os.environ.get("BACKBOND_EMIT_MODE")
+            os.environ["BACKBOND_EMIT_MODE"] = "customer_vpc"
+            try:
+                with self.assertRaises(ValueError):
+                    run_scan(
+                        agent_id="G1",
+                        input_dir=d,
+                        seed=42,
+                        corpus_version="0.1.1",
+                        rubric_path=RUBRIC_PATH,
+                        scored_at=FIXED_SCORED_AT,
+                    )
+            finally:
+                if old_emit_mode is None:
+                    os.environ.pop("BACKBOND_EMIT_MODE", None)
+                else:
+                    os.environ["BACKBOND_EMIT_MODE"] = old_emit_mode
+
     def test_governance_attestations_replace_gov_placeholder_refs(self):
         """BEAAA-5239: sample envelope GOV rows must carry attestation
         test IDs + artifact URIs, not dim-id placeholders or N/A rows."""
@@ -436,6 +513,7 @@ class CliSubprocessTests(unittest.TestCase):
             d = self._setup_g1(Path(tmpd))
             r = self._run(
                 "--agent", "G1", "--seed", "42",
+                "--corpus", "0.1.1",
                 "--input-dir", str(d),
                 "--scored-at", FIXED_SCORED_AT.isoformat(),
             )
@@ -474,6 +552,7 @@ class CliSubprocessTests(unittest.TestCase):
             (d / "eval_results.json").write_text(json.dumps(eo))
             r = self._run(
                 "--agent", "G1", "--seed", "42",
+                "--corpus", "0.1.1",
                 "--input-dir", str(d),
                 "--scored-at", FIXED_SCORED_AT.isoformat(),
             )
@@ -490,6 +569,7 @@ class CliSubprocessTests(unittest.TestCase):
                 out_path = Path(tmpd) / f"run_{i}.json"
                 r = self._run(
                     "--agent", "G1", "--seed", "42",
+                    "--corpus", "0.1.1",
                     "--input-dir", str(d),
                     "--scored-at", FIXED_SCORED_AT.isoformat(),
                     "--out", str(out_path),

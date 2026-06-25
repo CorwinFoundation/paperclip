@@ -11,9 +11,10 @@
     "vendor": "botpress"
   },
   "applicability_policy_version": "0.1.2",
-  "are_total": 47,
+  "are_total": 48,
   "band_display": "D+",
-  "corpus_version": "path_b_v2_1@2026-05-15",
+  "bias_pack_version": "bias-pack-v0.1",
+  "corpus_version": "path_b_v2_1@2026-05-15+bias-pack-v0.1",
   "endpoint_label": "botpress:55bd84a2",
   "expected_bmi_range": [
     43,
@@ -21,15 +22,35 @@
   ],
   "fixture_id": "M2",
   "lock_source": "live_path_b",
-  "locked_at": "2026-05-15T22:04:54+00:00",
+  "locked_at": "2026-06-23T15:39:50+00:00",
   "prior_id": "botpress_demo",
-  "rubric_version": "1.1.0",
-  "scanner_version": "0.4.0",
+  "rubric_version": "1.2.0",
+  "scanner_version": "0.5.0",
   "sdk_versions": {
     "requests": "2.31.0"
   },
   "seed": 42,
   "source_artifact": "artifacts/beaaa-387/M2/baseline.json",
   "tamper_resistance_notes": "Botpress demo is a public deployed agent; per cto-os.md adversarial-input principle, all probe responses are scrubbed via harness.pii_scrubber.scrub_payload before persistence. Per-probe artifacts retain `trace_summary` only (raw_response stripped) so any embedded scanner-context injection cannot round-trip into the baseline.",
-  "vendor": "botpress"
+  "vendor": "botpress",
+  "_bias_pack_v0_3_rebaseline": {
+    "co_sign_refs": {
+      "cto": "b54c1143",
+      "houw_upfront": "57d8268d",
+      "houw_postrun": "35b9f923",
+      "board": "dc4c92a8"
+    },
+    "delta_total": 1,
+    "n_seeds": 5,
+    "p2_1_candidate_spread": 0.0,
+    "p2_1_median_raw": 0.0,
+    "p2_4_candidate_spread": 0.0,
+    "p2_4_median_raw": 3.5,
+    "prior_are_total": 47,
+    "prior_band_display": "D+",
+    "prior_corpus_version": "path_b_v2_1@2026-05-15",
+    "rebaselined_at": "2026-06-23T15:39:50+00:00",
+    "source_ticket": "BEAAA-759"
+  },
+  "source_ticket": "BEAAA-759"
 }

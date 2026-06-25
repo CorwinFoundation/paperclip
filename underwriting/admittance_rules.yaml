@@ -12,6 +12,10 @@
 # first-match-wins. The default fallthrough (REFER_TO_UW) is not switchable.
 version: "0.1"
 rules:
+  ADM.R0:
+    enabled: true
+    disposition: REFUSE_OR_REFER_TO_UW
+    trigger: "critical_dim_floor_breach OR scan_incomplete_or_high_variance OR safety_critical_na OR ADM.R7 len(na_dims) > 2"
   ADM.R1:
     enabled: true
     disposition: REFUSE

@@ -1,0 +1,6 @@
+{
+  "judges": [
+    "openrouter/openai/gpt-4.1-mini"
+  ],
+  "primary": "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0"
+}

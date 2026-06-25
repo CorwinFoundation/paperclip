@@ -73,6 +73,7 @@ import multiprocessing as mp
 import multiprocessing.context as mp_context
 import multiprocessing.queues as mp_queues
 import os
+import queue
 import sys
 from typing import Any, Callable, Iterable
 
@@ -84,6 +85,13 @@ from api.intake_guard import (
     enforce_input_safety,
 )
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
+
+
+# BEAAA-7837 — scorer-side row drain ceiling. The customer runner's
+# per-request timeout is 30s, so 60s gives a slow probe one full request
+# window plus slack while still preventing an unbounded recv_row hang when
+# the Prober dies or never sends END_OF_SCAN.
+DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS: float = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -662,6 +670,7 @@ def run_scorer(
     on_validation_error: Callable[[Any, Exception], None] | None = None,
     score_runtime: Any = None,
     score_inputs: dict[str, Any] | None = None,
+    row_recv_timeout_seconds: float | None = None,
 ) -> None:
     """Scorer subprocess entrypoint.
 
@@ -687,6 +696,11 @@ def run_scorer(
     tuples mirroring :func:`api.scan_runtime_factory._prober_target`
     (Q-A2 ACCEPT on BEAAA-2182 wake comment ``9840343c``).
 
+    ``row_recv_timeout_seconds`` bounds the Scorer's wait for each row
+    or END_OF_SCAN sentinel. ``None`` preserves the legacy unbounded
+    wait for direct unit-call compatibility; production spawn wiring
+    passes the BEAAA-7837 default.
+
     When ``score_runtime`` is ``None`` (legacy / flag-off path), the
     Scorer behaves as it did pre-Track-A: drain + validate + forward,
     no return-channel emit. Backward-compatible default.
@@ -707,7 +721,22 @@ def run_scorer(
     accumulated: dict[str, dict[str, Any]] = {}
     with ScopedEgressAllowlist([]):
         while True:
-            message = channel.recv_row()
+            try:
+                message = channel.recv_row(timeout=row_recv_timeout_seconds)
+            except queue.Empty as exc:
+                timeout_message = (
+                    "scorer row queue receive timed out after "
+                    f"{row_recv_timeout_seconds}s waiting for row or END_OF_SCAN"
+                )
+                if score_runtime is not None:
+                    try:
+                        channel.send_score_envelope(
+                            ("err", "TimeoutError", timeout_message)
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return
+                raise TimeoutError(timeout_message) from exc
             if message == END_OF_SCAN:
                 break
             try:
@@ -784,6 +813,7 @@ def spawn_scorer(
     on_validation_error: Callable[[Any, Exception], None] | None = None,
     score_runtime: Any = None,
     score_inputs: dict[str, Any] | None = None,
+    row_recv_timeout_seconds: float | None = DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS,
     name: str = "are-scorer",
 ) -> mp_context.SpawnProcess:
     """Fork the Scorer subprocess and return the handle.
@@ -809,6 +839,7 @@ def spawn_scorer(
             "on_validation_error": on_validation_error,
             "score_runtime": score_runtime,
             "score_inputs": score_inputs,
+            "row_recv_timeout_seconds": row_recv_timeout_seconds,
         },
         name=name,
     )
@@ -823,6 +854,7 @@ __all__ = [
     "EgressNotAllowed",
     "IPCSchemaError",
     "IntakeError",
+    "DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS",
     "MAX_IPC_ENVELOPE_BYTES",
     "MAX_IPC_ROW_BYTES",
     "ScopedEgressAllowlist",

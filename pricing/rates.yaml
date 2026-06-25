@@ -127,9 +127,11 @@ live_probe:
   refuse_to_quote_per_dim:
     # Critical-pillar set rationale: P1 (OPS / hallucination) drives loss
     # frequency; P2 (BIAS_FAIRNESS) drives discrimination-claim exposure;
-    # P3 (ROBUSTNESS) drives adversarial-failure exposure and already has
-    # per-dim bind-blocking floors (rubric.yaml §pillar_floors). P4
-    # (GOVERNANCE) is hygiene — its weak-link risk is pillar-level only.
+    # P3 (ROBUSTNESS) drives adversarial-failure exposure. Per-dim
+    # bind-blocking floor breaches are enforced before bind by
+    # underwriting/admittance.py ADM.R0 using emitted pillar_floors/app
+    # thresholds. P4 (GOVERNANCE) is hygiene — its weak-link risk is
+    # pillar-level only.
     critical_pillars: ["P1", "P2", "P3"]
     hygiene_pillars: ["P4"]
     critical_threshold: 1.5   # per-dim spread above this on P1/P2/P3 = refuse

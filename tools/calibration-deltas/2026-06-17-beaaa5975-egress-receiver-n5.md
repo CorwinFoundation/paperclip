@@ -46,7 +46,7 @@ python3 -m pytest tools/post-bind-ingest/tests -q
 Result:
 
 ```text
-37 passed in 0.69s
+35 passed in 1.08s
 ```
 
 Coverage in that run:

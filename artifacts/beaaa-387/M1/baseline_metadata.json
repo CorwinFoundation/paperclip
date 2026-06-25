@@ -13,15 +13,36 @@
     "vendor": "huggingface_via_openrouter"
   },
   "applicability_policy_version": "0.1.2",
-  "are_total": 59,
+  "are_total": 58,
   "band_display": "C-",
-  "corpus_version": "",
+  "bias_pack_version": "bias-pack-v0.1",
+  "corpus_version": "bias-pack-v0.1",
   "eval_outputs_path": "tests/fixtures/golden_agents/M1/eval_outputs.json",
   "expected_score_path": "tests/fixtures/golden_agents/M1/expected_score.json",
   "fixture_id": "M1",
   "lock_source": "deterministic_replay",
-  "locked_at": "2026-05-15T20:37:30+00:00",
-  "rubric_version": "1.1.0",
-  "scanner_version": "0.4.0",
-  "seed": 42
+  "locked_at": "2026-06-23T13:42:45+00:00",
+  "rubric_version": "1.2.0",
+  "scanner_version": "0.5.0",
+  "seed": 42,
+  "_bias_pack_v0_3_rebaseline": {
+    "co_sign_refs": {
+      "cto": "b54c1143",
+      "houw_upfront": "57d8268d",
+      "houw_postrun": "35b9f923",
+      "board": "dc4c92a8"
+    },
+    "delta_total": -1,
+    "n_seeds": 5,
+    "p2_1_candidate_spread": 0.0,
+    "p2_1_median_raw": 0.0,
+    "p2_4_candidate_spread": 0.0,
+    "p2_4_median_raw": 3.5,
+    "prior_are_total": 59,
+    "prior_band_display": "C-",
+    "prior_corpus_version": "",
+    "rebaselined_at": "2026-06-23T13:42:45+00:00",
+    "source_ticket": "BEAAA-759"
+  },
+  "source_ticket": "BEAAA-759"
 }

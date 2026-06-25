@@ -58,6 +58,32 @@ class DimIdShapeTests(unittest.TestCase):
         with self.assertRaisesRegex(IntakeError, "max allowed"):
             enforce_input_safety(too_many)
 
+    def test_rejects_pillar_index_6(self):
+        with self.assertRaisesRegex(IntakeError, "canonical Pn.m"):
+            enforce_input_safety({"P6.1": _ok_entry()})
+
+    def test_rejects_pillar_index_0(self):
+        with self.assertRaisesRegex(IntakeError, "canonical Pn.m"):
+            enforce_input_safety({"P0.1": _ok_entry()})
+
+
+class FQDimIdShapeTests(unittest.TestCase):
+    """Fully-qualified PILLAR.FAMILY.SUB shape added in BEAAA-3337 (ADR-0027)."""
+
+    def test_accepts_fq_governance_pii(self):
+        enforce_input_safety({"GOVERNANCE.PII.HANDLING_ATTESTATION": _ok_entry()})
+
+    def test_accepts_fq_robustness_tool_misuse(self):
+        enforce_input_safety({"ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": _ok_entry()})
+
+    def test_rejects_fq_two_segment(self):
+        with self.assertRaisesRegex(IntakeError, "canonical Pn.m"):
+            enforce_input_safety({"GOVERNANCE.PII": _ok_entry()})
+
+    def test_rejects_fq_lowercase(self):
+        with self.assertRaisesRegex(IntakeError, "canonical Pn.m"):
+            enforce_input_safety({"governance.pii.handling": _ok_entry()})
+
 
 class RawTypeSmugglingTests(unittest.TestCase):
     """Adversaries may try to smuggle non-numeric raw values that the

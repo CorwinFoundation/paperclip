@@ -1,0 +1,105 @@
+{
+  "advbench": {
+    "ref": "5f3e7af52ed9da50f5e5d735e0b08f1f3a96d80f",
+    "ref_type": "git_sha",
+    "source": "https://github.com/llm-attacks/llm-attacks",
+    "subdir": "data/advbench",
+    "release_label": "advbench-2023-07-27",
+    "citation": "Zou et al., 2023, Universal and Transferable Adversarial Attacks on Aligned Language Models (USENIX-23).",
+    "filter_predicate": "B2B-relevant rows (fraud / malware / disinfo / privacy / financial). Exclude physical-harm / weapons / CSAM-adjacent per BEAAA-125.",
+    "subset_size": 8,
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/advbench.yaml@v0.1.0"
+  },
+  "jailbreakbench": {
+    "ref": "v1.0.0",
+    "ref_type": "git_tag",
+    "source": "https://github.com/JailbreakBench/jailbreakbench",
+    "subdir": "data/JBB-Behaviors",
+    "release_label": "jailbreakbench-v1.0.0",
+    "citation": "Chao et al., 2024, JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models (NeurIPS-24 D&B).",
+    "filter_predicate": "Categories from BEAAA-153 #comment-89df5af9 UW gate: privacy x1.25, fraud_deception x1.25, expert_advice x1.25, malware_hacking x1.0, economic_harm x1.0, disinformation x1.0, harassment_discrimination x0.75. Exclude physical_harm / sexual_adult.",
+    "subset_size": 8,
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/jailbreakbench.yaml@v0.1.0"
+  },
+  "agentdojo": {
+    "ref": "v0.1.35",
+    "ref_type": "pypi_release_tag",
+    "source": "https://github.com/ethz-spylab/agentdojo",
+    "subdir": "src/agentdojo/data_suites",
+    "release_label": "agentdojo-v0.1.35",
+    "citation": "Debenedetti et al., 2024, AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (NeurIPS-24).",
+    "filter_predicate": "Indirect-injection (tool-call output surface) subset only — workspace.write_then_summarize, retrieval.citation_card.canary, tools.email_thread.injected_followup, docs.attachment.rendered_html. Single-dim P3.2 mapping per rubric/probe_mappings/agentdojo.yaml@v0.1.35.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P3.2"],
+    "probe_mapping_yaml": "rubric/probe_mappings/agentdojo.yaml@v0.1.35"
+  },
+  "crescendo": {
+    "ref": "usenix-25-camera-ready",
+    "ref_type": "paper_release_label",
+    "source": "https://www.usenix.org/conference/usenixsecurity25/presentation/russinovich",
+    "subdir": "paper appendix B (multi-turn escalation chains)",
+    "release_label": "crescendo-usenix-25",
+    "citation": "Russinovich et al., 2025, Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack (USENIX Security 2025).",
+    "filter_predicate": "Canonical escalation-chain templates from appendix B, restricted to B2B-relevant target topics (fraud playbook, exfil playbook, manipulation playbook). Physical-harm / weapons / CSAM excluded per BEAAA-125.",
+    "subset_size": 4,
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/promptinject.yaml@v0.1.0 (multi-turn variant; formal P3.5 activation deferred per ADR-0032)"
+  },
+  "halueval_qa": {
+    "ref": "b7253db3cdaa0ab2c382f92b26b390109174f77e",
+    "ref_type": "git_sha",
+    "source": "https://github.com/RUCAIBox/HaluEval",
+    "subdir": "data/qa_data.json",
+    "release_label": "halueval-acl-2023",
+    "citation": "Li et al., 2023, HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models (ACL-23).",
+    "filter_predicate": "B2B-relevant QA rows where the ground-truth answer is a numeric / short-string factual value extractable from a tool source (price / count / date / identifier). Exclude consumer-belief / political-religious rows per BEAAA-125.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/halueval.yaml@v0.1.0"
+  },
+  "truthfulqa": {
+    "ref": "d71c110897f5d31c5d7f309e7bc316c152f6f031",
+    "ref_type": "git_sha",
+    "source": "https://github.com/sylinrl/TruthfulQA",
+    "subdir": "data/v1.0/TruthfulQA.csv",
+    "release_label": "truthfulqa-acl-2022",
+    "citation": "Lin et al., 2022, TruthfulQA: Measuring How Models Mimic Human Falsehoods (ACL-22).",
+    "filter_predicate": "B2B-domain rows (Health/Law/Finance/Economics/Indexical-error) with a single short-string ground-truth answer extractable from a tool source. Consumer-belief / political-religious excluded per BEAAA-125; mirrors rubric/probe_mappings/truthfulqa.yaml@v0.1.0 UW gate.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/truthfulqa.yaml@v0.1.0"
+  },
+  "halueval_summ": {
+    "ref": "b7253db3cdaa0ab2c382f92b26b390109174f77e",
+    "ref_type": "git_sha",
+    "source": "https://github.com/RUCAIBox/HaluEval",
+    "subdir": "data/summarization_data.json",
+    "release_label": "halueval-acl-2023",
+    "citation": "Li et al., 2023, HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models (ACL-23).",
+    "filter_predicate": "Summarization rows where the model output cites a source document and the cited snippet is verifiable inside the provided source bundle. B2B-relevant only (corporate-filings / financial-reports / KB-articles).",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.2"],
+    "probe_mapping_yaml": "rubric/probe_mappings/halueval.yaml@v0.1.0 (summarization.citation_integrity split)"
+  },
+  "factscore": {
+    "ref": "f28272deffcf33efc1f1117d5479c10bb75221a9",
+    "ref_type": "git_sha",
+    "source": "https://github.com/shmsw25/FActScore",
+    "subdir": "data/labeled_FActScore_biographies",
+    "release_label": "factscore-emnlp-2023",
+    "citation": "Min et al., 2023, FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation (EMNLP-23).",
+    "filter_predicate": "Biographical atomic-fact rows where the atomic fact has a single attributable source URL/doc-id in the FActScore reference corpus. Exclude living-person rows per BEAAA-125 privacy posture.",
+    "subset_size": 6,
+    "rubric_point_ids": ["P1.2"],
+    "probe_mapping_yaml": "rubric/probe_mappings/factscore.yaml@v0.1.0"
+  },
+  "_meta": {
+    "ticket": "BEAAA-5757 (P5 entries) + BEAAA-5752 (P4 entries)",
+    "supervision_contract": "contracts/scanner-implementation-supervision-v1.md@v1.1 row 'Wrap an upstream eval framework' = Rule execution",
+    "scanner_api": "contracts/are-scanner-api-v1.md@v1.0",
+    "adr": "docs/adr/adr-0032-beaaa5757-p5-injection-judge-pin.md (P5); BEAAA-5752 R-4 reuses the non-LLM-judge posture established there",
+    "judge": "non-LLM deterministic extractors (regex-based NumericClaimExtractor + CitationExtractor); no model in the loop. The judge-pin decision is recorded by precedent — ADR-0032 covers the policy; R-4 inherits it because the extractors are deterministic-equality not model-graded."
+  }
+}

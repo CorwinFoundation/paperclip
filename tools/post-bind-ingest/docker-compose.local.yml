@@ -1,0 +1,19 @@
+services:
+  backbond-monitor:
+    build:
+      context: .
+    image: backbond/post-bind-monitor:0.1.0-local
+    network_mode: "none"
+    read_only: true
+    user: "monitor"
+    environment:
+      BACKBOND_EGRESS_ENABLED: "false"
+    volumes:
+      - ./customer-input:/input:ro
+      - ./customer-output:/output:rw
+    command:
+      - /input/receiver_payload.json
+      - --jwt-public-key
+      - ${BACKBOND_MONITOR_JWT_PUBLIC_KEY:?set BACKBOND_MONITOR_JWT_PUBLIC_KEY}
+      - --output-path
+      - /output/normalized-events.jsonl

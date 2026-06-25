@@ -94,7 +94,14 @@ class InspectRunnerSmokeTests(unittest.TestCase):
         self.assertEqual(row["benchmark"], "inspect-ai:truthfulqa-mc1-poc")
         self.assertGreaterEqual(row["accuracy"], 0.0)
         self.assertEqual(row["accuracy"], row["pass_rate"])
-        self.assertEqual(row["raw"], truthfulqa._accuracy_to_raw(row["accuracy"]))
+        # BEAAA-5269 rebaseline: `_accuracy_to_raw` retired in BEAAA-3161 /
+        # ADR-0027 — the legacy mapping lives in the calibration-curve
+        # registry under CURVE_LEGACY_TQA_FRONTIER (byte-identical cuts).
+        from rubric import calibration_curves
+        self.assertEqual(
+            row["raw"],
+            calibration_curves.apply("CURVE_LEGACY_TQA_FRONTIER", row["accuracy"]),
+        )
 
     def test_dual_runner_byte_stable_with_bench(self) -> None:
         """Inspect shim and harness.bench.prompt_injection.run agree on raw."""

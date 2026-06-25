@@ -48,6 +48,7 @@ from api.scan_handlers import (
     ScanRuntime,
     rescan_handler,
 )
+from harness import egress
 from rubric.scoring import Rubric
 from scanners.live_probe_orchestrator import (
     LIVE_PROBE_VARIANCE_BAND,
@@ -205,6 +206,17 @@ def test_rescan_handler_returns_202_with_scan_id(corpus_hash):
         "partial_completion": False,
         "confidence_below_adjudication_threshold": False,
     }
+
+
+def test_rescan_refuses_residential_proxy_env(corpus_hash, monkeypatch):
+    runtime = _runtime_with_prior_scan()
+    monkeypatch.setenv(egress.PROXY_ENV, "http://u:p@gate.example.com:7000")
+    body = _rescan_body(corpus_hash, purpose="pre_bind")
+    with pytest.raises(Exception) as exc_info:
+        rescan_handler(body, tenant_header=TENANT, runtime=runtime)
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "residential_proxy_forbidden_for_live_probe"
+    assert "request" not in runtime.captured
 
 
 @pytest.mark.parametrize("purpose", sorted(RESCAN_PURPOSES))

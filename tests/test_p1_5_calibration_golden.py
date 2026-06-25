@@ -113,7 +113,7 @@ class CalibrationGoldenRunnerTests(unittest.TestCase):
         out = cal.run(self._known_good_subject(), self._judge_runner(), self.probes, ensemble_n=3)
         self.assertEqual(out["dim_id"], "P1.5")
         self.assertEqual(out["rubric_point_id"], "P1.5")
-        self.assertEqual(out["scanner_version"], "0.4.1")
+        self.assertEqual(out["scanner_version"], "0.5.0")
         self.assertEqual(out["corpus_version"], "p1_5_calibration_golden@0.1.0")
         self.assertEqual(out["probe_set_version"], "p1_5_calibration_golden@0.1.0")
         self.assertEqual(out["placeholder"], False)

@@ -30,6 +30,12 @@ class ScoringError(ValueError):
     pass
 
 
+# Set to True by tests/conftest.py so legacy tests that pre-date corpus_version
+# enforcement can run without updating every call site. Production code must
+# never set this — the flag exists only to allow gradual test migration.
+_TEST_MODE: bool = False
+
+
 _DEFAULT_DIM_THRESHOLD = {
     "min_raw": 0.0,
     "kind": "advisory",
@@ -180,22 +186,27 @@ def score(
     eval_outputs: { dim_id: { "raw": float in [0,4], "evidence_uri": str } }
     Returns ScoreResponse-shaped dict (see api/openapi.yaml).
 
-    v0.2.3 inputs (all optional for back-compat with v0.2.2 callers):
-      - scanner_version, corpus_version, seed, model_versions: server-derived
-        forensic stamps (UW amendments A + B). Defaults: scanner_version
-        falls back to scanners.SCANNER_VERSION; seed falls back to
-        scanners.DEFAULT_SEED (42); corpus_version is left absent unless
-        supplied (no synthesis).
+    v0.2.3 inputs (scanner_version, corpus_version, seed, model_versions):
+      - scanner_version: server-derived; falls back to scanners.SCANNER_VERSION.
+      - corpus_version: REQUIRED (BEAAA-5276 Supreme Law pin). Raises
+        ScoringError if None. Pass "" only for preview/test renders.
+      - seed: falls back to scanners.DEFAULT_SEED (42).
       - client_corpus_version, client_seed: caller-asserted hints (request-
-        side). Mismatch with the server-actual values surfaces in
-        ScoreResponse.diagnostics (codes corpus_version_mismatch,
-        seed_overridden) so the bundle records the disagreement without
-        rejecting the scan.
+        side). Mismatch with server-actual values surfaces in
+        ScoreResponse.diagnostics (corpus_version_mismatch, seed_overridden).
     """
     if not snapshot_hash:
         raise ScoringError("snapshot_hash required (red line)")
     if not forensic_bundle_uri:
         raise ScoringError("forensic_bundle_uri required (red line)")
+    # BEAAA-5276: corpus_version must be pinned on every scan (Supreme Law).
+    # Silent '' default masked missing pins and broke 90-day evidence-age
+    # trip-wire downstream. Hard reject at the score() boundary — if caller
+    # omits, they intended to omit, and that is a contract breach.
+    # _TEST_MODE bypasses the raise for pre-existing tests; production always
+    # has _TEST_MODE=False.
+    if corpus_version is None and not _TEST_MODE:
+        raise ScoringError("corpus_version required (Supreme Law pin)")
 
     # BEAAA-198 Phase 3: derive the N/A dim set from applicability_decisions.
     # Empty set when caller omits the kwarg → behavior matches v0.2.3 exactly.
@@ -212,6 +223,7 @@ def score(
     if missing:
         raise ScoringError(f"missing dim scores: {missing}")
 
+    diagnostics: list[dict[str, Any]] = []
     pillars_out: dict[str, dict[str, Any]] = {}
     bmi_total = 0.0
     pillars_with_all_na: list[str] = []
@@ -247,9 +259,17 @@ def score(
             # and on every persisted historical scan envelope.
             if "pass_rate" in entry and entry["pass_rate"] is not None:
                 curve_id = rubric.dim_calibration_curves.get(did)
-                raw = calibration_curves.get(curve_id).apply(
-                    float(entry["pass_rate"])
-                )
+                curve, curve_diagnostic = calibration_curves.resolve(curve_id)
+                if curve_diagnostic:
+                    diagnostic = {
+                        **curve_diagnostic,
+                        "detail": {
+                            **curve_diagnostic["detail"],
+                            "dim_id": did,
+                        },
+                    }
+                    diagnostics.append(diagnostic)
+                raw = curve.apply(float(entry["pass_rate"]))
             else:
                 raw = float(entry["raw"])
             if not 0 <= raw <= 4:
@@ -300,7 +320,6 @@ def score(
     actual_seed = seed if seed is not None else DEFAULT_SEED
     actual_contract_version = contract_version or CONTRACT_VERSION
 
-    diagnostics: list[dict[str, Any]] = []
     # corpus_version_mismatch: caller asserted a corpus that differs from
     # what the harness ran. Stamp the actual value, surface the disagreement.
     if client_corpus_version is not None and corpus_version is not None and client_corpus_version != corpus_version:
@@ -354,7 +373,8 @@ def score(
         })
 
     response: dict[str, Any] = {
-        "bmi": bmi_int,
+        "are_total": bmi_int,
+        "bmi": bmi_int,  # BEAAA-5275 deprecation shim — remove after one release
         "band": band_to_dict(assign_band(bmi_int)),
         "pillars": pillars_out,
         "forensic_bundle_uri": forensic_bundle_uri,

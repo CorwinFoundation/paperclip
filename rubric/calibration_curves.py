@@ -101,6 +101,44 @@ def _registry() -> dict[str, CalibrationCurve]:
     return _REGISTRY
 
 
+def resolve(curve_id: str | None) -> tuple[CalibrationCurve, dict[str, Any] | None]:
+    """Resolve a curve and return a ScoreResponse diagnostic on fallback.
+
+    ``get()`` preserves the historical stderr WARN behavior for direct callers.
+    Scoring uses this resolver so a missing or unknown binding is also visible
+    in ``ScoreResponse.diagnostics`` and the audit trail, not just stderr.
+    """
+    reg = _registry()
+    if curve_id is None:
+        return reg[_DEFAULT_FALLBACK_ID], {
+            "code": "calibration_curve_fallback",
+            "message": (
+                "missing calibration curve binding; fallback "
+                f"{_DEFAULT_FALLBACK_ID} applied"
+            ),
+            "detail": {
+                "reason": "missing_curve_id",
+                "requested_curve_id": None,
+                "fallback_curve_id": _DEFAULT_FALLBACK_ID,
+            },
+        }
+    curve = reg.get(curve_id)
+    if curve is None:
+        return reg[_DEFAULT_FALLBACK_ID], {
+            "code": "calibration_curve_fallback",
+            "message": (
+                "unknown calibration curve binding; fallback "
+                f"{_DEFAULT_FALLBACK_ID} applied"
+            ),
+            "detail": {
+                "reason": "unknown_curve_id",
+                "requested_curve_id": curve_id,
+                "fallback_curve_id": _DEFAULT_FALLBACK_ID,
+            },
+        }
+    return curve, None
+
+
 def reload(path: Path | str | None = None) -> dict[str, CalibrationCurve]:
     """Reload the registry from disk. Test-only — production reads cached."""
     global _REGISTRY
@@ -112,22 +150,19 @@ def get(curve_id: str | None) -> CalibrationCurve:
     """Resolve a curve by id. Unknown/missing falls back to CURVE_RUNNER_V1
     with a stderr WARN — per AC#3, the engine never silently substitutes.
     """
-    reg = _registry()
-    if curve_id is None:
+    curve, diagnostic = resolve(curve_id)
+    if diagnostic and diagnostic["detail"]["reason"] == "missing_curve_id":
         print(
             "[calibration_curves] WARN: missing curve_id; falling back to "
             f"{_DEFAULT_FALLBACK_ID}",
             file=sys.stderr,
         )
-        return reg[_DEFAULT_FALLBACK_ID]
-    curve = reg.get(curve_id)
-    if curve is None:
+    elif diagnostic:
         print(
             f"[calibration_curves] WARN: unknown curve_id {curve_id!r}; "
             f"falling back to {_DEFAULT_FALLBACK_ID}",
             file=sys.stderr,
         )
-        return reg[_DEFAULT_FALLBACK_ID]
     return curve
 
 

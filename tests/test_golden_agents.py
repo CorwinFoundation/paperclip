@@ -104,7 +104,7 @@ class GoldenAgentScoringRegressionTests(unittest.TestCase):
             snapshot_hash=SNAPSHOT_HASH,
             forensic_bundle_uri=f"https://golden.local/{fid}",
             scored_at=SCORED_AT,
-            corpus_version=expected.get("corpus_version") or None,
+            corpus_version=expected.get("corpus_version"),
             seed=expected.get("seed"),
             model_versions=expected.get("model_versions"),
             applicability_decisions=applicability_decisions,

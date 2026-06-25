@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""are-probe launcher — thin shim over `python -m are_probe.cli`."""
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.join(os.path.dirname(HERE), "src")
+sys.path.insert(0, SRC)
+
+from are_probe.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    raise SystemExit(main())

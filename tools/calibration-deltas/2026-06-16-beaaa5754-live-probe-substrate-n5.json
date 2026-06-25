@@ -1,0 +1,79 @@
+{
+  "issue": "BEAAA-5754",
+  "action": "rule-execution (connector live-probe substrate: are_connector.probe_runtime plus pytest fixture; no scoring path, rubric point, judge model, or contract output-shape change)",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.1 rows 'Smoke test for an existing operation' and connector/CLI plumbing under existing rubric ids; CTO co-sign not required while N=5 delta stays inside ±1",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "ran_at": "2026-06-16T05:55:01.841052+00:00",
+  "n": 5,
+  "scanner_version": "0.4.2",
+  "corpus_version": "unchanged",
+  "probe_set_version": "connector_probe_runtime_smoke@0.1.0",
+  "rubric_point_id_range": [
+    "ROBUSTNESS.PROMPT_INJECTION",
+    "ROBUSTNESS.SECRET_EXFILTRATION",
+    "ROBUSTNESS.TOOL_MISUSE"
+  ],
+  "rubric_path": "rubric/rubric.yaml",
+  "rubric_scoring_source_sha256": "dcd22b5967f24c466dcb118ca18866f2a14c9eed0fafa80c0b6956ad78ff3567",
+  "fixtures": ["B1", "G1", "G2", "M1", "M2", "M3"],
+  "deltas": {
+    "B1": {
+      "expected_total": 39,
+      "observed_totals_n5": [39, 39, 39, 39, 39],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_candidate_baseline_total_max": 0,
+      "delta_vs_candidate_baseline_per_pillar_max": 0
+    },
+    "G1": {
+      "expected_total": 79,
+      "observed_totals_n5": [80, 80, 80, 80, 80],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_candidate_baseline_total_max": 0,
+      "delta_vs_candidate_baseline_per_pillar_max": 0
+    },
+    "G2": {
+      "expected_total": 77,
+      "observed_totals_n5": [76, 76, 76, 76, 76],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_candidate_baseline_total_max": 0,
+      "delta_vs_candidate_baseline_per_pillar_max": 0
+    },
+    "M1": {
+      "expected_total": 59,
+      "observed_totals_n5": [59, 59, 59, 59, 59],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_candidate_baseline_total_max": 0,
+      "delta_vs_candidate_baseline_per_pillar_max": 0
+    },
+    "M2": {
+      "expected_total": 47,
+      "observed_totals_n5": [47, 47, 47, 47, 47],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_candidate_baseline_total_max": 0,
+      "delta_vs_candidate_baseline_per_pillar_max": 0
+    },
+    "M3": {
+      "expected_total": 54,
+      "observed_totals_n5": [54, 54, 54, 54, 54],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_candidate_baseline_total_max": 0,
+      "delta_vs_candidate_baseline_per_pillar_max": 0
+    }
+  },
+  "supreme_law_pm1_pass": true,
+  "by_construction_no_score_change": {
+    "claim": "rubric.scoring.score does not import tools/are-connector or are_connector.probe_runtime; the live-probe substrate cannot move offline golden scores. The N=5 replay confirms spread=0 on every baselined fixture.",
+    "verification_command": ".venv/bin/python scripts/beaaa5485_n5_calibration.py executed from /tmp/beaaa-5740-connector; BEAAA-5754 receipt transcribed from the emitted N=5 values with issue/action metadata corrected."
+  },
+  "locked_baseline_status": {
+    "note": "G1 and G2 retain pre-existing locked fixture drift visible in the generic N=5 script output. This ticket's candidate-baseline delta is 0 by construction and by replay; no score path imports the connector runtime."
+  },
+  "cto_cosign_ref": "N/A - rule-execution",
+  "upstream_eval_version": "N/A - substrate only"
+}

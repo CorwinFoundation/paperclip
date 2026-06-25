@@ -215,7 +215,7 @@ def run(
     probes: Sequence[CalibrationProbe],
     *,
     ensemble_n: int = 3,
-    scanner_version: str = "0.4.1",
+    scanner_version: str | None = None,
     corpus_version: str = "p1_5_calibration_golden@0.1.0",
     probe_set_version: str = "p1_5_calibration_golden@0.1.0",
     seed: int = 42,
@@ -287,6 +287,10 @@ def run(
     inconclusive_rate = ((n_inconclusive + n_unparseable_confidence) / n) if n else 0.0
     inconclusive_breach = inconclusive_rate > inconclusive_ceiling
     pass_rate = (sum(scores) / scored) if scored else 0.0
+    if scanner_version is None:
+        from scanners import SCANNER_VERSION
+        scanner_version = SCANNER_VERSION
+
     return {
         "dim_id": "P1.5",
         "benchmark": "p1_5_calibration_golden-v0.1.0",

@@ -1,0 +1,5 @@
+__version__ = "0.1.1"
+
+CONNECTOR_VERSION = "0.1.1"
+ENVELOPE_VERSION = "0.1"
+POLICY_VERSION = "0.1"

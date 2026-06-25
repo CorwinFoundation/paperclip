@@ -1,7 +1,7 @@
 """Export-only post-bind sink builders."""
 
 from .calibration_feed import build_portfolio_calibration_feed
-from .claims_queue import ClaimsQueueError, build_claims_queue_item
+from .claims_queue import build_claims_queue_item
 from .common import (
     CLAIMS_THRESHOLD_POLICY_GOVERNED_PERILS,
     CLAIMS_THRESHOLD_POLICY_REF,
@@ -23,7 +23,6 @@ from .rescore_feed import build_per_customer_rescore_feed, build_peril_window_me
 __all__ = [
     "CLAIMS_THRESHOLD_POLICY_GOVERNED_PERILS",
     "CLAIMS_THRESHOLD_POLICY_REF",
-    "ClaimsQueueError",
     "DETECTOR_BUNDLE_VERSION",
     "EVENT_TYPE_TO_PERIL",
     "LOG_SCHEMA_PATCH_VERSION",

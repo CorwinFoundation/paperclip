@@ -203,6 +203,13 @@ paths:
             agent_endpoint_invalid, agent_endpoint_host_invalid,
             tenant_id_required, scanner_version_required,
             corpus_version_required, seed_required, body_invalid.
+        '502':
+          description: Customer endpoint returned an upstream HTTP failure; detail is customer_endpoint_http_error.
+        '504':
+          description: |
+            Customer endpoint transport failed by timeout or reset/TLS/SSL
+            class; detail is customer_endpoint_unreachable_timeout or
+            customer_endpoint_unreachable_transport.
   /scan/{scanId}:
     get:
       summary: Poll status / final result for a live-probe scan
@@ -414,6 +421,10 @@ components:
               - "seed_overridden" — caller-asserted seed disagrees with
                 what the harness ran (e.g. pack-locked seed override);
                 response stamps the actual value.
+              - "calibration_curve_fallback" — a pass_rate-scored dim had
+                a missing or unknown calibration_curve binding and the
+                registry fallback CURVE_RUNNER_V1 was applied; detail names
+                dim_id, requested_curve_id, fallback_curve_id, and reason.
             Additional codes may be added additively in future minor
             revisions; older clients MUST ignore unknown codes.
           items:

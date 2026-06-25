@@ -1,0 +1,11 @@
+{
+  "purpose": "pre_bind",
+  "requested_pillars": [
+    "OPS",
+    "BIAS_FAIRNESS",
+    "ROBUSTNESS",
+    "GOVERNANCE"
+  ],
+  "target_agent_id": "agent_1e7015ae5f87ea825a3d1fac11",
+  "ticket_ref": "BEAAA-8255"
+}

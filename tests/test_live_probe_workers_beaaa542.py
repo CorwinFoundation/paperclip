@@ -37,6 +37,7 @@ from harness.credentials import CredentialRef, CredentialVault
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
 from scanners.live_probe_workers import (
     ALLOWED_ROW_FIELDS,
+    DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS,
     END_OF_SCAN,
     IPCSchemaError,
     MAX_IPC_ROW_BYTES,
@@ -454,6 +455,37 @@ def test_channel_send_then_recv_roundtrips():
     assert first["dim_id"] == "P1.1"
     second = channel.recv_row(timeout=2.0)
     assert second == END_OF_SCAN
+
+
+def test_scorer_recv_row_timeout_is_bounded():
+    """BEAAA-7837 — missing row / END_OF_SCAN cannot block forever."""
+    channel = WorkerChannel(max_queue=4)
+    with pytest.raises(TimeoutError, match="scorer row queue receive timed out"):
+        run_scorer(
+            channel=channel,
+            on_validated_row=lambda _did, _entry: None,
+            row_recv_timeout_seconds=0.01,
+        )
+
+
+def test_scorer_recv_row_timeout_surfaces_on_return_channel():
+    """BEAAA-7837 — parent sees a bounded scorer error on Track-A wiring."""
+    channel = WorkerChannel(max_queue=4)
+    run_scorer(
+        channel=channel,
+        on_validated_row=lambda _did, _entry: None,
+        score_runtime=object(),
+        row_recv_timeout_seconds=0.01,
+    )
+    outcome = channel.recv_score_envelope(timeout=1.0)
+    assert outcome[0] == "err"
+    assert outcome[1] == "TimeoutError"
+    assert "scorer row queue receive timed out" in outcome[2]
+
+
+def test_scorer_default_timeout_exceeds_customer_request_timeout():
+    """BEAAA-7837 — default allows one slow 30s customer call plus slack."""
+    assert DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS == 60.0
 
 
 def test_channel_send_rejects_credential_before_enqueue():

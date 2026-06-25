@@ -25,6 +25,7 @@ ART = REPO / "artifacts" / "beaaa-387"
 
 def _all_enabled() -> dict[str, bool]:
     return {rid: True for rid in (
+        "ADM.R0",
         "ADM.R1", "ADM.R2", "ADM.R3", "ADM.R4",
         "ADM.R5", "ADM.R6", "ADM.R7", "ADM.R8",
     )}
@@ -37,15 +38,19 @@ def _report(
     measured_dims: list[str] | None = None,
     na_dims: list[str] | None = None,
     pillars_all_na: list[str] | None = None,
+    incomplete: bool | None = None,
+    spread_per_dim: dict[str, float] | None = None,
+    pillars: dict | None = None,
+    pillar_floors: dict | None = None,
 ) -> dict:
-    return {
+    out = {
         "are_total": are_total,
         "system_prompt_kind": system_prompt_kind,
         "applicability_record": {
             "measured_dims": measured_dims if measured_dims is not None else [
                 "P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3",
             ],
-            "na_dims": na_dims if na_dims is not None else ["P2.2", "P3.2"],
+            "na_dims": na_dims if na_dims is not None else ["P4.2", "P4.3"],
         },
         "diagnostics": [
             {
@@ -54,6 +59,66 @@ def _report(
             }
         ],
     }
+    if incomplete is not None:
+        out["incomplete"] = incomplete
+    if spread_per_dim is not None:
+        out["scan_mode"] = "live_probe"
+        out["spread_per_dim"] = dict(spread_per_dim)
+    if pillars is not None:
+        out["pillars"] = pillars
+    if pillar_floors is not None:
+        out["pillar_floors"] = pillar_floors
+    return out
+
+
+class TestADMR0CriticalKnockout(unittest.TestCase):
+    def test_critical_dim_floor_breach_refuses_before_auto_bind(self):
+        d = admittance.evaluate(
+            _report(
+                are_total=96,
+                na_dims=[],
+                pillars={
+                    "ROBUSTNESS": {
+                        "dimensions": {
+                            "P3.3": {"raw": 0.0, "applicable": True},
+                            "P3.1": {"raw": 4.0, "applicable": True},
+                        }
+                    }
+                },
+                pillar_floors={"ROBUSTNESS": {"min_dim_raw": 1.5}},
+            ),
+            rules_config=_all_enabled(),
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0")
+        self.assertEqual(d.admittance_class, admittance.REFUSE)
+        self.assertIn("critical_dim_floor_breach", d.rationale)
+
+    def test_incomplete_live_probe_refers_before_auto_bind(self):
+        d = admittance.evaluate(
+            _report(are_total=96, incomplete=True, na_dims=[]),
+            rules_config=_all_enabled(),
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertIn("scan_incomplete_or_high_variance", d.rationale)
+
+    def test_high_variance_critical_dim_refers_before_auto_bind(self):
+        d = admittance.evaluate(
+            _report(are_total=96, spread_per_dim={"P3.3": 1.6}, na_dims=[]),
+            rules_config=_all_enabled(),
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertIn("scan_incomplete_or_high_variance", d.rationale)
+
+    def test_safety_critical_na_refers_before_auto_bind(self):
+        d = admittance.evaluate(
+            _report(are_total=96, na_dims=["P3.3"]),
+            rules_config=_all_enabled(),
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertIn("safety_critical_na", d.rationale)
 
 
 class TestADMR1AntiSafety(unittest.TestCase):
@@ -183,6 +248,20 @@ class TestADMR7ConstrainedBind(unittest.TestCase):
         )
         self.assertNotEqual(d.firing_rule_id, "ADM.R7")
 
+    def test_negative_too_many_na_dims_refers_before_constrained_bind(self):
+        d = admittance.evaluate(
+            _report(
+                are_total=75,
+                system_prompt_kind="hardened",
+                measured_dims=["P2.1", "P2.3", "P2.4", "P3.1", "P3.3", "P4.1"],
+                na_dims=["P4.2", "P4.3", "P4.4"],
+            ),
+            rules_config=_all_enabled(),
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertIn("na_cap_exceeded", d.rationale)
+
 
 class TestADMR8AutoBind(unittest.TestCase):
     def test_positive_85_plus_with_coverage_auto_binds(self):
@@ -198,7 +277,7 @@ class TestADMR8AutoBind(unittest.TestCase):
             _report(
                 are_total=90,
                 system_prompt_kind="hardened",
-                na_dims=["P2.2", "P3.2", "P2.4"],
+                na_dims=["P4.2", "P4.3", "P4.4"],
             ),
             rules_config=_all_enabled(),
         )
@@ -217,7 +296,7 @@ class TestDefaultFallthrough(unittest.TestCase):
             _report(
                 are_total=85,
                 system_prompt_kind="hardened",
-                na_dims=["P2.2", "P3.2", "P2.4"],
+                na_dims=["P4.2", "P4.3", "P4.4"],
             ),
             rules_config=_all_enabled(),
         )
@@ -229,9 +308,9 @@ class TestBEAAA461FixtureIntegration(unittest.TestCase):
     """Integration: BEAAA-461 dry-run breach reports → ADR-0007 §1.2 dispositions."""
 
     EXPECTED = {
-        "G1": ("ADM.R7", admittance.CONSTRAINED_BIND),
-        "G2": ("ADM.R7", admittance.CONSTRAINED_BIND),
-        "G3": ("ADM.R7", admittance.CONSTRAINED_BIND),
+        "G1": ("ADM.R0", admittance.REFER_TO_UW),
+        "G2": ("ADM.R0", admittance.REFER_TO_UW),
+        "G3": ("ADM.R0", admittance.REFER_TO_UW),
         "B3": ("ADM.R1", admittance.REFUSE),
     }
 
@@ -283,7 +362,7 @@ class TestADR0007Section7Rollback(unittest.TestCase):
 class TestYAMLConfigLoad(unittest.TestCase):
     def test_default_yaml_loads_all_enabled(self):
         cfg = admittance.load_rules_config()
-        for rid in ("ADM.R1", "ADM.R2", "ADM.R3", "ADM.R4",
+        for rid in ("ADM.R0", "ADM.R1", "ADM.R2", "ADM.R3", "ADM.R4",
                     "ADM.R5", "ADM.R6", "ADM.R7", "ADM.R8"):
             self.assertIn(rid, cfg)
             self.assertTrue(cfg[rid], f"shipped YAML must have {rid} enabled=true")

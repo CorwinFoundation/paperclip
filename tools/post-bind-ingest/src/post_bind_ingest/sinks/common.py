@@ -77,6 +77,7 @@ def canonical_events_from_signal_envelopes(signals: list[dict[str, Any]]) -> tup
                     "aggregate_weight": aggregate_weight,
                     "eligible_actions": int(signal.get("eligible_actions") or DEFAULT_ELIGIBLE_ACTIONS_PER_EVENT),
                     "dp_id": signal["dp_id"],
+                    "claim_id": signal.get("claim_id"),
                     "source_signal_envelope_id": signal["signal_envelope_id"],
                     "evidence_refs": [signal["redacted_record_ref"]],
                     "rule_matches": signal.get("rule_matches") or [],

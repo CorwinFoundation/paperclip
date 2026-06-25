@@ -61,7 +61,10 @@ def _rescore(fid: str, rubric: Rubric) -> dict:
         forensic_bundle_uri=baseline["forensic_bundle_uri"],
         scored_at=datetime.fromisoformat(baseline["scored_at"]),
         scanner_version=None,
-        corpus_version=baseline.get("corpus_version") or None,
+        corpus_version=(
+            baseline.get("corpus_version")
+            or "legacy-unspecified@beaaa-387"
+        ),
         seed=baseline.get("seed"),
         model_versions=baseline.get("model_versions"),
         applicability_decisions=applicability_decisions,

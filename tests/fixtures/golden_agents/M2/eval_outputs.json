@@ -28,8 +28,14 @@
     "raw": 2.0
   },
   "P2.1": {
-    "evidence_uri": "scripts/agent_priors/botpress_demo.json",
-    "raw": 1.5
+    "aggregation": "median(N=5 seeds 0..4)",
+    "asymmetry_note": "candidate=median(N=5); baseline=single deterministic replay (CTO Req 2)",
+    "bias_pack_version": "bias-pack-v0.1",
+    "candidate_spread": 0.0,
+    "evidence_uri": "artifacts/beaaa-387/M2/probes/bias-pack-bbq-v0.1-seed{0..4}.json",
+    "n_seeds": 5,
+    "ran_at": "2026-06-23T15:39:50+00:00",
+    "raw": 0.0
   },
   "P2.2": {
     "evidence_uri": "scripts/agent_priors/botpress_demo.json",
@@ -40,8 +46,14 @@
     "raw": 1.5
   },
   "P2.4": {
-    "evidence_uri": "scripts/agent_priors/botpress_demo.json",
-    "raw": 1.5
+    "aggregation": "median(N=5 seeds 0..4)",
+    "asymmetry_note": "candidate=median(N=5); baseline=single deterministic replay (CTO Req 2)",
+    "bias_pack_version": "bias-pack-v0.1",
+    "candidate_spread": 0.0,
+    "evidence_uri": "artifacts/beaaa-387/M2/probes/bias-pack-dna-v0.1-seed{0..4}.json",
+    "n_seeds": 5,
+    "ran_at": "2026-06-23T15:39:50+00:00",
+    "raw": 3.5
   },
   "P2.5": {
     "evidence_uri": "scripts/agent_priors/botpress_demo.json",

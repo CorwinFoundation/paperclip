@@ -9,7 +9,9 @@ from typing import Any
 from .invariants import ManifestIdempotencyStore, utc_now_iso
 from .manifest_signature import ALLOWED_SCHEMA_VERSIONS, validate_manifest_schema
 from .manifest_signature import normalize_and_digest_events, parse_manifest
+from .p4_detector import detect_p4_events
 from .p5_detector import detect_p5_events
+from .passive_detectors import detect_passive_peril_events
 from .redaction import (
     RedactionError,
     RedactedField,
@@ -79,7 +81,23 @@ def normalize_manifest(
             )
         )
     normalized_events.extend(
+        detect_p4_events(
+            normalized_events,
+            manifest_id=manifest["manifest_id"],
+            manifest_digest=manifest_digest,
+            schema_version=manifest["schema_version"],
+        )
+    )
+    normalized_events.extend(
         detect_p5_events(
+            normalized_events,
+            manifest_id=manifest["manifest_id"],
+            manifest_digest=manifest_digest,
+            schema_version=manifest["schema_version"],
+        )
+    )
+    normalized_events.extend(
+        detect_passive_peril_events(
             normalized_events,
             manifest_id=manifest["manifest_id"],
             manifest_digest=manifest_digest,
@@ -94,13 +112,13 @@ def normalize_manifest(
 def normalize_receiver_events(
     receiver_payload: str | dict[str, Any],
     *,
-    jwt_public_key: Any = None,
+    jwt_keyring: dict[str, Any] | None = None,
     idempotency_store: ManifestIdempotencyStore | None = None,
     clock_skew_seconds: int = 300,
 ) -> tuple[dict[str, Any], ...]:
     envelope = parse_receiver_payload(
         receiver_payload,
-        jwt_public_key=jwt_public_key,
+        jwt_keyring=jwt_keyring,
         clock_skew_seconds=clock_skew_seconds,
     )
     if idempotency_store is not None and idempotency_store.is_duplicate(
@@ -121,7 +139,23 @@ def normalize_receiver_events(
             )
         )
     normalized_events.extend(
+        detect_p4_events(
+            normalized_events,
+            manifest_id=envelope.batch_id,
+            manifest_digest=envelope.batch_sha256.removeprefix("sha256:"),
+            schema_version=envelope.schema_version,
+        )
+    )
+    normalized_events.extend(
         detect_p5_events(
+            normalized_events,
+            manifest_id=envelope.batch_id,
+            manifest_digest=envelope.batch_sha256.removeprefix("sha256:"),
+            schema_version=envelope.schema_version,
+        )
+    )
+    normalized_events.extend(
+        detect_passive_peril_events(
             normalized_events,
             manifest_id=envelope.batch_id,
             manifest_digest=envelope.batch_sha256.removeprefix("sha256:"),
@@ -231,7 +265,7 @@ def normalize_receiver_event(
         "event_ingest": {
             "manifest_id": batch_id,
             "manifest_digest": batch_sha256,
-            "event_digest": hashlib.sha256(_coerce_receiver_digest_payload(event)).hexdigest(),
+            "event_digest": hashlib.sha256(_canonical_payload_bytes(event)).hexdigest(),
             "normalized_at": utc_now_iso(),
         },
         "redactions": redactions,
@@ -241,10 +275,6 @@ def normalize_receiver_event(
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 SECRET_KEY_RE = re.compile(r"\bsk-[A-Za-z0-9]{12,}\b")
 REDACTED_TOKEN_RE = re.compile(r"\[REDACTED(?::[^\]]+)?\]")
-
-
-def _coerce_receiver_digest_payload(event: dict[str, Any]) -> bytes:
-    return _canonical_payload_bytes(event)
 
 
 def _canonical_payload_bytes(value: Any) -> bytes:

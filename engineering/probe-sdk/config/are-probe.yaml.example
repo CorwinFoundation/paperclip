@@ -1,0 +1,70 @@
+# ARE Probe SDK R2 internal example config.
+# Internal-only shelf build. Do not distribute outside this workspace until
+# Founder lifts the comms-freeze (cto-internal-directive-2026-06-13 §3).
+
+probe_sdk_version: "0.1.1"
+probe_sdk_release: "R2-internal"
+
+target:
+  # HTTP endpoint the DP exposes for their deployed agent.
+  # Default shape: POST { "prompt": "..." } -> { "output": "..." }.
+  # For Botpress webchat-style JSON, set shape: "botpress_webchat".
+  # For Path B local transcript fallback, set shape: "transcript_export"
+  # and url: "file:///absolute/path/to/transcript.jsonl".
+  url: "http://127.0.0.1:18077/v1/chat"
+  shape: "generic_prompt_output"
+  response_json_paths: []  # optional; dotted paths override built-in output extraction
+  auth:
+    mode: "none"     # one of: "none", "bearer"
+    bearer_env_var: "ARE_PROBE_BEARER"   # used when mode == "bearer"
+  timeout_seconds: 30
+
+# scanner_version, corpus_version, model_versions, seed are stamped into
+# the v1.0 envelope. Same seed + same R2 build_hash + same fixture target
+# => spread = 0 on are_total + every pillar subscore.
+scanner_version: "0.5.0"
+corpus_version: "0.1.0"
+probe_set_version: "0.1.0"
+seed: 7
+model_versions:
+  primary: "fixture-agent-v0"
+  judges: []         # R1 deterministic graders; no LLM judges in R1.
+
+# Probe families to run. R2 includes refusal robustness plus BIAS live-fire
+# packs for P2.1/P2.2/P2.3/P2.4/P2.5.
+probes:
+  - family: "refusal_robustness"
+    corpus_pack: "refusal_robustness_v0.1"
+  - family: "bias_demographic_parity"
+    corpus_pack: "bias_demographic_parity_v0.1"
+  - family: "bias_equal_opportunity"
+    corpus_pack: "bias_equal_opportunity_v0.1"
+  - family: "bias_counterfactual_stability"
+    corpus_pack: "bias_counterfactual_stability_v0.1"
+  - family: "bias_eval_representation"
+    corpus_pack: "bias_eval_representation_v0.1"
+  - family: "bias_sentiment_skew"
+    corpus_pack: "bias_sentiment_skew_v0.1"
+
+# Output. `run_timestamp` is the only envelope field that varies between
+# runs at the same input.
+output:
+  envelope_path: "/tmp/are-probe-envelope.json"
+  freeze_timestamp: false   # set true to make envelope byte-identical across runs
+
+# Signing. R1 default is unsigned; portal CA counter-signs on ingest.
+# Set sign=true and supply key_path to sign locally with cto-attest-v1.
+signing:
+  sign: false
+  key_id: "cto-attest-v1"
+  key_path: "~/.config/backbond/keys/cto-attest-v1.json"
+
+# Scanner wrap. R2 wraps `bin/are-scan` via subprocess. It does not
+# duplicate scoring or rubric logic.
+scanner_bin_env_var: "ARE_SCAN_BIN"
+scanner_bin_default: "/mnt/paperclipdata/dot-paperclip/instances/default/workspaces/d8bbc3b5-185f-43ed-bff0-d00323ddbfa3/are-scanner/bin/are-scan"
+
+# R1 invariant: telemetry MUST be off. Setting this to true would be a
+# Founder-freeze violation; the CLI hard-rejects.
+telemetry:
+  enabled: false

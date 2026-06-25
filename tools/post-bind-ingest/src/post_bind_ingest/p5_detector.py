@@ -16,13 +16,11 @@ _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
     (label, re.compile(pattern, flags=re.IGNORECASE))
     for label, pattern in (
         ("ignore_previous", r"\bignore\s+(?:all\s+)?previous\s+instructions\b"),
-        ("ignore_task", r"\bignore\s+(?:the\s+)?(?:actual\s+)?(?:task|summarization|translation|spell-?check|instructions?)\b"),
         ("ignore_system", r"\bignore\s+.*(?:system|developer)\s+instructions\b"),
         ("disregard", r"\bdisregard\s+(?:the\s+)?(?:previous|above|earlier)\s+instructions\b"),
         ("do_not_follow", r"\bdo\s+not\s+follow\b"),
         ("act_as", r"\b(?:act\s+as|pretend\s+to\s+be)\b"),
         ("jailbreak", r"\b(jailbreak|prompt\s+injection|instruction\s+hijack)\b"),
-        ("override_task", r"\b(?:override|overriding|replace)\s+(?:the\s+)?(?:task|answer|response|instructions?)\b"),
         ("override_safety", r"\boverride\s+(?:all\s+)?safety\b"),
     )
 )
@@ -77,25 +75,7 @@ def _find_markers(value: Any) -> tuple[str, ...]:
         for label, pattern in _INJECTION_PATTERNS:
             if pattern.search(text):
                 labels.append(label)
-    labels.extend(_find_structured_markers(value))
     return tuple(sorted(set(labels)))
-
-
-def _find_structured_markers(value: Any) -> tuple[str, ...]:
-    if not isinstance(value, dict):
-        return ()
-    features = value.get("detector_features")
-    if not isinstance(features, dict):
-        return ()
-    raw_markers = features.get("prompt_injection_markers")
-    if not isinstance(raw_markers, (list, tuple)):
-        return ()
-    return tuple(
-        marker
-        for marker in raw_markers
-        if isinstance(marker, str)
-        and marker in {label for label, _pattern in _INJECTION_PATTERNS}
-    )
 
 
 def _find_reference_ids(value: Any) -> set[str]:
@@ -310,6 +290,7 @@ def _build_claim_event(
     detector_id = f"{DETECTOR_PERIL}.{DETECTOR_FAMILY}.{detector_name}"
     unique_sources = tuple(dict.fromkeys(evidence_sources))
     event_id = _claim_event_id(manifest_id, manifest_digest, detector_id, "::".join(unique_sources))
+    local_evidence_ref = evidence_refs[0]["artifact_uri"] if evidence_refs else _canonical_artifact_uri(manifest_id, base_event_id)
     return {
         "event_id": event_id,
         "event_type": "claim_candidate_event",
@@ -325,6 +306,7 @@ def _build_claim_event(
             "evidence_sources": list(unique_sources),
             "matched_source_event_ids": sorted(set(matched_source_ids)),
             "matched_markers": markers,
+            "local_evidence_ref": local_evidence_ref,
             "evidence_refs": evidence_refs,
         },
         "provenance": {

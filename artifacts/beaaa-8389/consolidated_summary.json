@@ -757,7 +757,7 @@
     "run_timestamp": "2026-06-24T22:00:00+00:00",
     "scan_evidence_age_days": 0,
     "scan_mode": "offline_replay",
-    "scanner_version": "0.4.1",
+    "scanner_version": "0.5.0",
     "scored_at": "2026-06-24T22:00:00+00:00",
     "seed": 0,
     "snapshot_hash": "sha256:7a9edecb649a5a6ac2967176cb766bff28d6f6cb763161dbe69393d10e543569",
@@ -880,7 +880,7 @@
     "P4.4"
   ],
   "rubric_version": "1.2.0",
-  "scanner_version": "0.4.1",
+  "scanner_version": "0.5.0",
   "source_summary_sha256": "c185214c2e65f15d53f6c2545b942ab9e2b3f631d1cdea833c94b226f4830513",
   "source_ticket_ref": "BEAAA-7653",
   "spread": {

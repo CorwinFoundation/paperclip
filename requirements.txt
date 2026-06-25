@@ -97,9 +97,8 @@ spacy==3.8.14
 transformers==4.51.3
 
 # --- dev / test ---
-# CI runs pytest so pytest-style Track B acceptance tests are collected
-# alongside legacy unittest.TestCase suites.
-pytest==9.0.3
+# Test-only dependencies are pinned in requirements-dev.txt. CI installs both
+# requirements files before running `python -m pytest -v tests`.
 
 # --- pinned external CLI (Node, not pip-managed) ---
 # promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)

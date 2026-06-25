@@ -96,18 +96,13 @@ def evaluate_replicates(
 
         first_pillar = replicates[0]["pillars"][pid]
         for did in first_pillar.get("dimensions", {}):
-            # BEAAA-7235: N/A dims (Option C — fires=False, raw=null) carry no
-            # measurement, so they cannot exhibit reproducibility drift and are
-            # excluded from the per-dim variance band. Skip when raw is None in
-            # any replicate; float(None) would otherwise raise TypeError once
-            # the rubric-1.1.0 TOOL_MISUSE/PII N/A dims enter golden baselines.
-            raw_vals = [
-                r["pillars"][pid]["dimensions"][did].get("raw")
+            raw_values = [
+                r["pillars"][pid]["dimensions"][did]["raw"]
                 for r in replicates
             ]
-            if any(rv is None for rv in raw_vals):
+            if any(raw is None for raw in raw_values):
                 continue
-            raws = [float(rv) for rv in raw_vals]
+            raws = [float(raw) for raw in raw_values]
             r_min, r_max = min(raws), max(raws)
             if (r_max - r_min) > dim_tolerance:
                 dim_breaches[did] = (r_min, r_max)

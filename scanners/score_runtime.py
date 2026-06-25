@@ -160,6 +160,27 @@ def _reconstruct_eval_outputs(
     return out
 
 
+def _has_uncovered_fires_true(
+    decisions: dict[str, dict[str, Any]] | None, covered_dims: set[str]
+) -> bool:
+    """BEAAA-5414 Q-B4 — return True iff any applicability decision
+    marks ``fires=True`` for a dim NOT present in ``covered_dims``.
+
+    CASE 1 (synthetic_v0 path) calls :func:`_build_synthetic_applicability`
+    which marks every uncovered active dim with ``fires=False``; the
+    iteration below short-circuits False on that input. Only the
+    CASE 2 customer-supplied applicability path can return True here —
+    which is the only path that can flip ``partial_completion`` to True
+    via :meth:`ScoreRuntime.compute_envelope`.
+    """
+    if not decisions:
+        return False
+    for did, decision in decisions.items():
+        if decision.get("fires") is True and did not in covered_dims:
+            return True
+    return False
+
+
 def _build_synthetic_applicability(
     rubric: Rubric, covered_dims: set[str]
 ) -> dict[str, dict[str, Any]]:
@@ -288,6 +309,7 @@ class ScoreRuntime:
         invocation_context: dict[str, Any] | None,
         prior_scan_refs: list[dict[str, Any]],
         applicability_decisions: dict[str, dict[str, Any]] | None = None,
+        walker_partial_completion: bool = False,
     ) -> dict[str, Any]:
         """Project the accumulated IPC row map into the §2.2 envelope.
 
@@ -310,12 +332,39 @@ class ScoreRuntime:
           this to match the kickoff timestamp; this method writes
           whatever it receives so the parent-side patch is idempotent.
         * ``invocation_context`` — rescan_handler payload carrying
-          ``purpose`` (``pre_bind | mid_term | claim_review``).
+          ``purpose`` (``pre_bind | mid_term | claim_review``); the
+          BEAAA-5414 customer-true Track B walker additionally carries
+          ``applicability_decisions`` here when CASE 2 is selected.
         * ``prior_scan_refs`` — typically empty on the Scorer side; the
           API-edge factory closure injects the real chain post-receive
           (the scan_log lookup is API-edge state).
+        * ``applicability_decisions`` — explicit kwarg override
+          (CLI/golden path). BEAAA-5414 customer-true path leaves this
+          unset and instead consumes decisions from
+          ``invocation_context["applicability_decisions"]`` so the
+          production ``score_inputs`` literal at
+          ``api/scan_runtime_factory.py`` stays inside the BEAAA-2182
+          Q-A4 pinned key set (regression
+          ``TestProductionScoreInputsAreCase1`` enforces this).
+        * ``walker_partial_completion`` — BEAAA-5414 Q-B4 caller
+          override; when ``True`` the projected envelope's
+          ``partial_completion`` field is forced ``True`` regardless of
+          accumulated-row coverage. Used on the customer-true path
+          when the API-edge closure detects the walker raised under
+          ``MAX_WALL_CLOCK_SECONDS`` or similar. Default ``False``
+          preserves the synthetic_v0 path byte-stability.
         """
         eval_outputs = _reconstruct_eval_outputs(accumulated_rows)
+        if applicability_decisions is None and invocation_context is not None:
+            # BEAAA-5414 Q-B3 — customer-true Track B walker carries
+            # ``applicability_decisions`` through ``invocation_context``
+            # so the production ``score_inputs`` literal stays inside
+            # the BEAAA-2182 Q-A4 pinned key set. CTO co-sign BEAAA-5418
+            # + UW op-seat co-sign BEAAA-5420 cover this provenance dial
+            # CASE 1 → CASE 2 flip on the v1.5.0 contract patch.
+            ctx_decisions = invocation_context.get("applicability_decisions")
+            if isinstance(ctx_decisions, dict):
+                applicability_decisions = ctx_decisions
         if applicability_decisions is not None:
             # Caller supplied explicit applicability (golden-roster path,
             # customer-agent path once Track B lands). Use as-is; the score()
@@ -368,12 +417,26 @@ class ScoreRuntime:
             if isinstance(raw_purpose, str):
                 purpose = raw_purpose
 
-        return project_to_envelope_section_2_2(
+        envelope = project_to_envelope_section_2_2(
             cli_projection,
             purpose=purpose,
             rubric_version=self.rubric.version,
             prior_scan_refs=prior_scan_refs,
         )
+
+        # BEAAA-5414 Q-B4 — partial_completion single source of truth.
+        # True when (a) the API-edge caller explicitly signals incomplete
+        # walker execution (timeout / runner raise) via the kwarg, or
+        # (b) any ``fires=True`` applicability dim is uncovered after
+        # walker completion. CASE 1 (synthetic_v0) auto-synthesizes all
+        # uncovered active dims with ``fires=False``, so this is False
+        # on the synthetic_v0 path — byte-stability preserved.
+        if walker_partial_completion or _has_uncovered_fires_true(
+            synth_applicability, set(eval_outputs)
+        ):
+            envelope["partial_completion"] = True
+
+        return envelope
 
 
 def _parse_run_timestamp(run_timestamp: str) -> datetime:

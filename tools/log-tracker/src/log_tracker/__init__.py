@@ -1,4 +1,4 @@
-"""Log Tracker v0 package."""
+"""BackBond Log Tracker v0 package."""
 
 from .claim_events import (
     ALLOWED_CLAIM_KINDS,
@@ -9,11 +9,6 @@ from .claim_events import (
     SQLiteClaimEventSink,
     emit_claim_candidate_event,
 )
-from .scanner_runs import (
-    ArtifactUriUnreachable,
-    LogTracker,
-    build_scanner_run_envelope,
-)
 from .policy_lifecycle import (
     ALLOWED_POLICY_EVENT_KINDS,
     POLICY_EVENT_KIND_ALIASES,
@@ -21,6 +16,11 @@ from .policy_lifecycle import (
     PolicyLifecycleEvent,
     SQLitePolicyLifecycleSink,
     emit_policy_lifecycle_event,
+)
+from .scanner_runs import (
+    ArtifactUriUnreachable,
+    LogTracker,
+    build_scanner_run_envelope,
 )
 from .timeline_read import (
     AUTH_POSTURE,
@@ -54,46 +54,48 @@ from .write_pipeline import (
     w4_append_only,
 )
 
+__version__ = "0.1.0"
+
 __all__ = [
     "ALLOWED_CLAIM_KINDS",
     "ALLOWED_CLAIM_PERILS",
     "ALLOWED_SEVERITY_CLASSES",
     "ALLOWED_POLICY_EVENT_KINDS",
+    "ARE_SCANNER_SCHEMA_VERSION",
+    "AUTH_POSTURE",
     "ArtifactUriUnreachable",
-    "LogTracker",
-    "POLICY_EVENT_KIND_ALIASES",
+    "CONTRACT_VERSION",
     "ClaimEvent",
     "ClaimEventError",
-    "PolicyLifecycleError",
-    "PolicyLifecycleEvent",
-    "SQLiteClaimEventSink",
-    "SQLitePolicyLifecycleSink",
-    "build_scanner_run_envelope",
-    "emit_claim_candidate_event",
-    "emit_policy_lifecycle_event",
-    "AUTH_POSTURE",
-    "CONTRACT_VERSION",
-    "SHA256_HEX_RE",
-    "TRACKER_VERSION",
-    "SQLiteTimelineStore",
-    "TimelineReadAuth",
-    "TimelineReadError",
-    "apply_read_redaction",
-    "authorize_timeline_read",
-    "handle_timeline_read",
-    "ARE_SCANNER_SCHEMA_VERSION",
-    "LOG_EVENT_SCHEMA_VERSION",
-    "REDACTION_CLASSES",
     "ClaimEventPayload",
     "EvidenceRef",
+    "LOG_EVENT_SCHEMA_VERSION",
+    "LogTracker",
+    "POLICY_EVENT_KIND_ALIASES",
     "PolicyEventPayload",
+    "PolicyLifecycleError",
+    "PolicyLifecycleEvent",
+    "REDACTION_CLASSES",
+    "SHA256_HEX_RE",
+    "SQLiteClaimEventSink",
+    "SQLitePolicyLifecycleSink",
+    "SQLiteTimelineStore",
     "ScannerRunPayload",
     "Signature",
+    "TRACKER_VERSION",
+    "TimelineReadAuth",
+    "TimelineReadError",
     "WriteEnvelope",
     "WritePipelineError",
     "WriteStageRecord",
     "append_envelope",
     "apply_migrations",
+    "apply_read_redaction",
+    "authorize_timeline_read",
+    "build_scanner_run_envelope",
+    "emit_claim_candidate_event",
+    "emit_policy_lifecycle_event",
+    "handle_timeline_read",
     "w1_validate_envelope",
     "w2_redact_by_class",
     "w3_apply_secret_floor",

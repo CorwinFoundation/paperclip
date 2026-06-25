@@ -38,6 +38,11 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True, help="HTML output path")
     parser.add_argument("--scan-age-days", type=int, default=0, help="override scan_evidence_age_days")
     parser.add_argument(
+        "--corpus", default="",
+        help="corpus_version stamp for the scan (e.g. halueval-qa@1.0). "
+             "Leave blank for preview renders.",
+    )
+    parser.add_argument(
         "--provenance",
         default=None,
         help='Scan-level provenance label (e.g. "measured — direct-API customer scan", '
@@ -56,6 +61,7 @@ def main() -> int:
         snapshot_hash=args.snapshot_hash,
         forensic_bundle_uri=args.forensic_bundle,
         scored_at=datetime.now(timezone.utc),
+        corpus_version=args.corpus,
     )
     if args.scan_age_days:
         score_response["scan_evidence_age_days"] = int(args.scan_age_days)

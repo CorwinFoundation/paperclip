@@ -1,0 +1,145 @@
+{
+  "p4_attestation_form": {
+    "agent_id": "agent_1e7015ae5f87ea825a3d1fac11",
+    "attested_at": "2026-06-24T18:45:00Z",
+    "attested_by": {
+      "accountability": "I am authorized to make these attestations on behalf of backbond-self-owned-retell as a duly authorized representative, and I understand that IFA will rely on them in underwriting and at claim. I confirm that the supporting evidence attached is true and complete to the best of my knowledge as of 2026-06-24T18:45:00Z.",
+      "accountability_checked": true,
+      "email": "scanner-engineer@backbond.internal",
+      "name": "Scanner Engineer",
+      "title": "BackBond Scanner Engineer"
+    },
+    "customer_id": "backbond-self-owned-retell",
+    "dims": {
+      "P4_1": {
+        "evidence": {
+          "log_sample_file": "attestation://beaaa-8255/log-sample",
+          "retention_policy_doc": "attestation://beaaa-8255/log-retention"
+        },
+        "logged_surfaces": [
+          {
+            "logged": true,
+            "retention_days": 30,
+            "surface": "prompt_in"
+          },
+          {
+            "logged": true,
+            "retention_days": 30,
+            "surface": "model_response"
+          },
+          {
+            "logged": true,
+            "retention_days": 30,
+            "surface": "tool_call"
+          },
+          {
+            "logged": true,
+            "retention_days": 30,
+            "surface": "tool_response"
+          },
+          {
+            "logged": true,
+            "retention_days": 30,
+            "surface": "user_id_or_session"
+          }
+        ],
+        "storage_mode": "append_only",
+        "tamper_evidence": "hash_chain"
+      },
+      "P4_2": {
+        "evidence": {
+          "change_log_link": "attestation://beaaa-8255/change-log",
+          "pin_policy_doc": "attestation://beaaa-8255/pin-policy"
+        },
+        "model_change_control": "pr_review_required",
+        "pin_policy": "pinned_per_release",
+        "prompt_change_control": "pr_review_required",
+        "rollback_to_prior_supported": true,
+        "version_registry": "internal_git"
+      },
+      "P4_3": {
+        "approval_required_to_invoke": "on_call_unilateral",
+        "drill_cadence_days": 180,
+        "evidence": {
+          "runbook_link": "attestation://beaaa-8255/kill-switch-runbook"
+        },
+        "kill_switch_mechanism": "feature_flag",
+        "last_drill_at": "2026-06-24",
+        "rollback_time_minutes": 60,
+        "time_to_disable_minutes": 10
+      },
+      "P4_4": {
+        "escalation_chain": [
+          {
+            "role": "scanner_engineer",
+            "sla_minutes": 60
+          },
+          {
+            "role": "cto",
+            "sla_minutes": 240
+          }
+        ],
+        "evidence": {
+          "playbook_doc": "attestation://beaaa-8255/incident-response"
+        },
+        "external_notification_policy": "internal_escalation_first",
+        "playbook_exists": true,
+        "scope_covered": [
+          "prompt_injection",
+          "hallucinated_action",
+          "data_leak",
+          "tool_misuse",
+          "regulatory_inquiry"
+        ]
+      },
+      "P4_5": {
+        "policy_doc_link": "attestation://beaaa-8255/eval-cadence",
+        "regression_escalation": "soft_block"
+      },
+      "P4_6": {
+        "evidence": {
+          "raci_doc": "attestation://beaaa-8255/owner-matrix"
+        },
+        "last_reviewed_at": "2026-06-24",
+        "review_cadence_days": 180,
+        "roles": [
+          {
+            "named_person": true,
+            "role_id": "deployment_owner"
+          },
+          {
+            "named_person": true,
+            "role_id": "model_owner"
+          },
+          {
+            "named_person": true,
+            "role_id": "on_call_responder"
+          }
+        ],
+        "succession_policy": "named_backup"
+      }
+    },
+    "form_variant": "full_v0",
+    "material_change_log": [
+      {
+        "event": "self_owned_retell_gpt_4_1_mini_temp0_scan",
+        "notes": "Self-owned Retell agent measured for BEAAA-8255; attestation evidence is raw_self_report capped.",
+        "occurred_at": "2026-06-24T18:45:00Z"
+      }
+    ],
+    "signature_block": {
+      "signature_mode": "notarized_email",
+      "signature_sha256": "c9ebdeed7ef9b3c2fbfaebea39c2c41fa4f01d97baedc6e7ab65f03415a7bbbc"
+    },
+    "version": "0.1.0"
+  },
+  "pii_evidence_pack": {
+    "breach_sla_72h": 72,
+    "dpia": true,
+    "dsar_runbook": "attestation://beaaa-8255/dsar-runbook",
+    "dsar_sla_days": 30,
+    "policy_text": "attestation://beaaa-8255/pii-policy",
+    "signed_dpa": true
+  },
+  "pii_substrate_raw": 0.0
+}

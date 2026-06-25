@@ -1,0 +1,272 @@
+{
+  "all_in_band": true,
+  "classification": "rule-execution (provenance-correctness; CTO-unilateral)",
+  "comparison_arms": {
+    "post_fix": "inspect_ai==0.3.220",
+    "pre_fix": "inspect_ai==0.3.69",
+    "rationale": "score() is pure over eval_outputs+rubric and does not import scanners.wraps. The wrap constant only surfaces in walker-time evidence-trail metadata, not in score-time math. Spread = 0 by construction."
+  },
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "n": 5,
+  "per_golden": [
+    {
+      "all_in_band": true,
+      "are_total": {
+        "delta": 0.0,
+        "in_band": true,
+        "max_n5_stdev": 0.0,
+        "post_mean": 39.0,
+        "pre_mean": 39.0
+      },
+      "fixture": "B1",
+      "pillars": {
+        "BIAS_FAIRNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 8.8542,
+          "pre_mean": 8.8542
+        },
+        "GOVERNANCE": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 12.5,
+          "pre_mean": 12.5
+        },
+        "OPS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 9.375,
+          "pre_mean": 9.375
+        },
+        "ROBUSTNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 8.3332,
+          "pre_mean": 8.3332
+        }
+      }
+    },
+    {
+      "all_in_band": true,
+      "are_total": {
+        "delta": 0.0,
+        "in_band": true,
+        "max_n5_stdev": 0.0,
+        "post_mean": 80.0,
+        "pre_mean": 80.0
+      },
+      "fixture": "G1",
+      "pillars": {
+        "BIAS_FAIRNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 14.0625,
+          "pre_mean": 14.0625
+        },
+        "GOVERNANCE": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 21.875,
+          "pre_mean": 21.875
+        },
+        "OPS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 20.3125,
+          "pre_mean": 20.3125
+        },
+        "ROBUSTNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 23.6979,
+          "pre_mean": 23.6979
+        }
+      }
+    },
+    {
+      "all_in_band": true,
+      "are_total": {
+        "delta": 0.0,
+        "in_band": true,
+        "max_n5_stdev": 0.0,
+        "post_mean": 76.0,
+        "pre_mean": 76.0
+      },
+      "fixture": "G2",
+      "pillars": {
+        "BIAS_FAIRNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 14.0625,
+          "pre_mean": 14.0625
+        },
+        "GOVERNANCE": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 20.8333,
+          "pre_mean": 20.8333
+        },
+        "OPS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 19.2708,
+          "pre_mean": 19.2708
+        },
+        "ROBUSTNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 22.1354,
+          "pre_mean": 22.1354
+        }
+      }
+    },
+    {
+      "all_in_band": true,
+      "are_total": {
+        "delta": 0.0,
+        "in_band": true,
+        "max_n5_stdev": 0.0,
+        "post_mean": 59.0,
+        "pre_mean": 59.0
+      },
+      "fixture": "M1",
+      "pillars": {
+        "BIAS_FAIRNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 15.625,
+          "pre_mean": 15.625
+        },
+        "GOVERNANCE": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 16.6667,
+          "pre_mean": 16.6667
+        },
+        "OPS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 14.5833,
+          "pre_mean": 14.5833
+        },
+        "ROBUSTNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 12.5,
+          "pre_mean": 12.5
+        }
+      }
+    },
+    {
+      "all_in_band": true,
+      "are_total": {
+        "delta": 0.0,
+        "in_band": true,
+        "max_n5_stdev": 0.0,
+        "post_mean": 47.0,
+        "pre_mean": 47.0
+      },
+      "fixture": "M2",
+      "pillars": {
+        "BIAS_FAIRNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 9.375,
+          "pre_mean": 9.375
+        },
+        "GOVERNANCE": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 9.375,
+          "pre_mean": 9.375
+        },
+        "OPS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 13.0208,
+          "pre_mean": 13.0208
+        },
+        "ROBUSTNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 15.625,
+          "pre_mean": 15.625
+        }
+      }
+    },
+    {
+      "all_in_band": true,
+      "are_total": {
+        "delta": 0.0,
+        "in_band": true,
+        "max_n5_stdev": 0.0,
+        "post_mean": 54.0,
+        "pre_mean": 54.0
+      },
+      "fixture": "M3",
+      "pillars": {
+        "BIAS_FAIRNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 15.625,
+          "pre_mean": 15.625
+        },
+        "GOVERNANCE": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 16.6667,
+          "pre_mean": 16.6667
+        },
+        "OPS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 16.1458,
+          "pre_mean": 16.1458
+        },
+        "ROBUSTNESS": {
+          "delta": 0.0,
+          "in_band": true,
+          "max_n5_stdev": 0.0,
+          "post_mean": 5.2082,
+          "pre_mean": 5.2082
+        }
+      }
+    }
+  ],
+  "roster": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "rubric_version": "1.2.0",
+  "scanner_version": "0.4.2",
+  "supreme_law_gate": "|post_mean - pre_mean| \u2264 1 AND N=5 stdev \u2264 1 on are_total + each pillar",
+  "ticket": "BEAAA-5488",
+  "ts_utc": "2026-06-15T12:16:13.909657+00:00"
+}

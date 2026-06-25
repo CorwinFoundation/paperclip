@@ -38,6 +38,9 @@ No other deviations. The function body, the field list emitted by
 """
 from __future__ import annotations
 
+import hashlib
+import os
+import re
 from datetime import datetime
 from typing import Any
 
@@ -53,6 +56,12 @@ from harness.verdict_envelope import (
     compute_verdict_envelope,
 )
 from scanners import CONTRACT_VERSION
+
+_EMIT_MODE_ENV = "BACKBOND_EMIT_MODE"
+_CUSTOMER_VPC_MODE = "customer_vpc"
+_REPO_LOCAL_MODE = "repo_local"
+_TENANT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
+_RUN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def _numeric_to_verdict(score: float) -> str:
@@ -77,6 +86,97 @@ def _first_attestation_artifact(dim_payload: dict[str, Any], fallback: str) -> s
         if isinstance(value, str) and value:
             return value
     return fallback
+
+
+def _emit_mode() -> str:
+    mode = os.environ.get(_EMIT_MODE_ENV, _REPO_LOCAL_MODE).strip() or _REPO_LOCAL_MODE
+    if mode not in {_REPO_LOCAL_MODE, _CUSTOMER_VPC_MODE}:
+        raise ValueError(
+            f"{_EMIT_MODE_ENV} must be '{_REPO_LOCAL_MODE}' or '{_CUSTOMER_VPC_MODE}'"
+        )
+    return mode
+
+
+def _context_string(context: dict[str, Any] | None, *keys: str) -> str | None:
+    if not isinstance(context, dict):
+        return None
+    for key in keys:
+        value = context.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _customer_vpc_artifact_uri(
+    *,
+    rubric_point_id: str,
+    evidence_uri: str,
+    context: dict[str, Any] | None,
+    scored_at: datetime,
+) -> str:
+    tenant_id = (
+        os.environ.get("BACKBOND_CUSTOMER_TENANT_ID", "").strip()
+        or _context_string(context, "tenant_id", "customer_tenant_id")
+    )
+    if not tenant_id or not _TENANT_RE.match(tenant_id):
+        raise ValueError(
+            "customer_vpc emit mode requires tenant_id matching "
+            "^[a-z0-9][a-z0-9-]{1,62}$ via scanner_invocation_context "
+            "or BACKBOND_CUSTOMER_TENANT_ID"
+        )
+    run_id = (
+        os.environ.get("BACKBOND_SCAN_RUN_ID", "").strip()
+        or _context_string(context, "run_id", "scan_run_id")
+        or scored_at.strftime("%Y%m%dT%H%M%SZ")
+    )
+    if not _RUN_RE.match(run_id):
+        raise ValueError(
+            "customer_vpc emit mode requires run_id matching "
+            "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        )
+    safe_dim = re.sub(r"[^A-Za-z0-9_.-]+", "_", rubric_point_id).strip("._-")
+    digest = hashlib.sha256(evidence_uri.encode("utf-8")).hexdigest()[:16]
+    return f"s3://customer-{tenant_id}/are-scans/{run_id}/evidence/{safe_dim}-{digest}.json"
+
+
+def _project_artifact_uri(
+    *,
+    rubric_point_id: str,
+    evidence_uri: str,
+    inputs: Any,
+    scored_at: datetime,
+) -> str:
+    mode = _emit_mode()
+    if mode == _REPO_LOCAL_MODE:
+        return evidence_uri
+    return _customer_vpc_artifact_uri(
+        rubric_point_id=rubric_point_id,
+        evidence_uri=evidence_uri,
+        context=getattr(inputs, "scanner_invocation_context", None),
+        scored_at=scored_at,
+    )
+
+
+def _project_evidence_refs(
+    refs: list[dict[str, Any]],
+    *,
+    inputs: Any,
+    scored_at: datetime,
+) -> list[dict[str, Any]]:
+    if _emit_mode() == _REPO_LOCAL_MODE:
+        return refs
+    projected: list[dict[str, Any]] = []
+    for ref in refs:
+        out = dict(ref)
+        if out.get("verdict") != "n/a":
+            out["artifact_uri"] = _project_artifact_uri(
+                rubric_point_id=str(out.get("rubric_point_id", "unknown")),
+                evidence_uri=str(out.get("artifact_uri", "")),
+                inputs=inputs,
+                scored_at=scored_at,
+            )
+        projected.append(out)
+    return projected
 
 
 def _governance_attestation_refs(
@@ -208,6 +308,12 @@ def to_contract_output(
             for ref in evidence_refs
         ]
 
+    evidence_refs = _project_evidence_refs(
+        evidence_refs,
+        inputs=inputs,
+        scored_at=scored_at,
+    )
+
     # Hard guarantee #2 from the contract: every active rubric point must
     # have a reachable artifact_uri. The CLI surface is the place to
     # enforce this — the in-agent path defers it to the Underwriter intake.
@@ -233,7 +339,7 @@ def to_contract_output(
         evidence_refs, attestation_fixture=inputs.governance_attestations,
     )
 
-    bmi = int(score_result.get("bmi", 0))
+    bmi = int(score_result.get("are_total", score_result.get("bmi", 0)))
     band = score_result.get("band", {})
     band_letter = band.get("display") or band.get("letter") or ""
 

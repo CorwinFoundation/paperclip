@@ -141,6 +141,18 @@ body {
 .pillar-score-val { font: 600 17px/1 ui-monospace, monospace; color: #1a2027; }
 .pillar-score-wt { font-size: 12px; color: #718096; }
 .pillar-pct { font-size: 12px; font-weight: 600; color: var(--pillar-color, #1565c0); }
+.pillar-na-badge {
+  display: inline-block; font: 700 12px/1 ui-monospace, monospace;
+  padding: 7px 10px; border-radius: 6px; color: #78350f;
+  background: #fffbeb; border: 1px solid #d97706;
+}
+.pillar-na-note { font-size: 12px; color: #718096; }
+.pillar-partial-badge {
+  display: inline-block; font: 700 10px/1 ui-monospace, monospace;
+  padding: 3px 6px; border-radius: 4px; color: #78350f;
+  background: #fffbeb; border: 1px solid #d97706; margin-left: 6px;
+}
+.pillar-partial-note { font-size: 11px; line-height: 1.4; color: #92400e; margin-bottom: 6px; }
 .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 7px; }
 .progress-fill { height: 100%; border-radius: 4px; background: var(--pillar-color, #1565c0); }
 .floor-line { font: 11px/1.6 ui-monospace, Menlo, monospace; color: #718096; }
@@ -304,7 +316,7 @@ body {
   </div>
   <div class="report-body">
 
-    <div class="caveat-block"><h3>About this score</h3><p>This ARE assessment uses our internal rubric version 1.2.0 (in-flight), which weights the four risk pillars differently from the customer-facing ARE Scanner API contract are-scanner-api-v1@v1.3.0 we are locking. We are closing this gap in BEAAA-353 and will re-issue this score under contract are-scanner-api-v1@v1.3.0 weights before any policy is bound. The result you see is directionally accurate for an LOI-stage assessment; the precise score may shift by a small number of points under contract are-scanner-api-v1@v1.3.0 weights. We are disclosing this here rather than after the fact.</p><div class="caveat-versions">Rubric: v1.2.0 (effective) · Contract: are-scanner-api-v1@v1.3.0 (target) · Scanner build: 0.4.1</div></div>
+    <div class="caveat-block"><h3>About this score</h3><p>This ARE assessment uses our internal rubric version 1.2.0 (in-flight), which weights the four risk pillars differently from the customer-facing ARE Scanner API contract are-scanner-api-v1@v1.3.0 we are locking. We are closing this gap in BEAAA-353 and will re-issue this score under contract are-scanner-api-v1@v1.3.0 weights before any policy is bound. The result you see is directionally accurate for an LOI-stage assessment; the precise score may shift by a small number of points under contract are-scanner-api-v1@v1.3.0 weights. We are disclosing this here rather than after the fact.</p><div class="caveat-versions">Rubric: v1.2.0 (effective) · Contract: are-scanner-api-v1@v1.3.0 (target) · Scanner build: 0.5.0</div></div>
 
     <div class="hero">
       <div class="score-ring" style="--score-deg:3.6deg;">
@@ -382,7 +394,9 @@ body {
         <div class="pillar-score-row">
           <span class="pillar-score-val">0.00</span><span class="pillar-score-wt"> / 25</span>
           <span class="pillar-pct">0.0%</span>
+          <span class="pillar-partial-badge">PARTIAL</span>
         </div>
+        <div class="pillar-partial-note">1 of 6 dims measured · score normalized over measured dims only; uncovered dims are not scored (not counted as 0)</div>
         <div class="progress-track"><div class="progress-fill" style="width:0.0%;"></div></div>
         
         <div class="pillar-purpose">Measures how often the agent emits factually wrong, internally inconsistent, or unsupported content. Drives expected loss frequency in indemnity coverage.</div>
@@ -393,10 +407,9 @@ body {
         <div class="pillar-id">BIAS_FAIRNESS</div>
         <div class="pillar-name">BIAS_FAIRNESS</div>
         <div class="pillar-score-row">
-          <span class="pillar-score-val">0.00</span><span class="pillar-score-wt"> / 25</span>
-          <span class="pillar-pct">0.0%</span>
+          <span class="pillar-na-badge">N/A</span>
+          <span class="pillar-na-note">No measured dimensions</span>
         </div>
-        <div class="progress-track"><div class="progress-fill" style="width:0.0%;"></div></div>
         
         <div class="pillar-purpose">Measures disparate-impact and counterfactual stability across protected attributes. Underwrites discrimination and unfair-treatment claims.</div>
         <div class="pack-chips"><span class="pack-chip">BBQ</span><span class="pack-chip">DoNotAnswer</span><span class="pack-chip">(custom counterfactual probes)</span></div>
@@ -421,7 +434,9 @@ body {
         <div class="pillar-score-row">
           <span class="pillar-score-val">0.00</span><span class="pillar-score-wt"> / 25</span>
           <span class="pillar-pct">0.0%</span>
+          <span class="pillar-partial-badge">PARTIAL</span>
         </div>
+        <div class="pillar-partial-note">1 of 7 dims measured · score normalized over measured dims only; uncovered dims are not scored (not counted as 0)</div>
         <div class="progress-track"><div class="progress-fill" style="width:0.0%;"></div></div>
         <span class="floor-line floor-fail">≥ 12.50 ✗</span> 
         <div class="pillar-purpose">Measures operational discipline: audit logging, version control, kill-switch readiness, IR playbook, eval cadence, ownership. Drives loss-control credit and remediation speed.</div>
@@ -761,7 +776,7 @@ body {
         </div>
         <div class="audit-item">
           <span class="audit-key">Scanner version</span>
-          <span class="audit-val">0.4.1</span>
+          <span class="audit-val">0.5.0</span>
         </div>
         <div class="audit-item">
           <span class="audit-key">Corpus version</span>

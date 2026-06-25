@@ -294,7 +294,19 @@ Clause #5 (tamper resistance) gains a 5a addendum:
 > the hash for an existing bundle. Cold-storage Object Lock (Compliance
 > mode) is the second seal at the storage layer.
 
-Clauses #2–#4 unchanged.
+Clauses #2–#4 unchanged, with one acceptance-timing clarification:
+
+> **Clause #3 acceptance timing (ADR-0035, BEAAA-5325).** Clause #3
+> (scan envelope `model_versions` populated) is a **v1 real-adapter
+> wrap-ticket** acceptance criterion, **not** a v0 production acceptance
+> criterion. The v0 synthetic probe path
+> (`synthetic_v0_probe_run_fn` + `v0_mock_runner_factory`) invokes no real
+> model, so `model_versions` MAY be an empty list `[]` in v0 envelopes;
+> v0 reproducibility is carried by the remaining determinism-tuple fields
+> (`scanner_version`, `corpus_version`, `seed`). When a real adapter
+> replaces `v0_mock_runner_factory`, `model_versions` MUST be populated
+> and Clause #3 becomes a hard release gate again. Founder-ratified
+> 2026-06-21 (BEAAA-7229 interaction `d151516e`); no wire-shape change.
 
 ## §Hard guarantees (Underwriter is on the hook for these)
 

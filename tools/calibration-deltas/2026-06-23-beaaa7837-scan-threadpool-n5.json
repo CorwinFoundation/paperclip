@@ -1,0 +1,115 @@
+{
+  "issue": "BEAAA-7837",
+  "action": "rule-execution bug fix: offload blocking /scan and /scanner/v1/rescans handlers from async FastAPI routes into the Starlette threadpool, and bound the Scorer row queue receive path so a missing row or END_OF_SCAN sentinel returns a TimeoutError instead of waiting forever.",
+  "classification_table_row": "scanner-implementation-supervision-v1.md@v1.1 row 'Refactor that does not touch behavior' plus smoke test for an existing operation; no scoring math, judge model, rubric, contract output shape, or tamper-resistance reduction.",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "scanner_version": "0.3.7-route-threadpool-scorer-timeout-beaaa7837",
+  "corpus_version": "0.1.0",
+  "probe_set_version": "live-probe-v1 existing; unchanged",
+  "rubric_point_id": "N/A route and worker-lifecycle plumbing; all golden rubric points regression-checked",
+  "ran_at": "2026-06-23T18:08:58.340646+00:00",
+  "n": 5,
+  "rubric_path": "rubric/rubric.yaml",
+  "fixtures": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "deltas": {
+    "B1": {
+      "expected_total": 39,
+      "expected_hash": "f1719ac9e111c3e8ca083790984319ec5b432242c79ccf73b4a773ede472e0fd",
+      "observed_totals_n5": [
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G1": {
+      "expected_total": 79,
+      "expected_hash": "985e50179df4b9b3cf8fc84b3d140d513ac83b9786538e2ff9c5faee00150c11",
+      "observed_totals_n5": [
+        80,
+        80,
+        80,
+        80,
+        80
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 1,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "G2": {
+      "expected_total": 77,
+      "expected_hash": "bec2dbbe84ae633b29f1b840a70da5c5dc60227f28a83a0f86a1d0ab5f8c0878",
+      "observed_totals_n5": [
+        76,
+        76,
+        76,
+        76,
+        76
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 1,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M1": {
+      "expected_total": 59,
+      "expected_hash": "9780d1aa36fe21780bd1dce92393d82757d3818640b80d22c469774e9eb787b9",
+      "observed_totals_n5": [
+        59,
+        59,
+        59,
+        59,
+        59
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M2": {
+      "expected_total": 47,
+      "expected_hash": "553b7a61c1abfd2f5ea64f881c9b4bd8a685333c7890f773e0017d56be24e458",
+      "observed_totals_n5": [
+        47,
+        47,
+        47,
+        47,
+        47
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    },
+    "M3": {
+      "expected_total": 54,
+      "expected_hash": "502c41d09b7830a68459075e03ddfe24a5777f8731c7e184e106019ae47735ef",
+      "observed_totals_n5": [
+        54,
+        54,
+        54,
+        54,
+        54
+      ],
+      "spread_n5": 0,
+      "byte_identical_replay_n5": true,
+      "delta_vs_expected_max": 0,
+      "in_band_pm1_and_byte_identical": true
+    }
+  },
+  "all_in_band_pm1_and_byte_identical": true,
+  "cto_cosign_ref": null
+}

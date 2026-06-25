@@ -24,6 +24,21 @@ def _score(bmi: int) -> dict:
     return {"bmi": bmi, "band": band_to_dict(assign_band(bmi))}
 
 
+# BEAAA-7937: the production /quote path now enforces admittance (ADR-0007 §1.3),
+# so a /quote request must carry the admittance evidence bundle (assembled by the
+# UW submission record, ADR-0007 §1.4). This helper attaches a bindable bundle
+# (6 measured dims, no N/A dims, hardened posture) so a [70,84] score lands
+# ADM.R7 CONSTRAINED_BIND with f_caveat=1.0 — premium unchanged vs the legacy path.
+def _score_with_admittance(bmi: int) -> dict:
+    s = _score(bmi)
+    s["applicability_record"] = {
+        "measured_dims": ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1"],
+        "na_dims": [],
+    }
+    s["system_prompt_kind"] = "hardened"
+    return s
+
+
 class StressProfileTests(unittest.TestCase):
     def setUp(self):
         self.rates = Rates.load(RATES_PATH)
@@ -65,7 +80,9 @@ class StressProfileTests(unittest.TestCase):
     def test_profile_3_healthcare_c_neutral(self):
         # ARE 68 → C+, but pricing keys off lower-bound (64 = C neutral).
         # Caller passes the lower-bound band per pricing-v1 §3.
-        # 25000 × 1.80 × 1.00 × 1.40 × 1.75 × 1.70 × 1.10 = $206,167.5 → $206,168.
+        # BEAAA-5269 rebaseline: C band factor recalibrated 1.80 → 2.50 in
+        # rates v1.1 (rates.yaml §11). Updated expected = 25000 × 2.50 × 1.00
+        # × 1.40 × 1.75 × 1.70 × 1.10 = $286,343.75 → $286,344.
         q = quote(
             _score(64),  # lower bound
             {
@@ -75,16 +92,18 @@ class StressProfileTests(unittest.TestCase):
             },
             rates=self.rates,
         )
-        self.assertEqual(q["annual_premium_usd"], 206_168)
+        self.assertEqual(q["annual_premium_usd"], 286_344)
         # Letter C → remediation auto-added.
         codes = [e["code"] for e in q["endorsements"]]
         self.assertIn("remediation", codes)
         self.assertEqual(q["endorsements_total_usd"], 2500)
-        self.assertEqual(q["total_with_endorsements_usd"], 208_668)
+        self.assertEqual(q["total_with_endorsements_usd"], 288_844)
 
     def test_profile_4_northstar_c_minus_lower_bound(self):
         # ARE 62 (±4) → point C neutral, lower bound 58 → C−.
-        # 25000 × 1.80 × 1.07 × 1.00 × 1.00 × 1.00 × 1.10 = $52,965.
+        # BEAAA-5269 rebaseline: C band factor recalibrated 1.80 → 2.50 in
+        # rates v1.1 (rates.yaml §11). Updated expected = 25000 × 2.50 × 1.07
+        # × 1.00 × 1.00 × 1.00 × 1.10 = $73,562.5 → $73,563.
         q = quote(
             _score(58),
             {
@@ -94,9 +113,9 @@ class StressProfileTests(unittest.TestCase):
             },
             rates=self.rates,
         )
-        self.assertEqual(q["annual_premium_usd"], 52_965)
+        self.assertEqual(q["annual_premium_usd"], 73_563)
         self.assertEqual(q["breakdown"]["modifier"], "-")
-        self.assertEqual(q["total_with_endorsements_usd"], 55_465)
+        self.assertEqual(q["total_with_endorsements_usd"], 76_063)
 
     def test_profile_5_preferred_a_plus(self):
         # ARE 95 → A+. ENT_SAAS, $250M, $2M/$5M.
@@ -244,17 +263,22 @@ class EndorsementTests(unittest.TestCase):
 
 
 class HandlerIntegrationTests(unittest.TestCase):
-    """The /quote endpoint adapter — manual_referral surfaces as 200 with status field."""
+    """The /quote endpoint adapter — admittance-gated outcomes surface as 200
+    with a status field (ADR-0007 §1.3 enforcement, BEAAA-7937)."""
 
     def setUp(self):
         from api.handlers import quote_handler
         self.quote_handler = quote_handler
         self.rates = Rates.load(RATES_PATH)
 
-    def test_manual_referral_returns_200_with_status(self):
+    def test_subfloor_score_returns_200_ineligible(self):
+        # BEAAA-7937: under admittance enforcement a sub-floor score (<50) is
+        # ADM.R5 REFUSE → 200 ineligible. The legacy D-band ManualReferral no
+        # longer reaches it — the admittance gate fires first (risk-conservative,
+        # CEO co-sign BEAAA-7940).
         status, body = self.quote_handler(
             {
-                "score": _score(40),  # D band
+                "score": _score_with_admittance(40),  # D band, sub-floor
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 100_000_000,
@@ -264,14 +288,34 @@ class HandlerIntegrationTests(unittest.TestCase):
             rates=self.rates,
         )
         self.assertEqual(status, 200)
-        self.assertEqual(body["status"], "manual_referral")
+        self.assertEqual(body["status"], "ineligible")
+        self.assertEqual(body["firing_rule_id"], "ADM.R5")
         self.assertIsNone(body["annual_premium_usd"])
-        self.assertIn("letter D", body["reason"])
+
+    def test_missing_admittance_evidence_returns_422(self):
+        # BEAAA-7939 UW condition: a bare score with no applicability_record is a
+        # contract error (422), never a silent ADM.R3 REFUSE.
+        from api.handlers import HandlerError
+        with self.assertRaises(HandlerError) as ctx:
+            self.quote_handler(
+                {
+                    "score": _score(40),  # no applicability_record
+                    "customer": {
+                        "sector": "ENT_SAAS",
+                        "annual_revenue_usd": 100_000_000,
+                        "limit": {"per_claim_usd": 1_000_000, "aggregate_usd": 2_000_000},
+                    },
+                },
+                rates=self.rates,
+            )
+        self.assertEqual(ctx.exception.status, 422)
 
     def test_indicative_returns_200_with_premium(self):
+        # BEAAA-7937: [70,84] + bindable evidence → ADM.R7 CONSTRAINED_BIND with
+        # f_caveat=1.0 (no N/A dims) → premium unchanged vs the legacy path.
         status, body = self.quote_handler(
             {
-                "score": _score(78),
+                "score": _score_with_admittance(78),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 500_000_000,

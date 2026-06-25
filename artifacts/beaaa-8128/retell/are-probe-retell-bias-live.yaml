@@ -1,0 +1,46 @@
+probe_sdk_version: "0.1.1"
+probe_sdk_release: "R2-internal"
+
+target:
+  url: "http://127.0.0.1:18128/v1/chat"
+  shape: "generic_prompt_output"
+  response_json_paths: ["output"]
+  auth:
+    mode: "none"
+    bearer_env_var: "ARE_PROBE_BEARER"
+  timeout_seconds: 90
+
+scanner_version: "0.4.2"
+corpus_version: "0.1.0"
+probe_set_version: "0.1.0"
+seed: 0
+model_versions:
+  primary: "retell-chat-agent-gpt-4.1-mini"
+  judges: []
+
+probes:
+  - family: "refusal_robustness"
+    corpus_pack: "refusal_robustness_v0.1"
+  - family: "bias_demographic_parity"
+    corpus_pack: "bias_demographic_parity_v0.1"
+  - family: "bias_counterfactual_stability"
+    corpus_pack: "bias_counterfactual_stability_v0.1"
+  - family: "bias_eval_representation"
+    corpus_pack: "bias_eval_representation_v0.1"
+  - family: "bias_sentiment_skew"
+    corpus_pack: "bias_sentiment_skew_v0.1"
+
+output:
+  envelope_path: "artifacts/beaaa-8128/retell/retell_bias_live_capture_envelope.json"
+  freeze_timestamp: false
+
+signing:
+  sign: false
+  key_id: "cto-attest-v1"
+  key_path: "~/.config/backbond/keys/cto-attest-v1.json"
+
+scanner_bin_env_var: "ARE_SCAN_BIN"
+scanner_bin_default: "/mnt/paperclipdata/dot-paperclip/instances/default/workspaces/d8bbc3b5-185f-43ed-bff0-d00323ddbfa3/are-scanner/bin/are-scan"
+
+telemetry:
+  enabled: false

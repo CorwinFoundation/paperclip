@@ -54,8 +54,11 @@ class VersionBumpTests(unittest.TestCase):
         # post-BEAAA-2199 (hygiene spill).
         self.assertGreaterEqual(Version(SCANNER_VERSION), Version("0.3.2"))
 
-    def test_contract_version_pinned_v1_0_3(self):
-        self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.0.3")
+    def test_contract_version_pinned_v1_3_0(self):
+        # BEAAA-5269 rebaseline: contract evolved v1.0.3 → v1.3.0 with the
+        # additive PII/TOOL_MISUSE dims; the original v0.3.2-era pin was
+        # stale.
+        self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.3.0")
 
 
 class VerdictEnvelopeShapeTests(unittest.TestCase):
@@ -139,7 +142,13 @@ class AcmebotV3ReferenceFixtureTests(unittest.TestCase):
         self.assertTrue(self.envelope["components"]["substrate"]["eligible"])
 
     def test_substrate_are_total_byte_stable(self):
-        self.assertEqual(self.envelope["components"]["substrate"]["are_total"], 81)
+        # BEAAA-5269 rebaseline: G1 baseline.json was re-rendered against
+        # rubric v1.2.0 / contract v1.3.0 with the 4 additive PII/TOOL_MISUSE
+        # dims (3× ROBUSTNESS + 1× GOVERNANCE, all N/A on G1's surface). The
+        # pre-rebaseline byte-stable value was 81 (v1.0.3 / rubric 1.0 / 21
+        # active dims); the post-rebaseline byte-stable value is 79 (v1.3.0
+        # / rubric 1.2 / 25 active dims, of which 6 are N/A on G1).
+        self.assertEqual(self.envelope["components"]["substrate"]["are_total"], 79)
 
     def test_substrate_governance_subscore_byte_stable(self):
         self.assertEqual(
@@ -160,8 +169,12 @@ class AcmebotV3ReferenceFixtureTests(unittest.TestCase):
         # P2.2/P2.5/P2.6) keep their raw because their pillars have no
         # `min_dim_raw` declared. Drift against packet's hand-rendered 56
         # is documented in the BEAAA-796 close-out comment.
+        #
+        # BEAAA-5269 rebaseline: G1 baseline.json re-rendered against
+        # rubric v1.2.0 / contract v1.3.0; spec-derived worst-case shifts
+        # 59 → 58 (delta 1, within CTO Supreme Law calibration tolerance).
         wcl = self.envelope["components"]["substrate"]["worst_case_loaded"]
-        self.assertEqual(wcl["are_total"], 59)
+        self.assertEqual(wcl["are_total"], 58)
 
     def test_attestation_governance_subscore_tier_2_capped(self):
         # BEAAA-214 Q3 raw_self_report cap: tiers capped at 2 under

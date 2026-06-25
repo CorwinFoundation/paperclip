@@ -208,6 +208,7 @@ body {
 }
 .eligibility.pass { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
 .eligibility.fail { background: #fff5f5; border-color: #c62828; color: #7f1d1d; }
+.eligibility.refer { background: #fffbeb; border-color: #d97706; color: #78350f; }
 .verdict-badge {
   flex-shrink: 0; font: 700 12px/1 ui-monospace, monospace;
   padding: 8px 13px; border-radius: 6px; color: #fff;
@@ -215,6 +216,7 @@ body {
 }
 .eligibility.pass .verdict-badge { background: #2e7d32; }
 .eligibility.fail .verdict-badge { background: #c62828; }
+.eligibility.refer .verdict-badge { background: #d97706; }
 .eligibility-body { font-size: 13px; }
 .eligibility-body strong { display: block; margin-bottom: 5px; font-size: 13px; }
 .fail-reasons { margin: 0; padding-left: 16px; font: 12px/1.6 ui-monospace, Menlo, monospace; }
@@ -244,6 +246,18 @@ body {
 .pillar-score-val { font: 600 17px/1 ui-monospace, monospace; color: #1a2027; }
 .pillar-score-wt { font-size: 12px; color: #718096; }
 .pillar-pct { font-size: 12px; font-weight: 600; color: var(--pillar-color, #1565c0); }
+.pillar-na-badge {
+  display: inline-block; font: 700 12px/1 ui-monospace, monospace;
+  padding: 7px 10px; border-radius: 6px; color: #78350f;
+  background: #fffbeb; border: 1px solid #d97706;
+}
+.pillar-na-note { font-size: 12px; color: #718096; }
+.pillar-partial-badge {
+  display: inline-block; font: 700 10px/1 ui-monospace, monospace;
+  padding: 3px 6px; border-radius: 4px; color: #78350f;
+  background: #fffbeb; border: 1px solid #d97706; margin-left: 6px;
+}
+.pillar-partial-note { font-size: 11px; line-height: 1.4; color: #92400e; margin-bottom: 6px; }
 .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 7px; }
 .progress-fill { height: 100%; border-radius: 4px; background: var(--pillar-color, #1565c0); }
 .floor-line { font: 11px/1.6 ui-monospace, Menlo, monospace; color: #718096; }
@@ -657,6 +671,8 @@ def render(
     prior_score_response: dict[str, Any] | None = None,
     remediation_threshold: float = 2.5,
     display_pillar_weights: dict[str, int] | None = None,
+    admittance_decision: dict[str, Any] | None = None,
+    quote_status: str | None = None,
 ) -> str:
     """Render a ScoreResponse to a single self-contained HTML document.
 
@@ -700,7 +716,11 @@ def render(
     band_letter = band["letter"]
     band_color = _BAND_COLOR.get(band_letter, "#444")
     band_tier = escape(_BAND_TIER.get(band_letter, ""))
-    eligibility = evaluate_bind_eligibility(score_response)
+    eligibility = (
+        _eligibility_from_admittance(admittance_decision, quote_status)
+        if admittance_decision is not None
+        else evaluate_bind_eligibility(score_response)
+    )
     score_deg = f"{(bmi / 100) * 360:.1f}deg"
 
     # BEAAA-209 v0.2.4: cover-label gate. Reads P1.6.coverage_breadth_pct
@@ -917,6 +937,22 @@ def render(
 
 
 def _eligibility_block(eligibility: dict[str, Any]) -> str:
+    status = eligibility.get("status", "pass" if eligibility.get("eligible") else "fail")
+    if status == "refer":
+        items = "".join(f"<li>{escape(r)}</li>" for r in eligibility.get("reasons", []))
+        quote_line = ""
+        if eligibility.get("quote_status"):
+            quote_line = f'<strong>Quote status: {escape(str(eligibility["quote_status"]))}</strong>'
+        return (
+            '<div class="eligibility refer">'
+            '<div class="verdict-badge">REFER_TO_UW</div>'
+            '<div class="eligibility-body">'
+            "<strong>Manual Underwriter referral required. Not eligible for automatic bind.</strong>"
+            f"{quote_line}"
+            f'<ul class="fail-reasons">{items}</ul>'
+            "</div>"
+            "</div>"
+        )
     if eligibility["eligible"]:
         return (
             '<div class="eligibility pass">'
@@ -937,6 +973,30 @@ def _eligibility_block(eligibility: dict[str, Any]) -> str:
     )
 
 
+def _eligibility_from_admittance(
+    decision: dict[str, Any],
+    quote_status: str | None,
+) -> dict[str, Any]:
+    admittance_class = str(decision.get("admittance_class", "")).upper()
+    rule_id = str(decision.get("firing_rule_id") or decision.get("rule_id") or "")
+    rationale = str(decision.get("rationale") or decision.get("reason") or "")
+    reasons = []
+    if rule_id:
+        reasons.append(f"{rule_id}: {rationale}" if rationale else rule_id)
+    elif rationale:
+        reasons.append(rationale)
+    if admittance_class == "REFER_TO_UW":
+        return {
+            "eligible": False,
+            "status": "refer",
+            "reasons": reasons,
+            "quote_status": quote_status,
+        }
+    if admittance_class in {"AUTO_BIND", "CONSTRAINED_BIND", "BIND"}:
+        return {"eligible": True, "status": "pass", "reasons": reasons}
+    return {"eligible": False, "status": "fail", "reasons": reasons}
+
+
 def _pillar_card(
     pid: str,
     pdata: dict[str, Any],
@@ -946,12 +1006,28 @@ def _pillar_card(
     name = rubric_pillar["name"]
     score = float(pdata["score"])
     weight = int(pdata["weight"])
+    dimensions = pdata.get("dimensions") or {}
+    measured_count = sum(
+        1
+        for entry in dimensions.values()
+        if entry.get("applicable") is not False and entry.get("raw") is not None
+    )
+    total_count = len(dimensions)
+    has_measured_dim = measured_count > 0
+    all_na = bool(dimensions) and not has_measured_dim
+    # BEAAA-8398: a pillar with SOME (but not all) measured dims is "partial".
+    # The engine re-normalizes the pillar score across the measured dims only
+    # (rubric/scoring.py: uncovered/N/A dims are excluded from the mean, NOT
+    # imputed as 0), so the score is honest — but a bare "X / 25" reads as a
+    # full-coverage result. Surface the measured fraction so an uncovered dim
+    # is never mistaken for a scored 0.
+    partial = bool(dimensions) and 0 < measured_count < total_count
     pct = (score / weight) * 100 if weight else 0
     fill_pct = max(0.0, min(100.0, pct))
     color = _pillar_pct_color(pct)
 
     floor_html = ""
-    if floor:
+    if floor and not all_na:
         min_pillar = float(floor.get("min_pillar_score", 0))
         if min_pillar > 0:
             if score >= min_pillar:
@@ -984,18 +1060,47 @@ def _pillar_card(
         if raw_mapping
         else ""
     )
+    if all_na:
+        score_html = (
+            f'        <div class="pillar-score-row">\n'
+            f'          <span class="pillar-na-badge">N/A</span>\n'
+            f'          <span class="pillar-na-note">No measured dimensions</span>\n'
+            f"        </div>\n"
+        )
+        bar_html = ""
+    else:
+        partial_badge = (
+            f'          <span class="pillar-partial-badge">PARTIAL</span>\n'
+            if partial
+            else ""
+        )
+        score_html = (
+            f'        <div class="pillar-score-row">\n'
+            f'          <span class="pillar-score-val">{score:.2f}</span>'
+            f'<span class="pillar-score-wt"> / {weight}</span>\n'
+            f'          <span class="pillar-pct">{pct:.1f}%</span>\n'
+            f"{partial_badge}"
+            f"        </div>\n"
+        )
+        if partial:
+            score_html += (
+                f'        <div class="pillar-partial-note">'
+                f"{measured_count} of {total_count} dims measured "
+                f"· score normalized over measured dims only; "
+                f"uncovered dims are not scored (not counted as 0)"
+                f"</div>\n"
+            )
+        bar_html = (
+            f'        <div class="progress-track">'
+            f'<div class="progress-fill" style="width:{fill_pct:.1f}%;"></div></div>\n'
+        )
 
     return (
         f'      <div class="pillar-card" style="--pillar-color:{color};">\n'
         f'        <div class="pillar-id">{escape(pid)}</div>\n'
         f'        <div class="pillar-name">{escape(name)}</div>\n'
-        f'        <div class="pillar-score-row">\n'
-        f'          <span class="pillar-score-val">{score:.2f}</span>'
-        f'<span class="pillar-score-wt"> / {weight}</span>\n'
-        f'          <span class="pillar-pct">{pct:.1f}%</span>\n'
-        f"        </div>\n"
-        f'        <div class="progress-track">'
-        f'<div class="progress-fill" style="width:{fill_pct:.1f}%;"></div></div>\n'
+        f"{score_html}"
+        f"{bar_html}"
         f"        {floor_html}\n"
         f"{purpose_html}"
         f"{chips_html}"
@@ -1028,19 +1133,23 @@ def _pillar_section(
     rows = []
     for did in rubric_pillar["dim_ids"]:
         entry = pdata["dimensions"].get(did, {})
-        raw = float(entry.get("raw", 0))
-        dim_pct = (raw / 4) * 100
+        applicable = entry.get("applicable") is not False and entry.get("raw") is not None
+        raw = float(entry.get("raw", 0)) if applicable else None
+        dim_pct = (raw / 4) * 100 if raw is not None else 0.0
         dim_fill = max(0.0, min(100.0, dim_pct))
         dim_name = escape(dim_names.get(did, ""))
 
         warn = ""
         thr = entry.get("applied_threshold") or {}
-        if thr.get("kind") == "bind_blocking_floor" and raw < float(thr.get("min_raw", 0)):
+        if raw is not None and thr.get("kind") == "bind_blocking_floor" and raw < float(thr.get("min_raw", 0)):
             warn = '<span class="warn-badge">BIND BLOCKED</span>'
 
         fw_html = _framework_badges(dim_frameworks.get(did))
         delta_html = render_dim_delta_pill(diff, did)
-        below_threshold = raw < remediation_threshold
+        below_threshold = raw is not None and raw < remediation_threshold
+        if not applicable:
+            justification = entry.get("na_justification") or "Not applicable to this scan."
+            warn = f'<span class="warn-badge" title="{escape(str(justification))}">N/A</span>'
         rem_html = (
             _remediation_block(did, dim_remediation.get(did))
             if (below_threshold and dim_remediation.get(did))
@@ -1057,7 +1166,7 @@ def _pillar_section(
             f'            <td class="dim-id-col">{escape(did)}</td>\n'
             f'            <td class="dim-name-col">{dim_name}{fw_html}{warn}'
             f"{probe_html}</td>\n"
-            f'            <td class="dim-raw-col">{raw:.1f}/4{delta_html}</td>\n'
+            f'            <td class="dim-raw-col">{("N/A" if raw is None else f"{raw:.1f}/4")}{delta_html}</td>\n'
             f'            <td class="dim-bar-col">'
             f'<div class="dim-bar-track">'
             f'<div class="dim-bar-fill" style="width:{dim_fill:.1f}%;"></div>'

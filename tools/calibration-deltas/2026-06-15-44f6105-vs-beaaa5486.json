@@ -1,0 +1,294 @@
+{
+  "acceptance": {
+    "calibration_delta_pass": true,
+    "n5_band_pass": true
+  },
+  "artifact_type": "calibration_delta_n5",
+  "base_ref": "44f6105",
+  "candidate_ref": "beaaa5486",
+  "contract_version_current": "are-scanner-api-v1@v1.3.0",
+  "fixtures": {
+    "B1": {
+      "are_delta": 0,
+      "baseline_are": 39,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 39,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 39,
+        "are_min": 39,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_bad"
+    },
+    "B2": {
+      "baselined": false,
+      "n5": {
+        "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)"
+      },
+      "notes": "owner=Head of Underwriting & AI Risk, source_issue=BEAAA-419",
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "slot": "known_bad"
+    },
+    "B3": {
+      "are_delta": 0,
+      "baseline_are": 64,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 64,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 64,
+        "are_min": 64,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_bad"
+    },
+    "G1": {
+      "are_delta": 0,
+      "baseline_are": 79,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 79,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 79,
+        "are_min": 79,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_good"
+    },
+    "G2": {
+      "are_delta": 0,
+      "baseline_are": 77,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 77,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 77,
+        "are_min": 77,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_good"
+    },
+    "G3": {
+      "are_delta": 0,
+      "baseline_are": 73,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 73,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 73,
+        "are_min": 73,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "known_good"
+    },
+    "M1": {
+      "are_delta": 0,
+      "baseline_are": 59,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 59,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 59,
+        "are_min": 59,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "graded_middle"
+    },
+    "M2": {
+      "are_delta": 0,
+      "baseline_are": 47,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 47,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 47,
+        "are_min": 47,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "graded_middle"
+    },
+    "M3": {
+      "are_delta": 0,
+      "baseline_are": 54,
+      "baseline_rubric_version": "1.1.0",
+      "baseline_scanner_version": "0.4.0",
+      "baselined": true,
+      "current_are": 54,
+      "current_rubric_version": "1.2.0",
+      "current_scanner_version": "0.4.2",
+      "drift_attributable_to": "rubric_reweight",
+      "n5": {
+        "are_breach": false,
+        "are_drift": 0,
+        "are_max": 54,
+        "are_min": 54,
+        "n_replicates": 5,
+        "pillar_breaches": [],
+        "pillar_drifts": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0
+        }
+      },
+      "pillar_deltas": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "slot": "graded_middle"
+    }
+  },
+  "generated_at": "2026-06-15T12:57:00Z",
+  "issue": "BEAAA-5486",
+  "n": 5,
+  "rubric_version_current": "1.2.0",
+  "scanner_version_current": "0.4.2",
+  "summary": {
+    "all_in_band_are": true,
+    "all_in_band_pillar": true,
+    "all_in_band_total": true,
+    "are_breaches": [],
+    "baselined_count": 8,
+    "pending_count": 1,
+    "pillar_breaches": [],
+    "section_2_summary_line": "baselined=8/9 | pending=1 | ARE breaches (>1.0)=0 | pillar breaches (>0.5)=0 | PASS",
+    "section_3_summary_line": "N=5 | baselined=8/9 | pending=1 | max ARE drift=0 | breaches=0 | PASS"
+  },
+  "title": "P1/P2 scanner_invocation_context wiring onto ScanRequest"
+}

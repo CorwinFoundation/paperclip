@@ -126,6 +126,12 @@ def _record_transport(record: list, status: int = 200, headers: dict | None = No
     return httpx.MockTransport(handler)
 
 
+def _public_resolver(host: str, port: int) -> tuple[str, ...]:
+    assert host == "agent.customer.example.com"
+    assert port == 443
+    return ("93.184.216.34",)
+
+
 def test_scoped_allowlist_requires_host():
     with pytest.raises(ValueError):
         egress.ScopedEgressAllowlist("")
@@ -142,6 +148,101 @@ def test_scoped_allowlist_allows_declared_host():
         assert r.status_code == 200
     assert len(sent) == 1
     assert sent[0].url.host == "agent.customer.example.com"
+
+
+def test_endpoint_scoped_allowlist_allows_declared_scheme_and_port():
+    import httpx
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist(
+        "https://agent.customer.example.com/probe",
+        resolver=_public_resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_targets,
+        _record_transport(sent),
+        resolver=_public_resolver,
+    )
+    with httpx.Client(transport=wrapped) as c:
+        r = c.get("https://agent.customer.example.com/probe/v1?x=1")
+        assert r.status_code == 200
+    assert len(sent) == 1
+    assert sent[0].url.host == "agent.customer.example.com"
+
+
+def test_endpoint_scoped_allowlist_blocks_http_downgrade():
+    import httpx
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist(
+        "https://agent.customer.example.com/probe",
+        resolver=_public_resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_targets,
+        _record_transport(sent),
+        resolver=_public_resolver,
+    )
+    with httpx.Client(transport=wrapped) as c:
+        with pytest.raises(egress.EgressNotAllowed):
+            c.get("http://agent.customer.example.com/probe")
+    assert sent == []
+
+
+def test_endpoint_scoped_allowlist_blocks_wrong_port():
+    import httpx
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist(
+        "https://agent.customer.example.com/probe",
+        resolver=_public_resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_targets,
+        _record_transport(sent),
+        resolver=_public_resolver,
+    )
+    with httpx.Client(transport=wrapped) as c:
+        with pytest.raises(egress.EgressNotAllowed):
+            c.get("https://agent.customer.example.com:8443/probe")
+    assert sent == []
+
+
+def test_endpoint_scoped_allowlist_blocks_dns_rebind_to_private_ip():
+    import httpx
+
+    def private_resolver(host: str, port: int) -> tuple[str, ...]:
+        assert host == "agent.customer.example.com"
+        assert port == 443
+        return ("10.0.0.7",)
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist(
+        "https://agent.customer.example.com/probe",
+        resolver=private_resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_targets,
+        _record_transport(sent),
+        resolver=private_resolver,
+    )
+    with httpx.Client(transport=wrapped) as c:
+        with pytest.raises(egress.EgressNotAllowed):
+            c.get("https://agent.customer.example.com/probe")
+    assert sent == []
+
+
+def test_endpoint_scoped_allowlist_allows_explicit_loopback_endpoint():
+    import httpx
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist("http://127.0.0.2:50123/probe")
+    wrapped = egress._AllowlistTransport(scope.allowed_targets, _record_transport(sent))
+    with httpx.Client(transport=wrapped) as c:
+        r = c.post("http://127.0.0.2:50123/probe")
+        assert r.status_code == 200
+    assert len(sent) == 1
+    assert sent[0].url.host == "127.0.0.2"
 
 
 @pytest.mark.parametrize("bad_host", [
@@ -217,3 +318,30 @@ def test_scoped_allowlist_client_factory_returns_httpx_client():
         assert isinstance(c, httpx.Client)
     finally:
         c.close()
+
+
+def test_scoped_allowlist_bypasses_residential_proxy_env(monkeypatch):
+    """BEAAA-7910: bind-path scoped egress is direct-by-construction and must
+    not consult the residential-proxy env path, even when it is set."""
+    import httpx
+
+    sent: list = []
+    monkeypatch.setenv(egress.PROXY_ENV, "http://u:p@gate.example.com:7000")
+    monkeypatch.setattr(
+        egress,
+        "proxy_url",
+        lambda **_kwargs: pytest.fail("ScopedEgressAllowlist consulted proxy_url"),
+    )
+    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    transport = egress._AllowlistTransport(
+        scope.allowed_host,
+        _record_transport(sent),
+    )
+    with httpx.Client(transport=transport) as c:
+        r = c.get("https://agent.customer.example.com/probe")
+    assert r.status_code == 200
+
+    # scope.client() builds its transport via _wrap(); the monkeypatched
+    # proxy_url() fail() above trips if the scoped path consults the proxy env.
+    with scope.client(timeout=5.0) as c:
+        assert isinstance(c, httpx.Client)

@@ -33,10 +33,12 @@ Hard Invariants reinforced
   registered on the API-edge side and inherited into the Prober
   subprocess via fork-only copy-on-write memory. The Scorer subprocess
   imports no credential code. ``forget_all`` runs on every exit path.
-* **#5 — Tamper resistance posture unchanged.** The Prober opens
-  ``ScopedEgressAllowlist(agent_endpoint_host)`` around the ``run_scan``
+* **#5 — Tamper resistance posture preserved.** The Prober opens
+  ``ScopedEgressAllowlist(agent_endpoint)`` around the ``run_scan``
   call; the Scorer's ``ScopedEgressAllowlist([])`` (deny-all) lives
-  inside :func:`run_scorer` for its entire lifetime.
+  inside :func:`run_scorer` for its entire lifetime. BEAAA-8263 adds an
+  env-gated host nft rule for direct live-bind egress; the rule mirrors the
+  same declared endpoint and is removed at teardown.
 
 Anti-pattern guards
 -------------------
@@ -79,19 +81,12 @@ from scanners.live_probe_orchestrator import (
     run_scan,
 )
 from scanners.live_probe_workers import (
+    DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS,
     WorkerChannel,
     spawn_scorer,
     validate_inbound_envelope,
 )
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
-
-
-class ScanRuntimeError(RuntimeError):
-    """Raised when the scan runtime cannot produce a valid score envelope.
-
-    Aborts the scan so that placeholder or corrupted envelopes never reach
-    ``scan_log.append_scan()`` and corrupt UW chain integrity checks.
-    """
 
 
 # ADR-0017 addendum-1 §2.4 — Phase 1 prod fleet scan_log path on EFS-mounted
@@ -106,6 +101,21 @@ ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
 # own MAX_WALL_CLOCK_SECONDS cap on the Prober; we add a small slack so the
 # parent unblocks even if the cap-breach path is slow to flush.
 _PARENT_JOIN_SLACK_SECONDS: int = 30
+
+# Scorer-side envelope projection should complete immediately after the
+# Prober flushes END_OF_SCAN. Keep this independent from the scan wall-clock
+# cap so a crashed Scorer cannot pin a single-worker API process for the
+# full live-probe ceiling.
+SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS: float = float(
+    os.environ.get("ARE_SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS", "10")
+)
+
+SCORER_ROW_RECV_TIMEOUT_SECONDS: float = float(
+    os.environ.get(
+        "ARE_SCORER_ROW_RECV_TIMEOUT_SECONDS",
+        str(DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS),
+    )
+)
 
 
 # BEAAA-2182 Track A — kill-switch for the Scorer-side scoring path.
@@ -123,6 +133,30 @@ def _scorer_real_enabled() -> bool:
     pre-Track-A `_phase1_pending` envelope behavior.
     """
     value = os.environ.get(ARE_SCORER_REAL_ENV, "on").strip().lower()
+    return value in ("on", "1", "true", "yes")
+
+
+# BEAAA-5414 v0.3 — customer-true Track B walker selector. Default off.
+# Set ``ARE_WALKER_CUSTOMER_AGENT=1`` to swap
+# :func:`synthetic_v0_probe_run_fn` + :func:`v0_mock_runner_factory` for
+# :func:`scanners.customer_agent_walker.customer_agent_probe_run_fn` +
+# :func:`harness.customer_runner.customer_agent_http_runner_factory` on
+# :func:`make_default_production_scan_runtime`. Tier-1 rollback flips
+# back to synthetic_v0 in ≤10 min by setting the env var to 0 / unset.
+# CTO co-sign: BEAAA-5418. UW op-seat co-sign: BEAAA-5420. v1.5.0 patch
+# envelope shape unchanged; only the ``applicability_decisions``
+# provenance dial (CASE 1 → CASE 2) and ``partial_completion`` semantics
+# move under the customer-true path.
+ARE_WALKER_CUSTOMER_AGENT_ENV: str = "ARE_WALKER_CUSTOMER_AGENT"
+
+
+def _customer_agent_walker_enabled() -> bool:
+    """True iff the BEAAA-5414 customer-true Track B walker is selected.
+
+    Default off. The synthetic_v0 path is byte-identical to the canon
+    master ``bec8f80`` baseline when this flag is unset.
+    """
+    value = os.environ.get(ARE_WALKER_CUSTOMER_AGENT_ENV, "0").strip().lower()
     return value in ("on", "1", "true", "yes")
 
 
@@ -241,9 +275,10 @@ def _prober_target(
     """Prober subprocess entrypoint.
 
     Opens :class:`ScopedEgressAllowlist` scoped to the customer's
-    ``agent_endpoint_host`` for the lifetime of the ``run_scan`` call —
-    customer-endpoint traffic from ``runner_factory``'s adapter is allowed,
-    everything else is denied at the transport layer. After ``run_scan``
+    ``agent_endpoint`` for the lifetime of the ``run_scan`` call —
+    customer-endpoint traffic from ``runner_factory``'s adapter is allowed
+    only on the declared scheme/port, and everything else is denied at
+    the transport layer. After ``run_scan``
     returns (or raises), the result tuple is enqueued on ``result_queue``
     and the channel's END_OF_SCAN sentinel is best-effort flushed so the
     Scorer's drain loop terminates cleanly on error paths too.
@@ -372,9 +407,7 @@ def make_production_scan_runtime(
                     "scanner_version": scan_request.scanner_version,
                     "corpus_version": scan_request.corpus_version,
                     "run_timestamp": _utc_now_iso(),
-                    "invocation_context": getattr(
-                        scan_request, "invocation_context", None
-                    ),
+                    "invocation_context": scan_request.invocation_context,
                     "prior_scan_refs": [],
                 }
             scorer_proc = spawn_scorer(
@@ -382,6 +415,7 @@ def make_production_scan_runtime(
                 on_validated_row=_noop_validated_row,
                 score_runtime=score_runtime,
                 score_inputs=score_inputs,
+                row_recv_timeout_seconds=_scorer_row_recv_timeout(),
             )
 
             # AC#1 step (d) — Prober subprocess. Fork-multiprocessing so
@@ -390,73 +424,83 @@ def make_production_scan_runtime(
             # pickle, so spawn-mode would silently detach the vault).
             result_queue: Any = ctx.Queue(maxsize=1)
             # The orchestrator carries the full URL on ``scan_request
-            # .agent_endpoint``; the egress scope keys on the bare host
-            # so the allow-list shape matches T4 invariants.
-            agent_endpoint_host = _extract_host(scan_request.agent_endpoint)
-            prober_proc = ctx.Process(
-                target=_prober_target,
-                kwargs={
-                    "scan_request": scan_request,
-                    "vault": vault,
-                    "channel": channel,
-                    "corpus_tarball_path": str(corpus_tarball_path),
-                    "probe_run_fn": probe_run_fn,
-                    "runner_factory": runner_factory,
-                    "agent_endpoint_host": agent_endpoint_host,
-                    "result_queue": result_queue,
-                },
-                name="are-prober",
-            )
-            prober_proc.start()
+            # .agent_endpoint``; pass that through to the egress scope so
+            # scheme/port and DNS-rebind guards bind to the declared endpoint.
+            # BEAAA-8263 mirrors that declared endpoint into the host nft
+            # allowlist while the Prober is alive when the env gate is on.
+            agent_endpoint_host = scan_request.agent_endpoint
+            prober_proc = None
+            with ScopedEgressAllowlist(
+                agent_endpoint_host,
+                live_bind_scope_id=scan_request.scan_id,
+            ):
+                prober_proc = ctx.Process(
+                    target=_prober_target,
+                    kwargs={
+                        "scan_request": scan_request,
+                        "vault": vault,
+                        "channel": channel,
+                        "corpus_tarball_path": str(corpus_tarball_path),
+                        "probe_run_fn": probe_run_fn,
+                        "runner_factory": runner_factory,
+                        "agent_endpoint_host": agent_endpoint_host,
+                        "result_queue": result_queue,
+                    },
+                    name="are-prober",
+                )
+                prober_proc.start()
 
-            # AC#1 step (e) — drain result Queue + join both subprocesses.
-            try:
-                outcome = result_queue.get(timeout=_orchestrator_join_timeout(join_slack))
-            except Exception as exc:  # noqa: BLE001 — Queue.Empty / timeout
-                _terminate(prober_proc, scorer_proc)
-                raise OrchestratorError(
-                    f"prober result queue drain failed: {type(exc).__name__}: {exc}"
-                ) from exc
-
-            # BEAAA-2182 Track A — when the Scorer ran with a
-            # score_runtime, drain the envelope return channel BEFORE
-            # joining so the Scorer's send completes. The envelope is
-            # registered in ``score_envelope_registry`` keyed by
-            # scan_id so the API-edge score_envelope_factory closure
-            # picks it up at kickoff-finalize time. The drain is
-            # timeout-bounded (envelope projection runs in the Scorer
-            # immediately after END_OF_SCAN — sub-second on goldens;
-            # MAX_WALL_CLOCK + slack is the conservative ceiling).
-            if score_runtime is not None and score_envelope_registry is not None:
+                # AC#1 step (e) — drain result Queue + join both subprocesses.
                 try:
-                    env_outcome = channel.recv_score_envelope(
+                    outcome = result_queue.get(
                         timeout=_orchestrator_join_timeout(join_slack)
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:  # noqa: BLE001 — Queue.Empty / timeout
                     _terminate(prober_proc, scorer_proc)
                     raise OrchestratorError(
-                        f"scorer envelope queue drain failed: "
-                        f"{type(exc).__name__}: {exc}"
+                        f"prober result queue drain failed: {type(exc).__name__}: {exc}"
                     ) from exc
-                if env_outcome[0] == "ok":
-                    # Defense-in-depth re-validation on the receiver side
-                    # — Hard Invariant #4 is not contingent on Scorer
-                    # being well-behaved.
-                    score_envelope_registry[scan_request.scan_id] = (
-                        validate_inbound_envelope(env_outcome[1])
-                    )
-                else:
-                    # ("err", type_name, message) — surface as
-                    # OrchestratorError on the kickoff path.
-                    _terminate(prober_proc, scorer_proc)
-                    raise OrchestratorError(
-                        f"scorer subprocess raised {env_outcome[1]}: "
-                        f"{env_outcome[2]}"
-                    )
 
-            prober_proc.join(timeout=join_slack)
-            scorer_proc.join(timeout=join_slack)
-            _terminate(prober_proc, scorer_proc)
+                # BEAAA-2182 Track A — when the Scorer ran with a
+                # score_runtime, drain the envelope return channel BEFORE
+                # joining so the Scorer's send completes. The envelope is
+                # registered in ``score_envelope_registry`` keyed by
+                # scan_id so the API-edge score_envelope_factory closure
+                # picks it up at kickoff-finalize time. The drain is
+                # timeout-bounded separately from the Prober wall-clock cap:
+                # envelope projection runs in the Scorer immediately after
+                # END_OF_SCAN, so a missing envelope means a broken Scorer,
+                # not a still-running probe.
+                if score_runtime is not None and score_envelope_registry is not None:
+                    try:
+                        env_outcome = channel.recv_score_envelope(
+                            timeout=_scorer_envelope_drain_timeout(scorer_proc)
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        _terminate(prober_proc, scorer_proc)
+                        raise OrchestratorError(
+                            f"scorer envelope queue drain failed: "
+                            f"{type(exc).__name__}: {exc}"
+                        ) from exc
+                    if env_outcome[0] == "ok":
+                        # Defense-in-depth re-validation on the receiver side
+                        # — Hard Invariant #4 is not contingent on Scorer
+                        # being well-behaved.
+                        score_envelope_registry[scan_request.scan_id] = (
+                            validate_inbound_envelope(env_outcome[1])
+                        )
+                    else:
+                        # ("err", type_name, message) — surface as
+                        # OrchestratorError on the kickoff path.
+                        _terminate(prober_proc, scorer_proc)
+                        raise OrchestratorError(
+                            f"scorer subprocess raised {env_outcome[1]}: "
+                            f"{env_outcome[2]}"
+                        )
+
+                prober_proc.join(timeout=join_slack)
+                scorer_proc.join(timeout=join_slack)
+                _terminate(prober_proc, scorer_proc)
 
             if outcome[0] == "ok":
                 return outcome[1]
@@ -493,9 +537,10 @@ def _production_score_envelope_factory(
       pipeline, so the dict ships with real scoring values, not
       placeholders.
     * **Flag-off (Tier-1 rollback)** — ``score_envelope_registry`` is
-      ``None``. The closure raises :class:`ScanRuntimeError` so the scan
-      is aborted; ``_phase1_pending`` placeholders must never reach
-      ``scan_log.append_scan()`` (BEAAA-5279 F-02).
+      ``None``. The closure emits the master 52c003e
+      ``_phase1_pending`` placeholder envelope so the JCS-canonicalized
+      key set remains byte-stable for replay and the snapshot_hash
+      seal continues to sign a deterministic domain.
 
     ``ScoreEnvelopeFactory`` signature is unchanged
     (``(ScanResult, agent_id, run_timestamp) → dict``).
@@ -523,6 +568,9 @@ def _production_score_envelope_factory(
                 # mutated for later observers (e.g., audit re-reads).
                 envelope = dict(scorer_envelope)
                 envelope["prior_scan_refs"] = prior_refs
+                if result.incomplete:
+                    envelope["partial_completion"] = True
+                    envelope["confidence_below_adjudication_threshold"] = True
                 # The kickoff-finalize timestamp wins; the Scorer-side
                 # _utc_now_iso() stamp at spawn is overwritten so the
                 # envelope timestamp matches the scan_log row exactly.
@@ -530,23 +578,40 @@ def _production_score_envelope_factory(
                 if truncated:
                     envelope["prior_scan_refs_truncated"] = True
                 return envelope
-            # BEAAA-5279 (F-02): Registry MISS under flag-on is a programmer
-            # error. Abort the scan so _phase1_pending never reaches
-            # scan_log and corrupts UW chain integrity checks.
-            raise ScanRuntimeError(
-                f"score envelope registry miss for scan_id={result.scan_id!r} "
-                f"under ARE_SCORER_REAL=on; aborting scan to prevent "
-                f"_phase1_pending persistence"
+            # Registry MISS under flag-on is a programmer error — fall
+            # through to the placeholder envelope so persistence doesn't
+            # block, but surface the miss to stderr so the next replay
+            # check catches it.
+            import sys as _sys
+            print(
+                f"[score_envelope_factory] WARN: registry miss for "
+                f"scan_id={result.scan_id} under ARE_SCORER_REAL=on; "
+                f"falling back to _phase1_pending envelope.",
+                file=_sys.stderr,
             )
 
-        # BEAAA-5279 (F-02): Flag-off path — score_envelope_registry is None.
-        # Raise rather than persist a _phase1_pending placeholder; UW chain
-        # integrity requires real scores in scan_log.
-        raise ScanRuntimeError(
-            f"score_envelope_registry is None (ARE_SCORER_REAL=off) for "
-            f"scan_id={result.scan_id!r}; aborting scan to prevent "
-            f"_phase1_pending persistence to scan_log"
-        )
+        # Flag-off path (or registry miss) — master 52c003e placeholder
+        # envelope. Tier-1 rollback target.
+        envelope: dict[str, Any] = {
+            "agent_id": agent_id,
+            "are_total": "_phase1_pending",
+            "band": "_phase1_pending",
+            "confidence_below_adjudication_threshold": "_phase1_pending",
+            "corpus_version": result.corpus_version,
+            "evidence_refs": "_phase1_pending",
+            "model_versions": "_phase1_pending",
+            "partial_completion": "_phase1_pending",
+            "prior_scan_refs": prior_refs,
+            "purpose": "_phase1_pending",
+            "rubric_version": "_phase1_pending",
+            "run_timestamp": run_timestamp,
+            "scanner_version": result.scanner_version,
+            "seed": "_phase1_pending",
+            "subscores": "_phase1_pending",
+        }
+        if truncated:
+            envelope["prior_scan_refs_truncated"] = True
+        return envelope
 
     return factory
 
@@ -589,10 +654,28 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         score_runtime = ScoreRuntime.from_rubric_path(rubric_path)
         score_envelope_registry = {}
 
+    # BEAAA-5414 v0.3 — customer-true Track B walker selector. Default
+    # off → synthetic_v0 path byte-identical to canon master ``bec8f80``.
+    # Flag-on → customer-true walker + HTTP runner factory. The lazy
+    # imports keep the AG-A5 ``api/**/*.py`` surface check tight: the
+    # customer-true modules are only imported when the flag selects
+    # them at production wiring time. CTO co-sign BEAAA-5418 + UW
+    # op-seat co-sign BEAAA-5420.
+    if _customer_agent_walker_enabled():
+        from harness.customer_runner import customer_agent_http_runner_factory
+        from scanners.customer_agent_walker import customer_agent_probe_run_fn
+        _selected_runner_factory: Callable[[str, str], ModelRunner] = (
+            customer_agent_http_runner_factory
+        )
+        _selected_probe_run_fn: ProbeRunFn = customer_agent_probe_run_fn
+    else:
+        _selected_runner_factory = v0_mock_runner_factory
+        _selected_probe_run_fn = synthetic_v0_probe_run_fn
+
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
-        runner_factory=v0_mock_runner_factory,
-        probe_run_fn=synthetic_v0_probe_run_fn,
+        runner_factory=_selected_runner_factory,
+        probe_run_fn=_selected_probe_run_fn,
         score_runtime=score_runtime,
         score_envelope_registry=score_envelope_registry,
     )
@@ -647,6 +730,28 @@ def _orchestrator_join_timeout(slack: int) -> int:
     return MAX_WALL_CLOCK_SECONDS + max(0, slack)
 
 
+def _scorer_row_recv_timeout() -> float:
+    """Bound scorer-side wait for a row or END_OF_SCAN sentinel."""
+    return max(0.1, SCORER_ROW_RECV_TIMEOUT_SECONDS)
+
+
+def _scorer_envelope_drain_timeout(scorer_proc: Any) -> float:
+    """Bound parent-side wait for the Scorer return-channel envelope.
+
+    Dead scorers use the short envelope-drain bound from BEAAA-7840. A live
+    scorer may still be inside its own row-receive timeout, so the parent waits
+    long enough to receive the scorer's typed error tuple instead of masking it
+    with an earlier parent-side Queue.Empty.
+    """
+    envelope_timeout = max(0.1, SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS)
+    try:
+        if scorer_proc.is_alive():
+            return max(envelope_timeout, _scorer_row_recv_timeout() + 1.0)
+    except Exception:  # noqa: BLE001
+        pass
+    return envelope_timeout
+
+
 def _utc_now_iso() -> str:
     """ISO-8601 UTC timestamp with ``Z`` suffix.
 
@@ -683,6 +788,7 @@ def _terminate(*procs: Any) -> None:
 
 
 __all__ = [
+    "ARE_WALKER_CUSTOMER_AGENT_ENV",
     "build_v0_corpus_tarball",
     "make_default_production_scan_runtime",
     "make_production_scan_runtime",

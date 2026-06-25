@@ -22,7 +22,7 @@ escalations_noted: ["Rule-execution; no rubric/scoring/admittance/pricing contra
 BLUF: one consolidated Rasa scan envelope was run through admittance, pricing disposition, and report-card render. N=5 spread is 0 on total and every pillar; measured dimensions are backed by non-placeholder `are-probe://.../sha256:` URIs; the disposition is `REFUSE` via `ADM.R0`.
 
 - Contract: `are-scanner-api-v1@v1.3.0`
-- scanner_version: `0.4.1`
+- scanner_version: `0.5.0`
 - corpus_version: `rasa-consolidated-red-battery@2026-06-24`
 - probe-set-version: `rasa-red-battery-detector-harness@2026-06-24`
 - rubric_version: `1.2.0`

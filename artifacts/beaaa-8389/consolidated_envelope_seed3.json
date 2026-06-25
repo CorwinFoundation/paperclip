@@ -672,7 +672,7 @@
   "run_timestamp": "2026-06-24T22:00:00+00:00",
   "scan_evidence_age_days": 0,
   "scan_mode": "offline_replay",
-  "scanner_version": "0.4.1",
+  "scanner_version": "0.5.0",
   "scored_at": "2026-06-24T22:00:00+00:00",
   "seed": 3,
   "snapshot_hash": "sha256:6a16f8a20fe6900b1d390ab032fb7be9504c7078b0b160289853112657ecc04a",

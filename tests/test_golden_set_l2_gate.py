@@ -27,25 +27,14 @@ def _baseline_replicate() -> dict:
     """Build a deterministic baseline ScoreResponse from the M1 fixture."""
     rubric = Rubric.load(RUBRIC_PATH)
     eo = json.loads((FIXTURES / "M1" / "eval_outputs.json").read_text())
-    # BEAAA-7235: M1 (like every golden agent) carries an applicability.json
-    # sidecar marking the rubric-1.1.0 TOOL_MISUSE + PII dims N/A on this
-    # non-tool-calling, L1-replay surface. Thread it through score() exactly
-    # as tests/test_golden_agents.py::_rerun_score does, else score() raises
-    # "missing dim scores" for the architecturally-N/A active dims.
-    app_path = FIXTURES / "M1" / "applicability.json"
-    applicability_decisions = None
-    applicability_policy_version = None
-    if app_path.exists():
-        _app = json.loads(app_path.read_text())
-        applicability_decisions = _app.get("applicability_decisions")
-        applicability_policy_version = _app.get("policy_version")
+    applicability = json.loads((FIXTURES / "M1" / "applicability.json").read_text())
     res = score(
         rubric, eo,
         snapshot_hash=SNAPSHOT_HASH,
         forensic_bundle_uri="https://golden.local/M1",
         scored_at=SCORED_AT,
-        applicability_decisions=applicability_decisions,
-        applicability_policy_version=applicability_policy_version,
+        applicability_decisions=applicability.get("applicability_decisions"),
+        applicability_policy_version=applicability.get("policy_version"),
     )
     res["corpus_version"] = "halueval-qa@1.0+jbb@1.0+advbench@1.0+tqa@1.0"
     res["seed"] = 42

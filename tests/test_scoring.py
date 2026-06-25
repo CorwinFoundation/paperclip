@@ -29,10 +29,10 @@ class RubricLoadTests(unittest.TestCase):
         r = Rubric.load(RUBRIC_PATH)
         self.assertEqual(sum(p["weight"] for p in r.pillars.values()), 100)
 
-    def test_active_dim_count_is_21(self):
+    def test_active_dim_count_is_25(self):
         r = Rubric.load(RUBRIC_PATH)
-        self.assertEqual(len(r.active_dim_ids), 21)
-        self.assertEqual(len(set(r.active_dim_ids)), 21)
+        self.assertEqual(len(r.active_dim_ids), 25)
+        self.assertEqual(len(set(r.active_dim_ids)), 25)
 
 
 class ScoringTests(unittest.TestCase):
@@ -42,7 +42,16 @@ class ScoringTests(unittest.TestCase):
             snapshot_hash="sha256:test",
             forensic_bundle_uri="https://bundles.local/test",
             scored_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
+            corpus_version="test@0.0.0",
         )
+
+    def test_score_emits_are_total_canonical_key(self):
+        # BEAAA-5275 / A-001: score() must emit "are_total" as the canonical
+        # contract key (are-scanner-api-v1@v1.3.0 §Output). "bmi" is the
+        # one-release deprecation shim and must equal are_total.
+        out = score(self.rubric, _flat_eval(self.rubric, 2.0), **self.kwargs)
+        self.assertIn("are_total", out)
+        self.assertEqual(out["are_total"], out["bmi"])
 
     def test_perfect_score_yields_bmi_100(self):
         out = score(self.rubric, _flat_eval(self.rubric, 4.0), **self.kwargs)
@@ -66,6 +75,32 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(set(out["pillars"]), {"OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"})
         self.assertEqual(out["band"]["display"], "D+")  # ARE 50 = D+
         self.assertEqual(out["band"]["bands_version"], "1.0")
+
+    def test_pass_rate_curve_fallback_surfaces_in_diagnostics(self):
+        eo = _flat_eval(self.rubric, 2.0)
+        eo["P1.2"] = {"pass_rate": 0.95, "evidence_uri": "https://evidence.local/P1.2"}
+        original = self.rubric.dim_calibration_curves["P1.2"]
+        self.rubric.dim_calibration_curves["P1.2"] = "CURVE_DOES_NOT_EXIST"
+        try:
+            out = score(self.rubric, eo, **self.kwargs)
+        finally:
+            self.rubric.dim_calibration_curves["P1.2"] = original
+
+        diagnostics = out["diagnostics"]
+        fallback = [
+            d for d in diagnostics
+            if d["code"] == "calibration_curve_fallback"
+        ]
+        self.assertEqual(len(fallback), 1)
+        self.assertEqual(fallback[0]["detail"]["dim_id"], "P1.2")
+        self.assertEqual(
+            fallback[0]["detail"]["requested_curve_id"],
+            "CURVE_DOES_NOT_EXIST",
+        )
+        self.assertEqual(
+            fallback[0]["detail"]["fallback_curve_id"],
+            "CURVE_RUNNER_V1",
+        )
 
     def test_missing_snapshot_hash_raises(self):
         with self.assertRaisesRegex(ScoringError, "snapshot_hash"):
@@ -103,6 +138,34 @@ class ScoringTests(unittest.TestCase):
         with self.assertRaisesRegex(ScoringError, "out of"):
             score(self.rubric, eo, **self.kwargs)
 
+    # BEAAA-5276: corpus_version enforcement AC tests.
+    # These tests temporarily set _TEST_MODE=False to exercise the hard
+    # contract boundary that conftest.py disables globally for legacy tests.
+    def test_corpus_version_absent_raises(self):
+        import rubric.scoring as _sc
+        _sc._TEST_MODE = False
+        try:
+            kwargs_no_cv = {k: v for k, v in self.kwargs.items() if k != "corpus_version"}
+            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+                score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_no_cv)
+        finally:
+            _sc._TEST_MODE = True
+
+    def test_corpus_version_none_raises(self):
+        import rubric.scoring as _sc
+        _sc._TEST_MODE = False
+        try:
+            kwargs_cv_none = dict(self.kwargs, corpus_version=None)
+            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+                score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_cv_none)
+        finally:
+            _sc._TEST_MODE = True
+
+    def test_corpus_version_round_trips_byte_identical(self):
+        cv = "halueval-qa@1.0+jbb@1.0+advbench@1.0"
+        out = score(self.rubric, _flat_eval(self.rubric, 2.0), **dict(self.kwargs, corpus_version=cv))
+        self.assertEqual(out["corpus_version"], cv)
+
 
 class SyntheticFixtureTests(unittest.TestCase):
     def test_synthetic_fixture_scores_in_range(self):
@@ -114,6 +177,7 @@ class SyntheticFixtureTests(unittest.TestCase):
             snapshot_hash="sha256:fixture",
             forensic_bundle_uri="https://bundles.local/fixture",
             scored_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
+            corpus_version="test@0.0.0",
         )
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)

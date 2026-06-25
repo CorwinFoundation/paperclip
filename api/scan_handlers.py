@@ -48,6 +48,8 @@ from api.sla import (
     evaluate_degradation,
     pillars_from_dim_results,
 )
+from harness import egress
+from harness.runner import RunnerError
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
     CorpusSnapshotMismatchError,
@@ -68,6 +70,19 @@ _CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
+_CUSTOMER_ENDPOINT_HTTP_RE = re.compile(
+    r"^(?:customer endpoint (?:(?:http error: )?HTTP)|"
+    r"syllable (?:start_session|send_message) HTTP) (?P<status>\d{3})(?::|$)",
+    re.IGNORECASE,
+)
+_SYLLABLE_REQUEST_FAILED_RE = re.compile(
+    r"^syllable (?:start_session|send_message) request failed:",
+    re.IGNORECASE,
+)
+_SYLLABLE_SCAN_DEADLINE_RE = re.compile(
+    r"^(?:syllable|customer endpoint) scan deadline exceeded$",
+    re.IGNORECASE,
+)
 
 # BEAAA-1265 (WS1) — purpose values accepted on POST /scanner/v1/rescans.
 # Carried via the request body's ``scanner_invocation_context.purpose`` field
@@ -86,6 +101,115 @@ _UW_ONLY_FIELDS: frozenset[str] = frozenset({"live_probe_variance_band"})
 # ``GET /scanner/v1/agents/{agent_id}/scans`` history endpoint is deferred to
 # v1.3.0. Carried to CTO at WS7 ratification as the §7 Q2 resolution.
 PRIOR_SCAN_REFS_MAX: int = 100
+
+
+def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
+    """Yield ``exc`` and its explicit/implicit causes without looping."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def _customer_endpoint_handler_error(exc: RunnerError) -> HandlerError | None:
+    """Return the API error for customer-supplied endpoint failures.
+
+    Generic ``RunnerError`` is also used by internal SDK adapters, so only
+    errors emitted by ``harness.customer_runner`` are translated out of the
+    generic ``orchestrator_error`` bucket.
+    """
+    message = str(exc)
+
+    http_match = _CUSTOMER_ENDPOINT_HTTP_RE.match(message)
+    if http_match is not None:
+        if http_match.group("status") == "404":
+            return HandlerError(422, "customer_endpoint_route_not_found")
+        return HandlerError(502, "customer_endpoint_http_error")
+
+    syllable_request_failed = _SYLLABLE_REQUEST_FAILED_RE.match(message) is not None
+    scan_deadline_exceeded = _SYLLABLE_SCAN_DEADLINE_RE.match(message) is not None
+    if (
+        not message.startswith("customer endpoint ")
+        and not syllable_request_failed
+        and not scan_deadline_exceeded
+    ):
+        return None
+
+    lowered = message.lower()
+    if scan_deadline_exceeded:
+        return HandlerError(504, "customer_endpoint_unreachable_transport")
+
+    if (
+        message.startswith("customer endpoint timeout ")
+        or (
+            message.startswith("customer endpoint transport error:")
+            and any(
+                token in lowered
+                for token in (
+                    "timeout",
+                    "timed out",
+                    "readtimeout",
+                    "connecttimeout",
+                    "pooltimeout",
+                )
+            )
+        )
+    ):
+        return HandlerError(504, "customer_endpoint_unreachable_timeout")
+
+    if message.startswith("customer endpoint transport error:") and any(
+        token in lowered
+        for token in ("connection reset", "tls", "ssl")
+    ):
+        return HandlerError(504, "customer_endpoint_unreachable_transport")
+
+    if syllable_request_failed:
+        if any(
+            token in lowered
+            for token in (
+                "522",
+                "502",
+                "503",
+                "unexpected_eof",
+                "eof occurred in violation of protocol",
+                "connection reset",
+                "tls",
+                "ssl",
+                "timeout",
+                "timed out",
+            )
+        ):
+            return HandlerError(504, "customer_endpoint_unreachable_transport")
+        return HandlerError(422, "customer_endpoint_unreachable")
+
+    return HandlerError(422, "customer_endpoint_unreachable")
+
+
+def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerError:
+    """Preserve typed 4xx causes wrapped by an ``OrchestratorError``."""
+    for chain_exc in _exception_chain(exc):
+        if isinstance(chain_exc, CorpusSnapshotMismatchError):
+            return HandlerError(422, "corpus_snapshot_mismatch")
+        if isinstance(chain_exc, RunnerError):
+            customer_error = _customer_endpoint_handler_error(chain_exc)
+            if customer_error is not None:
+                return customer_error
+    message = str(exc)
+    if message.startswith("prober subprocess raised CorpusSnapshotMismatchError:"):
+        return HandlerError(422, "corpus_snapshot_mismatch")
+    if message.startswith("prober subprocess raised RunnerError:"):
+        runner_message = message.removeprefix(
+            "prober subprocess raised RunnerError:"
+        ).strip()
+        customer_error = _customer_endpoint_handler_error(RunnerError(runner_message))
+        if customer_error is not None:
+            return customer_error
+    customer_error = _customer_endpoint_handler_error(RunnerError(message))
+    if customer_error is not None:
+        return customer_error
+    return HandlerError(500, "orchestrator_error")
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +252,7 @@ class ScanRuntime:
         run_scan_fn: Callable[[ScanRequest, str], ScanResult],
         prior_agent_ids: Iterable[str] = (),
         scan_log: ScanLog | None = None,
+        scanner_run_tracker: Any | None = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
@@ -143,6 +268,10 @@ class ScanRuntime:
         self._agent_ids_with_prior_scan: set[str] = set(prior_agent_ids)
         # BEAAA-1273 (WS3) — persistence wiring + chain readback.
         self._scan_log = scan_log
+        # BEAAA-6159 - additive Log Tracker v0 scanner-run write hook. Left
+        # unbound by default so legacy /scans and /rescans response bytes are
+        # unchanged unless production wiring explicitly opts in.
+        self._scanner_run_tracker = scanner_run_tracker
         self._run_timestamp_factory = run_timestamp_factory or _default_run_timestamp
         self._forensic_bundle_uri_factory = (
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
@@ -216,6 +345,13 @@ class ScanRuntime:
                     forensic_bundle_uri=forensic_bundle_uri,
                 )
                 self._kickoff_keys[scan_request.scan_id] = (agent_id, run_timestamp)
+                if self._scanner_run_tracker is not None:
+                    self._scanner_run_tracker.emit_scanner_run_completed(
+                        agent_id=agent_id,
+                        scan_id=scan_request.scan_id,
+                        run_timestamp=run_timestamp,
+                        score_json=score_envelope,
+                    )
         return result
 
     def fetch(self, scan_id: str) -> ScanResult | None:
@@ -302,6 +438,17 @@ def _validate_scan_mode(scan_mode: str) -> None:
     if scan_mode != "live_probe":
         # offline_replay must route through POST /score (existing endpoint).
         raise HandlerError(422, "scan_mode_invalid")
+
+
+def _enforce_no_residential_proxy_for_live_probe() -> None:
+    """Fail closed when a live customer probe would run with resi proxy config.
+
+    BEAAA-7910 removes residential-proxy transit from the live-bind path. The
+    generic egress adapter still supports the env var for non-bind callers, but
+    this shared `/scan` + `/rescans` entrypoint refuses before runtime kickoff.
+    """
+    if egress.is_enabled():
+        raise HandlerError(422, "residential_proxy_forbidden_for_live_probe")
 
 
 def _validate_k_replicates(k: Any) -> int:
@@ -561,6 +708,7 @@ def _kickoff_live_probe_scan(
 
     scan_mode = body.get("scan_mode", "live_probe")
     _validate_scan_mode(scan_mode)
+    _enforce_no_residential_proxy_for_live_probe()
     k_replicates = _validate_k_replicates(body.get("k_replicates"))
     requested_pillars = tuple(body.get("requested_pillars", ()))
 
@@ -578,12 +726,14 @@ def _kickoff_live_probe_scan(
             requested_pillars=requested_pillars,
             scan_mode=scan_mode,
             k_replicates=k_replicates,
+            agent_id=agent_id,
+            invocation_context=scanner_invocation_context,
         )
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc
 
     try:
-        runtime.kickoff(
+        result = runtime.kickoff(
             scan_request,
             credential_secret,
             agent_id=agent_id,
@@ -594,7 +744,7 @@ def _kickoff_live_probe_scan(
     except CredentialResolveError as exc:
         raise HandlerError(500, "credential_resolve_error") from exc
     except OrchestratorError as exc:
-        raise HandlerError(500, "orchestrator_error") from exc
+        raise _handler_error_from_orchestrator_error(exc) from exc
     finally:
         # Hard Invariant #4: the local secret is dropped as the function
         # returns; do not log it, do not place it in any persistent struct.
@@ -603,11 +753,12 @@ def _kickoff_live_probe_scan(
     # BEAAA-1274 (WS4) additive flags. Default ``false`` on every accept
     # response (per AC #5) — the rescan-side degradation path is the only
     # surface that may flip them to ``true``.
+    partial_completion = bool(result.incomplete)
     return 202, {
         "scan_id": scan_id,
-        "status": "accepted",
-        "partial_completion": False,
-        "confidence_below_adjudication_threshold": False,
+        "status": "partial" if partial_completion else "accepted",
+        "partial_completion": partial_completion,
+        "confidence_below_adjudication_threshold": partial_completion,
     }
 
 
@@ -780,6 +931,11 @@ def rescan_handler(
                 payload_for_event["scan_id"] = scan_id
             payload_for_event["agent_id"] = agent_id
             routing_event_sink.emit(decision.routing_event_name, payload_for_event)
+    else:
+        # For claim_review below the 12-hour ceiling, an incomplete
+        # orchestrator result is still an accepted extension path. The
+        # degradation decision owns the rescan status label.
+        payload["status"] = "accepted"
 
     # BEAAA-2139 / ADR-0017 addendum-1 §2.3 + CTO interaction e5ab2af2
     # (`ag5_resolution_path: path_a`, resolved 2026-06-03T08:45:18Z) — Path A

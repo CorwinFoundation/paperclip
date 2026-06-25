@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: are-collector
+  labels:
+    app.kubernetes.io/name: are-collector
+    app.kubernetes.io/part-of: backbond-scanner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: are-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: are-collector
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: are-collector
+          image: ghcr.io/backbond/are-collector:are-collector-v0.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-source"
+            - "datadog"
+            - "-customer-id"
+            - "$(BACKBOND_CUSTOMER_ID)"
+            - "-agent-id"
+            - "$(BACKBOND_AGENT_ID)"
+            - "-batch-id"
+            - "$(BACKBOND_BATCH_ID)"
+          envFrom:
+            - secretRef:
+                name: are-collector-runtime
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: are-collector-egress-ingest
+  annotations:
+    backbond.ai/egress-host: ingest.backbond.ai
+    backbond.ai/egress-port: "443"
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: are-collector
+  egress:
+    - toFQDNs:
+        - matchName: ingest.backbond.ai
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

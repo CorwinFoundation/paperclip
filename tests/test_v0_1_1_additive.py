@@ -53,6 +53,7 @@ def _eval_outputs(rubric: Rubric, raw: float) -> dict:
 
 def _score_request(rubric: Rubric, raw: float = 3.0) -> dict:
     return {
+        "corpus_version": "test@0.0.0",
         "tenant_id": TENANT,
         "snapshot": {
             "model_id": "v01-1-additive",
@@ -61,6 +62,24 @@ def _score_request(rubric: Rubric, raw: float = 3.0) -> dict:
             "snapshot_hash": SNAPSHOT_HASH,
         },
         "eval_outputs": _eval_outputs(rubric, raw),
+    }
+
+
+# BEAAA-7937: the production /quote path now enforces the ADR-0007 admittance
+# dial, so a /quote request must carry the admittance evidence bundle (assembled
+# by the UW submission record, ADR-0007 §1.4 — the bare /score response does not
+# carry it). These round-trip tests assert pricing/field behavior, not admittance
+# outcomes, so we attach a bindable bundle (6 measured dims, no N/A dims, hardened
+# posture): a [70,84] score lands ADM.R7 CONSTRAINED_BIND with f_caveat=1.0 →
+# premium and breakdown fields unchanged vs the legacy path.
+def _with_admittance(score: dict) -> dict:
+    return {
+        **score,
+        "applicability_record": {
+            "measured_dims": ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1"],
+            "na_dims": [],
+        },
+        "system_prompt_kind": "hardened",
     }
 
 
@@ -128,9 +147,9 @@ class V011AdditiveScoreFieldsTests(unittest.TestCase):
             self.assertIsInstance(floors[pid]["rationale"], str)
             self.assertGreater(len(floors[pid]["rationale"]), 0)
 
-    def test_rubric_version_is_v1_0(self):
+    def test_rubric_version_is_v1_2(self):
         body = self._score()
-        self.assertEqual(body["rubric_version"], "1.0.0")
+        self.assertEqual(body["rubric_version"], "1.2.0")
 
 
 class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
@@ -155,7 +174,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         quoted_at = SCORED_AT + timedelta(days=37)
         status, quote_body = quote_handler(
             {
-                "score": score_body,
+                "score": _with_admittance(score_body),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 100_000_000,
@@ -181,7 +200,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         quoted_at = SCORED_AT - timedelta(days=2)
         status, quote_body = quote_handler(
             {
-                "score": score_body,
+                "score": _with_admittance(score_body),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 100_000_000,
@@ -202,7 +221,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         }
         status, quote_body = quote_handler(
             {
-                "score": legacy_score,
+                "score": _with_admittance(legacy_score),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 100_000_000,
@@ -230,7 +249,7 @@ class V011AdditiveQuoteRoundTripTests(unittest.TestCase):
         }
         status, quote_body = quote_handler(
             {
-                "score": score_body,
+                "score": _with_admittance(score_body),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 500_000_000,
@@ -296,7 +315,7 @@ class V012AdditiveTests(unittest.TestCase):
         quoted_at = SCORED_AT + timedelta(days=10)
         status, quote_body = quote_handler(
             {
-                "score": score_body,
+                "score": _with_admittance(score_body),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 100_000_000,
@@ -348,7 +367,7 @@ class V012AdditiveTests(unittest.TestCase):
         }
         status, quote_body = quote_handler(
             {
-                "score": score_body,
+                "score": _with_admittance(score_body),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 500_000_000,
@@ -386,7 +405,7 @@ class V012AdditiveTests(unittest.TestCase):
         }
         status, quote_body = quote_handler(
             {
-                "score": score_body,
+                "score": _with_admittance(score_body),
                 "customer": {
                     "sector": "ENT_SAAS",
                     "annual_revenue_usd": 500_000_000,

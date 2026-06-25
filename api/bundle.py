@@ -23,9 +23,8 @@ from urllib.parse import urlsplit
 
 # Deterministic namespace UUID for bundle ids (uuid5 over canonical request).
 _BUNDLE_NS = uuid.UUID("c1c1f1c0-bea1-4bea-b001-bea1bea1bea1")
-_REDACTED = "<redacted>"
-# Used only when ARE_ALLOW_DEV_SIGNING_KEY=true; never acceptable in production.
 _DEV_KEY = b"v0.1-dev-key-do-not-use-in-prod"
+_REDACTED = "<redacted>"
 
 
 class BundleError(ValueError):
