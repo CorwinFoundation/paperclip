@@ -46,6 +46,10 @@ def _server_body(is_bad: bool) -> bytes:
 
 
 def _start_stream_server(body: bytes) -> tuple[ThreadingHTTPServer, threading.Thread]:
+    class _Server(ThreadingHTTPServer):
+        daemon_threads = True
+        request_queue_size = 64
+
     class _Handler(BaseHTTPRequestHandler):
         def log_message(self, *_a: object) -> None:
             return
@@ -57,7 +61,7 @@ def _start_stream_server(body: bytes) -> tuple[ThreadingHTTPServer, threading.Th
             self.end_headers()
             self.wfile.write(body)
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    server = _Server(("127.0.0.1", 0), _Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server, thread

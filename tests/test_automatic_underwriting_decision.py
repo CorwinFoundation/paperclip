@@ -10,7 +10,12 @@ import hashlib
 import json
 from pathlib import Path
 
-from underwriting.automatic_decision import canonical_decision_bytes, decide, load_policy
+from underwriting.automatic_decision import (
+    canonical_decision_bytes,
+    canonical_decision_preimage,
+    decide,
+    load_policy,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 RETELL = REPO / "artifacts" / "beaaa-8225" / "consolidated_envelope_seed0.json"
@@ -41,6 +46,7 @@ def _policy_ready(envelope: dict, *, score: int | None = None, band: str | None 
         "na_dims_count": 1,
         "pillars_with_all_na": [],
     }
+    out["uncovered_dimensions"] = []
     out["coverage_fraction"] = {
         "overall": 0.92,
         "by_peril": {
@@ -69,6 +75,14 @@ def _policy_ready(envelope: dict, *, score: int | None = None, band: str | None 
     return out
 
 
+def _delete_path(data: dict, path: str) -> None:
+    current = data
+    parts = path.split(".")
+    for part in parts[:-1]:
+        current = current[part]
+    del current[parts[-1]]
+
+
 def _hashes_for_n5(envelope: dict) -> set[str]:
     return {
         hashlib.sha256(canonical_decision_bytes(decide(envelope))).hexdigest()
@@ -79,7 +93,7 @@ def _hashes_for_n5(envelope: dict) -> set[str]:
 def test_policy_table_loads_eighteen_rules():
     policy = load_policy()
     assert policy["policy"]["version"] == "0.1"
-    assert len(policy["rules"]) == 18
+    assert len(policy["rules"]) == 19
 
 
 def test_terminal_preflight_pin_rule_precedes_score_threshold():
@@ -90,8 +104,28 @@ def test_terminal_preflight_pin_rule_precedes_score_threshold():
 
     assert decision.policy_class == "D"
     assert decision.engine_outcome == "DECLINE_STANDARD_LADDER"
-    assert [rule.rule_id for rule in decision.fired_rules] == ["EV-001"]
-    assert decision.bind_blockers == ("EV.RUN_PIN_MISSING",)
+    assert [rule.rule_id for rule in decision.fired_rules] == ["EV-REQUIRED-PATH-PREFLIGHT"]
+    assert decision.bind_blockers == ("EV.REQUIRED_PATH_MISSING.SCANNER_VERSION",)
+
+
+def test_required_path_preflight_covers_every_policy_required_path():
+    policy = load_policy()
+    required_paths = policy["inputs"]["required_paths"]
+
+    for path in required_paths:
+        envelope = _policy_ready(_fixture(RETELL), score=92, band="A")
+        _delete_path(envelope, path)
+
+        decision = decide(envelope)
+
+        assert decision.policy_class == "D", path
+        assert decision.fired_rules[0].rule_id == "EV-REQUIRED-PATH-PREFLIGHT", path
+        assert decision.fired_rules[0].reason_code == (
+            "EV.REQUIRED_PATH_MISSING." + path.replace(".", "_").upper()
+        )
+        assert decision.fired_rules[0].input_paths == (path,)
+        assert decision.real_policy_bound is False
+        assert decision.premium_band["quote_bound"] is False
 
 
 def test_band_score_mismatch_is_terminal_bind_blocker():
@@ -154,6 +188,33 @@ def test_bind_blockers_and_referrals_emit_evidence_linked_rationale():
     assert fired["GOV-001"].rescan_required is True
 
 
+def test_bind_critical_uncovered_dimensions_prevent_clean_a_eligibility():
+    bind_critical_dimensions = {
+        "governance": "P4.5",
+        "pii": "GOVERNANCE.PII.HANDLING_ATTESTATION",
+        "authority_control": "GOVERNANCE.TOOL_AUTHORITY.APPROVAL_GATE",
+        "incident_response": "GOVERNANCE.INCIDENT_RESPONSE.PLAYBOOK",
+        "covered_event": "OPS.COVERED_EVENT.EVIDENCE_PACKAGE",
+    }
+
+    for label, dimension in bind_critical_dimensions.items():
+        envelope = _policy_ready(_fixture(RETELL), score=91, band="A")
+        envelope["uncovered_dimensions"] = [dimension]
+
+        decision = decide(envelope)
+
+        assert decision.policy_class == "B", label
+        assert decision.engine_outcome == "REFER_TO_UNDERWRITER_BIND_BLOCKER", label
+        assert decision.real_policy_bound is False
+        fired = {rule.rule_id: rule for rule in decision.fired_rules}
+        assert "SCORE-001" in fired, label
+        assert "UNCOV-001" in fired, label
+        assert fired["UNCOV-001"].reason_code == "EV.BIND_CRITICAL_UNCOVERED_DIMENSION"
+        assert fired["UNCOV-001"].input_paths == ("uncovered_dimensions",)
+        assert fired["UNCOV-001"].observed_values == {"uncovered_dimensions": [dimension]}
+        assert fired["UNCOV-001"].rescan_required is True
+
+
 def test_real_retell_and_rasa_fixtures_produce_policy_correct_outputs():
     retell = _policy_ready(_fixture(RETELL))
     rasa = _policy_ready(_fixture(RASA))
@@ -178,3 +239,61 @@ def test_n5_determinism_hash_spread_zero_on_real_fixtures():
 
     assert len(retell_hashes) == 1
     assert len(rasa_hashes) == 1
+
+
+def test_canonical_preimage_binds_material_inputs_outputs():
+    envelope = _policy_ready(_fixture(RETELL), score=88, band="A")
+    decision = decide(envelope)
+    preimage = canonical_decision_preimage(
+        envelope=envelope,
+        policy_class=decision.policy_class,
+        class_config={
+            "engine_outcome": decision.engine_outcome,
+            "auto_resolved": decision.auto_resolved,
+            "real_policy_bound": decision.real_policy_bound,
+            "human_review_required": decision.human_review_required,
+            "human_review_owner": decision.human_review_owner,
+        },
+        premium_band=decision.premium_band,
+        fired_rules=decision.fired_rules,
+        bind_blockers=decision.bind_blockers,
+        referral_reasons=[
+            rule.reason_code
+            for rule in decision.fired_rules
+            if rule.severity == "referral" or decision.policy_class in {"B", "C"}
+        ],
+        audit={
+            "scanner_version": envelope["scanner_version"],
+            "corpus_version": envelope["corpus_version"],
+            "model_versions": envelope["model_versions"],
+            "seed": envelope["seed"],
+            "run_timestamp": envelope["run_timestamp"],
+        },
+    )
+
+    assert preimage["agent_identity"]["agent_id"] == envelope["agent_id"]
+    assert preimage["fired_rules"][0]["observed_values"]
+    assert preimage["evidence_refs"]
+    assert preimage["rate_context"] == envelope["rate_context"]
+    assert preimage["final_outcome"]["policy_class"] == decision.policy_class
+    assert decision.decision_id == hashlib.sha256(canonical_decision_bytes(preimage)).hexdigest()
+    assert decision.decision_preimage_sha256 == decision.decision_id
+
+
+def test_golden_decision_ids_for_a_b_c_d_outcomes():
+    cases = {
+        "A": _policy_ready(_fixture(RETELL), score=91, band="A"),
+        "B": _policy_ready(_fixture(RETELL), score=75, band="B"),
+        "C": _policy_ready(_fixture(RETELL), score=64, band="C"),
+        "D": _policy_ready(_fixture(RASA), score=44, band="D"),
+    }
+
+    assert {
+        label: decide(envelope).decision_id
+        for label, envelope in cases.items()
+    } == {
+        "A": "a47ddd170f94b7b7e0955a2f8673239ecb3145e7ecfb4a92942553a5c4480a81",
+        "B": "af141f3d7061281bf121e38840213a399fff02abf72a567b8f6e2f232eee5456",
+        "C": "ad7d2e8c083aaa582e7d8ec8df53d907a5658eafd633232eb94c65316243e776",
+        "D": "c352e0dc253ce2e4cf71b2c02398d29d44406baf4dcda9b8a13fcdd4eed8258c",
+    }

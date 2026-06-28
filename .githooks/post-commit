@@ -4,14 +4,56 @@
 # Source-of-truth lives at .githooks/post-commit and is installed into
 # .git/hooks/post-commit by bin/install-git-hooks.sh.
 #
+# BEAAA-5283 / BEAAA-5266-F05 metadata:
+#   classification: rule-execution
+#   contract: are-scanner-api-v1@v1.0
+#   rubric_point_id: P1.TAMPER
+#   scanner_version: unchanged
+#   corpus_version: unchanged
+#   probe-set-version: unchanged
+#
 # Honors:
 #   - `[skip push]` in the commit message → skip
 #   - in-flight rebase or cherry-pick → skip
 #   - detached HEAD → skip
+#   - only auto-pushes allowed agent feature branches
+#   - never auto-pushes master, main, release/*, or protected branches
 #   - GITHUB_PAT_ARE_SCANNER env var → injected via inline credential helper
 #     so token never persists to disk.
 
 set -uo pipefail
+
+allowed_branch_prefixes=(
+  "beaaa-"
+  "feature/beaaa-"
+)
+
+is_branch_allowed() {
+  local branch_name="$1"
+  local prefix
+
+  for prefix in "${allowed_branch_prefixes[@]}"; do
+    if [[ "$branch_name" == "$prefix"* ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+branch_has_protected_marker() {
+  local branch_name="$1"
+  local description protected_flag
+
+  description="$(git config --get "branch.${branch_name}.description" 2>/dev/null || true)"
+  protected_flag="$(git config --bool --get "branch.${branch_name}.protected" 2>/dev/null || true)"
+
+  if printf '%s\n' "$description" | grep -qE '(^|[[:space:]])protected:'; then
+    return 0
+  fi
+
+  [[ "$protected_flag" == "true" ]]
+}
 
 git_dir="$(git rev-parse --git-dir 2>/dev/null || true)"
 if [[ -d "$git_dir/rebase-merge" || -d "$git_dir/rebase-apply" \
@@ -23,6 +65,23 @@ fi
 branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
 if [[ -z "$branch" ]]; then
   echo "[auto-push] detached HEAD; skipping push" >&2
+  exit 0
+fi
+
+case "$branch" in
+  master|main|release/*)
+    echo "[auto-push] guarded branch '$branch'; use scripts/push_release.sh for explicit release pushes" >&2
+    exit 0
+    ;;
+esac
+
+if branch_has_protected_marker "$branch"; then
+  echo "[auto-push] branch '$branch' carries protected marker; use scripts/push_release.sh if this is an approved release push" >&2
+  exit 0
+fi
+
+if ! is_branch_allowed "$branch"; then
+  echo "[auto-push] branch '$branch' is outside the auto-push allow-list; skipping push" >&2
   exit 0
 fi
 

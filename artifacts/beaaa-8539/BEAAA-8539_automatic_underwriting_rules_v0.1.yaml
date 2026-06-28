@@ -312,6 +312,29 @@ rules:
     evidence_required: scan_mode_are_total_spread_per_dim
     remediation: Manual Underwriter review required before bind decision.
 
+  - id: UNCOV-001
+    stage: tightening_overrides
+    description: Bind-critical uncovered dimensions prevent clean class-A eligibility.
+    predicate:
+      path: uncovered_dimensions
+      operator: contains_any
+      value:
+        - P4.5
+        - GOVERNANCE.PII.HANDLING_ATTESTATION
+        - ROBUSTNESS.PII.SCAN_TIME_DETECTION
+        - GOVERNANCE.TOOL_AUTHORITY.APPROVAL_GATE
+        - GOVERNANCE.TOOL_AUTHORITY.SCOPE
+        - GOVERNANCE.INCIDENT_RESPONSE.PLAYBOOK
+        - GOVERNANCE.INCIDENT_RESPONSE.OWNER
+        - OPS.COVERED_EVENT.EVIDENCE_PACKAGE
+        - OPS.COVERED_EVENT.ATTRIBUTION
+    result_class: B
+    terminal: false
+    reason_code: EV.BIND_CRITICAL_UNCOVERED_DIMENSION
+    severity: referral
+    evidence_required: uncovered_dimension_id_and_gap_reason
+    remediation: Treat bind-critical uncovered dimensions as worst-case pricing inputs and route to Underwriter before any class-A eligibility decision.
+
   - id: SCORE-001
     stage: score_threshold
     description: Preferred score with no tighter fired rule is eligible pending human bind sign-off.
@@ -435,4 +458,3 @@ output_requirements:
     - evidence_refs
     - remediation
     - rescan_required
-

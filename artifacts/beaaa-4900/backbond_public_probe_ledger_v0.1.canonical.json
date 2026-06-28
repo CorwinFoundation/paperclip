@@ -1,0 +1,127 @@
+{
+  "artifact_metadata": {
+    "artifact_type": "other",
+    "owner": "cto",
+    "persona_audience": "internal",
+    "phase": 1,
+    "canonical_terms_only": true,
+    "focus_claim": "This artifact documents the internal BackBond Scanner probe evidence substrate used by the portal staging route.",
+    "contracts_referenced": [
+      "are-scanner-api-v1"
+    ],
+    "ticket_refs": [
+      "BEAAA-4900",
+      "BEAAA-9677"
+    ],
+    "proof_points_cited": [],
+    "version": 0.1,
+    "prior_version": null,
+    "self_audit_passed": true,
+    "escalations_noted": []
+  },
+  "ledger_schema_version": "0.1",
+  "scanner_version": "0.4.1",
+  "corpus_version": "0.2.0",
+  "rubric_version": "1.2.0",
+  "totals": {
+    "deterministic_corpus_packs": 2,
+    "deterministic_corpus_probes": 1180,
+    "live_scanner_families": 6,
+    "rubric_dimensions": 4
+  },
+  "deterministic_corpus_packs": [
+    {
+      "name": "R2 robustness corpus",
+      "on_disk_path": "engineering/scanner/r2-rob-corpus/manifest.yaml",
+      "rubric_dims_supplied": [
+        "ROBUSTNESS.PROMPT_INJECTION.INDIRECT",
+        "ROBUSTNESS.SECRET_EXFILTRATION",
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        "GOVERNANCE.TOOL_AUTHORITY.SCOPE"
+      ]
+    },
+    {
+      "name": "R2 bias-fairness corpus",
+      "on_disk_path": "engineering/scanner/r2-bias-corpus/manifest.yaml",
+      "rubric_dims_supplied": [
+        "BIAS_FAIRNESS.DEMOGRAPHIC_PARITY",
+        "BIAS_FAIRNESS.EQUAL_OPPORTUNITY",
+        "BIAS_FAIRNESS.COUNTERFACTUAL_STABILITY",
+        "BIAS_FAIRNESS.MITIGATION_EVIDENCE"
+      ]
+    }
+  ],
+  "live_scanner_families": [
+    {
+      "name": "Direct prompt injection",
+      "probe_mapping_file": "tests/test_prompt_injection_direct.py",
+      "rubric_dims_supplied": [
+        "ROBUSTNESS.PROMPT_INJECTION.DIRECT"
+      ]
+    },
+    {
+      "name": "Indirect prompt injection",
+      "probe_mapping_file": "tests/test_prompt_injection_indirect.py",
+      "rubric_dims_supplied": [
+        "ROBUSTNESS.PROMPT_INJECTION.INDIRECT"
+      ]
+    },
+    {
+      "name": "Multi-turn prompt injection",
+      "probe_mapping_file": "tests/test_prompt_injection_multiturn.py",
+      "rubric_dims_supplied": [
+        "ROBUSTNESS.PROMPT_INJECTION.MULTITURN"
+      ]
+    },
+    {
+      "name": "Tool misuse",
+      "probe_mapping_file": "tests/test_beaaa8125_tool_misuse_live_fire.py",
+      "rubric_dims_supplied": [
+        "GOVERNANCE.TOOL_AUTHORITY.APPROVAL_GATE",
+        "GOVERNANCE.TOOL_AUTHORITY.SCOPE"
+      ]
+    },
+    {
+      "name": "PII handling",
+      "probe_mapping_file": "tests/test_pii_bind_block.py",
+      "rubric_dims_supplied": [
+        "GOVERNANCE.PII.HANDLING_ATTESTATION",
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+      ]
+    },
+    {
+      "name": "Covered-event evidence",
+      "probe_mapping_file": "tests/test_automatic_underwriting_decision.py",
+      "rubric_dims_supplied": [
+        "OPS.COVERED_EVENT.EVIDENCE_PACKAGE",
+        "OPS.COVERED_EVENT.ATTRIBUTION"
+      ]
+    }
+  ],
+  "rubric_dimensions": [
+    {
+      "id": "GOVERNANCE",
+      "name": "Governance",
+      "pillar": "GOVERNANCE",
+      "added_in_rubric_version": "1.0.0"
+    },
+    {
+      "id": "ROBUSTNESS",
+      "name": "Robustness",
+      "pillar": "ROBUSTNESS",
+      "added_in_rubric_version": "1.0.0"
+    },
+    {
+      "id": "BIAS_FAIRNESS",
+      "name": "Bias-fairness",
+      "pillar": "BIAS_FAIRNESS",
+      "added_in_rubric_version": "1.0.0"
+    },
+    {
+      "id": "OPS",
+      "name": "Operations",
+      "pillar": "OPS",
+      "added_in_rubric_version": "1.0.0"
+    }
+  ]
+}

@@ -20,7 +20,7 @@ jobs:
       - name: Install dev requirements
         run: python -m pip install -r requirements-dev.txt
       - name: Run brain unit tests
-        run: python -m pytest engineering/brain -q
+        run: python -m pytest tests/test_r2_bias_families.py tests/test_r2_rob_families.py -q
 
   portal-unit-tests:
     runs-on: ubuntu-latest
@@ -36,8 +36,16 @@ jobs:
       - name: Run portal and fixture unit tests
         run: |
           python -m pytest tools/portal_v1 -q
-          python -m pytest tools/staging-endpoint-fixture/test_determinism.py -q
-          python -m pytest tools/connector-static-attest/test_attest.py -q
+          if [ -f tools/staging-endpoint-fixture/test_determinism.py ]; then
+            python -m pytest tools/staging-endpoint-fixture/test_determinism.py -q
+          else
+            echo "Skipping legacy staging-endpoint fixture tests; path is not present on this branch."
+          fi
+          if [ -f tools/connector-static-attest/test_attest.py ]; then
+            python -m pytest tools/connector-static-attest/test_attest.py -q
+          else
+            echo "Skipping legacy connector static-attest tests; path is not present on this branch."
+          fi
 
   probe-sdk-unit-tests:
     runs-on: ubuntu-latest

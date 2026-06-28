@@ -56,9 +56,10 @@ class AutomaticDecision:
     policy_version: str
     rules_table_version: str
     decision_id: str
+    decision_preimage_sha256: str
     policy_class: str
     engine_outcome: str
-    backbond_score: float | int
+    backbond_score: float | int | None
     scanner_band: str
     auto_resolved: bool
     real_policy_bound: bool
@@ -75,6 +76,7 @@ class AutomaticDecision:
             "policy_version": self.policy_version,
             "rules_table_version": self.rules_table_version,
             "decision_id": self.decision_id,
+            "decision_preimage_sha256": self.decision_preimage_sha256,
             "policy_class": self.policy_class,
             "engine_outcome": self.engine_outcome,
             "backbond_score": self.backbond_score,
@@ -123,54 +125,72 @@ def decide(
     fired: list[FiredRule] = []
     result_class: str | None = None
 
-    for rule in rules:
-        match = _match_rule(envelope, rule)
-        if not match.matched:
-            continue
-        rule_class = _result_class_for_rule(envelope, rule)
-        fired_rule = _fired_rule(rule, match, envelope)
-        fired.append(fired_rule)
-        if result_class is None or _CLASS_RANK[rule_class] > _CLASS_RANK[result_class]:
-            result_class = rule_class
-        if bool(rule.get("terminal")):
-            break
+    required_preflight = _required_path_preflight(table, envelope)
+    if required_preflight is not None:
+        fired.append(required_preflight)
+        result_class = "D"
+
+    if result_class is None:
+        for rule in rules:
+            match = _match_rule(envelope, rule)
+            if not match.matched:
+                continue
+            rule_class = _result_class_for_rule(envelope, rule)
+            fired_rule = _fired_rule(rule, match, envelope)
+            fired.append(fired_rule)
+            if result_class is None or _CLASS_RANK[rule_class] > _CLASS_RANK[result_class]:
+                result_class = rule_class
+            if bool(rule.get("terminal")):
+                break
 
     if result_class is None:
         raise AutomaticDecisionError("no BEAAA-8539 underwriting rule matched envelope")
 
     class_config = _class_config(table, result_class)
     premium = _premium_band(table, result_class)
-    score = _get_required(envelope, "are_total")
-    scanner_band = _band_letter(_get_required(envelope, "band"))
+    score = _get_path(envelope, "are_total")
+    band_raw = _get_path(envelope, "band")
+    scanner_band = "UNAVAILABLE" if band_raw is None else _band_letter(band_raw)
     audit = {
-        "scanner_version": envelope.get("scanner_version"),
-        "corpus_version": envelope.get("corpus_version"),
-        "model_versions": envelope.get("model_versions"),
-        "seed": envelope.get("seed"),
-        "run_timestamp": envelope.get("run_timestamp"),
+        "scanner_version": _get_path(envelope, "scanner_version"),
+        "corpus_version": _get_path(envelope, "corpus_version"),
+        "model_versions": _get_path(envelope, "model_versions"),
+        "seed": _get_path(envelope, "seed"),
+        "run_timestamp": _get_path(envelope, "run_timestamp"),
         "evidence_complete": _evidence_complete(envelope),
     }
-    decision_payload = {
-        "policy_version": POLICY_VERSION,
-        "rules_table_version": RULES_TABLE_VERSION,
-        "policy_class": result_class,
-        "engine_outcome": class_config["engine_outcome"],
-        "backbond_score": score,
-        "scanner_band": scanner_band,
-        "fired_rule_ids": [rule.rule_id for rule in fired],
-        "audit": audit,
-    }
-    decision_id = hashlib.sha256(canonical_decision_bytes(decision_payload)).hexdigest()
     blockers = tuple(
         rule.reason_code
         for rule in fired
         if rule.severity == "blocker" or result_class in {"B", "D"}
     )
+    referral_reasons = tuple(
+        rule.reason_code
+        for rule in fired
+        if rule.severity == "referral" or result_class in {"B", "C"}
+    )
+    preimage = canonical_decision_preimage(
+        envelope=envelope,
+        policy_class=result_class,
+        class_config=class_config,
+        premium_band=premium,
+        fired_rules=fired,
+        bind_blockers=blockers,
+        referral_reasons=referral_reasons,
+        audit=audit,
+    )
+    decision_id = hashlib.sha256(canonical_decision_bytes(preimage)).hexdigest()
+    audit = {
+        **audit,
+        "decision_preimage_schema": preimage["schema_version"],
+        "decision_preimage_sha256": decision_id,
+    }
 
     return AutomaticDecision(
         policy_version=POLICY_VERSION,
         rules_table_version=RULES_TABLE_VERSION,
         decision_id=decision_id,
+        decision_preimage_sha256=decision_id,
         policy_class=result_class,
         engine_outcome=class_config["engine_outcome"],
         backbond_score=score,
@@ -187,12 +207,108 @@ def decide(
     )
 
 
+def canonical_decision_preimage(
+    *,
+    envelope: Mapping[str, Any],
+    policy_class: str,
+    class_config: Mapping[str, Any],
+    premium_band: Mapping[str, Any],
+    fired_rules: Iterable[FiredRule],
+    bind_blockers: Iterable[str],
+    referral_reasons: Iterable[str],
+    audit: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return the canonical hash preimage for an underwriting decision.
+
+    This preimage is deliberately wider than the returned decision summary:
+    it binds the decision id to material scanner inputs, policy/rate context,
+    observed rule values, evidence, blockers/referrals, and final outcome.
+    """
+    fired_rule_rows = [rule.to_dict() for rule in fired_rules]
+    score = _get_path(envelope, "are_total")
+    band = _get_path(envelope, "band")
+    return {
+        "schema_version": "automatic-underwriting-decision-preimage@0.1",
+        "agent_identity": {
+            "agent_id": _get_path(envelope, "agent_id"),
+        },
+        "policy_versions": {
+            "policy_version": POLICY_VERSION,
+            "rules_table_version": RULES_TABLE_VERSION,
+        },
+        "scanner_versions": {
+            "scanner_version": audit.get("scanner_version"),
+            "corpus_version": audit.get("corpus_version"),
+            "model_versions": audit.get("model_versions"),
+            "seed": audit.get("seed"),
+            "run_timestamp": audit.get("run_timestamp"),
+        },
+        "score_inputs": {
+            "are_total": score,
+            "band": band,
+            "subscores": _get_path(envelope, "subscores"),
+            "uncovered_dimensions": _get_path(envelope, "uncovered_dimensions"),
+            "coverage_fraction": _get_path(envelope, "coverage_fraction"),
+            "applicability_record": _get_path(envelope, "applicability_record"),
+        },
+        "fired_rules": fired_rule_rows,
+        "evidence_refs": _canonical_evidence_refs(envelope),
+        "rate_context": _get_path(envelope, "rate_context"),
+        "bind_blockers": list(bind_blockers),
+        "referral_reasons": list(referral_reasons),
+        "final_outcome": {
+            "policy_class": policy_class,
+            "engine_outcome": class_config["engine_outcome"],
+            "auto_resolved": bool(class_config["auto_resolved"]),
+            "real_policy_bound": bool(class_config["real_policy_bound"]),
+            "human_review_required": bool(class_config["human_review_required"]),
+            "human_review_owner": str(class_config["human_review_owner"]),
+            "premium_band": dict(premium_band),
+        },
+    }
+
+
 @dataclass(frozen=True)
 class _Match:
     matched: bool
     input_paths: tuple[str, ...] = ()
     observed_values: dict[str, Any] = field(default_factory=dict)
     evidence_refs: tuple[str, ...] = ()
+
+
+def _required_path_preflight(
+    table: Mapping[str, Any],
+    envelope: Mapping[str, Any],
+) -> FiredRule | None:
+    required_paths = tuple(str(path) for path in ((table.get("inputs") or {}).get("required_paths") or ()))
+    missing = tuple(path for path in required_paths if _required_path_missing(envelope, path))
+    if not missing:
+        return None
+    primary = missing[0]
+    reason_code = f"EV.REQUIRED_PATH_MISSING.{_reason_path_token(primary)}"
+    return FiredRule(
+        rule_id="EV-REQUIRED-PATH-PREFLIGHT",
+        severity="blocker",
+        reason_code=reason_code,
+        input_paths=missing,
+        observed_values={"missing_required_paths": list(missing)},
+        evidence_refs=tuple(_evidence_for_paths(envelope, missing)),
+        remediation=f"Provide required underwriting input path `{primary}` and re-run automatic decision.",
+        rescan_required=True,
+    )
+
+
+def _reason_path_token(path: str) -> str:
+    return "".join(ch if ch.isalnum() else "_" for ch in path).upper()
+
+
+def _required_path_missing(data: Mapping[str, Any], path: str) -> bool:
+    value = _get_path(data, path)
+    if value is None or value == "":
+        return True
+    if path == "evidence_refs" and value == []:
+        return True
+    return False
 
 
 def _ordered_rules(table: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -361,6 +477,12 @@ def _compare(actual: Any, operator: str, expected: Any) -> bool:
         return _num(actual) >= _num(expected)
     if operator == "length_greater_than":
         return _length(actual) > int(expected)
+    if operator == "contains_any":
+        if not isinstance(actual, Iterable) or isinstance(actual, (str, bytes, Mapping)):
+            return False
+        actual_values = {str(item) for item in actual}
+        expected_values = {str(item) for item in expected}
+        return bool(actual_values & expected_values)
     if operator == "between_inclusive":
         lo, hi = expected
         value = _num(actual)
@@ -482,6 +604,29 @@ def _evidence_for_paths(envelope: Mapping[str, Any], paths: Iterable[str]) -> tu
     return tuple(matched or refs[:3])
 
 
+def _canonical_evidence_refs(envelope: Mapping[str, Any]) -> list[dict[str, Any]]:
+    refs = envelope.get("evidence_refs") or []
+    rows: list[dict[str, Any]] = []
+    for ref in refs:
+        if not isinstance(ref, Mapping):
+            continue
+        rows.append({
+            "rubric_point_id": ref.get("rubric_point_id"),
+            "test_id": ref.get("test_id"),
+            "artifact_uri": ref.get("artifact_uri"),
+            "verdict": ref.get("verdict"),
+            "weight": ref.get("weight"),
+        })
+    return sorted(
+        rows,
+        key=lambda row: (
+            str(row.get("rubric_point_id")),
+            str(row.get("test_id")),
+            str(row.get("artifact_uri")),
+        ),
+    )
+
+
 def _simple_match(
     matched: bool,
     paths: tuple[str, ...],
@@ -507,6 +652,7 @@ __all__ = [
     "AutomaticDecisionError",
     "FiredRule",
     "canonical_decision_bytes",
+    "canonical_decision_preimage",
     "decide",
     "load_policy",
 ]

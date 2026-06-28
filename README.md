@@ -163,11 +163,15 @@ evidence references.
 ### Reproducibility guarantee
 
 Per `agents/cto-os.md` Supreme Law and the Scanner contract Hard
-guarantee #1: same agent + same `scanner_version` + same
-`corpus_version` + same `model_versions` + same seed → `are_total`
-within ±1 and every subscore within ±1. With `--scored-at` pinned the
-CLI is byte-identical across replicates (spread = 0, strictly stronger
-than ±1). Smoke tests live under `tools/are-scan-smoke-*.md`.
+guarantee #1: same agent + same `scanner_version` + same `corpus_version`
++ same `model_versions` + same seed + same frozen evidence bundle under
+offline replay → byte-identical `are_total`, band, subscores, and evidence
+ordering across N=5 (Δ=0). Live re-probe is separate: median-of-K accepts
+only the declared UW-facing `live_probe_variance_band` (2 in this release)
+and must not be treated as offline replay. With `--scored-at` pinned the
+CLI is byte-identical across replicates. Smoke tests:
+`tools/are-scan-smoke-post-beaaa470.md` (current — post-rename) +
+`tools/are-scan-smoke-2026-05-17.md` (pre-rename baseline, retained).
 
 ### Tamper resistance
 
