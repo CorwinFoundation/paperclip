@@ -157,6 +157,21 @@ def _project_artifact_uri(
     )
 
 
+def _na_artifact_uri(dim_id: str, dim_block: dict[str, Any]) -> str:
+    key = str(dim_block.get("na_justification_key") or "uncovered")
+    digest_source = "|".join(
+        (
+            dim_id,
+            key,
+            str(dim_block.get("na_justification") or ""),
+        )
+    )
+    digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()[:16]
+    safe_dim = re.sub(r"[^A-Za-z0-9_.-]+", "_", dim_id).strip("._-") or "unknown"
+    safe_key = re.sub(r"[^A-Za-z0-9_.-]+", "_", key).strip("._-") or "uncovered"
+    return f"backbond-evidence://applicability/{safe_dim}/{safe_key}-{digest}.json"
+
+
 def _project_evidence_refs(
     refs: list[dict[str, Any]],
     *,
@@ -280,7 +295,7 @@ def to_contract_output(
                 evidence_refs.append({
                     "rubric_point_id": dim_id,
                     "test_id": "N/A",
-                    "artifact_uri": "",
+                    "artifact_uri": _na_artifact_uri(dim_id, dim_block),
                     "verdict": "n/a",
                     "weight": 0.0,
                     "na_justification": dim_block.get("na_justification"),

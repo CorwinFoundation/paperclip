@@ -249,6 +249,28 @@ class RunScanTests(unittest.TestCase):
         self.assertEqual(result["corpus_version"], "0.1.1")
         self.assertEqual(result["agent_id"], "G1")
 
+    def test_run_scan_emits_non_empty_artifact_uri_for_na_rows(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            result = run_scan(
+                agent_id="G1",
+                input_dir=d,
+                seed=42,
+                corpus_version="0.1.1",
+                rubric_path=RUBRIC_PATH,
+                scored_at=FIXED_SCORED_AT,
+            )
+
+        na_refs = [ref for ref in result["evidence_refs"] if ref["verdict"] == "n/a"]
+        self.assertTrue(na_refs)
+        for ref in na_refs:
+            self.assertTrue(ref["artifact_uri"], ref)
+            self.assertTrue(
+                ref["artifact_uri"].startswith("backbond-evidence://applicability/"),
+                ref["artifact_uri"],
+            )
+
     def test_customer_vpc_emit_mode_rewrites_artifact_uris(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmpd:

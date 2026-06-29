@@ -1,0 +1,153 @@
+{
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "corpus_versions": [
+    "2026.6.24"
+  ],
+  "detector_versions": {},
+  "evidence_uri_index": [
+    {
+      "artifact_uri": "are-probe://bias-live-retell/BEAAA-8225/P2.1/sha256:bef12944eb2d685484735da8f01d00bc44735793129939ece2ae4a021fa35d91",
+      "evidence_ref_index": "6",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://bias-live-retell/BEAAA-8225/P2.3/sha256:e2052545b696228946ab6f659e839f0d73bc40081548ee5298db0d4777435ae1",
+      "evidence_ref_index": "8",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://bias-live-retell/BEAAA-8225/P2.4/sha256:b9c54c03325c6c17c225955a7dc4312e432aa0a34bbb9c54ca50f487179a0957",
+      "evidence_ref_index": "9",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://bias-live-retell/BEAAA-8225/P2.5/sha256:c92cc9fe07f08661007ec14c5260d5ecddbac0f7a08ee1f57e871fc98dc25374",
+      "evidence_ref_index": "10",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://bias-live-retell/BEAAA-8225/P3.1/sha256:43c0d5de487b65471630b793b9541ec84c852b92e72fd8ef3d2d3c9cc85149f3",
+      "evidence_ref_index": "12",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://bias-mitigation-self-attestation/BEAAA-8225/P2.6/sha256:80240c0a675a54f039c9a6926a034766c24aa086a1dc9a28c8b92734b4b48fb5",
+      "evidence_ref_index": "11",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/GOVERNANCE.PII.HANDLING_ATTESTATION/sha256:4a1f4d89970fdcb63c87f745ab5dc80625e785c9fa293d691d1839cc1304ff89",
+      "evidence_ref_index": "24",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/P4.1/sha256:8ce595dc2be473566c22a810024b6bba637f12a131a73db19b9d2bec9ce1c004",
+      "evidence_ref_index": "18",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/P4.2/sha256:7cffa46da852cef895f7ca02c477d343859343d1a0eb5a42a6044ebac71a428a",
+      "evidence_ref_index": "19",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/P4.3/sha256:15ee9eeb420738f1c1580dc7945b1cdfbc31e858835e1454bdf89932007b71da",
+      "evidence_ref_index": "20",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/P4.4/sha256:d3f52d36119dddf24e546479fde62c23503e214ee43cd45e319dc8bbdd4d30e4",
+      "evidence_ref_index": "21",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/P4.5/sha256:d4cf00613ac1749edaca5ababf6fd700ef044c4132483422fd1a2318b6ffb5b7",
+      "evidence_ref_index": "22",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://governance-self-attestation/BEAAA-8225/P4.6/sha256:952b8a6d2afea0355d7901020bd9a51a6c3d31f6439cb559873816c0f8350a8e",
+      "evidence_ref_index": "23",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://ops-live-retell/BEAAA-8225/P1.1/sha256:be027debfd406bf87744ce589a65bcc2bef7090f18c1569cc0d8cba13d48200d",
+      "evidence_ref_index": "0",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://ops-live-retell/BEAAA-8225/P1.2/sha256:7903876baf82e8b9f7b8ba38add9b44800bbcbe5f8380879629aa58005e6e57b",
+      "evidence_ref_index": "1",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://ops-live-retell/BEAAA-8225/P1.3/sha256:be027debfd406bf87744ce589a65bcc2bef7090f18c1569cc0d8cba13d48200d",
+      "evidence_ref_index": "2",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://ops-live-retell/BEAAA-8225/P1.4/sha256:be027debfd406bf87744ce589a65bcc2bef7090f18c1569cc0d8cba13d48200d",
+      "evidence_ref_index": "3",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://ops-live-retell/BEAAA-8225/P1.5/sha256:8378d677cf67b44c10e1806fc0141aae1df097fa4186bde1591c7ca0c829dcd9",
+      "evidence_ref_index": "4",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://ops-live-retell/BEAAA-8225/P1.6/sha256:8378d677cf67b44c10e1806fc0141aae1df097fa4186bde1591c7ca0c829dcd9",
+      "evidence_ref_index": "5",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://robustness-live-retell/BEAAA-8225/P3.2/sha256:f36e73efcb24ecea1db3d171ce96de17695e4f217a27dfa32a61b25e7f99daae",
+      "evidence_ref_index": "13",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://robustness-live-retell/BEAAA-8225/P3.3/sha256:91a7224ebfddd2286cdd2202200d22184cf5fbf483ad9c57933387fceb3aa3ee",
+      "evidence_ref_index": "14",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://rpii-scan-time-detection/BEAAA-8225/ROBUSTNESS.PII.SCAN_TIME_DETECTION/sha256:7a49488c6e66fec79b8f6d3b36b1dfbed1bcea02147704f1a259de3a76d8f16c",
+      "evidence_ref_index": "17",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://tool-misuse-live-agent/BEAAA-8225/ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER/sha256:5f044a4161b0cc0fa3e70ff6cb2a4669f2e22bca9ce5c65e5863206f907faf95",
+      "evidence_ref_index": "16",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "are-probe://tool-misuse-live-agent/BEAAA-8225/ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL/sha256:8c2a29bad5f7db034b5b434509090a3adbe8c3408a7f82a234b4d4f1d24d2e16",
+      "evidence_ref_index": "15",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    },
+    {
+      "artifact_uri": "backbond-evidence://applicability/P2.2/P2.2.not_probeable_in_beaaa8225_retell_run-5a67c3d3ee9888da.json",
+      "evidence_ref_index": "7",
+      "packet": "artifacts/beaaa-8225/consolidated_envelope_seed4.json"
+    }
+  ],
+  "judge_models": [
+    "openrouter/openai/gpt-4.1-mini"
+  ],
+  "primary_target_models": [
+    "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0"
+  ],
+  "rubric_versions": [
+    "1.2.0"
+  ],
+  "scanner_versions": [
+    "0.5.0"
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

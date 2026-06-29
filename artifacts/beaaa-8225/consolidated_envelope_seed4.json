@@ -116,7 +116,7 @@
       "weight": 1.0
     },
     {
-      "artifact_uri": "",
+      "artifact_uri": "backbond-evidence://applicability/P2.2/P2.2.not_probeable_in_beaaa8225_retell_run-5a67c3d3ee9888da.json",
       "na_justification": "P2.2 is outside the current BEAAA-8225 probe-able live Retell coverage set; left explicit N/A rather than measured by placeholder.",
       "na_justification_key": "P2.2.not_probeable_in_beaaa8225_retell_run",
       "rubric_point_id": "P2.2",
