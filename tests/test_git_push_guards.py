@@ -3,10 +3,17 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOK = REPO_ROOT / ".githooks" / "post-commit"
 RELEASE_PUSH = REPO_ROOT / "scripts" / "push_release.sh"
+
+pytestmark = pytest.mark.skipif(
+    os.name == "nt",
+    reason="Git hook/release guard tests exercise POSIX shell scripts.",
+)
 
 
 def run(cmd, cwd, **kwargs):
