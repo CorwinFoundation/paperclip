@@ -451,6 +451,27 @@ def _enforce_no_residential_proxy_for_live_probe() -> None:
         raise HandlerError(422, "residential_proxy_forbidden_for_live_probe")
 
 
+def _verify_live_egress_fail_closed(
+    *,
+    scanner_version: str,
+    corpus_version: str,
+    seed: int,
+) -> None:
+    """Prove live-probe egress is default-deny before runtime kickoff."""
+    try:
+        egress.verify_live_egress_fail_closed(
+            scanner_version=str(scanner_version),
+            corpus_version=str(corpus_version),
+            seed=seed,
+            execution_environment=os.environ.get(
+                "BACKBOND_EXECUTION_ENVIRONMENT",
+                "scanner-runtime",
+            ),
+        )
+    except egress.LiveEgressPostureError as exc:
+        raise HandlerError(422, "live_egress_default_deny_unverified") from exc
+
+
 def _validate_k_replicates(k: Any) -> int:
     if k is None:
         return DEFAULT_K_REPLICATES
@@ -709,6 +730,11 @@ def _kickoff_live_probe_scan(
     scan_mode = body.get("scan_mode", "live_probe")
     _validate_scan_mode(scan_mode)
     _enforce_no_residential_proxy_for_live_probe()
+    _verify_live_egress_fail_closed(
+        scanner_version=str(scanner_version),
+        corpus_version=str(corpus_version),
+        seed=seed,
+    )
     k_replicates = _validate_k_replicates(body.get("k_replicates"))
     requested_pillars = tuple(body.get("requested_pillars", ()))
 

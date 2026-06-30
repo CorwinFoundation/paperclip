@@ -51,6 +51,8 @@ import socket
 import subprocess
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Iterable
 from urllib.parse import urlparse, urlunparse
 
@@ -68,6 +70,17 @@ DEFAULT_NFT_FAMILY = "inet"
 DEFAULT_NFT_TABLE = "are_egress_filter"
 DEFAULT_NFT_CHAIN = "output"
 LIVE_BIND_COMMENT_PREFIX = "BEAAA-8263-direct-live-bind"
+LIVE_EGRESS_NEGATIVE_CONTROL_ARTIFACT_ENV = (
+    "BACKBOND_LIVE_EGRESS_NEGATIVE_CONTROL_ARTIFACT"
+)
+LIVE_EGRESS_NEGATIVE_CONTROL_TARGET_ENV = (
+    "BACKBOND_LIVE_EGRESS_NEGATIVE_CONTROL_TARGET"
+)
+DEFAULT_LIVE_EGRESS_NEGATIVE_CONTROL_TARGET = "http://example.com/"
+
+
+class LiveEgressPostureError(RuntimeError):
+    """Live-probe egress fail-closed posture could not be proven."""
 
 
 def _inject_session(proxy_url: str, session_id: str) -> str:
@@ -156,6 +169,71 @@ class EgressNotAllowed(RuntimeError):
 
 Resolver = Callable[[str, int], Iterable[str]]
 CommandExecutor = Callable[[list[str]], str]
+
+
+def verify_live_egress_fail_closed(
+    *,
+    scanner_version: str,
+    corpus_version: str,
+    seed: int,
+    execution_environment: str = "local",
+    artifact_path: str | os.PathLike[str] | None = None,
+    timestamp_factory: Callable[[], datetime] | None = None,
+) -> dict[str, Any]:
+    """Run the live-egress negative control and optionally persist evidence."""
+    target = os.environ.get(
+        LIVE_EGRESS_NEGATIVE_CONTROL_TARGET_ENV,
+        DEFAULT_LIVE_EGRESS_NEGATIVE_CONTROL_TARGET,
+    )
+    now = (timestamp_factory or (lambda: datetime.now(timezone.utc)))()
+    record: dict[str, Any] = {
+        "control": "live_egress_negative_control",
+        "timestamp": now.astimezone(timezone.utc).isoformat(),
+        "scanner_version": scanner_version,
+        "corpus_version": corpus_version,
+        "seed": seed,
+        "execution_environment": execution_environment,
+        "target_url": target,
+        "blocked": False,
+        "network_success": False,
+    }
+
+    try:
+        with ScopedEgressAllowlist([]).client(timeout=2.0, follow_redirects=False) as c:
+            response = c.get(target)
+        record.update({
+            "network_success": True,
+            "status_code": response.status_code,
+            "failure": "forbidden_target_reached_network",
+        })
+    except EgressNotAllowed as exc:
+        record.update({
+            "blocked": True,
+            "block_type": type(exc).__name__,
+            "block_message": str(exc),
+        })
+    except Exception as exc:  # pragma: no cover - depends on local transport stack
+        record.update({
+            "blocked": True,
+            "block_type": type(exc).__name__,
+            "block_message": str(exc),
+        })
+
+    path = artifact_path or os.environ.get(LIVE_EGRESS_NEGATIVE_CONTROL_ARTIFACT_ENV)
+    if path:
+        out = Path(path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    if record["network_success"]:
+        raise LiveEgressPostureError(
+            "live_egress_negative_control_failed: forbidden target reached network"
+        )
+    if not record["blocked"]:
+        raise LiveEgressPostureError(
+            "live_egress_negative_control_failed: default-deny posture unproven"
+        )
+    return record
 
 
 @dataclass(frozen=True)

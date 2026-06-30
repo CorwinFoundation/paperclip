@@ -7,6 +7,7 @@ correctly when `BEAAA_RESI_PROXY_ROTATE=per_session` is set.
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import pytest
@@ -345,3 +346,52 @@ def test_scoped_allowlist_bypasses_residential_proxy_env(monkeypatch):
     # proxy_url() fail() above trips if the scoped path consults the proxy env.
     with scope.client(timeout=5.0) as c:
         assert isinstance(c, httpx.Client)
+
+
+def test_live_egress_negative_control_writes_blocked_artifact(tmp_path):
+    artifact = tmp_path / "egress-negative-control.json"
+
+    record = egress.verify_live_egress_fail_closed(
+        scanner_version="0.4.2",
+        corpus_version="golden-2026-06-30",
+        seed=42,
+        execution_environment="pytest",
+        artifact_path=artifact,
+        timestamp_factory=lambda: datetime(2026, 6, 30, tzinfo=timezone.utc),
+    )
+
+    assert record["blocked"] is True
+    assert record["network_success"] is False
+    assert record["scanner_version"] == "0.4.2"
+    assert artifact.exists()
+
+
+def test_live_egress_negative_control_fails_on_network_success(monkeypatch):
+    class _Response:
+        status_code = 200
+
+    class _Client:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return None
+
+        def get(self, _target):
+            return _Response()
+
+    class _Scope:
+        def __init__(self, _allowed_host):
+            pass
+
+        def client(self, **_kwargs):
+            return _Client()
+
+    monkeypatch.setattr(egress, "ScopedEgressAllowlist", _Scope)
+
+    with pytest.raises(egress.LiveEgressPostureError):
+        egress.verify_live_egress_fail_closed(
+            scanner_version="0.4.2",
+            corpus_version="golden-2026-06-30",
+            seed=42,
+        )

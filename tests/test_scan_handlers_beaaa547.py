@@ -230,6 +230,20 @@ def test_live_probe_refuses_residential_proxy_env(corpus_hash, stub_runtime, mon
     assert "request" not in stub_runtime.captured
 
 
+def test_live_probe_refuses_unverified_default_deny(corpus_hash, stub_runtime, monkeypatch):
+    def fail_verifier(**_kwargs):
+        raise egress.LiveEgressPostureError("default deny not configured")
+
+    monkeypatch.setattr(egress, "verify_live_egress_fail_closed", fail_verifier)
+    body = _good_body(corpus_hash)
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
+
+    assert exc_info.value.status == 422
+    assert exc_info.value.message == "live_egress_default_deny_unverified"
+    assert "request" not in stub_runtime.captured
+
+
 @pytest.mark.parametrize("bad_k", [1, 3, 7, 100, "5", True])
 def test_invalid_k_replicates_yields_422(corpus_hash, stub_runtime, bad_k):
     body = _good_body(corpus_hash, k_replicates=bad_k)

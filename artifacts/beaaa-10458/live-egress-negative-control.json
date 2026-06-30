@@ -1,0 +1,13 @@
+{
+  "block_message": "egress to host 'example.com' not allowed; scoped allow-list permits only [] (deny-all)",
+  "block_type": "EgressNotAllowed",
+  "blocked": true,
+  "control": "live_egress_negative_control",
+  "corpus_version": "current-pinned-corpus",
+  "execution_environment": "paperclip-heartbeat",
+  "network_success": false,
+  "scanner_version": "0.4.2-candidate",
+  "seed": 42,
+  "target_url": "http://example.com/",
+  "timestamp": "2026-06-30T14:03:10.406753+00:00"
+}
