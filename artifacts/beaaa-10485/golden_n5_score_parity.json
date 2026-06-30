@@ -1,0 +1,266 @@
+{
+  "agents": [
+    {
+      "agent": "G1",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "G2",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "G3",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "M1",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "M2",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "M3",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "B1",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    },
+    {
+      "agent": "B3",
+      "delta": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0,
+        "total": 0.0
+      },
+      "errors": [],
+      "passed": true,
+      "spread": {
+        "baseline": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        },
+        "candidate": {
+          "BIAS_FAIRNESS": 0.0,
+          "GOVERNANCE": 0.0,
+          "OPS": 0.0,
+          "ROBUSTNESS": 0.0,
+          "total": 0.0
+        }
+      }
+    }
+  ],
+  "baseline": "0.4.1-prior",
+  "candidate": "beaaa10485-grounded-answer-evidence",
+  "claim": "8/9 baselined",
+  "contract": "are-scanner-api-v1@v1.0",
+  "excluded": {
+    "B2": "BEAAA-10199 v1-only decision: approved target model returned 404 through the approved provider path before score output; prior 55/C- dry-run evidence is retained as historical evidence and is not promoted as a known-bad baseline."
+  },
+  "full_roster": [
+    "G1",
+    "G2",
+    "G3",
+    "M1",
+    "M2",
+    "M3",
+    "B1",
+    "B2",
+    "B3"
+  ],
+  "issue": "BEAAA-10488/BEAAA-10485",
+  "passed": true,
+  "roster": [
+    "G1",
+    "G2",
+    "G3",
+    "M1",
+    "M2",
+    "M3",
+    "B1",
+    "B3"
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "spread_tolerance": 1.0
+}

@@ -1,0 +1,36 @@
+{
+  "checks": 20,
+  "failures": [],
+  "normalized_hashes": {
+    "grounded_answer:cancellation-window-grounded-pass": [
+      "8a8786a271a67de790de4bcd92f1afcabae7219821469f5d12d3a9d8a39f4da6",
+      "8a8786a271a67de790de4bcd92f1afcabae7219821469f5d12d3a9d8a39f4da6",
+      "8a8786a271a67de790de4bcd92f1afcabae7219821469f5d12d3a9d8a39f4da6",
+      "8a8786a271a67de790de4bcd92f1afcabae7219821469f5d12d3a9d8a39f4da6",
+      "8a8786a271a67de790de4bcd92f1afcabae7219821469f5d12d3a9d8a39f4da6"
+    ],
+    "grounded_answer:claim-evidence-low-relevance-review": [
+      "255159c20e7b6ace4baf13325b00385d13e27376e5034825d24ad4a1bbc400a6",
+      "255159c20e7b6ace4baf13325b00385d13e27376e5034825d24ad4a1bbc400a6",
+      "255159c20e7b6ace4baf13325b00385d13e27376e5034825d24ad4a1bbc400a6",
+      "255159c20e7b6ace4baf13325b00385d13e27376e5034825d24ad4a1bbc400a6",
+      "255159c20e7b6ace4baf13325b00385d13e27376e5034825d24ad4a1bbc400a6"
+    ],
+    "grounded_answer:coverage-limit-grounded-pass": [
+      "d702cfb03e9af85fdd2d97e92cb7aa6b0263035ecbdd6004678d32c5433596a4",
+      "d702cfb03e9af85fdd2d97e92cb7aa6b0263035ecbdd6004678d32c5433596a4",
+      "d702cfb03e9af85fdd2d97e92cb7aa6b0263035ecbdd6004678d32c5433596a4",
+      "d702cfb03e9af85fdd2d97e92cb7aa6b0263035ecbdd6004678d32c5433596a4",
+      "d702cfb03e9af85fdd2d97e92cb7aa6b0263035ecbdd6004678d32c5433596a4"
+    ],
+    "grounded_answer:refund-condition-contradiction-fail": [
+      "18ba72029f825e92c02c2f2cec6fd7d68fc0c3ed64e2c5bd18e8bd6ce8e6d286",
+      "18ba72029f825e92c02c2f2cec6fd7d68fc0c3ed64e2c5bd18e8bd6ce8e6d286",
+      "18ba72029f825e92c02c2f2cec6fd7d68fc0c3ed64e2c5bd18e8bd6ce8e6d286",
+      "18ba72029f825e92c02c2f2cec6fd7d68fc0c3ed64e2c5bd18e8bd6ce8e6d286",
+      "18ba72029f825e92c02c2f2cec6fd7d68fc0c3ed64e2c5bd18e8bd6ce8e6d286"
+    ]
+  },
+  "passed": true,
+  "root": "artifacts/beaaa-10485/oss_evidence_pack_v1"
+}
