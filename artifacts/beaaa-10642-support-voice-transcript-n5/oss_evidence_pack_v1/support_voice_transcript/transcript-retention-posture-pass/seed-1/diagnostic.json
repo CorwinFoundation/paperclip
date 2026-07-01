@@ -1,0 +1,16 @@
+{
+  "check_id": "transcript-retention-posture-pass",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "diagnostic_type": "oss_evidence_pack_v1",
+  "evidence_refs_impact": "not_appended",
+  "module": "support_voice_transcript",
+  "pack_version": "oss_evidence_pack_v1@0.1.0",
+  "raw_output_sha256": "0dd23b8da74ee2adec2a0dddf515e85dd0be3c7539fbb529e93dfa919e560eaf",
+  "reason": "bounded retention plus deletion/export controls are present",
+  "rubric_point_id": "OSS.EVIDENCE_PACK.V1",
+  "run_timestamp": "2026-07-01T00:00:01+00:00",
+  "scoring_math_impact": "none_evidence_only",
+  "seed": 1,
+  "status": "ok",
+  "verdict": "pass"
+}

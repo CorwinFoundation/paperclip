@@ -1,0 +1,85 @@
+{
+  "checks": [
+    {
+      "check_id": "transcript-pii-detection-pass",
+      "detector_family": "deterministic-support-voice-transcript-evidence@0.1.0",
+      "files": {
+        "claims_defense_summary": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-pii-detection-pass/seed-4/claims_defense_summary.md",
+        "diagnostic": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-pii-detection-pass/seed-4/diagnostic.json",
+        "raw_output": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-pii-detection-pass/seed-4/raw_output.json",
+        "sha256": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-pii-detection-pass/seed-4/sha256.txt"
+      },
+      "module": "support_voice_transcript",
+      "path": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-pii-detection-pass/seed-4",
+      "proposed_allowlist_tuning_notes": "Review synthetic fixture before promoting detector allowlist or threshold changes.",
+      "raw_output_sha256": "0a0045a16cd1328d28ca897aba990899af60657c76b2835733e0fb8774897171",
+      "seed": 4,
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "check_id": "transcript-retention-posture-pass",
+      "detector_family": "deterministic-support-voice-transcript-evidence@0.1.0",
+      "files": {
+        "claims_defense_summary": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-retention-posture-pass/seed-4/claims_defense_summary.md",
+        "diagnostic": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-retention-posture-pass/seed-4/diagnostic.json",
+        "raw_output": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-retention-posture-pass/seed-4/raw_output.json",
+        "sha256": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-retention-posture-pass/seed-4/sha256.txt"
+      },
+      "module": "support_voice_transcript",
+      "path": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-retention-posture-pass/seed-4",
+      "proposed_allowlist_tuning_notes": "Review synthetic fixture before promoting detector allowlist or threshold changes.",
+      "raw_output_sha256": "0dd23b8da74ee2adec2a0dddf515e85dd0be3c7539fbb529e93dfa919e560eaf",
+      "seed": 4,
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "check_id": "transcript-deletion-export-pass",
+      "detector_family": "deterministic-support-voice-transcript-evidence@0.1.0",
+      "files": {
+        "claims_defense_summary": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-deletion-export-pass/seed-4/claims_defense_summary.md",
+        "diagnostic": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-deletion-export-pass/seed-4/diagnostic.json",
+        "raw_output": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-deletion-export-pass/seed-4/raw_output.json",
+        "sha256": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-deletion-export-pass/seed-4/sha256.txt"
+      },
+      "module": "support_voice_transcript",
+      "path": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/transcript-deletion-export-pass/seed-4",
+      "proposed_allowlist_tuning_notes": "Review synthetic fixture before promoting detector allowlist or threshold changes.",
+      "raw_output_sha256": "50133c289bb25babb8b71858d93768fb69309e76f079f7bf31659830f5d54b4b",
+      "seed": 4,
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "check_id": "wrong-recipient-disclosure-fail",
+      "detector_family": "deterministic-support-voice-transcript-evidence@0.1.0",
+      "files": {
+        "claims_defense_summary": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/wrong-recipient-disclosure-fail/seed-4/claims_defense_summary.md",
+        "diagnostic": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/wrong-recipient-disclosure-fail/seed-4/diagnostic.json",
+        "raw_output": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/wrong-recipient-disclosure-fail/seed-4/raw_output.json",
+        "sha256": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/wrong-recipient-disclosure-fail/seed-4/sha256.txt"
+      },
+      "module": "support_voice_transcript",
+      "path": "artifacts/beaaa-10642-support-voice-transcript-n5/oss_evidence_pack_v1/support_voice_transcript/wrong-recipient-disclosure-fail/seed-4",
+      "proposed_allowlist_tuning_notes": "Review synthetic fixture before promoting detector allowlist or threshold changes.",
+      "raw_output_sha256": "450455d6da3303e14f0ba3583ebbbfa15ccce74170829583d785cc3bb412fbf3",
+      "seed": 4,
+      "status": "fail",
+      "verdict": "fail"
+    }
+  ],
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "evidence_refs_impact": "not_appended",
+  "false_positive_rows": "false_positive_rows.json",
+  "fixture": "fixtures/support_contact_center/support_voice_transcript_v1.jsonl",
+  "modules": [
+    "support_voice_transcript"
+  ],
+  "pack_version": "oss_evidence_pack_v1@0.1.0",
+  "scan_id": "beaaa-10642-support-voice-transcript-n5",
+  "scoring_math_impact": "none_evidence_only",
+  "seeds": [
+    4
+  ]
+}

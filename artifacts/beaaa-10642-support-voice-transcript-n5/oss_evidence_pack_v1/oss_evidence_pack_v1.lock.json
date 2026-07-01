@@ -1,0 +1,35 @@
+{
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "model_revision_shas": {
+    "grounded_answer": "llm-guard@0.3.16;FactualConsistency:MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33@613e8c52c33e2bc0677ada4ad760f693e5e0f581;Relevance:BAAI/bge-base-en-v1.5@a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+    "secrets": "llm-guard@0.3.16:32b14a4a2fa398df8b77fd748ee4bd387a4ac5ce",
+    "sensitive_output": "llm-guard@0.3.16:32b14a4a2fa398df8b77fd748ee4bd387a4ac5ce;presidio-analyzer@2.2.358",
+    "support_voice_transcript": "deterministic-support-voice-transcript-evidence@0.1.0"
+  },
+  "module_model_revision_shas": {
+    "grounded_answer": {
+      "factual_consistency": {
+        "component": "llm-guard.output_scanners.FactualConsistency",
+        "license": "MIT",
+        "minimum_score": 0.7,
+        "model": "MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33",
+        "revision_sha": "613e8c52c33e2bc0677ada4ad760f693e5e0f581"
+      },
+      "relevance": {
+        "component": "llm-guard.output_scanners.Relevance",
+        "license": "MIT",
+        "model": "BAAI/bge-base-en-v1.5",
+        "revision_sha": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+        "threshold": 0.5
+      }
+    }
+  },
+  "pack_version": "oss_evidence_pack_v1@0.1.0",
+  "packages": {
+    "pip": "24.0",
+    "pytest": "9.0.3"
+  },
+  "python": "3.12.3",
+  "runner": "harness.oss_evidence_pack",
+  "wheel_hash_provenance": "requirements.txt pins llm-guard==0.3.16, presidio-analyzer==2.2.358, presidio-anonymizer==2.2.358; runtime records installed package versions"
+}

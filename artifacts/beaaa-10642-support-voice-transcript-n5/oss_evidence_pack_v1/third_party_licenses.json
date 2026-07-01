@@ -1,0 +1,50 @@
+{
+  "licenses": [
+    {
+      "component": "python-stdlib",
+      "license": "Python-2.0"
+    },
+    {
+      "component": "pytest",
+      "license": "MIT",
+      "usage": "test-only"
+    },
+    {
+      "component": "llm-guard",
+      "license": "MIT",
+      "usage": "secrets and sensitive-output evidence modules",
+      "version": "0.3.16"
+    },
+    {
+      "component": "MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33",
+      "license": "MIT",
+      "usage": "grounded-answer factual-consistency evidence",
+      "version": "613e8c52c33e2bc0677ada4ad760f693e5e0f581"
+    },
+    {
+      "component": "BAAI/bge-base-en-v1.5",
+      "license": "MIT",
+      "usage": "grounded-answer relevance evidence",
+      "version": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a"
+    },
+    {
+      "component": "presidio-analyzer",
+      "license": "MIT",
+      "usage": "sensitive-output entity detection lane",
+      "version": "2.2.358"
+    },
+    {
+      "component": "presidio-anonymizer",
+      "license": "MIT",
+      "usage": "pinned sibling dependency for Presidio redaction lane",
+      "version": "2.2.358"
+    },
+    {
+      "component": "support_voice_transcript_redact_v1",
+      "license": "internal",
+      "usage": "support/voice transcript evidence redaction and handling checks",
+      "version": "0.1.0"
+    }
+  ],
+  "pack_version": "oss_evidence_pack_v1@0.1.0"
+}
