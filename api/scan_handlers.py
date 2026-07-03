@@ -31,6 +31,7 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 """
 from __future__ import annotations
 
+import os
 import re
 import uuid
 from dataclasses import dataclass, field
