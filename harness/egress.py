@@ -608,12 +608,26 @@ class _AllowlistTransport:
             f"scoped allow-list permits only {allowed}"
         )
 
-    def _enforce_resolved_address(self, endpoint: _AllowedEndpoint) -> None:
-        if not endpoint.pins_scheme_port or endpoint.host_is_ip_literal:
+    def _enforce_resolved_address(
+        self,
+        endpoint: _AllowedEndpoint,
+        *,
+        effective_port: int | None,
+    ) -> None:
+        port = endpoint.port if endpoint.port is not None else effective_port
+        if port is None:
+            raise EgressNotAllowed(
+                f"egress host {endpoint.host!r} has no effective port"
+            )
+        if endpoint.host_is_ip_literal:
+            if _is_forbidden_resolved_ip(endpoint.host):
+                raise EgressNotAllowed(
+                    f"egress host {endpoint.host!r} resolved to forbidden "
+                    f"address {endpoint.host!r}"
+                )
             return
-        assert endpoint.port is not None
         try:
-            addresses = tuple(self._resolver(endpoint.host, endpoint.port))
+            addresses = tuple(self._resolver(endpoint.host, port))
         except OSError as exc:
             raise EgressNotAllowed(
                 f"egress host {endpoint.host!r} could not be resolved"
@@ -633,13 +647,14 @@ class _AllowlistTransport:
                 f"egress to host {host!r} not allowed; "
                 f"scoped allow-list permits only {self._permitted_repr()}"
             )
+        effective_port = self._effective_request_port(request)
         endpoint = self._enforce_scheme_port(
             host=host,
             scheme=(request.url.scheme or "").lower(),
-            port=self._effective_request_port(request),
+            port=effective_port,
             matches=matches,
         )
-        self._enforce_resolved_address(endpoint)
+        self._enforce_resolved_address(endpoint, effective_port=effective_port)
         return self._inner.handle_request(request)
 
     def close(self) -> None:
@@ -667,7 +682,8 @@ class ScopedEgressAllowlist:
 
     * ``ScopedEgressAllowlist("agent.customer.example.com")`` — single
       declared host. The original Prober use case; legacy host-only scopes
-      are intentionally host-scoped for compatibility.
+      are host-scoped for compatibility while still rejecting resolved private,
+      loopback, link-local, multicast, unspecified, and reserved addresses.
     * ``ScopedEgressAllowlist("https://agent.customer.example.com/probe")`` —
       endpoint-scoped form. Scheme and effective port are pinned, and DNS
       resolution to private, loopback, link-local, multicast, unspecified,

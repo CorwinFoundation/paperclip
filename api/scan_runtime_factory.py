@@ -269,7 +269,7 @@ def _prober_target(
     corpus_tarball_path: Any,
     probe_run_fn: ProbeRunFn,
     runner_factory: Callable[[str, str], ModelRunner],
-    agent_endpoint_host: str,
+    agent_endpoint_url: str,
     result_queue: Any,
 ) -> None:
     """Prober subprocess entrypoint.
@@ -287,7 +287,7 @@ def _prober_target(
     raise a typed error rather than time out waiting for a result.
     """
     try:
-        with ScopedEgressAllowlist(agent_endpoint_host):
+        with ScopedEgressAllowlist(agent_endpoint_url):
             result = run_scan(
                 scan_request,
                 vault,
@@ -335,7 +335,7 @@ def make_production_scan_runtime(
        the offline path unchanged).
     4. Spawn the Prober subprocess via the channel's fork context. The
        Prober target invokes :func:`scanners.live_probe_orchestrator.run_scan`
-       inside a ``ScopedEgressAllowlist(agent_endpoint_host)`` scope and
+       inside a ``ScopedEgressAllowlist(agent_endpoint_url)`` scope and
        pushes the resulting :class:`ScanResult` to a result Queue.
     5. Parent drains the result Queue, joins both subprocesses, calls
        ``vault.forget_all()``, and returns the ``ScanResult``.
@@ -428,10 +428,10 @@ def make_production_scan_runtime(
             # scheme/port and DNS-rebind guards bind to the declared endpoint.
             # BEAAA-8263 mirrors that declared endpoint into the host nft
             # allowlist while the Prober is alive when the env gate is on.
-            agent_endpoint_host = scan_request.agent_endpoint
+            agent_endpoint_url = scan_request.agent_endpoint
             prober_proc = None
             with ScopedEgressAllowlist(
-                agent_endpoint_host,
+                agent_endpoint_url,
                 live_bind_scope_id=scan_request.scan_id,
             ):
                 prober_proc = ctx.Process(
@@ -443,7 +443,7 @@ def make_production_scan_runtime(
                         "corpus_tarball_path": str(corpus_tarball_path),
                         "probe_run_fn": probe_run_fn,
                         "runner_factory": runner_factory,
-                        "agent_endpoint_host": agent_endpoint_host,
+                        "agent_endpoint_url": agent_endpoint_url,
                         "result_queue": result_queue,
                     },
                     name="are-prober",

@@ -67,11 +67,11 @@ def _fake_prober_target(
     corpus_tarball_path: str,
     probe_run_fn: Any,
     runner_factory: Any,
-    agent_endpoint_host: str,
+    agent_endpoint_url: str,
     result_queue: Any,
 ) -> None:
     del vault, channel, corpus_tarball_path, probe_run_fn, runner_factory
-    del agent_endpoint_host
+    del agent_endpoint_url
     result_queue.put(("ok", _scan_result(scan_request.scan_id)))
 
 
@@ -83,11 +83,11 @@ def _fake_prober_target_without_end_of_scan(
     corpus_tarball_path: str,
     probe_run_fn: Any,
     runner_factory: Any,
-    agent_endpoint_host: str,
+    agent_endpoint_url: str,
     result_queue: Any,
 ) -> None:
     del vault, channel, corpus_tarball_path, probe_run_fn, runner_factory
-    del agent_endpoint_host
+    del agent_endpoint_url
     result_queue.put(("ok", _scan_result(scan_request.scan_id)))
 
 

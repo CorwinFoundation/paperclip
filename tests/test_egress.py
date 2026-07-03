@@ -141,14 +141,64 @@ def test_scoped_allowlist_requires_host():
 def test_scoped_allowlist_allows_declared_host():
     import httpx
     sent: list = []
-    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
-    wrapped = egress._AllowlistTransport(scope.allowed_host, _record_transport(sent))
+    resolved: list[tuple[str, int]] = []
+
+    def resolver(host: str, port: int) -> tuple[str, ...]:
+        resolved.append((host, port))
+        return ("93.184.216.34",)
+
+    scope = egress.ScopedEgressAllowlist(
+        "agent.customer.example.com",
+        resolver=resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_host,
+        _record_transport(sent),
+        resolver=resolver,
+    )
     with httpx.Client(transport=wrapped) as c:
         # Arbitrary path, port, https scheme — all allowed on the declared host.
         r = c.get("https://agent.customer.example.com:8443/probe/v1?x=1")
         assert r.status_code == 200
+    assert resolved == [("agent.customer.example.com", 8443)]
     assert len(sent) == 1
     assert sent[0].url.host == "agent.customer.example.com"
+
+
+def test_bare_host_scoped_allowlist_blocks_loopback_literal():
+    import httpx
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist("127.0.0.1")
+    wrapped = egress._AllowlistTransport(scope.allowed_host, _record_transport(sent))
+    with httpx.Client(transport=wrapped) as c:
+        with pytest.raises(egress.EgressNotAllowed, match="forbidden address"):
+            c.get("https://127.0.0.1/probe")
+    assert sent == []
+
+
+def test_bare_host_scoped_allowlist_blocks_private_dns_resolution():
+    import httpx
+
+    def private_resolver(host: str, port: int) -> tuple[str, ...]:
+        assert host == "agent.customer.example.com"
+        assert port == 443
+        return ("10.0.0.7",)
+
+    sent: list = []
+    scope = egress.ScopedEgressAllowlist(
+        "agent.customer.example.com",
+        resolver=private_resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_host,
+        _record_transport(sent),
+        resolver=private_resolver,
+    )
+    with httpx.Client(transport=wrapped) as c:
+        with pytest.raises(egress.EgressNotAllowed, match="forbidden address"):
+            c.get("https://agent.customer.example.com/probe")
+    assert sent == []
 
 
 def test_endpoint_scoped_allowlist_allows_declared_scheme_and_port():
@@ -233,17 +283,16 @@ def test_endpoint_scoped_allowlist_blocks_dns_rebind_to_private_ip():
     assert sent == []
 
 
-def test_endpoint_scoped_allowlist_allows_explicit_loopback_endpoint():
+def test_endpoint_scoped_allowlist_blocks_explicit_loopback_endpoint():
     import httpx
 
     sent: list = []
     scope = egress.ScopedEgressAllowlist("http://127.0.0.2:50123/probe")
     wrapped = egress._AllowlistTransport(scope.allowed_targets, _record_transport(sent))
     with httpx.Client(transport=wrapped) as c:
-        r = c.post("http://127.0.0.2:50123/probe")
-        assert r.status_code == 200
-    assert len(sent) == 1
-    assert sent[0].url.host == "127.0.0.2"
+        with pytest.raises(egress.EgressNotAllowed, match="forbidden address"):
+            c.post("http://127.0.0.2:50123/probe")
+    assert sent == []
 
 
 @pytest.mark.parametrize("bad_host", [
@@ -269,8 +318,15 @@ def test_scoped_allowlist_blocks_other_hosts(bad_host):
 def test_scoped_allowlist_is_case_insensitive_on_host():
     import httpx
     sent: list = []
-    scope = egress.ScopedEgressAllowlist("Agent.Customer.Example.COM")
-    wrapped = egress._AllowlistTransport(scope.allowed_host, _record_transport(sent))
+    scope = egress.ScopedEgressAllowlist(
+        "Agent.Customer.Example.COM",
+        resolver=_public_resolver,
+    )
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_host,
+        _record_transport(sent),
+        resolver=_public_resolver,
+    )
     with httpx.Client(transport=wrapped) as c:
         r = c.get("https://agent.customer.example.com/path")
         assert r.status_code == 200
@@ -288,13 +344,20 @@ def test_scoped_allowlist_blocks_redirect_to_internal_service():
     import httpx
 
     sent: list = []
-    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    scope = egress.ScopedEgressAllowlist(
+        "agent.customer.example.com",
+        resolver=_public_resolver,
+    )
     inner = _record_transport(
         sent,
         status=302,
         headers={"Location": "http://internal-service/"},
     )
-    wrapped = egress._AllowlistTransport(scope.allowed_host, inner)
+    wrapped = egress._AllowlistTransport(
+        scope.allowed_host,
+        inner,
+        resolver=_public_resolver,
+    )
     with httpx.Client(transport=wrapped, follow_redirects=True) as c:
         with pytest.raises(egress.EgressNotAllowed):
             c.get("https://agent.customer.example.com/probe")
@@ -333,10 +396,14 @@ def test_scoped_allowlist_bypasses_residential_proxy_env(monkeypatch):
         "proxy_url",
         lambda **_kwargs: pytest.fail("ScopedEgressAllowlist consulted proxy_url"),
     )
-    scope = egress.ScopedEgressAllowlist("agent.customer.example.com")
+    scope = egress.ScopedEgressAllowlist(
+        "agent.customer.example.com",
+        resolver=_public_resolver,
+    )
     transport = egress._AllowlistTransport(
         scope.allowed_host,
         _record_transport(sent),
+        resolver=_public_resolver,
     )
     with httpx.Client(transport=transport) as c:
         r = c.get("https://agent.customer.example.com/probe")
