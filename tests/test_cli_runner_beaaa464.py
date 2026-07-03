@@ -81,6 +81,14 @@ def _current_g1_applicability() -> dict:
     return payload
 
 
+def _legacy_replay_context() -> dict:
+    return {
+        "purpose": "legacy_replay",
+        "applicability_mode": "legacy_replay",
+        "non_binding_compatibility": True,
+    }
+
+
 class InputLoaderTests(unittest.TestCase):
     def _g1_dir(self, tmp: Path) -> Path:
         d = tmp / "G1"
@@ -208,6 +216,9 @@ class RunScanTests(unittest.TestCase):
         (d / "applicability.json").write_text(
             json.dumps(_current_g1_applicability())
         )
+        (d / "scanner_invocation_context.json").write_text(
+            json.dumps(_legacy_replay_context())
+        )
         return d
 
     def test_run_scan_matches_g1_expected(self):
@@ -288,6 +299,8 @@ class RunScanTests(unittest.TestCase):
                         ],
                         "tenant_id": "dp-acme",
                         "run_id": "scan-run-6187",
+                        "applicability_mode": "legacy_replay",
+                        "non_binding_compatibility": True,
                     }
                 )
             )
@@ -443,6 +456,53 @@ class RunScanTests(unittest.TestCase):
             ].startswith("pii_attestation_evidence_pack_v0_1::")
         )
 
+    def test_production_scan_ignores_client_authored_applicability_suppression(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            eval_results = json.loads((d / "eval_results.json").read_text())
+            for dim_id in CURRENT_G1_NA_DIMS:
+                eval_results[dim_id] = {
+                    "raw": 0.0,
+                    "evidence_uri": f"test://beaaa10459/{dim_id}",
+                }
+            (d / "eval_results.json").write_text(json.dumps(eval_results))
+
+            malicious = _current_g1_applicability()
+            for dim_id in (
+                "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+                "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+            ):
+                malicious["applicability_decisions"][dim_id] = {
+                    "fires": False,
+                    "na_justification": "client tries to suppress required dimension",
+                    "na_justification_key": "malicious.client_suppression",
+                }
+                if dim_id not in malicious["na_dims"]:
+                    malicious["na_dims"].append(dim_id)
+            (d / "applicability.json").write_text(json.dumps(malicious))
+            (d / "scanner_invocation_context.json").write_text(
+                json.dumps({"purpose": "pre_bind"})
+            )
+
+            result = run_scan(
+                agent_id="G1",
+                input_dir=d,
+                seed=42,
+                corpus_version="0.1.1",
+                rubric_path=RUBRIC_PATH,
+                scored_at=FIXED_SCORED_AT,
+            )
+
+        refs_by_dim = {ref["rubric_point_id"]: ref for ref in result["evidence_refs"]}
+        for dim_id in (
+            "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+            "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+        ):
+            self.assertNotIn(dim_id, result["uncovered_dimensions"])
+            self.assertEqual(refs_by_dim[dim_id]["verdict"], "fail")
+        self.assertLess(result["subscores"]["ROBUSTNESS"], 25)
+
     def test_run_scan_byte_identical_across_replicates(self):
         """Supreme Law: same inputs + same seed → byte-identical JSON."""
         import tempfile
@@ -582,6 +642,9 @@ class CliSubprocessTests(unittest.TestCase):
         # G1 Phase-2 anchor (bmi=79, na_dims=['P2.2','P3.2']).
         (d / "applicability.json").write_text(
             json.dumps(_current_g1_applicability())
+        )
+        (d / "scanner_invocation_context.json").write_text(
+            json.dumps(_legacy_replay_context())
         )
         return d
 

@@ -152,6 +152,28 @@ class AdmittanceBranchTests(unittest.TestCase):
         self.assertEqual(bd["evidence"]["are_total"], 72)
         self.assertEqual(bd["evidence"]["na_dims"], ["P2.2", "P3.2"])
 
+    def test_uncovered_robustness_dimension_routes_to_manual_referral(self):
+        uncovered_dim = "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
+        report = {
+            "are_total": 92,
+            "system_prompt_kind": "hardened",
+            "applicability_record": {
+                "measured_dims": ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"],
+                "na_dims": [],
+            },
+            "uncovered_dimensions": [{"dim_id": uncovered_dim}],
+            "diagnostics": [{"code": "coverage_caveat", "detail": {"pillars_with_all_na": []}}],
+        }
+        decision = admittance.evaluate(report)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0")
+        self.assertEqual(decision.admittance_class, admittance.REFER_TO_UW)
+        score = _score(92, na_dims=[], measured_dims=report["applicability_record"]["measured_dims"])
+        score["uncovered_dimensions"] = [{"dim_id": uncovered_dim}]
+        with self.assertRaises(ManualReferral) as ctx:
+            quote(score, STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        self.assertEqual(ctx.exception.breakdown["admittance"]["firing_rule_id"], "ADM.R0")
+        self.assertEqual(ctx.exception.breakdown["evidence"]["na_dims"], [uncovered_dim])
+
     def test_constrained_bind_applies_f_caveat_and_appends_endorsement(self):
         # ADM.R7: are_total in [70,84] AND measured>=6 → CONSTRAINED_BIND.
         measured = ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"]

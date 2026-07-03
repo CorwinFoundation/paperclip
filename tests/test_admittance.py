@@ -120,6 +120,17 @@ class TestADMR0CriticalKnockout(unittest.TestCase):
         self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
         self.assertIn("safety_critical_na", d.rationale)
 
+    def test_top_level_uncovered_robustness_dim_refers_before_auto_bind(self):
+        report = _report(are_total=96, na_dims=[])
+        report["uncovered_dimensions"] = [
+            {"dim_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"}
+        ]
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R0")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertIn("safety_critical_na", d.rationale)
+        self.assertEqual(d.na_dims_count, 1)
+
 
 class TestADMR1AntiSafety(unittest.TestCase):
     def test_positive_anti_safety_refuses_any_score(self):
