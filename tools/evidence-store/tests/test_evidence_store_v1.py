@@ -65,6 +65,34 @@ def test_corrections_are_new_records_not_overwrites():
     assert "WHERE correction.supersedes_evidence_event_id = event.evidence_event_id" in SQL
 
 
+def test_exposure_metering_views_are_read_only_latest_event_projections():
+    assert "CREATE OR REPLACE VIEW evidence_store.exposure_meterable_events_v1" in SQL
+    assert "CREATE OR REPLACE VIEW evidence_store.exposure_metering_v1" in SQL
+    assert "FROM evidence_store.latest_structured_event_summaries AS event" in SQL
+    assert "event.tenant_id_hash AS tenant_id" in SQL
+    assert "event.agent_id" in SQL
+    assert "date_trunc('month', event.event_timestamp)::date" in SQL
+    assert "event.summary #>> '{attributes,backbond.evidence.action_class}'" in SQL
+
+
+def test_exposure_metering_reconciles_counts_to_source_evidence_rows():
+    assert "count(*)::bigint AS covered_action_count" in SQL
+    assert "count(*)::bigint AS source_evidence_row_count" in SQL
+    assert "array_agg(evidence_event_id ORDER BY event_timestamp, evidence_event_id)" in SQL
+    assert "GROUP BY\n        tenant_id,\n        agent_id,\n        action_class," in SQL
+    assert "COALESCE(counts.evidence_event_ids, ARRAY[]::uuid[]) AS evidence_event_ids" in SQL
+
+
+def test_exposure_metering_marks_gap_periods_as_unmetered_not_zero():
+    assert "generate_series(" in SQL
+    assert "bounds.first_period" in SQL
+    assert "bounds.last_period" in SQL
+    assert "WHEN counts.covered_action_count IS NULL THEN 'unmetered'" in SQL
+    assert "ELSE 'metered'" in SQL
+    assert "counts.covered_action_count," in SQL
+    assert "COALESCE(counts.source_evidence_row_count, 0)::bigint" in SQL
+
+
 def test_batch_supersession_enforces_tenant_agent_version_lineage():
     assert "validate_signed_batch_supersession" in SQL
     assert "evidence_store_validate_signed_batch_supersession" in SQL
@@ -216,6 +244,19 @@ def test_live_postgres_supersession_integrity_if_dsn_is_available():
             'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
         );
 
+        INSERT INTO evidence_store.structured_event_summaries (
+            evidence_event_id, evidence_batch_id, tenant_id_hash, agent_id, agent_version,
+            collector_version, event_kind, event_timestamp, rubric_point_id, summary,
+            content_sha256
+        ) VALUES (
+            '10000000-0000-0000-0000-000000000002',
+            '00000000-0000-0000-0000-000000000002',
+            'tenant-a', 'agent-a', 'v1', 'collector-v1', 'tool_call',
+            '2026-09-03T00:04:00Z', 'P4.1',
+            '{{"attributes":{{"backbond.evidence.action_class":"transaction"}}}}',
+            'sha256:1111111111111111111111111111111111111111111111111111111111111111'
+        );
+
         DO $$
         BEGIN
             INSERT INTO evidence_store.structured_event_summaries (
@@ -255,6 +296,22 @@ def test_live_postgres_supersession_integrity_if_dsn_is_available():
 
         SELECT count(*) AS latest_batches
         FROM evidence_store.latest_signed_batch_manifests;
+
+        SELECT
+            sum(covered_action_count) AS reconciled_count,
+            sum(source_evidence_row_count) AS reconciled_source_rows
+        FROM evidence_store.exposure_metering_v1
+        WHERE metering_status = 'metered';
+
+        SELECT
+            metering_status,
+            covered_action_count,
+            source_evidence_row_count
+        FROM evidence_store.exposure_metering_v1
+        WHERE accounting_period_start = '2026-08-01'
+            AND tenant_id = 'tenant-a'
+            AND agent_id = 'agent-a'
+            AND action_class = 'transaction';
         ROLLBACK;
         """
     )
@@ -268,3 +325,5 @@ def test_live_postgres_supersession_integrity_if_dsn_is_available():
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "latest_batches" in proc.stdout
+    assert "reconciled_count" in proc.stdout
+    assert "unmetered" in proc.stdout

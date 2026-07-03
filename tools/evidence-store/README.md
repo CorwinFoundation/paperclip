@@ -33,9 +33,13 @@ Downstream determination and actuarial consumers read:
 
 - `evidence_store.latest_signed_batch_manifests` for current batch state.
 - `evidence_store.latest_structured_event_summaries` for current event summaries.
+- `evidence_store.exposure_meterable_events_v1` for the normalized covered-action event projection.
+- `evidence_store.exposure_metering_v1` for monthly covered-action counts by tenant, agent, and action class.
 - Base tables for full chain-of-custody and correction history.
 
 The latest views hide superseded rows from current-state reads while preserving historical rows for claims and audit reconstruction. The one-direct-child constraint keeps each logical batch or event chain to one current head.
+
+Exposure Metering v1 is read-only. It counts only current, non-superseded structured evidence rows, derives `action_class` from `summary.action_class`, `summary.attributes["backbond.evidence.action_class"]`, or `event_kind`, and carries `evidence_event_ids` plus `source_evidence_row_count` so billing and actuarial reads reconcile back to the runtime evidence book. Missing in-range monthly periods emit `metering_status = 'unmetered'` with `covered_action_count = NULL`; that is intentionally distinct from observed zero activity.
 
 ## Retention Stub
 
@@ -62,3 +66,12 @@ Operational metadata for BEAAA-11369:
 - `rubric_point_id`: no rubric point changed; DDL protects runtime evidence lineage only.
 - `N=5 calibration delta`: not expected to move score output; verify with the L1 golden gate before merge.
 - `cto_cosign_ref`: not required; classified rule-execution per `scanner-implementation-supervision-v1@v1.1` table rows "Smoke test for an existing operation" and "Refactor that doesn't touch behavior"; no BackBond Score math, rubric, judge, or `are-scanner-api-v1@v1.3.0` response-shape change.
+
+Operational metadata for BEAAA-11373:
+
+- `scanner_version`: unchanged, additive read-only exposure metering over runtime evidence persistence only.
+- `corpus_version`: unchanged.
+- `probe-set-version`: unchanged.
+- `rubric_point_id`: no rubric point changed; metering reads runtime evidence rows without changing score rules.
+- `N=5 calibration delta`: no score path touched; verify with the smallest available golden gate before close.
+- `cto_cosign_ref`: not required; classified rule-execution per `scanner-implementation-supervision-v1@v1.1` rows "Smoke test for an existing operation" and "Refactor that doesn't touch behavior"; no BackBond Score math, rubric, judge, tamper-resistance reduction, or `are-scanner-api-v1@v1.3.0` response-shape change.

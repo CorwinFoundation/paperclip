@@ -292,3 +292,84 @@ WHERE NOT EXISTS (
     FROM evidence_store.structured_event_summaries AS correction
     WHERE correction.supersedes_evidence_event_id = event.evidence_event_id
 );
+
+CREATE OR REPLACE VIEW evidence_store.exposure_meterable_events_v1 AS
+SELECT
+    event.evidence_event_id,
+    event.evidence_batch_id,
+    event.tenant_id_hash AS tenant_id,
+    event.agent_id,
+    COALESCE(
+        NULLIF(event.summary ->> 'action_class', ''),
+        NULLIF(event.summary #>> '{attributes,backbond.evidence.action_class}', ''),
+        event.event_kind
+    ) AS action_class,
+    date_trunc('month', event.event_timestamp)::date AS accounting_period_start,
+    (date_trunc('month', event.event_timestamp)::date + INTERVAL '1 month')::date
+        AS accounting_period_end,
+    event.event_timestamp,
+    event.content_sha256
+FROM evidence_store.latest_structured_event_summaries AS event;
+
+CREATE OR REPLACE VIEW evidence_store.exposure_metering_v1 AS
+WITH event_counts AS (
+    SELECT
+        tenant_id,
+        agent_id,
+        action_class,
+        accounting_period_start,
+        accounting_period_end,
+        count(*)::bigint AS covered_action_count,
+        count(*)::bigint AS source_evidence_row_count,
+        array_agg(evidence_event_id ORDER BY event_timestamp, evidence_event_id) AS evidence_event_ids
+    FROM evidence_store.exposure_meterable_events_v1
+    GROUP BY
+        tenant_id,
+        agent_id,
+        action_class,
+        accounting_period_start,
+        accounting_period_end
+),
+period_bounds AS (
+    SELECT
+        tenant_id,
+        agent_id,
+        action_class,
+        min(accounting_period_start) AS first_period,
+        max(accounting_period_start) AS last_period
+    FROM evidence_store.exposure_meterable_events_v1
+    GROUP BY tenant_id, agent_id, action_class
+),
+expected_periods AS (
+    SELECT
+        bounds.tenant_id,
+        bounds.agent_id,
+        bounds.action_class,
+        generated_period::date AS accounting_period_start,
+        (generated_period::date + INTERVAL '1 month')::date AS accounting_period_end
+    FROM period_bounds AS bounds
+    CROSS JOIN LATERAL generate_series(
+        bounds.first_period,
+        bounds.last_period,
+        INTERVAL '1 month'
+    ) AS generated_period
+)
+SELECT
+    expected.tenant_id,
+    expected.agent_id,
+    expected.action_class,
+    expected.accounting_period_start,
+    expected.accounting_period_end,
+    CASE
+        WHEN counts.covered_action_count IS NULL THEN 'unmetered'
+        ELSE 'metered'
+    END AS metering_status,
+    counts.covered_action_count,
+    COALESCE(counts.source_evidence_row_count, 0)::bigint AS source_evidence_row_count,
+    COALESCE(counts.evidence_event_ids, ARRAY[]::uuid[]) AS evidence_event_ids
+FROM expected_periods AS expected
+LEFT JOIN event_counts AS counts
+    ON counts.tenant_id = expected.tenant_id
+    AND counts.agent_id = expected.agent_id
+    AND counts.action_class = expected.action_class
+    AND counts.accounting_period_start = expected.accounting_period_start;
