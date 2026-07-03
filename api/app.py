@@ -195,10 +195,18 @@ def create_app(
         return payload
 
     @app.get("/forensic_bundle/{bundle_id}")
-    async def get_bundle(request: Request, bundle_id: str) -> Any:
-        _authenticated_tenant_id(request, runtime_profile)
+    async def get_bundle(
+        request: Request,
+        bundle_id: str,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    ) -> Any:
+        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         try:
-            status, payload = forensic_bundle_handler(bundle_id, bundles=app.state.bundles)
+            status, payload = forensic_bundle_handler(
+                bundle_id,
+                tenant_header=tenant_context,
+                bundles=app.state.bundles,
+            )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
         if status != 200:
