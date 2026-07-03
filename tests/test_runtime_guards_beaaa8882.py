@@ -111,3 +111,31 @@ def test_create_app_refuses_prod_with_in_memory_storage():
         with pytest.raises(RuntimeGuardError, match="in-memory forensic bundle storage"):
             create_app()
 
+
+def test_create_app_refuses_prod_with_missing_signing_key(tmp_path: Path):
+    from api.app import create_app
+
+    env = {
+        **_env_without_guard_vars(),
+        "ARE_RUNTIME_PROFILE": "prod",
+        "ARE_BUNDLE_STORAGE": "file",
+        "ARE_BUNDLE_STORAGE_DIR": str(tmp_path),
+    }
+    with mock.patch.dict(os.environ, env, clear=True):
+        with pytest.raises(ValueError, match="ARE_BUNDLE_SIGNING_KEY"):
+            create_app()
+
+
+def test_create_app_refuses_prod_with_dev_signing_key_escape_hatch(tmp_path: Path):
+    from api.app import create_app
+
+    env = {
+        **_env_without_guard_vars(),
+        "ARE_RUNTIME_PROFILE": "prod",
+        "ARE_ALLOW_DEV_SIGNING_KEY": "true",
+        "ARE_BUNDLE_STORAGE": "file",
+        "ARE_BUNDLE_STORAGE_DIR": str(tmp_path),
+    }
+    with mock.patch.dict(os.environ, env, clear=True):
+        with pytest.raises(RuntimeGuardError, match="dev signing key"):
+            create_app()
