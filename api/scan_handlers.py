@@ -53,6 +53,7 @@ from harness import egress
 from harness.runner import RunnerError
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
+    CorpusProvenanceMismatchError,
     CorpusSnapshotMismatchError,
     CredentialResolveError,
     DEFAULT_K_REPLICATES,
@@ -768,6 +769,8 @@ def _kickoff_live_probe_scan(
         )
     except CorpusSnapshotMismatchError as exc:
         raise HandlerError(422, "corpus_snapshot_mismatch") from exc
+    except CorpusProvenanceMismatchError as exc:
+        raise HandlerError(422, exc.detail) from exc
     except CredentialResolveError as exc:
         raise HandlerError(500, "credential_resolve_error") from exc
     except OrchestratorError as exc:
