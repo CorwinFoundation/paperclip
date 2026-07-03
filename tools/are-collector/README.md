@@ -11,6 +11,24 @@ Boundary invariants:
 - Scanner output delta: `0` by construction; this package has no scoring, rubric, pricing, portal, or detector imports.
 - Supervision classification: rule-execution per `scanner-implementation-supervision-v1@v1.1`, row 17 and ADR-0035 §8(a)-(c).
 
+Collector v1 provenance (BEAAA-11365):
+
+- Every batch carries a monotonic per-`(customer_id, agent)` `sequence` (starts at 1) inside the signed JWT claims, so missing batches are detectable at the receiver.
+- `-heartbeat` emits a zero-event batch that still consumes a sequence number, so a silent agent that stops emitting real telemetry is still observable.
+- `internal/verify` re-derives the batch content hash, verifies the collector Ed25519 signature, and enforces tenant isolation: a batch only verifies against keys registered for the `customer_id` it claims. Verification fails closed on tamper, foreign/unknown key, or claim/envelope drift.
+- `internal/ledger` is the tenant-partitioned collector-side store that records the verified sequence stream and flags missing sequences (`OutstandingGaps`) and silent agents (`SilentAgents`).
+- Per-span/event redaction status is recorded on each event as `redaction_applied`.
+
+Rescan-on-change triggers (BEAAA-11374, spec §3.4.A / build item 7):
+
+- `internal/triggers` derives operational drift from Evidence Profile v1 rows (`backbond.evidence.*`) and, on a positive trigger, appends a `RescanRequest` to an `AuditSpine`. Three classes, per `(tenant_id, agent_id, deployment_id)` stream:
+  - `model_ref_change` — `model_ref` differs from the last observed value (model swap).
+  - `authority_expansion` — a new tool or permission appears in `authority_context`.
+  - `outcome_drift` — `outcome_status` failure/escalation/reversal rate over a rolling window crosses a configurable threshold.
+- Triggers **request rescans only**. `RescanRequest` carries no score/band/rubric field and this package has no scoring imports (enforced by `tests/no_score_imports_test.go`), so a trigger can never move a BackBond Score directly. Consuming the emitted requests is a separately approved scanner release; `scanner_version` / `corpus_version` are unchanged.
+- Thresholds are explicit and configurable via `triggers.Config` (`DefaultConfig()` supplies conservative defaults). `Config.Enabled` is the rollback gate: when `false`, evidence ingestion (baseline tracking) is unchanged but no request is emitted.
+- `RequestID` is deterministic in the triggering evidence, so a replayed row yields the same id and a spine consumer can dedupe rather than double-request.
+
 Adapters:
 
 - Datadog Logs API v2 search: `adapter.NewDatadogLogsAPI`
