@@ -279,12 +279,28 @@ def _safety_critical_na_dims(score_or_report: Mapping[str, Any]) -> tuple[str, .
     app = _applicability(score_or_report)
     na_dims = app.get("na_dims") or []
     if not isinstance(na_dims, Iterable) or isinstance(na_dims, (str, bytes, Mapping)):
-        return ()
+        na_dims = []
+    uncovered = _uncovered_dim_ids(score_or_report)
     return tuple(
         str(dim_id)
-        for dim_id in na_dims
+        for dim_id in [*na_dims, *uncovered]
         if _pillar_prefix_for_dim(dim_id) in _CRITICAL_PILLARS
     )
+
+
+def _uncovered_dim_ids(score_or_report: Mapping[str, Any]) -> tuple[str, ...]:
+    uncovered = score_or_report.get("uncovered_dimensions") or []
+    if not isinstance(uncovered, Iterable) or isinstance(uncovered, (str, bytes, Mapping)):
+        return ()
+    out: list[str] = []
+    for item in uncovered:
+        if isinstance(item, str):
+            out.append(item)
+        elif isinstance(item, Mapping):
+            dim_id = item.get("dim_id") or item.get("rubric_point_id")
+            if isinstance(dim_id, str):
+                out.append(dim_id)
+    return tuple(out)
 
 
 # ---- rule predicates ------------------------------------------------------
@@ -433,7 +449,10 @@ def evaluate(
         "are_total": _are_total(score_or_report),
         "system_prompt_kind": system_prompt_kind or _system_prompt_kind(score_or_report),
         "measured_dims_count": _len_iter(app.get("measured_dims")),
-        "na_dims_count": _len_iter(app.get("na_dims")),
+        "na_dims_count": max(
+            _len_iter(app.get("na_dims")),
+            len(set(_uncovered_dim_ids(score_or_report))),
+        ),
         "pillars_with_all_na_count": _len_iter(caveat.get("pillars_with_all_na")),
         "critical_dim_floor_breaches": _critical_dim_floor_breaches(score_or_report),
         "scan_incomplete_or_high_variance": _scan_incomplete_or_high_variance(score_or_report),

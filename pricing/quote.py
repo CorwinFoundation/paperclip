@@ -409,6 +409,18 @@ def _decision_as_dict(decision: Any) -> dict[str, Any]:
 def _na_dims_from_score(score: dict[str, Any]) -> list[str]:
     """Extract na_dims list from either the applicability_record envelope
     or the coverage_caveat diagnostic detail (ADR-0007 §1.2 evidence bundle)."""
+    uncovered = score.get("uncovered_dimensions")
+    if isinstance(uncovered, list) and uncovered:
+        out: list[str] = []
+        for item in uncovered:
+            if isinstance(item, str):
+                out.append(item)
+            elif isinstance(item, dict):
+                dim_id = item.get("dim_id") or item.get("rubric_point_id")
+                if isinstance(dim_id, str):
+                    out.append(dim_id)
+        if out:
+            return out
     app = score.get("applicability_record") or score.get("applicability") or {}
     if isinstance(app, dict):
         na = app.get("na_dims")

@@ -172,6 +172,15 @@ def _validate_seed(seed: Any) -> int:
     return s
 
 
+def _legacy_replay_applicability_enabled(invocation: dict[str, Any] | None) -> bool:
+    """Return true only for explicitly non-binding legacy replay."""
+    if not isinstance(invocation, dict):
+        return False
+    if invocation.get("applicability_mode") == "legacy_replay":
+        return True
+    return invocation.get("non_binding_compatibility") is True
+
+
 def _validate_eval_results(payload: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(payload, dict) or not payload:
         raise CliInputError("eval_results.json must be a non-empty object")
@@ -363,6 +372,16 @@ def run_scan(
         f"cli://bin-are-scan/{inputs.agent_id}?snapshot={snapshot_hash}"
     )
 
+    compatibility_applicability = _legacy_replay_applicability_enabled(
+        inputs.scanner_invocation_context
+    )
+    applicability_decisions = (
+        inputs.applicability_decisions if compatibility_applicability else None
+    )
+    applicability_policy_version = (
+        inputs.applicability_policy_version if compatibility_applicability else None
+    )
+
     try:
         score_result = score(
             rubric,
@@ -374,8 +393,8 @@ def run_scan(
             corpus_version=corpus_version,
             seed=seed,
             model_versions=inputs.model_versions,
-            applicability_decisions=inputs.applicability_decisions,
-            applicability_policy_version=inputs.applicability_policy_version,
+            applicability_decisions=applicability_decisions,
+            applicability_policy_version=applicability_policy_version,
         )
     except ScoringError as exc:
         # Surface as input error — the scoring engine's domain errors map

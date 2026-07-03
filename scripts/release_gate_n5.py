@@ -245,7 +245,7 @@ def run_gate(
             results.append(result)
 
     report = {
-        "issue": "BEAAA-10488/BEAAA-10485",
+        "issue": "BEAAA-10459/BEAAA-10453",
         "contract": "are-scanner-api-v1@v1.0",
         "baseline": baseline_label,
         "candidate": candidate_label,
@@ -295,13 +295,13 @@ def _render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "---",
         "artifact_type: other",
-        "owner: scanner_engineer",
+        "owner: cto",
         "persona_audience: internal",
         "phase: 1",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-10488 preserves BackBond Scanner reproducibility discipline by repairing the canonical master golden N=5 corpus-version gate for BEAAA-10485."',
+        'focus_claim: "BEAAA-10453 preserves BackBond Scanner evidence completeness by proving server-authoritative applicability and uncovered-dimension handling do not move the golden-set N=5 gate."',
         'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-10488", "BEAAA-10485", "BEAAA-10199"]',
+        'ticket_refs: ["BEAAA-10459", "BEAAA-10453", "BEAAA-10199"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py"]',
         "version: 0.1",
         "prior_version: null",
@@ -309,7 +309,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         'escalations_noted: ["No Underwriter co-sign required: N=5 total and pillar deltas are 0 across the 8/9 baselined roster; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change."]',
         "---",
         "",
-        "# BEAAA-10485 Grounded-Answer Evidence N=5 Gate",
+        "# BEAAA-10453 Server-Authoritative Applicability N=5 Gate",
         "",
         f"- Contract: `{report['contract']}`",
         f"- Baseline: `{report['baseline']}`",
