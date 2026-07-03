@@ -118,6 +118,25 @@ class AppTests(unittest.TestCase):
         self.assertNotIn("EDGE_SENTINEL_TOKEN_1234567890", str(exc.detail))
         self.assertIn("[REDACTED_SECRET]", str(exc.detail))
 
+    def test_unexpected_portal_error_500_hides_exception_detail(self):
+        sentinel = "D6_INTERNAL_EXCEPTION_SENTINEL_SHOULD_NOT_LEAK"
+        client = TestClient(self.app, raise_server_exceptions=False)
+
+        with mock.patch("api.app.score_handler", side_effect=RuntimeError(sentinel)):
+            response = client.post(
+                "/score",
+                json=_request(self.rubric),
+                headers={"X-Tenant-Id": TENANT},
+            )
+
+        self.assertEqual(response.status_code, 500, response.text)
+        body = response.json()
+        self.assertEqual(body["error"], "internal_error")
+        self.assertRegex(body["correlation_id"], r"^[0-9a-f-]{36}$")
+        self.assertEqual(response.headers["X-Correlation-Id"], body["correlation_id"])
+        self.assertNotIn(sentinel, response.text)
+        self.assertNotIn("RuntimeError", response.text)
+
     def test_auth_token_binds_tenant_not_x_tenant_header(self):
         with mock.patch.dict(
             "os.environ",
