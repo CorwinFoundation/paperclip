@@ -6,18 +6,30 @@ and lets unittest target handlers directly without booting an ASGI app.
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
-from starlette.concurrency import run_in_threadpool
 
 from pricing.quote import Rates
 from rubric.scoring import Rubric
+from harness.secret_redaction import redact_secret_obj
 
 from .bundle import BundleStore
-from .handlers import HandlerError, forensic_bundle_handler, quote_handler, score_handler
+from .handlers import (
+    HandlerError,
+    forensic_bundle_handler,
+    quote_handler,
+    score_handler,
+    validate_quote_tenant_context,
+)
+from .runtime_guards import (
+    bundle_store_from_env,
+    current_runtime_profile,
+    validate_runtime_environment,
+)
 from .scan_handlers import (
     RESCAN_PURPOSES,
     ScanRuntime,
@@ -51,6 +63,59 @@ RESCANS_MEASURED_ENV: str = "ARE_RESCANS_MEASURED"
 #: Rollback Path 1 sentinel. Any value other than ``"off"`` (including
 #: unset, empty string, or ``"on"``) means the measured route is active.
 RESCANS_MEASURED_OFF: str = "off"
+API_AUTH_TOKENS_ENV: str = "ARE_API_AUTH_TOKENS_JSON"
+
+
+def _http_error(status_code: int, detail: Any) -> HTTPException:
+    return HTTPException(status_code=status_code, detail=redact_secret_obj(detail))
+
+
+def _api_auth_required(runtime_profile: str) -> bool:
+    if os.environ.get(API_AUTH_TOKENS_ENV):
+        return True
+    return runtime_profile in {"pilot", "prod"}
+
+
+def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | None:
+    """Return tenant id bound to the bearer token, or None on local dev bypass.
+
+    ``ARE_API_AUTH_TOKENS_JSON`` is a JSON object mapping bearer token to
+    tenant_id. In pilot/prod it is required; in local tests with no mapping,
+    routes keep the historical no-auth path.
+    """
+    raw_mapping = os.environ.get(API_AUTH_TOKENS_ENV)
+    required = _api_auth_required(runtime_profile)
+    if not raw_mapping and not required:
+        return None
+    if not raw_mapping:
+        raise _http_error(500, "api_auth_tokens_unconfigured")
+    try:
+        mapping = json.loads(raw_mapping)
+    except json.JSONDecodeError as exc:
+        raise _http_error(500, "api_auth_tokens_invalid") from exc
+    if not isinstance(mapping, dict) or not mapping:
+        raise _http_error(500, "api_auth_tokens_invalid")
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise _http_error(401, "authorization_bearer_required")
+    token = authorization.removeprefix("Bearer ").strip()
+    tenant_id = mapping.get(token)
+    if not isinstance(tenant_id, str) or not tenant_id:
+        raise _http_error(401, "authorization_invalid")
+    return tenant_id
+
+
+def _tenant_context(
+    request: Request,
+    runtime_profile: str,
+    x_tenant_id: str | None,
+) -> str | None:
+    authenticated = _authenticated_tenant_id(request, runtime_profile)
+    if authenticated is None:
+        return x_tenant_id
+    if x_tenant_id and x_tenant_id != authenticated:
+        raise _http_error(409, "tenant mismatch between auth context and X-Tenant-Id")
+    return authenticated
 
 
 def create_app(
@@ -62,9 +127,13 @@ def create_app(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
 ) -> FastAPI:
+    runtime_profile = current_runtime_profile()
+    if not os.environ.get("ARE_BUNDLE_SIGNING_KEY") and os.environ.get("ARE_ALLOW_DEV_SIGNING_KEY") != "true":
+        raise ValueError("ARE_BUNDLE_SIGNING_KEY must be set in production")
     app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
-    app.state.bundles = bundles or BundleStore()
+    app.state.runtime_profile = runtime_profile
+    app.state.bundles = bundles or bundle_store_from_env()
     app.state.rates = rates or Rates.load(RATES_PATH)
     # BEAAA-553 (T-CLOSE) — explicit override wins; otherwise opt-in via env
     # var. Default (no override, no env var) keeps ``POST /scan`` on the
@@ -75,6 +144,11 @@ def create_app(
         from .scan_runtime_factory import make_default_production_scan_runtime
         scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
+    validate_runtime_environment(
+        profile=runtime_profile,
+        bundles=app.state.bundles,
+        scan_runtime=app.state.scan_runtime,
+    )
     # BEAAA-1274 (WS4) — per-purpose SLA metric registry + routing-event sink.
     # Default sinks survive the lifetime of the app instance so the rolling
     # window observed by ``GET /scanner/v1/sla`` matches the window the
@@ -88,52 +162,67 @@ def create_app(
         x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     ) -> Any:
         body = await request.json()
+        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         try:
             status, payload = score_handler(
                 body,
-                tenant_header=x_tenant_id,
+                tenant_header=tenant_context,
                 rubric=app.state.rubric,
                 bundles=app.state.bundles,
             )
         except HandlerError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+            raise _http_error(exc.status, exc.message) from exc
         if status != 200:
-            raise HTTPException(status_code=status, detail=payload)
+            raise _http_error(status, payload)
         return payload
 
     @app.get("/forensic_bundle/{bundle_id}")
-    async def get_bundle(bundle_id: str) -> Any:
+    async def get_bundle(request: Request, bundle_id: str) -> Any:
+        _authenticated_tenant_id(request, runtime_profile)
         try:
             status, payload = forensic_bundle_handler(bundle_id, bundles=app.state.bundles)
         except HandlerError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+            raise _http_error(exc.status, exc.message) from exc
         if status != 200:
-            raise HTTPException(status_code=status, detail=payload)
+            raise _http_error(status, payload)
         return payload
 
-    @app.post("/scan")
-    async def post_scan(
+    async def _post_scan_request(
         request: Request,
-        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_tenant_id: str | None,
     ) -> Any:
+        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         if app.state.scan_runtime is None:
-            raise HTTPException(status_code=503, detail="scan_runtime_unconfigured")
+            raise _http_error(503, "scan_runtime_unconfigured")
         body = await request.json()
         try:
-            status, payload = await run_in_threadpool(
-                scan_handler,
+            status, payload = scan_handler(
                 body,
-                tenant_header=x_tenant_id,
+                tenant_header=tenant_context,
                 runtime=app.state.scan_runtime,
             )
         except HandlerError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+            raise _http_error(exc.status, exc.message) from exc
         if status not in (200, 202):
-            raise HTTPException(status_code=status, detail=payload)
+            raise _http_error(status, payload)
         # Preserve the handler's status code (202 for the live-probe accept
         # path per contract v1.1.0). Returning the dict directly would let
         # FastAPI's default 200 win, dropping the contracted Accepted status.
         return JSONResponse(status_code=status, content=payload)
+
+    @app.post("/scanner/v1/scans")
+    async def post_scanner_v1_scans(
+        request: Request,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    ) -> Any:
+        return await _post_scan_request(request, x_tenant_id)
+
+    @app.post("/scan", deprecated=True)
+    async def post_scan(
+        request: Request,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    ) -> Any:
+        return await _post_scan_request(request, x_tenant_id)
 
     @app.post("/scanner/v1/rescans")
     async def post_rescan(
@@ -146,6 +235,7 @@ def create_app(
         # envelope. Rollback Path 1 per ADR-0017 §6 is to set the env var
         # to ``off`` explicitly.
         body = await request.json()
+        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         if os.environ.get(RESCANS_MEASURED_ENV) == RESCANS_MEASURED_OFF:
             return JSONResponse(
                 status_code=200,
@@ -165,20 +255,19 @@ def create_app(
                 },
             )
         if app.state.scan_runtime is None:
-            raise HTTPException(status_code=503, detail="scan_runtime_unconfigured")
+            raise _http_error(503, "scan_runtime_unconfigured")
         try:
-            status, payload = await run_in_threadpool(
-                rescan_handler,
+            status, payload = rescan_handler(
                 body,
-                tenant_header=x_tenant_id,
+                tenant_header=tenant_context,
                 runtime=app.state.scan_runtime,
                 sla_registry=app.state.sla_registry,
                 routing_event_sink=app.state.routing_event_sink,
             )
         except HandlerError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+            raise _http_error(exc.status, exc.message) from exc
         if status not in (200, 202):
-            raise HTTPException(status_code=status, detail=payload)
+            raise _http_error(status, payload)
         # Preserve the handler's 202 accept status to match /scan parity.
         return JSONResponse(status_code=status, content=payload)
 
@@ -190,9 +279,10 @@ def create_app(
         return app.state.sla_registry.snapshot()
 
     @app.get("/scan/{scan_id}")
-    async def get_scan(scan_id: str, audience: str = "customer") -> Any:
+    async def get_scan(request: Request, scan_id: str, audience: str = "customer") -> Any:
+        _authenticated_tenant_id(request, runtime_profile)
         if app.state.scan_runtime is None:
-            raise HTTPException(status_code=503, detail="scan_runtime_unconfigured")
+            raise _http_error(503, "scan_runtime_unconfigured")
         try:
             status, payload = scan_status_handler(
                 scan_id,
@@ -200,20 +290,22 @@ def create_app(
                 audience=audience,
             )
         except HandlerError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+            raise _http_error(exc.status, exc.message) from exc
         if status != 200:
-            raise HTTPException(status_code=status, detail=payload)
+            raise _http_error(status, payload)
         return payload
 
     @app.post("/quote")
     async def post_quote(request: Request) -> Any:
         body = await request.json()
+        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
         try:
+            validate_quote_tenant_context(body, authenticated_tenant_id=authenticated_tenant_id)
             status, payload = quote_handler(body, rates=app.state.rates)
         except HandlerError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+            raise _http_error(exc.status, exc.message) from exc
         if status != 200:
-            raise HTTPException(status_code=status, detail=payload)
+            raise _http_error(status, payload)
         return payload
 
     return app

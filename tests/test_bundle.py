@@ -7,11 +7,15 @@ regression on the offline_replay path (Hard Invariant #2 on BEAAA-533).
 from __future__ import annotations
 
 import json
+import os
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from api.bundle import (
     BundleError,
     BundleStore,
+    FileBundleStorage,
     derive_bundle_id,
     extract_target_endpoint_host,
     redact_scan_request,
@@ -87,6 +91,51 @@ class BundleStoreTests(unittest.TestCase):
             snapshot_hash="sha256:abc", tenant_id="t2", scored_at="2026-01-01T00:00:00+00:00"
         )
         self.assertNotEqual(a, b)
+
+
+class FileBundleStorageTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = mock.MagicMock()
+
+    def test_file_storage_round_trip_verifies_on_read(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as d:
+            store = BundleStore(storage=FileBundleStorage(d))
+            bundle_id = derive_bundle_id(
+                snapshot_hash="sha256:" + "c" * 64,
+                tenant_id="tenant-001",
+                scored_at="2026-06-26T00:00:00+00:00",
+            )
+            bundle = store.build(
+                bundle_id=bundle_id,
+                snapshot_hash="sha256:abc",
+                evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
+            )
+            self.assertFalse(store.is_in_memory)
+            self.assertEqual(store.get(bundle_id), bundle)
+
+    def test_file_storage_detects_tampering_on_read(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as d:
+            store = BundleStore(storage=FileBundleStorage(d))
+            bundle_id = derive_bundle_id(
+                snapshot_hash="sha256:" + "d" * 64,
+                tenant_id="tenant-001",
+                scored_at="2026-06-26T00:00:00+00:00",
+            )
+            store.build(
+                bundle_id=bundle_id,
+                snapshot_hash="sha256:abc",
+                evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
+            )
+            path = Path(d) / f"{bundle_id}.json"
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload["evidence"][0]["uri"] = "https://e/tampered"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(BundleError, "signature mismatch"):
+                store.get(bundle_id)
 
 
 class LiveProbeBundleAugmentationTests(unittest.TestCase):
@@ -269,6 +318,71 @@ class OfflineReplayByteIdenticalRegressionTests(unittest.TestCase):
             bundle["signed_manifest"],
             "hmac-sha256:e7fcc89ecc6b6bb76543605d479522c8a0ae1bb2d76ef8afd0dd14359ab34e81",
         )
+
+
+class SigningKeyStartupTests(unittest.TestCase):
+    """BEAAA-5274 F-01: create_app() must refuse to start without a signing key.
+
+    ADR-0009 §4 forbids silent dev-key fallback in any deployment that does not
+    explicitly opt-in.  These tests verify the startup gate and its escape hatch.
+    """
+
+    _SIGNING_VARS = ("ARE_BUNDLE_SIGNING_KEY", "ARE_ALLOW_DEV_SIGNING_KEY")
+
+    def _env_without_signing_vars(self) -> dict:
+        return {k: v for k, v in os.environ.items() if k not in self._SIGNING_VARS}
+
+    def test_create_app_raises_when_neither_env_var_set(self):
+        from api.app import create_app
+
+        with mock.patch.dict(os.environ, self._env_without_signing_vars(), clear=True):
+            with self.assertRaises(ValueError) as ctx:
+                create_app()
+        self.assertIn("ARE_BUNDLE_SIGNING_KEY", str(ctx.exception))
+
+    def test_create_app_succeeds_with_dev_escape_hatch(self):
+        from api.app import create_app
+
+        env = {**self._env_without_signing_vars(), "ARE_ALLOW_DEV_SIGNING_KEY": "true"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            app = create_app()
+        self.assertIsNotNone(app)
+
+    def test_create_app_succeeds_with_production_key(self):
+        from api.app import create_app
+
+        env = {**self._env_without_signing_vars(), "ARE_BUNDLE_SIGNING_KEY": "test-prod-key"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            app = create_app()
+        self.assertIsNotNone(app)
+
+    def test_signing_key_raises_without_env_vars(self):
+        from api.bundle import _signing_key
+
+        with mock.patch.dict(os.environ, self._env_without_signing_vars(), clear=True):
+            with self.assertRaises(ValueError) as ctx:
+                _signing_key()
+        self.assertIn("ARE_BUNDLE_SIGNING_KEY", str(ctx.exception))
+
+    def test_signing_key_dev_escape_hatch_returns_dev_key(self):
+        from api.bundle import _DEV_KEY, _signing_key
+
+        env = {**self._env_without_signing_vars(), "ARE_ALLOW_DEV_SIGNING_KEY": "true"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            key = _signing_key()
+        self.assertEqual(key, _DEV_KEY)
+
+    def test_signing_key_production_env_var_takes_precedence(self):
+        from api.bundle import _signing_key
+
+        env = {
+            **self._env_without_signing_vars(),
+            "ARE_BUNDLE_SIGNING_KEY": "prod-key-abc",
+            "ARE_ALLOW_DEV_SIGNING_KEY": "true",
+        }
+        with mock.patch.dict(os.environ, env, clear=True):
+            key = _signing_key()
+        self.assertEqual(key, b"prod-key-abc")
 
 
 if __name__ == "__main__":

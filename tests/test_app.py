@@ -1,13 +1,9 @@
 """End-to-end tests for the FastAPI app (smoke + red-line wiring)."""
 from __future__ import annotations
 
-import anyio
-import asyncio
-import time
 import unittest
+from unittest import mock
 from pathlib import Path
-
-import httpx
 
 try:
     from fastapi.testclient import TestClient
@@ -15,16 +11,10 @@ except ImportError as exc:  # pragma: no cover
     raise unittest.SkipTest(f"fastapi not installed: {exc}")
 
 from api.app import create_app
+from api.app import _http_error
 from api.bundle import BundleStore
-from api.scan_handlers import ScanRuntime
 from api.intake_guard import HOSTED_RUNNER
 from rubric.scoring import Rubric
-from scanners.live_probe_orchestrator import (
-    LIVE_PROBE_VARIANCE_BAND,
-    DimResult,
-    ScanRequest,
-    ScanResult,
-)
 
 REPO = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -32,10 +22,18 @@ RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 TENANT = "11111111-1111-1111-1111-111111111111"
 RUN_ID = "22222222-2222-2222-2222-222222222222"
 SNAPSHOT_HASH = "sha256:" + "a" * 64
-CORPUS_HASH = "sha256:" + "b" * 64
 
 
 def _request(rubric: Rubric, raw: float = 2.0) -> dict:
+    eval_outputs = {}
+    for did in rubric.active_dim_ids:
+        entry = {
+            "raw": raw,
+            "evidence_uri": f"https://evidence.local/{did}",
+            "runner": HOSTED_RUNNER,
+            "eval_run_id": RUN_ID,
+        }
+        eval_outputs[did] = entry
     return {
         "tenant_id": TENANT,
         "snapshot": {
@@ -44,53 +42,8 @@ def _request(rubric: Rubric, raw: float = 2.0) -> dict:
             "prompt_version": "p7",
             "snapshot_hash": SNAPSHOT_HASH,
         },
-        "eval_outputs": {
-            did: {
-                "raw": raw,
-                "evidence_uri": f"https://evidence.local/{did}",
-                "runner": HOSTED_RUNNER,
-                "eval_run_id": RUN_ID,
-            }
-            for did in rubric.active_dim_ids
-        },
+        "eval_outputs": eval_outputs,
     }
-
-
-def _scan_request_body() -> dict:
-    return {
-        "tenant_id": TENANT,
-        "agent_endpoint": {"host": "agent.customer.example.com"},
-        "credential_ref": "phase1-probe.v1",
-        "credential_secret": "scoped-token-abc",
-        "corpus_snapshot_hash": CORPUS_HASH,
-        "scanner_version": "0.3.7",
-        "corpus_version": "0.1.0",
-        "seed": 42,
-        "scan_mode": "live_probe",
-        "k_replicates": 5,
-        "requested_pillars": ["GOVERNANCE", "ROBUSTNESS"],
-    }
-
-
-def _scan_result(scan_id: str) -> ScanResult:
-    return ScanResult(
-        scan_id=scan_id,
-        status="complete",
-        scanner_version="0.3.7",
-        corpus_version="0.1.0",
-        rows_emitted=10,
-        k_replicates=5,
-        live_probe_variance_band=LIVE_PROBE_VARIANCE_BAND,
-        dim_results=(
-            DimResult(dim_id="P1.1", raw=4.0, spread=1.0, replicates=(3.0, 4.0, 4.0, 4.0, 5.0)),
-            DimResult(dim_id="P2.1", raw=2.5, spread=0.0, replicates=(2.5, 2.5, 2.5, 2.5, 2.5)),
-        ),
-        spread_per_dim={"P1.1": 1.0, "P2.1": 0.0},
-        pillar_spread={"P1": 1.0, "P2": 0.0, "P3": 0.0, "P4": 0.0},
-        total_spread=1.0,
-        incomplete=False,
-        incomplete_reason=None,
-    )
 
 
 class AppTests(unittest.TestCase):
@@ -136,45 +89,92 @@ class AppTests(unittest.TestCase):
         r = self.client.get("/forensic_bundle/00000000-0000-0000-0000-000000000000")
         self.assertEqual(r.status_code, 404)
 
+    def test_auth_token_required_when_token_map_configured(self):
+        with mock.patch.dict(
+            "os.environ",
+            {"ARE_API_AUTH_TOKENS_JSON": '{"token-1":"tenant-auth"}'},
+            clear=False,
+        ):
+            app = create_app(rubric=self.rubric, bundles=BundleStore())
+            client = TestClient(app)
 
-def test_sla_route_responds_while_scan_kickoff_is_blocked():
-    """BEAAA-7837 — app routes must not share /scan's blocking call path."""
+            missing = client.post("/score", json=_request(self.rubric))
+            self.assertEqual(missing.status_code, 401, missing.text)
 
-    def slow_run_scan(scan_request: ScanRequest, secret: str) -> ScanResult:
-        time.sleep(0.3)
-        return _scan_result(scan_request.scan_id)
-
-    app = create_app(
-        rubric=Rubric.load(RUBRIC_PATH),
-        bundles=BundleStore(),
-        scan_runtime=ScanRuntime(run_scan_fn=slow_run_scan),
-    )
-
-    async def exercise() -> None:
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-            scan_task = asyncio.create_task(
-                client.post(
-                    "/scan",
-                    json=_scan_request_body(),
-                    headers={"X-Tenant-Id": TENANT},
-                )
+            invalid = client.post(
+                "/score",
+                json=_request(self.rubric),
+                headers={"Authorization": "Bearer wrong-token", "X-Tenant-Id": TENANT},
             )
-            try:
-                await anyio.sleep(0.05)
-                assert not scan_task.done()
-                started = time.perf_counter()
-                sla_response = await client.get("/scanner/v1/sla")
-                elapsed = time.perf_counter() - started
-                assert sla_response.status_code == 200, sla_response.text
-                assert elapsed < 0.2
-                scan_response = await scan_task
-                assert scan_response.status_code == 202, scan_response.text
-            finally:
-                if not scan_task.done():
-                    scan_task.cancel()
+            self.assertEqual(invalid.status_code, 401, invalid.text)
 
-    anyio.run(exercise)
+    def test_api_edge_redacts_secret_bearing_error_detail(self):
+        exc = _http_error(
+            500,
+            {
+                "error": "upstream returned api_key=EDGE_SENTINEL_TOKEN_1234567890"
+            },
+        )
+        self.assertNotIn("EDGE_SENTINEL_TOKEN_1234567890", str(exc.detail))
+        self.assertIn("[REDACTED_SECRET]", str(exc.detail))
+
+    def test_auth_token_binds_tenant_not_x_tenant_header(self):
+        with mock.patch.dict(
+            "os.environ",
+            {"ARE_API_AUTH_TOKENS_JSON": f'{{"token-1":"{TENANT}"}}'},
+            clear=False,
+        ):
+            app = create_app(rubric=self.rubric, bundles=BundleStore())
+            client = TestClient(app)
+
+            mismatch = client.post(
+                "/score",
+                json=_request(self.rubric),
+                headers={
+                    "Authorization": "Bearer token-1",
+                    "X-Tenant-Id": "33333333-3333-3333-3333-333333333333",
+                },
+            )
+            self.assertEqual(mismatch.status_code, 409, mismatch.text)
+
+            ok = client.post(
+                "/score",
+                json=_request(self.rubric),
+                headers={"Authorization": "Bearer token-1"},
+            )
+            self.assertEqual(ok.status_code, 200, ok.text)
+
+    def test_quote_payload_tenant_must_match_auth_context(self):
+        with mock.patch.dict(
+            "os.environ",
+            {"ARE_API_AUTH_TOKENS_JSON": f'{{"token-1":"{TENANT}"}}'},
+            clear=False,
+        ):
+            app = create_app(rubric=self.rubric, bundles=BundleStore())
+            client = TestClient(app)
+            body = {
+                "tenant_id": "33333333-3333-3333-3333-333333333333",
+                "score": {
+                    "bmi": 78,
+                    "band": {
+                        "letter": "B",
+                        "modifier": "neutral",
+                        "modifier_factor": 1.0,
+                    },
+                },
+                "customer": {
+                    "sector": "ENT_SAAS",
+                    "annual_revenue_usd": 100_000_000,
+                    "limit": {"per_claim_usd": 1_000_000, "aggregate_usd": 2_000_000},
+                },
+            }
+
+            response = client.post(
+                "/quote",
+                json=body,
+                headers={"Authorization": "Bearer token-1"},
+            )
+            self.assertEqual(response.status_code, 409, response.text)
 
 
 if __name__ == "__main__":

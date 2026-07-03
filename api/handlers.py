@@ -220,3 +220,30 @@ def quote_handler(
     except QuoteError as exc:
         raise HandlerError(422, f"quote rejected: {exc}") from exc
     return 200, result
+
+
+def validate_quote_tenant_context(
+    body: dict[str, Any],
+    *,
+    authenticated_tenant_id: str | None,
+) -> None:
+    """Reject quote attempts that try to supply a different tenant in payload.
+
+    The API edge authenticates tenant identity; request JSON may only echo it.
+    This keeps quote-time pricing from trusting tenant ids supplied by the
+    scored party.
+    """
+    if authenticated_tenant_id is None:
+        return
+    candidates: list[tuple[str, Any]] = [("tenant_id", body.get("tenant_id"))]
+    score = body.get("score")
+    if isinstance(score, dict):
+        candidates.append(("score.tenant_id", score.get("tenant_id")))
+    customer = body.get("customer")
+    if isinstance(customer, dict):
+        candidates.append(("customer.tenant_id", customer.get("tenant_id")))
+    for path, value in candidates:
+        if value in (None, ""):
+            continue
+        if str(value) != authenticated_tenant_id:
+            raise HandlerError(409, f"tenant mismatch between auth context and {path}")
