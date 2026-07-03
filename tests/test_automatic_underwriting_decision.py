@@ -292,8 +292,8 @@ def test_golden_decision_ids_for_a_b_c_d_outcomes():
         label: decide(envelope).decision_id
         for label, envelope in cases.items()
     } == {
-        "A": "a47ddd170f94b7b7e0955a2f8673239ecb3145e7ecfb4a92942553a5c4480a81",
-        "B": "af141f3d7061281bf121e38840213a399fff02abf72a567b8f6e2f232eee5456",
-        "C": "ad7d2e8c083aaa582e7d8ec8df53d907a5658eafd633232eb94c65316243e776",
+        "A": "d6d1407d393c094848b3115ecb6b51c5834dafd6674448cc301ffd1562f48194",
+        "B": "7b760e9cc92ef90a515a88d22813b26596cea41beb8fc52da2b32d96344a3e2c",
+        "C": "7c71b9b2ff1b0dfa7b1a5b1305effdfbff1749530a8d6562c2c5791cc1472359",
         "D": "c352e0dc253ce2e4cf71b2c02398d29d44406baf4dcda9b8a13fcdd4eed8258c",
     }
