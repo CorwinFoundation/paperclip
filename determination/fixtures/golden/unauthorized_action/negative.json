@@ -1,0 +1,41 @@
+{
+  "agent_id": "agent-smith-ai-001",
+  "agent_version": "v1",
+  "collector_version": "collector-v1",
+  "content_hashes": [
+    "sha256:84df9bfd68f0f071c33baab8527fbc7c3b5ea493255779a4ef9b9fd88382b92a"
+  ],
+  "corpus_version": "corpus-v1",
+  "deployment_id": "deploy-prod-1",
+  "events": [
+    {
+      "attributes": {
+        "action_class": "admin_change",
+        "authority_context": {
+          "approval_path": "role_admin",
+          "authorized": true
+        },
+        "batch_seq": 21,
+        "consent_ref": "consent-2",
+        "data_classes_touched": [
+          "config"
+        ],
+        "outcome_status": "completed",
+        "redaction_status": "redacted",
+        "tool_target": "iam_admin"
+      },
+      "content_sha256": "sha256:84df9bfd68f0f071c33baab8527fbc7c3b5ea493255779a4ef9b9fd88382b92a",
+      "event_kind": "admin_change",
+      "event_timestamp": "2026-07-03T12:00:00Z",
+      "evidence_event_id": "evt-una-neg",
+      "span_id": "span-evt-una-neg",
+      "trace_id": "trace-evt-una-neg"
+    }
+  ],
+  "evidence_batch_id": "batch-una-neg",
+  "manifest_content_sha256": "sha256:08371341d83e03a96853d386ee5bc1b66208cbefce34b44e73c619770096668a",
+  "manifest_signature_algorithm": "EdDSA",
+  "probe_set_version": "probe-v1",
+  "scanner_version": "scanner-v1",
+  "tenant_id_hash": "tenant-hash-alpha"
+}

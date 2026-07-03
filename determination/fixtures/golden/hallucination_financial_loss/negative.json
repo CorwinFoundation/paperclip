@@ -1,0 +1,45 @@
+{
+  "agent_id": "agent-smith-ai-001",
+  "agent_version": "v1",
+  "collector_version": "collector-v1",
+  "content_hashes": [
+    "sha256:57d4e479455934664e25cf2b4f0938142ef36871f160c3fd20ea1a45c717d6c1"
+  ],
+  "corpus_version": "corpus-v1",
+  "deployment_id": "deploy-prod-1",
+  "events": [
+    {
+      "attributes": {
+        "action_class": "transaction",
+        "authority_context": {
+          "authorized": true
+        },
+        "batch_seq": 41,
+        "consent_ref": "consent-4",
+        "data_classes_touched": [
+          "financial"
+        ],
+        "financial_loss": {
+          "amount": 50.0,
+          "currency": "USD",
+          "hallucination_attributed": false
+        },
+        "outcome_status": "completed",
+        "redaction_status": "redacted",
+        "tool_target": "payment_api"
+      },
+      "content_sha256": "sha256:57d4e479455934664e25cf2b4f0938142ef36871f160c3fd20ea1a45c717d6c1",
+      "event_kind": "transaction",
+      "event_timestamp": "2026-07-03T12:00:00Z",
+      "evidence_event_id": "evt-hfl-neg",
+      "span_id": "span-evt-hfl-neg",
+      "trace_id": "trace-evt-hfl-neg"
+    }
+  ],
+  "evidence_batch_id": "batch-hfl-neg",
+  "manifest_content_sha256": "sha256:3836d3d78b6e3e0bbc1f96af0f5986e7624c2bb7532d21d965d057e4f27542ca",
+  "manifest_signature_algorithm": "EdDSA",
+  "probe_set_version": "probe-v1",
+  "scanner_version": "scanner-v1",
+  "tenant_id_hash": "tenant-hash-alpha"
+}

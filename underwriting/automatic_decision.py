@@ -14,6 +14,15 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
+from determination.rule_dsl import (
+    canonical_json_bytes as _canonical_json_bytes,
+    compare as _compare,
+    get_path as _get_path,
+    path_missing as _path_missing,
+    seq_length as _length,
+    to_number as _num,
+)
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_POLICY_PATH = (
     _REPO_ROOT
@@ -95,12 +104,7 @@ class AutomaticDecision:
 
 def canonical_decision_bytes(decision: AutomaticDecision | Mapping[str, Any]) -> bytes:
     payload = decision.to_dict() if isinstance(decision, AutomaticDecision) else decision
-    return json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode("utf-8")
+    return _canonical_json_bytes(payload)
 
 
 def load_policy(path: Path | None = None) -> dict[str, Any]:
@@ -466,72 +470,11 @@ def _fired_rule(rule: Mapping[str, Any], match: _Match, envelope: Mapping[str, A
     )
 
 
-def _compare(actual: Any, operator: str, expected: Any) -> bool:
-    if operator == "equals":
-        return actual == expected
-    if operator == "in":
-        return actual in expected
-    if operator == "less_than":
-        return _num(actual) < _num(expected)
-    if operator == "greater_than_or_equal":
-        return _num(actual) >= _num(expected)
-    if operator == "length_greater_than":
-        return _length(actual) > int(expected)
-    if operator == "contains_any":
-        if not isinstance(actual, Iterable) or isinstance(actual, (str, bytes, Mapping)):
-            return False
-        actual_values = {str(item) for item in actual}
-        expected_values = {str(item) for item in expected}
-        return bool(actual_values & expected_values)
-    if operator == "between_inclusive":
-        lo, hi = expected
-        value = _num(actual)
-        return _num(lo) <= value <= _num(hi)
-    if operator == "in_ranges":
-        value = _num(actual)
-        return any(_num(lo) <= value <= _num(hi) for lo, hi in expected)
-    raise AutomaticDecisionError(f"unsupported operator: {operator}")
-
-
-def _num(value: Any) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError) as exc:
-        raise AutomaticDecisionError(f"expected numeric value, got {value!r}") from exc
-
-
-def _length(value: Any) -> int:
-    if value is None:
-        return 0
-    if isinstance(value, Mapping):
-        return len(value)
-    if isinstance(value, (str, bytes)):
-        return len(value)
-    if isinstance(value, Iterable):
-        return sum(1 for _ in value)
-    return 0
-
-
 def _get_required(envelope: Mapping[str, Any], path: str) -> Any:
     value = _get_path(envelope, path)
     if value is None:
         raise AutomaticDecisionError(f"envelope missing required field {path}")
     return value
-
-
-def _get_path(data: Mapping[str, Any], path: str) -> Any:
-    current: Any = data
-    for part in path.split("."):
-        if isinstance(current, Mapping) and part in current:
-            current = current[part]
-        else:
-            return None
-    return current
-
-
-def _path_missing(data: Mapping[str, Any], path: str) -> bool:
-    value = _get_path(data, path)
-    return value is None or value == "" or value == []
 
 
 def _band_letter(raw: Any) -> str:

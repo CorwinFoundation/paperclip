@@ -1,0 +1,40 @@
+{
+  "agent_id": "agent-smith-ai-001",
+  "agent_version": "v1",
+  "collector_version": "collector-v1",
+  "content_hashes": [
+    "sha256:597e3af39e5e61f5fc7af2b7d59a5a48c99de43cf962a28db96df9891d938e27"
+  ],
+  "corpus_version": "corpus-v1",
+  "deployment_id": "deploy-prod-1",
+  "events": [
+    {
+      "attributes": {
+        "action_class": "data_access",
+        "authority_context": {
+          "authorized": true
+        },
+        "batch_seq": 31,
+        "consent_ref": "consent-3",
+        "data_classes_touched": [
+          "pii"
+        ],
+        "outcome_status": "completed",
+        "redaction_status": "redacted",
+        "tool_target": "external_email"
+      },
+      "content_sha256": "sha256:597e3af39e5e61f5fc7af2b7d59a5a48c99de43cf962a28db96df9891d938e27",
+      "event_kind": "data_access",
+      "event_timestamp": "2026-07-03T12:00:00Z",
+      "evidence_event_id": "evt-dlk-neg",
+      "span_id": "span-evt-dlk-neg",
+      "trace_id": "trace-evt-dlk-neg"
+    }
+  ],
+  "evidence_batch_id": "batch-dlk-neg",
+  "manifest_content_sha256": "sha256:bcec03e4e124bcdfb095a2f5ec35cc2c6ae86d16fa3742d0345d18fd6eeac7af",
+  "manifest_signature_algorithm": "EdDSA",
+  "probe_set_version": "probe-v1",
+  "scanner_version": "scanner-v1",
+  "tenant_id_hash": "tenant-hash-alpha"
+}

@@ -1,0 +1,41 @@
+{
+  "agent_id": "agent-smith-ai-001",
+  "agent_version": "v1",
+  "collector_version": "collector-v1",
+  "content_hashes": [
+    "sha256:32743573b46c346ed357d1094a0fb20ee67c3e43bd62037c98d2fad384e36892"
+  ],
+  "corpus_version": "corpus-v1",
+  "deployment_id": "deploy-prod-1",
+  "events": [
+    {
+      "attributes": {
+        "action_class": "transaction",
+        "authority_context": {
+          "approval_state": "unknown"
+        },
+        "batch_seq": 12,
+        "consent_ref": "consent-1",
+        "counterparty_ref": "sha256:8f9c8e8b2c6ac22f6641872b30130529bee2c410b40e03583be5d27e8a892aa5",
+        "data_classes_touched": [
+          "financial"
+        ],
+        "outcome_status": "completed",
+        "redaction_status": "redacted",
+        "tool_target": "bank_transfer_api"
+      },
+      "content_sha256": "sha256:32743573b46c346ed357d1094a0fb20ee67c3e43bd62037c98d2fad384e36892",
+      "event_kind": "transaction",
+      "event_timestamp": "2026-07-03T12:00:00Z",
+      "evidence_event_id": "evt-wrt-bnd",
+      "span_id": "span-evt-wrt-bnd",
+      "trace_id": "trace-evt-wrt-bnd"
+    }
+  ],
+  "evidence_batch_id": "batch-wrt-bnd",
+  "manifest_content_sha256": "sha256:465d3c0e3f735c56cfe5335e4feea127f11f8f10d0f84a846c1ad430ee72e7b3",
+  "manifest_signature_algorithm": "EdDSA",
+  "probe_set_version": "probe-v1",
+  "scanner_version": "scanner-v1",
+  "tenant_id_hash": "tenant-hash-alpha"
+}

@@ -1,0 +1,151 @@
+# BEAAA-11372 Determination Engine v1 — versioned detection rules.
+#
+# Scope: wrapper-1 covered perils only (BEAAA-11371 / spec 3.4.B). Any peril
+# outside this set is a rule-change question for Underwriter + CTO, not an edit
+# here. Predicates evaluate Evidence Profile v1 attributes
+# (contracts/evidence-profile-v1.md) on immutable structured event summaries.
+#
+# Determinations are deterministic and reproducible from this rule_set_version
+# plus the immutable evidence packet alone. No LLM sits in the deciding path.
+# v1 runs a human lane first: a matched rule yields a covered-peril CANDIDATE
+# routed to a human reviewer, never an auto-bound coverage ruling.
+#
+# Rule shape (per event, first matching rule wins):
+#   match:    predicate that flags the event for this peril
+#   decision: covered_candidate (default) | insufficient_evidence
+#
+# Each peril ships a strict positive rule (covered_candidate) immediately
+# followed by a boundary rule (insufficient_evidence) that fires when the
+# candidate shape is present but a required adjudication field is missing or
+# ambiguous. Order matters: the positive rule is evaluated before its boundary
+# sibling, so a fully-evidenced event yields a candidate and an under-evidenced
+# one is referred rather than emitting a false finding.
+
+rule_set_version: "determination-rules-wrapper1@1.0.0"
+schema: "determination-rules/v1"
+review_owner: "determination_reviewer"
+
+perils:
+  - id: wrong_recipient_transaction
+    label: "Wrong-recipient transaction"
+  - id: unauthorized_action
+    label: "Unauthorized action"
+  - id: data_leak
+    label: "Data leak"
+  - id: hallucination_financial_loss
+    label: "Hallucination-caused financial loss (scoped)"
+
+# Sensitive data classes that make a disclosure a candidate data-leak event.
+sensitive_data_classes: ["pii", "phi", "pci", "secret", "credential", "financial"]
+
+rules:
+  # --- Wrong-recipient transaction -------------------------------------------
+  # Evidence basis: a transaction/message directed at a counterparty_ref that is
+  # not in the authorized set recorded in authority_context. Works on hashed
+  # counterparties alone (spec Open Q3, design goal: yes).
+  - id: DET-WRT-001
+    peril: wrong_recipient_transaction
+    decision: covered_candidate
+    description: >-
+      Consequential action whose recipient (counterparty_ref) is not in the
+      authorized counterparty set for the acting agent.
+    match:
+      all:
+        - {path: action_class, operator: in, value: [transaction, message_send, tool_call]}
+        - {path: outcome_status, operator: in, value: [completed, reversed, refunded]}
+        - {present: [counterparty_ref, authority_context.authorized_counterparty_refs]}
+        - {path: counterparty_ref, operator: not_in, value_path: authority_context.authorized_counterparty_refs}
+  - id: DET-WRT-001B
+    peril: wrong_recipient_transaction
+    decision: insufficient_evidence
+    description: >-
+      Consequential action with a recipient but no authorized counterparty set
+      recorded: cannot prove wrong-recipient. Refer to human lane.
+    match:
+      all:
+        - {path: action_class, operator: in, value: [transaction, message_send, tool_call]}
+        - {path: outcome_status, operator: in, value: [completed, reversed, refunded]}
+        - {present: [counterparty_ref]}
+        - {missing: [authority_context.authorized_counterparty_refs]}
+
+  # --- Unauthorized action ---------------------------------------------------
+  # Evidence basis: authority_context marks the action as not authorized (out of
+  # delegated boundary / missing required approval) yet it completed.
+  - id: DET-UNA-001
+    peril: unauthorized_action
+    decision: covered_candidate
+    description: >-
+      Consequential action executed while authority_context reports the acting
+      agent was not authorized to perform it.
+    match:
+      all:
+        - {path: action_class, operator: in, value: [transaction, admin_change, data_access, tool_call, message_send]}
+        - {path: outcome_status, operator: in, value: [completed, escalated, reversed]}
+        - {path: authority_context.authorized, operator: equals, value: false}
+  - id: DET-UNA-001B
+    peril: unauthorized_action
+    decision: insufficient_evidence
+    description: >-
+      Consequential action with no recorded authorization state: cannot decide
+      authority. Refer to human lane.
+    match:
+      all:
+        - {path: action_class, operator: in, value: [transaction, admin_change, data_access, tool_call, message_send]}
+        - {path: outcome_status, operator: in, value: [completed, escalated, reversed]}
+        - {missing: [authority_context.authorized]}
+
+  # --- Data leak -------------------------------------------------------------
+  # Evidence basis: sensitive data classes touched with edge redaction failed.
+  - id: DET-DLK-001
+    peril: data_leak
+    decision: covered_candidate
+    description: >-
+      Sensitive data classes were touched on an event whose edge redaction
+      failed, indicating unredacted sensitive content left the boundary.
+    match:
+      all:
+        - {present: [data_classes_touched]}
+        - {path: data_classes_touched, operator: contains_any, value: ["pii", "phi", "pci", "secret", "credential", "financial"]}
+        - {path: redaction_status, operator: equals, value: failed}
+  - id: DET-DLK-001B
+    peril: data_leak
+    decision: insufficient_evidence
+    description: >-
+      Sensitive data classes touched but redaction outcome is unknown/missing:
+      cannot assert a leak occurred. Refer to human lane.
+    match:
+      all:
+        - {present: [data_classes_touched]}
+        - {path: data_classes_touched, operator: contains_any, value: ["pii", "phi", "pci", "secret", "credential", "financial"]}
+        - any:
+            - {path: redaction_status, operator: equals, value: unknown}
+            - {missing: [redaction_status]}
+
+  # --- Hallucination-caused financial loss (scoped, narrow) ------------------
+  # Evidence basis: a financial transaction attributed to a hallucinated basis
+  # (collector-set, narrow scope) with a recorded loss amount. Signal provenance
+  # is intentionally narrow; broadening it is a rule-change for Underwriter+CTO.
+  - id: DET-HFL-001
+    peril: hallucination_financial_loss
+    decision: covered_candidate
+    description: >-
+      Financial transaction attributed to a hallucinated/fabricated basis with a
+      recorded financial loss amount.
+    match:
+      all:
+        - {path: action_class, operator: equals, value: transaction}
+        - {path: outcome_status, operator: in, value: [completed, reversed, refunded]}
+        - {path: financial_loss.hallucination_attributed, operator: equals, value: true}
+        - {present: [financial_loss.amount]}
+  - id: DET-HFL-001B
+    peril: hallucination_financial_loss
+    decision: insufficient_evidence
+    description: >-
+      Financial transaction attributed to hallucination but with no recorded
+      loss amount yet: refer to human lane.
+    match:
+      all:
+        - {path: action_class, operator: equals, value: transaction}
+        - {path: outcome_status, operator: in, value: [completed, reversed, refunded]}
+        - {path: financial_loss.hallucination_attributed, operator: equals, value: true}
+        - {missing: [financial_loss.amount]}
