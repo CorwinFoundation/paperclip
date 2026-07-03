@@ -1,3 +1,4 @@
+import base64
 import json
 import sqlite3
 import stat
@@ -1204,6 +1205,175 @@ class TestScanTriggerAuthGate:
             self._stop_server(service, server)
 
 
+class TestPortalReadAuthGate:
+    """BEAAA-11607: default-deny GET authorization for scan/DP-scoped portal reads."""
+
+    @staticmethod
+    def _start_server(tmp_path):
+        return TestScanTriggerAuthGate._start_server(tmp_path)
+
+    @staticmethod
+    def _stop_server(service, server):
+        TestScanTriggerAuthGate._stop_server(service, server)
+
+    @staticmethod
+    def _request(method, url, *, headers=None, data=None, content_type=None):
+        return TestScanTriggerAuthGate._request(method, url, headers=headers, data=data, content_type=content_type)
+
+    @staticmethod
+    def _seed_authorized_scan(service):
+        signing_key, dp, enrollment = enroll_ready_dp(service)
+        scan = service.trigger_scan(dp["dp_id"])
+        submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+        service.submit_sbom_attestation(scan["scan_id"], _minimal_sbom_attestation())
+        service.evaluate_bind(scan["scan_id"])
+        return dp, scan
+
+    @staticmethod
+    def _seed_pre_scan_artifacts(service):
+        envelope = {
+            "scan_id": "pre-scan-authz-fixture",
+            "surface": portal.PRE_SCAN_SURFACE,
+            "pre_scan_version": portal.PRE_SCAN_VERSION,
+            "signals": [],
+        }
+        service.db.execute(
+            "INSERT INTO pre_scan_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                envelope["scan_id"],
+                "vendor-name-hash",
+                "vendor-url-hash",
+                "ip-hash",
+                now_iso(),
+                json.dumps(envelope, sort_keys=True),
+                b"%PDF-1.4\n% fixture\n",
+                "ok",
+            ),
+        )
+        service.db.commit()
+        return envelope["scan_id"]
+
+    def test_scan_and_dp_gets_default_deny_then_allow_same_dp_bearer(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("PORTAL_ADMIN_TOKEN", raising=False)
+        service, server = self._start_server(tmp_path)
+        try:
+            dp_a, scan_a = self._seed_authorized_scan(service)
+            dp_b, _scan_b = self._seed_authorized_scan(service)
+            base = f"http://127.0.0.1:{server.server_port}"
+            paths = [
+                f"/dp/{dp_a['dp_id']}",
+                f"/reports/{scan_a['scan_id']}/dp",
+                f"/scans/{scan_a['scan_id']}/sbom-attestation",
+                f"/scans/{scan_a['scan_id']}/bind",
+                f"/api/v1/scans/{scan_a['scan_id']}/underwriting_rollup",
+            ]
+
+            for path in paths:
+                code, _hdrs, body = self._request("GET", f"{base}{path}")
+                assert code == 403, f"unauthenticated GET {path} must default-deny; got {code} {body!r}"
+                assert json.loads(body)["error"] == "portal_read_unauthorized"
+
+                code, _hdrs, body = self._request(
+                    "GET",
+                    f"{base}{path}",
+                    headers={"Authorization": f"Bearer {dp_b['dp_bearer']}"},
+                )
+                assert code == 403, f"cross-DP GET {path} must default-deny; got {code} {body!r}"
+                assert json.loads(body)["error"] == "portal_read_unauthorized"
+
+                code, _hdrs, body = self._request(
+                    "GET",
+                    f"{base}{path}",
+                    headers={"Authorization": f"Bearer {dp_a['dp_bearer']}"},
+                )
+                assert code == 200, f"same-DP bearer must read {path}; got {code} {body!r}"
+
+            code, _hdrs, body = self._request(
+                "GET",
+                f"{base}/reports/{scan_a['scan_id']}/internal_uw",
+                headers={"Authorization": f"Bearer {dp_a['dp_bearer']}"},
+            )
+            assert code == 403, f"DP bearer must not read internal report variant; got {code} {body!r}"
+            assert json.loads(body)["error"] == "portal_read_unauthorized"
+        finally:
+            self._stop_server(service, server)
+
+    def test_internal_report_and_prescan_artifacts_require_admin_bearer(self, tmp_path, monkeypatch):
+        secret = "test-secret-11607"
+        monkeypatch.setenv("PORTAL_ADMIN_TOKEN", secret)
+        service, server = self._start_server(tmp_path)
+        try:
+            dp, scan = self._seed_authorized_scan(service)
+            pre_scan_id = self._seed_pre_scan_artifacts(service)
+            base = f"http://127.0.0.1:{server.server_port}"
+            protected_paths = [
+                f"/reports/{scan['scan_id']}/internal_uw",
+                f"/pre-scan/{pre_scan_id}.json",
+                f"/pre-scan/{pre_scan_id}.pdf",
+            ]
+
+            for path in protected_paths:
+                code, _hdrs, body = self._request(
+                    "GET",
+                    f"{base}{path}",
+                    headers={"Authorization": f"Bearer {dp['dp_bearer']}"},
+                )
+                assert code == 403, f"DP bearer must not read admin-only {path}; got {code} {body!r}"
+
+                code, _hdrs, body = self._request(
+                    "GET",
+                    f"{base}{path}",
+                    headers={"Authorization": f"Bearer {secret}"},
+                )
+                assert code == 200, f"admin bearer must read {path}; got {code} {body!r}"
+
+            code, _hdrs, body = self._request("GET", f"{base}/pre-scan")
+            assert code == 200
+            assert b"BackBond Pre-Scan" in body
+        finally:
+            self._stop_server(service, server)
+
+
+def _minimal_sbom_attestation() -> dict[str, object]:
+    body = json.dumps(
+        {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.5",
+            "version": 1,
+            "components": [],
+        },
+        sort_keys=True,
+    ).encode("utf-8")
+    ts = now_iso()
+    return {
+        "sbom": {
+            "format": "cyclonedx_json",
+            "body_base64": base64.b64encode(body).decode("ascii"),
+            "generated_at": ts,
+            "generator": "beaaa-11607-fixture",
+        },
+        "package_lock_evidence": {"source": "none"},
+        "cve_cross_check": {
+            "executed_at": ts,
+            "feeds": {
+                "kev": {
+                    "source": "CISA KEV",
+                    "feed_version_or_retrieved_at": ts,
+                    "hits": [],
+                },
+                "nvd": {
+                    "source": "NVD",
+                    "feed_version_or_retrieved_at": ts,
+                    "hits": [],
+                },
+            },
+            "tool_output_uri": "portal-evidence://beaaa-11607/sca-output.json",
+            "tool_output_sha256": sha256_hex(b"beaaa-11607-sca-output"),
+        },
+        "attestation_statement": "BEAAA-11607 deterministic fixture.",
+    }
+
+
 class TestRequestBodySizeCap:
     """BEAAA-5736 F-04: cap inbound POST/PUT body size to prevent memory-exhaustion DoS.
 
@@ -1739,7 +1909,7 @@ def test_internal_uw_renders_rollup_block(service):
         assert "Loss-control signal only" in html_doc
 
 
-def test_underwriting_rollup_endpoint_returns_canonical_shape(tmp_path):
+def test_underwriting_rollup_endpoint_returns_canonical_shape(tmp_path, monkeypatch):
     """AC6 — GET /api/v1/scans/{scan_id}/underwriting_rollup returns the documented
     JSON shape (covered_perils, non_covered_regulatory_signal, score_invariants block, etc.).
 
@@ -1768,13 +1938,16 @@ def test_underwriting_rollup_endpoint_returns_canonical_shape(tmp_path):
         }
 
         # HTTP round-trip via the in-process server.
+        secret = "test-secret-rollup-read"
+        monkeypatch.setenv("PORTAL_ADMIN_TOKEN", secret)
         PortalHandler.service = service
         server = _AdminTHS(("127.0.0.1", 0), PortalHandler)
         thread = _admin_threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
             url = f"http://127.0.0.1:{server.server_port}/api/v1/scans/{scan['scan_id']}/underwriting_rollup"
-            with _admin_urlreq.urlopen(url) as resp:
+            req = _admin_urlreq.Request(url, headers={"Authorization": f"Bearer {secret}"})
+            with _admin_urlreq.urlopen(req) as resp:
                 assert resp.status == 200
                 http_rollup = json.loads(resp.read().decode("utf-8"))
             # HTTP payload matches direct service call (modulo a fresh service-call
