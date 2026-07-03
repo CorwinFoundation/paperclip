@@ -257,11 +257,34 @@ def test_fixture_source_is_tenant_and_batch_isolated():
         )
 
 
-def test_live_evidence_store_read_adapter_is_a_named_blocker_seam():
-    # v1 does not have the live Postgres read client; the seam raises clearly.
-    with pytest.raises(NotImplementedError) as exc:
-        EvidenceStoreReadAdapter().read_packet()
-    assert "evidence_store.latest" in str(exc.value)
+def test_live_evidence_store_read_adapter_closes_the_blocker_seam():
+    # BEAAA-11378 closed the blocker: the live adapter now assembles a real
+    # EvidencePacket over the append-only store's current-head rows. It is a true
+    # EvidencePacketSource and reads under a strict four-field lineage filter.
+    # Full behavioral coverage lives in
+    # tests/test_evidence_store_read_adapter_beaaa11378.py; here we only prove the
+    # seam is closed and the engine can consume the live path identically to the
+    # fixture path.
+    from tests.test_evidence_store_read_adapter_beaaa11378 import (
+        InMemoryEvidenceStore,
+        _request_for,
+        _seed_from_packet_dict,
+    )
+
+    data = json.loads((GOLDEN / "data_leak" / "positive.json").read_text())
+    store = InMemoryEvidenceStore()
+    _seed_from_packet_dict(store, data)
+
+    live_packet = EvidenceStoreReadAdapter(store).read_packet(**_request_for(data))
+    assert live_packet == EvidencePacket.from_dict(data)
+
+    # The engine produces the identical determination from the live-read packet
+    # and the fixture-read packet — reproducibility across evidence sources.
+    from_live = _engine().evaluate(live_packet)
+    from_fixture = _engine().evaluate(_packet("data_leak", "positive"))
+    assert [r.determination_id for r in from_live] == [
+        r.determination_id for r in from_fixture
+    ]
 
 
 # --- Append-only determination audit-spine migration invariants -------------
