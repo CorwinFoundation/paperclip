@@ -163,7 +163,12 @@ def run_connector_flow(config: ConnectorSimConfig) -> dict[str, Any]:
             signed_envelope(signing_key, scan["scan_id"], task, config.endpoint_url),
         )
         submitted += 1
-    report_status, _ = request_json(config.base_url, "GET", f"/reports/{scan['scan_id']}/dp")
+    report_status, _ = request_json(
+        config.base_url,
+        "GET",
+        f"/reports/{scan['scan_id']}/dp",
+        headers={"Authorization": f"Bearer {accepted['dp_bearer']}"},
+    )
     return {
         "dp_id": accepted["dp_id"],
         "connector_id": enrollment["connector_id"],

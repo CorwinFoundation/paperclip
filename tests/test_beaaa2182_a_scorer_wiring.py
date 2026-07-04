@@ -453,7 +453,13 @@ class TestAGA6FlagOffRollback:
         """
         from api.scan_runtime_factory import _production_score_envelope_factory
 
-        runtime_ref: list = []
+        runtime = MagicMock()
+        runtime.prior_scan_rows.return_value = []
+        runtime.current_scan_request.return_value = MagicMock(
+            corpus_version="0.1.0",
+            seed=42,
+        )
+        runtime_ref: list = [runtime]
         scorer_envelope = {
             "agent_id": "agent-x",
             "are_total": 60,
@@ -487,6 +493,59 @@ class TestAGA6FlagOffRollback:
         assert envelope["run_timestamp"] == "2026-06-05T10:00:00Z"
         # API-edge patch: prior_scan_refs populated post-receive.
         assert envelope["prior_scan_refs"] == []
+
+    @pytest.mark.parametrize(
+        ("field_name", "forged_value", "message"),
+        (
+            ("corpus_version", "0.1.0-forged", "corpus_version mismatch"),
+            ("seed", 999, "seed mismatch"),
+        ),
+    )
+    def test_factory_rejects_unbound_provenance_in_scorer_envelope(
+        self,
+        field_name: str,
+        forged_value: object,
+        message: str,
+    ) -> None:
+        """BEAAA-11608 D-4: scorer envelopes cannot override runtime provenance."""
+        from api.scan_runtime_factory import (
+            ScanRuntimeError,
+            _production_score_envelope_factory,
+        )
+
+        runtime = MagicMock()
+        runtime.prior_scan_rows.return_value = []
+        runtime.current_scan_request.return_value = MagicMock(
+            corpus_version="0.1.0",
+            seed=42,
+        )
+        scorer_envelope = {
+            "agent_id": "agent-x",
+            "are_total": 60,
+            "band": "B",
+            "confidence_below_adjudication_threshold": False,
+            "corpus_version": "0.1.0",
+            "evidence_refs": [],
+            "model_versions": None,
+            "partial_completion": False,
+            "prior_scan_refs": [],
+            "purpose": "pre_bind",
+            "rubric_version": "1.0.1",
+            "run_timestamp": "2026-06-05T09:00:00Z",
+            "scanner_version": "0.3.11",
+            "seed": 42,
+            "subscores": {"P1.1": 3.0},
+        }
+        scorer_envelope[field_name] = forged_value
+        factory = _production_score_envelope_factory([runtime], {"scan-x": scorer_envelope})
+
+        result = MagicMock()
+        result.scan_id = "scan-x"
+        result.scanner_version = "0.3.11"
+        result.corpus_version = "0.1.0"
+
+        with pytest.raises(ScanRuntimeError, match=message):
+            factory(result, agent_id="agent-x", run_timestamp="2026-06-05T10:00:00Z")
 
 
 # ---------------------------------------------------------------------------

@@ -96,6 +96,14 @@ class CorpusSnapshotMismatchError(ValueError):
     """
 
 
+class CorpusProvenanceMismatchError(ValueError):
+    """Caller-asserted provenance disagrees with server-actual corpus state."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 class CredentialResolveError(RuntimeError):
     """Vault has no secret registered for the request's credential_ref.
 

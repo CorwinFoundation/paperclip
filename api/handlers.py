@@ -15,7 +15,7 @@ from pricing.quote import Ineligible, ManualReferral, QuoteError, Rates, quote
 from rubric.scoring import Rubric, ScoringError, score
 from underwriting import admittance
 
-from .bundle import BundleStore, derive_bundle_id
+from .bundle import BundleStore, new_opaque_bundle_id
 from .intake_guard import IntakeError, enforce_hosted_eval_only, enforce_input_safety
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
@@ -80,12 +80,7 @@ def score_handler(
         raise HandlerError(422, f"intake rejected: {exc}") from exc
 
     scored_at = scored_at or datetime.now(timezone.utc)
-    scored_at_iso = scored_at.isoformat()
-    bundle_id = derive_bundle_id(
-        snapshot_hash=snapshot["snapshot_hash"],
-        tenant_id=body["tenant_id"],
-        scored_at=scored_at_iso,
-    )
+    bundle_id = new_opaque_bundle_id()
     forensic_bundle_uri = f"https://scanner.beai.local/v0/forensic_bundle/{bundle_id}"
 
     engine_inputs = {
@@ -126,6 +121,7 @@ def score_handler(
     ]
     bundles.build(
         bundle_id=bundle_id,
+        tenant_id=body["tenant_id"],
         snapshot_hash=snapshot["snapshot_hash"],
         evidence=evidence,
     )
@@ -135,10 +131,13 @@ def score_handler(
 def forensic_bundle_handler(
     bundle_id: str,
     *,
+    tenant_header: str | None,
     bundles: BundleStore,
 ) -> tuple[int, dict[str, Any]]:
     """Process a /forensic_bundle/{bundleId} request."""
-    bundle = bundles.get(bundle_id)
+    if not tenant_header:
+        raise HandlerError(409, "X-Tenant-Id header required for tenant isolation")
+    bundle = bundles.get(bundle_id, tenant_id=tenant_header)
     if bundle is None:
         raise HandlerError(404, "bundle not found")
     return 200, bundle

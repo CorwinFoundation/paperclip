@@ -18,6 +18,7 @@ from api.bundle import (
     FileBundleStorage,
     derive_bundle_id,
     extract_target_endpoint_host,
+    new_opaque_bundle_id,
     redact_scan_request,
     verify,
 )
@@ -35,6 +36,7 @@ _LIVE_PROBE_SCAN_REQUEST = {
     "scan_mode": "live_probe",
     "k_replicates": 5,
 }
+TENANT_ID = "11111111-1111-1111-1111-111111111111"
 
 
 class BundleStoreTests(unittest.TestCase):
@@ -49,20 +51,45 @@ class BundleStoreTests(unittest.TestCase):
     def test_build_round_trip(self):
         b = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
         )
         self.assertEqual(b["bundle_id"], self.bundle_id)
+        self.assertEqual(b["tenant_id"], TENANT_ID)
         self.assertTrue(b["signed_manifest"].startswith("hmac-sha256:"))
-        got = self.store.get(self.bundle_id)
+        got = self.store.get(self.bundle_id, tenant_id=TENANT_ID)
         self.assertEqual(got, b)
 
     def test_get_unknown_returns_none(self):
-        self.assertIsNone(self.store.get("00000000-0000-0000-0000-000000000000"))
+        self.assertIsNone(
+            self.store.get("00000000-0000-0000-0000-000000000000", tenant_id=TENANT_ID)
+        )
+
+    def test_get_cross_tenant_returns_none(self):
+        self.store.build(
+            bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
+            snapshot_hash="sha256:abc",
+            evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
+        )
+        self.assertIsNone(
+            self.store.get(
+                self.bundle_id,
+                tenant_id="33333333-3333-3333-3333-333333333333",
+            )
+        )
+
+    def test_new_opaque_bundle_id_is_random_uuid4(self):
+        first = new_opaque_bundle_id()
+        second = new_opaque_bundle_id()
+        self.assertNotEqual(first, second)
+        self.assertEqual(len(first), 36)
 
     def test_verify_detects_tampering(self):
         b = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
         )
@@ -109,11 +136,12 @@ class FileBundleStorageTests(unittest.TestCase):
             )
             bundle = store.build(
                 bundle_id=bundle_id,
+                tenant_id="tenant-001",
                 snapshot_hash="sha256:abc",
                 evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
             )
             self.assertFalse(store.is_in_memory)
-            self.assertEqual(store.get(bundle_id), bundle)
+            self.assertEqual(store.get(bundle_id, tenant_id="tenant-001"), bundle)
 
     def test_file_storage_detects_tampering_on_read(self):
         from tempfile import TemporaryDirectory
@@ -127,6 +155,7 @@ class FileBundleStorageTests(unittest.TestCase):
             )
             store.build(
                 bundle_id=bundle_id,
+                tenant_id="tenant-001",
                 snapshot_hash="sha256:abc",
                 evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
             )
@@ -135,7 +164,7 @@ class FileBundleStorageTests(unittest.TestCase):
             payload["evidence"][0]["uri"] = "https://e/tampered"
             path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(BundleError, "signature mismatch"):
-                store.get(bundle_id)
+                store.get(bundle_id, tenant_id="tenant-001")
 
 
 class LiveProbeBundleAugmentationTests(unittest.TestCase):
@@ -174,6 +203,7 @@ class LiveProbeBundleAugmentationTests(unittest.TestCase):
     def test_live_probe_bundle_carries_three_new_fields(self):
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=self.evidence,
             scan_request=_LIVE_PROBE_SCAN_REQUEST,
@@ -199,6 +229,7 @@ class LiveProbeBundleAugmentationTests(unittest.TestCase):
         request_with_ref["credential_ref"] = f"vault://design-partner-a/key#{secret[:0]}"
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=self.evidence,
             scan_request=request_with_ref,
@@ -211,6 +242,7 @@ class LiveProbeBundleAugmentationTests(unittest.TestCase):
     def test_live_probe_bundle_verify_round_trip(self):
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=self.evidence,
             scan_request=_LIVE_PROBE_SCAN_REQUEST,
@@ -218,12 +250,13 @@ class LiveProbeBundleAugmentationTests(unittest.TestCase):
             target_endpoint_url="https://api.customer.example/v1/chat?key=abc",
         )
         verify(bundle)
-        got = self.store.get(self.bundle_id)
+        got = self.store.get(self.bundle_id, tenant_id=TENANT_ID)
         self.assertEqual(got, bundle)
 
     def test_live_probe_bundle_verify_detects_scan_request_tampering(self):
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=self.evidence,
             scan_request=_LIVE_PROBE_SCAN_REQUEST,
@@ -238,6 +271,7 @@ class LiveProbeBundleAugmentationTests(unittest.TestCase):
         with self.assertRaisesRegex(BundleError, "all of scan_request"):
             self.store.build(
                 bundle_id=self.bundle_id,
+                tenant_id=TENANT_ID,
                 snapshot_hash="sha256:abc",
                 evidence=self.evidence,
                 scan_request=_LIVE_PROBE_SCAN_REQUEST,
@@ -245,14 +279,13 @@ class LiveProbeBundleAugmentationTests(unittest.TestCase):
             )
 
 
-class OfflineReplayByteIdenticalRegressionTests(unittest.TestCase):
-    """Hard Invariant #2 on BEAAA-533: offline_replay bundles are unchanged pre/post BEAAA-541.
+class OfflineReplaySignedManifestRegressionTests(unittest.TestCase):
+    """Offline replay bundles stay stable after adding tenant ownership.
 
     The bundle is a hash-signed canonical-JSON manifest, so byte-identical
-    output is the strongest possible regression check: any drift in field
-    order, default values, or signing logic surfaces immediately as a hex
-    delta on `signed_manifest`. Acceptance criterion #5 and the parent's
-    Δ = 0.0000 invariant.
+    output over the tenant-bound manifest is the regression check: any drift
+    in field order, default values, or signing logic surfaces immediately as
+    a hex delta on `signed_manifest`.
     """
 
     # Pin the expected hex digest of a known offline bundle. If this test
@@ -272,6 +305,7 @@ class OfflineReplayByteIdenticalRegressionTests(unittest.TestCase):
     def test_offline_bundle_has_no_live_probe_fields(self):
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
         )
@@ -285,6 +319,7 @@ class OfflineReplayByteIdenticalRegressionTests(unittest.TestCase):
         # changes this byte sequence and the test fails loudly.
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
         )
@@ -296,7 +331,8 @@ class OfflineReplayByteIdenticalRegressionTests(unittest.TestCase):
         expected = (
             b'{"bundle_id":"' + self.bundle_id.encode("utf-8") + b'",'
             b'"evidence":[{"dim_id":"P1.1","sha256":"","uri":"https://e/x"}],'
-            b'"snapshot_hash":"sha256:abc"}'
+            b'"snapshot_hash":"sha256:abc",'
+            b'"tenant_id":"' + TENANT_ID.encode("utf-8") + b'"}'
         )
         self.assertEqual(manifest_bytes, expected)
         self.assertTrue(
@@ -305,18 +341,19 @@ class OfflineReplayByteIdenticalRegressionTests(unittest.TestCase):
 
     def test_offline_signed_manifest_is_pinned(self):
         # The HMAC over the offline manifest is deterministic given the
-        # default dev key. Pinning the hex digest catches any signing-path
-        # drift end-to-end (key derivation, canonicalization, manifest
+        # default dev key. Pinning the hex digest catches any full-path
+        # signing drift (key derivation, canonicalization, manifest
         # composition). If the dev key in api.bundle ever changes this
         # fixture must move with it.
         bundle = self.store.build(
             bundle_id=self.bundle_id,
+            tenant_id=TENANT_ID,
             snapshot_hash="sha256:abc",
             evidence=[{"dim_id": "P1.1", "uri": "https://e/x", "sha256": ""}],
         )
         self.assertEqual(
             bundle["signed_manifest"],
-            "hmac-sha256:e7fcc89ecc6b6bb76543605d479522c8a0ae1bb2d76ef8afd0dd14359ab34e81",
+            "hmac-sha256:cb4b9874e9251eea256a21bb3078608eb1bc1af4ab7fb50394e537d3b3eeceea",
         )
 
 

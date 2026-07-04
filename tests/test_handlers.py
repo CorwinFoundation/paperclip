@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from api.bundle import BundleStore
+from api.bundle import BundleStore, derive_bundle_id
 from api.handlers import HandlerError, forensic_bundle_handler, score_handler
 from api.intake_guard import HOSTED_RUNNER
 from rubric.scoring import Rubric
@@ -74,8 +74,7 @@ class ScoreHandlerTests(unittest.TestCase):
         s1, b1 = self._call(_request(self.rubric, raw=2.0))
         s2, b2 = self._call(_request(self.rubric, raw=2.0))
         self.assertEqual(s1, s2)
-        self.assertEqual(b1, b2)
-        self.assertEqual(b1["forensic_bundle_uri"], b2["forensic_bundle_uri"])
+        self.assertNotEqual(b1["forensic_bundle_uri"], b2["forensic_bundle_uri"])
 
     def test_tenant_isolation_mismatch_409(self):
         with self.assertRaises(HandlerError) as ctx:
@@ -135,16 +134,59 @@ class ForensicBundleHandlerTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         bundle_id = score_body["forensic_bundle_uri"].rsplit("/", 1)[-1]
-        gstatus, bundle = forensic_bundle_handler(bundle_id, bundles=self.bundles)
+        gstatus, bundle = forensic_bundle_handler(
+            bundle_id,
+            tenant_header=TENANT,
+            bundles=self.bundles,
+        )
         self.assertEqual(gstatus, 200)
         self.assertEqual(bundle["bundle_id"], bundle_id)
+        self.assertEqual(bundle["tenant_id"], TENANT)
         self.assertEqual(bundle["snapshot_hash"], SNAPSHOT_HASH)
         self.assertTrue(bundle["signed_manifest"].startswith("hmac-sha256:"))
+
+    def test_cross_tenant_get_returns_404(self):
+        status, score_body = score_handler(
+            _request(self.rubric), tenant_header=TENANT, rubric=self.rubric,
+            bundles=self.bundles, scored_at=SCORED_AT,
+        )
+        self.assertEqual(status, 200)
+        bundle_id = score_body["forensic_bundle_uri"].rsplit("/", 1)[-1]
+        with self.assertRaises(HandlerError) as ctx:
+            forensic_bundle_handler(
+                bundle_id,
+                tenant_header="33333333-3333-3333-3333-333333333333",
+                bundles=self.bundles,
+            )
+        self.assertEqual(ctx.exception.status, 404)
+
+    def test_legacy_derived_bundle_id_does_not_fetch(self):
+        status, score_body = score_handler(
+            _request(self.rubric), tenant_header=TENANT, rubric=self.rubric,
+            bundles=self.bundles, scored_at=SCORED_AT,
+        )
+        self.assertEqual(status, 200)
+        actual_bundle_id = score_body["forensic_bundle_uri"].rsplit("/", 1)[-1]
+        legacy_bundle_id = derive_bundle_id(
+            snapshot_hash=SNAPSHOT_HASH,
+            tenant_id=TENANT,
+            scored_at=SCORED_AT.isoformat(),
+        )
+        self.assertNotEqual(actual_bundle_id, legacy_bundle_id)
+        with self.assertRaises(HandlerError) as ctx:
+            forensic_bundle_handler(
+                legacy_bundle_id,
+                tenant_header=TENANT,
+                bundles=self.bundles,
+            )
+        self.assertEqual(ctx.exception.status, 404)
 
     def test_get_unknown_404(self):
         with self.assertRaises(HandlerError) as ctx:
             forensic_bundle_handler(
-                "00000000-0000-0000-0000-000000000000", bundles=self.bundles,
+                "00000000-0000-0000-0000-000000000000",
+                tenant_header=TENANT,
+                bundles=self.bundles,
             )
         self.assertEqual(ctx.exception.status, 404)
 

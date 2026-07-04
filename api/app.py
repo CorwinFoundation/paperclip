@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import os
 import json
+import logging
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +44,7 @@ from .sla import RoutingEventSink, SlaRegistry
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
 RATES_PATH = REPO_ROOT / "pricing" / "rates.yaml"
+LOGGER = logging.getLogger(__name__)
 
 #: Env var that opts into the BEAAA-553 (T-CLOSE) production scan wiring.
 #: Default-off so the offline ``/score`` + ``/forensic_bundle/{id}`` path is
@@ -156,6 +159,21 @@ def create_app(
     app.state.sla_registry = sla_registry or SlaRegistry()
     app.state.routing_event_sink = routing_event_sink or RoutingEventSink()
 
+    @app.exception_handler(Exception)
+    async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        correlation_id = str(uuid.uuid4())
+        LOGGER.exception(
+            "Unhandled portal exception correlation_id=%s path=%s",
+            correlation_id,
+            request.url.path,
+            exc_info=exc,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"error": "internal_error", "correlation_id": correlation_id},
+            headers={"X-Correlation-Id": correlation_id},
+        )
+
     @app.post("/score")
     async def post_score(
         request: Request,
@@ -177,10 +195,18 @@ def create_app(
         return payload
 
     @app.get("/forensic_bundle/{bundle_id}")
-    async def get_bundle(request: Request, bundle_id: str) -> Any:
-        _authenticated_tenant_id(request, runtime_profile)
+    async def get_bundle(
+        request: Request,
+        bundle_id: str,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    ) -> Any:
+        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         try:
-            status, payload = forensic_bundle_handler(bundle_id, bundles=app.state.bundles)
+            status, payload = forensic_bundle_handler(
+                bundle_id,
+                tenant_header=tenant_context,
+                bundles=app.state.bundles,
+            )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
         if status != 200:

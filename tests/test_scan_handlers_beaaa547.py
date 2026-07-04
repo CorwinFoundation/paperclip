@@ -189,6 +189,78 @@ def test_get_scan_returns_customer_payload_after_post(corpus_hash, stub_runtime)
     assert payload["scan_id"] == "scan-test-2"
 
 
+def test_scan_runtime_rejects_invalid_in_memory_state_ttl():
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del secret
+        return _synthetic_result(scan_request.scan_id)
+
+    with pytest.raises(ValueError, match="in_memory_state_ttl_seconds"):
+        ScanRuntime(run_scan_fn=run_scan_fn, in_memory_state_ttl_seconds=0)
+
+
+def test_scan_runtime_in_memory_state_expires_after_ttl(corpus_hash):
+    now = [100.0]
+
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del secret
+        return _synthetic_result(scan_request.scan_id)
+
+    runtime = ScanRuntime(
+        run_scan_fn=run_scan_fn,
+        in_memory_state_ttl_seconds=10,
+        monotonic_clock=lambda: now[0],
+    )
+    scan_handler(
+        _good_body(corpus_hash, agent_id="agent-ttl"),
+        tenant_header="tenant-001",
+        runtime=runtime,
+        scan_id_factory=lambda: "scan-ttl",
+    )
+
+    assert runtime.fetch("scan-ttl") is not None
+    assert runtime.current_scan_request("scan-ttl") is not None
+    assert runtime.has_prior_scan_for_agent("agent-ttl") is True
+
+    now[0] = 111.0
+
+    assert runtime.fetch("scan-ttl") is None
+    assert runtime.current_scan_request("scan-ttl") is None
+    assert runtime.has_prior_scan_for_agent("agent-ttl") is False
+
+
+def test_scan_runtime_ttl_keeps_scan_log_prior_scan(corpus_hash, tmp_path):
+    from api.scan_log import ScanLog
+
+    now = [100.0]
+
+    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        del secret
+        return _synthetic_result(scan_request.scan_id)
+
+    scan_log = ScanLog(tmp_path / "scan-log.sqlite3")
+    scan_log.append_scan(
+        agent_id="agent-persisted",
+        run_timestamp="2026-07-04T00:00:00Z",
+        scan_id="scan-persisted",
+        scanner_version="0.4.2",
+        corpus_version="0.2.0",
+        score_json={"are_total": 91, "band": "A"},
+        forensic_bundle_uri="s3://bundles/scan-persisted",
+    )
+    runtime = ScanRuntime(
+        run_scan_fn=run_scan_fn,
+        scan_log=scan_log,
+        in_memory_state_ttl_seconds=10,
+        monotonic_clock=lambda: now[0],
+    )
+    runtime.register_prior_scan("agent-ephemeral")
+
+    now[0] = 111.0
+
+    assert runtime.has_prior_scan_for_agent("agent-ephemeral") is False
+    assert runtime.has_prior_scan_for_agent("agent-persisted") is True
+
+
 # ---------------------------------------------------------------------------
 # AC#3 — request validation produces clear error codes.
 # ---------------------------------------------------------------------------

@@ -218,6 +218,7 @@ class ForensicBundleSignerTamperTests(unittest.TestCase):
             store = BundleStore()
             bundle = store.build(
                 bundle_id="bundle-beaaa-7321",
+                tenant_id="tenant-red-team",
                 snapshot_hash=SNAPSHOT_HASH,
                 evidence=[
                     {
@@ -238,7 +239,10 @@ class ForensicBundleSignerTamperTests(unittest.TestCase):
             with self.assertRaisesRegex(BundleError, "signature mismatch"):
                 verify(forged)
 
-            self.assertEqual(store.get("bundle-beaaa-7321"), bundle)
+            self.assertEqual(
+                store.get("bundle-beaaa-7321", tenant_id="tenant-red-team"),
+                bundle,
+            )
 
 
 if __name__ == "__main__":

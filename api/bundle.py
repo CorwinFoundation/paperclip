@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-# Deterministic namespace UUID for bundle ids (uuid5 over canonical request).
+# Deterministic namespace UUID for internal idempotency keys (uuid5 over canonical request).
 _BUNDLE_NS = uuid.UUID("c1c1f1c0-bea1-4bea-b001-bea1bea1bea1")
 _REDACTED = "<redacted>"
 # Used only when ARE_ALLOW_DEV_SIGNING_KEY=true; never acceptable in production.
@@ -62,9 +62,19 @@ def _canonical(obj: Any) -> bytes:
 
 
 def derive_bundle_id(snapshot_hash: str, tenant_id: str, scored_at: str) -> str:
-    """Deterministic bundle_id so same inputs → same id (red-line determinism)."""
+    """Deterministic internal idempotency key for same-input bundle writes.
+
+    Do not expose this value as the fetch handle. Public forensic-bundle ids
+    are random opaque handles so callers cannot derive another tenant's bundle
+    URI from known scan metadata.
+    """
     seed = f"{tenant_id}|{snapshot_hash}|{scored_at}"
     return str(uuid.uuid5(_BUNDLE_NS, seed))
+
+
+def new_opaque_bundle_id() -> str:
+    """Return a random external forensic-bundle fetch handle."""
+    return str(uuid.uuid4())
 
 
 def _sign(manifest: dict[str, Any]) -> str:
@@ -169,6 +179,7 @@ class BundleStore:
         self,
         *,
         bundle_id: str,
+        tenant_id: str,
         snapshot_hash: str,
         evidence: list[dict[str, Any]],
         scan_request: dict[str, Any] | None = None,
@@ -193,6 +204,7 @@ class BundleStore:
 
         manifest: dict[str, Any] = {
             "bundle_id": bundle_id,
+            "tenant_id": tenant_id,
             "snapshot_hash": snapshot_hash,
             "evidence": evidence,
         }
@@ -209,12 +221,14 @@ class BundleStore:
         self.storage.put(bundle_id, bundle)
         return bundle
 
-    def get(self, bundle_id: str) -> dict[str, Any] | None:
+    def get(self, bundle_id: str, *, tenant_id: str) -> dict[str, Any] | None:
         bundle = self.storage.get(bundle_id)
         if bundle is None:
             return None
         # Verify-on-read: tampering detection at retrieval time, not just write.
         verify(bundle)
+        if bundle.get("tenant_id") != tenant_id:
+            return None
         return bundle
 
     def clear(self) -> None:
@@ -228,6 +242,7 @@ def verify(bundle: dict[str, Any]) -> None:
         raise BundleError("missing signed_manifest")
     manifest: dict[str, Any] = {
         "bundle_id": bundle["bundle_id"],
+        "tenant_id": bundle["tenant_id"],
         "snapshot_hash": bundle["snapshot_hash"],
         "evidence": bundle["evidence"],
     }

@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import os
 import tarfile
 import tempfile
@@ -74,6 +75,7 @@ from harness.credentials import CredentialVault
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
 from scanners.live_probe_orchestrator import (
+    CorpusProvenanceMismatchError,
     OrchestratorError,
     ProbeRunFn,
     ScanRequest,
@@ -126,6 +128,10 @@ SCORER_ROW_RECV_TIMEOUT_SECONDS: float = float(
 ARE_SCORER_REAL_ENV: str = "ARE_SCORER_REAL"
 
 
+class ScanRuntimeError(RuntimeError):
+    """Runtime refused to persist an internally inconsistent scan result."""
+
+
 def _scorer_real_enabled() -> bool:
     """True iff the Scorer-side scoring path is enabled.
 
@@ -134,6 +140,32 @@ def _scorer_real_enabled() -> bool:
     """
     value = os.environ.get(ARE_SCORER_REAL_ENV, "on").strip().lower()
     return value in ("on", "1", "true", "yes")
+
+
+def _server_corpus_provenance(corpus_tarball_path: Path | str) -> tuple[str, int]:
+    """Read the runtime corpus manifest that the Prober will actually run."""
+    with tarfile.open(corpus_tarball_path, "r:*") as tar:
+        try:
+            manifest = tar.extractfile("manifest.json")
+        except KeyError as exc:
+            raise CorpusProvenanceMismatchError("corpus_manifest_missing") from exc
+        if manifest is None:
+            raise CorpusProvenanceMismatchError("corpus_manifest_unreadable")
+        try:
+            data = json.loads(manifest.read().decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise CorpusProvenanceMismatchError("corpus_manifest_invalid") from exc
+
+    corpus_version = data.get("corpus_version")
+    if not isinstance(corpus_version, str) or not corpus_version:
+        raise CorpusProvenanceMismatchError("corpus_manifest_corpus_version_invalid")
+    # Existing v0 packs omit seed; the synthetic walker is seed-42 by
+    # construction, so absence means the server-actual default, not caller
+    # authority.
+    seed = data.get("seed", 42)
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise CorpusProvenanceMismatchError("corpus_manifest_seed_invalid")
+    return corpus_version, seed
 
 
 # BEAAA-5414 v0.3 — customer-true Track B walker selector. Default off.
@@ -269,7 +301,7 @@ def _prober_target(
     corpus_tarball_path: Any,
     probe_run_fn: ProbeRunFn,
     runner_factory: Callable[[str, str], ModelRunner],
-    agent_endpoint_host: str,
+    agent_endpoint_url: str,
     result_queue: Any,
 ) -> None:
     """Prober subprocess entrypoint.
@@ -287,7 +319,7 @@ def _prober_target(
     raise a typed error rather than time out waiting for a result.
     """
     try:
-        with ScopedEgressAllowlist(agent_endpoint_host):
+        with ScopedEgressAllowlist(agent_endpoint_url):
             result = run_scan(
                 scan_request,
                 vault,
@@ -335,7 +367,7 @@ def make_production_scan_runtime(
        the offline path unchanged).
     4. Spawn the Prober subprocess via the channel's fork context. The
        Prober target invokes :func:`scanners.live_probe_orchestrator.run_scan`
-       inside a ``ScopedEgressAllowlist(agent_endpoint_host)`` scope and
+       inside a ``ScopedEgressAllowlist(agent_endpoint_url)`` scope and
        pushes the resulting :class:`ScanResult` to a result Queue.
     5. Parent drains the result Queue, joins both subprocesses, calls
        ``vault.forget_all()``, and returns the ``ScanResult``.
@@ -345,6 +377,7 @@ def make_production_scan_runtime(
     defaults — the factory is adapter-agnostic by design. Callers that
     want the v0 defaults wire them via :func:`make_default_production_scan_runtime`.
     """
+    server_corpus_version, server_seed = _server_corpus_provenance(corpus_tarball_path)
     join_slack = (
         parent_join_timeout_seconds
         if parent_join_timeout_seconds is not None
@@ -352,6 +385,11 @@ def make_production_scan_runtime(
     )
 
     def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+        if scan_request.corpus_version != server_corpus_version:
+            raise CorpusProvenanceMismatchError("corpus_version_mismatch")
+        if scan_request.seed != server_seed:
+            raise CorpusProvenanceMismatchError("seed_mismatch")
+
         vault = CredentialVault()
         try:
             # AC#1 step (a) — API-edge registers the secret before the
@@ -428,10 +466,10 @@ def make_production_scan_runtime(
             # scheme/port and DNS-rebind guards bind to the declared endpoint.
             # BEAAA-8263 mirrors that declared endpoint into the host nft
             # allowlist while the Prober is alive when the env gate is on.
-            agent_endpoint_host = scan_request.agent_endpoint
+            agent_endpoint_url = scan_request.agent_endpoint
             prober_proc = None
             with ScopedEgressAllowlist(
-                agent_endpoint_host,
+                agent_endpoint_url,
                 live_bind_scope_id=scan_request.scan_id,
             ):
                 prober_proc = ctx.Process(
@@ -443,7 +481,7 @@ def make_production_scan_runtime(
                         "corpus_tarball_path": str(corpus_tarball_path),
                         "probe_run_fn": probe_run_fn,
                         "runner_factory": runner_factory,
-                        "agent_endpoint_host": agent_endpoint_host,
+                        "agent_endpoint_url": agent_endpoint_url,
                         "result_queue": result_queue,
                     },
                     name="are-prober",
@@ -564,6 +602,27 @@ def _production_score_envelope_factory(
         if score_envelope_registry is not None:
             scorer_envelope = score_envelope_registry.get(result.scan_id)
             if scorer_envelope is not None:
+                scan_request = (
+                    runtime.current_scan_request(result.scan_id)
+                    if runtime is not None
+                    else None
+                )
+                if scan_request is None:
+                    raise ScanRuntimeError(
+                        f"scan request registry miss for scan_id={result.scan_id!r}; "
+                        "aborting scan to prevent unbound provenance persistence"
+                    )
+                if scorer_envelope.get("corpus_version") != scan_request.corpus_version:
+                    raise ScanRuntimeError(
+                        f"score envelope corpus_version mismatch for "
+                        f"scan_id={result.scan_id!r}; aborting scan to prevent "
+                        "unbound provenance persistence"
+                    )
+                if scorer_envelope.get("seed") != scan_request.seed:
+                    raise ScanRuntimeError(
+                        f"score envelope seed mismatch for scan_id={result.scan_id!r}; "
+                        "aborting scan to prevent unbound provenance persistence"
+                    )
                 # Defensive shallow copy so the registry entry is not
                 # mutated for later observers (e.g., audit re-reads).
                 envelope = dict(scorer_envelope)

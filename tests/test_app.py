@@ -61,9 +61,56 @@ class AppTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         body = r.json()
         bundle_id = body["forensic_bundle_uri"].rsplit("/", 1)[-1]
-        b = self.client.get(f"/forensic_bundle/{bundle_id}")
+        b = self.client.get(
+            f"/forensic_bundle/{bundle_id}",
+            headers={"X-Tenant-Id": TENANT},
+        )
         self.assertEqual(b.status_code, 200, b.text)
         self.assertEqual(b.json()["bundle_id"], bundle_id)
+
+    def test_cross_tenant_bundle_fetch_404(self):
+        r = self.client.post(
+            "/score",
+            json=_request(self.rubric),
+            headers={"X-Tenant-Id": TENANT},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        bundle_id = r.json()["forensic_bundle_uri"].rsplit("/", 1)[-1]
+        b = self.client.get(
+            f"/forensic_bundle/{bundle_id}",
+            headers={"X-Tenant-Id": "33333333-3333-3333-3333-333333333333"},
+        )
+        self.assertEqual(b.status_code, 404, b.text)
+
+    def test_valid_token_for_other_tenant_cannot_fetch_bundle(self):
+        other_tenant = "33333333-3333-3333-3333-333333333333"
+        with mock.patch.dict(
+            "os.environ",
+            {"ARE_API_AUTH_TOKENS_JSON": f'{{"token-a":"{TENANT}","token-b":"{other_tenant}"}}'},
+            clear=False,
+        ):
+            app = create_app(rubric=self.rubric, bundles=BundleStore())
+            client = TestClient(app)
+
+            score_response = client.post(
+                "/score",
+                json=_request(self.rubric),
+                headers={"Authorization": "Bearer token-a"},
+            )
+            self.assertEqual(score_response.status_code, 200, score_response.text)
+            bundle_id = score_response.json()["forensic_bundle_uri"].rsplit("/", 1)[-1]
+
+            forbidden = client.get(
+                f"/forensic_bundle/{bundle_id}",
+                headers={"Authorization": "Bearer token-b"},
+            )
+            self.assertEqual(forbidden.status_code, 404, forbidden.text)
+
+            allowed = client.get(
+                f"/forensic_bundle/{bundle_id}",
+                headers={"Authorization": "Bearer token-a"},
+            )
+            self.assertEqual(allowed.status_code, 200, allowed.text)
 
     def test_score_tenant_mismatch_409(self):
         r = self.client.post(
@@ -86,7 +133,10 @@ class AppTests(unittest.TestCase):
         self.assertEqual(r.status_code, 422, r.text)
 
     def test_unknown_bundle_404(self):
-        r = self.client.get("/forensic_bundle/00000000-0000-0000-0000-000000000000")
+        r = self.client.get(
+            "/forensic_bundle/00000000-0000-0000-0000-000000000000",
+            headers={"X-Tenant-Id": TENANT},
+        )
         self.assertEqual(r.status_code, 404)
 
     def test_auth_token_required_when_token_map_configured(self):
@@ -117,6 +167,25 @@ class AppTests(unittest.TestCase):
         )
         self.assertNotIn("EDGE_SENTINEL_TOKEN_1234567890", str(exc.detail))
         self.assertIn("[REDACTED_SECRET]", str(exc.detail))
+
+    def test_unexpected_portal_error_500_hides_exception_detail(self):
+        sentinel = "D6_INTERNAL_EXCEPTION_SENTINEL_SHOULD_NOT_LEAK"
+        client = TestClient(self.app, raise_server_exceptions=False)
+
+        with mock.patch("api.app.score_handler", side_effect=RuntimeError(sentinel)):
+            response = client.post(
+                "/score",
+                json=_request(self.rubric),
+                headers={"X-Tenant-Id": TENANT},
+            )
+
+        self.assertEqual(response.status_code, 500, response.text)
+        body = response.json()
+        self.assertEqual(body["error"], "internal_error")
+        self.assertRegex(body["correlation_id"], r"^[0-9a-f-]{36}$")
+        self.assertEqual(response.headers["X-Correlation-Id"], body["correlation_id"])
+        self.assertNotIn(sentinel, response.text)
+        self.assertNotIn("RuntimeError", response.text)
 
     def test_auth_token_binds_tenant_not_x_tenant_header(self):
         with mock.patch.dict(

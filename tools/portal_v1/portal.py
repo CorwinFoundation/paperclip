@@ -2492,6 +2492,37 @@ class PortalHandler(BaseHTTPRequestHandler):
         if not hmac.compare_digest(presented_hash, stored):
             raise PortalError(403, "dp_unauthorized", "DP scan trigger requires a valid bearer token.")
 
+    def _scan_owner_dp_id(self, scan_id: str) -> str:
+        row = self.service.db.execute("SELECT dp_id FROM scans WHERE id = ?", (scan_id,)).fetchone()
+        if not row:
+            raise PortalError(404, "scan_not_found", "Scan not found.")
+        return row["dp_id"]
+
+    def _require_portal_read(self, *, dp_id: str | None = None, allow_dp: bool = True) -> None:
+        """BEAAA-11607: default-deny authorization helper for portal GET read surfaces.
+
+        Admin bearer can read any protected portal artifact. Matching per-DP bearer can
+        read only DP-allowed artifacts owned by that design partner. Routes that do not
+        have a DP owner, or internal-only variants, call this with ``allow_dp=False``.
+        """
+        auth = self.headers.get("Authorization", "")
+        presented = auth[len("Bearer "):] if auth.startswith("Bearer ") else ""
+        admin_expected = os.environ.get("PORTAL_ADMIN_TOKEN")
+        if (
+            admin_expected
+            and presented
+            and hmac.compare_digest(presented, admin_expected)
+        ):
+            return
+        if allow_dp and dp_id and presented:
+            row = self.service.db.execute(
+                "SELECT dp_bearer_hash FROM design_partners WHERE id = ?", (dp_id,)
+            ).fetchone()
+            stored = row["dp_bearer_hash"] if row else None
+            if stored and hmac.compare_digest(sha256_hex(presented.encode("utf-8")), stored):
+                return
+        raise PortalError(403, "portal_read_unauthorized", "Portal read requires an authorized bearer token.")
+
     def _require_connector_bearer(self) -> str:
         """F-08: Gate connector endpoints on bearer issued at enroll; return verified connector_id.
 
@@ -2565,8 +2596,10 @@ class PortalHandler(BaseHTTPRequestHandler):
             elif url.path == "/pre-scan":
                 self._send(200, self.service.pre_scan_form())
             elif len(parts) == 2 and parts[0] == "pre-scan" and parts[1].endswith(".pdf"):
+                self._require_portal_read(allow_dp=False)
                 self._send(200, self.service.get_pre_scan_pdf(parts[1][:-4]), "application/pdf")
             elif len(parts) == 2 and parts[0] == "pre-scan" and parts[1].endswith(".json"):
+                self._require_portal_read(allow_dp=False)
                 envelope = self.service.get_pre_scan_envelope(parts[1][:-5])
                 self._send(200, canonical_json(envelope), "application/json")
             elif url.path == "/admin/audit":
@@ -2589,6 +2622,7 @@ class PortalHandler(BaseHTTPRequestHandler):
 <button>Accept invite</button></form>"""
                 self._send(200, self.service._render_page("Accept invite", body))
             elif len(parts) == 2 and parts[0] == "dp":
+                self._require_portal_read(dp_id=parts[1])
                 self._send(200, self.service.dp_dashboard(parts[1]))
             elif len(parts) == 4 and parts[0] == "scans" and parts[2] == "tasks" and parts[3] == "next":
                 status, payload = self.service.next_task(parts[1], self.headers.get("x-connector-id"))
@@ -2597,6 +2631,8 @@ class PortalHandler(BaseHTTPRequestHandler):
                 else:
                     self._json(200, payload)
             elif len(parts) == 3 and parts[0] == "reports":
+                dp_id = self._scan_owner_dp_id(parts[1])
+                self._require_portal_read(dp_id=dp_id, allow_dp=parts[2] == "dp")
                 path = self.service.config.evidence_dir / parts[1] / "reports" / f"{parts[2]}.html"
                 if not path.exists():
                     raise PortalError(404, "report_not_found", "Report not found.")
@@ -2604,8 +2640,10 @@ class PortalHandler(BaseHTTPRequestHandler):
             elif url.path == "/portal_pins.json":
                 self._send(200, self.service.config.pins_path.read_bytes(), "application/json")
             elif len(parts) == 3 and parts[0] == "scans" and parts[2] == "sbom-attestation":
+                self._require_portal_read(dp_id=self._scan_owner_dp_id(parts[1]))
                 self._json(200, self.service.get_sbom_attestation(parts[1]))
             elif len(parts) == 3 and parts[0] == "scans" and parts[2] == "bind":
+                self._require_portal_read(dp_id=self._scan_owner_dp_id(parts[1]))
                 self._json(200, self.service.get_bind_decision(parts[1]))
             elif len(parts) == 3 and parts[0] == "dp" and parts[2] == "schedule":
                 # BEAAA-4937 / v0.2 §5.1 — admin/Founder GET on persisted schedule row.
@@ -2625,6 +2663,7 @@ class PortalHandler(BaseHTTPRequestHandler):
             ):
                 # BEAAA-5761 — peril-aligned underwriting rollup (option 3 from BEAAA-5750).
                 # Pure derived view over already-persisted score. Outside are-scanner-api-v1@v1.0 Output.
+                self._require_portal_read(dp_id=self._scan_owner_dp_id(parts[3]))
                 self._json(200, self.service.get_underwriting_rollup(parts[3]))
             elif len(parts) == 3 and parts[0] == "scans" and parts[2] == "diff":
                 # BEAAA-4937 / v0.2 §5.1 — admin/UW GET on persisted scan_diff artifact.
