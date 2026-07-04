@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -103,6 +104,12 @@ _UW_ONLY_FIELDS: frozenset[str] = frozenset({"live_probe_variance_band"})
 # ``GET /scanner/v1/agents/{agent_id}/scans`` history endpoint is deferred to
 # v1.3.0. Carried to CTO at WS7 ratification as the §7 Q2 resolution.
 PRIOR_SCAN_REFS_MAX: int = 100
+
+# BEAAA-11609 / BEAAA-11631 — bounded lifetime for the compatibility
+# in-process scan state used by GET /scan/{scan_id} and score-envelope factory
+# readback. Durable rescan history remains owned by scan_log; this TTL only
+# limits residual process-local request/result state.
+DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS: float = 15 * 60
 
 
 def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
@@ -258,16 +265,30 @@ class ScanRuntime:
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
+        in_memory_state_ttl_seconds: float = DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS,
+        monotonic_clock: Callable[[], float] | None = None,
     ) -> None:
+        if (
+            isinstance(in_memory_state_ttl_seconds, bool)
+            or not isinstance(in_memory_state_ttl_seconds, (int, float))
+            or in_memory_state_ttl_seconds <= 0
+        ):
+            raise ValueError("in_memory_state_ttl_seconds must be positive")
         self._run_scan_fn = run_scan_fn
+        self._in_memory_state_ttl_seconds = float(in_memory_state_ttl_seconds)
+        self._monotonic_clock = monotonic_clock or time.monotonic
         self._results: dict[str, ScanResult] = {}
+        self._scan_state_created_at: dict[str, float] = {}
         # BEAAA-1265 (WS1) — minimal agent-scan-log shim. WS2 added the
         # durable scan_log keyed by ``(agent_id, run_timestamp)``; WS3 keeps
         # both sources truth-consistent: the in-memory set is populated from
         # ``prior_agent_ids`` (test bootstrap) AND from every successful
         # ``kickoff`` that names an ``agent_id``, while the scan_log
         # provides the ordered chain for ``prior_scan_refs[]``.
-        self._agent_ids_with_prior_scan: set[str] = set(prior_agent_ids)
+        prior_seen_at = self._now()
+        self._agent_ids_with_prior_scan: dict[str, float] = {
+            str(agent_id): prior_seen_at for agent_id in prior_agent_ids
+        }
         # BEAAA-1273 (WS3) — persistence wiring + chain readback.
         self._scan_log = scan_log
         # BEAAA-6159 - additive Log Tracker v0 scanner-run write hook. Left
@@ -293,6 +314,35 @@ class ScanRuntime:
         # the runtime reference it already closed over for ``prior_scan_refs``.
         self._scan_requests: dict[str, ScanRequest] = {}
         self._scan_invocation_contexts: dict[str, dict[str, Any]] = {}
+        self.runtime_guard_flags = {
+            "uses_in_memory_scan_state": True,
+            "in_memory_scan_state_ttl_seconds": self._in_memory_state_ttl_seconds,
+        }
+
+    def _now(self) -> float:
+        return float(self._monotonic_clock())
+
+    def _purge_expired_in_memory_state(self) -> None:
+        cutoff = self._now() - self._in_memory_state_ttl_seconds
+        expired_scan_ids = [
+            scan_id
+            for scan_id, created_at in self._scan_state_created_at.items()
+            if created_at < cutoff
+        ]
+        for scan_id in expired_scan_ids:
+            self._scan_state_created_at.pop(scan_id, None)
+            self._results.pop(scan_id, None)
+            self._kickoff_keys.pop(scan_id, None)
+            self._scan_requests.pop(scan_id, None)
+            self._scan_invocation_contexts.pop(scan_id, None)
+
+        expired_agent_ids = [
+            agent_id
+            for agent_id, seen_at in self._agent_ids_with_prior_scan.items()
+            if seen_at < cutoff
+        ]
+        for agent_id in expired_agent_ids:
+            self._agent_ids_with_prior_scan.pop(agent_id, None)
 
     def kickoff(
         self,
@@ -314,18 +364,22 @@ class ScanRuntime:
         recorded in the WS1 in-memory shim so a subsequent /rescans on
         the same id passes the ``has_prior_scan_for_agent`` 422 guard.
         """
-        result = self._run_scan_fn(scan_request, secret)
-        self._results[scan_request.scan_id] = result
         # BEAAA-2175 (PR-B) — populate per-scan registries before invoking the
-        # envelope factory so the factory closure can read them via
-        # ``current_scan_request`` / ``current_scan_invocation_context``.
+        # run_scan_fn closure so scorer paths can read the request and
+        # invocation context during kickoff. The envelope factory reads the
+        # same registries after result construction.
+        self._purge_expired_in_memory_state()
+        created_at = self._now()
         self._scan_requests[scan_request.scan_id] = scan_request
+        self._scan_state_created_at[scan_request.scan_id] = created_at
         if scanner_invocation_context is not None:
             self._scan_invocation_contexts[scan_request.scan_id] = dict(
                 scanner_invocation_context
             )
+        result = self._run_scan_fn(scan_request, secret)
+        self._results[scan_request.scan_id] = result
         if agent_id is not None:
-            self._agent_ids_with_prior_scan.add(agent_id)
+            self._agent_ids_with_prior_scan[agent_id] = self._now()
             if (
                 self._scan_log is not None
                 and self._score_envelope_factory is not None
@@ -357,6 +411,7 @@ class ScanRuntime:
         return result
 
     def fetch(self, scan_id: str) -> ScanResult | None:
+        self._purge_expired_in_memory_state()
         return self._results.get(scan_id)
 
     # ----- BEAAA-1265 (WS1) agent-scan-log shim -----
@@ -368,9 +423,13 @@ class ScanRuntime:
         guard works whether the call site registered the agent
         explicitly (test bootstrap) or implicitly (live scan path).
         """
-        self._agent_ids_with_prior_scan.add(agent_id)
+        self._purge_expired_in_memory_state()
+        self._agent_ids_with_prior_scan[agent_id] = self._now()
 
     def has_prior_scan_for_agent(self, agent_id: str) -> bool:
+        self._purge_expired_in_memory_state()
+        if self._scan_log is not None and self._scan_log.list_for_agent(agent_id):
+            return True
         return agent_id in self._agent_ids_with_prior_scan
 
     # ----- BEAAA-2175 (PR-B) per-scan registry readback -----
@@ -381,6 +440,7 @@ class ScanRuntime:
         the request-side version pins for the envelope projection without
         a factory-typedef change.
         """
+        self._purge_expired_in_memory_state()
         return self._scan_requests.get(scan_id)
 
     def current_scan_invocation_context(
@@ -391,6 +451,7 @@ class ScanRuntime:
         the caller did not supply one (e.g., legacy ``/scans`` calls — the
         ``purpose`` field is only meaningful on the rescan path).
         """
+        self._purge_expired_in_memory_state()
         return self._scan_invocation_contexts.get(scan_id)
 
     # ----- BEAAA-1273 (WS3) chain readback -----
@@ -400,6 +461,7 @@ class ScanRuntime:
         call (no ``scan_log``, no ``score_envelope_factory``, or no
         ``agent_id``).
         """
+        self._purge_expired_in_memory_state()
         if self._scan_log is None or scan_id not in self._kickoff_keys:
             return None
         agent_id, run_timestamp = self._kickoff_keys[scan_id]
