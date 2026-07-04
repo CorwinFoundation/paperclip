@@ -74,6 +74,7 @@ from api.scan_log import ScanLog
 from harness.credentials import CredentialVault
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
+from scanners.canary_anti_gaming import FiredProbeLedger, JsonlFiredProbeLedger
 from scanners.live_probe_orchestrator import (
     CorpusProvenanceMismatchError,
     OrchestratorError,
@@ -97,6 +98,7 @@ from scanners.snapshot_hash import compute_corpus_snapshot_hash
 # temp file without touching the prod constant.
 ARE_SCAN_LOG_PATH_ENV: str = "ARE_SCAN_LOG_PATH"
 ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
+ARE_FIRED_PROBE_LEDGER_PATH_ENV: str = "ARE_FIRED_PROBE_LEDGER_PATH"
 
 
 # Wall-clock guard on the parent-side join. The orchestrator enforces its
@@ -303,6 +305,7 @@ def _prober_target(
     runner_factory: Callable[[str, str], ModelRunner],
     agent_endpoint_url: str,
     result_queue: Any,
+    fired_probe_ledger: FiredProbeLedger | None = None,
 ) -> None:
     """Prober subprocess entrypoint.
 
@@ -327,6 +330,7 @@ def _prober_target(
                 corpus_tarball_path=corpus_tarball_path,
                 probe_run_fn=probe_run_fn,
                 runner_factory=runner_factory,
+                fired_probe_ledger=fired_probe_ledger,
             )
         result_queue.put(("ok", result))
     except BaseException as exc:  # noqa: BLE001 — surface every failure
@@ -353,6 +357,7 @@ def make_production_scan_runtime(
     parent_join_timeout_seconds: int | None = None,
     score_runtime: Any = None,
     score_envelope_registry: dict[str, dict[str, Any]] | None = None,
+    fired_probe_ledger: FiredProbeLedger | None = None,
 ) -> ScanRuntime:
     """Build a production ``ScanRuntime`` wired to the fork-spawned Prober/Scorer.
 
@@ -483,6 +488,7 @@ def make_production_scan_runtime(
                         "runner_factory": runner_factory,
                         "agent_endpoint_url": agent_endpoint_url,
                         "result_queue": result_queue,
+                        "fired_probe_ledger": fired_probe_ledger,
                     },
                     name="are-prober",
                 )
@@ -731,12 +737,18 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         _selected_runner_factory = v0_mock_runner_factory
         _selected_probe_run_fn = synthetic_v0_probe_run_fn
 
+    fired_probe_ledger: FiredProbeLedger | None = None
+    fired_probe_ledger_path = os.environ.get(ARE_FIRED_PROBE_LEDGER_PATH_ENV)
+    if fired_probe_ledger_path:
+        fired_probe_ledger = JsonlFiredProbeLedger(fired_probe_ledger_path)
+
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
         runner_factory=_selected_runner_factory,
         probe_run_fn=_selected_probe_run_fn,
         score_runtime=score_runtime,
         score_envelope_registry=score_envelope_registry,
+        fired_probe_ledger=fired_probe_ledger,
     )
     scan_log_path = os.environ.get(
         ARE_SCAN_LOG_PATH_ENV, ARE_SCAN_LOG_DEFAULT_PATH

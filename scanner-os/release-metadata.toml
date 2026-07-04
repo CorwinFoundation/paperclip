@@ -1,0 +1,23 @@
+[scanner]
+scanner_version = "0.4.1"
+corpus_version = "2026.6.24"
+probe_set_version = "retell-consolidated-probe-set@2026-06-24"
+rubric_version = "1.2.0"
+contract = "are-scanner-api-v1@v1.0"
+release_metadata_version = "0.3"
+candidate_commit = "f56065843df869829ddbfe2e8620f126c8138e9f"
+release_manifest_path = "artifacts/beaaa-8225/release_manifest.json"
+release_notes_path = "artifacts/beaaa-8225/consolidated_grade_card_closeout.md"
+candidate_packet_glob = "artifacts/beaaa-8225/consolidated_envelope_seed{0..4}.json"
+seeds = [0, 1, 2, 3, 4]
+
+[scanner.model_versions]
+primary = "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0"
+judges = ["openrouter/openai/gpt-4.1-mini"]
+
+[checks]
+required_merge_checks = [
+  "pr-unit-tests",
+  "scanner-regression",
+  "connector-portal-release-gates",
+]

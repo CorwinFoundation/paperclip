@@ -79,6 +79,16 @@ from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
 from api.intake_guard import HOSTED_RUNNER
 from harness.credentials import CredentialVault
 from harness.runner import ModelRunner
+from scanners.canary_anti_gaming import (
+    AntiGamingCanaryResult,
+    CanaryProbeObservation,
+    FiredProbeLedger,
+    detect_goodhart,
+    normalize_phrasing_hash,
+    observation_from_probe_row,
+    records_from_probe_metadata,
+    select_fresh_canary_hashes,
+)
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
 
@@ -230,6 +240,10 @@ class ScanRequest:
     # from /scanner/v1/rescans through the orchestrator boundary so
     # production score_inputs can preserve customer attestation intent.
     invocation_context: dict[str, Any] | None = None
+    # BEAAA-11721 / ADR-0041 section 3: optional anti-gaming sidecar inputs.
+    # These are review signals only and do not affect scoring math.
+    vendor_id: str | None = None
+    canary_phrasing_hashes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.k_replicates not in ALLOWED_K_REPLICATES:
@@ -280,6 +294,10 @@ class ScanResult:
     total_spread: float = 0.0
     incomplete: bool = False
     incomplete_reason: str | None = None
+    # BEAAA-11721 / ADR-0041 section 6: Underwriting-review signal only.
+    anti_gaming: AntiGamingCanaryResult = field(
+        default_factory=AntiGamingCanaryResult
+    )
 
 
 class IPCOutbound(Protocol):
@@ -366,6 +384,7 @@ def run_scan(
     probe_run_fn: ProbeRunFn,
     runner: ModelRunner | None = None,
     runner_factory: Callable[[str, str], ModelRunner] | None = None,
+    fired_probe_ledger: FiredProbeLedger | None = None,
 ) -> ScanResult:
     """Prober-side driver — see module docstring.
 
@@ -455,6 +474,28 @@ def run_scan(
         # shares it so the forensic bundle (T10) can group on retrieval.
         eval_run_id = str(uuid.uuid4())
         raws_by_dim: dict[str, list[float]] = {}
+        canary_observations: list[CanaryProbeObservation] = []
+        fired_probe_metadata_rows: list[dict[str, Any]] = []
+        vendor_id = scan_request.vendor_id
+        previously_fired_hashes = frozenset()
+        fresh_canary_hashes = frozenset()
+        if fired_probe_ledger is not None and vendor_id is not None:
+            previously_fired_hashes = fired_probe_ledger.seen_hashes(
+                tenant_id=scan_request.tenant_id,
+                vendor_id=vendor_id,
+            )
+            fresh_canary_hashes = frozenset(
+                select_fresh_canary_hashes(
+                    scan_request.canary_phrasing_hashes,
+                    ledger=fired_probe_ledger,
+                    tenant_id=scan_request.tenant_id,
+                    vendor_id=vendor_id,
+                )
+            )
+        previously_fired_hash_set = frozenset(
+            h.lower() for h in previously_fired_hashes
+        )
+        fresh_canary_hash_set = frozenset(h.lower() for h in fresh_canary_hashes)
         cap_reason: str | None = None
         tokens_used = 0
         scan_started_at = _now()
@@ -464,7 +505,39 @@ def run_scan(
             try:
                 for item in probe_run_fn(active_runner):
                     dim_id, partial_row, probe_tokens = _unpack_probe_yield(item)
+                    metadata_row = dict(partial_row)
+                    raw_hash = metadata_row.get("phrasing_hash") or metadata_row.get(
+                        "paraphrase_hash"
+                    )
+                    if isinstance(raw_hash, str):
+                        try:
+                            normalized_hash = normalize_phrasing_hash(raw_hash)
+                        except ValueError:
+                            normalized_hash = ""
+                        previously_fired = (
+                            normalized_hash.lower() in previously_fired_hash_set
+                        )
+                        is_fresh_canary = (
+                            normalized_hash.lower() in fresh_canary_hash_set
+                        )
+                        if previously_fired or is_fresh_canary:
+                            obs = observation_from_probe_row(
+                                metadata_row,
+                                previously_fired=previously_fired,
+                            )
+                            if obs is not None:
+                                canary_observations.append(obs)
+                        fired_probe_metadata_rows.append(metadata_row)
                     row = dict(partial_row)
+                    for anti_gaming_field in (
+                        "phrasing_hash",
+                        "paraphrase_hash",
+                        "probe_passed",
+                        "passed",
+                        "rubric_point_id",
+                        "test_id",
+                    ):
+                        row.pop(anti_gaming_field, None)
                     # AC#4 — provenance stamped unconditionally from the imported
                     # constant. Any value the probe_run_fn might have placed here
                     # is overwritten so a misbehaving wrapper cannot stamp a row
@@ -508,6 +581,18 @@ def run_scan(
         # an incomplete K-replicate set has no meaningful spread, and the
         # cap is the authoritative reason on the response.
         if cap_reason is not None:
+            anti_gaming = detect_goodhart(
+                canary_observations,
+                evidence_ref=f"are-probe://anti-gaming/{scan_request.scan_id}/canaries",
+            )
+            if fired_probe_ledger is not None and vendor_id is not None:
+                for record in records_from_probe_metadata(
+                    tenant_id=scan_request.tenant_id,
+                    vendor_id=vendor_id,
+                    scan_id=scan_request.scan_id,
+                    rows=fired_probe_metadata_rows,
+                ):
+                    fired_probe_ledger.append(record)
             return ScanResult(
                 scan_id=scan_request.scan_id,
                 status="incomplete",
@@ -522,6 +607,7 @@ def run_scan(
                 total_spread=0.0,
                 incomplete=True,
                 incomplete_reason=cap_reason,
+                anti_gaming=anti_gaming,
             )
 
         # T5 — aggregate per-dim median + spread + band check.
@@ -540,6 +626,18 @@ def run_scan(
                     incomplete = True
                     incomplete_reason = "variance_band_exceeded_pillar"
                     break
+        anti_gaming = detect_goodhart(
+            canary_observations,
+            evidence_ref=f"are-probe://anti-gaming/{scan_request.scan_id}/canaries",
+        )
+        if fired_probe_ledger is not None and vendor_id is not None:
+            for record in records_from_probe_metadata(
+                tenant_id=scan_request.tenant_id,
+                vendor_id=vendor_id,
+                scan_id=scan_request.scan_id,
+                rows=fired_probe_metadata_rows,
+            ):
+                fired_probe_ledger.append(record)
 
         return ScanResult(
             scan_id=scan_request.scan_id,
@@ -555,6 +653,7 @@ def run_scan(
             total_spread=total_spread,
             incomplete=incomplete,
             incomplete_reason=incomplete_reason,
+            anti_gaming=anti_gaming,
         )
     finally:
         # --- 7. AC#3 (forget) — runs on EVERY exit path. ---

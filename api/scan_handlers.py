@@ -597,6 +597,7 @@ def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
         "total_spread": result.total_spread,
         "incomplete": result.incomplete,
         "incomplete_reason": result.incomplete_reason,
+        "anti_gaming": result.anti_gaming.to_dict(),
         "dim_results": [
             {
                 "dim_id": d.dim_id,
@@ -801,6 +802,18 @@ def _kickoff_live_probe_scan(
     )
     k_replicates = _validate_k_replicates(body.get("k_replicates"))
     requested_pillars = tuple(body.get("requested_pillars", ()))
+    vendor_id = body.get("vendor_id")
+    if vendor_id is not None and (not isinstance(vendor_id, str) or not vendor_id):
+        raise HandlerError(422, "vendor_id_invalid")
+    canary_hashes_raw = body.get("canary_phrasing_hashes", ())
+    if canary_hashes_raw is None:
+        canary_hashes_raw = ()
+    if (
+        not isinstance(canary_hashes_raw, (list, tuple))
+        or not all(isinstance(h, str) for h in canary_hashes_raw)
+    ):
+        raise HandlerError(422, "canary_phrasing_hashes_invalid")
+    canary_phrasing_hashes = tuple(canary_hashes_raw)
 
     scan_id = (scan_id_factory or _default_scan_id)()
     try:
@@ -818,6 +831,8 @@ def _kickoff_live_probe_scan(
             k_replicates=k_replicates,
             agent_id=agent_id,
             invocation_context=scanner_invocation_context,
+            vendor_id=vendor_id,
+            canary_phrasing_hashes=canary_phrasing_hashes,
         )
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc

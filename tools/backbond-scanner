@@ -1,0 +1,603 @@
+#!/usr/bin/env python3
+"""Runnable BackBond Scanner fixture entrypoint.
+
+This command is intentionally a thin operator wrapper. It does not introduce
+new scoring math, probe families, or judge choices; it turns an explicit sample
+fixture into a contract-shaped BackBond Score JSON artifact.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import hmac
+import json
+import math
+import os
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python <3.11 is unsupported here.
+    tomllib = None
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_FIXTURE = ROOT / "tools" / "backbond-scanner-fixtures" / "sample_agent_fixture.json"
+DEFAULT_OUTPUT = ROOT / "artifacts" / "backbond-scanner-sample-score.json"
+DEFAULT_EVIDENCE_STORE = ROOT / "tools" / "evidence-store" / "production"
+RELEASE_METADATA = ROOT / "scanner-os" / "release-metadata.toml"
+PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
+REQUIRED_EVIDENCE_FIELDS = ("rubric_point_id", "test_id", "artifact_uri", "verdict", "weight")
+SCORE_INTEGRITY_EXTENSION_VERSION = "v1.6.0"
+DEFAULT_SCORE_INTEGRITY_THRESHOLD = 5.0
+DEFAULT_ROTATION_KEY = "backbond-fixture-rotation-key-v0"
+SAMPLING_DISABLED_VALUES = {"0", "false", "off", "no"}
+RISK_DIMENSIONS = (
+    ("OPS", "P1.1"),
+    ("OPS", "P1.2"),
+    ("OPS", "P1.3"),
+    ("OPS", "P1.4"),
+    ("OPS", "P1.5"),
+    ("OPS", "P1.6"),
+    ("BIAS_FAIRNESS", "P2.1"),
+    ("BIAS_FAIRNESS", "P2.2"),
+    ("BIAS_FAIRNESS", "P2.3"),
+    ("BIAS_FAIRNESS", "P2.4"),
+    ("BIAS_FAIRNESS", "P2.5"),
+    ("BIAS_FAIRNESS", "P2.6"),
+    ("ROBUSTNESS", "P3.1"),
+    ("ROBUSTNESS", "P3.2"),
+    ("ROBUSTNESS", "P3.3"),
+    ("ROBUSTNESS", "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"),
+    ("ROBUSTNESS", "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER"),
+    ("ROBUSTNESS", "ROBUSTNESS.PII.SCAN_TIME_DETECTION"),
+    ("GOVERNANCE", "P4.1"),
+    ("GOVERNANCE", "P4.2"),
+    ("GOVERNANCE", "P4.3"),
+    ("GOVERNANCE", "P4.4"),
+    ("GOVERNANCE", "P4.5"),
+    ("GOVERNANCE", "P4.6"),
+    ("GOVERNANCE", "GOVERNANCE.PII.HANDLING_ATTESTATION"),
+)
+DEFAULT_MIN_PER_PILLAR = {
+    "GOVERNANCE": 2,
+    "ROBUSTNESS": 2,
+    "BIAS_FAIRNESS": 2,
+    "OPS": 2,
+}
+
+
+class EntrypointError(ValueError):
+    pass
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="tools/backbond-scanner",
+        description=(
+            "Run the BackBond Scanner sample fixture and emit a "
+            "contracts/are-scanner-api-v1.md@v1.0 score JSON artifact."
+        ),
+    )
+    parser.add_argument(
+        "--fixture",
+        default=str(DEFAULT_FIXTURE),
+        help=f"fixture JSON path; default: {DEFAULT_FIXTURE}",
+    )
+    parser.add_argument(
+        "--out",
+        default=str(DEFAULT_OUTPUT),
+        help=f"output JSON path; default: {DEFAULT_OUTPUT}",
+    )
+    parser.add_argument("--seed", type=int, default=None, help="seed stamped into the score output")
+    parser.add_argument(
+        "--scan-mode",
+        choices=("field", "calibration"),
+        default="field",
+        help="field uses deterministic sampling; calibration forces the fixed-subset path",
+    )
+    parser.add_argument(
+        "--rotation-epoch",
+        type=int,
+        default=0,
+        help="non-negative rotation epoch used to advance stratified coverage",
+    )
+    parser.add_argument(
+        "--scan-nonce",
+        default="fixture-nonce-0",
+        help="per-scan nonce withheld from scanned agents until completion",
+    )
+    parser.add_argument(
+        "--audit-spine",
+        default=None,
+        help="optional append-only JSONL audit-spine path for raw scan_seed records",
+    )
+    parser.add_argument(
+        "--tenant-id",
+        default=None,
+        help="tenant id used for tenant-isolated production evidence lookup",
+    )
+    parser.add_argument(
+        "--production-evidence-store",
+        default=str(DEFAULT_EVIDENCE_STORE),
+        help=(
+            "read-only production evidence store root; expected layout is "
+            "<tenant_id>/<agent_id>/latest.json"
+        ),
+    )
+    parser.add_argument(
+        "--score-integrity-threshold",
+        type=float,
+        default=DEFAULT_SCORE_INTEGRITY_THRESHOLD,
+        help="positive staged-minus-production divergence that triggers underwriting review",
+    )
+    parser.add_argument(
+        "--freeze-timestamp",
+        action="store_true",
+        help="write 1970-01-01T00:00:00Z for reproducible smoke tests",
+    )
+    parser.add_argument("--version", action="store_true", help="print scanner metadata pins and exit")
+    return parser
+
+
+def _load_release_metadata() -> dict:
+    if tomllib is None:
+        raise EntrypointError("Python 3.11+ is required because tomllib is unavailable")
+    if not RELEASE_METADATA.is_file():
+        raise EntrypointError(f"release metadata not found: {RELEASE_METADATA}")
+    metadata = tomllib.loads(RELEASE_METADATA.read_text(encoding="utf-8"))
+    scanner = metadata.get("scanner")
+    if not isinstance(scanner, dict):
+        raise EntrypointError("release metadata missing [scanner] table")
+    for key in ("scanner_version", "corpus_version", "contract", "model_versions"):
+        if key not in scanner:
+            raise EntrypointError(f"release metadata missing scanner.{key}")
+    model_versions = scanner["model_versions"]
+    if not isinstance(model_versions, dict) or "primary" not in model_versions or "judges" not in model_versions:
+        raise EntrypointError("release metadata scanner.model_versions must include primary and judges")
+    if not isinstance(model_versions["judges"], list):
+        raise EntrypointError("release metadata scanner.model_versions.judges must be a list")
+    return scanner
+
+
+def _load_fixture(path: Path) -> dict:
+    if not path.is_file():
+        raise EntrypointError(f"fixture not found: {path}")
+    try:
+        fixture = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise EntrypointError(f"fixture is not valid JSON: {exc}") from exc
+    if not isinstance(fixture, dict):
+        raise EntrypointError("fixture root must be an object")
+    if not isinstance(fixture.get("agent_id"), str) or not fixture["agent_id"]:
+        raise EntrypointError("fixture.agent_id must be a non-empty string")
+    return fixture
+
+
+def _validated_subscores(fixture: dict) -> dict[str, float]:
+    raw = fixture.get("subscores")
+    if not isinstance(raw, dict):
+        raise EntrypointError("fixture.subscores must be an object")
+    missing = [pillar for pillar in PILLARS if pillar not in raw]
+    if missing:
+        raise EntrypointError(f"fixture.subscores missing pillars: {', '.join(missing)}")
+    out: dict[str, float] = {}
+    for pillar in PILLARS:
+        value = raw[pillar]
+        if not isinstance(value, (int, float)) or not 0 <= value <= 25:
+            raise EntrypointError(f"fixture.subscores.{pillar} must be a number in [0,25]")
+        out[pillar] = value
+    return out
+
+
+def _band(total: float) -> str:
+    if total >= 85:
+        return "A"
+    if total >= 70:
+        return "B"
+    if total >= 55:
+        return "C"
+    return "D"
+
+
+def _validated_evidence_refs(fixture: dict) -> list[dict]:
+    raw = fixture.get("evidence_refs")
+    if not isinstance(raw, list) or not raw:
+        raise EntrypointError("fixture.evidence_refs must be a non-empty array")
+    refs = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            raise EntrypointError(f"fixture.evidence_refs[{index}] must be an object")
+        missing = [field for field in REQUIRED_EVIDENCE_FIELDS if field not in item]
+        if missing:
+            raise EntrypointError(
+                f"fixture.evidence_refs[{index}] missing fields: {', '.join(missing)}"
+            )
+        if item["verdict"] not in ("pass", "partial", "fail"):
+            raise EntrypointError(f"fixture.evidence_refs[{index}].verdict must be pass|partial|fail")
+        weight = item["weight"]
+        if not isinstance(weight, (int, float)) or not 0 <= weight <= 1:
+            raise EntrypointError(f"fixture.evidence_refs[{index}].weight must be in [0,1]")
+        refs.append(
+            {
+                "rubric_point_id": str(item["rubric_point_id"]),
+                "test_id": str(item["test_id"]),
+                "artifact_uri": str(item["artifact_uri"]),
+                "verdict": item["verdict"],
+                "weight": weight,
+            }
+        )
+    return refs
+
+
+def _validated_uncovered_dimensions(fixture: dict) -> list[str]:
+    raw = fixture.get("uncovered_dimensions", [])
+    if not isinstance(raw, list):
+        raise EntrypointError("fixture.uncovered_dimensions must be an array")
+    out = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, str) or not item:
+            raise EntrypointError(f"fixture.uncovered_dimensions[{index}] must be a non-empty string")
+        out.append(item)
+    return out
+
+
+def _validated_confidence(fixture: dict) -> float:
+    raw = fixture.get("confidence", 1.0)
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise EntrypointError("fixture.confidence must be a number in [0,1]")
+    confidence = float(raw)
+    if not math.isfinite(confidence) or not 0 <= confidence <= 1:
+        raise EntrypointError("fixture.confidence must be a number in [0,1]")
+    return confidence
+
+
+def _safe_path_segment(value: str, field_name: str) -> str:
+    if not value or value in (".", ".."):
+        raise EntrypointError(f"{field_name} must be a non-empty path-safe identifier")
+    if "/" in value or "\\" in value or "\x00" in value:
+        raise EntrypointError(f"{field_name} must not contain path separators")
+    return value
+
+
+def _read_production_evidence_score(
+    *,
+    store_root: Path,
+    tenant_id: str,
+    agent_id: str,
+) -> dict | None:
+    tenant_segment = _safe_path_segment(str(tenant_id), "tenant_id")
+    agent_segment = _safe_path_segment(str(agent_id), "agent_id")
+    evidence_path = store_root / tenant_segment / agent_segment / "latest.json"
+    if not evidence_path.is_file():
+        return None
+    try:
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise EntrypointError(f"production evidence is not valid JSON: {evidence_path}: {exc}") from exc
+    if not isinstance(evidence, dict):
+        raise EntrypointError(f"production evidence root must be an object: {evidence_path}")
+    score = evidence.get("production_evidence_score")
+    if isinstance(score, bool) or not isinstance(score, (int, float)):
+        raise EntrypointError(
+            f"production evidence missing numeric production_evidence_score: {evidence_path}"
+        )
+    score = float(score)
+    if not math.isfinite(score) or not 0 <= score <= 100:
+        raise EntrypointError(
+            f"production evidence production_evidence_score must be in [0,100]: {evidence_path}"
+        )
+    evidence_ref = evidence.get("evidence_ref")
+    if evidence_ref is not None and not isinstance(evidence_ref, str):
+        raise EntrypointError(f"production evidence evidence_ref must be a string when present: {evidence_path}")
+    return {
+        "production_evidence_score": score,
+        "evidence_ref": evidence_ref,
+        "evidence_store_path": str(evidence_path.relative_to(store_root)),
+    }
+
+
+def _score_integrity_extension(
+    *,
+    staged_score: float,
+    production_evidence: dict | None,
+    threshold: float,
+) -> dict:
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+        raise EntrypointError("score integrity threshold must be a finite non-negative number")
+    threshold = float(threshold)
+    if not math.isfinite(threshold) or threshold < 0:
+        raise EntrypointError("score integrity threshold must be a finite non-negative number")
+    if production_evidence is None:
+        return {
+            "score_integrity_divergence": None,
+            "production_evidence_score": None,
+            "threshold": threshold,
+            "underwriting_review_flag": False,
+            "review_signal_only": True,
+            "reason": "no_production_evidence",
+            "evidence_ref": None,
+        }
+    production_score = float(production_evidence["production_evidence_score"])
+    divergence = round(staged_score - production_score, 6)
+    return {
+        "score_integrity_divergence": divergence,
+        "production_evidence_score": production_score,
+        "threshold": threshold,
+        "underwriting_review_flag": divergence > threshold,
+        "review_signal_only": True,
+        "reason": "staged_outperforms_production" if divergence > threshold else "within_threshold",
+        "evidence_ref": production_evidence.get("evidence_ref"),
+        "evidence_store_path": production_evidence["evidence_store_path"],
+    }
+
+
+def _sampling_enabled(scan_mode: str) -> bool:
+    if scan_mode == "calibration":
+        return False
+    return os.environ.get("ARE_PROBE_SAMPLING", "on").strip().lower() not in SAMPLING_DISABLED_VALUES
+
+
+def _dims_by_pillar() -> dict[str, list[str]]:
+    by_pillar = {pillar: [] for pillar in PILLARS}
+    for pillar, dimension in RISK_DIMENSIONS:
+        by_pillar[pillar].append(dimension)
+    return by_pillar
+
+
+def _scan_seed(*, release: dict, agent_id: str, rotation_epoch: int, scan_nonce: str) -> str:
+    material = "||".join(
+        (
+            str(release["scanner_version"]),
+            str(release["corpus_version"]),
+            agent_id,
+            str(rotation_epoch),
+            scan_nonce,
+        )
+    ).encode("utf-8")
+    key = os.environ.get("BACKBOND_ROTATION_KEY", DEFAULT_ROTATION_KEY).encode("utf-8")
+    return hmac.new(key, material, hashlib.sha256).hexdigest()
+
+
+def _fixed_subset_dimensions() -> list[str]:
+    selected: list[str] = []
+    for pillar, dimensions in _dims_by_pillar().items():
+        selected.extend(dimensions[: DEFAULT_MIN_PER_PILLAR[pillar]])
+    return sorted(selected)
+
+
+def _sample_dimensions(*, scan_seed: str, rotation_epoch: int) -> list[str]:
+    selected: list[str] = []
+    for pillar, dimensions in _dims_by_pillar().items():
+        count = DEFAULT_MIN_PER_PILLAR[pillar]
+        start_material = f"{scan_seed}:{pillar}".encode("utf-8")
+        start = int(hashlib.sha256(start_material).hexdigest(), 16) % len(dimensions)
+        offset = (start + rotation_epoch * count) % len(dimensions)
+        for index in range(count):
+            selected.append(dimensions[(offset + index) % len(dimensions)])
+    return sorted(selected)
+
+
+def _probe_set_hash(selected_dimensions: list[str]) -> str:
+    payload = json.dumps(selected_dimensions, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def _sample_coverage(selected_dimensions: list[str]) -> dict:
+    dims_by_pillar = _dims_by_pillar()
+    by_pillar: dict[str, dict[str, object]] = {}
+    for pillar, all_dimensions in dims_by_pillar.items():
+        selected_for_pillar = [dim for dim in selected_dimensions if dim in all_dimensions]
+        by_pillar[pillar] = {
+            "selected": len(selected_for_pillar),
+            "total": len(all_dimensions),
+            "dimensions": selected_for_pillar,
+        }
+    return {
+        "selected": len(selected_dimensions),
+        "total": len(RISK_DIMENSIONS),
+        "coverage_fraction": round(len(selected_dimensions) / len(RISK_DIMENSIONS), 6),
+        "by_pillar": by_pillar,
+    }
+
+
+def _sampling_provenance(
+    *,
+    fixture: dict,
+    release: dict,
+    scan_mode: str,
+    rotation_epoch: int,
+    scan_nonce: str,
+) -> tuple[dict, str | None]:
+    if rotation_epoch < 0:
+        raise EntrypointError("rotation_epoch must be non-negative")
+    enabled = _sampling_enabled(scan_mode)
+    raw_seed = (
+        _scan_seed(
+            release=release,
+            agent_id=fixture["agent_id"],
+            rotation_epoch=rotation_epoch,
+            scan_nonce=scan_nonce,
+        )
+        if enabled
+        else None
+    )
+    selected_dimensions = (
+        _sample_dimensions(scan_seed=raw_seed, rotation_epoch=rotation_epoch)
+        if raw_seed is not None
+        else _fixed_subset_dimensions()
+    )
+    provenance = {
+        "mode": "stratified_rotation" if enabled else "fixed_subset",
+        "scan_seed_ref": (
+            "sha256:" + hashlib.sha256(raw_seed.encode("utf-8")).hexdigest()
+            if raw_seed is not None
+            else None
+        ),
+        "probe_set_hash": _probe_set_hash(selected_dimensions),
+        "rotation_epoch": rotation_epoch,
+        "sample_coverage": _sample_coverage(selected_dimensions),
+        "sampling_min_per_pillar": dict(DEFAULT_MIN_PER_PILLAR),
+    }
+    return provenance, raw_seed
+
+
+def _append_audit_spine(*, path: Path, score: dict, raw_seed: str | None, scan_nonce: str) -> None:
+    if raw_seed is None:
+        return
+    record = {
+        "agent_id": score["agent_id"],
+        "scanner_version": score["scanner_version"],
+        "corpus_version": score["corpus_version"],
+        "scan_seed": raw_seed,
+        "scan_seed_ref": score["probe_provenance"]["scan_seed_ref"],
+        "probe_set_hash": score["probe_provenance"]["probe_set_hash"],
+        "rotation_epoch": score["probe_provenance"]["rotation_epoch"],
+        "sample_coverage": score["probe_provenance"]["sample_coverage"],
+        "forensic_bundle_uri": score.get("forensic_bundle_uri"),
+        "scan_nonce_hash": "sha256:" + hashlib.sha256(scan_nonce.encode("utf-8")).hexdigest(),
+        "run_timestamp": score["run_timestamp"],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+
+
+def build_score(
+    *,
+    fixture: dict,
+    release: dict,
+    seed: int | None,
+    freeze_timestamp: bool,
+    tenant_id: str | None = None,
+    production_evidence_store: Path | None = None,
+    score_integrity_threshold: float = DEFAULT_SCORE_INTEGRITY_THRESHOLD,
+    scan_mode: str = "field",
+    rotation_epoch: int = 0,
+    scan_nonce: str = "fixture-nonce-0",
+) -> tuple[dict, str | None]:
+    subscores = _validated_subscores(fixture)
+    total = round(sum(subscores.values()), 6)
+    evidence_refs = _validated_evidence_refs(fixture)
+    uncovered_dimensions = _validated_uncovered_dimensions(fixture)
+    confidence = _validated_confidence(fixture)
+    probe_provenance, raw_scan_seed = _sampling_provenance(
+        fixture=fixture,
+        release=release,
+        scan_mode=scan_mode,
+        rotation_epoch=rotation_epoch,
+        scan_nonce=scan_nonce,
+    )
+    run_timestamp = (
+        "1970-01-01T00:00:00Z"
+        if freeze_timestamp
+        else datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
+    model_versions = fixture.get("model_versions") or release["model_versions"]
+    if not isinstance(model_versions, dict) or "primary" not in model_versions or "judges" not in model_versions:
+        raise EntrypointError("model_versions must include primary and judges")
+    if not isinstance(model_versions["judges"], list):
+        raise EntrypointError("model_versions.judges must be a list")
+
+    tenant_id = str(tenant_id or fixture.get("tenant_id") or "default")
+    production_evidence = None
+    if production_evidence_store is not None:
+        production_evidence = _read_production_evidence_score(
+            store_root=production_evidence_store,
+            tenant_id=tenant_id,
+            agent_id=fixture["agent_id"],
+        )
+
+    score = {
+        "agent_id": fixture["agent_id"],
+        "are_total": total,
+        "subscores": subscores,
+        "band": _band(total),
+        "confidence": confidence,
+        "evidence_refs": evidence_refs,
+        "uncovered_dimensions": uncovered_dimensions,
+        "scanner_version": str(release["scanner_version"]),
+        "corpus_version": str(release["corpus_version"]),
+        "model_versions": {
+            "primary": str(model_versions["primary"]),
+            "judges": [str(judge) for judge in model_versions["judges"]],
+        },
+        "seed": int(seed if seed is not None else fixture.get("seed", 0)),
+        "run_timestamp": run_timestamp,
+        "contract_version": str(release["contract"]),
+        "probe_provenance": probe_provenance,
+        "anti_gaming": {
+            "probe_sampling": probe_provenance["mode"],
+            "scan_nonce_disclosed_pre_completion": False,
+            "raw_scan_seed_in_envelope": False,
+            "tier_1_rollback_env": "ARE_PROBE_SAMPLING=off",
+        },
+        "operator_note": (
+            "Fixture-mode runnable entrypoint. Uses explicit fixture subscores and "
+            "fixture evidence refs; production probe coverage gaps are listed in "
+            "uncovered_dimensions."
+        ),
+    }
+    score["extensions"] = {
+        SCORE_INTEGRITY_EXTENSION_VERSION: {
+            "anti_gaming": _score_integrity_extension(
+                staged_score=total,
+                production_evidence=production_evidence,
+                threshold=score_integrity_threshold,
+            )
+        }
+    }
+    return score, raw_scan_seed
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        release = _load_release_metadata()
+        if args.version:
+            print(
+                json.dumps(
+                    {
+                        "scanner_version": release["scanner_version"],
+                        "corpus_version": release["corpus_version"],
+                        "contract_version": release["contract"],
+                        "model_versions": release["model_versions"],
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
+        fixture = _load_fixture(Path(args.fixture).expanduser().resolve())
+        score, raw_scan_seed = build_score(
+            fixture=fixture,
+            release=release,
+            seed=args.seed,
+            freeze_timestamp=args.freeze_timestamp,
+            tenant_id=args.tenant_id,
+            production_evidence_store=Path(args.production_evidence_store).expanduser().resolve(),
+            score_integrity_threshold=args.score_integrity_threshold,
+            scan_mode=args.scan_mode,
+            rotation_epoch=args.rotation_epoch,
+            scan_nonce=args.scan_nonce,
+        )
+        out = Path(args.out).expanduser().resolve()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(score, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if args.audit_spine:
+            _append_audit_spine(
+                path=Path(args.audit_spine).expanduser().resolve(),
+                score=score,
+                raw_seed=raw_scan_seed,
+                scan_nonce=args.scan_nonce,
+            )
+    except EntrypointError as exc:
+        print(f"backbond-scanner: {exc}", file=sys.stderr)
+        return 2
+    print(f"backbond-scanner: wrote {out} (are_total={score['are_total']}, band={score['band']})")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
