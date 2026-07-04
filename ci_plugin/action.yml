@@ -1,0 +1,54 @@
+# BackBond Scanner — GitHub Action (WS-5, BEAAA-11729).
+#
+# INTERNAL-ONLY. This action is NOT published to the GitHub Marketplace.
+# External publish of `backbond/are-scanner-action@v1` is a separate, gated
+# CTO action (BEAAA-11755) requiring the CEO release gate + Founder
+# confirmation on BEAAA-11710. Until then this file is consumed only from
+# the internal repository via `uses: ./ci_plugin`.
+name: "BackBond Scanner"
+description: >-
+  Gate your CI/CD pipeline on your agent's BackBond Score. Breaks the build
+  below threshold; never reds the build on a BackBond outage; refuses to scan
+  production.
+author: "BackBond"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  agent_endpoint:
+    description: "URL of the agent under test (must NOT be production)."
+    required: true
+  backbond_api_key:
+    description: "BackBond scanner API key. Pass via a CI secret; never inlined."
+    required: true
+  auth_token:
+    description: "Agent-side auth token. Pass via a CI secret; never inlined."
+    required: false
+  backbond_base_url:
+    description: "BackBond Scanner API base URL."
+    required: false
+    default: "https://api.backbond.ai"
+  scan_tier:
+    description: "smoke | full. Smoke is a fast, NON-bindable advisory pass."
+    required: false
+    default: "full"
+  fail_below_score:
+    description: >-
+      Optional stricter-only threshold override. Honoured only when higher
+      than the vendor's contracted policy band floor (cannot loosen it).
+    required: false
+  webhook_secret:
+    description: >-
+      Shared secret for HMAC-SHA256 verification of the completion webhook.
+      Pass via a CI secret. When set with a delivered webhook, the score is
+      trusted only if the signature verifies (fail-closed otherwise).
+    required: false
+
+outputs:
+  result:
+    description: "JSON gate result {exit_code, reason, bindable, advisory, score, threshold}."
+
+runs:
+  using: "docker"
+  image: "Dockerfile"

@@ -1,0 +1,34 @@
+# BackBond Scanner — GitLab CI include template (WS-5, BEAAA-11729).
+#
+# INTERNAL-ONLY. Not published as a public GitLab CI/CD Catalog component.
+# External publish is gated on BEAAA-11755 (CEO release gate + Founder
+# confirm on BEAAA-11710).
+#
+# Usage (one block, same entrypoint image as the GitHub Action):
+#   include:
+#     - local: 'ci_plugin/templates/.gitlab-ci.yml'
+#   backbond_scan:
+#     extends: .backbond_scan
+#     variables:
+#       BACKBOND_AGENT_ENDPOINT: "https://staging-agent.example.com"
+#       BACKBOND_SCAN_TIER: "full"
+#       BACKBOND_FAIL_BELOW_SCORE: "72"
+#     # Provide via masked CI/CD variables (Settings > CI/CD > Variables):
+#     #   BACKBOND_BACKBOND_API_KEY, BACKBOND_AUTH_TOKEN, BACKBOND_WEBHOOK_SECRET
+#
+# The plugin reads BACKBOND_<INPUT> env vars (the same values the GitHub
+# Action exposes as INPUT_<INPUT>), so one entrypoint serves both surfaces.
+# Exit codes: 0 pass · 1 gate-fail (break build) · 3 production refusal ·
+# 4 webhook HMAC mismatch · 75 infra advisory (does NOT red the build).
+.backbond_scan:
+  image: "$BACKBOND_ACTION_IMAGE"        # internal registry image of ci_plugin/Dockerfile
+  variables:
+    BACKBOND_BACKBOND_BASE_URL: "https://api.backbond.ai"
+    BACKBOND_SCAN_TIER: "full"
+  script:
+    - python -m ci_plugin.runner
+  # `allow_failure` with the infra advisory code keeps a BackBond outage from
+  # blocking the pipeline while still surfacing the advisory job status.
+  allow_failure:
+    exit_codes:
+      - 75

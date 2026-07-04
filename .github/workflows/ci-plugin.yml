@@ -1,0 +1,29 @@
+# WS-5 (BEAAA-11729) — OSS CI/CD plugin acceptance matrix.
+# The single acceptance criterion: this matrix is green against the mock
+# scanner harness. Internal-only; the plugin is not published here.
+name: ci-plugin
+
+on:
+  pull_request:
+    paths:
+      - "ci_plugin/**"
+      - "api/ci_scan_ext.py"
+      - "api/jcs.py"
+      - "tests/test_ci_plugin_beaaa11729.py"
+      - ".github/workflows/ci-plugin.yml"
+  push:
+    branches: [master]
+
+jobs:
+  acceptance-matrix:
+    name: ci-plugin acceptance matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the 6-row exit-code matrix (mock scanner harness)
+        run: python -m pytest tests/test_ci_plugin_beaaa11729.py -v
+      - name: Build the plugin container (context = repo root)
+        run: docker build -f ci_plugin/Dockerfile -t are-scanner-action:ci .
