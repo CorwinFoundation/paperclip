@@ -312,6 +312,22 @@ def ci_plugin_result(
     }
 
 
+# ---------------------------------------------------------------------------
+# Item 4 — probe_set_hash computation.
+# ---------------------------------------------------------------------------
+
+def compute_probe_set_hash(dim_ids: list[str] | tuple[str, ...]) -> str:
+    """Return ``sha256:<hex>`` of the sorted, newline-joined dim_ids.
+
+    The hash identifies the exact probe subset that ran — critical for
+    ``smoke`` tier where coverage varies by version. Uses the same
+    ``sha256:<hex>`` format as ``snapshot_hash`` in the audit spine.
+    Deterministic: sorted order removes dependency on evaluation order.
+    """
+    canonical = "\n".join(sorted(dim_ids)).encode("utf-8")
+    return f"sha256:{sha256(canonical).hexdigest()}"
+
+
 __all__ = [
     # item 2
     "SIGNATURE_HEADER",
@@ -332,6 +348,8 @@ __all__ = [
     "classify_error_class",
     "error_class_for_http_status",
     "gate_disposition",
+    # item 4
+    "compute_probe_set_hash",
     # item 5
     "DEFAULT_DIM_PASS_THRESHOLD",
     "ci_plugin_result",

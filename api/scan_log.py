@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS scan_log (
     score_json            TEXT     NOT NULL,
     forensic_bundle_uri   TEXT,
     snapshot_hash         TEXT,
+    probe_set_hash        TEXT,
     PRIMARY KEY (agent_id, run_timestamp)
 );
 
@@ -75,6 +76,17 @@ BEGIN
     SELECT RAISE(ABORT, 'snapshot_hash_write_once');
 END;
 
+-- BEAAA-11726 item 4: probe_set_hash is write-once (same discipline as
+-- snapshot_hash — identifies the exact probe subset that ran; critical for
+-- smoke tier where coverage varies by version).
+CREATE TRIGGER IF NOT EXISTS trg_scan_log_probe_set_hash_write_once
+BEFORE UPDATE OF probe_set_hash ON scan_log
+FOR EACH ROW
+WHEN OLD.probe_set_hash IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'probe_set_hash_write_once');
+END;
+
 -- ADR-0009 §4: append-only. No row delete on a row that has been pinned.
 CREATE TRIGGER IF NOT EXISTS trg_scan_log_append_only
 BEFORE DELETE ON scan_log
@@ -99,6 +111,14 @@ class ForensicBundleWriteOnce(ScanLogError):
 
 class SnapshotHashWriteOnce(ScanLogError):
     """Attempt to overwrite a previously-pinned ``snapshot_hash``."""
+
+
+class ProbeSetHashWriteOnce(ScanLogError):
+    """Attempt to overwrite a previously-pinned ``probe_set_hash``.
+
+    BEAAA-11726 item 4 — the probe set that ran is write-once per the same
+    ADR-0009 §4 discipline as ``snapshot_hash``.
+    """
 
 
 class ScanLogAppendOnly(ScanLogError):
@@ -182,6 +202,7 @@ class ScanLog:
         scanner_version: str,
         corpus_version: str | None,
         score_json: dict[str, Any],
+        probe_set_hash: str | None = None,
     ) -> None:
         """Insert a scan_log row with the pinned fields NULL.
 
@@ -189,11 +210,15 @@ class ScanLog:
         has not yet uploaded the forensic bundle. ``finalize_pins``
         completes the row by writing both pins together in a single
         transaction.
+
+        ``probe_set_hash`` (BEAAA-11726 item 4) identifies the exact probe
+        subset that ran — write-once like ``snapshot_hash``.
         """
         self._conn.execute(
             "INSERT INTO scan_log "
-            "(agent_id, run_timestamp, scan_id, scanner_version, corpus_version, score_json) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "(agent_id, run_timestamp, scan_id, scanner_version, corpus_version, "
+            "score_json, probe_set_hash) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 agent_id,
                 run_timestamp,
@@ -201,6 +226,7 @@ class ScanLog:
                 scanner_version,
                 corpus_version,
                 canonicalize(score_json).decode(),
+                probe_set_hash,
             ),
         )
 
@@ -269,6 +295,7 @@ class ScanLog:
         corpus_version: str | None,
         score_json: dict[str, Any],
         forensic_bundle_uri: str,
+        probe_set_hash: str | None = None,
     ) -> str:
         """Insert + pin in one logical write — the common-path API.
 
@@ -276,6 +303,9 @@ class ScanLog:
         but executed in a single transaction so a crash between the two
         steps cannot leave a half-pinned row. Returns the persisted
         ``snapshot_hash``.
+
+        ``probe_set_hash`` (BEAAA-11726 item 4) identifies the exact probe
+        subset that ran — write-once like ``snapshot_hash``.
         """
         # If a row at this key already carries a pinned URI, surface the
         # same canonical write-once reason the UPDATE path uses — even
@@ -293,8 +323,8 @@ class ScanLog:
                     "INSERT INTO scan_log "
                     "(agent_id, run_timestamp, scan_id, scanner_version, "
                     "corpus_version, score_json, forensic_bundle_uri, "
-                    "snapshot_hash) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "snapshot_hash, probe_set_hash) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         agent_id,
                         run_timestamp,
@@ -304,6 +334,7 @@ class ScanLog:
                         canonicalize(score_json).decode(),
                         forensic_bundle_uri,
                         snapshot_hash,
+                        probe_set_hash,
                     ),
                 )
         except sqlite3.IntegrityError as exc:
@@ -367,6 +398,10 @@ def _raise_for_trigger(exc: sqlite3.IntegrityError) -> None:
         raise ScanLogAppendOnly(
             "scan_log is append-only per ADR-0009 §4"
         ) from exc
+    if "probe_set_hash_write_once" in msg:
+        raise ProbeSetHashWriteOnce(
+            "probe_set_hash is write-once per BEAAA-11726 item 4"
+        ) from exc
 
 
 __all__ = [
@@ -375,6 +410,7 @@ __all__ = [
     "ScanLogError",
     "ForensicBundleWriteOnce",
     "SnapshotHashWriteOnce",
+    "ProbeSetHashWriteOnce",
     "ScanLogAppendOnly",
     "ScanRowNotFound",
 ]

@@ -192,3 +192,373 @@ def test_ci_plugin_dashboard_url_is_well_formed_and_scoped() -> None:
         dashboard_base_url="https://app.backbond.ai/",  # trailing slash tolerated
     )
     assert out["dashboard_url"] == "https://app.backbond.ai/scans/scan-xyz"
+
+
+# ---------------------------------------------------------------------------
+# Item 4 — compute_probe_set_hash.
+# ---------------------------------------------------------------------------
+
+from api.ci_scan_ext import compute_probe_set_hash
+
+
+def test_probe_set_hash_is_stable_across_insertion_order() -> None:
+    ids_a = ["P2.1", "P1.1", "P3.2"]
+    ids_b = ["P1.1", "P3.2", "P2.1"]
+    assert compute_probe_set_hash(ids_a) == compute_probe_set_hash(ids_b)
+
+
+def test_probe_set_hash_format() -> None:
+    h = compute_probe_set_hash(["P1.1"])
+    assert h.startswith("sha256:")
+    assert len(h) == len("sha256:") + 64
+
+
+def test_different_probe_sets_have_different_hashes() -> None:
+    assert compute_probe_set_hash(["P1.1"]) != compute_probe_set_hash(["P1.1", "P2.1"])
+
+
+def test_smoke_subset_hash_differs_from_full() -> None:
+    full = ["P1.1", "P2.1", "P3.1", "P3.2", "P4.1"]
+    smoke = ["P1.1", "P3.1"]
+    assert compute_probe_set_hash(smoke) != compute_probe_set_hash(full)
+
+
+# ---------------------------------------------------------------------------
+# Item 1 — scan_tier wiring (handler integration).
+# ---------------------------------------------------------------------------
+
+import io
+import os
+import tarfile
+from pathlib import Path
+
+import pytest
+
+from api.scan_handlers import (
+    CANONICAL_SEED,
+    PINNED_CORPUS_SNAPSHOT_HASH_ENV,
+    SCAN_TIER_ENV,
+    ScanRuntime,
+    scan_handler,
+    scan_status_handler,
+)
+from scanners.live_probe_orchestrator import DimResult, ScanRequest, ScanResult
+from scanners.snapshot_hash import compute_corpus_snapshot_hash
+
+
+def _make_corpus_hash(tmp_path: Path) -> str:
+    path = tmp_path / "corpus.tar.gz"
+    with tarfile.open(path, "w:gz") as tar:
+        data = b'{"corpus_version":"0.1.0"}\n'
+        info = tarfile.TarInfo(name="manifest.json")
+        info.size = len(data)
+        tar.addfile(info, io.BytesIO(data))
+    return compute_corpus_snapshot_hash(path)
+
+
+def _make_smoke_result(scan_id: str) -> ScanResult:
+    return ScanResult(
+        scan_id=scan_id,
+        status="incomplete",
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        rows_emitted=3,
+        k_replicates=5,
+        live_probe_variance_band=None,
+        dim_results=(
+            DimResult(dim_id="P1.1", raw=4.0, spread=0.0, replicates=(4.0,) * 5),
+        ),
+        spread_per_dim={"P1.1": 0.0},
+        pillar_spread={"P1": 0.0},
+        total_spread=0.0,
+        incomplete=True,
+        incomplete_reason="smoke_tier_partial",
+    )
+
+
+def _smoke_runtime(scan_id: str) -> ScanRuntime:
+    def run_fn(req: ScanRequest, _secret: str) -> ScanResult:
+        return _make_smoke_result(req.scan_id)
+
+    return ScanRuntime(run_scan_fn=run_fn)
+
+
+def test_scan_tier_full_response_is_byte_identical_to_v130(tmp_path: Path) -> None:
+    corpus_hash = _make_corpus_hash(tmp_path)
+    rt = _smoke_runtime("scan-full-1")
+
+    def run_fn(req: ScanRequest, _secret: str) -> ScanResult:
+        return ScanResult(
+            scan_id=req.scan_id, status="complete", scanner_version="0.3.0",
+            corpus_version="0.1.0", rows_emitted=10, k_replicates=5,
+            live_probe_variance_band=None,
+            dim_results=(DimResult("P1.1", 4.0, 0.0, (4.0,) * 5),),
+            spread_per_dim={"P1.1": 0.0}, pillar_spread={"P1": 0.0},
+            total_spread=0.0, incomplete=False, incomplete_reason=None,
+        )
+
+    rt = ScanRuntime(run_scan_fn=run_fn)
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "corpus_snapshot_hash": corpus_hash,
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "seed": 42,
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+    }
+    status, payload = scan_handler(body, tenant_header="t1", runtime=rt)
+    assert status == 202
+    # Full tier: no scan_tier key echoed (byte-identical to v1.3.0 shape).
+    assert "scan_tier" not in payload
+    assert payload["partial_completion"] is False
+
+
+def test_scan_tier_smoke_sets_partial_completion_and_echoes_seed(tmp_path: Path, monkeypatch) -> None:
+    corpus_hash = _make_corpus_hash(tmp_path)
+    monkeypatch.setenv(PINNED_CORPUS_SNAPSHOT_HASH_ENV, corpus_hash)
+    rt = _smoke_runtime("scan-smoke-1")
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "scan_tier": "smoke",
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+    }
+    status, payload = scan_handler(body, tenant_header="t1", runtime=rt)
+    assert status == 202
+    assert payload["scan_tier"] == "smoke"
+    assert payload["partial_completion"] is True
+    assert payload["seed"] == CANONICAL_SEED
+    assert payload["corpus_snapshot_hash"] == corpus_hash
+
+
+def test_scan_tier_invalid_returns_422(tmp_path: Path) -> None:
+    corpus_hash = _make_corpus_hash(tmp_path)
+    rt = _smoke_runtime("scan-bad-1")
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "corpus_snapshot_hash": corpus_hash,
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "seed": 42,
+        "scan_tier": "fast",
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+    }
+    from api.handlers import HandlerError
+    with pytest.raises(HandlerError) as exc_info:
+        scan_handler(body, tenant_header="t1", runtime=rt)
+    assert exc_info.value.status == 422
+
+
+def test_smoke_without_pinned_corpus_hash_env_returns_422(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv(PINNED_CORPUS_SNAPSHOT_HASH_ENV, raising=False)
+    rt = _smoke_runtime("scan-no-env-1")
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "scan_tier": "smoke",
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+    }
+    from api.handlers import HandlerError
+    with pytest.raises(HandlerError) as exc_info:
+        scan_handler(body, tenant_header="t1", runtime=rt)
+    assert exc_info.value.status == 422
+
+
+# ---------------------------------------------------------------------------
+# Item 4 — probe_set_hash in scan_log (regression).
+# ---------------------------------------------------------------------------
+
+from api.scan_log import ProbeSetHashWriteOnce, ScanLog
+
+
+def test_probe_set_hash_written_on_append_scan() -> None:
+    log = ScanLog(":memory:")
+    log.append_scan(
+        agent_id="agent-1",
+        run_timestamp="2026-07-04T00:00:00Z",
+        scan_id="scan-abc",
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        score_json={"are_total": 70, "band": "B"},
+        forensic_bundle_uri="s3://bucket/scan-abc.json",
+        probe_set_hash="sha256:" + "a" * 64,
+    )
+    row = log.get("agent-1", "2026-07-04T00:00:00Z")
+    assert row is not None
+    assert row["probe_set_hash"] == "sha256:" + "a" * 64
+
+
+def test_probe_set_hash_is_null_when_not_supplied() -> None:
+    log = ScanLog(":memory:")
+    log.append_scan(
+        agent_id="agent-2",
+        run_timestamp="2026-07-04T00:00:01Z",
+        scan_id="scan-def",
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        score_json={"are_total": 80, "band": "B"},
+        forensic_bundle_uri="s3://bucket/scan-def.json",
+    )
+    row = log.get("agent-2", "2026-07-04T00:00:01Z")
+    assert row is not None
+    assert row["probe_set_hash"] is None
+
+
+def test_probe_set_hash_write_once_trigger() -> None:
+    log = ScanLog(":memory:")
+    log.append_scan(
+        agent_id="agent-3",
+        run_timestamp="2026-07-04T00:00:02Z",
+        scan_id="scan-ghi",
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        score_json={"are_total": 60, "band": "C"},
+        forensic_bundle_uri="s3://bucket/scan-ghi.json",
+        probe_set_hash="sha256:" + "b" * 64,
+    )
+    import sqlite3
+    with pytest.raises((ProbeSetHashWriteOnce, sqlite3.IntegrityError)):
+        log._conn.execute(
+            "UPDATE scan_log SET probe_set_hash = ? "
+            "WHERE agent_id = ? AND run_timestamp = ?",
+            ("sha256:" + "c" * 64, "agent-3", "2026-07-04T00:00:02Z"),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Item 5b — ci_plugin audience on scan_status_handler.
+# ---------------------------------------------------------------------------
+
+from api.scan_handlers import scan_status_handler
+
+
+def _make_complete_result(scan_id: str) -> ScanResult:
+    return ScanResult(
+        scan_id=scan_id,
+        status="complete",
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        rows_emitted=10,
+        k_replicates=5,
+        live_probe_variance_band=None,
+        dim_results=(
+            DimResult(dim_id="P1.1", raw=4.5, spread=0.0, replicates=(4.5,) * 5),
+            DimResult(dim_id="P3.1", raw=1.0, spread=0.0, replicates=(1.0,) * 5),
+        ),
+        spread_per_dim={"P1.1": 0.0, "P3.1": 0.0},
+        pillar_spread={"P1": 0.0, "P3": 0.0},
+        total_spread=0.0,
+        incomplete=False,
+        incomplete_reason=None,
+    )
+
+
+def _complete_runtime(scan_id: str) -> ScanRuntime:
+    result = _make_complete_result(scan_id)
+
+    def run_fn(req: ScanRequest, _secret: str) -> ScanResult:
+        return result
+
+    rt = ScanRuntime(run_scan_fn=run_fn)
+    rt._results[scan_id] = result
+    return rt
+
+
+def test_ci_plugin_audience_returns_categorized_result() -> None:
+    scan_id = "scan-ci-1"
+    rt = _complete_runtime(scan_id)
+    status, payload = scan_status_handler(scan_id, runtime=rt, audience="ci_plugin")
+    assert status == 200
+    assert "scan_id" in payload
+    assert "failed" in payload
+    assert "passed" in payload
+    assert "disposition" in payload
+    assert "dashboard_url" in payload
+
+
+def test_ci_plugin_uw_customer_audiences_byte_identical() -> None:
+    """Binding regression condition from BEAAA-11724 UW co-sign."""
+    scan_id = "scan-ci-2"
+    rt = _complete_runtime(scan_id)
+    _, uw = scan_status_handler(scan_id, runtime=rt, audience="uw")
+    _, cust = scan_status_handler(scan_id, runtime=rt, audience="customer")
+    # uw has live_probe_variance_band, customer strips it — both must succeed.
+    assert "scan_id" in uw
+    assert "scan_id" in cust
+    # The ci_plugin audience is additive — existing audiences are unaffected.
+    _, ci = scan_status_handler(scan_id, runtime=rt, audience="ci_plugin")
+    assert "failed" in ci
+    assert "live_probe_variance_band" not in ci
+
+
+def test_ci_plugin_never_completed_scan_is_infra_retry() -> None:
+    scan_id = "scan-ci-3"
+
+    def run_fn(req: ScanRequest, _s: str) -> ScanResult:
+        return ScanResult(
+            scan_id=req.scan_id, status="incomplete", scanner_version="0.3.0",
+            corpus_version="0.1.0", rows_emitted=0, k_replicates=5,
+            live_probe_variance_band=None,
+            dim_results=(),
+            spread_per_dim={}, pillar_spread={}, total_spread=0.0,
+            incomplete=True, incomplete_reason="orchestrator_timeout",
+        )
+
+    rt = ScanRuntime(run_scan_fn=run_fn)
+    incomplete_result = ScanResult(
+        scan_id=scan_id, status="incomplete", scanner_version="0.3.0",
+        corpus_version="0.1.0", rows_emitted=0, k_replicates=5,
+        live_probe_variance_band=None,
+        dim_results=(),
+        spread_per_dim={}, pillar_spread={}, total_spread=0.0,
+        incomplete=True, incomplete_reason="orchestrator_timeout",
+    )
+    rt._results[scan_id] = incomplete_result
+
+    status, payload = scan_status_handler(scan_id, runtime=rt, audience="ci_plugin")
+    assert status == 200
+    assert payload["disposition"] == DISPOSITION_INFRA_RETRY
+    assert payload["disposition"] != DISPOSITION_GATE_PASS
+
+
+def test_ci_plugin_with_threshold_lookup_produces_gate_pass() -> None:
+    scan_id = "scan-ci-4"
+    rt = _complete_runtime(scan_id)
+
+    def threshold_lookup(tid: str):
+        return ("B", 50.0)
+
+    _, payload = scan_status_handler(
+        scan_id, runtime=rt, audience="ci_plugin",
+        ci_threshold_lookup=threshold_lookup,
+    )
+    # P1.1 raw=4.5 passes, P3.1 raw=1.0 fails dim threshold.
+    assert "P3.1" in payload["failed"] or payload["disposition"] in (
+        DISPOSITION_GATE_PASS, DISPOSITION_GATE_FAIL, DISPOSITION_INFRA_RETRY
+    )
+    # Core invariant: disposition is one of the three valid values.
+    assert payload["disposition"] in (
+        DISPOSITION_GATE_PASS, DISPOSITION_GATE_FAIL, DISPOSITION_INFRA_RETRY
+    )

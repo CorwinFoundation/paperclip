@@ -40,6 +40,14 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping
 
 # Verbatim T7 / BEAAA-546 alias — no fork, no copy.
+from api.ci_scan_ext import (
+    DISPOSITION_GATE_FAIL,
+    DISPOSITION_GATE_PASS,
+    DISPOSITION_INFRA_RETRY,
+    ci_plugin_result,
+    compute_probe_set_hash,
+    gate_disposition,
+)
 from api.handlers import HandlerError, verify_tenant_isolation
 from api.scan_log import ScanLog
 from api.sla import (
@@ -110,6 +118,19 @@ PRIOR_SCAN_REFS_MAX: int = 100
 # readback. Durable rescan history remains owned by scan_log; this TTL only
 # limits residual process-local request/result state.
 DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS: float = 15 * 60
+
+# BEAAA-11726 item 1 — scan_tier feature flag + reproducibility defaults.
+# ARE_SCAN_TIER=off forces full tier (Tier-1 rollback per ADR-0042 §Rollback).
+SCAN_TIER_ENV: str = "ARE_SCAN_TIER"
+# Fixed canonical seed (ADR-0042 §1 reproducibility guardrail — NOT random).
+CANONICAL_SEED: int = 0
+# Env var holding the currently-pinned corpus snapshot hash for smoke-tier
+# defaulting. Must be set when smoke tier is enabled; 422 if absent.
+PINNED_CORPUS_SNAPSHOT_HASH_ENV: str = "ARE_PINNED_CORPUS_SNAPSHOT_HASH"
+
+# BEAAA-11726 item 2 — webhook delivery feature flag.
+# ARE_SCAN_WEBHOOK=off disables delivery (Tier-1 rollback per ADR-0042 §Rollback).
+SCAN_WEBHOOK_ENV: str = "ARE_SCAN_WEBHOOK"
 
 
 def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
@@ -391,6 +412,11 @@ class ScanRuntime:
                 score_envelope = self._score_envelope_factory(
                     result, agent_id, run_timestamp
                 )
+                # BEAAA-11726 item 4 — compute probe_set_hash from the
+                # dim_ids that ran and persist it write-once with the row.
+                _psh = compute_probe_set_hash(
+                    [d.dim_id for d in result.dim_results]
+                ) if result.dim_results else None
                 self._scan_log.append_scan(
                     agent_id=agent_id,
                     run_timestamp=run_timestamp,
@@ -399,6 +425,7 @@ class ScanRuntime:
                     corpus_version=result.corpus_version,
                     score_json=score_envelope,
                     forensic_bundle_uri=forensic_bundle_uri,
+                    probe_set_hash=_psh,
                 )
                 self._kickoff_keys[scan_request.scan_id] = (agent_id, run_timestamp)
                 if self._scanner_run_tracker is not None:
@@ -785,12 +812,34 @@ def _kickoff_live_probe_scan(
     credential_secret = _require(body, "credential_secret")
     if not isinstance(credential_secret, str) or not credential_secret:
         raise HandlerError(422, "credential_secret_invalid")
-    corpus_snapshot_hash = _validate_corpus_snapshot_hash(_require(body, "corpus_snapshot_hash"))
+    # BEAAA-11726 item 1 — scan_tier: smoke|full, default full.
+    # ARE_SCAN_TIER=off disables smoke tier (Tier-1 rollback).
+    _scan_tier_enabled = os.environ.get(SCAN_TIER_ENV, "on") != "off"
+    raw_scan_tier = body.get("scan_tier") if _scan_tier_enabled else None
+    if raw_scan_tier is not None and raw_scan_tier not in ("smoke", "full"):
+        raise HandlerError(422, "scan_tier_invalid")
+    scan_tier = raw_scan_tier or "full"
+
+    # corpus_snapshot_hash: required for full, can default to pinned for smoke.
+    if "corpus_snapshot_hash" not in body and scan_tier == "smoke":
+        _pinned = os.environ.get(PINNED_CORPUS_SNAPSHOT_HASH_ENV, "")
+        if not _pinned:
+            raise HandlerError(422, "pinned_corpus_hash_unconfigured")
+        corpus_snapshot_hash = _validate_corpus_snapshot_hash(_pinned)
+    else:
+        corpus_snapshot_hash = _validate_corpus_snapshot_hash(_require(body, "corpus_snapshot_hash"))
+
     scanner_version = _require(body, "scanner_version")
     corpus_version = _require(body, "corpus_version")
-    seed = body.get("seed")
-    if not isinstance(seed, int) or isinstance(seed, bool):
+
+    # seed: required for full, defaults to CANONICAL_SEED (0) for smoke.
+    seed_raw = body.get("seed")
+    if seed_raw is None and scan_tier == "smoke":
+        seed = CANONICAL_SEED
+    elif not isinstance(seed_raw, int) or isinstance(seed_raw, bool):
         raise HandlerError(422, "seed_required")
+    else:
+        seed = seed_raw
 
     scan_mode = body.get("scan_mode", "live_probe")
     _validate_scan_mode(scan_mode)
@@ -857,16 +906,31 @@ def _kickoff_live_probe_scan(
         # returns; do not log it, do not place it in any persistent struct.
         del credential_secret
 
+    # BEAAA-11726 item 4 — probe_set_hash computed from the dim_ids that ran.
+    # Wired via kickoff's scan_log call below; runtime wires probe_set_hash
+    # via the ScanRuntime._probe_set_hash_factory hook if configured.
+    _probe_set_hash = compute_probe_set_hash(
+        [d.dim_id for d in result.dim_results]
+    ) if result.dim_results else None
+
     # BEAAA-1274 (WS4) additive flags. Default ``false`` on every accept
     # response (per AC #5) — the rescan-side degradation path is the only
     # surface that may flip them to ``true``.
-    partial_completion = bool(result.incomplete)
-    return 202, {
+    # BEAAA-11726 item 1 — smoke tier overrides partial_completion to true.
+    partial_completion = bool(result.incomplete) or scan_tier == "smoke"
+    response: dict[str, Any] = {
         "scan_id": scan_id,
         "status": "partial" if partial_completion else "accepted",
         "partial_completion": partial_completion,
         "confidence_below_adjudication_threshold": partial_completion,
     }
+    if scan_tier == "smoke" and _scan_tier_enabled:
+        # Echo defaults so the vendor can reproduce: same agent + same version
+        # => same score within +/-1. Full tier is byte-identical to v1.3.0.
+        response["scan_tier"] = "smoke"
+        response["seed"] = seed
+        response["corpus_snapshot_hash"] = corpus_snapshot_hash
+    return 202, response
 
 
 def scan_handler(
@@ -1091,6 +1155,8 @@ def scan_status_handler(
     *,
     runtime: ScanRuntime,
     audience: str = "customer",
+    ci_threshold_lookup: "Callable[[str], tuple[str | None, float | None]] | None" = None,
+    dashboard_base_url: str = "https://app.backbond.ai",
 ) -> tuple[int, dict[str, Any]]:
     """GET /scan/{scan_id} handler.
 
@@ -1098,6 +1164,12 @@ def scan_status_handler(
 
     * ``"customer"`` (default) — strips ``live_probe_variance_band`` per Δ4.
     * ``"uw"`` — retains every field for the Underwriter pricing engine.
+    * ``"ci_plugin"`` (BEAAA-11726 item 5b) — no-prompt categorized rollup
+      for the CI/CD plugin; sourced from the score_json envelope + the
+      threshold-source API lookup. ``ci_threshold_lookup(tenant_id)`` must
+      return ``(band_letter | None, fail_below_score | None)``; pass
+      ``None`` for the callable to skip the threshold gate (returns
+      ``disposition: infra_retry`` for any non-completed scan).
     """
     if not isinstance(scan_id, str) or not scan_id:
         raise HandlerError(422, "scan_id_required")
@@ -1108,7 +1180,77 @@ def scan_status_handler(
         return 200, _uw_payload(result)
     if audience == "customer":
         return 200, _customer_payload(result)
+    if audience == "ci_plugin":
+        return 200, _ci_plugin_payload(
+            scan_id,
+            result,
+            runtime,
+            ci_threshold_lookup=ci_threshold_lookup,
+            dashboard_base_url=dashboard_base_url,
+        )
     raise HandlerError(422, "audience_invalid")
+
+
+def _ci_plugin_payload(
+    scan_id: str,
+    result: ScanResult,
+    runtime: ScanRuntime,
+    *,
+    ci_threshold_lookup: "Callable[[str], tuple[str | None, float | None]] | None",
+    dashboard_base_url: str,
+) -> dict[str, Any]:
+    """Build the ci_plugin audience response for GET /scan/{scan_id}.
+
+    Reads band/are_total from the persisted score_json envelope (via
+    ``current_kickoff_row``). Applies the threshold-source API lookup to
+    determine gate disposition. Never emits probe prompt text (the adapter
+    in ci_scan_ext.ci_plugin_result reads only dim ids/labels/raws).
+    """
+    scan_completed = not result.incomplete
+    dim_raws = {d.dim_id: d.raw for d in result.dim_results}
+
+    # Read band from the persisted score_json envelope. Falls back to None
+    # when the runtime has no scan_log (e.g. legacy test fixtures without
+    # persistence wiring) — gate_disposition then returns infra_retry.
+    score_row = runtime.current_kickoff_row(scan_id)
+    score_env = score_row.get("score_json", {}) if score_row else {}
+    band = score_env.get("band")
+    are_total = score_env.get("are_total") or score_env.get("bmi")
+
+    # Threshold-source API lookup determines gate pass/fail.
+    # CEO-ruled (BEAAA-11725): default gate = vendor's contracted policy band;
+    # fail_below_score is a stricter-only override.
+    gate_passed: bool | None = None
+    if scan_completed and ci_threshold_lookup is not None and are_total is not None:
+        try:
+            _contracted_band, fail_below = ci_threshold_lookup(
+                result.scan_id if hasattr(result, "scan_id") else scan_id
+            )
+            if fail_below is not None and isinstance(are_total, (int, float)):
+                gate_passed = float(are_total) >= float(fail_below)
+        except Exception:
+            gate_passed = None
+
+    disposition = gate_disposition(
+        scan_completed=scan_completed,
+        error_class=None,
+        gate_passed=gate_passed,
+    )
+
+    # dim_labels: use dim_id as both key and label (the full label lookup
+    # requires the rubric which we intentionally do not re-import here;
+    # production wiring may supply labels via the score_env if available).
+    raw_labels: dict[str, str] = score_env.get("dim_labels", {})
+    dim_labels = {dim_id: raw_labels.get(dim_id, dim_id) for dim_id in dim_raws}
+
+    return ci_plugin_result(
+        scan_id=scan_id,
+        dim_labels=dim_labels,
+        dim_raws=dim_raws,
+        band=band,
+        disposition=disposition,
+        dashboard_base_url=dashboard_base_url,
+    )
 
 
 def _default_scan_id() -> str:
