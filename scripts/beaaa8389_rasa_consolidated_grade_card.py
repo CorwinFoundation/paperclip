@@ -201,6 +201,12 @@ def _write_input_dir(path: Path, rubric: Rubric) -> None:
         json.dumps(
             {
                 "purpose": "pre_bind",
+                # BEAAA-10459 gates client-supplied applicability_decisions behind
+                # explicit non-binding legacy replay. This consolidated Rasa grade
+                # card is a historical, non-binding reproduction whose N/A dims are
+                # declared by the replay, not measured live. Without this flag the
+                # server drops those decisions and scoring rejects them as missing.
+                "applicability_mode": "legacy_replay",
                 "requested_pillars": ["OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"],
                 "target_agent_id": "rasa-oss-3.6.21-local-rest",
                 "ticket_ref": BEAAA,

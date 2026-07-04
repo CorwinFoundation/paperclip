@@ -128,7 +128,9 @@ def test_rescans_includes_invocation_context_in_score_inputs(
 ) -> None:
     captured: dict[str, Any] = {}
     runtime, corpus_hash = _runtime_with_instrumented_scorer(tmp_path)
-    runtime._agent_ids_with_prior_scan.add(AGENT_ID)
+    # BEAAA-11631 turned the in-memory prior-scan set into a TTL-keyed dict;
+    # use the public registrar rather than poking the private container.
+    runtime.register_prior_scan(AGENT_ID)
 
     def fake_spawn_scorer(
         *,  # noqa: ARG001
