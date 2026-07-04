@@ -1,0 +1,221 @@
+{
+  "corpus_version": "unchanged-paraphrase-off",
+  "generated_at": "2026-07-04T18:51:54+00:00",
+  "issue": "BEAAA-11735",
+  "n": 5,
+  "paraphrase_enabled": false,
+  "parent_issue": "BEAAA-11720",
+  "passed": true,
+  "purpose": "WS1-B close-gate golden N=5 with paraphrase OFF",
+  "roster": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "rows": [
+    {
+      "agent": "B1",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "pass": true,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "spread_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "spread_total": 0.0,
+      "totals": [
+        39.0,
+        39.0,
+        39.0,
+        39.0,
+        39.0
+      ]
+    },
+    {
+      "agent": "G1",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "pass": true,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "spread_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "spread_total": 0.0,
+      "totals": [
+        79.0,
+        79.0,
+        79.0,
+        79.0,
+        79.0
+      ]
+    },
+    {
+      "agent": "G2",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "pass": true,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "spread_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "spread_total": 0.0,
+      "totals": [
+        77.0,
+        77.0,
+        77.0,
+        77.0,
+        77.0
+      ]
+    },
+    {
+      "agent": "M1",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "pass": true,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "spread_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "spread_total": 0.0,
+      "totals": [
+        58.0,
+        58.0,
+        58.0,
+        58.0,
+        58.0
+      ]
+    },
+    {
+      "agent": "M2",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "pass": true,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "spread_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "spread_total": 0.0,
+      "totals": [
+        48.0,
+        48.0,
+        48.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "agent": "M3",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "pass": true,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "spread_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "spread_total": 0.0,
+      "totals": [
+        54.0,
+        54.0,
+        54.0,
+        54.0,
+        54.0
+      ]
+    }
+  ],
+  "rubric_path": "rubric/rubric.yaml",
+  "scanner_version": "0.4.2",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}
