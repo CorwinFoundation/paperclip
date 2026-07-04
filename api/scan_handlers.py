@@ -790,6 +790,8 @@ def _kickoff_live_probe_scan(
     scan_id_factory: Callable[[], str] | None,
     agent_id: str | None = None,
     scanner_invocation_context: dict[str, Any] | None = None,
+    webhook_secret_resolver: "Callable[[str], str | bytes | None] | None" = None,
+    webhook_http_poster: "Callable[[str, dict, bytes], None] | None" = None,
 ) -> tuple[int, dict[str, Any]]:
     """Shared body-validation + ScanRequest build + runtime.kickoff path.
 
@@ -840,6 +842,23 @@ def _kickoff_live_probe_scan(
         raise HandlerError(422, "seed_required")
     else:
         seed = seed_raw
+
+    # BEAAA-11726 item 2 — webhook config extraction.
+    # ARE_SCAN_WEBHOOK=off disables delivery; unset/on enables.
+    _webhook_enabled = os.environ.get(SCAN_WEBHOOK_ENV, "on") != "off"
+    _webhook_cfg: dict[str, str] | None = None
+    if _webhook_enabled:
+        raw_webhook = body.get("webhook")
+        if raw_webhook is not None:
+            if not isinstance(raw_webhook, dict):
+                raise HandlerError(422, "webhook_invalid")
+            _wh_url = raw_webhook.get("url")
+            _wh_ref = raw_webhook.get("secret_ref")
+            if not isinstance(_wh_url, str) or not _wh_url:
+                raise HandlerError(422, "webhook_url_required")
+            if not isinstance(_wh_ref, str) or not _wh_ref:
+                raise HandlerError(422, "webhook_secret_ref_required")
+            _webhook_cfg = {"url": _wh_url, "secret_ref": _wh_ref}
 
     scan_mode = body.get("scan_mode", "live_probe")
     _validate_scan_mode(scan_mode)
@@ -930,7 +949,46 @@ def _kickoff_live_probe_scan(
         response["scan_tier"] = "smoke"
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
+
+    # BEAAA-11726 item 2 — fire webhook delivery if configured (best-effort;
+    # delivery failure NEVER blocks the 202 — the scan is already complete).
+    if _webhook_cfg is not None and webhook_http_poster is not None:
+        _fire_webhook(
+            webhook_cfg=_webhook_cfg,
+            payload=dict(response),
+            resolver=webhook_secret_resolver,
+            http_poster=webhook_http_poster,
+        )
+
     return 202, response
+
+
+def _fire_webhook(
+    *,
+    webhook_cfg: dict[str, str],
+    payload: dict[str, Any],
+    resolver: "Callable[[str], str | bytes | None] | None",
+    http_poster: "Callable[[str, dict, bytes], None]",
+) -> None:
+    """Build the signed delivery and POST it (best-effort, never raises).
+
+    Fail-closed: if the secret cannot be resolved, no unsigned delivery is
+    sent (WebhookSecretResolutionError from build_signed_delivery). Any
+    network error is swallowed here — the 202 is already committed.
+    """
+    from api.ci_scan_ext import WebhookSecretResolutionError, build_signed_delivery
+
+    if resolver is None:
+        return
+    try:
+        headers, body_bytes = build_signed_delivery(
+            payload, webhook_cfg["secret_ref"], resolver
+        )
+        http_poster(webhook_cfg["url"], headers, body_bytes)
+    except WebhookSecretResolutionError:
+        pass
+    except Exception:
+        pass
 
 
 def scan_handler(
@@ -939,6 +997,8 @@ def scan_handler(
     tenant_header: str | None,
     runtime: ScanRuntime,
     scan_id_factory: Callable[[], str] | None = None,
+    webhook_secret_resolver: "Callable[[str], str | bytes | None] | None" = None,
+    webhook_http_poster: "Callable[[str, dict, bytes], None] | None" = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scan handler.
 
@@ -969,6 +1029,8 @@ def scan_handler(
         runtime=runtime,
         scan_id_factory=scan_id_factory,
         agent_id=agent_id_for_chain,
+        webhook_secret_resolver=webhook_secret_resolver,
+        webhook_http_poster=webhook_http_poster,
     )
 
 

@@ -562,3 +562,100 @@ def test_ci_plugin_with_threshold_lookup_produces_gate_pass() -> None:
     assert payload["disposition"] in (
         DISPOSITION_GATE_PASS, DISPOSITION_GATE_FAIL, DISPOSITION_INFRA_RETRY
     )
+
+
+# ---------------------------------------------------------------------------
+# Item 2 — webhook delivery wiring (handler integration).
+# ---------------------------------------------------------------------------
+
+def test_webhook_delivery_fires_with_signature(tmp_path, monkeypatch) -> None:
+    corpus_hash = _make_corpus_hash(tmp_path)
+    deliveries = []
+
+    def http_poster(url, headers, body_bytes):
+        deliveries.append((url, headers, body_bytes))
+
+    def resolver(ref):
+        return "vendor-webhook-secret" if ref == "ref-x" else None
+
+    rt = _smoke_runtime("scan-wh-1")
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "corpus_snapshot_hash": corpus_hash,
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "seed": 42,
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+        "webhook": {"url": "https://ci.vendor.example.com/backbond-hook", "secret_ref": "ref-x"},
+    }
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "on")
+    status, _ = scan_handler(
+        body, tenant_header="t1", runtime=rt,
+        webhook_secret_resolver=resolver,
+        webhook_http_poster=http_poster,
+    )
+    assert status == 202
+    assert len(deliveries) == 1
+    url, headers, body_bytes = deliveries[0]
+    assert url == "https://ci.vendor.example.com/backbond-hook"
+    assert "X-BackBond-Signature" in headers
+    assert headers["X-BackBond-Signature"].startswith("sha256=")
+
+
+def test_webhook_disabled_by_env_flag_fires_nothing(tmp_path, monkeypatch) -> None:
+    corpus_hash = _make_corpus_hash(tmp_path)
+    deliveries = []
+    rt = _smoke_runtime("scan-wh-2")
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "off")
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "corpus_snapshot_hash": corpus_hash,
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "seed": 42,
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+        "webhook": {"url": "https://ci.vendor.example.com/hook", "secret_ref": "ref-x"},
+    }
+    scan_handler(
+        body, tenant_header="t1", runtime=rt,
+        webhook_http_poster=lambda u, h, b: deliveries.append(u),
+    )
+    assert deliveries == []
+
+
+def test_webhook_secret_ref_resolution_failure_never_sends_unsigned(tmp_path, monkeypatch) -> None:
+    corpus_hash = _make_corpus_hash(tmp_path)
+    deliveries = []
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "on")
+    rt = _smoke_runtime("scan-wh-3")
+    body = {
+        "tenant_id": "t1",
+        "agent_endpoint": {"host": "agent.example.com"},
+        "credential_ref": "ref.v1",
+        "credential_secret": "s3cr3t",
+        "corpus_snapshot_hash": corpus_hash,
+        "scanner_version": "0.3.0",
+        "corpus_version": "0.1.0",
+        "seed": 42,
+        "scan_mode": "live_probe",
+        "k_replicates": 5,
+        "requested_pillars": [],
+        "webhook": {"url": "https://ci.vendor.example.com/hook", "secret_ref": "unknown-ref"},
+    }
+    status, _ = scan_handler(
+        body, tenant_header="t1", runtime=rt,
+        webhook_secret_resolver=lambda ref: None,
+        webhook_http_poster=lambda u, h, b: deliveries.append(u),
+    )
+    assert status == 202
+    assert deliveries == []
