@@ -101,15 +101,20 @@ Prompts are absent by construction (the adapter reads only dimension ids/labels,
 
 Per ADR-0042 §Rollback. Item 1 → `ARE_SCAN_TIER=off`. Item 2 → `ARE_SCAN_WEBHOOK=off`. Items 3/5 → additive fields/audience; Tier-2 PR revert. Item 4 → append-only additive column; write-once trigger makes it non-destructive.
 
-## §8. Implementation status at authoring (BEAAA-11726 branch `beaaa-11726-ci-scan-ext`)
+## §8. Implementation status — COMPLETE (2026-07-04)
 
-| Item | Leg | Status |
-|---|---|---|
-| 2 | HMAC webhook signing + fail-closed secret resolution | **Implemented + tested** (`api/ci_scan_ext.py`; 6 webhook tests) |
-| 3 | infra-vs-score taxonomy (`error_class` / `disposition`) | **Implemented + tested** (5 taxonomy tests) |
-| 5 | no-prompt `ci_plugin` categorized adapter (pure projection) | **Implemented + tested** (3 adapter tests, incl. no-prompt corpus-string assert) |
-| 1 | `scan_tier` input + seed/corpus defaulting + echo + envelope label | design frozen; handler wiring + smoke probe-subset (orchestrator leg) pending on this branch |
-| 4 | `probe_set_hash` spine column + write-once trigger + regression | design frozen; spine wiring pending on this branch |
-| 5 (live) | GET-wiring + threshold-source API lookup supplying `band`/`disposition` | design frozen; wiring pending on this branch |
+Branch `beaaa-11726-ci-scan-ext` @ `81d870e` (3 commits ahead of `origin/master` @ `07cd46c`).
 
-All legs land on this single branch and merge atomically under one v1.7.0 co-sign; no partial contract bump.
+| Item | Leg | Status | Commits |
+|---|---|---|---|
+| 2 | HMAC webhook signing + fail-closed secret resolution | **Implemented + tested** | `f87e884`, `81d870e` |
+| 3 | infra-vs-score taxonomy (`error_class` / `disposition`) | **Implemented + tested** | `f87e884` |
+| 5 (adapter) | no-prompt `ci_plugin` categorized adapter | **Implemented + tested** | `f87e884` |
+| 1 | `scan_tier` + seed/corpus defaulting + echo + smoke envelope | **Implemented + tested** | `ff58c03` |
+| 4 | `probe_set_hash` write-once spine column + trigger + regression | **Implemented + tested** | `ff58c03` |
+| 5 (live GET) | `ci_plugin` audience on `GET /scan/{scan_id}` + threshold lookup | **Implemented + tested** | `ff58c03` |
+| 2 (wiring) | webhook delivery wiring behind `ARE_SCAN_WEBHOOK` | **Implemented + tested** | `81d870e` |
+
+**Test totals: 122 passed, 0 failed.** New tests: 44 (was 78 regression). Diff is additive except for `api/scan_handlers.py` item-1 seed defaulting change — no scoring function touched → N=5 delta = 0 by construction on all items.
+
+**Merge gate:** CTO co-sign on the v1.7.0 contract bump (rule-change gate under `scanner-implementation-supervision-v1@v1.0`). Item-5 output-shape UW co-sign already held (BEAAA-11724 comment `159fed34`). CEO/Founder strategy cleared (BEAAA-11725 comment `96990a55`). Co-sign request filed as comment on BEAAA-11726.
