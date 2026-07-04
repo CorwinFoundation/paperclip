@@ -377,6 +377,13 @@ def _write_input_dir(path: Path, eval_results: dict[str, Any]) -> None:
         json.dumps(
             {
                 "purpose": "pre_bind",
+                # BEAAA-10459 gates client-supplied applicability_decisions behind
+                # explicit non-binding legacy replay. This consolidated grade card
+                # is exactly that: a historical, non-binding reproduction whose N/A
+                # dims (P2.2) are declared by the replay, not measured live. Without
+                # this flag the server drops the N/A decisions and scoring rejects
+                # P2.2 as a missing dim.
+                "applicability_mode": "legacy_replay",
                 "requested_pillars": ["OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"],
                 "target_agent_id": TARGET_AGENT_ID,
                 "ticket_ref": MEASUREMENT_TICKET,
