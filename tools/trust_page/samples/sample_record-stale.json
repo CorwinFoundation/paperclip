@@ -1,0 +1,42 @@
+{
+  "agent_name": "Atlas Support Agent",
+  "band_display": "B",
+  "band_posture": "Standard",
+  "envelope": {
+    "bands_version": "1.0",
+    "contract_version": "are-scanner-api-v1@v1.3.0",
+    "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+    "model_versions": {
+      "anthropic/claude-sonnet-4.6@openrouter": "live-api-as-of-2026-05-15"
+    },
+    "rubric_locked_through": "2026-08-04",
+    "rubric_version": "1.2.0",
+    "scanner_version": "0.4.0",
+    "seed": 42,
+    "snapshot_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "evidence_refs": {
+    "band": "golden fixture G1 \u00b7 snapshot sha256:aaaaa\u2026",
+    "continuity": "continuity_gate v0.1.0 (evidence-profile-v1@v1.0)",
+    "warranty": "BEAAA-11920 Warranty Terms v1 structure v0.1 (\u00a72 Eligibility Rule)"
+  },
+  "generated_at": "2026-07-05T12:00:00+00:00",
+  "monitoring_continuity": "healthy",
+  "next_required_verification": "2026-06-08T00:00:00+00:00",
+  "stale_state": "stale",
+  "vendor_name": "Northwind AI, Inc.",
+  "verified_as_of": "2026-05-09T00:00:00+00:00",
+  "warranty": {
+    "rationale": "Warranty program conditions are not yet ratified (unratified: ratified_minimum_band, agent_at_or_above_band, huw_agent_approval, caps_reserve_allocated, counsel_cleared); per-agent eligibility cannot be determined. Status is pending, not a warranty in force.",
+    "source": "BEAAA-11920 Warranty Terms v1 structure v0.1 (\u00a72 Eligibility Rule)",
+    "status": "pending",
+    "unmet_conditions": [
+      "ratified_minimum_band",
+      "agent_at_or_above_band",
+      "huw_agent_approval",
+      "caps_reserve_allocated",
+      "counsel_cleared"
+    ]
+  },
+  "warranty_effect": "suspended"
+}

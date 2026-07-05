@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+  BackBond Trust Page — v1 (BEAAA-11926 / WI-3 dynamic wiring)
+  persona_audience: internal. Rendered surface is external-facing and gated by
+  Designer (60670b68) UX review [BEAAA-11928] + outside-counsel review before any partner send.
+  brand_backbone_version: v1.5  sha256: b1ae308e0f150ff5d0a6bdf05071ee98540e296bb3a86a4626b03041a266838f  verified: true
+  Fields are LIVE-WIRED: band+envelope <- rubric.scoring.score() on locked rubric (WI-1);
+  monitoring continuity <- continuity_gate (WI-2); warranty eligibility <- WI-6 §2 rule.
+  Reproducibility envelope (Supreme Law):
+{
+  "bands_version": "1.0",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
+  "generated_at": "2026-05-17T00:00:00+00:00",
+  "model_versions": {
+    "anthropic/claude-sonnet-4.6@openrouter": "live-api-as-of-2026-05-15"
+  },
+  "rubric_locked_through": "2026-08-04",
+  "rubric_version": "1.2.0",
+  "scanner_version": "0.4.0",
+  "seed": 42,
+  "snapshot_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "warranty_source": "BEAAA-11920 Warranty Terms v1 structure v0.1 (\u00a72 Eligibility Rule)"
+}
+-->
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>BackBond Private Trust Page</title><style>
+:root{--ink:#12161c;--muted:#5b6675;--line:#e2e6ec;--bg:#f6f8fb;--card:#fff;--brand:#1b3a6b;
+--ok:#1f7a4d;--ok-bg:#e8f5ee;--aging:#8a6d1f;--aging-bg:#fbf3d9;--stale:#9a5a12;--stale-bg:#fbeada;--lapsed:#5b6675;--lapsed-bg:#eef1f5;}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+.watermark{background:#3a2a00;color:#ffd873;text-align:center;font-size:12.5px;padding:7px 12px;letter-spacing:.02em}
+.wrap{max-width:760px;margin:0 auto;padding:24px 18px 60px}
+.brandline{display:flex;align-items:center;gap:10px;margin:14px 0 6px}.dot{width:22px;height:22px;border-radius:6px;background:var(--brand)}
+.brandline b{font-size:17px}.sub{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin:16px 0;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+.rowtop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}h1{font-size:20px;margin:0 0 2px}
+.vendor{color:var(--muted);font-size:14px}.band{text-align:center;min-width:110px}.band .letter{font-size:40px;font-weight:700;line-height:1;color:var(--brand)}
+.band .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-top:18px}.f{border-top:1px solid var(--line);padding-top:10px}
+.f .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.f .v{font-size:15px;margin-top:2px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.aging{background:var(--aging-bg);color:var(--aging)}
+.pill.stale{background:var(--stale-bg);color:var(--stale)}.pill.lapsed{background:var(--lapsed-bg);color:var(--lapsed)}
+.statebar{margin-top:16px;padding:12px 14px;border-radius:10px;font-size:14px}
+.statebar.ok{background:var(--ok-bg);color:var(--ok)}.statebar.aging{background:var(--aging-bg);color:var(--aging)}
+.statebar.stale{background:var(--stale-bg);color:var(--stale)}.statebar.lapsed{background:var(--lapsed-bg);color:var(--lapsed)}.statebar b{font-weight:700}
+h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:30px 0 8px}
+.means{display:grid;grid-template-columns:1fr 1fr;gap:14px}.means .box{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+.means .box h3{margin:0 0 6px;font-size:14px}.means ul{margin:0;padding-left:18px;color:#33404f}.means li{margin:4px 0}
+.disc{font-size:12.5px;color:var(--muted);border-left:3px solid var(--line);padding:6px 0 6px 12px;margin-top:14px}
+.prov{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;margin-top:6px;word-break:break-word}
+footer{color:var(--muted);font-size:12px;margin-top:34px;border-top:1px solid var(--line);padding-top:12px}
+@media(max-width:560px){.grid,.means{grid-template-columns:1fr}}
+</style></head><body>
+<div class="watermark">INTERNAL — real scan on locked rubric 1.2.0 against golden calibration fixture G1. Not a partner production scan (Trust Page Red Line 6). Not for external send until Designer UX (BEAAA-11928) and outside-counsel review complete.</div>
+<div class="wrap">
+  <div class="brandline"><span class="dot"></span><b>BackBond</b><span class="sub">· Private Trust Page</span></div>
+  <div class="sub">Prepared for a single named recipient. Confidential to the vendor and the named enterprise reviewer.</div>
+
+  <div class="card">
+    <div class="rowtop">
+      <div><h1>Atlas Support Agent</h1><div class="vendor">Vendor: Northwind AI, Inc.</div></div>
+      <div class="band"><div class="letter">B</div><div class="lbl">BackBond Score band</div></div>
+    </div>
+
+    <div class="statebar ok"><b>Verified — current.</b> This band reflects a point-in-time verification on a locked rubric. It is current.</div>
+
+    <div class="grid">
+      <div class="f"><div class="k">Verified as of</div><div class="v">2026-05-09 00:00 UTC</div></div>
+      <div class="f"><div class="k">Next required verification</div><div class="v">2026-06-08</div></div>
+      <div class="f"><div class="k">Verification freshness</div><div class="v"><span class="pill ok">Verified — current</span></div></div>
+      <div class="f"><div class="k">Monitoring continuity</div><div class="v"><span class="pill ok">Healthy</span></div></div>
+      <div class="f"><div class="k">Warranty remedy eligibility</div><div class="v"><span class="pill aging">Pending</span></div></div>
+      <div class="f"><div class="k">Scanner / corpus / rubric</div><div class="v prov">scanner v0.4.0 · corpus path_a_v2_1@2026-05-15+bias-pack-v0.1 · rubric 1.2.0 locked through 2026-08-04 · seed 42 · bands 1.0</div></div>
+    </div>
+
+    <div class="disc"><b>Warranty remedy eligibility is a status, not a warranty in force. A warranty remedy can attach only once counsel, eligibility, monitoring-continuity, caps, and reserve conditions are all satisfied. This page does not create, confirm, or activate any warranty.</b></div>
+  </div>
+
+  <h2 class="sec">What this means / What this does not mean</h2>
+  <div class="means">
+    <div class="box"><h3>What this means</h3><ul>
+      <li>This agent was verified against BackBond's scanner on a frozen rubric, at the timestamp shown.</li>
+      <li>The band is a point-in-time verification read that a buyer can use in an approval decision.</li>
+      <li>Monitoring continuity shows whether runtime evidence is still flowing since the last verification.</li>
+    </ul></div>
+    <div class="box"><h3>What this does not mean</h3><ul>
+      <li>This page is not financial protection in force and does not create a warranty remedy.</li>
+      <li>A band is not a guarantee of future agent behavior.</li>
+      <li>Eligibility is not the same as an attached remedy; see the disclaimer above.</li>
+    </ul></div>
+  </div>
+
+  <h2 class="sec">Stale state is a feature — how the record reads over time</h2>
+  <div class="means">
+    <div class="box"><h3>Current</h3><div class="sub">Verified and current. Well before next required verification. Eligibility may remain available.</div></div>
+    <div class="box"><h3>Aging / due soon</h3><div class="sub">Verified; approaching next verification. Countdown shown. Eligibility may remain available.</div></div>
+    <div class="box"><h3>Stale</h3><div class="sub">Verification has lapsed — this band is no longer current. Shown, not hidden. Eligibility suspended.</div></div>
+    <div class="box"><h3>Expired / lapsed</h3><div class="sub">Verification expired. Historical band shown greyed with lapse date. Not eligible until re-verified.</div></div>
+  </div>
+  <div class="disc">Decay is expected asset behavior, rendered as information (amber/grey), never as a system error. The verified-as-of and next-required timestamps are always visible so a buyer can judge freshness directly.</div>
+
+  <div class="disc prov"><b>Reproducibility envelope:</b> scanner v0.4.0 · corpus path_a_v2_1@2026-05-15+bias-pack-v0.1 · rubric 1.2.0 locked through 2026-08-04 · seed 42 · bands 1.0 · warranty source: BEAAA-11920 Warranty Terms v1 structure v0.1 (§2 Eligibility Rule)</div>
+
+  <footer>BackBond private trust page · v1 (BEAAA-11926 / WI-3). Copy remains subject to Legal Coordinator and outside-counsel review before partner send.</footer>
+</div></body></html>
