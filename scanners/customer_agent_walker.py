@@ -39,6 +39,7 @@ import hashlib
 import time
 from typing import Any, Iterable, Sequence, Tuple
 
+from harness.probe_paraphrase import paraphrase_probe
 from harness.runner import ModelRunner, RunnerError
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.wraps import inspect_section1_v0
@@ -107,6 +108,47 @@ def _set_runner_scan_deadline(runner: ModelRunner, deadline: float) -> None:
         setter(deadline)
 
 
+#: Paraphrase template family used for the v0.3 wrap surface. The Section-1
+#: minimal specs (P1.1/P2.1/P3.1/P4.1) are behavioral-safety / PII /
+#: truthfulness / instruction-following probes — none tool-misuse or
+#: prompt-injection framed — so the ``generic`` family is the correct bank
+#: (``templates_for`` also falls back to ``generic``). Future wrap-tickets
+#: whose probes are tool-misuse / injection framed can carry a per-spec
+#: family selector; this constant keeps the v0.3 mapping explicit.
+_PARAPHRASE_FAMILY = "generic"
+
+
+def _rotate_probe_surface(runner: ModelRunner, probe_id: str, canonical: str) -> str:
+    """Route a probe's canonical prompt through the WS1-B paraphrase bank.
+
+    Surface-only anti-harvest rotation (BEAAA-11864 / ADR-0046, CTO ruling A
+    on BEAAA-11863). The selected phrasing is a pure function of
+    ``(probe_id, surface_seed, bank_version)`` — deterministic and replayable,
+    with no live LLM call at selection time. Reproducibility invariants:
+
+    * The scoring RNG (``ScanRequest.seed``) is NEVER consulted here; surface
+      rotation cannot move a score. Only ``surface_seed`` — stamped onto the
+      runner by the orchestrator (:mod:`scanners.live_probe_orchestrator`) —
+      drives template selection.
+    * When ``ARE_PROBE_PARAPHRASE_RANDOMIZATION`` is off (default),
+      :func:`paraphrase_probe` returns the canonical prompt byte-for-byte, so
+      the pre-BEAAA-11864 walker surface is preserved exactly (Tier-1
+      rollback = toggle-off).
+    * When no ``surface_seed`` was stamped (``None``), selection falls back to
+      seed ``0`` — a fixed, un-rotated phrasing — so an un-wired caller never
+      crashes and never silently rotates.
+    """
+    surface_seed = getattr(runner, "surface_seed", None)
+    if surface_seed is None:
+        surface_seed = 0
+    return paraphrase_probe(
+        probe_id=probe_id,
+        scan_seed=surface_seed,
+        canonical=canonical,
+        family=_PARAPHRASE_FAMILY,
+    ).text
+
+
 def customer_agent_probe_run_fn(
     runner: ModelRunner,
 ) -> Iterable[Tuple[str, dict[str, Any]]]:
@@ -146,11 +188,19 @@ def customer_agent_probe_run_fn(
                     "customer_endpoint_unreachable_transport",
                     "customer endpoint scan deadline exceeded",
                 )
+            # BEAAA-11864 / ADR-0046 — route the canonical probe prompt
+            # through the WS1-B paraphrase bank BEFORE it leaves the walker.
+            # With the toggle off this is a byte-for-byte no-op (canonical
+            # surface); with it on, the wire prompt rotates per run so a
+            # vendor cannot harvest a static probe surface. Scoring is
+            # unaffected: the scoring_rule below keys on the agent RESPONSE,
+            # not the prompt phrasing.
+            probe_prompt = _rotate_probe_surface(runner, spec.dim_id, spec.prompt)
             # The runner.complete call exits the walker into the
             # ScopedEgressAllowlist scope; the customer endpoint host
             # is the only host any transport layer below can reach.
             try:
-                response = runner.complete(spec.prompt)
+                response = runner.complete(probe_prompt)
             except RunnerError as exc:
                 if (
                     time.monotonic() >= deadline

@@ -1,0 +1,110 @@
+{
+  "band": "\u00b11 (are_total and each pillar)",
+  "baseline_ref": "tools/calibration-deltas/2026-07-04-beaaa11735-ws1b-paraphrase-off-n5.md",
+  "corpus_version": "unchanged-surface-rotation",
+  "generated_at": "2026-07-05T12:42:56+00:00",
+  "issue": "BEAAA-11864",
+  "n": 5,
+  "paraphrase_enabled": true,
+  "parent_issue": "BEAAA-11863",
+  "passed": true,
+  "purpose": "surface-rotation-ON golden N=5 vs paraphrase-OFF baseline",
+  "roster": [
+    "B1",
+    "G1",
+    "G2",
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "rows": [
+    {
+      "agent": "B1",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "on_max_pillar_spread": 0.0,
+      "on_spread_total": 0.0,
+      "pass": true
+    },
+    {
+      "agent": "G1",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "on_max_pillar_spread": 0.0,
+      "on_spread_total": 0.0,
+      "pass": true
+    },
+    {
+      "agent": "G2",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "on_max_pillar_spread": 0.0,
+      "on_spread_total": 0.0,
+      "pass": true
+    },
+    {
+      "agent": "M1",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "on_max_pillar_spread": 0.0,
+      "on_spread_total": 0.0,
+      "pass": true
+    },
+    {
+      "agent": "M2",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "on_max_pillar_spread": 0.0,
+      "on_spread_total": 0.0,
+      "pass": true
+    },
+    {
+      "agent": "M3",
+      "delta_pillars": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total": 0.0,
+      "on_max_pillar_spread": 0.0,
+      "on_spread_total": 0.0,
+      "pass": true
+    }
+  ],
+  "rubric_path": "rubric/rubric.yaml",
+  "ruling": "CTO Option A on BEAAA-11859",
+  "scanner_version": "0.4.2",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

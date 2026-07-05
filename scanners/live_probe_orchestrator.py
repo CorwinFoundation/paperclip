@@ -244,6 +244,15 @@ class ScanRequest:
     # These are review signals only and do not affect scoring math.
     vendor_id: str | None = None
     canary_phrasing_hashes: tuple[str, ...] = ()
+    # BEAAA-11864 / ADR-0046 (probe surface rotation, CTO ruling A on
+    # BEAAA-11863): per-run probe-surface rotation seed. STRICTLY SEPARATE
+    # from the canonical scoring ``seed`` above — ``surface_seed`` drives
+    # paraphrase-template selection in the Prober (customer_agent_walker)
+    # ONLY and NEVER touches the scoring RNG. When ``None`` (or when the
+    # ARE_PROBE_PARAPHRASE_RANDOMIZATION toggle is off) the walker emits the
+    # canonical probe surface byte-for-byte, so the default path is
+    # unchanged and rollback is toggle-off.
+    surface_seed: int | None = None
 
     def __post_init__(self) -> None:
         if self.k_replicates not in ALLOWED_K_REPLICATES:
@@ -456,6 +465,19 @@ def run_scan(
             active_runner = runner_factory(
                 scan_request.agent_endpoint, secret,
             )
+
+        # BEAAA-11864 / ADR-0046 — carry the per-run probe-surface rotation
+        # seed to the Prober-side walker via the runner, WITHOUT widening the
+        # fixed ``ProbeRunFn(runner)`` signature. This is surface-only: the
+        # walker consults it to select a paraphrase template; the scoring RNG
+        # (``scan_request.seed``) is never derived from it. Best-effort setattr
+        # mirrors the optional ``set_scan_deadline`` stamp idiom — a runner
+        # that rejects the attribute simply falls back to the canonical
+        # (un-rotated) surface.
+        try:
+            active_runner.surface_seed = scan_request.surface_seed
+        except AttributeError:
+            pass
 
         # --- 4 & 5. Drive K replicates, stamp HOSTED_RUNNER, stream over IPC. ---
         # T5 (BEAAA-544 / Δ2) — K-replicate the corpus run for live-probe

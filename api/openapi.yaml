@@ -686,6 +686,18 @@ components:
         scanner_version: { type: string }
         corpus_version: { type: string }
         seed: { type: integer }
+        surface_seed:
+          type: integer
+          description: |
+            BEAAA-11864 / ADR-0046 additive (probe surface rotation, CTO
+            ruling A on BEAAA-11863). Optional. Per-run seed for probe-surface
+            paraphrase rotation — STRICTLY SEPARATE from ``seed`` (the scoring
+            RNG). Drives which paraphrase template the Prober selects; never
+            affects scoring math. Omit to let the server derive a fresh
+            per-run seed from the server-minted scan_id when rotation is
+            enabled (anti-harvest); supply an explicit value only to replay a
+            prior scan's exact wire surface. When rotation is disabled the
+            field is inert and the canonical probe surface is emitted verbatim.
         scan_mode:
           type: string
           enum: [live_probe]

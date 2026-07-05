@@ -31,6 +31,7 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import time
@@ -884,6 +885,11 @@ def _kickoff_live_probe_scan(
     canary_phrasing_hashes = tuple(canary_hashes_raw)
 
     scan_id = (scan_id_factory or _default_scan_id)()
+    # BEAAA-11864 / ADR-0046 — per-run probe-surface rotation seed. STRICTLY
+    # SEPARATE from the scoring `seed` above (which stays canonical). Resolved
+    # AFTER scan_id so the toggle-on default can derive a fresh per-run seed
+    # from the server-minted scan_id (see _resolve_surface_seed).
+    surface_seed = _resolve_surface_seed(body.get("surface_seed"), scan_id)
     try:
         scan_request = ScanRequest(
             scan_id=scan_id,
@@ -894,6 +900,7 @@ def _kickoff_live_probe_scan(
             scanner_version=scanner_version,
             corpus_version=corpus_version,
             seed=seed,
+            surface_seed=surface_seed,
             requested_pillars=requested_pillars,
             scan_mode=scan_mode,
             k_replicates=k_replicates,
@@ -1342,6 +1349,40 @@ def _ci_plugin_payload(
 
 def _default_scan_id() -> str:
     return str(uuid.uuid4())
+
+
+def _resolve_surface_seed(raw: Any, scan_id: str) -> int | None:
+    """Resolve the per-run probe-surface rotation seed (BEAAA-11864 / ADR-0046).
+
+    STRICTLY SEPARATE from the scoring ``seed``; feeds only the Prober-side
+    paraphrase bank via ``ScanRequest.surface_seed``. Policy:
+
+    * An explicit integer ``surface_seed`` in the request body is honoured
+      verbatim (exact replay of a prior scan's surface).
+    * When absent AND probe-surface rotation is enabled
+      (``ARE_PROBE_PARAPHRASE_RANDOMIZATION``), derive a deterministic seed
+      from the server-minted ``scan_id``. A vendor cannot pre-compute it
+      (scan_id is server-assigned, not client-chosen) yet replay is exact
+      (scan_id is recorded in the forensic bundle) — this is the anti-harvest
+      guarantee behind CTO ruling A.
+    * When absent AND rotation is disabled, return ``None`` — the walker emits
+      the canonical surface byte-for-byte (Tier-1 rollback = toggle-off).
+
+    The ``harness.probe_paraphrase`` import is local so the AG-A5 ``api/**``
+    module-import surface check stays tight (the paraphrase module is only
+    pulled in when this edge actually resolves a rotation seed).
+    """
+    if raw is not None:
+        if not isinstance(raw, int) or isinstance(raw, bool):
+            raise HandlerError(422, "surface_seed_invalid")
+        return raw
+
+    from harness.probe_paraphrase import paraphrase_enabled
+
+    if not paraphrase_enabled():
+        return None
+    digest = hashlib.sha256(scan_id.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
 
 
 __all__ = [
