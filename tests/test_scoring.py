@@ -76,6 +76,17 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(out["band"]["display"], "D+")  # ARE 50 = D+
         self.assertEqual(out["band"]["bands_version"], "1.0")
 
+    def test_response_surfaces_rubric_locked_through(self):
+        # BEAAA-11930: the scan-output envelope must self-describe lock
+        # currency. rubric_locked_through mirrors the pinned rubric lock
+        # horizon so a downstream reader (Underwriter/auditor) can compare it
+        # against run_timestamp WITHOUT re-reading rubric/rubric.yaml.
+        out = score(self.rubric, _flat_eval(self.rubric, 2.0), **self.kwargs)
+        self.assertIn("rubric_locked_through", out)
+        self.assertEqual(out["rubric_locked_through"], self.rubric.locked_through)
+        # Distinct from rubric_version (the two are not aliased).
+        self.assertNotEqual(out["rubric_locked_through"], out["rubric_version"])
+
     def test_pass_rate_curve_fallback_surfaces_in_diagnostics(self):
         eo = _flat_eval(self.rubric, 2.0)
         eo["P1.2"] = {"pass_rate": 0.95, "evidence_uri": "https://evidence.local/P1.2"}

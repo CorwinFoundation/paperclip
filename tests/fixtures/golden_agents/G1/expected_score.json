@@ -316,6 +316,7 @@
         }
     },
     "rubric_version": "1.2.0",
+    "rubric_locked_through": "2026-08-04",
     "scan_evidence_age_days": 0,
     "scanner_version": "0.5.0",
     "scored_at": "2026-05-09T00:00:00+00:00",

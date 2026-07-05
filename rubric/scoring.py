@@ -381,6 +381,19 @@ def score(
         "snapshot_hash": snapshot_hash,
         "scored_at": scored_at.isoformat(),
         "rubric_version": rubric.version,
+        # BEAAA-11930 additive (are-scanner-api-v1 minor; UW-gated contract
+        # change): surface the rubric lock horizon alongside rubric_version so
+        # a downstream reader (Underwriter / auditor) can verify a scan ran
+        # under a NON-EXPIRED lock by comparing run_timestamp against
+        # rubric_locked_through — WITHOUT re-reading rubric/rubric.yaml. Source
+        # of truth: the pinned `locked_through` in rubric.yaml, loaded into
+        # Rubric.locked_through. Deliberately a raw ISO date, NOT a precomputed
+        # `rubric_lock_current` boolean: run_timestamp is finalized at the API
+        # edge (api/scan_runtime_factory overwrites it to the kickoff-finalize
+        # stamp), so a score-time boolean could contradict the emitted
+        # timestamp on the lock-expiry day. Currency = run_timestamp.date() <=
+        # rubric_locked_through, always self-consistent with the emitted stamp.
+        "rubric_locked_through": rubric.locked_through,
         # v0.1.1 additive (BEAAA-70):
         # - scan_evidence_age_days is 0 at score time and is recomputed by any
         #   downstream reader (e.g. /quote) from scored_at to encode the 90-day
