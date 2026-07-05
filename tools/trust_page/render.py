@@ -10,10 +10,13 @@ Guards (fail-closed):
   * ``render_html`` raises if the reproducibility envelope is incomplete.
   * ``render_html`` raises if any prohibited term (§3 red lines) appears in output.
 
-The rendered surface remains INTERNAL until Designer UX (BEAAA-11928) and outside
-counsel review complete; every render carries a non-production watermark and the
-brand-backbone metadata block. A render built from a golden calibration fixture is
-NOT external production proof (Trust Page spec Red Line 6).
+The visual is harmonized to the BEAAA-11928 locked design system (navy verification
+card, Copper Law, words-first band ladder, freshness lifecycle timeline) WITHOUT
+touching the data wiring or the reproducibility envelope (BEAAA-11942, WI-3). The
+rendered surface remains INTERNAL until (1) a real partner intake scan on the locked
+rubric and (2) outside-counsel sign-off complete; every render carries a non-production
+watermark and the brand-backbone metadata block. A render built from a golden
+calibration fixture is NOT external production proof (Trust Page spec Red Line 6).
 """
 
 from __future__ import annotations
@@ -54,6 +57,30 @@ COPY = {
     "gallery_stale": "Verification has lapsed — this band is no longer current. Shown, not hidden. Eligibility suspended.",
     "gallery_expired": "Verification expired. Historical band shown greyed with lapse date. Not eligible until re-verified.",
 }
+
+# Words-first band ladder (BEAAA-11928 locked design, spec §1 field 3): the surface
+# shows the band by WORD + letter, never a raw 0-100 number. The active cell is
+# driven by the live band letter (record.band_display); the posture word for the
+# active band comes from the score response (record.band_posture).
+_BAND_LADDER = (
+    ("A", "Preferred"),
+    ("B", "Standard"),
+    ("C", "Constrained"),
+    ("D", "Decline"),
+)
+
+# Freshness lifecycle timeline (BEAAA-11928 Designer addition, spec §2): decay reads
+# as an INFORMATION lifecycle, never a system error. The active stop is driven by the
+# live stale_state. Stop labels/effects reuse canonical glossary vocabulary and match
+# the Legal-reviewed (BEAAA-11927) freshness copy; net-new structural labels carry the
+# BEAAA-11928 re-confirm flag to Legal.
+_TIMELINE = (
+    ("current", "Current", "Well before next verification. Eligibility may remain available."),
+    ("aging", "Aging", "Approaching next verification. Countdown shown."),
+    ("due_soon", "Due soon", "Within the grace window. Action prompt shown."),
+    ("stale", "Stale", "Past due. Band no longer current. Eligibility suspended."),
+    ("expired", "Expired", "Historical band shown greyed with lapse date. Not eligible until re-verified."),
+)
 
 # stale_state -> (pill css class, human phrase, statebar line)
 _STALE_UI = {
@@ -120,41 +147,119 @@ def render_html(record: VerificationRecord, *, watermark: str) -> str:
     envelope_comment = json.dumps({**env, "generated_at": record.generated_at,
                                    "warranty_source": record.warranty.get("source")}, indent=2, sort_keys=True)
 
+    # Words-first band ladder: active cell driven by the live band letter.
+    active_letter = (record.band_display or "").strip()[:1].upper()
+    ladder_cells = "".join(
+        f'<div class="cell{" active" if lt == active_letter else ""}">'
+        f'<div class="nm">{_e(nm)}</div><div class="lt">{_e(lt)}</div></div>'
+        for lt, nm in _BAND_LADDER
+    )
+    band_word = record.band_posture or next((nm for lt, nm in _BAND_LADDER if lt == active_letter), "")
+
+    # Freshness lifecycle timeline: active stop driven by the live stale_state.
+    active_idx = next((i for i, (s, _n, _e2) in enumerate(_TIMELINE) if s == record.stale_state), 0)
+    stage_name = _TIMELINE[active_idx][1]
+    prog_pct = round((active_idx + 0.5) / len(_TIMELINE) * 100, 1)
+    stops_html = ""
+    for i, (_s, nm, ef) in enumerate(_TIMELINE):
+        cls = "past" if i < active_idx else ("here" if i == active_idx else "")
+        youare = '<span class="youare">This record</span>' if i == active_idx else ""
+        stops_html += (
+            f'<div class="stop {cls}"><div class="dot"></div>'
+            f'<div class="nm">{_e(nm)}</div><div class="ef">{_e(ef)}</div>{youare}</div>'
+        )
+
+    # BEAAA-11928 LOCKED design system (design-system/tokens/backbond-tokens.css
+    # grammar): navy verification card, Copper Law (copper only on active band +
+    # wordmark rule), words-first band ladder, freshness lifecycle timeline, and the
+    # Archivo/Inter/IBM Plex Mono type stack. Freshness-state color is namespaced
+    # (--fresh-*) and kept SEPARATE from band color so "bands are tonal, never
+    # traffic-lights" holds. Fonts are named with system fallbacks (no @font-face
+    # external assets) to preserve the single-file, no-external-asset guarantee.
     css = """
-:root{--ink:#12161c;--muted:#5b6675;--line:#e2e6ec;--bg:#f6f8fb;--card:#fff;--brand:#1b3a6b;
---ok:#1f7a4d;--ok-bg:#e8f5ee;--aging:#8a6d1f;--aging-bg:#fbf3d9;--stale:#9a5a12;--stale-bg:#fbeada;--lapsed:#5b6675;--lapsed-bg:#eef1f5;}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-.watermark{background:#3a2a00;color:#ffd873;text-align:center;font-size:12.5px;padding:7px 12px;letter-spacing:.02em}
-.wrap{max-width:760px;margin:0 auto;padding:24px 18px 60px}
-.brandline{display:flex;align-items:center;gap:10px;margin:14px 0 6px}.dot{width:22px;height:22px;border-radius:6px;background:var(--brand)}
-.brandline b{font-size:17px}.sub{color:var(--muted);font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin:16px 0;box-shadow:0 1px 2px rgba(20,30,50,.04)}
-.rowtop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}h1{font-size:20px;margin:0 0 2px}
-.vendor{color:var(--muted);font-size:14px}.band{text-align:center;min-width:110px}.band .letter{font-size:40px;font-weight:700;line-height:1;color:var(--brand)}
-.band .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-top:18px}.f{border-top:1px solid var(--line);padding-top:10px}
-.f .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.f .v{font-size:15px;margin-top:2px}
-.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600}
-.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.aging{background:var(--aging-bg);color:var(--aging)}
-.pill.stale{background:var(--stale-bg);color:var(--stale)}.pill.lapsed{background:var(--lapsed-bg);color:var(--lapsed)}
-.statebar{margin-top:16px;padding:12px 14px;border-radius:10px;font-size:14px}
-.statebar.ok{background:var(--ok-bg);color:var(--ok)}.statebar.aging{background:var(--aging-bg);color:var(--aging)}
-.statebar.stale{background:var(--stale-bg);color:var(--stale)}.statebar.lapsed{background:var(--lapsed-bg);color:var(--lapsed)}.statebar b{font-weight:700}
-h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:30px 0 8px}
-.means{display:grid;grid-template-columns:1fr 1fr;gap:14px}.means .box{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
-.means .box h3{margin:0 0 6px;font-size:14px}.means ul{margin:0;padding-left:18px;color:#33404f}.means li{margin:4px 0}
-.disc{font-size:12.5px;color:var(--muted);border-left:3px solid var(--line);padding:6px 0 6px 12px;margin-top:14px}
-.prov{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;margin-top:6px;word-break:break-word}
-footer{color:var(--muted);font-size:12px;margin-top:34px;border-top:1px solid var(--line);padding-top:12px}
-@media(max-width:560px){.grid,.means{grid-template-columns:1fr}}
+:root{--ink:#0B1A38;--body:#36425C;--slate:#535E77;--paper:#FFFFFF;--tint:#F5F7FB;
+--tint-line:#DBE1EE;--rule:#E3E7EE;--on-navy:#FFFFFF;--on-navy-muted:#8A9BC0;--navy-line:#26375C;
+--bond-on-dark:#D58E5C;--bond-on-light:#BD6A34;
+--fresh-ok:#1f6d45;--fresh-ok-bg:#E9F3ED;--fresh-aging:#7c6412;--fresh-aging-bg:#F6EFD6;
+--fresh-stale:#8a541a;--fresh-stale-bg:#F4E7D6;--fresh-exp:#5b6675;--fresh-exp-bg:#ECEFF3;
+--f-display:"Archivo",system-ui,-apple-system,Segoe UI,sans-serif;
+--f-body:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+--f-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;--radius:12px;--pill:6px;}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f-body);font-size:16px;line-height:1.55;color:var(--ink);background:var(--tint);-webkit-font-smoothing:antialiased}
+.watermark{background:#3a2a00;color:#ffd873;text-align:center;font-family:var(--f-data);font-size:12px;letter-spacing:.02em;padding:9px 14px;line-height:1.4}
+.wrap{max-width:820px;margin:0 auto;padding:0 22px 64px}
+.mast{display:flex;justify-content:space-between;align-items:center;padding:26px 0 18px;border-bottom:1px solid var(--rule)}
+.wordmark{display:flex;flex-direction:column;gap:5px}
+.wordmark .name{font-family:var(--f-display);font-weight:800;font-size:23px;letter-spacing:-.01em;color:var(--ink)}
+.wordmark .rule{width:52px;height:2px;background:var(--bond-on-light);border-radius:2px}
+.mast .kicker{font-family:var(--f-data);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate);text-align:right}
+.conf{font-size:13px;color:var(--slate);margin:14px 0 0}
+.eyebrow{font-family:var(--f-body);font-weight:700;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate)}
+.eyebrow .num{color:var(--bond-on-light);font-family:var(--f-data);font-weight:600;margin-right:7px}
+.record{background:var(--ink);color:var(--on-navy);border-radius:var(--radius);padding:28px 30px 26px;margin:22px 0 0;box-shadow:0 2px 10px rgba(11,26,56,.12)}
+.rec-top{display:flex;justify-content:space-between;align-items:flex-start;gap:22px;flex-wrap:wrap}
+.rec-top .agent{font-family:var(--f-display);font-weight:800;font-size:26px;letter-spacing:-.01em;line-height:1.05}
+.rec-top .vendor{color:var(--on-navy-muted);font-size:13.5px;margin-top:5px}
+.bandblock{text-align:right}
+.bandblock .lbl{font-family:var(--f-body);font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--on-navy-muted)}
+.bandchip{display:inline-block;margin-top:7px;background:var(--bond-on-dark);color:var(--ink);font-family:var(--f-display);font-weight:800;font-size:19px;padding:6px 15px;border-radius:var(--pill)}
+.bandchip .ltr{font-family:var(--f-data);font-weight:600;font-size:15px;opacity:.75}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:20px;background:var(--navy-line);border:1px solid var(--navy-line);border-radius:var(--pill);overflow:hidden}
+.cell{background:var(--ink);padding:11px 8px;text-align:center}
+.cell .nm{font-weight:700;font-size:12.5px;color:var(--on-navy-muted)}
+.cell .lt{font-family:var(--f-data);font-size:10px;color:var(--on-navy-muted);opacity:.8;margin-top:3px}
+.cell.active{background:var(--bond-on-dark)}.cell.active .nm{color:var(--ink)}.cell.active .lt{color:var(--ink);opacity:.85}
+.statebar{display:flex;gap:10px;align-items:flex-start;margin-top:20px;padding:13px 15px;border-radius:10px;font-size:14px}
+.statebar .tick{flex:0 0 auto;width:9px;height:9px;border-radius:50%;margin-top:6px}.statebar b{font-weight:700}
+.statebar.ok{background:var(--fresh-ok-bg);color:#173d29}.statebar.ok .tick{background:var(--fresh-ok)}
+.statebar.aging{background:var(--fresh-aging-bg);color:#4a3d10}.statebar.aging .tick{background:var(--fresh-aging)}
+.statebar.stale{background:var(--fresh-stale-bg);color:#4d3010}.statebar.stale .tick{background:var(--fresh-stale)}
+.statebar.lapsed{background:var(--fresh-exp-bg);color:#3a4250}.statebar.lapsed .tick{background:var(--fresh-exp)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px 26px;margin-top:22px}
+.f{border-top:1px solid var(--navy-line);padding-top:11px}
+.f .k{font-family:var(--f-body);font-weight:600;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--on-navy-muted)}
+.f .v{font-size:14.5px;margin-top:4px;color:var(--on-navy)}.f .v.mono{font-family:var(--f-data);font-size:12.5px;color:var(--on-navy-muted);line-height:1.5}
+.pill{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;font-family:var(--f-body)}
+.pill.ok{background:var(--fresh-ok-bg);color:var(--fresh-ok)}.pill.aging{background:var(--fresh-aging-bg);color:var(--fresh-aging)}
+.pill.stale{background:var(--fresh-stale-bg);color:var(--fresh-stale)}.pill.lapsed{background:var(--fresh-exp-bg);color:var(--fresh-exp)}
+.disc{font-size:12.5px;line-height:1.55;color:var(--on-navy-muted);margin-top:20px;border-left:2px solid var(--navy-line);padding-left:13px}
+.disc b{color:#cdd6ea;font-weight:700}
+h2.sec{font-family:var(--f-body);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin:34px 0 12px}
+.timeline-card{background:var(--paper);border:1px solid var(--tint-line);border-radius:var(--radius);padding:22px 24px 20px}
+.tl-intro{font-size:13.5px;color:var(--body);margin:0 0 18px}
+.track{position:relative;height:2px;background:var(--rule);margin:34px 8px 0}.track .prog{position:absolute;left:0;top:0;height:2px;background:var(--fresh-aging)}
+.stops{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:-42px}
+.stop{text-align:center;position:relative}
+.stop .dot{width:13px;height:13px;border-radius:50%;background:var(--paper);border:2px solid var(--rule);margin:0 auto;position:relative;top:22px}
+.stop.past .dot{border-color:var(--fresh-aging);background:var(--fresh-aging)}
+.stop.here .dot{width:17px;height:17px;top:20px;border-color:var(--fresh-aging);background:var(--paper);box-shadow:0 0 0 4px var(--fresh-aging-bg)}
+.stop .nm{font-weight:700;font-size:12px;margin-top:34px;color:var(--body)}.stop.here .nm{color:var(--fresh-aging)}
+.stop .ef{font-size:10.5px;line-height:1.35;color:var(--slate);margin-top:4px;padding:0 4px}
+.youare{display:inline-block;font-family:var(--f-data);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fresh-aging);background:var(--fresh-aging-bg);padding:2px 7px;border-radius:999px;margin-top:6px}
+.tl-note{font-size:12px;color:var(--slate);margin:20px 0 0;border-left:2px solid var(--tint-line);padding-left:12px;line-height:1.55}
+.means{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.box{border:1px solid var(--tint-line);border-radius:var(--radius);padding:18px 20px;background:var(--paper)}
+.box h3{margin:0 0 4px;font-size:14.5px;display:flex;align-items:center;gap:9px}
+.box .mk{font-family:var(--f-data);font-weight:600;font-size:15px;line-height:1}.box.pos .mk{color:var(--fresh-ok)}.box.neg .mk{color:var(--slate)}
+.box ul{margin:10px 0 0;padding-left:18px;color:var(--body);font-size:13.5px;line-height:1.5}.box li{margin:6px 0}.box b{color:var(--ink)}
+.gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.mini{border:1px solid var(--tint-line);border-radius:10px;padding:14px 16px;background:var(--paper)}
+.mini .ds{font-size:12.5px;color:var(--body);margin-top:9px;line-height:1.5}
+.decay-note{font-size:12.5px;color:var(--slate);border-left:2px solid var(--tint-line);padding-left:13px;margin-top:16px;line-height:1.55}
+footer{color:var(--slate);font-size:11.5px;line-height:1.5;margin-top:36px;border-top:1px solid var(--rule);padding-top:14px}
+.meta{font-family:var(--f-data);font-size:10.5px;color:var(--slate);margin-top:8px}
+@media(max-width:600px){.grid,.means,.gallery{grid-template-columns:1fr}.stop .ef{display:none}}
 """
 
     doc = f"""<!DOCTYPE html>
 <!--
-  BackBond Trust Page — v1 (BEAAA-11926 / WI-3 dynamic wiring)
+  BackBond Trust Page — v1 (BEAAA-11926 wiring / BEAAA-11942 locked-visual harmonization, WI-3)
   persona_audience: internal. Rendered surface is external-facing and gated by
-  Designer (60670b68) UX review [BEAAA-11928] + outside-counsel review before any partner send.
+  Designer (60670b68) locked design [BEAAA-11928, applied here] + outside-counsel review before any partner send.
   brand_backbone_version: {BRAND_BACKBONE_VERSION}  sha256: {BRAND_BACKBONE_SHA256}  verified: true
+  Visual harmonized to the BEAAA-11928 locked design system (navy card, Copper Law, words-first
+  band ladder, freshness lifecycle timeline). Data wiring and reproducibility envelope UNCHANGED.
   Fields are LIVE-WIRED: band+envelope <- rubric.scoring.score() on locked rubric (WI-1);
   monitoring continuity <- continuity_gate (WI-2); warranty eligibility <- WI-6 §2 rule.
   Reproducibility envelope (Supreme Law):
@@ -164,55 +269,73 @@ footer{color:var(--muted);font-size:12px;margin-top:34px;border-top:1px solid va
 <title>BackBond Private Trust Page</title><style>{css}</style></head><body>
 <div class="watermark">{_e(watermark)}</div>
 <div class="wrap">
-  <div class="brandline"><span class="dot"></span><b>BackBond</b><span class="sub">· Private Trust Page</span></div>
-  <div class="sub">Prepared for a single named recipient. Confidential to the vendor and the named enterprise reviewer.</div>
 
-  <div class="card">
-    <div class="rowtop">
-      <div><h1>{_e(record.agent_name)}</h1><div class="vendor">Vendor: {_e(record.vendor_name)}</div></div>
-      <div class="band"><div class="letter">{_e(record.band_display)}</div><div class="lbl">BackBond Score band</div></div>
+  <div class="mast">
+    <div class="wordmark"><span class="name">BackBond</span><span class="rule"></span></div>
+    <div class="kicker">Private Trust Page</div>
+  </div>
+  <div class="conf">Prepared for a single named recipient. Confidential to the vendor and the named enterprise reviewer.</div>
+
+  <div class="eyebrow" style="margin-top:26px;"><span class="num">01</span>The verification record</div>
+  <div class="record">
+    <div class="rec-top">
+      <div><div class="agent">{_e(record.agent_name)}</div><div class="vendor">Vendor: {_e(record.vendor_name)}</div></div>
+      <div class="bandblock"><div class="lbl">BackBond Score band</div>
+        <div class="bandchip">{_e(band_word)} <span class="ltr">{_e(record.band_display)}</span></div></div>
     </div>
 
-    <div class="statebar {st_cls}"><b>{_e(st_phrase)}.</b> {_e(st_line)}</div>
+    <div class="ladder">{ladder_cells}</div>
+
+    <div class="statebar {st_cls}"><span class="tick"></span><div><b>{_e(st_phrase)}.</b> {_e(st_line)}</div></div>
 
     <div class="grid">
-      <div class="f"><div class="k">Verified as of</div><div class="v">{_e(_fmt_ts(record.verified_as_of))}</div></div>
-      <div class="f"><div class="k">Next required verification</div><div class="v">{_e(_fmt_date(record.next_required_verification))}</div></div>
+      <div class="f"><div class="k">Verified as of</div><div class="v mono">{_e(_fmt_ts(record.verified_as_of))}</div></div>
+      <div class="f"><div class="k">Next required verification</div><div class="v mono">{_e(_fmt_date(record.next_required_verification))}</div></div>
       <div class="f"><div class="k">Verification freshness</div><div class="v"><span class="pill {st_cls}">{_e(st_phrase)}</span></div></div>
       <div class="f"><div class="k">Monitoring continuity</div><div class="v"><span class="pill {cont_cls}">{_e(cont_lbl)}</span></div></div>
       <div class="f"><div class="k">Warranty remedy eligibility</div><div class="v"><span class="pill {warr_cls}">{_e(warr_lbl)}</span></div></div>
-      <div class="f"><div class="k">Scanner / corpus / rubric</div><div class="v prov">{rubric_line}</div></div>
+      <div class="f"><div class="k">Scanner / corpus / rubric</div><div class="v mono">{rubric_line}</div></div>
     </div>
 
     <div class="disc"><b>{_e(COPY['warranty_disclaimer'])}</b></div>
   </div>
 
-  <h2 class="sec">What this means / What this does not mean</h2>
+  <div class="eyebrow" style="margin-top:34px;"><span class="num">02</span>How this record reads over time</div>
+  <h2 class="sec" style="margin-top:12px;">Verification freshness is a lifecycle - decay is expected, and always shown</h2>
+  <div class="timeline-card">
+    <p class="tl-intro">A verification record ages on a fixed clock. Each stage is shown in plain view so a buyer can judge freshness directly. This record sits at <b>{_e(stage_name)}</b>.</p>
+    <div class="track"><div class="prog" style="width:{prog_pct}%"></div></div>
+    <div class="stops">{stops_html}</div>
+    <p class="tl-note">Decay is expected asset behavior, rendered as information (amber / grey), never as a system error. The verified-as-of and next-required timestamps are always visible so a buyer can judge freshness directly.</p>
+  </div>
+
+  <div class="eyebrow" style="margin-top:34px;"><span class="num">03</span>How to read this record</div>
+  <h2 class="sec" style="margin-top:12px;">What this means / What this does not mean</h2>
   <div class="means">
-    <div class="box"><h3>What this means</h3><ul>
+    <div class="box pos"><h3><span class="mk">+</span> What this means</h3><ul>
       <li>This agent was verified against BackBond's scanner on a frozen rubric, at the timestamp shown.</li>
       <li>{_e(COPY['means_bullet_2'])}</li>
       <li>Monitoring continuity shows whether runtime evidence is still flowing since the last verification.</li>
     </ul></div>
-    <div class="box"><h3>What this does not mean</h3><ul>
+    <div class="box neg"><h3><span class="mk">&minus;</span> What this does not mean</h3><ul>
       <li>{_e(COPY['not_mean_bullet_1'])}</li>
       <li>A band is not a guarantee of future agent behavior.</li>
       <li>Eligibility is not the same as an attached remedy; see the disclaimer above.</li>
     </ul></div>
   </div>
 
-  <h2 class="sec">Stale state is a feature — how the record reads over time</h2>
-  <div class="means">
-    <div class="box"><h3>Current</h3><div class="sub">{_e(COPY['gallery_current'])}</div></div>
-    <div class="box"><h3>Aging / due soon</h3><div class="sub">{_e(COPY['gallery_aging'])}</div></div>
-    <div class="box"><h3>Stale</h3><div class="sub">{_e(COPY['gallery_stale'])}</div></div>
-    <div class="box"><h3>Expired / lapsed</h3><div class="sub">{_e(COPY['gallery_expired'])}</div></div>
+  <h2 class="sec">Stale state is a feature - how the record renders in each state</h2>
+  <div class="gallery">
+    <div class="mini"><span class="pill ok">Current</span><div class="ds">{_e(COPY['gallery_current'])}</div></div>
+    <div class="mini"><span class="pill aging">Aging / due soon</span><div class="ds">{_e(COPY['gallery_aging'])}</div></div>
+    <div class="mini"><span class="pill stale">Stale</span><div class="ds">{_e(COPY['gallery_stale'])}</div></div>
+    <div class="mini"><span class="pill lapsed">Expired / lapsed</span><div class="ds">{_e(COPY['gallery_expired'])}</div></div>
   </div>
-  <div class="disc">Decay is expected asset behavior, rendered as information (amber/grey), never as a system error. The verified-as-of and next-required timestamps are always visible so a buyer can judge freshness directly.</div>
+  <div class="decay-note">Decay is expected asset behavior, rendered as information (amber / grey), never as a system error. The verified-as-of and next-required timestamps are always visible so a buyer can judge freshness directly.</div>
 
-  <div class="disc prov"><b>Reproducibility envelope:</b> {rubric_line} · warranty source: {_e(record.warranty.get('source',''))}</div>
-
-  <footer>{_e(COPY['footer'])}</footer>
+  <footer>{_e(COPY['footer'])}
+    <div class="meta">brand-backbone {BRAND_BACKBONE_VERSION} · sha {BRAND_BACKBONE_SHA256[:8]} · verified true · {rubric_line} · warranty source: {_e(record.warranty.get('source',''))}</div>
+  </footer>
 </div></body></html>"""
 
     _assert_no_prohibited(doc)

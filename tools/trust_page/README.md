@@ -53,10 +53,26 @@ in-window view) and `-stale` (real today, showing the decay feature). Per Trust 
 Red Line 6 a golden calibration fixture is **not external production proof** — every render is
 watermarked internal.
 
+## Visual design (BEAAA-11928 locked design — applied)
+
+`render.py`'s template is harmonized to the **BEAAA-11928 locked design system**
+(BEAAA-11942, WI-3): navy verification card, **Copper Law** (copper only on the active
+band + wordmark rule), **words-first band ladder** (Preferred A / Standard B /
+Constrained C / Decline D, band-only, no raw 0–100 number), **freshness lifecycle
+timeline** (Current → Aging → Due soon → Stale → Expired, active stop driven by the live
+`stale_state`), and the Archivo / Inter / IBM Plex Mono type stack. Freshness color is
+namespaced (`--fresh-*`) and kept separate from band color so "bands are tonal, never
+traffic-lights" holds. Fonts are named with system fallbacks (no `@font-face` external
+assets) to preserve the single-file, no-external-asset guarantee. **Data wiring and the
+reproducibility envelope are unchanged by the visual harmonization** — the sample record
+JSONs are byte-identical across the change; only the HTML differs.
+
 ## Not done here (separate owners)
 
-- **Merge ordering:** requires WI-2 continuity to reach `master` (PR #23) before this lands green.
-- **Designer UX review** — [BEAAA-11928] (todo).
+- **Merge ordering:** requires WI-2 continuity to reach `master` (PR #23) before
+  `build_sample.py` runs green end-to-end (the committed sample HTMLs are re-rendered
+  from the unchanged sample record JSONs when `continuity_gate` is not yet present).
 - **Outside-counsel review** — per BEAAA-11927, before any partner send.
 - **Real partner intake scan** — this tool renders any conformant `score()` output; a real
-  partner scan replaces the golden fixture for an actual partner send.
+  partner scan on the locked rubric replaces the golden fixture for an actual partner send
+  (Trust Page Red Line 6). External send is gated under WI-3 lane BEAAA-11917.

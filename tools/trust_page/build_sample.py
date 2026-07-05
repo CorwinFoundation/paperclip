@@ -37,8 +37,9 @@ VERIFICATION_CADENCE_DAYS = 30
 
 WATERMARK = (
     "INTERNAL — real scan on locked rubric 1.2.0 against golden calibration fixture "
-    "{fid}. Not a partner production scan (Trust Page Red Line 6). Not for external send "
-    "until Designer UX (BEAAA-11928) and outside-counsel review complete."
+    "{fid}. Not a partner production scan (Trust Page Red Line 6). Visual harmonized to "
+    "the BEAAA-11928 locked design. Not for external send until a real partner intake "
+    "scan on the locked rubric and outside-counsel sign-off complete (BEAAA-11917 lane)."
 )
 
 
