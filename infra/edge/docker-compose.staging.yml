@@ -1,0 +1,54 @@
+# BackBond Scanner — D1 edge front, STAGING deploy manifest.
+# BEAAA-11866 (parent BEAAA-11862; CEO infra decision BEAAA-11861).
+#
+# STAGING / non-public ONLY. This publishes the edge on the LOOPBACK
+# interface of the staging host (127.0.0.1) — unadvertised, no DNS, no
+# public bind. CEO owns D2 (public bind + DNS + api.backbond.ai) at go-time;
+# do NOT change the published address here to a public interface.
+#
+# The edge tier is ADDITIVE: the scanner app tier is unchanged. Rollback =
+# `docker compose -f docker-compose.staging.yml down` (app tier keeps serving
+# on its own port).
+#
+# Usage:
+#   EDGE_UPSTREAM=<app-host:port> docker compose -f docker-compose.staging.yml up -d
+#   (defaults to host.docker.internal:8077 so the edge reaches the app tier
+#    running on the staging host.)
+
+services:
+  scanner-edge:
+    image: caddy:2.8-alpine
+    container_name: backbond-scanner-edge-staging
+    restart: unless-stopped
+    # Loopback-only publish => unadvertised/internal. NEVER 0.0.0.0 in staging.
+    ports:
+      - "127.0.0.1:${EDGE_PUBLISH_PORT:-8080}:8080"
+    environment:
+      # Edge listens on :8080 inside the container.
+      EDGE_LISTEN: ":8080"
+      # App tier (scanner api/app.py). Override per staging host.
+      EDGE_UPSTREAM: "${EDGE_UPSTREAM:-host.docker.internal:8077}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # Reach an app tier bound on the staging host's loopback/gateway.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Hardening: read-only rootfs + drop caps; Caddy needs no writable FS
+    # here (admin off, no ACME, no on-disk cert store).
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /config
+      - /data
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # A denied path is the cheapest liveness probe: the edge answers with an
+      # opaque 404 without ever touching upstream. Any HTTP response = alive.
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz-edge"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

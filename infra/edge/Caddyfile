@@ -1,0 +1,88 @@
+# BackBond Scanner — D1 edge front (Caddy reverse proxy)
+# BEAAA-11866 (parent BEAAA-11862; CEO infra decision BEAAA-11861).
+# STAGING / non-public only. No DNS, no api.backbond.ai, no publish.
+# CEO owns D2 (public bind + DNS) at go-time.
+#
+# Posture (reuses D-3 default-deny, BEAAA-11607):
+#   1. Route allowlist, default-deny: only POST /scanner/v1/scans and
+#      GET /scan/{scan_id} reach upstream. Everything else -> opaque 404.
+#   2. Topology hiding: strip Server / Via / X-Powered-By / upstream Location.
+#      No internal host/port/path or stack trace escapes.
+#   3. Error normalization: upstream 5xx -> opaque {"error":"upstream_error", ...};
+#      request_id echoed in a response header for support correlation.
+#
+# Env (see docker-compose.staging.yml / README.md):
+#   EDGE_LISTEN   - edge bind address (default :8080; publish loopback-only)
+#   EDGE_UPSTREAM - scanner app tier host:port (default 127.0.0.1:8077)
+{
+	# Hardening: no admin socket, no ACME/auto-HTTPS (staging is internal, no DNS).
+	admin off
+	auto_https off
+}
+
+# Reusable upstream block (snippet): strip fingerprinting/topology headers
+# coming back from the app tier, and normalize upstream 5xx to an opaque body.
+# Imported by both allowlisted routes so they stay byte-identical.
+(scanner_upstream) {
+	reverse_proxy {$EDGE_UPSTREAM:127.0.0.1:8077} {
+		# (2) never leak upstream topology/identity headers.
+		header_down -Server
+		header_down -Via
+		header_down -X-Powered-By
+		header_down -Location
+		header_down -X-AspNet-Version
+		header_down -X-Runtime
+
+		# (3) upstream 5xx -> opaque upstream_error, no internal detail.
+		@upstream_5xx status 5xx
+		handle_response @upstream_5xx {
+			header Content-Type application/json
+			respond `{"error":"upstream_error","request_id":"{http.request.uuid}"}` 502 {
+				close
+			}
+		}
+	}
+}
+
+# Plain HTTP on an internal/unadvertised bind. `http://` scheme => no ACME.
+http://{$EDGE_LISTEN::8080} {
+	# --- (2) Topology hiding: applies to EVERY response from this site ---
+	header {
+		-Server
+		-Via
+		-X-Powered-By
+		-X-AspNet-Version
+		-X-Runtime
+		# Opaque per-request id for support correlation (no internal detail).
+		+X-Request-ID "{http.request.uuid}"
+	}
+
+	# --- (1) Allowlist route A: create scan ---
+	@scan_create {
+		method POST
+		path /scanner/v1/scans
+	}
+	handle @scan_create {
+		import scanner_upstream
+	}
+
+	# --- (1) Allowlist route B: read scan by id (exactly one path segment) ---
+	@scan_get {
+		method GET
+		path_regexp scan_id ^/scan/[^/]+$
+	}
+	handle @scan_get {
+		import scanner_upstream
+	}
+
+	# --- (1) Default-deny catch-all: opaque 404 for everything else ---
+	#   /score, /quote, /forensic_bundle/*, /scanner/v1/rescans,
+	#   /scanner/v1/sla, portal/admin/health-detail, unknown paths, and
+	#   wrong-method hits on the two allowed paths all land here.
+	handle {
+		header Content-Type application/json
+		respond `{"error":"not_found","request_id":"{http.request.uuid}"}` 404 {
+			close
+		}
+	}
+}
