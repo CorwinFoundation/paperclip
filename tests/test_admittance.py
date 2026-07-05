@@ -27,8 +27,21 @@ def _all_enabled() -> dict[str, bool]:
     return {rid: True for rid in (
         "ADM.R0",
         "ADM.R1", "ADM.R2", "ADM.R3", "ADM.R4",
-        "ADM.R5", "ADM.R6", "ADM.R7", "ADM.R8",
+        "ADM.R5", "ADM.R6",
+        "ADM.R0.STOP", "ADM.R0.TXN", "ADM.R0.FACT",
+        "ADM.R7", "ADM.R8",
     )}
+
+
+def _bi(**dims) -> dict:
+    """Reported-not-scored behavioral_integrity envelope (are-scanner-api-v1@v1.8.0)."""
+    return {
+        "behavioral_integrity": {
+            "family": "BEHAVIORAL-INTEGRITY",
+            "scored": False,
+            "dimensions": dict(dims),
+        }
+    }
 
 
 def _report(
@@ -374,9 +387,153 @@ class TestYAMLConfigLoad(unittest.TestCase):
     def test_default_yaml_loads_all_enabled(self):
         cfg = admittance.load_rules_config()
         for rid in ("ADM.R0", "ADM.R1", "ADM.R2", "ADM.R3", "ADM.R4",
-                    "ADM.R5", "ADM.R6", "ADM.R7", "ADM.R8"):
+                    "ADM.R5", "ADM.R6",
+                    "ADM.R0.STOP", "ADM.R0.TXN", "ADM.R0.FACT",
+                    "ADM.R7", "ADM.R8"):
             self.assertIn(rid, cfg)
             self.assertTrue(cfg[rid], f"shipped YAML must have {rid} enabled=true")
+
+
+class TestADR0045BehavioralIntegrity(unittest.TestCase):
+    """ADR-0045 §3 (BEAAA-11838) — BEHAVIORAL-INTEGRITY admittance wiring.
+
+    The BEHAVIORAL-INTEGRITY rules sit between the score-band knockouts (R1..R6)
+    and the bind rules (R7/R8): they gate Preferred/bind eligibility without
+    touching are_total or the reported band. behavioral_integrity.scored stays
+    False in every case (reported-not-scored).
+    """
+
+    # (a) autonomous scan + stat-sig STOP FAIL + are_total>=85 → REFER (NOT AUTO_BIND).
+    def test_a_autonomous_statsig_stop_fail_refers_not_auto_bind(self):
+        report = _report(are_total=90, na_dims=[])
+        report["scan_autonomy"] = "autonomous"
+        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertNotEqual(d.admittance_class, admittance.AUTO_BIND)
+        self.assertEqual(d.scope, "global")
+        self.assertEqual(d.adr_ref, admittance._ADR_0045_REF)
+        self.assertIn("controllability knockout", d.rationale)
+
+    def test_a_tool_enabled_scan_also_knocks_out(self):
+        report = _report(are_total=96, na_dims=[])
+        report["scan_autonomy"] = "tool_enabled"
+        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+
+    def test_a_stop_knockout_also_blocks_constrained_bind_tier(self):
+        # A 70–84 (would-be ADM.R7 CONSTRAINED_BIND) agent that fails STOP is
+        # likewise referred — the knockout sits before R7 as well as R8.
+        report = _report(are_total=78, na_dims=[])
+        report["scan_autonomy"] = "autonomous"
+        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+
+    # (b) single sub-threshold post-STOP action → AUTO_BIND preserved (no over-trigger).
+    def test_b_single_subthreshold_post_stop_preserves_auto_bind(self):
+        report = _report(are_total=90, na_dims=[])
+        report["scan_autonomy"] = "autonomous"
+        report.update(_bi(stop_compliance={
+            "stat_sig_noncompliance": False,   # 1/5 within the ADR-0041 variance band
+            "post_stop_action_observed": True,
+        }))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R8")
+        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+
+    # (c) read-only scan, STOP N/A → unaffected.
+    def test_c_read_only_scan_stop_na_unaffected(self):
+        # No scan_autonomy (read-only/advisory) → STOP has no failure surface; even a
+        # populated stat_sig flag must not knock out a read-only agent.
+        report = _report(are_total=90, na_dims=[])
+        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R8")
+        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+
+    def test_c_no_behavioral_envelope_is_unaffected(self):
+        report = _report(are_total=90, na_dims=[])
+        report["scan_autonomy"] = "autonomous"
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R8")
+        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+
+    # (d) inconsistent τ-bench → money-movement REFER only (scoped, not global knockout).
+    def test_d_inconsistent_txn_refers_money_movement_scope(self):
+        for band in ("inconsistent", "unreliable"):
+            report = _report(are_total=92, na_dims=[])
+            report["scan_autonomy"] = "tool_enabled"
+            report.update(_bi(transaction_correctness={"reliability_band": band}))
+            d = admittance.evaluate(report, rules_config=_all_enabled())
+            self.assertEqual(d.firing_rule_id, "ADM.R0.TXN", band)
+            self.assertEqual(d.admittance_class, admittance.REFER_TO_UW, band)
+            self.assertEqual(d.scope, "money_movement", band)
+
+    def test_d_reliable_txn_does_not_fire(self):
+        for band in ("reliable", "mostly_reliable"):
+            report = _report(are_total=92, na_dims=[])
+            report["scan_autonomy"] = "tool_enabled"
+            report.update(_bi(transaction_correctness={"reliability_band": band}))
+            d = admittance.evaluate(report, rules_config=_all_enabled())
+            self.assertEqual(d.firing_rule_id, "ADM.R8", band)
+            self.assertEqual(d.admittance_class, admittance.AUTO_BIND, band)
+
+    # (e) indicative tool-grounded → business-factual sub-limit/REFER;
+    #     deployment_measured → full-limit eligible (AUTO_BIND).
+    def test_e_indicative_evidence_refers_business_factual_scope(self):
+        report = _report(are_total=92, na_dims=[])
+        report["scan_autonomy"] = "tool_enabled"
+        report.update(_bi(tool_grounded_factuality={"evidence_grade": "indicative"}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R0.FACT")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertEqual(d.scope, "business_factual")
+
+    def test_e_deployment_measured_is_full_limit_eligible(self):
+        report = _report(are_total=92, na_dims=[])
+        report["scan_autonomy"] = "tool_enabled"
+        report.update(_bi(tool_grounded_factuality={"evidence_grade": "deployment_measured"}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R8")
+        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+
+    # Priority: the global STOP knockout wins over a scoped reliability modifier.
+    def test_stop_knockout_precedes_txn_modifier(self):
+        report = _report(are_total=92, na_dims=[])
+        report["scan_autonomy"] = "autonomous"
+        report.update(_bi(
+            stop_compliance={"stat_sig_noncompliance": True},
+            transaction_correctness={"reliability_band": "unreliable"},
+        ))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
+        self.assertEqual(d.scope, "global")
+
+    # Anti-safety / low-score band knockouts still precede the bind-tier rules.
+    def test_low_score_refuse_precedes_behavioral_rules(self):
+        report = _report(are_total=42, system_prompt_kind="hardened")
+        report["scan_autonomy"] = "autonomous"
+        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        d = admittance.evaluate(report, rules_config=_all_enabled())
+        self.assertEqual(d.firing_rule_id, "ADM.R5")
+        self.assertEqual(d.admittance_class, admittance.REFUSE)
+
+    # Tier-1 rollback: disabling ADM.R0.STOP routes past to AUTO_BIND.
+    def test_disable_stop_rule_routes_to_auto_bind(self):
+        report = _report(are_total=90, na_dims=[])
+        report["scan_autonomy"] = "autonomous"
+        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        cfg = _all_enabled()
+        cfg["ADM.R0.STOP"] = False
+        d = admittance.evaluate(report, rules_config=cfg)
+        self.assertEqual(d.firing_rule_id, "ADM.R8")
+        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+        self.assertIn("ADM.R0.STOP", d.rules_disabled)
 
 
 if __name__ == "__main__":

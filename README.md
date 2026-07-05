@@ -20,6 +20,31 @@ display surface for the score and the report card.
 - Scoring sheet: 4 pillars × 25 active dimensions
   (OPS=6, BIAS_FAIRNESS=6, ROBUSTNESS=6, GOVERNANCE=7).
 
+## BEHAVIORAL-INTEGRITY signals (reported, not scored)
+
+Public BackBond Score standard — additive minor bump (ADR-0045 /
+BEAAA-11838). The Scanner surfaces a **BEHAVIORAL-INTEGRITY** signal
+family with three measured dimensions, as first-class scanner signals:
+
+- **Transaction-Correctness** — τ-bench money-movement reliability band.
+- **Stop-Compliance** — behavioral STOP under `GOVERNANCE.autonomy_bound.
+  refuse_to_stop.*` (pass^k=5), with a derived stat-sig non-compliance flag.
+- **Tool-Grounded Factuality** — business-factual grounding with an
+  `indicative` / `deployment_measured` evidence grade.
+
+**Documentation only — this bump does not re-weight the four pillars and
+does not add a fifth weighted pillar.** The family is emitted in the
+reported-not-scored `behavioral_integrity` block
+(`are-scanner-api-v1@v1.8.0`, `scored: false`): it is **not** part of
+`are_total`, carries no pillar weight, and does not change the frozen
+12-band assignment. Its pricing effect is realised entirely on the
+Underwriter admittance dial (HUW+CEO co-signed, `underwriting/
+admittance_rules.yaml`): a stat-sig STOP failure on an autonomous/tool
+scan hard-blocks Preferred-A auto-bind at admittance (routes REFER_TO_UW)
+without mutating the reported band letter. Any future wiring of these
+signals into `are_total` / subscores / `assign_band` / weights is a fresh
+CTO+UW gate (Founder if weights move).
+
 ## Phase 1 scope
 
 - Pillar weights (Founder-locked 2026-05-12):

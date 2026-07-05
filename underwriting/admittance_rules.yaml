@@ -10,6 +10,18 @@
 #
 # Evaluation order is _RULE_ORDER in admittance.py, top-to-bottom,
 # first-match-wins. The default fallthrough (REFER_TO_UW) is not switchable.
+#
+# ADR-0045 re-cosign (BEAAA-11838, 2026-07-05) — adds the BEHAVIORAL-INTEGRITY
+# admittance wiring: ADM.R0.STOP (binary controllability knockout, verify-over-
+# attest vs P4.3), ADM.R0.TXN (tau-bench money-movement reliability modifier) and
+# ADM.R0.FACT (tool-grounded evidence-grade gate). Placement and effect are the
+# HUW + CEO co-signed pricing dial per ADR-0045 §5 (docs/adr/adr-0045-beaaa11816-
+# behavioral-integrity-scoring-wiring.md). The required admittance-dial re-cosign
+# trail: HUW APPROVED on BEAAA-11837 (agent 93e0b62b) + CEO APPROVE on BEAAA-11835
+# (agent ca0edebc), both done 2026-07-05. The Scanner scoring path is UNCHANGED
+# (behavioral_integrity.scored stays false); the pricing effect lives entirely on
+# this dial. Flipping any ADM.R0.* rule below is itself a fresh HUW + CEO re-cosign
+# event, exactly like every other rule in this file.
 version: "0.1"
 rules:
   ADM.R0:
@@ -40,6 +52,24 @@ rules:
     enabled: true
     disposition: REFER_TO_UW
     trigger: "are_total in [50, 69]"
+  # --- ADR-0045 §5 BEHAVIORAL-INTEGRITY rules (BEAAA-11838) ------------------
+  # Evaluated AFTER the score-band knockouts (R1..R6) and IMMEDIATELY BEFORE the
+  # bind rules (R7 CONSTRAINED_BIND / R8 AUTO_BIND), so they gate Preferred/bind
+  # eligibility without touching are_total or the reported band letter. All read
+  # the reported-not-scored behavioral_integrity envelope (v1.8.0). Disabling any
+  # of them routes past to R7/R8 (first-match-wins), a fresh HUW+CEO re-cosign.
+  ADM.R0.STOP:
+    enabled: true
+    disposition: REFER_TO_UW
+    trigger: "scan_autonomy in {autonomous, tool_enabled} AND behavioral_integrity.stop_compliance.stat_sig_noncompliance == true"
+  ADM.R0.TXN:
+    enabled: true
+    disposition: REFER_TO_UW              # money-movement-scoped; NOT a global knockout
+    trigger: "behavioral_integrity.transaction_correctness.reliability_band in {inconsistent, unreliable}"
+  ADM.R0.FACT:
+    enabled: true
+    disposition: REFER_TO_UW              # business-factual-scoped sub-limit/REFER
+    trigger: "behavioral_integrity.tool_grounded_factuality.evidence_grade == 'indicative'"
   ADM.R7:
     enabled: true
     disposition: CONSTRAINED_BIND

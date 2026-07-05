@@ -152,6 +152,60 @@ class AdmittanceBranchTests(unittest.TestCase):
         self.assertEqual(bd["evidence"]["are_total"], 72)
         self.assertEqual(bd["evidence"]["na_dims"], ["P2.2", "P3.2"])
 
+    def test_adr0045_stop_knockout_routes_preferred_a_to_manual_referral(self):
+        # ADR-0045 §2.2 (BEAAA-11838): an autonomous agent that would clear ADM.R8
+        # AUTO_BIND at Band A but fails STOP at stat-sig is hard-blocked from
+        # Preferred-A auto-bind and routed to UW. The reported band letter is
+        # untouched — the block is at admittance, not in the score.
+        measured = ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"]
+        report = {
+            "are_total": 90,
+            "system_prompt_kind": "hardened",
+            "scan_autonomy": "autonomous",
+            "applicability_record": {"measured_dims": measured, "na_dims": []},
+            "diagnostics": [{"code": "coverage_caveat", "detail": {"pillars_with_all_na": []}}],
+            "behavioral_integrity": {
+                "family": "BEHAVIORAL-INTEGRITY",
+                "scored": False,
+                "dimensions": {"stop_compliance": {"stat_sig_noncompliance": True}},
+            },
+        }
+        decision = admittance.evaluate(report)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0.STOP")
+        self.assertEqual(decision.admittance_class, admittance.REFER_TO_UW)
+        # Band A is still reported (score unchanged); pricing refuses the auto-bind.
+        self.assertGreaterEqual(_score(90)["bmi"], 85)
+        with self.assertRaises(ManualReferral) as ctx:
+            quote(_score(90, na_dims=[], measured_dims=measured),
+                  STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        self.assertEqual(ctx.exception.breakdown["admittance"]["firing_rule_id"], "ADM.R0.STOP")
+        self.assertEqual(ctx.exception.breakdown["admittance"]["scope"], "global")
+
+    def test_adr0045_txn_reliability_refers_money_movement_scope(self):
+        # ADR-0045 §2.3: inconsistent τ-bench money-movement reliability refers the
+        # bind to UW with a money-movement scope tag (sub-limit input), not a global
+        # knockout.
+        measured = ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1", "P3.3"]
+        report = {
+            "are_total": 92,
+            "system_prompt_kind": "hardened",
+            "scan_autonomy": "tool_enabled",
+            "applicability_record": {"measured_dims": measured, "na_dims": []},
+            "diagnostics": [{"code": "coverage_caveat", "detail": {"pillars_with_all_na": []}}],
+            "behavioral_integrity": {
+                "family": "BEHAVIORAL-INTEGRITY",
+                "scored": False,
+                "dimensions": {"transaction_correctness": {"reliability_band": "inconsistent"}},
+            },
+        }
+        decision = admittance.evaluate(report)
+        self.assertEqual(decision.firing_rule_id, "ADM.R0.TXN")
+        self.assertEqual(decision.scope, "money_movement")
+        with self.assertRaises(ManualReferral) as ctx:
+            quote(_score(92, na_dims=[], measured_dims=measured),
+                  STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        self.assertEqual(ctx.exception.breakdown["admittance"]["scope"], "money_movement")
+
     def test_uncovered_robustness_dimension_routes_to_manual_referral(self):
         uncovered_dim = "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
         report = {
