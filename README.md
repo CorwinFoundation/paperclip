@@ -12,7 +12,8 @@ display surface for the score and the report card.
 ## Current versions (canon, in-flight on `master`)
 
 - Scanner: `0.4.2` (`SCANNER_VERSION` in `scanners/__init__.py`)
-- Rubric: `1.2.0`, locked through `2026-06-30` (`rubric/rubric.yaml`)
+- Rubric: `1.2.0`, locked through `2026-08-04` (`rubric/rubric.yaml`;
+  re-locked 2026-07-05 per BEAAA-11915 — unchanged 1.2.0, golden N=5 Δ0)
 - Contract: `are-scanner-api-v1@v1.3.0`
   (`contracts/are-scanner-api-v1.md`; v1.0.x/v1.1.0/v1.2.0/v1.3.0
   cumulative; v1.4.0 + v1.5.0 patch files live alongside the master
