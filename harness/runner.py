@@ -457,7 +457,8 @@ class BotpressChatRunner(ModelRunner):
 
     def __init__(self, *, client_id: str, label: str | None = None,
                  timeout_s: float = 30.0, poll_max_s: float = 30.0,
-                 poll_interval_s: float = 0.5):
+                 poll_interval_s: float = 0.5,
+                 client_factory: Callable[..., Any] | None = None):
         if not client_id:
             raise RunnerError("BotpressChatRunner requires client_id")
         self._client_id = client_id
@@ -466,11 +467,21 @@ class BotpressChatRunner(ModelRunner):
         self._timeout_s = timeout_s
         self._poll_max_s = poll_max_s
         self._poll_interval_s = poll_interval_s
+        # Transport seam: defaults to harness.egress.client. A fake factory lets
+        # the SAI AgentSession adapter (harness/session_adapters.py) and its unit
+        # tests drive the 4-step protocol with no live endpoint.
+        self._client_factory = client_factory
         self._user_key: str | None = None
         self._user_id: str | None = None
 
     def model_id(self) -> str:
         return self._label
+
+    def _client(self) -> Any:
+        if self._client_factory is not None:
+            return self._client_factory(timeout=self._timeout_s)
+        from harness import egress
+        return egress.client(timeout=self._timeout_s)
 
     def _ensure_user(self, client: Any) -> None:
         if self._user_key:
@@ -483,12 +494,21 @@ class BotpressChatRunner(ModelRunner):
         self._user_id = data["user"]["id"]
 
     def complete(self, prompt: str) -> str:
+        return self.complete_observed(prompt)[0]
+
+    def complete_observed(self, prompt: str) -> tuple[str, list[dict[str, Any]]]:
+        """One Botpress exchange -> (reply_text, all bot message dicts).
+
+        Behaviourally identical to ``complete`` for the text reply; additionally
+        returns every bot-authored message for this turn (any payload type) so an
+        AgentSession adapter can surface tool/action payloads the public Chat API
+        exposes. Polls until a text reply lands, exactly as before.
+        """
         try:
             import httpx  # type: ignore  # noqa: F401  (egress module imports httpx itself)
         except ImportError as exc:
             raise RunnerError("httpx not installed; pip install httpx") from exc
-        from harness import egress
-        with egress.client(timeout=self._timeout_s) as client:
+        with self._client() as client:
             self._ensure_user(client)
             headers = {"Content-Type": "application/json", "x-user-key": self._user_key}
             r = client.post(f"{self._base}/conversations", headers=headers, json={})
@@ -510,14 +530,14 @@ class BotpressChatRunner(ModelRunner):
                 if r.status_code >= 400:
                     raise RunnerError(f"botpress GET messages failed: HTTP {r.status_code}: {r.text[:300]}")
                 msgs = r.json().get("messages", [])
-                bot_msgs = [
+                bot_all = [
                     m for m in msgs
                     if m.get("id") != sent_id
-                    and m.get("payload", {}).get("type") == "text"
                     and m.get("userId") != self._user_id
                 ]
-                if bot_msgs:
-                    return str(bot_msgs[0].get("payload", {}).get("text", ""))
+                bot_text = [m for m in bot_all if m.get("payload", {}).get("type") == "text"]
+                if bot_text:
+                    return str(bot_text[0].get("payload", {}).get("text", "")), bot_all
             raise RunnerError(f"botpress bot did not reply within {self._poll_max_s}s")
 
 
@@ -537,7 +557,8 @@ class VoiceflowRunner(ModelRunner):
                  base_url: str = "https://general-runtime.voiceflow.com",
                  label: str | None = None,
                  timeout_s: float = 30.0,
-                 user_id_prefix: str = "beaai-scan"):
+                 user_id_prefix: str = "beaai-scan",
+                 poster: Callable[..., Any] | None = None):
         if not project_id or not api_key:
             raise RunnerError("VoiceflowRunner requires project_id and api_key")
         self._project_id = project_id
@@ -546,6 +567,10 @@ class VoiceflowRunner(ModelRunner):
         self._label = label or f"voiceflow:{project_id}"
         self._timeout_s = timeout_s
         self._user_id_prefix = user_id_prefix
+        # Transport seam: defaults to harness.egress.post. A fake poster lets the
+        # SAI AgentSession adapter and its unit tests exercise the interact
+        # protocol with no live endpoint (mirrors HTTPAgentSession.poster).
+        self._poster = poster
         self._counter = 0
 
     def model_id(self) -> str:
@@ -556,6 +581,16 @@ class VoiceflowRunner(ModelRunner):
         return f"{self._user_id_prefix}-{self._counter}-{int(time.monotonic() * 1000)}"
 
     def complete(self, prompt: str) -> str:
+        return self.complete_observed(prompt)[0]
+
+    def complete_observed(self, prompt: str) -> tuple[str, list[dict[str, Any]]]:
+        """One Voiceflow interact -> (reply_text, raw trace array).
+
+        Behaviourally identical to ``complete`` for the reply text; additionally
+        returns the full per-turn trace array so an AgentSession adapter can map
+        tool/debug traces to observable ToolCalls. `poster` (default
+        harness.egress.post) is injectable for endpoint-free unit tests.
+        """
         try:
             import httpx  # type: ignore
         except ImportError as exc:
@@ -568,9 +603,12 @@ class VoiceflowRunner(ModelRunner):
             "projectID": self._project_id,
         }
         body = {"action": {"type": "text", "payload": prompt}}
-        from harness import egress
+        poster = self._poster
+        if poster is None:
+            from harness import egress
+            poster = egress.post
         try:
-            resp = egress.post(url, headers=headers, json=body, timeout=self._timeout_s, session_id=user_id)
+            resp = poster(url, headers=headers, json=body, timeout=self._timeout_s, session_id=user_id)
         except Exception as exc:
             raise RunnerError(f"voiceflow request failed: {exc}") from exc
         if resp.status_code >= 400:
@@ -598,9 +636,9 @@ class VoiceflowRunner(ModelRunner):
                 payload = t.get("payload", {})
                 for k in ("message", "text", "label"):
                     if isinstance(payload.get(k), str) and payload[k]:
-                        return str(payload[k])
-            return ""
-        return "\n".join(text_chunks)
+                        return str(payload[k]), traces
+            return "", traces
+        return "\n".join(text_chunks), traces
 
 
 class SyllableRunner(ModelRunner):

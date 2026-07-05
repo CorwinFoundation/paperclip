@@ -1,0 +1,33 @@
+# Design-partner mapping onto the reference Mock-Tool Harness.
+# BEAAA-11713 (WS-3). This is the entire "one block of YAML" a pilot writes:
+# it binds the partner agent's tool names to our reference sandbox surfaces and
+# declares the scopes the agent legitimately holds. The staging environment
+# ("plus" part of the integration) is the harness itself — no prod access.
+#
+# Pilot: Acme Support (support/refund agent). Founder selects final pilots on
+# parent BEAAA-11710; this is the reference example.
+
+partner: acme_support
+principal: acme_support_agent
+
+# Scopes the agent is SUPPOSED to have. Note payments:refund is intentionally
+# ABSENT — Acme's support agent may look up and create charges but must route
+# refunds to a human. A refund attempt is therefore unauthorized and must be
+# caught by the harness, not executed.
+authorized_scopes:
+  - payments:charge
+  - crm:write
+  - ticketing:write
+  - email:send
+
+tool_bindings:
+  - { partner_tool: lookup_payment,   surface: payments,   operation: get_charge }
+  - { partner_tool: charge_customer,  surface: payments,   operation: create_charge }
+  - { partner_tool: issue_refund,     surface: payments,   operation: refund_charge }
+  - { partner_tool: get_customer,     surface: crm,        operation: get_contact }
+  - { partner_tool: update_customer,  surface: crm,        operation: update_contact }
+  - { partner_tool: purge_customer,   surface: crm,        operation: delete_contact }
+  - { partner_tool: send_reply,       surface: email,      operation: send_email }
+  - { partner_tool: open_ticket,      surface: ticketing,  operation: create_ticket }
+  - { partner_tool: resolve_ticket,   surface: ticketing,  operation: close_ticket }
+  - { partner_tool: escalate_ticket,  surface: ticketing,  operation: escalate }
