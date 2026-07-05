@@ -434,6 +434,54 @@ components:
               code: { type: string }
               message: { type: string }
               detail: { type: object, additionalProperties: true }
+        behavioral_integrity:
+          type: object
+          description: |
+            v1.8.0 additive (BEAAA-11810). OPTIONAL, REPORTED-NOT-SCORED
+            behavioral-integrity evidence surface. Placement per CEO ruling
+            BEAAA-11807 (NEW BEHAVIORAL-INTEGRITY dimension family, additive
+            public-standard minor bump). This block is NOT a member of
+            `pillars`, does NOT contribute to `bmi`/`are_total`, and carries
+            NO weight. `scored` is a v1.8.0 INVARIANT fixed at false: the
+            Underwriter reads this as informational evidence only. Any flip of
+            `scored` to true, or any wiring of a reported signal into
+            `are_total` or band logic, is a NEW contract version under the
+            separate CEO+Underwriter scoring-wiring gate (BEAAA-11807 /
+            BEAAA-11798 v2) and cannot happen silently under v1.8.0. Omitting
+            this block leaves the v1.7.0 envelope byte-identical.
+          required: [family, scored, dimensions]
+          properties:
+            family: { type: string, example: "BEHAVIORAL-INTEGRITY", description: "Working taxonomy string; final canon fixed in the scoring-wiring ADR vs glossary.md." }
+            scored: { type: boolean, enum: [false], description: "v1.8.0 invariant: always false. reported-not-scored." }
+            dimensions:
+              type: object
+              description: |
+                Three reported dimensions. Each carries an OPTIONAL reported_raw
+                (0..4 signal; NOT a pillar/are_total input) and evidence_refs
+                rows (see the evidence-class additions transaction_correctness /
+                stop_compliance / tool_grounded_factuality).
+              properties:
+                transaction_correctness:
+                  type: object
+                  description: "τ-bench / money-movement correctness (BEAAA-11808). Evidence-only."
+                  properties:
+                    reported_raw: { type: number, minimum: 0, maximum: 4, description: "OPTIONAL reported signal; NOT an are_total input." }
+                    reliability_band: { type: string, enum: [reliable, mostly_reliable, inconsistent, unreliable], description: "From τ-bench pass^k; evidence only." }
+                    evidence_refs: { type: array, items: { type: object }, description: "class: transaction_correctness rows." }
+                stop_compliance:
+                  type: object
+                  description: "Behavioral STOP-instruction compliance (BEAAA-11809). Evidence-only in v1.8.0; the future knockout reads post_stop_action_observed under the separate gate."
+                  properties:
+                    reported_raw: { type: number, minimum: 0, maximum: 4, description: "OPTIONAL reported signal; NOT an are_total input." }
+                    post_stop_action_observed: { type: boolean, description: "true => agent acted after STOP (the fail signal the future knockout will read)." }
+                    evidence_refs: { type: array, items: { type: object }, description: "class: stop_compliance rows." }
+                tool_grounded_factuality:
+                  type: object
+                  description: "Business-factual hallucination grounded in tool output. Evidence-only."
+                  properties:
+                    reported_raw: { type: number, minimum: 0, maximum: 4, description: "OPTIONAL reported signal; NOT an are_total input." }
+                    evidence_grade: { type: string, enum: [indicative, deployment_measured], description: "Gap-3 (BEAAA-11807 §3): category-proxy (e.g. HaluEval) is `indicative` and NOT bind-grade on its own; full-limit bind needs `deployment_measured` evidence or an explicit sub-limit." }
+                    evidence_refs: { type: array, items: { type: object }, description: "class: tool_grounded_factuality rows." }
     Band:
       type: object
       description: "12-band assignment (A/B/C/D × ±) per BEAAA-57 v1.0 frozen 2026-04-30."

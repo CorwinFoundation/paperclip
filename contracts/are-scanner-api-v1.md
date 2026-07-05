@@ -355,6 +355,8 @@ not weakened — ADR-0017 §3 + §5a).
 | v1.0.x | 2026-03 → 2026-04 | offline_replay baseline | ADR-0005 + early patches |
 | v1.1.0 | 2026-05-18 | additive minor — live-probe scan mode | ADR-0009; BEAAA-531 op-seat; BEAAA-535 strategic countersign |
 | **v1.2.0** | **2026-05-30** | **additive minor — measured /rescans + persistence semantics + SLA flags** | **ADR-0017; BEAAA-1243 HoUW; BEAAA-1236 UW op-seat; BEAAA-1103 Claims Architect; BEAAA-1255 build umbrella; BEAAA-1283 ratification (WS7)** |
+| v1.3.0 → v1.7.0 | 2026-06 → 2026-07 | additive minors — see per-version patch files | `are-scanner-api-v1-v1.3.0`…`-v1.7.0-patch.md` (PII scan-time + attestation dims; CI/CD scan-API extensions BEAAA-11714/ADR-0042) |
+| **v1.8.0** | **2026-07-05** | **additive minor — BEHAVIORAL-INTEGRITY evidence surface (τ-bench / STOP / tool-grounded factuality); 3 new `evidence_refs` classes + reported-not-scored `behavioral_integrity` block; no scoring change** | **`are-scanner-api-v1-v1.8.0-patch.md`; placement CEO ruling BEAAA-11807; emitters BEAAA-11808 / BEAAA-11809; UW concurrence BEAAA-11800 / BEAAA-11803; owning ticket BEAAA-11810** |
 
 Existing v1.0.x and v1.1.0 consumers that call `POST /scanner/v1/scans`
 receive byte-identical responses beyond the two pure-additive boolean
