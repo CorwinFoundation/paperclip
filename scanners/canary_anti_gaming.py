@@ -172,11 +172,43 @@ def _fired_probe_preimage_sha256(record: "FiredProbeRecord") -> str:
     """Tamper-evident content hash over the record's semantic fields.
 
     The audit-spine envelope fields (``recorded_at``, ``preimage_sha256``,
-    ``record_kind``) are excluded by construction so the preimage is stable
-    across replays and across the JSONL-sink and Postgres-table substrates.
+    ``prev_sha256``, ``chain_sha256``, ``record_kind``) are excluded by
+    construction so the preimage is stable across replays and across the
+    JSONL-sink and Postgres-table substrates.
     """
     preimage = {field: getattr(record, field) for field in _AUDIT_SPINE_PREIMAGE_FIELDS}
     digest = hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
+    return f"sha256:{digest}"
+
+
+# BEAAA-11876 — hash-chaining at the JSONL layer.
+#
+# The per-record ``preimage_sha256`` (11872) is tamper-evident for a *single*
+# line but says nothing about the sequence: an EFS-write holder could delete or
+# reorder whole lines undetectably at the JSONL layer. Linking each record to the
+# running chain head over its predecessor's chain value closes that gap — any
+# mid-stream delete or reorder breaks the ``prev_sha256`` continuity on replay.
+#
+# Tail truncation (deleting the last N lines) cannot be detected by an internal
+# chain alone — there is no anchor past the tip. That case is covered by the
+# durable Postgres book of record: once a line is loaded, dropping it from the
+# JSONL sink shows up as a Postgres row absent from the JSONL on
+# ``reconcile`` (scanners/fired_probe_ledger_loader.py) and raises a tamper
+# alarm. Chain (mid-stream) + reconcile (tail) together make whole-of-record
+# tamper detectable end to end.
+FIRED_PROBE_CHAIN_GENESIS = "sha256:" + ("0" * 64)
+
+
+def _fired_probe_chain_link(*, prev_sha256: str, preimage_sha256: str) -> str:
+    """Chain value linking a record to the running head.
+
+    ``chain_sha256 = sha256(canonical({prev_sha256, preimage_sha256}))``. The
+    first record links from :data:`FIRED_PROBE_CHAIN_GENESIS`. The canonical
+    encoding keeps the value byte-stable across the JSONL sink and the Postgres
+    book of record so ``reconcile`` can join the two substrates on it.
+    """
+    payload = {"prev_sha256": prev_sha256, "preimage_sha256": preimage_sha256}
+    digest = hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()
     return f"sha256:{digest}"
 
 
@@ -223,6 +255,20 @@ class AuditSpineFiredProbeLedger:
     def _path(self) -> Path:
         return Path(self.path)
 
+    def _chain_tip(self) -> str:
+        """Return the ``chain_sha256`` of the last well-formed entry, or genesis.
+
+        Corrupt/partial trailing lines and legacy pre-chain lines (no
+        ``chain_sha256``) are skipped so the chain head is always the last
+        chained record; if none exists the next record links from genesis.
+        """
+        tip = FIRED_PROBE_CHAIN_GENESIS
+        for row in self.read_all():
+            chain = row.get("chain_sha256")
+            if isinstance(chain, str) and _HASH_RE.match(chain):
+                tip = chain
+        return tip
+
     def append(self, record: FiredProbeRecord) -> None:
         normalized = FiredProbeRecord(
             tenant_id=record.tenant_id,
@@ -233,11 +279,18 @@ class AuditSpineFiredProbeLedger:
             rubric_point_id=record.rubric_point_id,
             test_id=record.test_id,
         )
+        preimage_sha256 = _fired_probe_preimage_sha256(normalized)
+        prev_sha256 = self._chain_tip()
+        chain_sha256 = _fired_probe_chain_link(
+            prev_sha256=prev_sha256, preimage_sha256=preimage_sha256
+        )
         entry = {
             "record_kind": "fired_probe",
             "schema_version": FIRED_PROBE_AUDIT_SPINE_SCHEMA_VERSION,
             "recorded_at": self.now_factory(),
-            "preimage_sha256": _fired_probe_preimage_sha256(normalized),
+            "preimage_sha256": preimage_sha256,
+            "prev_sha256": prev_sha256,
+            "chain_sha256": chain_sha256,
             **normalized.__dict__,
         }
         path = self._path()
@@ -287,6 +340,79 @@ class AuditSpineFiredProbeLedger:
                 except json.JSONDecodeError:
                     continue
         return tuple(rows)
+
+    def verify_chain(self) -> "FiredProbeChainVerification":
+        """Recompute the hash-chain over all persisted entries.
+
+        BEAAA-11876. Walks the entries in append order, recomputing each record's
+        ``preimage_sha256`` and ``chain_sha256`` from genesis. Detects, at the
+        JSONL layer alone:
+
+        * a whole-line **delete** or **reorder** (the ``prev_sha256`` of the next
+          record no longer matches the running head),
+        * an in-place **edit** of a semantic field (the recomputed
+          ``preimage_sha256`` no longer matches the stored one),
+        * a forged/miscomputed ``chain_sha256``.
+
+        Tail truncation is out of scope for the internal chain (no anchor past
+        the tip) and is caught by the Postgres reconciliation instead. Returns a
+        structured verdict rather than raising, so operators can alarm on it.
+        """
+        head = FIRED_PROBE_CHAIN_GENESIS
+        for index, row in enumerate(self.read_all()):
+            stored_prev = row.get("prev_sha256")
+            stored_chain = row.get("chain_sha256")
+            stored_preimage = row.get("preimage_sha256")
+            if not (
+                isinstance(stored_chain, str)
+                and isinstance(stored_prev, str)
+                and isinstance(stored_preimage, str)
+            ):
+                return FiredProbeChainVerification(
+                    ok=False, broken_index=index, reason="missing_chain_fields"
+                )
+            if stored_prev != head:
+                return FiredProbeChainVerification(
+                    ok=False, broken_index=index, reason="prev_sha256_mismatch"
+                )
+            record = FiredProbeRecord(
+                tenant_id=row.get("tenant_id"),
+                vendor_id=row.get("vendor_id"),
+                phrasing_hash=row.get("phrasing_hash"),
+                scan_id=row.get("scan_id"),
+                fired_at=row.get("fired_at"),
+                rubric_point_id=row.get("rubric_point_id"),
+                test_id=row.get("test_id"),
+            )
+            if _fired_probe_preimage_sha256(record) != stored_preimage:
+                return FiredProbeChainVerification(
+                    ok=False, broken_index=index, reason="preimage_sha256_mismatch"
+                )
+            expected_chain = _fired_probe_chain_link(
+                prev_sha256=stored_prev, preimage_sha256=stored_preimage
+            )
+            if expected_chain != stored_chain:
+                return FiredProbeChainVerification(
+                    ok=False, broken_index=index, reason="chain_sha256_mismatch"
+                )
+            head = stored_chain
+        return FiredProbeChainVerification(ok=True, head=head)
+
+
+@dataclass(frozen=True)
+class FiredProbeChainVerification:
+    """Verdict from :meth:`AuditSpineFiredProbeLedger.verify_chain`.
+
+    ``ok`` is the tamper-alarm signal (``False`` → raise an alarm). On failure,
+    ``broken_index`` is the 0-based entry where the chain first breaks and
+    ``reason`` names the break. ``head`` carries the verified chain tip on
+    success (usable as an external anchor to detect tail truncation).
+    """
+
+    ok: bool
+    broken_index: int | None = None
+    reason: str | None = None
+    head: str | None = None
 
 
 def select_fresh_canary_hashes(
@@ -468,6 +594,8 @@ __all__ = [
     "CanaryProbeObservation",
     "DEFAULT_GOODHART_THRESHOLD",
     "FIRED_PROBE_AUDIT_SPINE_SCHEMA_VERSION",
+    "FIRED_PROBE_CHAIN_GENESIS",
+    "FiredProbeChainVerification",
     "FiredProbeLedger",
     "FiredProbeRecord",
     "InMemoryFiredProbeLedger",
