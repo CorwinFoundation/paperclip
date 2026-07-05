@@ -14,7 +14,14 @@ from api.app import create_app
 from api.app import _http_error
 from api.bundle import BundleStore
 from api.intake_guard import HOSTED_RUNNER
+from api.scan_handlers import ScanRuntime
 from rubric.scoring import Rubric
+from scanners.live_probe_orchestrator import (
+    DimResult,
+    LIVE_PROBE_VARIANCE_BAND,
+    ScanRequest,
+    ScanResult,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -244,6 +251,150 @@ class AppTests(unittest.TestCase):
                 headers={"Authorization": "Bearer token-1"},
             )
             self.assertEqual(response.status_code, 409, response.text)
+
+
+def _scan_runtime_with(scan_id: str, tenant_id: str) -> ScanRuntime:
+    """ScanRuntime with one completed scan registered under ``tenant_id``.
+
+    kickoff() records the originating ScanRequest (carrying tenant_id) in the
+    per-scan registry that get_scan reads for isolation, plus the result in the
+    fetch() store — the same two writes the live /scan path performs.
+    """
+    def run_scan_fn(req: ScanRequest, secret: str) -> ScanResult:
+        return ScanResult(
+            scan_id=req.scan_id,
+            status="complete",
+            scanner_version="0.3.0",
+            corpus_version="0.1.0",
+            rows_emitted=10,
+            k_replicates=5,
+            live_probe_variance_band=LIVE_PROBE_VARIANCE_BAND,
+            dim_results=(
+                DimResult(dim_id="P1.1", raw=4.0, spread=0.0, replicates=(4.0,) * 5),
+            ),
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run_scan_fn)
+    request = ScanRequest(
+        scan_id=scan_id,
+        tenant_id=tenant_id,
+        agent_endpoint="https://agent.customer.example.com",
+        credential_ref="phase1-probe.v1",
+        corpus_snapshot_hash=SNAPSHOT_HASH,
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        seed=42,
+        k_replicates=5,
+    )
+    runtime.kickoff(request, "scoped-token-abc")
+    return runtime
+
+
+class ScanTenantIsolationTests(unittest.TestCase):
+    """BEAAA-11858 — GET /scan/{scan_id} cross-tenant read + audience authz."""
+
+    TENANT_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    TENANT_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    UW_TENANT = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+    SCAN_ID = "scan-11858"
+
+    def setUp(self):
+        self.rubric = Rubric.load(RUBRIC_PATH)
+
+    def _client(self, runtime, token_map, uw_tenants=None):
+        # Keep the env live for the request lifetime (not just create_app):
+        # _authenticated_tenant_id and _uw_audience_entitled both read
+        # os.environ at request time.
+        env = {"ARE_API_AUTH_TOKENS_JSON": token_map}
+        if uw_tenants is not None:
+            env["ARE_UW_AUDIENCE_TENANTS_JSON"] = uw_tenants
+        patcher = mock.patch.dict("os.environ", env, clear=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        app = create_app(
+            rubric=self.rubric,
+            bundles=BundleStore(),
+            scan_runtime=runtime,
+        )
+        return TestClient(app)
+
+    def test_tenant_b_cannot_read_tenant_a_scan(self):
+        runtime = _scan_runtime_with(self.SCAN_ID, self.TENANT_A)
+        token_map = (
+            f'{{"tok-a":"{self.TENANT_A}","tok-b":"{self.TENANT_B}"}}'
+        )
+        with mock.patch.dict(
+            "os.environ",
+            {"ARE_API_AUTH_TOKENS_JSON": token_map},
+            clear=False,
+        ):
+            app = create_app(
+                rubric=self.rubric, bundles=BundleStore(), scan_runtime=runtime
+            )
+            client = TestClient(app)
+
+            owner = client.get(
+                f"/scan/{self.SCAN_ID}",
+                headers={"Authorization": "Bearer tok-a"},
+            )
+            self.assertEqual(owner.status_code, 200, owner.text)
+
+            cross = client.get(
+                f"/scan/{self.SCAN_ID}",
+                headers={"Authorization": "Bearer tok-b"},
+            )
+            # 404 (not 403) so the endpoint is not an existence oracle.
+            self.assertEqual(cross.status_code, 404, cross.text)
+
+    def test_vendor_token_cannot_obtain_uw_payload(self):
+        # Vendor OWNS the scan (passes isolation) but is not uw-entitled;
+        # requesting the pricing-internal payload is rejected 403.
+        runtime = _scan_runtime_with(self.SCAN_ID, self.TENANT_B)
+        token_map = f'{{"tok-vendor":"{self.TENANT_B}"}}'
+        client = self._client(
+            runtime, token_map, uw_tenants=f'["{self.UW_TENANT}"]'
+        )
+
+        as_customer = client.get(
+            f"/scan/{self.SCAN_ID}",
+            headers={"Authorization": "Bearer tok-vendor"},
+        )
+        self.assertEqual(as_customer.status_code, 200, as_customer.text)
+        self.assertNotIn("live_probe_variance_band", as_customer.json())
+
+        as_uw = client.get(
+            f"/scan/{self.SCAN_ID}?audience=uw",
+            headers={"Authorization": "Bearer tok-vendor"},
+        )
+        self.assertEqual(as_uw.status_code, 403, as_uw.text)
+
+    def test_entitled_tenant_obtains_uw_payload(self):
+        runtime = _scan_runtime_with(self.SCAN_ID, self.UW_TENANT)
+        token_map = f'{{"tok-uw":"{self.UW_TENANT}"}}'
+        client = self._client(
+            runtime, token_map, uw_tenants=f'["{self.UW_TENANT}"]'
+        )
+
+        as_uw = client.get(
+            f"/scan/{self.SCAN_ID}?audience=uw",
+            headers={"Authorization": "Bearer tok-uw"},
+        )
+        self.assertEqual(as_uw.status_code, 200, as_uw.text)
+        self.assertEqual(
+            as_uw.json()["live_probe_variance_band"], LIVE_PROBE_VARIANCE_BAND
+        )
+
+    def test_uw_fail_closed_when_allowlist_unset(self):
+        # No ARE_UW_AUDIENCE_TENANTS_JSON ⇒ nobody is uw-entitled even the owner.
+        runtime = _scan_runtime_with(self.SCAN_ID, self.TENANT_A)
+        token_map = f'{{"tok-a":"{self.TENANT_A}"}}'
+        client = self._client(runtime, token_map)
+
+        as_uw = client.get(
+            f"/scan/{self.SCAN_ID}?audience=uw",
+            headers={"Authorization": "Bearer tok-a"},
+        )
+        self.assertEqual(as_uw.status_code, 403, as_uw.text)
 
 
 if __name__ == "__main__":

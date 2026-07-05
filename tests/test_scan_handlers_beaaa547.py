@@ -665,6 +665,101 @@ def test_invalid_audience_yields_422(corpus_hash, stub_runtime):
 
 
 # ---------------------------------------------------------------------------
+# BEAAA-11858 — tenant isolation + audience entitlement on GET /scan/{scan_id}.
+# Pure access control; no scoring path touched (golden N=5 delta = 0).
+# ---------------------------------------------------------------------------
+
+
+def _register_scan(corpus_hash, runtime, scan_id, *, tenant_id):
+    scan_handler(
+        _good_body(corpus_hash, tenant_id=tenant_id),
+        tenant_header=tenant_id,
+        runtime=runtime,
+        scan_id_factory=lambda: scan_id,
+    )
+
+
+def test_cross_tenant_read_returns_404_not_403(corpus_hash, stub_runtime):
+    # scan owned by tenant-001; a different authenticated tenant must not
+    # learn it exists — 404 (existence-oracle avoidance), never 403.
+    _register_scan(corpus_hash, stub_runtime, "scan-iso", tenant_id="tenant-001")
+    with pytest.raises(Exception) as exc_info:
+        scan_status_handler(
+            "scan-iso",
+            runtime=stub_runtime,
+            authenticated_tenant_id="tenant-999",
+        )
+    assert exc_info.value.status == 404
+    assert exc_info.value.message == "scan_not_found"
+
+
+def test_same_tenant_read_succeeds(corpus_hash, stub_runtime):
+    _register_scan(corpus_hash, stub_runtime, "scan-own", tenant_id="tenant-001")
+    status, payload = scan_status_handler(
+        "scan-own",
+        runtime=stub_runtime,
+        authenticated_tenant_id="tenant-001",
+    )
+    assert status == 200
+    assert payload["scan_id"] == "scan-own"
+
+
+def test_none_auth_context_preserves_open_read(corpus_hash, stub_runtime):
+    # Local/test no-auth path (authenticated_tenant_id=None) is byte-stable:
+    # no tenant scoping applied, matching pre-BEAAA-11858 behavior.
+    _register_scan(corpus_hash, stub_runtime, "scan-open", tenant_id="tenant-001")
+    status, payload = scan_status_handler("scan-open", runtime=stub_runtime)
+    assert status == 200
+    assert payload["scan_id"] == "scan-open"
+
+
+def test_uw_audience_forbidden_when_not_entitled(corpus_hash, stub_runtime):
+    # Caller owns the scan (passes tenant isolation) but is not uw-entitled:
+    # requesting the pricing-internal payload is 403, not a self-elevation.
+    _register_scan(corpus_hash, stub_runtime, "scan-uw-deny", tenant_id="tenant-001")
+    with pytest.raises(Exception) as exc_info:
+        scan_status_handler(
+            "scan-uw-deny",
+            runtime=stub_runtime,
+            audience="uw",
+            authenticated_tenant_id="tenant-001",
+            uw_entitled=False,
+        )
+    assert exc_info.value.status == 403
+    assert exc_info.value.message == "audience_forbidden"
+
+
+def test_uw_audience_allowed_when_entitled(corpus_hash, stub_runtime):
+    _register_scan(corpus_hash, stub_runtime, "scan-uw-ok", tenant_id="tenant-001")
+    status, payload = scan_status_handler(
+        "scan-uw-ok",
+        runtime=stub_runtime,
+        audience="uw",
+        authenticated_tenant_id="tenant-001",
+        uw_entitled=True,
+    )
+    assert status == 200
+    assert payload["live_probe_variance_band"] == LIVE_PROBE_VARIANCE_BAND
+
+
+def test_cross_tenant_uw_returns_404_not_403(corpus_hash, stub_runtime):
+    # Tenant isolation is enforced BEFORE the audience gate: a cross-tenant
+    # probe with ?audience=uw returns 404, never a 403 that would confirm
+    # the scan_id exists under another tenant.
+    _register_scan(corpus_hash, stub_runtime, "scan-uw-iso", tenant_id="tenant-001")
+    with pytest.raises(Exception) as exc_info:
+        scan_status_handler(
+            "scan-uw-iso",
+            runtime=stub_runtime,
+            audience="uw",
+            authenticated_tenant_id="tenant-999",
+            uw_entitled=False,
+        )
+    assert exc_info.value.status == 404
+    assert exc_info.value.message == "scan_not_found"
+
+
+# ---------------------------------------------------------------------------
 # AC#6 — end-to-end smoke against the real orchestrator + synthetic endpoint.
 # ---------------------------------------------------------------------------
 

@@ -1217,6 +1217,8 @@ def scan_status_handler(
     *,
     runtime: ScanRuntime,
     audience: str = "customer",
+    authenticated_tenant_id: str | None = None,
+    uw_entitled: bool = True,
     ci_threshold_lookup: "Callable[[str], tuple[str | None, float | None]] | None" = None,
     dashboard_base_url: str = "https://app.backbond.ai",
 ) -> tuple[int, dict[str, Any]]:
@@ -1232,12 +1234,35 @@ def scan_status_handler(
       return ``(band_letter | None, fail_below_score | None)``; pass
       ``None`` for the callable to skip the threshold gate (returns
       ``disposition: infra_retry`` for any non-completed scan).
+
+    BEAAA-11858 — access control (pure gating; no scoring change):
+
+    * Tenant isolation. When ``authenticated_tenant_id`` is supplied (bearer
+      auth active), the scan must be owned by that tenant. A cross-tenant read
+      returns 404 ``scan_not_found`` — never 403 — so the endpoint is not an
+      existence oracle for other tenants' scan_ids (which are shared with
+      external CI logs by design). ``None`` preserves the historical no-auth
+      path (local/test), leaving these handler-level and offline callers
+      byte-stable.
+    * Audience entitlement. The pricing-internal ``uw`` payload is gated on
+      ``uw_entitled`` (resolved at the API edge from the caller's entitlement).
+      Checked *after* tenant isolation so a cross-tenant probe with
+      ``?audience=uw`` still returns 404, not a 403 that would leak existence.
     """
     if not isinstance(scan_id, str) or not scan_id:
         raise HandlerError(422, "scan_id_required")
     result = runtime.fetch(scan_id)
     if result is None:
         raise HandlerError(404, "scan_not_found")
+    if authenticated_tenant_id is not None:
+        owning_request = runtime.current_scan_request(scan_id)
+        owner_tenant_id = (
+            owning_request.tenant_id if owning_request is not None else None
+        )
+        if owner_tenant_id != authenticated_tenant_id:
+            raise HandlerError(404, "scan_not_found")
+    if audience == "uw" and not uw_entitled:
+        raise HandlerError(403, "audience_forbidden")
     if audience == "uw":
         return 200, _uw_payload(result)
     if audience == "customer":

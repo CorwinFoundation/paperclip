@@ -68,6 +68,12 @@ RESCANS_MEASURED_ENV: str = "ARE_RESCANS_MEASURED"
 RESCANS_MEASURED_OFF: str = "off"
 API_AUTH_TOKENS_ENV: str = "ARE_API_AUTH_TOKENS_JSON"
 
+#: BEAAA-11858 — allowlist (JSON array of tenant_ids) of callers entitled to
+#: request the pricing-internal ``?audience=uw`` payload on GET /scan/{scan_id}.
+#: Unset/empty ⇒ no tenant is uw-entitled (fail closed): vendor tokens cannot
+#: self-elevate to the UW struct. Only consulted when bearer auth is active.
+UW_AUDIENCE_TENANTS_ENV: str = "ARE_UW_AUDIENCE_TENANTS_JSON"
+
 
 def _http_error(status_code: int, detail: Any) -> HTTPException:
     return HTTPException(status_code=status_code, detail=redact_secret_obj(detail))
@@ -106,6 +112,30 @@ def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | No
     if not isinstance(tenant_id, str) or not tenant_id:
         raise _http_error(401, "authorization_invalid")
     return tenant_id
+
+
+def _uw_audience_entitled(authenticated_tenant_id: str | None) -> bool:
+    """Whether the caller may request the ``?audience=uw`` payload (BEAAA-11858).
+
+    When no bearer-auth mapping is configured (local/test bypass —
+    ``authenticated_tenant_id is None``) the historical no-auth path is
+    preserved and the gate is open. In pilot/prod, entitlement is an explicit
+    allowlist of tenant_ids in ``ARE_UW_AUDIENCE_TENANTS_JSON`` (a JSON array).
+    Fail closed: unset/empty ⇒ no tenant is uw-entitled, so vendor tokens
+    cannot obtain the pricing-internal UW payload.
+    """
+    if authenticated_tenant_id is None:
+        return True
+    raw = os.environ.get(UW_AUDIENCE_TENANTS_ENV)
+    if not raw:
+        return False
+    try:
+        allow = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise _http_error(500, "uw_audience_tenants_invalid") from exc
+    if not isinstance(allow, list):
+        raise _http_error(500, "uw_audience_tenants_invalid")
+    return authenticated_tenant_id in {str(t) for t in allow}
 
 
 def _tenant_context(
@@ -306,7 +336,10 @@ def create_app(
 
     @app.get("/scan/{scan_id}")
     async def get_scan(request: Request, scan_id: str, audience: str = "customer") -> Any:
-        _authenticated_tenant_id(request, runtime_profile)
+        # BEAAA-11858 — capture (do not discard) the authenticated tenant so
+        # the handler can enforce tenant isolation, and resolve uw-audience
+        # entitlement at the edge where the env allowlist lives.
+        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
         if app.state.scan_runtime is None:
             raise _http_error(503, "scan_runtime_unconfigured")
         try:
@@ -314,6 +347,8 @@ def create_app(
                 scan_id,
                 runtime=app.state.scan_runtime,
                 audience=audience,
+                authenticated_tenant_id=authenticated_tenant_id,
+                uw_entitled=_uw_audience_entitled(authenticated_tenant_id),
             )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc

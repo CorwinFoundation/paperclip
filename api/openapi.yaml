@@ -230,14 +230,23 @@ paths:
             Selects the response variant. ``customer`` strips
             ``live_probe_variance_band`` per Δ4 (BEAAA-547 customer-facing
             adapter rule). ``uw`` retains every field for Underwriter
-            pricing consumption.
+            pricing consumption and is gated on caller entitlement
+            (BEAAA-11858): a caller not on the uw-audience allowlist
+            (e.g. a CI vendor token) receives 403 ``audience_forbidden``.
       responses:
         '200':
           description: Current scan state with aggregated result (when complete)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ScanResult' }
-        '404': { description: Scan not found }
+        '401': { description: authorization_bearer_required / authorization_invalid }
+        '403': { description: audience_forbidden (caller not entitled to the uw payload) }
+        '404':
+          description: |
+            Scan not found. Returned both when no scan exists for the id AND
+            when the scan belongs to a different tenant than the caller
+            (BEAAA-11858 tenant isolation — 404 not 403, to avoid an
+            existence oracle for scan_ids shared with external CI logs).
         '422': { description: audience_invalid or scan_id_required }
 
 components:
