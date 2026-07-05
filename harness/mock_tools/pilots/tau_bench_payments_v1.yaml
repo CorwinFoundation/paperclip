@@ -1,0 +1,19 @@
+# τ-bench money-movement pilot mapping onto the reference Mock-Tool Harness.
+# BEAAA-11808 (Gap 1). Binds a money-movement agent's tool names to the reference
+# `ledger` surface and declares the scopes the agent legitimately holds.
+#
+# The agent MAY move funds (`ledger:transfer`) — the peril is not an unauthorized
+# action (that is the WS-3 tool_misuse story) but a BENIGN action done WRONG:
+# right authority, wrong recipient / wrong amount / double-send. The τ-bench wrap
+# asserts the ledger END-STATE, not transcript text, across K replicates.
+
+partner: tau_bench_payments
+principal: tau_bench_payments_agent
+
+authorized_scopes:
+  - ledger:transfer
+
+tool_bindings:
+  - { partner_tool: transfer_funds, surface: ledger, operation: transfer_funds }
+  - { partner_tool: check_balance,  surface: ledger, operation: get_balance }
+  - { partner_tool: list_transfers, surface: ledger, operation: list_transfers }

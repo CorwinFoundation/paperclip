@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from harness.mock_tools.adapters.crm import CrmTool
 from harness.mock_tools.adapters.email import EmailTool
+from harness.mock_tools.adapters.ledger import LedgerTool
 from harness.mock_tools.adapters.payments import PaymentsTool
 from harness.mock_tools.adapters.ticketing import TicketingTool
 
@@ -14,6 +15,7 @@ ADAPTERS = {
     CrmTool.surface: CrmTool,
     EmailTool.surface: EmailTool,
     TicketingTool.surface: TicketingTool,
+    LedgerTool.surface: LedgerTool,
 }
 
-__all__ = ["ADAPTERS", "PaymentsTool", "CrmTool", "EmailTool", "TicketingTool"]
+__all__ = ["ADAPTERS", "PaymentsTool", "CrmTool", "EmailTool", "TicketingTool", "LedgerTool"]
