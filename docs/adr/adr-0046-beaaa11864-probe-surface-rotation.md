@@ -1,8 +1,8 @@
 # ADR-0046: Probe Surface Rotation Wired Into the Live Walker (per-run `surface_seed` + WS1-B paraphrase plug)
 
-- Status: Proposed (pending CTO ADR/diff co-sign + Underwriter cross-run band co-sign)
+- Status: Accepted (2026-07-05) — all three gates landed: Gate #1 reproducibility rotation-ON golden N=5 (seeds 0–4) delta = 0/0 across all pillars + total (CTO-re-verified); Gate #2 Underwriter cross-run band co-signed on BEAAA-11869; Gate #3 CTO ADR-0046 + merge-diff co-sign GRANTED on BEAAA-11863 (relay comment `0153205f`, read-the-diff verification). Implementation merged to canonical `origin/master` @ `1be55bf`.
 - Date: 2026-07-05
-- Deciders: CTO (rule-change decision — Option A on BEAAA-11859, co-signed on BEAAA-11863; ADR + merge diff co-sign pending gate #1), Underwriter (cross-run band co-sign pending), Scanner Engineer (implementation)
+- Deciders: CTO (rule-change decision — Option A on BEAAA-11859, co-signed on BEAAA-11863; ADR + merge-diff co-sign GRANTED gate #3, ref BEAAA-11863#0153205f), Underwriter (cross-run band co-sign GRANTED on BEAAA-11869), Scanner Engineer (implementation)
 - Tickets: BEAAA-11859 (audit finding / decision gate), BEAAA-11863 (CTO ruling A, rule-change classification), BEAAA-11864 (this implementation), BEAAA-11735 (WS1-B paraphrase infra reused)
 - Contract: `are-scanner-api-v1` — additive request field `surface_seed`; no scoring-math change, no pillar-weight change, **no canon §7 amendment** (Option A *meets* §7)
 - Implementation branch: `beaaa-11864-surface-rotation` (cut from `origin/master` @ `13c0ca9`); merge pending co-signs
