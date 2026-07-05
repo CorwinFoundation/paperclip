@@ -7,12 +7,13 @@ phrasings. It does not feed scoring math.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Mapping, Protocol, Sequence
+from typing import Callable, Iterable, Mapping, Protocol, Sequence
 
 
 CANARY_FLAG_NONE = "none"
@@ -134,6 +135,158 @@ class JsonlFiredProbeLedger:
                     if isinstance(raw_hash, str):
                         hashes.add(normalize_phrasing_hash(raw_hash))
         return frozenset(hashes)
+
+
+# BEAAA-11872 — audit-spine record schema version for the fired-probe ledger.
+# The book-of-record envelope is versioned independently of the sidecar module
+# so a migration/loader can key on it when syncing lines into the durable
+# ``canary.fired_probe_records`` Postgres table (see
+# ``scanners/migrations/0001_fired_probe_ledger_v1.sql``).
+FIRED_PROBE_AUDIT_SPINE_SCHEMA_VERSION = "fired_probe_ledger.v1"
+
+_AUDIT_SPINE_PREIMAGE_FIELDS = (
+    "tenant_id",
+    "vendor_id",
+    "phrasing_hash",
+    "scan_id",
+    "fired_at",
+    "rubric_point_id",
+    "test_id",
+)
+
+
+def _canonical_json_bytes(payload: Mapping[str, object]) -> bytes:
+    """Canonical UTF-8 JSON bytes — sorted keys, tight separators.
+
+    Local to this sidecar so the anti-gaming module stays free of any
+    ``determination`` import (layering: scanners must not depend on the
+    determination plane). Byte-identical policy to
+    ``determination.rule_dsl.canonical_json_bytes``.
+    """
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def _fired_probe_preimage_sha256(record: "FiredProbeRecord") -> str:
+    """Tamper-evident content hash over the record's semantic fields.
+
+    The audit-spine envelope fields (``recorded_at``, ``preimage_sha256``,
+    ``record_kind``) are excluded by construction so the preimage is stable
+    across replays and across the JSONL-sink and Postgres-table substrates.
+    """
+    preimage = {field: getattr(record, field) for field in _AUDIT_SPINE_PREIMAGE_FIELDS}
+    digest = hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
+    return f"sha256:{digest}"
+
+
+@dataclass(frozen=True)
+class AuditSpineFiredProbeLedger:
+    """Durable, append-only, audit-spine-backed fired-probe ledger.
+
+    BEAAA-11872 / Founder rule 3d. This is the *production* implementation of
+    the :class:`FiredProbeLedger` Protocol — the anti-gaming canary book of
+    record. It differs from :class:`JsonlFiredProbeLedger` (a test/local sink
+    keyed on an arbitrary path) in three load-bearing ways:
+
+    1. **Audit-spine semantics.** Each fired probe is written as an append-only
+       book-of-record entry carrying a versioned envelope
+       (``record_kind`` / ``schema_version`` / ``recorded_at``) and a
+       tamper-evident ``preimage_sha256`` over the semantic fields — mirroring
+       the determination audit spine (``determination/audit_spine.py``,
+       ``determination/migrations/0001_determination_records_v1.sql``). Rows are
+       only ever appended, never updated or deleted in place.
+    2. **Durability.** The default runtime substrate is the EFS-mounted
+       audit-spine sink (never ``/tmp``, never in-memory). The lines are the
+       same canonical-JSON book of record the loader syncs into the durable
+       ``canary.fired_probe_records`` Postgres table.
+    3. **Production selection.** The production scan runtime selects this ledger
+       (not ``None``, not the JSONL test ledger) whenever the customer-agent
+       walker path is active — so the canary anti-gaming sidecar records in
+       prod by construction rather than only when an operator sets an env var.
+
+    Reads are scoped by both tenant and vendor, identical to the in-memory and
+    JSONL implementations, so this is a drop-in for the orchestrator wiring.
+    Replaying the persisted lines is idempotent for :meth:`seen_hashes` (the
+    result is a set); duplicate appends are retained as book-of-record entries,
+    never coalesced away.
+
+    Whether the durable substrate is this EFS-mounted canonical-JSON audit-spine
+    sink or a dedicated Postgres table is a substrate ruling deferred to
+    CEO/Founder on BEAAA-11794/BEAAA-11872; both back the same append-only
+    schema, so the ruling is a sink binding, not a redesign.
+    """
+
+    path: Path | str
+    now_factory: Callable[[], str] = _now_iso
+
+    def _path(self) -> Path:
+        return Path(self.path)
+
+    def append(self, record: FiredProbeRecord) -> None:
+        normalized = FiredProbeRecord(
+            tenant_id=record.tenant_id,
+            vendor_id=record.vendor_id,
+            phrasing_hash=normalize_phrasing_hash(record.phrasing_hash),
+            scan_id=record.scan_id,
+            fired_at=record.fired_at,
+            rubric_point_id=record.rubric_point_id,
+            test_id=record.test_id,
+        )
+        entry = {
+            "record_kind": "fired_probe",
+            "schema_version": FIRED_PROBE_AUDIT_SPINE_SCHEMA_VERSION,
+            "recorded_at": self.now_factory(),
+            "preimage_sha256": _fired_probe_preimage_sha256(normalized),
+            **normalized.__dict__,
+        }
+        path = self._path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(_canonical_json_bytes(entry).decode("utf-8") + "\n")
+
+    def seen_hashes(self, *, tenant_id: str, vendor_id: str) -> frozenset[str]:
+        path = self._path()
+        if not path.exists():
+            return frozenset()
+        hashes: set[str] = set()
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    row.get("record_kind") == "fired_probe"
+                    and row.get("tenant_id") == tenant_id
+                    and row.get("vendor_id") == vendor_id
+                ):
+                    raw_hash = row.get("phrasing_hash")
+                    if isinstance(raw_hash, str):
+                        hashes.add(normalize_phrasing_hash(raw_hash))
+        return frozenset(hashes)
+
+    def read_all(self) -> tuple[dict, ...]:
+        """Replay every persisted audit-spine entry in append order.
+
+        Corrupt or partial trailing lines are skipped, matching the tolerant
+        reader contract of the JSONL sink.
+        """
+        path = self._path()
+        if not path.exists():
+            return ()
+        rows: list[dict] = []
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+        return tuple(rows)
 
 
 def select_fresh_canary_hashes(
@@ -309,10 +462,12 @@ def observation_from_probe_row(
 
 __all__ = [
     "AntiGamingCanaryResult",
+    "AuditSpineFiredProbeLedger",
     "CANARY_FLAG_GOODHART_SUSPECTED",
     "CANARY_FLAG_NONE",
     "CanaryProbeObservation",
     "DEFAULT_GOODHART_THRESHOLD",
+    "FIRED_PROBE_AUDIT_SPINE_SCHEMA_VERSION",
     "FiredProbeLedger",
     "FiredProbeRecord",
     "InMemoryFiredProbeLedger",

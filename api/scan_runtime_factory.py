@@ -74,7 +74,11 @@ from api.scan_log import ScanLog
 from harness.credentials import CredentialVault
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
-from scanners.canary_anti_gaming import FiredProbeLedger, JsonlFiredProbeLedger
+from scanners.canary_anti_gaming import (
+    AuditSpineFiredProbeLedger,
+    FiredProbeLedger,
+    JsonlFiredProbeLedger,
+)
 from scanners.live_probe_orchestrator import (
     CorpusProvenanceMismatchError,
     OrchestratorError,
@@ -99,6 +103,16 @@ from scanners.snapshot_hash import compute_corpus_snapshot_hash
 ARE_SCAN_LOG_PATH_ENV: str = "ARE_SCAN_LOG_PATH"
 ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
 ARE_FIRED_PROBE_LEDGER_PATH_ENV: str = "ARE_FIRED_PROBE_LEDGER_PATH"
+# BEAAA-11872 / Founder rule 3d — durable audit-spine substrate for the canary
+# fired-probe ledger. Default is the EFS-mounted audit-spine sink under the same
+# /var/lib/are-scanner mount as the scan_log (created at infra-provision time),
+# overridable for pre-flight + test rigs. The production profile selects the
+# audit-spine ledger (never None, never the JSONL test ledger) on the
+# customer-agent walker path — see make_default_production_scan_runtime.
+ARE_FIRED_PROBE_AUDIT_SPINE_PATH_ENV: str = "ARE_FIRED_PROBE_AUDIT_SPINE_PATH"
+ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH: str = (
+    "/var/lib/are-scanner/audit-spine/fired_probe_ledger.jsonl"
+)
 
 
 # Wall-clock guard on the parent-side join. The orchestrator enforces its
@@ -192,6 +206,41 @@ def _customer_agent_walker_enabled() -> bool:
     """
     value = os.environ.get(ARE_WALKER_CUSTOMER_AGENT_ENV, "0").strip().lower()
     return value in ("on", "1", "true", "yes")
+
+
+def _select_fired_probe_ledger(*, walker_active: bool) -> FiredProbeLedger | None:
+    """Select the fired-probe canary ledger for the production scan runtime.
+
+    BEAAA-11872 / Founder rule 3d. The canary anti-gaming ledger must be wired
+    to the durable audit-spine implementation in production, not to the
+    in-memory/JSONL *test* ledgers and not left ``None``.
+
+    Selection precedence:
+
+    * **Customer-agent walker active (the real customer-scan path):** always a
+      durable :class:`AuditSpineFiredProbeLedger`, defaulting to the
+      EFS-mounted audit-spine sink at
+      ``ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH`` (overridable via
+      ``ARE_FIRED_PROBE_AUDIT_SPINE_PATH`` for pre-flight/test rigs). Never
+      ``None`` — the sidecar records by construction on every live customer scan.
+    * **Walker off (synthetic_v0 path):** no live customer agent is probed, so
+      the anti-gaming ledger is off unless an operator explicitly points the
+      legacy ``ARE_FIRED_PROBE_LEDGER_PATH`` at a JSONL sink (local/test escape
+      hatch, byte-identical to the pre-11872 behavior).
+
+    The env override on the walker path still binds an ``AuditSpineFiredProbeLedger``
+    (audit-spine semantics preserved) — only its durable path changes.
+    """
+    if walker_active:
+        audit_spine_path = os.environ.get(
+            ARE_FIRED_PROBE_AUDIT_SPINE_PATH_ENV,
+            ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH,
+        )
+        return AuditSpineFiredProbeLedger(audit_spine_path)
+    legacy_path = os.environ.get(ARE_FIRED_PROBE_LEDGER_PATH_ENV)
+    if legacy_path:
+        return JsonlFiredProbeLedger(legacy_path)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -737,10 +786,9 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         _selected_runner_factory = v0_mock_runner_factory
         _selected_probe_run_fn = synthetic_v0_probe_run_fn
 
-    fired_probe_ledger: FiredProbeLedger | None = None
-    fired_probe_ledger_path = os.environ.get(ARE_FIRED_PROBE_LEDGER_PATH_ENV)
-    if fired_probe_ledger_path:
-        fired_probe_ledger = JsonlFiredProbeLedger(fired_probe_ledger_path)
+    fired_probe_ledger = _select_fired_probe_ledger(
+        walker_active=_customer_agent_walker_enabled(),
+    )
 
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
@@ -859,6 +907,9 @@ def _terminate(*procs: Any) -> None:
 
 
 __all__ = [
+    "ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH",
+    "ARE_FIRED_PROBE_AUDIT_SPINE_PATH_ENV",
+    "ARE_FIRED_PROBE_LEDGER_PATH_ENV",
     "ARE_WALKER_CUSTOMER_AGENT_ENV",
     "build_v0_corpus_tarball",
     "make_default_production_scan_runtime",
