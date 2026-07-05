@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""bin/are-keys — BackBond Scanner key-store admin CLI (BEAAA-11867).
+
+Thin wrapper over ``api.edge_gateway._cli``. Mutates the D4 key store on
+disk (issue / revoke / rotate / set per-tenant limit / list) without a
+process restart — the running app picks up changes within its ≤5s cache TTL.
+STAGING / non-public only.
+
+Examples:
+    bin/are-keys --store /var/lib/backbond/keys.json issue \\
+        --token <secret> --key-id k-2026-07 --tenant-id <tenant> \\
+        --ttl-seconds 2592000 --scans-per-min 20 --max-concurrent 5
+    bin/are-keys --store /var/lib/backbond/keys.json rotate \\
+        --old-key-id k-2026-07 --new-token <secret2> --new-key-id k-2026-08
+    bin/are-keys --store /var/lib/backbond/keys.json revoke --key-id k-2026-07
+    bin/are-keys --store /var/lib/backbond/keys.json list
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from api.edge_gateway import _cli  # noqa: E402
+
+if __name__ == "__main__":
+    raise SystemExit(_cli())

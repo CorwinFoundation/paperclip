@@ -20,6 +20,7 @@ from rubric.scoring import Rubric
 from harness.secret_redaction import redact_secret_obj
 
 from .bundle import BundleStore
+from .edge_gateway import AuthError, EdgeGateway, RateLimited
 from .handlers import (
     HandlerError,
     forensic_bundle_handler,
@@ -85,13 +86,34 @@ def _api_auth_required(runtime_profile: str) -> bool:
     return runtime_profile in {"pilot", "prod"}
 
 
+def _bearer_token(request: Request) -> str:
+    """Extract the bearer token or raise 401. Shared by the legacy flat-dict
+    path and the BEAAA-11867 key-store path."""
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise _http_error(401, "authorization_bearer_required")
+    return authorization.removeprefix("Bearer ").strip()
+
+
 def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | None:
     """Return tenant id bound to the bearer token, or None on local dev bypass.
 
-    ``ARE_API_AUTH_TOKENS_JSON`` is a JSON object mapping bearer token to
-    tenant_id. In pilot/prod it is required; in local tests with no mapping,
-    routes keep the historical no-auth path.
+    BEAAA-11867 — when the edge gateway is active (``ARE_EDGE_GATEWAY=on``),
+    identity is resolved through the mutable key store: a revoked or expired
+    key resolves to ``401`` at the edge within the store's cache-TTL, no
+    process restart. When the gateway is absent, the historical flat
+    ``ARE_API_AUTH_TOKENS_JSON`` path is preserved byte-for-byte: it is a JSON
+    object mapping bearer token to tenant_id, required in pilot/prod, and in
+    local tests with no mapping routes keep the no-auth path.
     """
+    gateway: EdgeGateway | None = getattr(request.app.state, "edge_gateway", None)
+    if gateway is not None:
+        token = _bearer_token(request)
+        try:
+            return gateway.resolve_tenant(token)
+        except AuthError as exc:
+            raise _http_error(401, exc.code) from exc
+
     raw_mapping = os.environ.get(API_AUTH_TOKENS_ENV)
     required = _api_auth_required(runtime_profile)
     if not raw_mapping and not required:
@@ -104,14 +126,35 @@ def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | No
         raise _http_error(500, "api_auth_tokens_invalid") from exc
     if not isinstance(mapping, dict) or not mapping:
         raise _http_error(500, "api_auth_tokens_invalid")
-    authorization = request.headers.get("Authorization", "")
-    if not authorization.startswith("Bearer "):
-        raise _http_error(401, "authorization_bearer_required")
-    token = authorization.removeprefix("Bearer ").strip()
+    token = _bearer_token(request)
     tenant_id = mapping.get(token)
     if not isinstance(tenant_id, str) or not tenant_id:
         raise _http_error(401, "authorization_invalid")
     return tenant_id
+
+
+def _rate_limited_response(exc: RateLimited) -> JSONResponse:
+    """429 body + Retry-After for a tenant over a scans/min or concurrent cap."""
+    return JSONResponse(
+        status_code=429,
+        content={"error": "rate_limited", "reason": exc.reason, "retry_after": exc.retry_after},
+        headers={"Retry-After": str(exc.retry_after)},
+    )
+
+
+def _admit_scan_or_none(request: Request):
+    """Resolve the caller's key record and admit one scan through the D3
+    limiter, returning a :class:`ConcurrencyLease` (to release when the scan
+    is terminal). Returns ``None`` when the gateway is disabled. Raises 401
+    if the key vanished (expiry race) and :class:`RateLimited` when over a cap.
+    """
+    gateway: EdgeGateway | None = getattr(request.app.state, "edge_gateway", None)
+    if gateway is None:
+        return None
+    record = gateway.resolve_record(_bearer_token(request))
+    if record is None:
+        raise _http_error(401, "authorization_invalid")
+    return gateway.admit_scan(record)
 
 
 def _uw_audience_entitled(authenticated_tenant_id: str | None) -> bool:
@@ -188,6 +231,11 @@ def create_app(
     # rescan handler is feeding samples into.
     app.state.sla_registry = sla_registry or SlaRegistry()
     app.state.routing_event_sink = routing_event_sink or RoutingEventSink()
+    # BEAAA-11867 (Child B) — D4 key store + D3 per-tenant rate limit.
+    # ``from_env`` returns None unless ``ARE_EDGE_GATEWAY=on``, so the default
+    # boot keeps the legacy flat-dict auth path with no rate limiting. Rollback
+    # is config-only: unset the flag.
+    app.state.edge_gateway = EdgeGateway.from_env()
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
@@ -248,23 +296,35 @@ def create_app(
         x_tenant_id: str | None,
     ) -> Any:
         tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
-        if app.state.scan_runtime is None:
-            raise _http_error(503, "scan_runtime_unconfigured")
-        body = await request.json()
+        # BEAAA-11867 D3 — admit through the per-tenant limiter (no-op when the
+        # gateway is disabled). The lease models one in-flight scan; the
+        # current runtime executes the scan inline within kickoff, so holding
+        # the lease across the handler correctly bounds max-concurrent.
         try:
-            status, payload = scan_handler(
-                body,
-                tenant_header=tenant_context,
-                runtime=app.state.scan_runtime,
-            )
-        except HandlerError as exc:
-            raise _http_error(exc.status, exc.message) from exc
-        if status not in (200, 202):
-            raise _http_error(status, payload)
-        # Preserve the handler's status code (202 for the live-probe accept
-        # path per contract v1.1.0). Returning the dict directly would let
-        # FastAPI's default 200 win, dropping the contracted Accepted status.
-        return JSONResponse(status_code=status, content=payload)
+            lease = _admit_scan_or_none(request)
+        except RateLimited as exc:
+            return _rate_limited_response(exc)
+        try:
+            if app.state.scan_runtime is None:
+                raise _http_error(503, "scan_runtime_unconfigured")
+            body = await request.json()
+            try:
+                status, payload = scan_handler(
+                    body,
+                    tenant_header=tenant_context,
+                    runtime=app.state.scan_runtime,
+                )
+            except HandlerError as exc:
+                raise _http_error(exc.status, exc.message) from exc
+            if status not in (200, 202):
+                raise _http_error(status, payload)
+            # Preserve the handler's status code (202 for the live-probe accept
+            # path per contract v1.1.0). Returning the dict directly would let
+            # FastAPI's default 200 win, dropping the contracted Accepted status.
+            return JSONResponse(status_code=status, content=payload)
+        finally:
+            if lease is not None:
+                lease.release()
 
     @app.post("/scanner/v1/scans")
     async def post_scanner_v1_scans(
@@ -312,20 +372,31 @@ def create_app(
             )
         if app.state.scan_runtime is None:
             raise _http_error(503, "scan_runtime_unconfigured")
+        # BEAAA-11867 D3 — /scanner/v1/rescans is scan-creating on the measured
+        # path, so it is rate-limited too (the doc_only branch above creates no
+        # scan and is not limited).
         try:
-            status, payload = rescan_handler(
-                body,
-                tenant_header=tenant_context,
-                runtime=app.state.scan_runtime,
-                sla_registry=app.state.sla_registry,
-                routing_event_sink=app.state.routing_event_sink,
-            )
-        except HandlerError as exc:
-            raise _http_error(exc.status, exc.message) from exc
-        if status not in (200, 202):
-            raise _http_error(status, payload)
-        # Preserve the handler's 202 accept status to match /scan parity.
-        return JSONResponse(status_code=status, content=payload)
+            lease = _admit_scan_or_none(request)
+        except RateLimited as exc:
+            return _rate_limited_response(exc)
+        try:
+            try:
+                status, payload = rescan_handler(
+                    body,
+                    tenant_header=tenant_context,
+                    runtime=app.state.scan_runtime,
+                    sla_registry=app.state.sla_registry,
+                    routing_event_sink=app.state.routing_event_sink,
+                )
+            except HandlerError as exc:
+                raise _http_error(exc.status, exc.message) from exc
+            if status not in (200, 202):
+                raise _http_error(status, payload)
+            # Preserve the handler's 202 accept status to match /scan parity.
+            return JSONResponse(status_code=status, content=payload)
+        finally:
+            if lease is not None:
+                lease.release()
 
     @app.get("/scanner/v1/sla")
     async def get_sla() -> Any:
