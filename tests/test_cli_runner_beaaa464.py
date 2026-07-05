@@ -251,8 +251,22 @@ class RunScanTests(unittest.TestCase):
             "uncovered_dimensions", "scanner_version", "corpus_version",
             "seed", "run_timestamp", "contract_version", "agent_id",
             "input_file_sha256s",
+            # BEAAA-11930: lock horizon must ride the envelope so a downstream
+            # reader can verify lock currency from the score alone.
+            "rubric_locked_through",
         ):
             self.assertIn(field, result, f"missing output field {field}")
+        # BEAAA-11930: value is the pinned rubric lock horizon (ISO date),
+        # distinct from rubric_version, letting a reader compute currency as
+        # run_timestamp.date() <= rubric_locked_through.
+        from rubric.scoring import Rubric
+        self.assertEqual(
+            result["rubric_locked_through"],
+            Rubric.load(RUBRIC_PATH).locked_through,
+        )
+        self.assertNotEqual(
+            result["rubric_locked_through"], result["contract_version"]
+        )
         # Post-BEAAA-470: the ADR-0005 subscores_contract_named bridge view
         # is removed — `subscores` is contract-named at the source.
         self.assertNotIn("subscores_contract_named", result)
