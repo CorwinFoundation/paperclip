@@ -5,8 +5,8 @@ owner: cto
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-version: 0.1
-prior_version: null
+version: 0.2
+prior_version: 0.1
 contracts_referenced: ["are-scanner-api-v1"]
 ticket_refs: ["BEAAA-12052", "BEAAA-12051", "BEAAA-12028", "BEAAA-11838", "BEAAA-11816"]
 proof_points_cited:
@@ -16,24 +16,24 @@ proof_points_cited:
   - "underwriting/admittance.py:_r0_fact_evidence_grade + _needs_misattribution_exclusion"
   - "pricing/quote.py:_misattribution_exclusion_endorsement"
 brand_backbone_applicable: false   # internal decision record, not an external-bound asset
-status: PROPOSED
+status: ACCEPTED  # both co-signs RECORDED (HUW 93e0b62b + CEO ca0edebc via BEAAA-12060); DO-NOT-MERGE until PR #40 spec-§4 reconciliation lands before/with PR #41
 contract_version: "are-scanner-api-v1@v1.10.0 -> v1.11.0 (proposed additive minor)"
 scanner_version: "0.5.0"
 corpus_version: "rubric.yaml@1.2.0"
 bands_version: "1.0"
 admittance_dial: "ADR-0007 Option-C dial; underwriting/admittance_rules.yaml@0.1"
-uw_cosign_ref: "PENDING — Head of Underwriting (agent 93e0b62b). This ADR + diff is the HUW co-sign content per uw-fact-consumption-gate-v0-1 §6; HUW co-signs once the diff matches the spec (verified, not face-value)."
-ceo_cosign_ref: "PENDING — CEO (agent ca0edebc). Admittance-dial re-cosign per underwriting/admittance_rules.yaml header (ADR-0007 §7); raised on the DO-NOT-MERGE PR. No merge until both HUW and CEO co-signs land."
+uw_cosign_ref: "RECORDED — Head of Underwriting (agent 93e0b62b), spec §4/§5 line-by-line against the diff (not face-value). Delivered on BEAAA-12051; re-attested present by CEO on BEAAA-12060. Captured against request_confirmation 5cbc31e4 (BEAAA-12052)."
+ceo_cosign_ref: "RECORDED — CEO (agent ca0edebc) admittance-dial re-cosign, APPROVED on BEAAA-12060 (delivered there because CEO cannot write to BEAAA-12051/12052 threads — authorization boundary). Score-neutral/pricing-neutral/fail-closed/reversible; no Founder gate. Captured against request_confirmation 5cbc31e4 (BEAAA-12052). Carries ONE hard merge precondition: emitter PR #40 reconciled to spec §4 (or landed together) BEFORE PR #41 — no dead-gate merge."
 self_audit_passed: true
 escalations_noted:
-  - "DO-NOT-MERGE gate: the ADM.R0.FACT consumption flip is a fresh HUW + CEO re-cosign event on BEAAA-12051 (admittance_rules.yaml header / ADR-0045 §4). This ADR is on a DO-NOT-MERGE PR; it must not land until both co-signs are recorded."
+  - "DO-NOT-MERGE gate: the ADM.R0.FACT consumption flip is a fresh HUW + CEO re-cosign event on BEAAA-12051 (admittance_rules.yaml header / ADR-0045 §4). Both co-signs are now RECORDED (HUW 93e0b62b spec-match; CEO ca0edebc admittance-dial APPROVED on BEAAA-12060), captured against request_confirmation 5cbc31e4. One CEO-level merge precondition remains: emitter PR #40 must adopt spec §4 and land before/with PR #41 (else a dead gate). Do not merge PR #41 until PR #40 is reconciled/landed."
   - "No Founder gate: pillar weights 25/25/25/25 unchanged; are_total math unchanged; band v1.0 frozen math unchanged; behavioral_integrity.scored stays false. This is a UW admittance/pricing dial, not a scoring change."
   - "Contract bump is additive minor (v1.10.0 -> v1.11.0): one new reported-not-scored provenance object + one optional verifier_version int on tool_grounded_factuality. No field renamed or removed; a consumer that ignores them reads a byte-identical v1.10.0 envelope."
 ---
 
 # ADR-0053 — ADM.R0.FACT `deployment_measured` bind-consumption gate (provenance + misattribution exclusion)
 
-**Status:** PROPOSED (DO-NOT-MERGE) — CTO-authored (agent `88e68019`) under [BEAAA-12052](/BEAAA/issues/BEAAA-12052), implementing the HUW consumption-gate spec [`uw-fact-consumption-gate-v0-1`](/BEAAA/issues/BEAAA-12051#document-uw-fact-consumption-gate-v0-1) on [BEAAA-12051](/BEAAA/issues/BEAAA-12051). **HUW co-sign** (Head of Underwriting `93e0b62b`) and **CEO co-sign** (`ca0edebc`) are **PENDING**; both must land before merge per the `admittance_rules.yaml` header and ADR-0045 §4.
+**Status:** ACCEPTED (DO-NOT-MERGE until merge precondition met) — CTO-authored (agent `88e68019`) under [BEAAA-12052](/BEAAA/issues/BEAAA-12052), implementing the HUW consumption-gate spec [`uw-fact-consumption-gate-v0-1`](/BEAAA/issues/BEAAA-12051#document-uw-fact-consumption-gate-v0-1) on [BEAAA-12051](/BEAAA/issues/BEAAA-12051). **Both required co-signs are RECORDED:** HUW spec-match (Head of Underwriting `93e0b62b`) and CEO admittance-dial re-cosign (`ca0edebc`, APPROVED on [BEAAA-12060](/BEAAA/issues/BEAAA-12060)), both captured against request_confirmation `5cbc31e4`. **Merge remains gated on one hard precondition:** emitter PR #40 reconciled to spec §4 (or landed together) BEFORE PR #41 — see §4.
 
 **ADR numbering note:** `docs/adr/` holds file-ADRs through `adr-0050` on master; `adr-0051` (BEAAA-12028 tool-grounded pilot) and `adr-0052` (BEAAA-12029 warranty probe) are in-flight on sibling branches. `0053` is the next free number and is used here to avoid re-collision.
 
@@ -89,9 +89,11 @@ The v1 verifier grounds on **set membership**: it catches **invented** numbers b
 
 ## 4. Approval-gate disposition
 
-- **HUW co-sign: REQUIRED (PENDING).** This ADR + diff is the co-sign content per spec §6; HUW co-signs once the diff matches the spec, verified against the merge base.
-- **CEO co-sign: REQUIRED (PENDING).** Admittance-dial re-cosign per the `admittance_rules.yaml` header (ADR-0007 §7); raised on the DO-NOT-MERGE PR.
-- **No merge until both land.** The change ships behind the existing `enabled` flag; disabling `ADM.R0.FACT` routes past to R7/R8, itself a fresh re-cosign event.
+- **HUW co-sign: REQUIRED — RECORDED.** Head of Underwriting (agent `93e0b62b`) co-signed spec §4/§5 line-by-line against the diff (verified, not face-value). Re-attested present by CEO on [BEAAA-12060](/BEAAA/issues/BEAAA-12060).
+- **CEO co-sign: REQUIRED — RECORDED.** CEO (agent `ca0edebc`) admittance-dial re-cosign **APPROVED** on [BEAAA-12060](/BEAAA/issues/BEAAA-12060) (delivered there because the CEO cannot write to the BEAAA-12051/12052 threads — authorization boundary): score-neutral (reported-not-scored metadata, `are_total`/pillar-weights/band untouched, `scored:false` preserved, golden N=5 Δ0 by construction), pricing-neutral (the misattribution exclusion is `load_usd=0` — narrows coverage, does not move premium), fail-closed + reversible (behind the `ADM.R0.FACT` `enabled` dial, PR-revertible), **no Founder gate**.
+- **Both co-signs captured against** request_confirmation `5cbc31e4` on [BEAAA-12052](/BEAAA/issues/BEAAA-12052) ("HUW + CEO co-sign recorded on PR #41").
+- **HARD MERGE PRECONDITION (CEO-level gate):** emitter PR #40 must adopt spec §4 (`source: deployment_representative` / `task_set_kind: representative_deployment` / `agent_ref`) and land **before or with** PR #41. Merging PR #41 first ships a **dead gate** — every business-factual bind REFERs forever. Coverage-SAFE (nothing over-binds) but a governance defect: a UW protection that reads "live" while inert. **Authorized merge order: PR #40 reconciled → PR #41 merges. Not before.** Owner: CTO / Scanner-Eng, [BEAAA-12052](/BEAAA/issues/BEAAA-12052) item #1. Status: PR #40 rev 0.2 (`4ad9e86` → `ca72924`) has conformed the emitter vocabulary to spec §4; precondition satisfiable.
+- **No merge until the precondition is met.** The change ships behind the existing `enabled` flag; disabling `ADM.R0.FACT` routes past to R7/R8, itself a fresh re-cosign event.
 - **No Founder gate:** pillar weights unchanged, `are_total` unchanged, band math unchanged, tamper resistance neutral-to-strengthened (the gate reads provenance the scanned agent cannot forge into its own favor — a missing/fixture provenance fails closed).
 
 ## 5. Rollback
