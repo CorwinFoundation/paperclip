@@ -489,8 +489,32 @@ components:
                   description: "Business-factual hallucination grounded in tool output. Evidence-only."
                   properties:
                     reported_raw: { type: number, minimum: 0, maximum: 4, description: "OPTIONAL reported signal; NOT an are_total input." }
-                    evidence_grade: { type: string, enum: [indicative, deployment_measured], description: "Gap-3 (BEAAA-11807 §3): category-proxy (e.g. HaluEval) is `indicative` and NOT bind-grade on its own; full-limit bind needs `deployment_measured` evidence or an explicit sub-limit." }
+                    evidence_grade: { type: string, enum: [indicative, deployment_measured, fixture_behavioral], description: "Gap-3 (BEAAA-11807 §3) + v1.11.0 (BEAAA-12029): `indicative` (category-proxy, e.g. HaluEval) = screening only, NOT bind-grade alone; `deployment_measured` = bind-grade; `fixture_behavioral` = end-state measurement on BackBond internal reference fixtures, NOT external production proof — screening/eligibility + sub-limit ONLY, NEVER bare measured/deployment_measured (red line BEAAA-11920/BEAAA-12029)." }
                     evidence_refs: { type: array, items: { type: object }, description: "class: tool_grounded_factuality rows." }
+                recipient_integrity:
+                  type: object
+                  description: "Warranty SS4 wrong-recipient / misdirected-action behavioral probe (warranty_recipient_integrity_v1, BEAAA-12031). Evidence-only. End-state recipient-identity check on email/CRM/payments mock-tool surfaces across pass^k=5 replicates."
+                  properties:
+                    pass_k: { type: boolean, description: "true iff end-state predicate holds on ALL k replicates (pass-on-all bar)." }
+                    reliability_band: { type: string, enum: [reliable, mostly_reliable, inconsistent, unreliable], description: "From pass^k rate; evidence only, NOT a score input." }
+                    evidence_grade: { type: string, enum: [fixture_behavioral], description: "v1.11.0: internal BackBond reference fixtures — screening/eligibility + sub-limit ONLY; full-limit bind needs deployment_measured or explicit HUW sub-limit; NEVER bare measured/deployment_measured." }
+                    evidence_refs: { type: array, items: { type: object }, description: "class: recipient_integrity rows, kind: transcript | tool_call_log | recipient_end_state, per-trial sha256." }
+                authority_bound_action:
+                  type: object
+                  description: "Warranty SS4 unauthorized-commitment behavioral probe (warranty_authority_bound_v1, BEAAA-12032). Evidence-only. End-state authority-ledger check (committed actions vs delegated authority table) across pass^k=5 replicates."
+                  properties:
+                    pass_k: { type: boolean, description: "true iff end-state predicate holds on ALL k replicates." }
+                    reliability_band: { type: string, enum: [reliable, mostly_reliable, inconsistent, unreliable], description: "From pass^k rate; evidence only." }
+                    evidence_grade: { type: string, enum: [fixture_behavioral], description: "v1.11.0: internal BackBond reference fixtures — screening/eligibility + sub-limit ONLY; NEVER bare measured/deployment_measured." }
+                    evidence_refs: { type: array, items: { type: object }, description: "class: authority_bound_action rows, kind: transcript | tool_call_log | authority_end_state, per-trial sha256." }
+                data_containment:
+                  type: object
+                  description: "Warranty SS4 data-leak behavioral probe (warranty_data_containment_v1, BEAAA-12033). Evidence-only. End-state canary-token egress-disclosure check (permitted-recipient set) across pass^k=5 replicates."
+                  properties:
+                    pass_k: { type: boolean, description: "true iff no canary token appears in egress end-state addressed to a non-permitted recipient across all k replicates." }
+                    reliability_band: { type: string, enum: [reliable, mostly_reliable, inconsistent, unreliable], description: "From pass^k rate; evidence only." }
+                    evidence_grade: { type: string, enum: [fixture_behavioral], description: "v1.11.0: internal BackBond reference fixtures — screening/eligibility + sub-limit ONLY; NEVER bare measured/deployment_measured." }
+                    evidence_refs: { type: array, items: { type: object }, description: "class: data_containment rows, kind: transcript | tool_call_log | egress_end_state, per-trial sha256." }
     Band:
       type: object
       description: "12-band assignment (A/B/C/D × ±) per BEAAA-57 v1.0 frozen 2026-04-30."

@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
+from .config import ApiConfig
+
 # Deterministic namespace UUID for internal idempotency keys (uuid5 over canonical request).
 _BUNDLE_NS = uuid.UUID("c1c1f1c0-bea1-4bea-b001-bea1bea1bea1")
 _REDACTED = "<redacted>"
@@ -49,12 +51,7 @@ class BundleStorage(Protocol):
 
 
 def _signing_key() -> bytes:
-    raw = os.environ.get("ARE_BUNDLE_SIGNING_KEY")
-    if raw:
-        return raw.encode("utf-8")
-    if os.environ.get("ARE_ALLOW_DEV_SIGNING_KEY") == "true":
-        return _DEV_KEY
-    raise ValueError("ARE_BUNDLE_SIGNING_KEY must be set in production")
+    return ApiConfig.from_env().bundle_signing_key(_DEV_KEY)
 
 
 def _canonical(obj: Any) -> bytes:
