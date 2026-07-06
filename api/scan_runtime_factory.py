@@ -58,13 +58,13 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import os
 import tarfile
 import tempfile
 import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+from api.config import ApiConfig
 from api.scan_handlers import (
     ScanRuntime,
     _apply_prior_scan_cap,
@@ -124,15 +124,14 @@ _PARENT_JOIN_SLACK_SECONDS: int = 30
 # Prober flushes END_OF_SCAN. Keep this independent from the scan wall-clock
 # cap so a crashed Scorer cannot pin a single-worker API process for the
 # full live-probe ceiling.
-SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS: float = float(
-    os.environ.get("ARE_SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS", "10")
+# Read at import time via the typed config, preserving the historical
+# import-time evaluation + failure timing (BEAAA-12021).
+SCORER_ENVELOPE_DRAIN_TIMEOUT_SECONDS: float = (
+    ApiConfig.from_env().scorer_envelope_drain_timeout_seconds
 )
 
-SCORER_ROW_RECV_TIMEOUT_SECONDS: float = float(
-    os.environ.get(
-        "ARE_SCORER_ROW_RECV_TIMEOUT_SECONDS",
-        str(DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS),
-    )
+SCORER_ROW_RECV_TIMEOUT_SECONDS: float = ApiConfig.from_env().scorer_row_recv_timeout_seconds(
+    DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS
 )
 
 
@@ -154,8 +153,7 @@ def _scorer_real_enabled() -> bool:
     Default `on`. Set ``ARE_SCORER_REAL=off`` for Tier-1 rollback to the
     pre-Track-A `_phase1_pending` envelope behavior.
     """
-    value = os.environ.get(ARE_SCORER_REAL_ENV, "on").strip().lower()
-    return value in ("on", "1", "true", "yes")
+    return ApiConfig.from_env().scorer_real_enabled
 
 
 def _server_corpus_provenance(corpus_tarball_path: Path | str) -> tuple[str, int]:
@@ -204,8 +202,7 @@ def _customer_agent_walker_enabled() -> bool:
     Default off. The synthetic_v0 path is byte-identical to the canon
     master ``bec8f80`` baseline when this flag is unset.
     """
-    value = os.environ.get(ARE_WALKER_CUSTOMER_AGENT_ENV, "0").strip().lower()
-    return value in ("on", "1", "true", "yes")
+    return ApiConfig.from_env().walker_customer_agent_enabled
 
 
 def _select_fired_probe_ledger(*, walker_active: bool) -> FiredProbeLedger | None:
@@ -231,13 +228,13 @@ def _select_fired_probe_ledger(*, walker_active: bool) -> FiredProbeLedger | Non
     The env override on the walker path still binds an ``AuditSpineFiredProbeLedger``
     (audit-spine semantics preserved) — only its durable path changes.
     """
+    cfg = ApiConfig.from_env()
     if walker_active:
-        audit_spine_path = os.environ.get(
-            ARE_FIRED_PROBE_AUDIT_SPINE_PATH_ENV,
-            ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH,
+        audit_spine_path = cfg.fired_probe_audit_spine_path(
+            ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH
         )
         return AuditSpineFiredProbeLedger(audit_spine_path)
-    legacy_path = os.environ.get(ARE_FIRED_PROBE_LEDGER_PATH_ENV)
+    legacy_path = cfg.fired_probe_ledger_path
     if legacy_path:
         return JsonlFiredProbeLedger(legacy_path)
     return None
@@ -321,7 +318,7 @@ def build_v0_corpus_tarball(dest_dir: Path | None = None) -> Path:
     """
     base = dest_dir
     if base is None:
-        base_env = os.environ.get("ARE_V0_CORPUS_DIR")
+        base_env = ApiConfig.from_env().v0_corpus_dir
         base = Path(base_env) if base_env else Path(tempfile.gettempdir())
     base.mkdir(parents=True, exist_ok=True)
     path = base / "are_v0_corpus.tar.gz"
@@ -798,9 +795,7 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         score_envelope_registry=score_envelope_registry,
         fired_probe_ledger=fired_probe_ledger,
     )
-    scan_log_path = os.environ.get(
-        ARE_SCAN_LOG_PATH_ENV, ARE_SCAN_LOG_DEFAULT_PATH
-    )
+    scan_log_path = ApiConfig.from_env().scan_log_path(ARE_SCAN_LOG_DEFAULT_PATH)
     # Ensure parent dir exists when caller pointed at a non-prod path; the
     # EFS-mount path is created at infra-provision time and exists in prod.
     parent_dir = Path(scan_log_path).parent
