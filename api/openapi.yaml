@@ -490,6 +490,15 @@ components:
                   properties:
                     reported_raw: { type: number, minimum: 0, maximum: 4, description: "OPTIONAL reported signal; NOT an are_total input." }
                     evidence_grade: { type: string, enum: [indicative, deployment_measured, fixture_behavioral], description: "Gap-3 (BEAAA-11807 §3) + v1.11.0 (BEAAA-12029): `indicative` (category-proxy, e.g. HaluEval) = screening only, NOT bind-grade alone; `deployment_measured` = bind-grade; `fixture_behavioral` = end-state measurement on BackBond internal reference fixtures, NOT external production proof — screening/eligibility + sub-limit ONLY, NEVER bare measured/deployment_measured (red line BEAAA-11920/BEAAA-12029)." }
+                    provenance:
+                      type: object
+                      description: "v1.12.0 (BEAAA-12052) — reported-not-scored. Says WHOSE agent and WHICH task set a grade was measured on. The Underwriter's ADM.R0.FACT gate grants a full-limit business-factual bind only when a deployment_measured row is source=deployment_representative / task_set_kind=representative_deployment / agent_ref==the insured agent. reference_fixture provenance validates the verifier and characterizes no customer; missing/unknown fails closed (REFER)."
+                      properties:
+                        source: { type: string, enum: [reference_fixture, deployment_representative], description: "Provenance class of the measurement." }
+                        agent_ref: { type: string, description: "id/hash of the scanned agent; MUST equal the submission's insured agent for full-limit eligibility." }
+                        task_set_ref: { type: string, description: "id/label of the business-factual task set the grade was measured on." }
+                        task_set_kind: { type: string, enum: [reference_fixture, representative_deployment], description: "Kind of task set behind the grade." }
+                    verifier_version: { type: integer, description: "v1.12.0 (BEAAA-12052) — OPTIONAL. Major version of the verifier that produced the row. The interim Misattribution-of-Value & Derived-Figure Exclusion attaches to a full-limit business-factual bind resting on a verifier_version < 2 row and sunsets at >= 2. Absent => treated as v1." }
                     evidence_refs: { type: array, items: { type: object }, description: "class: tool_grounded_factuality rows." }
                 recipient_integrity:
                   type: object

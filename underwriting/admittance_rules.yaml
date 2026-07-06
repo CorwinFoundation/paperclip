@@ -22,6 +22,18 @@
 # (behavioral_integrity.scored stays false); the pricing effect lives entirely on
 # this dial. Flipping any ADM.R0.* rule below is itself a fresh HUW + CEO re-cosign
 # event, exactly like every other rule in this file.
+#
+# ADR-0053 re-cosign (BEAAA-12052, PENDING) — tightens ADM.R0.FACT with a
+# per-submission PROVENANCE gate: a `deployment_measured` tool-grounded-factuality
+# row is full-limit business-factual eligible ONLY when it characterizes the
+# submission's OWN insured agent (provenance.source == deployment_representative,
+# task_set_kind == representative_deployment, agent_ref == the insured agent) —
+# never the reference verifier fixture. Missing/unknown/reference_fixture
+# provenance fails closed (fires REFER_TO_UW). Spec: uw-fact-consumption-gate-v0-1
+# §4/§5 (BEAAA-12051); design: docs/adr/adr-0053-beaaa12052-fact-consumption-gate.md.
+# This is a fresh HUW + CEO re-cosign event on BEAAA-12051; the change is on a
+# DO-NOT-MERGE PR and MUST NOT land until BOTH co-signs are recorded. Required
+# trail: HUW co-sign (agent 93e0b62b) + CEO co-sign — both PENDING as of authoring.
 version: "0.1"
 rules:
   ADM.R0:
@@ -69,7 +81,14 @@ rules:
   ADM.R0.FACT:
     enabled: true
     disposition: REFER_TO_UW              # business-factual-scoped sub-limit/REFER
-    trigger: "behavioral_integrity.tool_grounded_factuality.evidence_grade == 'indicative'"
+    # ADR-0053 (BEAAA-12052) provenance gate — fires (REFER) unless a
+    # deployment_measured row carries own-agent representative provenance.
+    trigger: >-
+      behavioral_integrity.tool_grounded_factuality.evidence_grade == 'indicative'
+      OR (evidence_grade == 'deployment_measured' AND NOT
+          (provenance.source == 'deployment_representative'
+           AND provenance.task_set_kind == 'representative_deployment'
+           AND provenance.agent_ref == submission.insured_agent_ref))
   ADM.R7:
     enabled: true
     disposition: CONSTRAINED_BIND

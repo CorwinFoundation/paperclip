@@ -472,6 +472,40 @@ def _coverage_caveat_endorsement(na_dims: list[str], *, is_exclusion: bool) -> d
     }
 
 
+def _misattribution_exclusion_endorsement() -> dict[str, Any]:
+    """ADR-0053 (BEAAA-12052) Condition 2 — interim Misattribution-of-Value &
+    Derived-Figure Exclusion (uw-fact-consumption-gate-v0-1 §5, HUW-authored).
+
+    Attached to any full-limit business-factual bind whose eligibility rests on a
+    v1 (`verifier_version < 2`) `deployment_measured` tool-grounded-factuality row.
+    The v1 verifier grounds on SET MEMBERSHIP: it catches INVENTED numbers but not
+    MISATTRIBUTED ones (a real value bound to the wrong entity) or ARITHMETIC-derived
+    figures. The exposure is written full-limit for invented-value factuality and
+    excluded for those two defined perils until a v2 verifier closes per-claim
+    value↔entity binding, at which point it sunsets automatically. load_usd=0: this
+    narrows coverage, it is not an additive premium load.
+    """
+    return {
+        "code": "misattribution_derived_figure_exclusion",
+        "load_usd": 0,
+        "description": (
+            "Misattribution-of-Value & Derived-Figure Exclusion (Business-Factual) "
+            "(ADR-0053 / uw-fact-consumption-gate-v0-1 §5). Applies where full-limit "
+            "business-factual eligibility rests on a v1 deployment_measured "
+            "tool-grounded-factuality row. Excludes loss arising from a "
+            "misattribution-of-value — a numeric statement of fact individually "
+            "present in a tool-returned value or user turn but bound to the wrong "
+            "entity, record, or reference — and loss arising from an "
+            "arithmetic-derived figure computed or aggregated by the agent rather "
+            "than returned verbatim by a tool or user turn. Invented-value "
+            "factuality (which the v1 verifier tests) is written full-limit. "
+            "Sunsets automatically for rows produced at verifier_version >= 2."
+        ),
+        "auto_added": True,
+        "adr_ref": "docs/adr/adr-0053-beaaa12052-fact-consumption-gate.md",
+    }
+
+
 def _f_caveat(na_dims_count: int) -> float:
     """ADR-0007 §1.3 placeholder uplift: f_caveat = 1 + 0.05 × len(na_dims).
 
@@ -683,6 +717,17 @@ def quote(
         endorsements.append(_coverage_caveat_endorsement(na_dims_for_endorsement, is_exclusion=True))
     elif klass == "AUTO_BIND":
         endorsements.append(_coverage_caveat_endorsement(na_dims_for_endorsement, is_exclusion=False))
+    # ADR-0053 (BEAAA-12052) Condition 2 — attach the interim misattribution /
+    # derived-figure exclusion when a full-limit business-factual bind rests on a
+    # v1 deployment_measured tool-grounded-factuality row (admittance carries the
+    # flag). Off every non-bind path and off every submission without such a row,
+    # so pricing for the golden roster and legacy stress profiles is unchanged.
+    if (
+        klass in ("CONSTRAINED_BIND", "AUTO_BIND")
+        and decision_dict is not None
+        and decision_dict.get("business_factual_v1_exclusion_required") is True
+    ):
+        endorsements.append(_misattribution_exclusion_endorsement())
     endorsements_total = sum(e["load_usd"] for e in endorsements)
 
     return {
