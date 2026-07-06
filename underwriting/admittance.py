@@ -112,6 +112,22 @@ _RULE_ADR = {
 _AUTONOMOUS_SCAN_KINDS = frozenset({"autonomous", "tool_enabled"})
 _UNRELIABLE_TXN_BANDS = frozenset({"inconsistent", "unreliable"})
 _INDICATIVE_EVIDENCE_GRADE = "indicative"
+_DEPLOYMENT_MEASURED_EVIDENCE_GRADE = "deployment_measured"
+
+# ADR-0053 (BEAAA-12052) tool-grounded-factuality bind-consumption gate.
+# A `deployment_measured` row is full-limit business-factual eligible ONLY when
+# it characterizes the SUBMISSION'S OWN insured agent run against a REPRESENTATIVE
+# deployment task set — never the reference faithful/fabricating fixture that
+# validates the verifier but characterizes no customer. Missing / unknown /
+# reference_fixture provenance is fail-closed (the rule fires, REFER_TO_UW), per
+# uw-fact-consumption-gate-v0-1 §4 (BEAAA-12051).
+_DEPLOYMENT_REPRESENTATIVE_SOURCE = "deployment_representative"
+_REPRESENTATIVE_TASK_SET_KIND = "representative_deployment"
+# Endorsement sunset horizon (uw-fact-consumption-gate-v0-1 §5): the interim
+# Misattribution-of-Value & Derived-Figure Exclusion attaches to any full-limit
+# business-factual bind resting on a row produced by a v1 verifier (< 2); a v2+
+# verifier closes per-claim value<->entity binding and retires the exclusion.
+_MISATTRIBUTION_EXCLUSION_SUNSET_VERIFIER_VERSION = 2
 
 _PILLAR_NAME_TO_PREFIX = {
     "P1": "P1",
@@ -147,6 +163,13 @@ class AdmittanceDecision:
     # Exposure scope of the disposition (ADR-0045 §2.3). "global" for every legacy
     # rule; the scoped BEHAVIORAL-INTEGRITY rules name the exposure UW sub-limits.
     scope: str = _SCOPE_GLOBAL
+    # ADR-0053 (BEAAA-12052) Condition 2: True when a full-limit business-factual
+    # bind rests on a v1 `deployment_measured` tool-grounded-factuality row, so the
+    # pricing path must attach the interim Misattribution-of-Value & Derived-Figure
+    # Exclusion (uw-fact-consumption-gate-v0-1 §5). Reported-not-scored; never
+    # affects are_total or the band letter. Only meaningful on AUTO_BIND /
+    # CONSTRAINED_BIND dispositions.
+    business_factual_v1_exclusion_required: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -240,6 +263,49 @@ def _txn_reliability_band(score_or_report: Mapping[str, Any]) -> str | None:
 def _tool_grounded_evidence_grade(score_or_report: Mapping[str, Any]) -> str | None:
     v = _behavioral_dim(score_or_report, "tool_grounded_factuality").get("evidence_grade")
     return v if isinstance(v, str) else None
+
+
+def _tool_grounded_provenance(score_or_report: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Reported-not-scored provenance object on the tool_grounded_factuality block.
+
+    Contract are-scanner-api-v1@v1.11.0 (additive minor): {source, agent_ref,
+    task_set_ref, task_set_kind}. Absent on pre-v1.11.0 envelopes → {} → the
+    consumption gate reads it as unknown provenance and fails closed.
+    """
+    v = _behavioral_dim(score_or_report, "tool_grounded_factuality").get("provenance")
+    return v if isinstance(v, Mapping) else {}
+
+
+def _tool_grounded_verifier_version(score_or_report: Mapping[str, Any]) -> int:
+    """Verifier major version behind a tool_grounded_factuality row (v1.11.0).
+
+    Absent / unparseable ⇒ 1 (the only verifier that exists today). Read only to
+    decide whether the interim misattribution exclusion has sunset (>= 2); a
+    missing value conservatively keeps the exclusion attached (narrower coverage).
+    """
+    v = _behavioral_dim(score_or_report, "tool_grounded_factuality").get("verifier_version")
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return 1
+
+
+def _is_representative_own_agent(
+    provenance: Mapping[str, Any], insured_agent_ref: str | None
+) -> bool:
+    """True iff provenance attests the SUBMISSION'S OWN agent on a representative
+    deployment task set (uw-fact-consumption-gate-v0-1 §4). Fail-closed: every
+    clause must hold; a missing/unknown/reference_fixture field ⇒ False."""
+    if provenance.get("source") != _DEPLOYMENT_REPRESENTATIVE_SOURCE:
+        return False
+    if provenance.get("task_set_kind") != _REPRESENTATIVE_TASK_SET_KIND:
+        return False
+    agent_ref = provenance.get("agent_ref")
+    if not isinstance(agent_ref, str) or not agent_ref:
+        return False
+    if not isinstance(insured_agent_ref, str) or not insured_agent_ref:
+        return False
+    return agent_ref == insured_agent_ref
 
 
 def _len_iter(x: Any) -> int:
@@ -448,13 +514,54 @@ def _r0_txn_reliability(ctx: Mapping[str, Any]) -> bool:
 
 
 def _r0_fact_evidence_grade(ctx: Mapping[str, Any]) -> bool:
-    """§2.4 tool-grounded evidence-grade gate — scoped to business-factual exposure.
+    """§2.4 evidence-grade gate + ADR-0053 provenance gate (business-factual scope).
 
-    Category-proxy `indicative` evidence cannot support a full-limit business-
-    factual bind (sub-limit / REFER); `deployment_measured` is full-limit eligible
-    and does not fire this rule.
+    The rule is INACTIVE when no tool_grounded_factuality row is asserted
+    (`evidence_grade` absent → returns False → legacy dispositions, including the
+    whole golden roster, are untouched).
+
+    When a row IS asserted, a full-limit business-factual bind requires
+    `deployment_measured` evidence produced from the SUBMISSION'S OWN insured
+    agent on a REPRESENTATIVE deployment task set. The rule fires (REFER_TO_UW,
+    treat as indicative for this bind) UNLESS all hold
+    (uw-fact-consumption-gate-v0-1 §4, BEAAA-12051):
+
+      1. evidence_grade == 'deployment_measured', AND
+      2. provenance.source == 'deployment_representative'
+         and provenance.task_set_kind == 'representative_deployment', AND
+      3. provenance.agent_ref is present and matches the submission's insured
+         agent ref.
+
+    Missing / unknown / reference_fixture provenance ⇒ fires (fail-closed): the
+    Underwriter does not trust missing provenance, and the reference fixture that
+    validates the verifier characterizes no customer, so binding on it is binding
+    on our own test double.
     """
-    return ctx["tool_grounded_evidence_grade"] == _INDICATIVE_EVIDENCE_GRADE
+    grade = ctx["tool_grounded_evidence_grade"]
+    if grade is None:
+        return False
+    if grade != _DEPLOYMENT_MEASURED_EVIDENCE_GRADE:
+        return True
+    return not _is_representative_own_agent(
+        ctx["tool_grounded_provenance"], ctx["insured_agent_ref"]
+    )
+
+
+def _needs_misattribution_exclusion(ctx: Mapping[str, Any]) -> bool:
+    """ADR-0053 Condition 2 (uw-fact-consumption-gate-v0-1 §5). True iff a
+    full-limit business-factual bind rests on a v1 `deployment_measured` row —
+    i.e. a valid own-agent representative row (so ADM.R0.FACT does NOT fire) whose
+    verifier has not yet closed per-claim value↔entity binding (verifier_version
+    < 2). The pricing path attaches the interim Misattribution-of-Value &
+    Derived-Figure Exclusion on that basis. Sunsets at verifier_version >= 2.
+    """
+    if ctx["tool_grounded_evidence_grade"] != _DEPLOYMENT_MEASURED_EVIDENCE_GRADE:
+        return False
+    if not _is_representative_own_agent(
+        ctx["tool_grounded_provenance"], ctx["insured_agent_ref"]
+    ):
+        return False
+    return ctx["tool_grounded_verifier_version"] < _MISATTRIBUTION_EXCLUSION_SUNSET_VERIFIER_VERSION
 
 
 _RULES: dict[str, tuple[Any, str, str]] = {
@@ -491,10 +598,15 @@ _RULES: dict[str, tuple[Any, str, str]] = {
                "money-movement-scoped reliability modifier (ADR-0045 §2.3); refers the "
                "money-movement exposure to UW for a sub-limit. NOT a global knockout."),
     _ADM_R0_FACT: (_r0_fact_evidence_grade, REFER_TO_UW,
-               "tool-grounded evidence_grade == 'indicative' — category-proxy evidence is "
-               "not bind-grade for a full-limit business-factual bind (ADR-0045 §2.4); "
-               "business-factual exposure written at a sub-limit / referred. "
-               "'deployment_measured' is full-limit eligible and does not fire."),
+               "tool-grounded business-factual evidence is not full-limit bind-grade "
+               "(ADR-0045 §2.4 + ADR-0053 provenance gate): 'indicative' category-proxy "
+               "evidence, or a 'deployment_measured' row lacking own-agent representative "
+               "provenance (source=='deployment_representative', "
+               "task_set_kind=='representative_deployment', agent_ref==insured agent). "
+               "Business-factual exposure written at a sub-limit / referred. A "
+               "'deployment_measured' row that characterizes the submission's own insured "
+               "agent is full-limit eligible and does not fire; missing/unknown/"
+               "reference_fixture provenance fails closed and fires."),
 }
 
 
@@ -552,6 +664,7 @@ def evaluate(
     score_or_report: Mapping[str, Any],
     *,
     system_prompt_kind: str | None = None,
+    insured_agent_ref: str | None = None,
     rules_config: Mapping[str, bool] | None = None,
 ) -> AdmittanceDecision:
     """Apply ADR-0007 §1.1 admittance schedule to a score/breach_report.
@@ -560,6 +673,13 @@ def evaluate(
     explicitly when the score envelope doesn't carry it (Scanner contract v1.0
     does not promise system_prompt_kind in the response — UW carries it from the
     submission record).
+
+    `insured_agent_ref` is the submission's own insured-agent id/hash (ADR-0053).
+    The ADM.R0.FACT provenance gate grants a full-limit business-factual bind only
+    when a `deployment_measured` tool-grounded-factuality row's `provenance.agent_ref`
+    matches it. Like system_prompt_kind it is carried by the UW submission record,
+    not promised by the Scanner /score response; falls back to the envelope's
+    `agent_id`. Absent ⇒ no `deployment_measured` row can match ⇒ fail-closed REFER.
 
     `rules_config` overrides the YAML on-disk flags (test injection point). When
     omitted, loads `admittance_rules.yaml` from this package's directory.
@@ -586,7 +706,20 @@ def evaluate(
         "stop_stat_sig_noncompliance": _stop_stat_sig_noncompliance(score_or_report),
         "txn_reliability_band": _txn_reliability_band(score_or_report),
         "tool_grounded_evidence_grade": _tool_grounded_evidence_grade(score_or_report),
+        # ADR-0053 (BEAAA-12052) tool-grounded-factuality bind-consumption gate.
+        "tool_grounded_provenance": _tool_grounded_provenance(score_or_report),
+        "tool_grounded_verifier_version": _tool_grounded_verifier_version(score_or_report),
+        "insured_agent_ref": insured_agent_ref
+        if insured_agent_ref is not None
+        else (
+            score_or_report.get("agent_id")
+            if isinstance(score_or_report.get("agent_id"), str)
+            else None
+        ),
     }
+    # ADR-0053 Condition 2 — computed once; the pricing path reads it only on a
+    # full-limit bind (AUTO_BIND / CONSTRAINED_BIND).
+    bf_v1_exclusion = _needs_misattribution_exclusion(ctx)
 
     if cfg.get("ADM.R0", True):
         match = _adm_r0_match(ctx)
@@ -624,6 +757,7 @@ def evaluate(
                 rules_disabled=disabled,
                 adr_ref=_RULE_ADR.get(rid, AdmittanceDecision.adr_ref),
                 scope=_RULE_SCOPE.get(rid, _SCOPE_GLOBAL),
+                business_factual_v1_exclusion_required=bf_v1_exclusion,
             )
 
     return AdmittanceDecision(

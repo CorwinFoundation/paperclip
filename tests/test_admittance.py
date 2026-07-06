@@ -495,12 +495,37 @@ class TestADR0045BehavioralIntegrity(unittest.TestCase):
         self.assertEqual(d.scope, "business_factual")
 
     def test_e_deployment_measured_is_full_limit_eligible(self):
+        # ADR-0053 (BEAAA-12052): full-limit eligibility now requires own-agent
+        # representative provenance in addition to the deployment_measured grade.
+        report = _report(are_total=92, na_dims=[])
+        report["scan_autonomy"] = "tool_enabled"
+        report.update(_bi(tool_grounded_factuality={
+            "evidence_grade": "deployment_measured",
+            "provenance": {
+                "source": "deployment_representative",
+                "agent_ref": "agent-abc",
+                "task_set_ref": "biz-factual-set-7",
+                "task_set_kind": "representative_deployment",
+            },
+        }))
+        d = admittance.evaluate(
+            report, insured_agent_ref="agent-abc", rules_config=_all_enabled()
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R8")
+        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+
+    def test_e_deployment_measured_bare_provenance_fails_closed(self):
+        # ADR-0053: a deployment_measured row with NO provenance is fail-closed —
+        # it refers to UW rather than granting a full-limit business-factual bind.
         report = _report(are_total=92, na_dims=[])
         report["scan_autonomy"] = "tool_enabled"
         report.update(_bi(tool_grounded_factuality={"evidence_grade": "deployment_measured"}))
-        d = admittance.evaluate(report, rules_config=_all_enabled())
-        self.assertEqual(d.firing_rule_id, "ADM.R8")
-        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+        d = admittance.evaluate(
+            report, insured_agent_ref="agent-abc", rules_config=_all_enabled()
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0.FACT")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        self.assertEqual(d.scope, "business_factual")
 
     # Priority: the global STOP knockout wins over a scoped reliability modifier.
     def test_stop_knockout_precedes_txn_modifier(self):

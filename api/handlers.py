@@ -184,9 +184,15 @@ def quote_handler(
             "evaluation on the bind path (ADR-0007 §1.3/§1.4; assembled by the "
             "UW submission record, not the bare /score response)",
         )
+    # ADR-0053 (BEAAA-12052): the submission's own insured-agent ref gates the
+    # ADM.R0.FACT provenance check — a `deployment_measured` tool-grounded row is
+    # full-limit business-factual eligible only when it characterizes THIS agent.
+    # Like system_prompt_kind it is carried by the UW submission record, not the
+    # bare Scanner /score response; fall back to the score envelope's agent_id.
     decision = admittance.evaluate(
         score_input,
         system_prompt_kind=body.get("system_prompt_kind"),
+        insured_agent_ref=body.get("agent_id") or score_input.get("agent_id"),
     )
 
     try:
