@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from .detector_input import normalize_tool_name
+
 
 DETECTOR_VERSION = "0.1.0"
 DETECTOR_FAMILY = "passive_peril"
@@ -47,7 +49,7 @@ def detect_passive_peril_events(
 
 def _classify_event(event: dict[str, Any]) -> tuple[str, str, str, float, str] | None:
     payload = event.get("payload") or {}
-    tool = str(payload.get("tool") or "").lower()
+    tool = normalize_tool_name(payload)
     features = payload.get("detector_features") if isinstance(payload.get("detector_features"), dict) else {}
     raw_peril_markers = features.get("peril_markers") if isinstance(features, dict) else ()
     peril_markers = raw_peril_markers if isinstance(raw_peril_markers, (list, tuple)) else ()

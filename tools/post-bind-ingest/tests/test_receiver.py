@@ -345,3 +345,72 @@ def test_mtls_context_requires_tls13_and_client_certificate() -> None:
     assert context.minimum_version is ssl.TLSVersion.TLSv1_3
     assert context.maximum_version is ssl.TLSVersion.TLSv1_3
     assert context.verify_mode is ssl.CERT_REQUIRED
+
+
+def _sign_events_payload(payload: dict) -> None:
+    payload["batch_sha256"] = f"sha256:{compute_batch_sha256(payload['events'])}"
+    payload["jwt"] = _jwt_token(
+        {
+            "agent": payload["agent"],
+            "batch_id": payload["batch_id"],
+            "batch_sha256": payload["batch_sha256"],
+            "event_count": payload["event_count"],
+            "issued_at": payload["issued_at"],
+            "schema_version": payload["schema_version"],
+            "sub": payload["customer_id"],
+        },
+    )
+
+
+def test_redaction_fails_closed_when_declared_path_still_leaks_secret() -> None:
+    # Fail-closed core: vendor DECLARES `arg` redacted but the value is still a
+    # raw secret. The declaration must not buy a pass.
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "payment", "arg": "sk-ab12cdef3456"}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    with pytest.raises(RedactionConformanceError, match="not trusted \\(fail-closed\\)"):
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
+
+
+def test_redaction_fails_closed_when_declared_path_still_leaks_email() -> None:
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "email", "arg": "alice@example.com"}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    with pytest.raises(RedactionConformanceError, match="not trusted \\(fail-closed\\)"):
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
+
+
+def test_redaction_fails_closed_when_declared_path_not_proven_redacted() -> None:
+    # Vendor declares `arg` redacted but leaves an ordinary, non-sentinel value.
+    # We cannot confirm redaction actually happened -> reject.
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "note", "arg": "some plaintext value"}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    with pytest.raises(RedactionConformanceError, match="not proven redacted"):
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
+
+
+def test_redaction_accepts_declared_path_with_hash_sentinel() -> None:
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "payment", "arg": "sha256:" + ("a" * 64)}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    events = normalize_receiver_events(payload, jwt_keyring=KEYRING)
+    assert events[0]["redactions"] == ({"path": "arg", "redaction_class": "validated"},)
+
+
+def test_redaction_accepts_declared_path_cleared_to_null() -> None:
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "payment", "arg": None}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    events = normalize_receiver_events(payload, jwt_keyring=KEYRING)
+    assert events[0]["event_type"] == "tool_call"

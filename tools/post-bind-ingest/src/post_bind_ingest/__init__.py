@@ -11,6 +11,15 @@ from .egress import (
 )
 from .normalizer import NormalizerError, normalize_manifest, normalize_receiver_events
 from .invariants import ManifestIdempotencyStore
+from .continuity_gate import (
+    ContinuityGateDecision,
+    ContinuityGateError,
+    TelemetryGapState,
+    classify_continuity_status,
+    compute_gap_state,
+    evaluate_attach_renew_continuity,
+)
+from .detector_input import normalize_tool_name
 from .p5_detector import detect_p5_events
 from .receiver import (
     ReceiverEnvelope,
@@ -36,6 +45,13 @@ __all__ = [
     "ReceiverSignatureError",
     "RedactionConformanceError",
     "NormalizerError",
+    "ContinuityGateDecision",
+    "ContinuityGateError",
+    "TelemetryGapState",
+    "classify_continuity_status",
+    "compute_gap_state",
+    "evaluate_attach_renew_continuity",
+    "normalize_tool_name",
     "normalize_receiver_events",
     "validate_manifest_schema",
     "normalize_manifest",

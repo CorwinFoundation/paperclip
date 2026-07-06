@@ -275,6 +275,10 @@ def normalize_receiver_event(
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 SECRET_KEY_RE = re.compile(r"\bsk-[A-Za-z0-9]{12,}\b")
 REDACTED_TOKEN_RE = re.compile(r"\[REDACTED(?::[^\]]+)?\]")
+# A value is only *proven* redacted if it is cleared (None) or shows a
+# recognized redaction sentinel. Vendor declaration alone is never proof.
+REDACTION_SENTINEL_RE = re.compile(r"^\s*(?:\[REDACTED(?::[^\]]+)?\]|sha256:[0-9a-f]{64})\s*$")
+_LIST_INDEX_RE = re.compile(r"\[\d+\]")
 
 
 def _canonical_payload_bytes(value: Any) -> bytes:
@@ -283,20 +287,90 @@ def _canonical_payload_bytes(value: Any) -> bytes:
     return canonical_dumps(value)
 
 
+def _path_is_declared(full_path: str, redacted_paths: set[str]) -> bool:
+    """True if ``full_path`` (or an ancestor of it) was declared redacted.
+
+    List indices are normalized out so a declaration of ``args`` covers
+    ``args[0]`` / ``args.url`` leaves as well.
+    """
+    normalized = _LIST_INDEX_RE.sub("", full_path)
+    if normalized in redacted_paths or full_path in redacted_paths:
+        return True
+    return any(normalized == p or normalized.startswith(p + ".") for p in redacted_paths)
+
+
+def _resolve_declared_path(payload: dict[str, Any], path: str) -> tuple[bool, Any]:
+    """Resolve a dotted declared-redaction path to ``(present, value)``.
+
+    List-index segments are treated as unresolvable (``present=False``); their
+    contents are still guarded by the deep sensitive-content scan.
+    """
+    cursor: Any = payload
+    for part in path.split("."):
+        if "[" in part or not isinstance(cursor, dict) or part not in cursor:
+            return False, None
+        cursor = cursor[part]
+    return True, cursor
+
+
+def _is_proven_redacted(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return bool(REDACTION_SENTINEL_RE.match(value))
+    # Non-scalar declared values (dict/list) are not self-proving; their
+    # contents are covered by the deep sensitive-content scan.
+    return True
+
+
 def _verify_redaction_conformance(payload: dict[str, Any], redacted_paths: set[str]) -> None:
+    """Fail-closed redaction conformance for vendor-declared runtime evidence.
+
+    Two guarantees, neither of which trusts the vendor's redaction claim:
+
+    1. Detectable sensitive content is rejected *regardless* of any
+       ``redaction_applied`` declaration. Declaring a path redacted never buys
+       a pass for content that still reads as an email/secret — that is the
+       exact fail-open hole this closes.
+    2. Every declared-redacted path that is present must resolve to a cleared
+       or sentinel value. A declaration over a plain, non-sentinel value is
+       unproven and rejected.
+    """
     redacted_paths = set(redacted_paths)
+
+    # (1) Sensitive content always fails; declaration cannot suppress a leak.
     for full_path, candidate in _walk_text_values(payload):
         if not isinstance(candidate, str):
             continue
         if REDACTED_TOKEN_RE.search(candidate):
             continue
-        if EMAIL_RE.search(candidate) and full_path not in redacted_paths:
+        declared = _path_is_declared(full_path, redacted_paths)
+        if EMAIL_RE.search(candidate):
+            if declared:
+                raise RedactionConformanceError(
+                    f"declared-redacted path {full_path} still contains unredacted "
+                    f"email-like value; vendor redaction claim not trusted (fail-closed)"
+                )
             raise RedactionConformanceError(
                 f"unredacted email-like value at {full_path}; missing redaction_applied proof"
             )
-        if SECRET_KEY_RE.search(candidate) and full_path not in redacted_paths:
+        if SECRET_KEY_RE.search(candidate):
+            if declared:
+                raise RedactionConformanceError(
+                    f"declared-redacted path {full_path} still contains unredacted "
+                    f"secret-like value; vendor redaction claim not trusted (fail-closed)"
+                )
             raise RedactionConformanceError(
                 f"unredacted secret-like value at {full_path}; missing redaction_applied proof"
+            )
+
+    # (2) Positive proof: a declared path must actually look redacted.
+    for path in sorted(redacted_paths):
+        present, value = _resolve_declared_path(payload, path)
+        if present and not _is_proven_redacted(value):
+            raise RedactionConformanceError(
+                f"declared-redacted path {path} is not proven redacted "
+                f"(no redaction sentinel present); vendor claim rejected (fail-closed)"
             )
 
 
