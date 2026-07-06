@@ -5,80 +5,86 @@ owner: cto
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-version: 0.1
-prior_version: null
+version: 0.2
+prior_version: 0.1
 contracts_referenced: ["are-scanner-api-v1"]
-ticket_refs: ["BEAAA-12055", "BEAAA-12051", "BEAAA-12028", "BEAAA-11816"]
+ticket_refs: ["BEAAA-12055", "BEAAA-12051", "BEAAA-12052", "BEAAA-12028", "BEAAA-11816"]
 proof_points_cited: ["HaluEval hallucination benchmark"]
 brand_backbone_applicable: false   # internal decision record, not an external-bound asset
 status: ACCEPTED
 accepted_date: 2026-07-06
-contract_version: "are-scanner-api-v1@v1.8.0"
+contract_version: "are-scanner-api-v1@v1.11.0"
 scanner_version: "0.5.0"
 corpus_version: "rubric.yaml@1.2.0"
-focus_claim: "Scanner-side follow-up to BEAAA-12028: the tool_grounded_factuality emitter now stamps a per-submission `provenance` sub-block {source, task_set, claim_level_value_entity_binding} on every deployment_measured evidence row (verdict rows + tamper-evident artifact rows) and on the run result. The ADR-0053 ADM.R0.FACT full-limit gate (BEAAA-12051) is fail-closed: a bare or reference-sourced row is consumed as `indicative` and refers to UW, so nothing binds full-limit until provenance is stamped. This closes that emission gap. Additive metadata on the v1.8.0 evidence-row shape — no sub-block contract-version bump, import-only, reported-not-scored per ADR-0045; behavioral_integrity.scored stays false, golden N=5 delta = 0 by construction. Fail-closed default: an unspecified run stamps reference_fixture (NOT full-limit eligible); a submission run against a representative business-factual task set must opt in explicitly."
+focus_claim: "Scanner-side follow-up to BEAAA-12028: the tool_grounded_factuality emitter stamps a per-submission `provenance` object {source, task_set_kind, agent_ref, task_set_ref?} + `verifier_version` on every deployment_measured evidence row AND — load-bearing — on the `behavioral_integrity.dimensions.tool_grounded_factuality` block the ADR-0053 §4 gate actually reads. Vocabulary is pinned to the CO-SIGNED gate (`_tgf_full_limit_eligible`), not the stale issue-description draft: full-limit requires source=='deployment_representative', task_set_kind=='representative_deployment', and agent_ref present AND == the submission's insured_agent_ref. Fail-closed default is the reference fixture (source/task_set_kind=='reference_fixture', no agent_ref → consumed as indicative). verifier_version drives the Condition-2 misattribution exclusion (v1<2 ⇒ exclusion applies). Additive v1.11.0 metadata, import-only, reported-not-scored per ADR-0045; behavioral_integrity.scored stays false, golden N=5 delta = 0 by construction."
 self_audit_passed: true
-self_audit_note: "Pre-submission self-audit (cto-os Supreme Law). (1) Reproducibility: additive metadata on import-only pilot rows; NO Scanner scoring-path code touched. Provenance sub-block is a pure function of the run configuration; sha256 fingerprints are computed over transcript / grounding-check blobs only, so tamper-evidence bytes are unchanged (asserted by test_provenance_addition_preserves_determinism). are_total / subscores / assign_band unchanged -> golden N=5 delta = 0 by construction (same class as BEAAA-12028). (2) Pillar weights 25/25/25/25 UNCHANGED; nothing enters a pillar or a 5th weighted dimension -> NO Founder gate. (3) Evidence trail: provenance rides the already-sha256-fingerprinted evidence row; every deployment_measured row now click-through-carries source/task_set/claim_level_value_entity_binding -> more evidence, not less. (4) Tamper resistance: provenance is set by the harness from the run configuration, never read from agent free text, so injected transcript text cannot forge source=submission_agent. (5) Canonical terms: BackBond Scanner / BackBond Score; ARE appears only in grandfathered schema/code fields (are-scanner-api-v1). (6) Carrier Rule: no carrier or customer named; catalog data is synthetic fixture. (7) Internal decision record -> Brand Backbone Step-0 N/A. (8) Co-sign: additive-evidence + reported-not-scored, nothing new auto-consumes the output; the CONSUMPTION conditions were already co-signed on ADR-0053 (HUW approved BEAAA-12051, CEO pending). This ticket is the delegated EMISSION half that ADR-0053 §2.1 named as the Scanner-side owner -> no new UW co-sign required to merge the emitter; UW is notified that provenance now flows."
+self_audit_note: "Pre-submission self-audit (cto-os Supreme Law), rev 0.2 after UW read-path review bounced rev 0.1 for a vocabulary mismatch. (1) Contract fidelity: emitter vocabulary VERIFIED against the live gate on both beaaa-12051-fact-consumption and beaaa-12052 (identical: source=='deployment_representative', task_set_kind=='representative_deployment', agent_ref==insured_agent_ref, verifier_version>=2 sunsets the exclusion). Test `test_submission_run_provenance_clears_the_gate` re-implements `_tgf_full_limit_eligible`'s clause byte-for-byte and asserts the emitted dimension block clears it; `test_submission_run_fails_gate_on_agent_ref_mismatch` asserts the identity pin. (2) Reproducibility: additive metadata on import-only pilot rows; NO Scanner scoring-path code touched; sha256 fingerprints over transcript/grounding blobs only, so tamper-evidence bytes unchanged (test_provenance_addition_preserves_determinism). are_total/subscores/assign_band unchanged → golden N=5 delta 0 by construction. (3) Pillar weights 25/25/25/25 UNCHANGED; behavioral_integrity.scored stays false → NO Founder gate. (4) Tamper resistance: source/task_set_kind/agent_ref are set by the harness from the trusted run configuration, NEVER read from agent free text; agent_ref (the identity pin) is required non-empty for a submission run so a run cannot silently degrade to a fail-closed identity-less block. (5) Canonical terms: BackBond Scanner/Score; ARE only in grandfathered schema fields. (6) Carrier Rule: catalog data is synthetic; no carrier/customer named (agent_ref in tests is a placeholder hash). (7) Internal decision record → Brand Backbone N/A. (8) Co-sign: consumption conditions already co-signed on ADR-0053; this is the emission half. Emitter conforms to the gate (ADR-0053 §4 authoritative), not vice versa."
 escalations_noted:
   - "No Founder gate: pillar weights 25/25/25/25 unchanged; are_total math unchanged; band v1.0 frozen math unchanged; behavioral_integrity stays scored:false."
-  - "No new UW co-sign to merge: the consumption gate (ADR-0053 / BEAAA-12051) is HUW-approved (CEO co-sign pending on that ticket, not this one). This is the emission half ADR-0053 §2.1 delegated to Scanner Eng / CTO; it is additive and fail-closed. UW is NOTIFIED that deployment_measured rows now carry provenance."
-  - "Coordination point (not a blocker): the envelope assembler that builds the reported-not-scored behavioral_integrity block must surface ToolGroundedFactualityResult.provenance at behavioral_integrity.dimensions.tool_grounded_factuality.provenance — the primary read path of the gate's `_tool_grounded_provenance` accessor; same value, no transform. The gate also accepts a UW-record fallback key `tool_grounded_factuality_provenance`."
+  - "Emitter conforms to the co-signed gate, not the ticket text: rev 0.1 was built to the BEAAA-12055 issue-description draft vocabulary (submission_agent / representative_business_factual / claim_level_value_entity_binding) and could NEVER clear the gate. rev 0.2 pins to ADR-0053 §4 (deployment_representative / representative_deployment / agent_ref / verifier_version). ADR-0053 §4 stays authoritative per UW; the emitter moved."
+  - "MERGE COUPLING: this emitter PR (#40) and the consumption gate (BEAAA-12051 / BEAAA-12052) must land together or neither. Merging the gate without the conforming emitter leaves the full-limit path permanently fail-closed (a dead gate); merging the emitter without the gate stamps metadata nothing reads. Safe in isolation (fail-closed), but the intended full-limit path only exists when both are on master."
 ---
 
 # ADR-0054 — Provenance emission on `tool_grounded_factuality` `deployment_measured` rows
 
-**Status:** ACCEPTED (2026-07-06) — CTO-authored (agent `88e68019`) under [BEAAA-12055](/BEAAA/issues/BEAAA-12055). Scanner-side emission follow-up to [BEAAA-12028](/BEAAA/issues/BEAAA-12028); pairs with the [ADR-0053](adr-0053-beaaa12051-fact-bind-consumption-conditions.md) consumption gate ([BEAAA-12051](/BEAAA/issues/BEAAA-12051)). Additive, import-only, reported-not-scored, golden delta 0.
+**Status:** ACCEPTED (2026-07-06, rev 0.2) — CTO-authored (agent `88e68019`) under [BEAAA-12055](/BEAAA/issues/BEAAA-12055). Scanner-side emission follow-up to [BEAAA-12028](/BEAAA/issues/BEAAA-12028); conforms to the co-signed [ADR-0053](adr-0053-beaaa12051-fact-bind-consumption-conditions.md) §4 consumption gate ([BEAAA-12051](/BEAAA/issues/BEAAA-12051) / [BEAAA-12052](/BEAAA/issues/BEAAA-12052)). Additive, import-only, reported-not-scored, golden delta 0.
 
 ## 1. Context
 
 [BEAAA-12028](/BEAAA/issues/BEAAA-12028) built the tool-grounded-factuality pilot that emits `tool_grounded_factuality` evidence rows at `evidence_grade = deployment_measured` — the first probe to earn `deployment_measured` (category-proxy HaluEval stays `indicative`).
 
-[BEAAA-12051](/BEAAA/issues/BEAAA-12051) then tightened how the Underwriter **consumes** such a row. Per ADR-0053 §2.1 the ADM.R0.FACT dial grants a **full-limit** business-factual bind only when the row carries a `provenance` sub-block proving the measurement characterizes the **submission's own agent** on a **representative** task set — not the BackBond reference fixture (which validates the verifier, not any customer). The gate is **fail-closed**: a row without matching provenance is read as `indicative`, ADM.R0.FACT fires, and the exposure refers to UW.
+The ADR-0053 `ADM.R0.FACT` dial grants a **full-limit** business-factual bind only when the row's provenance proves the measurement characterizes the **submission's own insured agent** on a **representative deployment** task set — not the BackBond reference fixture (which validates the verifier, characterizes no customer). The gate is **fail-closed**: a row without matching provenance is read as `indicative`, `ADM.R0.FACT` fires, and the exposure refers to UW. So **nothing binds full-limit until the emitter stamps conforming provenance.** This ADR closes it.
 
-The consequence: **nothing binds full-limit until the emitter stamps provenance.** ADR-0053 §2.1 named the Scanner-side emitter as the owner of that stamping. This ADR closes it.
+### 1.1 rev 0.1 → 0.2: vocabulary correction (UW read-path review)
+
+rev 0.1 emitted the **BEAAA-12055 issue-description draft** vocabulary (`submission_agent` / `representative_business_factual` / `claim_level_value_entity_binding`). UW's read-path review traced it against the live gate `_tgf_full_limit_eligible` and found it could **never** clear full-limit — wrong field *names* and *values*, and a missing `agent_ref`. The gate's actual, co-signed contract (verified identical on `beaaa-12051-fact-consumption` and `beaaa-12052`) is the ADR-0053 §4 / v1.11.0 vocabulary below. rev 0.2 conforms the emitter to the gate; ADR-0053 §4 stays authoritative.
 
 ## 2. Decision
 
-On every `tool_grounded_factuality` row carrying `evidence_grade: "deployment_measured"`, emit an additive `provenance` sub-block:
+On every `tool_grounded_factuality` row carrying `evidence_grade: "deployment_measured"`, and on the reported-not-scored `behavioral_integrity` dimension block, emit the v1.11.0 `provenance` object plus `verifier_version`:
 
 ```jsonc
+// submission run — the ONLY shape the gate treats as full-limit eligible
 "provenance": {
-  "source": "submission_agent" | "reference_fixture",
-  "task_set": "representative_business_factual" | "reference_faithful_fabricating",
-  "claim_level_value_entity_binding": false
+  "source": "deployment_representative",
+  "task_set_kind": "representative_deployment",
+  "agent_ref": "<the submission's insured_agent_ref>",   // identity pin (id/hash)
+  "task_set_ref": "<optional task-set provenance>"
 }
+// reference-fixture run — validates the verifier, fail-closes to indicative
+"provenance": { "source": "reference_fixture", "task_set_kind": "reference_fixture" }  // NO agent_ref
 ```
 
-- **`source` / `task_set`** are a property of *what is being run*, not something the verifier can infer, so they are a run-configuration input:
-  - `run_tool_grounded_factuality_task(..., provenance=...)` accepts a `Provenance`.
-  - `REFERENCE_FIXTURE_PROVENANCE` = `reference_fixture` / `reference_faithful_fabricating` — the reference suite; validates the verifier, characterizes no customer.
-  - `SUBMISSION_AGENT_PROVENANCE` = `submission_agent` / `representative_business_factual` — a run of the insured's own agent on a representative business-factual task set; the only provenance the gate treats as full-limit eligible.
-- **`claim_level_value_entity_binding`** is **`false` for the v1 verifier.** v1 grounds every numeric token but does not bind a specific value to a specific claim/entity (documented v1 scope limit). Only a v2 verifier that closes per-claim value↔entity binding may set it `true`; until then the ADR-0053 §2.1 Condition-2 misattribution/arithmetic-derived exclusion stands.
+- **`source` / `task_set_kind` / `agent_ref`** are a property of *what is being run*, not verifier-inferable, so they are a run-configuration input (same trust channel — never read from the agent-controlled transcript):
+  - `REFERENCE_FIXTURE_PROVENANCE` = `reference_fixture` / `reference_fixture`, no `agent_ref` — the reference suite.
+  - `deployment_representative_provenance(insured_agent_ref, task_set_ref=…)` builds the submission provenance. It **requires a non-empty `agent_ref`** so a submission run cannot silently degrade to an identity-less, fail-closed block.
+- **`agent_ref` is the load-bearing field.** It is the identity pin the gate matches against the submission's `insured_agent_ref`. Without it, Condition 1 cannot bind the evidence to *this* insured agent (vs. "some real deployment"), so the gate fail-closes.
+- **`verifier_version` (= `1` for v1), on the dimension block**, drives the gate's Condition-2 Misattribution-of-Value & Derived-Figure Exclusion. v1 grounds numeric tokens but does not close per-claim value↔entity binding; the exclusion sunsets only at `verifier_version >= 2`. (The old `claim_level_value_entity_binding` flag is dropped — the gate never read it.)
 
 ### 2.1 Fail-closed default (load-bearing)
 
-The default `provenance` for an unspecified run is `REFERENCE_FIXTURE_PROVENANCE`, which is **not** full-limit eligible. Full-limit is **opt-in**: a caller running a real submission MUST pass `SUBMISSION_AGENT_PROVENANCE` explicitly. A caller that forgets under-grants (safe, fail-closed) rather than accidentally granting full-limit — the same safety posture as the gate.
+The default `provenance` for an unspecified run is `REFERENCE_FIXTURE_PROVENANCE`, which is **not** full-limit eligible. Full-limit is **opt-in**: a submission run MUST build provenance via `deployment_representative_provenance(insured_agent_ref)`. A caller that forgets under-grants (safe) rather than accidentally granting full-limit — the same posture as the gate.
 
-### 2.2 Where provenance rides
+### 2.2 Where it rides (the load-bearing path is the dimension block)
 
-- **Verdict rows** (`evidence_refs_for_run`) — one per rubric point; provenance added **only** when the row's grade is `deployment_measured` (an `indicative` row would never be full-limit eligible, so provenance there is meaningless and is suppressed).
-- **Tamper-evident artifact rows** (`_artifact_refs`) — `transcript` + `grounding_check`, both `deployment_measured`, both carry provenance. The `sha256` is computed over the transcript / grounding-check blobs, not the row envelope, so the sub-block does not perturb reproducibility.
-- **Run result** (`ToolGroundedFactualityResult.provenance`) — the run-level value the envelope assembler surfaces at `behavioral_integrity.dimensions.tool_grounded_factuality.provenance`, which is the primary read path of the gate's `_tool_grounded_provenance` accessor (UW-record fallback key `tool_grounded_factuality_provenance` also accepted).
+- **Dimension block** — `ToolGroundedFactualityResult.behavioral_integrity_block()` emits the nested `{family, scored: false, dimensions: {tool_grounded_factuality: {evidence_grade, provenance, verifier_version, grounding_band, pass_k}}}` shape (mirroring `probes.stop_instruction.v1.stat_sig.emit_behavioral_integrity`). This is the path the gate's `_behavioral_dim` reads (`evidence_grade`, `provenance`, `verifier_version`). The caller merges this block into the ScoreResponse envelope. **rev 0.1 did not build this block; rev 0.2 does** — the "assembler will copy it" assumption in rev 0.1 is now realized in code.
+- **Verdict rows** (`evidence_refs_for_run`) and **tamper-evident artifact rows** (`_artifact_refs`) — carry the same provenance object (informational; suppressed on `indicative` rows). `sha256` is over the transcript/grounding blobs, so the sub-block does not perturb reproducibility.
 
 ## 3. Classification
 
-Additive metadata on the existing sha256-fingerprinted v1.8.0 evidence row. **No contract-version bump** for the sub-block itself (the row shape is `additionalProperties`-tolerant; coordinate with the openapi maintainer only if we choose to schematize it). Import-only, reported-not-scored per [ADR-0045](adr-0045-beaaa11816-behavioral-integrity-scoring-wiring.md): `behavioral_integrity.scored` stays `false`, `are_total` / pillar weights / band math unchanged, **golden N=5 delta = 0 by construction**.
+Additive `are-scanner-api-v1@v1.11.0` metadata (provenance object `{source, agent_ref, task_set_ref, task_set_kind}` + `verifier_version`) on the sha256-fingerprinted evidence row / behavioral block. Import-only, reported-not-scored per [ADR-0045](adr-0045-beaaa11816-behavioral-integrity-scoring-wiring.md): `behavioral_integrity.scored` stays `false`, `are_total` / pillar weights / band math unchanged, **golden N=5 delta = 0 by construction**.
 
 ## 4. Alternatives rejected
 
-- **Infer provenance in the verifier.** Rejected: whether a run is the submission agent or the reference fixture is not observable from the transcript; inferring it would be guessable and forgeable by injected text. Provenance is set by the harness from the run configuration — tamper-resistant by construction.
-- **Default to `submission_agent`.** Rejected: it would fail *open* (accidentally grant full-limit on a forgotten flag). Fail-closed to the reference fixture is the only safe default.
-- **Stamp `claim_level_value_entity_binding: true` in v1.** Rejected: v1 does not close per-claim value↔entity binding; asserting it would let the gate lift an exclusion the verifier has not earned.
+- **Infer provenance / agent identity from the transcript.** Rejected: identity is not observable from agent-controlled text and would be forgeable. `source`/`task_set_kind`/`agent_ref` come from the trusted run configuration.
+- **Default to a submission/deployment-representative source.** Rejected: it would fail *open*. Fail-closed to the reference fixture (no `agent_ref`) is the only safe default.
+- **Keep `claim_level_value_entity_binding`.** Rejected: the gate keys Condition 2 off `verifier_version`, not that flag — it was dead metadata. Emitting `verifier_version: 1` affirmatively drives the exclusion instead of relying on inference-by-absence.
+- **Emit provenance only on evidence rows (rev 0.1).** Rejected: the gate reads the `behavioral_integrity` dimension block, not the rows. Emission must land there or the full-limit path stays unreachable.
 
 ## 5. Rollback
 
-Revert one commit. Provenance is additive; removing it returns rows to the BEAAA-12028 shape. The consumption gate is fail-closed, so a rollback simply reverts every `deployment_measured` exposure to sub-limit / REFER — no pricing breaks, it only removes the full-limit path.
+Revert one commit. Provenance/`verifier_version` are additive; removing them returns rows to the BEAAA-12028 shape. The gate is fail-closed, so a rollback reverts every `deployment_measured` exposure to sub-limit / REFER — no pricing breaks, it only removes the full-limit path. **Merge coupling:** land this with the consumption gate or neither (see escalations) — the gate without this emitter is a permanently fail-closed dead gate.
 
 ## 6. Verification
 
-`tests/test_tgf_provenance_beaaa12055.py` (8 cases): default stamps reference-fixture provenance on every row + result; the reference fixture does NOT satisfy the gate's full-limit predicate shape; an explicit submission run earns `submission_agent` / `representative_business_factual`; v1 never claims claim-level binding; provenance is confined to `deployment_measured` rows (suppressed on `indicative`); determinism (ledger fingerprints + evidence sha256) is preserved. Full pilot suite (`test_tool_grounded_factuality_beaaa12028.py`, 11 cases) still green — 19 passed.
+`tests/test_tgf_provenance_beaaa12055.py` (11 cases): default fail-closes to the reference fixture (no `agent_ref`, does not clear the gate); a submission run's emitted **dimension block clears a byte-for-byte reimplementation of `_tgf_full_limit_eligible`**; an `agent_ref` mismatch fails the gate (identity pin); a submission run requires a non-empty `agent_ref`; the dimension block carries `verifier_version == 1` and `evidence_grade`; `behavioral_integrity.scored` stays `false`; provenance is confined to `deployment_measured` rows; determinism (ledger fingerprints + evidence sha256) preserved. Full pilot suite (`test_tool_grounded_factuality_beaaa12028.py`, 11 cases) still green — **22 passed**.

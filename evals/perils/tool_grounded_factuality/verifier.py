@@ -165,8 +165,9 @@ def evidence_refs_for_run(
 
     `provenance` (BEAAA-12055) is stamped on each row ONLY when the row carries
     `evidence_grade == "deployment_measured"`. It is the per-submission
-    source/task_set/claim_level_value_entity_binding sub-block consumed by the
-    ADR-0053 ADM.R0.FACT full-limit gate; additive metadata, no score effect.
+    {source, task_set_kind, agent_ref, task_set_ref?} sub-block (ADR-0053 §4 /
+    v1.11.0 vocabulary) whose load-bearing copy the gate reads off the
+    behavioral_integrity dimension block; additive metadata, no score effect.
     """
     refs: list[dict[str, Any]] = []
     scenario_id = run_result["scenario_id"]

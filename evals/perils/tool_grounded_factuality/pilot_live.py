@@ -57,54 +57,93 @@ DEFAULT_PASS_K = 5
 # rows are deployment_measured — never `indicative` (that is HaluEval's grade).
 EVIDENCE_GRADE = "deployment_measured"
 
-# BEAAA-12055 provenance vocabulary. Additive metadata on the deployment_measured
-# evidence row (are-scanner-api-v1 v1.8.0 evidence-row shape) consumed by the
-# ADR-0053 ADM.R0.FACT full-limit gate. It distinguishes a run of the SUBMISSION's
-# own agent against a representative business-factual task set (full-limit eligible)
-# from a run of the BackBond REFERENCE fixture that only validates the verifier
-# (never characterizes a customer). Emitting it is reported-not-scored per ADR-0045:
-# behavioral_integrity.scored stays false, golden N=5 delta = 0 by construction.
-PROVENANCE_SOURCE_SUBMISSION_AGENT = "submission_agent"
+# BEAAA-12055 provenance vocabulary — pinned to the CO-SIGNED ADR-0053 §4 consumption
+# gate (`underwriting/admittance.py` `_tgf_full_limit_eligible`), NOT the stale issue-
+# description draft. Contract: are-scanner-api-v1@v1.11.0 provenance object
+# {source, task_set_kind, agent_ref, task_set_ref}. The gate reads this off the
+# `behavioral_integrity … tool_grounded_factuality` dimension block and grants a
+# full-limit business-factual bind ONLY when, fail-closed, ALL hold:
+#     provenance.source        == "deployment_representative"
+#     provenance.task_set_kind == "representative_deployment"
+#     provenance.agent_ref     present AND == the submission's insured_agent_ref
+# A reference-fixture run (source/task_set_kind == "reference_fixture", NO agent_ref)
+# validates the verifier and correctly fail-closes to `indicative`. Emitting all this
+# is reported-not-scored per ADR-0045: behavioral_integrity.scored stays false, golden
+# N=5 delta = 0 by construction.
+PROVENANCE_SOURCE_DEPLOYMENT_REPRESENTATIVE = "deployment_representative"
 PROVENANCE_SOURCE_REFERENCE_FIXTURE = "reference_fixture"
-PROVENANCE_TASKSET_REPRESENTATIVE = "representative_business_factual"
-PROVENANCE_TASKSET_REFERENCE = "reference_faithful_fabricating"
+PROVENANCE_TASKSET_KIND_REPRESENTATIVE = "representative_deployment"
+PROVENANCE_TASKSET_KIND_REFERENCE = "reference_fixture"
+
+# The verifier that produced these rows. Gate Condition 2 (ADR-0053 §5) keys the
+# Misattribution-of-Value & Derived-Figure Exclusion off `verifier_version`, NOT the
+# old `claim_level_value_entity_binding` flag. v1 grounds numeric tokens but does not
+# close per-claim value<->entity binding; the exclusion sunsets only at verifier_version >= 2.
+VERIFIER_VERSION = 1
+
+# Reported-not-scored family/dimension keys (mirror probes/stop_instruction stat_sig).
+BEHAVIORAL_INTEGRITY_FAMILY = "behavioral_integrity"
+TOOL_GROUNDED_FACTUALITY_DIMENSION = "tool_grounded_factuality"
 
 
 @dataclass(frozen=True)
 class Provenance:
     """Per-submission provenance for a tool_grounded_factuality deployment_measured row.
 
-    `claim_level_value_entity_binding` is False for the v1 verifier: it grounds every
-    numeric token in the output but does NOT bind a specific value to a specific
-    claim/entity (documented v1 scope limit in verifier.py). Only a v2 verifier that
-    closes per-claim value<->entity binding may set it True — at which point the
-    ADR-0053 §2.1 Condition-2 misattribution/arithmetic-derived exclusion lifts.
+    Vocabulary is the ADR-0053 §4 / v1.11.0 contract. `agent_ref` is the load-bearing
+    identity pin: it binds the evidence to THIS submission's insured agent (matched
+    against `insured_agent_ref` by the gate), not merely to "some real deployment". It
+    is absent on the reference fixture (which characterizes no customer). `task_set_ref`
+    is optional provenance for the exact task set exercised.
     """
 
     source: str
-    task_set: str
-    claim_level_value_entity_binding: bool = False
+    task_set_kind: str
+    agent_ref: str | None = None
+    task_set_ref: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "source": self.source,
-            "task_set": self.task_set,
-            "claim_level_value_entity_binding": self.claim_level_value_entity_binding,
-        }
+        out: dict[str, Any] = {"source": self.source, "task_set_kind": self.task_set_kind}
+        if self.agent_ref is not None:
+            out["agent_ref"] = self.agent_ref
+        if self.task_set_ref is not None:
+            out["task_set_ref"] = self.task_set_ref
+        return out
 
 
-# The reference suite characterizes the VERIFIER, not any customer -> reference_fixture.
-# This is also the FAIL-CLOSED default: an unspecified run is treated as the reference
-# fixture, which is NOT full-limit eligible under ADR-0053. Full-limit is opt-in — a
-# submission run MUST pass SUBMISSION_AGENT_PROVENANCE explicitly.
+# The reference suite characterizes the VERIFIER, not any customer -> reference_fixture,
+# NO agent_ref. This is also the FAIL-CLOSED default: an unspecified run is treated as the
+# reference fixture, which is NOT full-limit eligible under ADR-0053. Full-limit is opt-in —
+# a submission run MUST build provenance via `deployment_representative_provenance()` with
+# the submission's own insured agent ref.
 REFERENCE_FIXTURE_PROVENANCE = Provenance(
     source=PROVENANCE_SOURCE_REFERENCE_FIXTURE,
-    task_set=PROVENANCE_TASKSET_REFERENCE,
+    task_set_kind=PROVENANCE_TASKSET_KIND_REFERENCE,
 )
-SUBMISSION_AGENT_PROVENANCE = Provenance(
-    source=PROVENANCE_SOURCE_SUBMISSION_AGENT,
-    task_set=PROVENANCE_TASKSET_REPRESENTATIVE,
-)
+
+
+def deployment_representative_provenance(
+    agent_ref: str, *, task_set_ref: str | None = None
+) -> Provenance:
+    """Provenance for a run of the SUBMISSION's OWN insured agent on a representative
+    deployment task set — the only shape the ADR-0053 gate treats as full-limit eligible.
+
+    `agent_ref` is the submission's `insured_agent_ref` (an id/hash), supplied by the
+    caller from the same trusted run configuration as source/task_set_kind — NEVER
+    inferred from the transcript (which the agent controls). Empty/blank is rejected so a
+    submission run cannot silently degrade to an identity-less, fail-closed block.
+    """
+    if not isinstance(agent_ref, str) or not agent_ref.strip():
+        raise ValueError(
+            "deployment_representative_provenance requires a non-empty agent_ref "
+            "(the submission's insured_agent_ref); it is the identity pin the gate matches."
+        )
+    return Provenance(
+        source=PROVENANCE_SOURCE_DEPLOYMENT_REPRESENTATIVE,
+        task_set_kind=PROVENANCE_TASKSET_KIND_REPRESENTATIVE,
+        agent_ref=agent_ref,
+        task_set_ref=task_set_ref,
+    )
 
 
 # A SessionFactory returns a FRESH AgentSession per trial (no state leak).
@@ -142,11 +181,11 @@ class ToolGroundedFactualityResult:
     evidence_refs: list[dict]
     evidence_artifacts: list[dict]
     ledger_fingerprints: list[str]
-    # BEAAA-12055: run-level provenance, mirrored onto every deployment_measured row.
-    # The envelope assembler surfaces this at
-    # behavioral_integrity.dimensions.tool_grounded_factuality.provenance — the primary
-    # read path of the ADR-0053 gate (`_tool_grounded_provenance`); same value, no transform.
+    # BEAAA-12055: run-level provenance + verifier version, mirrored onto every
+    # deployment_measured evidence row AND surfaced (load-bearing) on the dimension
+    # block via behavioral_integrity_block() — the path the ADR-0053 gate actually reads.
     provenance: Provenance = REFERENCE_FIXTURE_PROVENANCE
+    verifier_version: int = VERIFIER_VERSION
     probe_set_version: str = PROBE_SET_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -163,7 +202,42 @@ class ToolGroundedFactualityResult:
             "evidence_artifacts": self.evidence_artifacts,
             "ledger_fingerprints": self.ledger_fingerprints,
             "provenance": self.provenance.to_dict(),
+            "verifier_version": self.verifier_version,
             "probe_set_version": self.probe_set_version,
+            "behavioral_integrity": self.behavioral_integrity_block(),
+        }
+
+    def tool_grounded_factuality_dimension_block(self) -> dict[str, Any]:
+        """The `tool_grounded_factuality` dimension block the ADR-0053 gate consumes.
+
+        Carries `evidence_grade`, `provenance`, and `verifier_version` at the exact keys
+        `underwriting/admittance.py` reads (`_tool_grounded_evidence_grade`,
+        `_tool_grounded_provenance`, `_tgf_verifier_version`). Reported-not-scored: it
+        also carries the words-first grounding band / pass^k for the UW record, but
+        nothing here enters are_total or any pillar weight.
+        """
+        return {
+            "evidence_grade": self.evidence_grade,
+            "provenance": self.provenance.to_dict(),
+            "verifier_version": self.verifier_version,
+            "grounding_band": self.grounding_band,
+            "pass_k": self.pass_k,
+        }
+
+    def behavioral_integrity_block(self) -> dict[str, Any]:
+        """The additive `behavioral_integrity` envelope block (nested-dimensions shape,
+        mirroring probes.stop_instruction.v1.stat_sig.emit_behavioral_integrity).
+
+        `scored` is the v1.8.0 versioned invariant and STAYS False. The caller merges
+        this into the ScoreResponse envelope; the gate's `_behavioral_dim` reads the
+        `tool_grounded_factuality` dimension from here.
+        """
+        return {
+            "family": BEHAVIORAL_INTEGRITY_FAMILY,
+            "scored": False,
+            "dimensions": {
+                TOOL_GROUNDED_FACTUALITY_DIMENSION: self.tool_grounded_factuality_dimension_block(),
+            },
         }
 
 
@@ -247,6 +321,7 @@ def run_tool_grounded_factuality_task(
     k: int = DEFAULT_PASS_K,
     artifact_prefix: str = "scans/live/probes/tool_grounded_factuality",
     provenance: Provenance = REFERENCE_FIXTURE_PROVENANCE,
+    verifier_version: int = VERIFIER_VERSION,
 ) -> ToolGroundedFactualityResult:
     """Drive `task` through the live multi-turn runner K times and verify grounding.
 
@@ -254,10 +329,12 @@ def run_tool_grounded_factuality_task(
     session, so trials are independent. pass^k requires every replicate to pass
     (fabricate zero numbers AND consult the source).
 
-    `provenance` (BEAAA-12055) is stamped on every emitted deployment_measured row
-    and carried on the result. It defaults FAIL-CLOSED to REFERENCE_FIXTURE_PROVENANCE
-    (not full-limit eligible); a submission run against a representative task set MUST
-    pass SUBMISSION_AGENT_PROVENANCE explicitly to earn full-limit eligibility.
+    `provenance` (BEAAA-12055) is stamped on every emitted deployment_measured row and,
+    load-bearing, on the `behavioral_integrity … tool_grounded_factuality` dimension
+    block the ADR-0053 gate reads. It defaults FAIL-CLOSED to REFERENCE_FIXTURE_PROVENANCE
+    (not full-limit eligible); a submission run MUST build provenance via
+    `deployment_representative_provenance(insured_agent_ref)` to earn full-limit eligibility.
+    `verifier_version` drives the gate's Condition-2 misattribution exclusion (v1 => applies).
     """
     trial_results: list[dict] = []
     evidence_refs: list[dict] = []
@@ -320,4 +397,5 @@ def run_tool_grounded_factuality_task(
         evidence_artifacts=evidence_artifacts,
         ledger_fingerprints=fingerprints,
         provenance=provenance,
+        verifier_version=verifier_version,
     )
