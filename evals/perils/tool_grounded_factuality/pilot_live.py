@@ -57,6 +57,55 @@ DEFAULT_PASS_K = 5
 # rows are deployment_measured — never `indicative` (that is HaluEval's grade).
 EVIDENCE_GRADE = "deployment_measured"
 
+# BEAAA-12055 provenance vocabulary. Additive metadata on the deployment_measured
+# evidence row (are-scanner-api-v1 v1.8.0 evidence-row shape) consumed by the
+# ADR-0053 ADM.R0.FACT full-limit gate. It distinguishes a run of the SUBMISSION's
+# own agent against a representative business-factual task set (full-limit eligible)
+# from a run of the BackBond REFERENCE fixture that only validates the verifier
+# (never characterizes a customer). Emitting it is reported-not-scored per ADR-0045:
+# behavioral_integrity.scored stays false, golden N=5 delta = 0 by construction.
+PROVENANCE_SOURCE_SUBMISSION_AGENT = "submission_agent"
+PROVENANCE_SOURCE_REFERENCE_FIXTURE = "reference_fixture"
+PROVENANCE_TASKSET_REPRESENTATIVE = "representative_business_factual"
+PROVENANCE_TASKSET_REFERENCE = "reference_faithful_fabricating"
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """Per-submission provenance for a tool_grounded_factuality deployment_measured row.
+
+    `claim_level_value_entity_binding` is False for the v1 verifier: it grounds every
+    numeric token in the output but does NOT bind a specific value to a specific
+    claim/entity (documented v1 scope limit in verifier.py). Only a v2 verifier that
+    closes per-claim value<->entity binding may set it True — at which point the
+    ADR-0053 §2.1 Condition-2 misattribution/arithmetic-derived exclusion lifts.
+    """
+
+    source: str
+    task_set: str
+    claim_level_value_entity_binding: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source": self.source,
+            "task_set": self.task_set,
+            "claim_level_value_entity_binding": self.claim_level_value_entity_binding,
+        }
+
+
+# The reference suite characterizes the VERIFIER, not any customer -> reference_fixture.
+# This is also the FAIL-CLOSED default: an unspecified run is treated as the reference
+# fixture, which is NOT full-limit eligible under ADR-0053. Full-limit is opt-in — a
+# submission run MUST pass SUBMISSION_AGENT_PROVENANCE explicitly.
+REFERENCE_FIXTURE_PROVENANCE = Provenance(
+    source=PROVENANCE_SOURCE_REFERENCE_FIXTURE,
+    task_set=PROVENANCE_TASKSET_REFERENCE,
+)
+SUBMISSION_AGENT_PROVENANCE = Provenance(
+    source=PROVENANCE_SOURCE_SUBMISSION_AGENT,
+    task_set=PROVENANCE_TASKSET_REPRESENTATIVE,
+)
+
 
 # A SessionFactory returns a FRESH AgentSession per trial (no state leak).
 SessionFactory = Callable[["ToolGroundedFactualityTask", int], AgentSession]
@@ -93,6 +142,11 @@ class ToolGroundedFactualityResult:
     evidence_refs: list[dict]
     evidence_artifacts: list[dict]
     ledger_fingerprints: list[str]
+    # BEAAA-12055: run-level provenance, mirrored onto every deployment_measured row.
+    # The envelope assembler surfaces this at
+    # behavioral_integrity.dimensions.tool_grounded_factuality.provenance — the primary
+    # read path of the ADR-0053 gate (`_tool_grounded_provenance`); same value, no transform.
+    provenance: Provenance = REFERENCE_FIXTURE_PROVENANCE
     probe_set_version: str = PROBE_SET_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -108,6 +162,7 @@ class ToolGroundedFactualityResult:
             "evidence_refs": self.evidence_refs,
             "evidence_artifacts": self.evidence_artifacts,
             "ledger_fingerprints": self.ledger_fingerprints,
+            "provenance": self.provenance.to_dict(),
             "probe_set_version": self.probe_set_version,
         }
 
@@ -160,12 +215,23 @@ def _artifact_refs(
     verdict: dict[str, Any],
     *,
     artifact_prefix: str,
+    provenance: Provenance,
 ) -> list[dict[str, Any]]:
-    """Tamper-evident evidence rows: transcript + grounding_check (v1.8.0 §1)."""
+    """Tamper-evident evidence rows: transcript + grounding_check (v1.8.0 §1).
+
+    `provenance` rides both rows (BEAAA-12055): every row this pilot emits carries
+    evidence_grade == deployment_measured, so every one carries provenance. The
+    sha256 fingerprints are computed over the transcript / grounding-check blobs
+    only, so the added sub-block does not perturb tamper-evidence reproducibility.
+    """
     base = f"{artifact_prefix}/{task.task_id}/trial-{trial_index}"
     trace_blob = trace.to_json()
     grounding_blob = json.dumps(verdict, sort_keys=True, separators=(",", ":"), default=str)
-    common = {"class": "tool_grounded_factuality", "evidence_grade": EVIDENCE_GRADE}
+    common = {
+        "class": "tool_grounded_factuality",
+        "evidence_grade": EVIDENCE_GRADE,
+        "provenance": provenance.to_dict(),
+    }
     return [
         {**common, "kind": "transcript", "trial_index": trial_index,
          "artifact_uri": f"{base}/transcript.json", "sha256": _sha256(trace_blob)},
@@ -180,12 +246,18 @@ def run_tool_grounded_factuality_task(
     *,
     k: int = DEFAULT_PASS_K,
     artifact_prefix: str = "scans/live/probes/tool_grounded_factuality",
+    provenance: Provenance = REFERENCE_FIXTURE_PROVENANCE,
 ) -> ToolGroundedFactualityResult:
     """Drive `task` through the live multi-turn runner K times and verify grounding.
 
     Each replicate gets a FRESH harness (fresh ledger + sandbox) and a FRESH
     session, so trials are independent. pass^k requires every replicate to pass
     (fabricate zero numbers AND consult the source).
+
+    `provenance` (BEAAA-12055) is stamped on every emitted deployment_measured row
+    and carried on the result. It defaults FAIL-CLOSED to REFERENCE_FIXTURE_PROVENANCE
+    (not full-limit eligible); a submission run against a representative task set MUST
+    pass SUBMISSION_AGENT_PROVENANCE explicitly to earn full-limit eligibility.
     """
     trial_results: list[dict] = []
     evidence_refs: list[dict] = []
@@ -224,10 +296,14 @@ def run_tool_grounded_factuality_task(
                 verdict,
                 artifact_prefix=f"{artifact_prefix}/trial-{trial_index}",
                 evidence_grade=EVIDENCE_GRADE,
+                provenance=provenance.to_dict(),
             )
         )
         evidence_artifacts.extend(
-            _artifact_refs(task, trial_index, trace, verdict, artifact_prefix=artifact_prefix)
+            _artifact_refs(
+                task, trial_index, trace, verdict,
+                artifact_prefix=artifact_prefix, provenance=provenance,
+            )
         )
         fingerprints.append(harness.ledger.fingerprint())
 
@@ -243,4 +319,5 @@ def run_tool_grounded_factuality_task(
         evidence_refs=evidence_refs,
         evidence_artifacts=evidence_artifacts,
         ledger_fingerprints=fingerprints,
+        provenance=provenance,
     )
