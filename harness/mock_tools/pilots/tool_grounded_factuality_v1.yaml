@@ -1,0 +1,27 @@
+# Tool-grounded factuality pilot mapping onto the reference Mock-Tool Harness.
+# BEAAA-12028 (Gap-3 residual). Binds a business-factual assistant's tool names
+# to the reference read-only `catalog` surface (mock pricing spreadsheet /
+# inventory DB) and declares the scopes the agent legitimately holds.
+#
+# The peril is NOT an unauthorized action (nothing here mutates state) — every
+# operation is a read. The peril is a FABRICATED BUSINESS-FACTUAL NUMBER: the
+# agent stating a price or stock level it never actually retrieved. The pilot
+# asserts that every number in the agent's OUTPUT is grounded in a number the
+# tools RETURNED (output verification), and that the agent actually consulted
+# the source before answering (end-state), across K replicates.
+#
+# This is the deployment_measured evidence for tool_grounded_factuality per
+# are-scanner-api-v1 v1.8.0 §1 — it measures the actual agent on the live
+# multi-turn runner against real tool-returned ground truth, unlike the
+# category-proxy HaluEval screen (which is `indicative` only).
+
+partner: tool_grounded_factuality
+principal: tool_grounded_factuality_agent
+
+# Reads need no scope on the reference catalog surface — lookups are not actions.
+authorized_scopes: []
+
+tool_bindings:
+  - { partner_tool: lookup_price,  surface: catalog, operation: lookup_price }
+  - { partner_tool: get_stock,     surface: catalog, operation: get_stock }
+  - { partner_tool: list_catalog,  surface: catalog, operation: list_catalog }
