@@ -86,6 +86,7 @@ REDACTION_POLICY_VERSION = "0.1"
 # Additive to v0.1; no v0.1 wire field reshape; no are-scanner-api-v1@v1.0 Output change.
 SCHEDULE_POLICY_VERSION = "0.1"
 SCAN_DIFF_VERSION = "0.1"
+VENDOR_SCAN_CAPABILITY_MANIFEST_VERSION = "0.1"
 # BEAAA-4967 / BEAAA-4912 — telemetry-api-v0 additive surface.
 # Additive to v0.1 + v0.2; no are-scanner-api-v1@v1.0 Output change.
 TELEMETRY_API_VERSION = "0.1"
@@ -210,6 +211,28 @@ ROLLUP_BIAS_NOTE = (
     "See BEAAA-5750."
 )
 ROLLUP_BLOCK_HEADING = "Peril-aligned underwriting rollup"
+DEVELOPED_BUT_UNAVAILABLE_CAPABILITY_FAMILIES: tuple[dict[str, str], ...] = (
+    {
+        "family": "scanner_source_0_5_0",
+        "reason_code": "portal_pin_holdback",
+        "reason": "Portal vendor scans run the effective portal scanner pin; exposing scanner 0.5.0 requires release plumbing and calibration gate.",
+    },
+    {
+        "family": "tau_multi_turn_transaction_correctness",
+        "reason_code": "reported_not_scored",
+        "reason": "TAU / multi-turn work is developed as evidence-only and is not wired into the BackBond Score total.",
+    },
+    {
+        "family": "behavioral_integrity",
+        "reason_code": "reported_not_scored",
+        "reason": "Behavioral-integrity signals are reported separately from are_total and require the dedicated release lane before vendor-scan exposure.",
+    },
+    {
+        "family": "customer_true_walker",
+        "reason_code": "flag_gated",
+        "reason": "Customer-agent walker is unavailable unless ARE_WALKER_CUSTOMER_AGENT=1; default vendor scans preserve the synthetic/fallback path.",
+    },
+)
 
 
 def _build_peril_rollup(score: dict[str, Any]) -> dict[str, Any]:
@@ -955,7 +978,12 @@ class PortalService:
         self.db.execute("UPDATE scans SET status = 'running' WHERE id = ?", (scan_id,))
         self.db.commit()
         self.audit(actor, "scan_triggered", "scan", scan_id, {"dp_id": dp_id, "task_count": len(task_defs)})
-        return {"scan_id": scan_id, "status": "running", "task_count": len(task_defs)}
+        return {
+            "scan_id": scan_id,
+            "status": "running",
+            "task_count": len(task_defs),
+            "vendor_scan_capability_manifest": self.vendor_scan_capability_manifest(),
+        }
 
     def next_task(self, scan_id: str, connector_id: str | None = None) -> tuple[int, dict[str, Any] | None]:
         scan = self.db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
@@ -1094,6 +1122,70 @@ class PortalService:
         self.render_report(scan_id, "evidence_appendix")
         return score
 
+    def vendor_scan_capability_manifest(
+        self,
+        *,
+        scanner_binary_path: str | None = None,
+        fallback_mode: str | None = None,
+        scanner_reported_version: str | None = None,
+        scanner_reported_corpus_version: str | None = None,
+    ) -> dict[str, Any]:
+        """Machine-readable vendor-scan lane disclosure.
+
+        BEAAA-12093 rule-execution plumbing: this does not affect are_total,
+        subscores, evidence weights, rubric, corpus, or contract meaning.
+        """
+        detected_binary = scanner_binary_path if scanner_binary_path is not None else self._scanner_binary()
+        effective_fallback_mode = fallback_mode or ("real_scanner_binary" if detected_binary else "fixture_fallback")
+        env = {
+            "ARE_SCAN_BIN": os.environ.get("ARE_SCAN_BIN", ""),
+            "ARE_SCAN_REQUIRE_REAL": os.environ.get("ARE_SCAN_REQUIRE_REAL", ""),
+            "ARE_PRODUCTION_SCAN_WIRING": os.environ.get("ARE_PRODUCTION_SCAN_WIRING", ""),
+            "ARE_WALKER_CUSTOMER_AGENT": os.environ.get("ARE_WALKER_CUSTOMER_AGENT", ""),
+            "ARE_SCORER_REAL": os.environ.get("ARE_SCORER_REAL", ""),
+        }
+        developed_but_unavailable = [dict(item) for item in DEVELOPED_BUT_UNAVAILABLE_CAPABILITY_FAMILIES]
+        if env["ARE_PRODUCTION_SCAN_WIRING"] not in {"1", "true", "yes"}:
+            developed_but_unavailable.append(
+                {
+                    "family": "production_scan_runtime",
+                    "reason_code": "production_runtime_unconfigured",
+                    "reason": "Production scan runtime is unavailable unless ARE_PRODUCTION_SCAN_WIRING=1.",
+                }
+            )
+        pin_mismatches = []
+        if scanner_reported_version is not None and scanner_reported_version != SCANNER_VERSION:
+            pin_mismatches.append(
+                {
+                    "field": "scanner_version",
+                    "portal_pin": SCANNER_VERSION,
+                    "scanner_reported": scanner_reported_version,
+                    "reason_code": "scanner_binary_pin_mismatch",
+                }
+            )
+        if scanner_reported_corpus_version is not None and scanner_reported_corpus_version != CORPUS_VERSION:
+            pin_mismatches.append(
+                {
+                    "field": "corpus_version",
+                    "portal_pin": CORPUS_VERSION,
+                    "scanner_reported": scanner_reported_corpus_version,
+                    "reason_code": "scanner_binary_pin_mismatch",
+                }
+            )
+        return {
+            "manifest_version": VENDOR_SCAN_CAPABILITY_MANIFEST_VERSION,
+            "portal_version": PORTAL_VERSION,
+            "scanner_version": SCANNER_VERSION,
+            "corpus_version": CORPUS_VERSION,
+            "rubric_version": RUBRIC_VERSION,
+            "contract_version": "are-scanner-api-v1@v1.0",
+            "scanner_binary_path": detected_binary,
+            "fixture_fallback_mode": effective_fallback_mode,
+            "environment": env,
+            "pin_mismatches": pin_mismatches,
+            "developed_but_unavailable_capability_families": developed_but_unavailable,
+        }
+
     def _run_scanner_adapter(self, scan_id: str, eval_results_path: Path, envelopes: list[sqlite3.Row]) -> dict[str, Any]:
         are_scan = self._scanner_binary()
         if are_scan:
@@ -1108,11 +1200,23 @@ class PortalService:
                 result = json.loads(proc.stdout)
             else:
                 raise PortalError(500, "are_scan_failed", proc.stderr[-500:])
+            result["vendor_scan_capability_manifest"] = self.vendor_scan_capability_manifest(
+                scanner_binary_path=are_scan,
+                fallback_mode="real_scanner_binary",
+                scanner_reported_version=str(result.get("scanner_version", "")),
+                scanner_reported_corpus_version=str(result.get("corpus_version", "")),
+            )
             self._validate_scanner_output(result)
         else:
             if os.environ.get("ARE_SCAN_REQUIRE_REAL", "").lower() in {"1", "true", "yes"}:
                 raise PortalError(503, "are_scan_unavailable", "are-scan binary is required but was not found.")
             result = self._fixture_score(scan_id, envelopes)
+            result["vendor_scan_capability_manifest"] = self.vendor_scan_capability_manifest(
+                scanner_binary_path=None,
+                fallback_mode="fixture_fallback",
+                scanner_reported_version=SCANNER_VERSION,
+                scanner_reported_corpus_version=CORPUS_VERSION,
+            )
         scan = self.db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
         chains = [json.loads(row["signature_chain_json"]) for row in envelopes]
         result.update(
@@ -1226,6 +1330,17 @@ class PortalService:
         self.audit("portal", "underwriting_rollup_fetched", "scan", scan_id, {"rollup_version": rollup["rollup_version"]})
         return rollup
 
+    def get_vendor_scan_capability_manifest(self, scan_id: str) -> dict[str, Any]:
+        scan = self.db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
+        if not scan:
+            raise PortalError(404, "scan_not_found", "Scan not found.")
+        if scan["score_json"]:
+            score = json.loads(scan["score_json"])
+            manifest = score.get("vendor_scan_capability_manifest")
+            if isinstance(manifest, dict):
+                return manifest
+        return self.vendor_scan_capability_manifest()
+
     def render_report(self, scan_id: str, variant: str) -> str:
         scan = self.db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
         if not scan or not scan["score_json"]:
@@ -1301,6 +1416,7 @@ button{{padding:9px 12px}}
 {self._render_peril_rollup_block(score)}<h2>Rubric Dimensions</h2><table><tr><th>Rubric point</th><th>Verdict</th></tr>{dims}</table>
 <h2>Evidence References</h2><table><tr><th>Rubric point</th><th>Test ID</th><th>Artifact URI</th><th>Verdict</th></tr>{refs}</table>
 <h2>Output Metadata</h2><pre>{html.escape(json.dumps({k: score[k] for k in ['scanner_version','corpus_version','portal_version','connector_version','endpoint_config_hash','confidence','seed']}, indent=2))}</pre>
+<h2>Vendor Scan Capability Manifest</h2><pre>{html.escape(json.dumps(score.get('vendor_scan_capability_manifest', self.vendor_scan_capability_manifest()), indent=2, sort_keys=True))}</pre>
 <p><strong>Non-binding pre-bind diagnostic.</strong> This report is not a signed quote, binder, or coverage commitment.</p>
 """
         return self._render_page(title, body)
@@ -2665,6 +2781,16 @@ class PortalHandler(BaseHTTPRequestHandler):
                 # Pure derived view over already-persisted score. Outside are-scanner-api-v1@v1.0 Output.
                 self._require_portal_read(dp_id=self._scan_owner_dp_id(parts[3]))
                 self._json(200, self.service.get_underwriting_rollup(parts[3]))
+            elif (
+                len(parts) == 5
+                and parts[0] == "api"
+                and parts[1] == "v1"
+                and parts[2] == "scans"
+                and parts[4] == "vendor_scan_capability_manifest"
+            ):
+                # BEAAA-12093 — additive vendor-scan lane disclosure. Non-score-moving.
+                self._require_portal_read(dp_id=self._scan_owner_dp_id(parts[3]))
+                self._json(200, self.service.get_vendor_scan_capability_manifest(parts[3]))
             elif len(parts) == 3 and parts[0] == "scans" and parts[2] == "diff":
                 # BEAAA-4937 / v0.2 §5.1 — admin/UW GET on persisted scan_diff artifact.
                 self._require_admin()  # BEAAA-4996
