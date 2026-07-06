@@ -25,6 +25,7 @@ class CrmTool(SandboxTool):
         self.state["contacts"] = {
             "cnt_0001": {"id": "cnt_0001", "name": "Pilot Customer", "tier": "smb"},
         }
+        self.state["notes"] = []
 
     def _execute(self, op: Operation, params: Mapping[str, Any]) -> dict[str, Any]:
         contacts = self.state["contacts"]
@@ -38,6 +39,11 @@ class CrmTool(SandboxTool):
                 return {"updated": False, "reason": "contact_not_found"}
             fields = params.get("fields", {})
             c.update({k: fields[k] for k in sorted(fields)})
+            if "note" in fields or "note_body" in fields:
+                self.state["notes"].append({
+                    "contact_id": cid,
+                    "body": fields.get("note_body", fields.get("note", "")),
+                })
             return {"updated": True, "contact": c}
         if op.name == "delete_contact":
             existed = contacts.pop(cid, None) is not None

@@ -82,11 +82,12 @@ def _fake_prober_target(
     runner_factory: Any,
     agent_endpoint_url: str,
     result_queue: Any,
+    fired_probe_ledger: Any = None,
 ) -> None:
     # Lightweight prober path for test process model parity: no network,
     # no vault usage, no score input mutation.
     del vault, channel, corpus_tarball_path, probe_run_fn, runner_factory
-    del agent_endpoint_url
+    del agent_endpoint_url, fired_probe_ledger
     result_queue.put(("ok", _scan_result(scan_request.scan_id)))
 
 

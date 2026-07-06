@@ -5,7 +5,6 @@ and lets unittest target handlers directly without booting an ASGI app.
 """
 from __future__ import annotations
 
-import os
 import json
 import logging
 import uuid
@@ -20,6 +19,7 @@ from rubric.scoring import Rubric
 from harness.secret_redaction import redact_secret_obj
 
 from .bundle import BundleStore
+from .config import ApiConfig
 from .edge_gateway import AuthError, EdgeGateway, RateLimited
 from .handlers import (
     HandlerError,
@@ -81,9 +81,7 @@ def _http_error(status_code: int, detail: Any) -> HTTPException:
 
 
 def _api_auth_required(runtime_profile: str) -> bool:
-    if os.environ.get(API_AUTH_TOKENS_ENV):
-        return True
-    return runtime_profile in {"pilot", "prod"}
+    return ApiConfig.from_env().api_auth_required(runtime_profile)
 
 
 def _bearer_token(request: Request) -> str:
@@ -114,7 +112,7 @@ def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | No
         except AuthError as exc:
             raise _http_error(401, exc.code) from exc
 
-    raw_mapping = os.environ.get(API_AUTH_TOKENS_ENV)
+    raw_mapping = ApiConfig.from_env().api_auth_tokens_raw
     required = _api_auth_required(runtime_profile)
     if not raw_mapping and not required:
         return None
@@ -169,7 +167,7 @@ def _uw_audience_entitled(authenticated_tenant_id: str | None) -> bool:
     """
     if authenticated_tenant_id is None:
         return True
-    raw = os.environ.get(UW_AUDIENCE_TENANTS_ENV)
+    raw = ApiConfig.from_env().uw_audience_tenants_raw
     if not raw:
         return False
     try:
@@ -204,8 +202,9 @@ def create_app(
     routing_event_sink: RoutingEventSink | None = None,
 ) -> FastAPI:
     runtime_profile = current_runtime_profile()
-    if not os.environ.get("ARE_BUNDLE_SIGNING_KEY") and os.environ.get("ARE_ALLOW_DEV_SIGNING_KEY") != "true":
-        raise ValueError("ARE_BUNDLE_SIGNING_KEY must be set in production")
+    # BEAAA-12021 — build + validate the typed config once at startup.
+    config = ApiConfig.from_env()
+    config.require_production_signing_key()
     app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.runtime_profile = runtime_profile
@@ -216,7 +215,7 @@ def create_app(
     # 503 path so the offline ``/score`` path is untouched. Lazy-import the
     # factory so test setups that never construct a real ``ScanRuntime``
     # don't pay the multiprocessing import cost.
-    if scan_runtime is None and os.environ.get(PRODUCTION_SCAN_WIRING_ENV) == "1":
+    if scan_runtime is None and config.production_scan_wiring:
         from .scan_runtime_factory import make_default_production_scan_runtime
         scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
@@ -352,7 +351,7 @@ def create_app(
         # to ``off`` explicitly.
         body = await request.json()
         tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
-        if os.environ.get(RESCANS_MEASURED_ENV) == RESCANS_MEASURED_OFF:
+        if ApiConfig.from_env().rescans_measured_off:
             return JSONResponse(
                 status_code=200,
                 content={

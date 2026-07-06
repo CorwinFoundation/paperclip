@@ -37,6 +37,7 @@ class EmailTool(SandboxTool):
         record = {
             "to": to,
             "subject": params.get("subject", ""),
+            "body": params.get("body", params.get("text", "")),
             "delivered": False,  # sandbox never delivers
             "allowlisted": allowed,
         }

@@ -32,7 +32,6 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import time
 import uuid
@@ -49,6 +48,7 @@ from api.ci_scan_ext import (
     compute_probe_set_hash,
     gate_disposition,
 )
+from api.config import ApiConfig
 from api.handlers import HandlerError, verify_tenant_isolation
 from api.scan_log import ScanLog
 from api.sla import (
@@ -555,10 +555,7 @@ def _verify_live_egress_fail_closed(
             scanner_version=str(scanner_version),
             corpus_version=str(corpus_version),
             seed=seed,
-            execution_environment=os.environ.get(
-                "BACKBOND_EXECUTION_ENVIRONMENT",
-                "scanner-runtime",
-            ),
+            execution_environment=ApiConfig.from_env().execution_environment,
         )
     except egress.LiveEgressPostureError as exc:
         raise HandlerError(422, "live_egress_default_deny_unverified") from exc
@@ -817,7 +814,7 @@ def _kickoff_live_probe_scan(
         raise HandlerError(422, "credential_secret_invalid")
     # BEAAA-11726 item 1 — scan_tier: smoke|full, default full.
     # ARE_SCAN_TIER=off disables smoke tier (Tier-1 rollback).
-    _scan_tier_enabled = os.environ.get(SCAN_TIER_ENV, "on") != "off"
+    _scan_tier_enabled = ApiConfig.from_env().scan_tier_enabled
     raw_scan_tier = body.get("scan_tier") if _scan_tier_enabled else None
     if raw_scan_tier is not None and raw_scan_tier not in ("smoke", "full"):
         raise HandlerError(422, "scan_tier_invalid")
@@ -825,7 +822,7 @@ def _kickoff_live_probe_scan(
 
     # corpus_snapshot_hash: required for full, can default to pinned for smoke.
     if "corpus_snapshot_hash" not in body and scan_tier == "smoke":
-        _pinned = os.environ.get(PINNED_CORPUS_SNAPSHOT_HASH_ENV, "")
+        _pinned = ApiConfig.from_env().pinned_corpus_snapshot_hash
         if not _pinned:
             raise HandlerError(422, "pinned_corpus_hash_unconfigured")
         corpus_snapshot_hash = _validate_corpus_snapshot_hash(_pinned)
@@ -846,7 +843,7 @@ def _kickoff_live_probe_scan(
 
     # BEAAA-11726 item 2 — webhook config extraction.
     # ARE_SCAN_WEBHOOK=off disables delivery; unset/on enables.
-    _webhook_enabled = os.environ.get(SCAN_WEBHOOK_ENV, "on") != "off"
+    _webhook_enabled = ApiConfig.from_env().scan_webhook_enabled
     _webhook_cfg: dict[str, str] | None = None
     if _webhook_enabled:
         raw_webhook = body.get("webhook")
