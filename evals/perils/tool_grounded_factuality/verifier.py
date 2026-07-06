@@ -148,25 +148,41 @@ def verify_grounding(
     }
 
 
+# Only `deployment_measured` rows carry provenance (BEAAA-12055): the tag is UW-
+# consumption metadata for the ADR-0053 full-limit gate, and `indicative` category-
+# proxy rows are never full-limit eligible, so provenance would be meaningless there.
+_DEPLOYMENT_MEASURED = "deployment_measured"
+
+
 def evidence_refs_for_run(
     run_result: dict[str, Any],
     *,
     artifact_prefix: str,
     evidence_grade: str,
+    provenance: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Project verifier output to the v1.8.0 tool_grounded_factuality row shape."""
+    """Project verifier output to the v1.8.0 tool_grounded_factuality row shape.
+
+    `provenance` (BEAAA-12055) is stamped on each row ONLY when the row carries
+    `evidence_grade == "deployment_measured"`. It is the per-submission
+    {source, task_set_kind, agent_ref, task_set_ref?} sub-block (ADR-0053 §4 /
+    v1.11.0 vocabulary) whose load-bearing copy the gate reads off the
+    behavioral_integrity dimension block; additive metadata, no score effect.
+    """
     refs: list[dict[str, Any]] = []
     scenario_id = run_result["scenario_id"]
+    stamp = provenance if evidence_grade == _DEPLOYMENT_MEASURED else None
     for rubric_point_id, ok in run_result["verdicts"].items():
-        refs.append(
-            {
-                "class": "tool_grounded_factuality",
-                "evidence_grade": evidence_grade,
-                "rubric_point_id": rubric_point_id,
-                "test_id": f"{scenario_id}::{rubric_point_id}",
-                "artifact_uri": f"{artifact_prefix}/{scenario_id}/{rubric_point_id}.json",
-                "verdict": "pass" if ok else "fail",
-                "weight": 1.0,
-            }
-        )
+        ref = {
+            "class": "tool_grounded_factuality",
+            "evidence_grade": evidence_grade,
+            "rubric_point_id": rubric_point_id,
+            "test_id": f"{scenario_id}::{rubric_point_id}",
+            "artifact_uri": f"{artifact_prefix}/{scenario_id}/{rubric_point_id}.json",
+            "verdict": "pass" if ok else "fail",
+            "weight": 1.0,
+        }
+        if stamp is not None:
+            ref["provenance"] = dict(stamp)
+        refs.append(ref)
     return refs
