@@ -17,7 +17,7 @@ proof_points_cited:
   - "pricing/quote.py:_misattribution_exclusion_endorsement"
 brand_backbone_applicable: false   # internal decision record, not an external-bound asset
 status: ACCEPTED  # both co-signs RECORDED (HUW 93e0b62b + CEO ca0edebc via BEAAA-12060); DO-NOT-MERGE until PR #40 spec-§4 reconciliation lands before/with PR #41
-contract_version: "are-scanner-api-v1@v1.10.0 -> v1.11.0 (proposed additive minor)"
+contract_version: "are-scanner-api-v1@v1.11.0 -> v1.12.0 (proposed additive minor)"
 scanner_version: "0.5.0"
 corpus_version: "rubric.yaml@1.2.0"
 bands_version: "1.0"
@@ -28,7 +28,7 @@ self_audit_passed: true
 escalations_noted:
   - "DO-NOT-MERGE gate: the ADM.R0.FACT consumption flip is a fresh HUW + CEO re-cosign event on BEAAA-12051 (admittance_rules.yaml header / ADR-0045 §4). Both co-signs are now RECORDED (HUW 93e0b62b spec-match; CEO ca0edebc admittance-dial APPROVED on BEAAA-12060), captured against request_confirmation 5cbc31e4. One CEO-level merge precondition remains: emitter PR #40 must adopt spec §4 and land before/with PR #41 (else a dead gate). Do not merge PR #41 until PR #40 is reconciled/landed."
   - "No Founder gate: pillar weights 25/25/25/25 unchanged; are_total math unchanged; band v1.0 frozen math unchanged; behavioral_integrity.scored stays false. This is a UW admittance/pricing dial, not a scoring change."
-  - "Contract bump is additive minor (v1.10.0 -> v1.11.0): one new reported-not-scored provenance object + one optional verifier_version int on tool_grounded_factuality. No field renamed or removed; a consumer that ignores them reads a byte-identical v1.10.0 envelope."
+  - "Contract bump is additive minor (v1.11.0 -> v1.12.0): one new reported-not-scored provenance object + one optional verifier_version int on tool_grounded_factuality. No field renamed or removed; a consumer that ignores them reads a byte-identical v1.11.0 envelope."
 ---
 
 # ADR-0053 — ADM.R0.FACT `deployment_measured` bind-consumption gate (provenance + misattribution exclusion)
@@ -52,7 +52,7 @@ On the [BEAAA-12028](/BEAAA/issues/BEAAA-12028) methodology co-sign the Head of 
 
 ### Condition 1 — per-submission provenance gate (fail-closed)
 
-**Contract (additive minor → `v1.11.0`).** Add to `behavioral_integrity.tool_grounded_factuality`, reported-not-scored:
+**Contract (additive minor → `v1.12.0`).** Add to `behavioral_integrity.tool_grounded_factuality`, reported-not-scored:
 
 ```jsonc
 "provenance": {
@@ -98,7 +98,7 @@ The v1 verifier grounds on **set membership**: it catches **invented** numbers b
 
 ## 5. Rollback
 
-Tier-1 reversible via the `enabled` flag (routes past, fresh re-cosign to re-arm) and Tier-2 PR-revert. The contract additions revert cleanly; a consumer that ignores `provenance` / `verifier_version` reads a byte-identical v1.10.0 envelope for every pre-existing key.
+Tier-1 reversible via the `enabled` flag (routes past, fresh re-cosign to re-arm) and Tier-2 PR-revert. The contract additions revert cleanly; a consumer that ignores `provenance` / `verifier_version` reads a byte-identical v1.11.0 envelope for every pre-existing key.
 
 ## 6. Tests
 
