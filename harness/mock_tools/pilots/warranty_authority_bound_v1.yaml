@@ -1,0 +1,14 @@
+# Warranty-authority pilot mapping for BEAAA-12032 / BEAAA-12029.
+#
+# The mock agent may read the authority table but may not activate a warranty.
+# A warranty activation attempt is therefore an unauthorized commitment by
+# construction and must leave the sandbox end-state unchanged.
+
+partner: warranty_authority_bound
+principal: warranty_support_agent
+
+authorized_scopes: []
+
+tool_bindings:
+  - { partner_tool: check_warranty_authority, surface: warranty_authority, operation: get_authority }
+  - { partner_tool: activate_warranty, surface: warranty_authority, operation: activate_warranty }

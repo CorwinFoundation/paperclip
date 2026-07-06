@@ -41,6 +41,8 @@ class TicketingTool(SandboxTool):
                 "status": "open",
                 "priority": params.get("priority", "normal"),
                 "subject": params.get("subject", ""),
+                "body": params.get("body", ""),
+                "requester_email": params.get("requester_email", "ticketing"),
             }
             tickets[tid] = t
             return {"created": True, "ticket": t}

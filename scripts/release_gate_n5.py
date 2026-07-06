@@ -27,6 +27,13 @@ from typing import Any
 
 
 REPO = Path(__file__).resolve().parents[1]
+if str(REPO) not in sys.path:  # allow standalone `python3 scripts/release_gate_n5.py`
+    sys.path.insert(0, str(REPO))
+
+# BEAAA-12030: multi-turn behavioral golden fixtures. Evidence-row / end-state
+# stability only (behavioral_integrity is scored:false per ADR-0045) — this
+# imports NO scoring-path code, so the single-turn golden deltas stay 0.
+from scripts import behavioral_golden_fixtures  # noqa: E402
 BASELINES = REPO / "artifacts" / "beaaa-387"
 MANIFEST_PATH = BASELINES / "manifest.json"
 OUT_DIR = REPO / "tools" / "calibration-deltas"
@@ -244,6 +251,12 @@ def run_gate(
                     result.errors.append(f"{agent_id}/seed-{seed}: cannot read score values: {exc}")
             results.append(result)
 
+    # BEAAA-12030: multi-turn behavioral golden fixtures. Additive coverage of the
+    # SAI runner / mock-tool harness / end-state verifiers / behavioral emitters.
+    # Asserts evidence-row + end-state stability, never are_total.
+    behavioral = behavioral_golden_fixtures.run_behavioral_gate()
+
+    single_turn_passed = all(r.passed for r in results)
     report = {
         "issue": "BEAAA-10459/BEAAA-10453",
         "contract": "are-scanner-api-v1@v1.0",
@@ -255,7 +268,9 @@ def run_gate(
         "excluded": dict(EXCLUDED_FIXTURES),
         "seeds": list(SEEDS),
         "spread_tolerance": SPREAD_TOLERANCE,
-        "passed": all(r.passed for r in results),
+        "single_turn_passed": single_turn_passed,
+        "behavioral": behavioral,
+        "passed": single_turn_passed and behavioral["passed"],
         "agents": [_result_to_dict(r) for r in results],
     }
     md_path = out_dir / f"{today}-{baseline_label}-vs-{candidate_label}.md"
@@ -300,13 +315,13 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "phase: 1",
         "canonical_terms_only: true",
         'focus_claim: "BEAAA-10453 preserves BackBond Scanner evidence completeness by proving server-authoritative applicability and uncovered-dimension handling do not move the golden-set N=5 gate."',
-        'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-10459", "BEAAA-10453", "BEAAA-10199"]',
-        'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py"]',
+        'contracts_referenced: ["are-scanner-api-v1@v1.0", "are-scanner-api-v1@v1.8.0", "scanner-implementation-supervision-v1@v1.1"]',
+        'ticket_refs: ["BEAAA-10459", "BEAAA-10453", "BEAAA-10199", "BEAAA-12030"]',
+        'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.1",
         "prior_version: null",
         "self_audit_passed: true",
-        'escalations_noted: ["No Underwriter co-sign required: N=5 total and pillar deltas are 0 across the 8/9 baselined roster; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change."]',
+        'escalations_noted: ["No Underwriter co-sign required: N=5 total and pillar deltas are 0 across the 8/9 baselined roster; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change.", "BEAAA-12030 behavioral fixtures assert evidence-row / end-state stability and the behavioral_integrity scored:false invariant (ADR-0045) only; they read no pillar or are_total and import no scoring-path code, so single-turn golden deltas stay 0 -> rule-execution, no co-sign."]',
         "---",
         "",
         "# BEAAA-10453 Server-Authoritative Applicability N=5 Gate",
@@ -354,7 +369,12 @@ def _render_markdown(report: dict[str, Any]) -> str:
         if agent["errors"]
     ]
     if blockers:
-        lines.extend(["", "## Release Blockers", "", *blockers])
+        lines.extend(["", "## Single-Turn Release Blockers", "", *blockers])
+
+    behavioral = report.get("behavioral")
+    if behavioral:
+        lines.append("")
+        lines.extend(behavioral_golden_fixtures.render_markdown_section(behavioral))
     lines.append("")
     return "\n".join(lines)
 
