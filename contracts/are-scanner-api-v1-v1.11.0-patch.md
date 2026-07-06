@@ -27,8 +27,8 @@ proof_points_cited:
 version: "v1.11.0"
 prior_version: "are-scanner-api-v1@v1.10.0"
 self_audit_passed: true
-self_audit_note: "Pre-submission self-audit (cto-os Supreme Law). (1) Focus claim cites the exact emitter modules, the end-state predicate pattern, the N=5 Δ=0 construction argument, and the two gate references (HUW + UW). (2) Carrier Rule clean — no carrier named. (3) Canonical terms only — 'the Scanner' / 'scan-output envelope' / 'evidence class'; no BMI/ARI/ARE-as-product/IFA in prose (are_total/rubric_version are grandfathered identifiers, not prose). (4) Internal patch, not an external-bound asset -> Brand Backbone Step-0 N/A. (5) Supreme Law / reproducibility: the four reproducibility fields (scanner_version, corpus_version, model_versions, seed) UNCHANGED; new evidence classes are additive; golden N=5 Δ=0 verified in each emitter module's test. (6) Tamper resistance: strengthened — evidence rows carry sha256-fingerprinted artifact_uri (click-through from the evidence row to the exact transcript bytes); the end-state predicate is deterministic, not an LLM judge. (7) fixture_behavioral provenance grade: explicitly NOT deployment_measured and NEVER rendered as bare measured. Semantics: internal reference fixtures; screening/eligibility + sub-limit only; documented as such in §2 and in ADR-0052 §4 provenance ladder. (8) behavioral_integrity.scored=false invariant UNCHANGED — the three new evidence classes extend evidence_refs[], not the behavioral_integrity block; they are additive columns, not a new scored subsystem. (9) Co-sign: evidence-surface contract change -> UW co-sign REQUIRED before merge (Underwriter pre-confirmed readiness on BEAAA-12029 comment 640123ab); this patch is DRAFT and does NOT self-merge. HUW confirmation on record (BEAAA-12054). (10) Rollback: Tier-2 PR-revert; the three new class values and the fixture_behavioral grade revert cleanly; consumers that do not recognise unknown class values or grade values already ignore those rows (additive semantics per v1.8.0 §1)."
-uw_cosign_ref: "PENDING — Underwriter (afa65747) pre-confirmed readiness (BEAAA-12029 comment 640123ab): will co-sign once first emitter lands and patch shows row shape. This patch is that document. Co-sign = evidence-surface only; any pricing/admittance/sub-limit/band wiring is a separate gate."
+self_audit_note: "Pre-submission self-audit (cto-os Supreme Law). (1) Focus claim cites the exact emitter modules, the end-state predicate pattern, the N=5 Δ=0 construction argument, and the two gate references (HUW + UW). (2) Carrier Rule clean — no carrier named. (3) Canonical terms only — 'the Scanner' / 'scan-output envelope' / 'evidence class'; no BMI/ARI/ARE-as-product/IFA in prose (are_total/rubric_version are grandfathered identifiers, not prose). (4) Internal patch, not an external-bound asset -> Brand Backbone Step-0 N/A. (5) Supreme Law / reproducibility: the four reproducibility fields (scanner_version, corpus_version, model_versions, seed) UNCHANGED; new evidence classes are additive; golden N=5 Δ=0 verified in each emitter module's test. (6) Tamper resistance: strengthened — evidence rows carry sha256-fingerprinted artifact_uri (click-through from the evidence row to the exact transcript bytes); the end-state predicate is deterministic, not an LLM judge. (7) fixture_behavioral provenance grade: explicitly NOT deployment_measured and NEVER rendered as bare measured. Semantics: internal reference fixtures; screening/eligibility + sub-limit only; documented as such in §2 and in ADR-0052 §4 provenance ladder. (8) behavioral_integrity.scored=false invariant UNCHANGED — the three new evidence classes extend evidence_refs[], not the behavioral_integrity block; they are additive columns, not a new scored subsystem. (9) Co-sign: evidence-surface contract change -> UW co-sign REQUIRED before merge (Underwriter pre-confirmed readiness on BEAAA-12029 comment 640123ab); this patch did NOT self-merge — UW co-sign was obtained via interaction 44a02967 (accepted) before merge under BEAAA-12029. HUW confirmation on record (BEAAA-12054). [Reconciled under BEAAA-12061: co-sign accepted, patch merged f171218.] (10) Rollback: Tier-2 PR-revert; the three new class values and the fixture_behavioral grade revert cleanly; consumers that do not recognise unknown class values or grade values already ignore those rows (additive semantics per v1.8.0 §1)."
+uw_cosign_ref: "ACCEPTED — Underwriter (afa65747) co-signed the v1.11.0 evidence-class contract patch via request_confirmation interaction 44a02967 (accepted), landed under BEAAA-12029 (see CTO comment ec8c8e61). Pre-confirmation was BEAAA-12029 comment 640123ab; the co-sign converted it once this patch showed the row shape. Co-sign = evidence-surface only; any pricing/admittance/sub-limit/band wiring is a separate gate. Reconciled to co-signed/merged state under BEAAA-12061."
 huw_confirmation_ref: "CONFIRMED — Head of Underwriting & AI Risk (93e0b62b) confirmed SS4 event→probe→grade mapping on BEAAA-12054 (2026-07-06). fixture_behavioral = screening/eligibility + sub-limit; full-limit needs deployment_measured or explicit HUW sub-limit. Pre-bind risk-measurement grade: yes. Claim-adjudication grade: NOT without deployment_measured or a HUW-explicit sub-limit."
 escalations_noted:
   - "Pricing/admittance/sub-limit/band wiring for these three SS4 families is EXPLICITLY OUT OF SCOPE here. That is a fresh CTO+UW gate (and Founder, for pillar weights) per ADR-0045 §2.1."
@@ -38,7 +38,7 @@ escalations_noted:
 
 # are-scanner-api-v1 v1.11.0 patch — Warranty SS4 behavioral evidence classes + `fixture_behavioral` grade
 
-**Status:** DRAFT — awaiting **Underwriter co-sign** (evidence-surface only; Underwriter `afa65747` pre-confirmed readiness on [BEAAA-12029](/BEAAA/issues/BEAAA-12029) comment `640123ab`). **HUW confirmation** of SS4 event→probe→grade mapping on record ([BEAAA-12054](/BEAAA/issues/BEAAA-12054)).
+**Status:** CO-SIGNED & MERGED. **Underwriter co-sign** accepted (evidence-surface only) via `request_confirmation` interaction `44a02967` (accepted), landed under [BEAAA-12029](/BEAAA/issues/BEAAA-12029) (CTO comment `ec8c8e61`); patch merged to canonical master `f171218` (PR #33). **HUW confirmation** of SS4 event→probe→grade mapping on record ([BEAAA-12054](/BEAAA/issues/BEAAA-12054)). Status reconciled from DRAFT→co-signed under [BEAAA-12061](/BEAAA/issues/BEAAA-12061).
 
 **Change classification:** additive minor. No existing field renamed or removed. Every extension is opt-in (new `evidence_refs` `class` values; a new `evidence_grade` value). Consumers that ignore the new surface receive a **byte-identical v1.10.0 response**. Tier-2 PR-revert rollback.
 
@@ -101,19 +101,20 @@ The four reproducibility fields (`scanner_version`, `corpus_version`, `model_ver
 
 ## §4. Approval-gate disposition
 
-- **UW co-sign:** REQUIRED before merge (evidence_refs discriminator is the UW consumption surface). Underwriter (`afa65747`) pre-confirmed readiness ([BEAAA-12029](/BEAAA/issues/BEAAA-12029) comment `640123ab`).
+- **UW co-sign:** ✅ ACCEPTED (was REQUIRED before merge — the `evidence_refs` discriminator is the UW consumption surface). Underwriter (`afa65747`) co-signed via `request_confirmation` interaction `44a02967` (accepted); pre-confirmation was [BEAAA-12029](/BEAAA/issues/BEAAA-12029) comment `640123ab`.
 - **HUW confirmation:** on record ([BEAAA-12054](/BEAAA/issues/BEAAA-12054), Head of Underwriting `93e0b62b`). Not a contract co-sign, but documents the binding SS4 state-machine mapping.
 - **CEO gate:** NOT required. Additive, reported-not-scored, no pillar weight change, golden N=5 Δ=0. Same category as v1.8.0.
 - **Founder gate:** NOT required. No pillar weight change (weights remain 25/25/25/25 Founder-locked 2026-05-12).
 
 ---
 
-## §5. `api/openapi.yaml` changes — additive
+## §5. `api/openapi.yaml` changes — additive (deferred to consumer envelope-wiring)
 
-- `EvidenceRef.class` enum extended with `recipient_integrity`, `authority_bound_action`, `data_containment`.
-- `EvidenceRef.evidence_grade` enum extended with `fixture_behavioral`.
-- `kind` values for new classes documented as additional string literals (no enum enforcement — same pattern as v1.8.0 §5).
+- `EvidenceRef.class` documented with `recipient_integrity`, `authority_bound_action`, `data_containment` (string literals, no enum enforcement — same pattern as v1.8.0 §5).
+- `EvidenceRef.evidence_grade` documented with `fixture_behavioral`.
 - **No response-shape change.** All existing fields, types, and required fields remain identical.
+
+**Status — deferred (not a co-sign blocker).** The three emitters (`warranty_recipient_integrity_v1`, `warranty_authority_bound_v1`, `warranty_data_containment_v1`) are currently **import-only / reported-not-scored**: they produce the co-signed `evidence_refs` row shape as eval-module output but are **not yet wired into the live `POST /scanner/v1/scans` response envelope** (which, like v1.8.0, carries evidence rows nested under reported blocks, not a top-level `evidence_refs[]`). The `openapi.yaml` reflection therefore lands **with** the consumer envelope-wiring step, not ahead of it — documenting a response field that isn't yet emitted would be premature. The **contract row shape is co-signed and authoritative now** (this patch); the schema-doc reflection + envelope-wiring is tracked as a follow-up. This matches the ticket's own "descope/defer if waiting for a consumer" guidance.
 
 ---
 
@@ -127,7 +128,7 @@ Tier-2 PR-revert. The three new class values and the `fixture_behavioral` grade 
 
 | Version | Date | Type | Notes |
 |---|---|---|---|
-| **v1.11.0** | **2026-07-06** | **additive minor — warranty SS4 behavioral evidence classes (`recipient_integrity`, `authority_bound_action`, `data_containment`) + `fixture_behavioral` provenance grade; no scoring change** | **This patch; ADR-0052 [BEAAA-12029](/BEAAA/issues/BEAAA-12029); emitters BEAAA-12031 / BEAAA-12032 / BEAAA-12033; HUW confirmation BEAAA-12054; UW co-sign pending** |
+| **v1.11.0** | **2026-07-06** | **additive minor — warranty SS4 behavioral evidence classes (`recipient_integrity`, `authority_bound_action`, `data_containment`) + `fixture_behavioral` provenance grade; no scoring change** | **This patch; ADR-0052 [BEAAA-12029](/BEAAA/issues/BEAAA-12029); emitters BEAAA-12031 / BEAAA-12032 / BEAAA-12033; HUW confirmation BEAAA-12054; UW co-sign ACCEPTED (interaction 44a02967); status reconciled under BEAAA-12061** |
 | v1.10.0 | 2026-07-05 | additive minor — `rubric_locked_through` stamp on envelope | `are-scanner-api-v1-v1.10.0-patch.md`; BEAAA-11930 |
 | v1.9.0 | 2026-07-05 | additive minor | prior version |
 | **v1.8.0** | 2026-07-05 | additive minor — BEHAVIORAL-INTEGRITY evidence surface (`transaction_correctness`, `stop_compliance`, `tool_grounded_factuality`); `evidence_grade ∈ {indicative, deployment_measured}` | `are-scanner-api-v1-v1.8.0-patch.md` |
