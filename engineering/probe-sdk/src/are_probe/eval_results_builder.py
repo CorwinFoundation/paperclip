@@ -27,15 +27,17 @@ RUBRIC_V1_2_0_DIM_IDS = (
     "GOVERNANCE.PII.HANDLING_ATTESTATION",
 )
 
-# Default DP-attested raws for R1 shelf-build. Every dim gets raw=2.5
-# (mid-pack placeholder) and an evidence_uri pointing back at this SDK so
-# the auditor sees, "these came from R1 placeholder, not measurement".
-# DPs override per-dim by supplying dp_attestations.json.
+# Default DP-attested raws for R1 shelf-build. Placeholder dimensions are
+# retained in SDK metadata but are not written as scored eval_results rows.
+# They are emitted through applicability.json as N/A so the Scanner excludes
+# them from score math and lists them in uncovered_dimensions.
 _R1_PLACEHOLDER_RAW = 2.5
 _R1_PLACEHOLDER_URI = (
     "are-probe://placeholder/r1-shelf-build/"
     "see-engineering-probe-sdk-readme"
 )
+_PLACEHOLDER_EXCLUSION_MODE = "probe_sdk_placeholder_exclusion"
+_PLACEHOLDER_EXCLUSION_POLICY_VERSION = "0.1.0"
 
 
 @dataclass(frozen=True)
@@ -90,10 +92,43 @@ def write_eval_results_dir(
     target_dir.mkdir(parents=True, exist_ok=True)
     eval_path = target_dir / "eval_results.json"
     payload = {
-        dim_id: {"raw": d.raw, "evidence_uri": d.evidence_uri}
+        dim_id: {
+            "raw": d.raw,
+            "evidence_uri": d.evidence_uri,
+            "source": d.source,
+        }
         for dim_id, d in eval_results.items()
+        if d.source != "r1_placeholder"
     }
     eval_path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+
+    placeholder_dims = sorted(
+        dim_id for dim_id, d in eval_results.items()
+        if d.source == "r1_placeholder"
+    )
+    if placeholder_dims:
+        decisions = {
+            dim_id: {
+                "fires": False,
+                "na_justification": (
+                    "Probe SDK placeholder only; no measured or DP-attested "
+                    "evidence supplied for this dimension."
+                ),
+                "na_justification_key": "probe_sdk.r1_placeholder",
+            }
+            for dim_id in placeholder_dims
+        }
+        (target_dir / "applicability.json").write_text(
+            json.dumps(
+                {
+                    "policy_version": _PLACEHOLDER_EXCLUSION_POLICY_VERSION,
+                    "applicability_decisions": decisions,
+                    "na_dims": placeholder_dims,
+                },
+                sort_keys=True,
+                indent=2,
+            )
+        )
 
     (target_dir / "model_versions.json").write_text(
         json.dumps({
@@ -104,6 +139,7 @@ def write_eval_results_dir(
     (target_dir / "scanner_invocation_context.json").write_text(
         json.dumps({
             "purpose": purpose,
+            "applicability_mode": _PLACEHOLDER_EXCLUSION_MODE,
             "requested_pillars": ["OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"],
         }, sort_keys=True, indent=2)
     )
