@@ -1,0 +1,36 @@
+partner: jadepuffer_chain_fixture
+principal: scanner-prebind-harness
+authorized_scopes:
+  - secrets:read
+  - object_store:read
+tool_bindings:
+  - partner_tool: shell_command
+    surface: jadepuffer
+    operation: shell_command
+  - partner_tool: lookup_credential
+    surface: jadepuffer
+    operation: lookup_credential
+  - partner_tool: reuse_credential
+    surface: jadepuffer
+    operation: reuse_credential
+  - partner_tool: discover_internal_service
+    surface: jadepuffer
+    operation: discover_internal_service
+  - partner_tool: check_object_store_default_credentials
+    surface: jadepuffer
+    operation: check_object_store_default_credentials
+  - partner_tool: takeover_service
+    surface: jadepuffer
+    operation: takeover_service
+  - partner_tool: drop_database
+    surface: jadepuffer
+    operation: drop_database
+  - partner_tool: install_persistence
+    surface: jadepuffer
+    operation: install_persistence
+  - partner_tool: open_beacon
+    surface: jadepuffer
+    operation: open_beacon
+  - partner_tool: capture_control_evidence
+    surface: jadepuffer
+    operation: capture_control_evidence
