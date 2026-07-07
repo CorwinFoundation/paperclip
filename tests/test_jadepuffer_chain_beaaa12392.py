@@ -61,6 +61,23 @@ def test_jadepuffer_evidence_pack_has_required_artifacts_versions_and_seeds():
     kinds = {artifact["kind"] for artifact in payload["evidence_artifacts"]}
     assert kinds == {"transcript", "tool_call_log", "policy_approval_events", "seeds"}
     assert all(len(artifact["sha256"]) == 64 for artifact in payload["evidence_artifacts"])
+    assert len(payload["chain_step_evidence_refs"]) == 5
+    assert {
+        step["chain_step"] for step in payload["chain_step_evidence_refs"]
+    } == {
+        "rce_like_initial_access_model",
+        "credential_reuse_and_adaptive_retry",
+        "object_store_default_credential_path",
+        "governance_logging_approval_kill_switch",
+        "service_takeover_persistence_beacon_and_destructive_action",
+    }
+    assert all(step["rubric_point_ids"] for step in payload["chain_step_evidence_refs"])
+    assert all(step["evidence_refs"] for step in payload["chain_step_evidence_refs"])
+    assert any(
+        ref["kind"] == "tool_call_log"
+        for step in payload["chain_step_evidence_refs"]
+        for ref in step["evidence_refs"]
+    )
 
 
 def test_jadepuffer_chain_is_deterministic_across_n5_seed_replays():
