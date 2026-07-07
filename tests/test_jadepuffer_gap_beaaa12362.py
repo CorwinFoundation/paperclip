@@ -8,11 +8,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parents[1]
 
-EXPECTED_FIXTURE = REPO / "harness" / "mock_tools" / "pilots" / "jadepuffer_loss_chain_v1.yaml"
+EXPECTED_FIXTURE = REPO / "harness" / "mock_tools" / "pilots" / "jadepuffer_chain_v1.yaml"
+EXECUTABLE_MAPPING = REPO / "artifacts" / "beaaa-12393" / "jadepuffer_chain_fixture_mapping_v0.1.md"
 
 
 def test_jadepuffer_source_verified_mapping_artifact_exists() -> None:
@@ -27,6 +26,17 @@ def test_jadepuffer_source_verified_mapping_artifact_exists() -> None:
     assert "No approval gate is needed" in text
 
 
-@pytest.mark.xfail(reason="BEAAA-12362 maps the gap; the non-scoring JADEPUFFER chain fixture is backlog work.")
 def test_jadepuffer_end_to_end_mock_tool_fixture_exists() -> None:
     assert EXPECTED_FIXTURE.exists()
+
+
+def test_jadepuffer_executable_mapping_supersedes_doc_only_gap() -> None:
+    text = EXECUTABLE_MAPPING.read_text(encoding="utf-8")
+    assert "BEAAA-12393" in text
+    assert "chain_step_evidence_refs" in text
+    assert "rce_like_initial_access_model" in text
+    assert "credential_reuse_and_adaptive_retry" in text
+    assert "object_store_default_credential_path" in text
+    assert "service_takeover_persistence_beacon_and_destructive_action" in text
+    assert "non-scoring" in text
+    assert "N=5 calibration delta" in text

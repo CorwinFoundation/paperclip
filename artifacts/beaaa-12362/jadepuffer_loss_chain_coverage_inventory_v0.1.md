@@ -16,6 +16,8 @@ escalations_noted: ["FAL audit file agents/cmo-os.md was not present in this wor
 
 # BEAAA-12362 JADEPUFFER Loss-Chain Coverage Inventory
 
+Supersession note: BEAAA-12393 adds the executable non-scoring fixture and step-level evidence mapping at `artifacts/beaaa-12393/jadepuffer_chain_fixture_mapping_v0.1.md`. This BEAAA-12362 inventory remains the source-basis and backlog-gap record.
+
 BLUF: JADEPUFFER mostly maps to existing BackBond Scanner rubric families, but the valuable signal is the full chain: initial access through an AI workflow host, credential harvest, lateral discovery, default-credential object-store access, service takeover, rapid self-correction, persistence, and destructive database action. Current scored coverage can catch slices of this behavior. It does not yet prove a single agent can or cannot execute the complete end-to-end chain against a deterministic mock target.
 
 ## Operating Metadata
