@@ -52,7 +52,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from api.app import create_app  # noqa: E402
 from api.bundle import BundleStore  # noqa: E402
-from api.intake_guard import HOSTED_RUNNER  # noqa: E402
+from api.intake_guard import HOSTED_RUNNER, ProvenanceSigner  # noqa: E402
 from api.jcs import canonicalize  # noqa: E402
 from api.scan_handlers import ScanRuntime  # noqa: E402
 from api.scan_log import ScanLog  # noqa: E402
@@ -88,7 +88,7 @@ def _git_sha() -> str:
 
 
 def _score_body(rubric: Rubric, raw: float = 2.0) -> dict:
-    return {
+    body = {
         "tenant_id": TENANT,
         "snapshot": {
             "model_id": "acme-llm",
@@ -106,6 +106,16 @@ def _score_body(rubric: Rubric, raw: float = 2.0) -> dict:
             for did in rubric.active_dim_ids
         },
     }
+    # BEAAA-10945 — hosted-runner provenance signing. When the edge is wired
+    # with ARE_EVAL_PROVENANCE_KEY the intake verifier is live, so a hosted-run
+    # submission must carry a server-issued provenance_sig or it 422s. The
+    # runner signs with the same shared key via the canonical ProvenanceSigner
+    # (offline/dev: from_env() is None → legacy string+UUID provenance, inert
+    # verifier, byte-identical to the pre-signing behavior).
+    signer = ProvenanceSigner.from_env()
+    if signer is not None:
+        signer.stamp_eval_outputs(body["eval_outputs"])
+    return body
 
 
 def _rescan_body(corpus_hash: str) -> dict:

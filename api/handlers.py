@@ -9,7 +9,13 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # BEAAA-10945 (SEC-6) — type-only import of the intake provenance verifier
+    # so the annotation resolves for type-checkers without forcing a runtime
+    # import cycle. The runtime value is injected by the API edge.
+    from .intake_guard import EvalProvenanceVerifier
 
 from pricing.quote import Ineligible, ManualReferral, QuoteError, Rates, quote
 from rubric.scoring import Rubric, ScoringError, score
@@ -60,8 +66,18 @@ def score_handler(
     rubric: Rubric,
     bundles: BundleStore,
     scored_at: datetime | None = None,
+    provenance_verifier: "EvalProvenanceVerifier | None" = None,
 ) -> tuple[int, dict[str, Any]]:
-    """Process a /score request. Returns (status, response_body)."""
+    """Process a /score request. Returns (status, response_body).
+
+    BEAAA-10945 (SEC-6): when ``provenance_verifier`` is supplied (live edge,
+    ``ARE_EVAL_PROVENANCE_KEY`` wired) each ``eval_outputs`` entry must carry a
+    valid server-issued ``provenance_sig``; a client-minted UUID + asserted
+    runner is no longer sufficient and fails closed at intake (422). When it
+    is ``None`` (offline replay / unit tests / golden N=5) the provenance check
+    is inert and behavior is byte-identical to the pre-provenance path, so the
+    N=5 golden delta is 0 by construction.
+    """
     for field in ("tenant_id", "snapshot", "eval_outputs"):
         if field not in body:
             raise HandlerError(422, f"{field} required")
@@ -75,7 +91,7 @@ def score_handler(
     eval_outputs = body["eval_outputs"]
     try:
         enforce_input_safety(eval_outputs)
-        enforce_hosted_eval_only(eval_outputs)
+        enforce_hosted_eval_only(eval_outputs, provenance_verifier=provenance_verifier)
     except IntakeError as exc:
         raise HandlerError(422, f"intake rejected: {exc}") from exc
 

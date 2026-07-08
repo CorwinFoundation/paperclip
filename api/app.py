@@ -28,6 +28,7 @@ from .handlers import (
     score_handler,
     validate_quote_tenant_context,
 )
+from .intake_guard import EvalProvenanceVerifier
 from .runtime_guards import (
     bundle_store_from_env,
     current_runtime_profile,
@@ -200,6 +201,7 @@ def create_app(
     scan_runtime: ScanRuntime | None = None,
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
+    provenance_verifier: EvalProvenanceVerifier | None = None,
 ) -> FastAPI:
     runtime_profile = current_runtime_profile()
     # BEAAA-12021 — build + validate the typed config once at startup.
@@ -235,6 +237,17 @@ def create_app(
     # boot keeps the legacy flat-dict auth path with no rate limiting. Rollback
     # is config-only: unset the flag.
     app.state.edge_gateway = EdgeGateway.from_env()
+    # BEAAA-10945 (SEC-6 live edge) — the intake provenance verifier. Explicit
+    # injection wins (tests); otherwise build from ``ARE_EVAL_PROVENANCE_KEY``.
+    # ``from_env`` returns None when the key is absent, which leaves the /score
+    # provenance check inert (offline replay / golden N=5). On the live edge the
+    # key is mandatory: ``validate_runtime_environment`` above already refuses to
+    # start a pilot/prod runtime without it, so a keyless live edge cannot boot.
+    app.state.provenance_verifier = (
+        provenance_verifier
+        if provenance_verifier is not None
+        else EvalProvenanceVerifier.from_env()
+    )
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
@@ -264,6 +277,7 @@ def create_app(
                 tenant_header=tenant_context,
                 rubric=app.state.rubric,
                 bundles=app.state.bundles,
+                provenance_verifier=app.state.provenance_verifier,
             )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
