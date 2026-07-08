@@ -1,6 +1,6 @@
 # BEAAA-12659 — Reconciled Scanner Deploy Manifest
 
-- Status: DRAFT (pending CTO close-gate + co-sign; then OPERATOR path, Founder/CEO-gated)
+- Status: RECONCILED + MERGED to master (CTO close-gate + co-sign complete). Next = OPERATOR path (VM cutover + secret provisioning), Founder/CEO-gated.
 - Date: 2026-07-08
 - Owner: Scanner Engineer
 - Contract: are-scanner-api-v1@v1.0 (producer-side tamper-resistance)
@@ -15,7 +15,7 @@ already on master via EdgeGateway/11867 — NOT re-ported; see ADR-0055).
 - Repo: `CorwinFoundation/are-scanner`
 - Branch: `beaaa-12659-reconcile-provenance-on-master`
 - Base: `master` @ `a489565a3336564355cf66905b8e7c868fef9259`
-- SHA: `<filled at merge — the merge/commit SHA of the reconciled branch>`
+- SHA: `539c0599b0b986a757c49224254254d72a27ebbb` (squash-merge commit on `master`; CTO co-signed BEAAA-12659, 2026-07-08)
 - SCANNER_VERSION: `0.4.1`
 - Rubric: `1.2.0`, locked_through `2026-08-04`
 - Release-gate corpus_version: `0.2.0`
