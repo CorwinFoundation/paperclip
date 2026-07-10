@@ -49,8 +49,13 @@ pyrit==0.6.0
 agentdojo==0.1.35
 
 # --- model SDKs (lazy-imported by harness/runner.py adapters) ---
+# openai is bumped to satisfy pyrit==0.6.0 (requires openai>=1.58.1); the
+# previous 1.54.4 pin made the release venv unresolvable (BEAAA-12895). Only
+# lazy-imported by the live model adapters via `from openai import OpenAI`
+# (harness/runner.py, harness/live_tool_agent.py); the deterministic golden
+# scoring path does not import it, so the bump cannot move golden scores.
 anthropic==0.39.0
-openai==1.54.4
+openai==1.58.1
 google-genai==0.3.0
 
 # --- PII / scrubber substrate (BEAAA-2068 engine-import pre-flight) ---
