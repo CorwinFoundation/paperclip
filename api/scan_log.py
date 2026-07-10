@@ -97,6 +97,26 @@ END;
 """
 
 
+# Additive, nullable columns that were introduced after the initial
+# ``scan_log`` schema shipped. ``CREATE TABLE IF NOT EXISTS`` never alters
+# an existing table, so a database created before one of these columns was
+# added is silently missing it — and the first ``append_scan`` INSERT that
+# names the column fails with ``OperationalError: table scan_log has no
+# column named ...`` (this bit the 2026-07-09/10 production cutover:
+# BEAAA-12895). Every entry here is applied idempotently on connect via
+# ``ScanLog._migrate`` so a deploy onto an existing DB self-migrates.
+#
+# CONTRACT: additive-only. Columns must be nullable (no ``NOT NULL`` /
+# ``DEFAULT`` backfill that would rewrite historical rows) so the migration
+# never mutates a previously-pinned audit row — consistent with ADR-0009 §4.
+# To retire a column you add a new one; you never drop.
+_ADDITIVE_COLUMNS: tuple[tuple[str, str], ...] = (
+    # BEAAA-11726 item 4 — probe subset identity, write-once (trigger in
+    # _SCHEMA_SQL). Present in fresh-DB DDL above; migrated in for older DBs.
+    ("probe_set_hash", "TEXT"),
+)
+
+
 class ScanLogError(Exception):
     """Base class for scan_log invariant violations."""
 
@@ -164,7 +184,44 @@ class ScanLog:
         )
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
+        # Forward-migrate BEFORE the schema/trigger script: a pre-existing
+        # table must gain any missing additive column so the write-once
+        # trigger the script (re)creates for that column has a real column to
+        # guard, and so the first append_scan INSERT does not 500. On a fresh
+        # DB _migrate is a no-op — the table does not exist yet — and the
+        # full column set comes from _SCHEMA_SQL below.
+        self._migrate()
         self._conn.executescript(_SCHEMA_SQL)
+
+    def _migrate(self) -> None:
+        """Idempotently add any :data:`_ADDITIVE_COLUMNS` a pre-existing
+        ``scan_log`` table is missing.
+
+        ``CREATE TABLE IF NOT EXISTS`` in :data:`_SCHEMA_SQL` never alters an
+        existing table, so a database created before a column was introduced
+        silently lacks it (BEAAA-12895 — the live 159-row production DB
+        predated ``probe_set_hash`` and every INSERT 500'd). This runs on
+        every connect and is a no-op once the columns are present, so it is
+        safe to leave in permanently.
+        """
+        exists = self._conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'scan_log'"
+        ).fetchone()
+        if exists is None:
+            # Fresh DB — _SCHEMA_SQL creates the table with all columns.
+            return
+        present = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(scan_log)")
+        }
+        for name, decl in _ADDITIVE_COLUMNS:
+            if name not in present:
+                # ALTER ... ADD COLUMN of a nullable column is O(1) in sqlite
+                # (metadata-only; existing rows read the new column as NULL)
+                # so this does not rewrite the append-only history.
+                self._conn.execute(
+                    f"ALTER TABLE scan_log ADD COLUMN {name} {decl}"
+                )
 
     # ------------------------------------------------------------------
     # Read path
