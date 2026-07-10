@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Build the per-framework offline eval venvs (BEAAA-13331).
+#
+# The full eval-framework release contract in requirements.txt is NOT
+# installable in one interpreter: garak==0.10.0 (datasets<2.17) is mutually
+# exclusive with pyrit==0.6.0 (datasets>=3.0.0). This recipe materializes each
+# conflicting framework in its OWN venv so the whole contract is materializable
+# for offline N=5 calibration / CI without asking pip to solve an impossible
+# graph.
+#
+# Each venv is built from its per-framework slice:
+#   garak      -> requirements-eval-garak.txt      -> <root>/garak-venv
+#   pyrit      -> requirements-eval-pyrit.txt       -> <root>/pyrit-venv
+#   agentdojo  -> requirements-eval-agentdojo.txt   -> <root>/agentdojo-venv
+#   inspect    -> requirements-eval-inspect.txt     -> <root>/inspect-venv
+#
+# The soft-import runners (scanners/{pyrit,agentdojo,inspect}_runner.py) resolve
+# availability + pinned version from these venvs via
+# scanners.eval_framework_venv.resolve_framework. This does NOT touch the
+# production runtime slice (BEAAA-13329) or any scoring/rubric/corpus.
+#
+# Usage:
+#   scripts/build_eval_framework_venvs.sh                 # build all four
+#   scripts/build_eval_framework_venvs.sh garak pyrit     # build a subset
+#   ARE_EVAL_VENVS_DIR=/tmp/eval-venvs scripts/build_eval_framework_venvs.sh
+#   FREEZE=1 scripts/build_eval_framework_venvs.sh        # emit pip-freeze locks
+#
+# Env:
+#   ARE_EVAL_VENVS_DIR  root for the venvs (default /opt/are-scanner/eval-venvs)
+#   PYTHON              base interpreter used to create venvs (default python3)
+#   FREEZE              when set, write <root>/<fw>-venv.lock.txt after install
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENVS_DIR="${ARE_EVAL_VENVS_DIR:-/opt/are-scanner/eval-venvs}"
+PYTHON="${PYTHON:-python3}"
+
+# framework -> "requirements-file import-module expected-version"
+declare -A FRAMEWORKS=(
+  [garak]="requirements-eval-garak.txt garak 0.10.0"
+  [pyrit]="requirements-eval-pyrit.txt pyrit 0.6.0"
+  [agentdojo]="requirements-eval-agentdojo.txt agentdojo 0.1.35"
+  [inspect]="requirements-eval-inspect.txt inspect_ai 0.3.220"
+)
+
+if [[ $# -gt 0 ]]; then
+  TARGETS=("$@")
+else
+  TARGETS=(garak pyrit agentdojo inspect)
+fi
+
+echo "== build_eval_framework_venvs (BEAAA-13331) =="
+echo "   repo:   $REPO_ROOT"
+echo "   root:   $VENVS_DIR"
+echo "   python: $($PYTHON --version 2>&1)"
+mkdir -p "$VENVS_DIR"
+
+build_one() {
+  local fw="$1"
+  local spec="${FRAMEWORKS[$fw]:-}"
+  if [[ -z "$spec" ]]; then
+    echo "!! unknown framework: $fw (known: ${!FRAMEWORKS[*]})" >&2
+    return 2
+  fi
+  # shellcheck disable=SC2206
+  local parts=($spec)
+  local req="${parts[0]}" mod="${parts[1]}" want="${parts[2]}"
+  local vdir="$VENVS_DIR/${fw}-venv"
+  local vpy="$vdir/bin/python"
+
+  echo
+  echo "-- $fw --"
+  echo "   slice:  $req"
+  echo "   venv:   $vdir"
+
+  "$PYTHON" -m venv "$vdir"
+  "$vpy" -m pip install --upgrade pip >/dev/null
+  "$vpy" -m pip install -r "$REPO_ROOT/$req"
+
+  # Verify the framework imports and reports the pinned version.
+  local got
+  got="$("$vpy" -c "import ${mod} as m; print(getattr(m,'__version__','unknown'))")"
+  if [[ "$got" != "$want" ]]; then
+    echo "!! $fw version mismatch: got '$got', expected '$want'" >&2
+    return 1
+  fi
+  echo "   verified: ${mod} ${got}"
+
+  if [[ -n "${FREEZE:-}" ]]; then
+    local lock="$VENVS_DIR/${fw}-venv.lock.txt"
+    "$vpy" -m pip freeze > "$lock"
+    echo "   froze:   $lock"
+  fi
+}
+
+rc=0
+for fw in "${TARGETS[@]}"; do
+  build_one "$fw" || rc=$?
+done
+
+echo
+if [[ $rc -eq 0 ]]; then
+  echo "== all requested eval venvs built + verified =="
+  echo "   confirm: ARE_EVAL_VENVS_DIR=$VENVS_DIR $PYTHON -m scanners.eval_framework_venv"
+else
+  echo "== FAILED (rc=$rc) — see errors above ==" >&2
+fi
+exit $rc

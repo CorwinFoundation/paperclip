@@ -1,0 +1,13 @@
+# Per-framework eval venv slice: PyRIT (BEAAA-13331).
+#
+# Installed by scripts/build_eval_framework_venvs.sh into its OWN venv
+# (<ARE_EVAL_VENVS_DIR>/pyrit-venv), NOT into the harness interpreter — pyrit
+# pins datasets>=3.0.0, which is mutually exclusive with garak's datasets<2.17
+# (see requirements-eval-garak.txt). Exact pin matches requirements.txt; a bump
+# is a rule-change (CTO co-sign + fresh N=5 delta) per
+# contracts/scanner-implementation-supervision-v1.md.
+#
+# scanners/pyrit_runner.py resolves availability + version from this venv via
+# scanners.eval_framework_venv.resolve_framework when the in-process import is
+# unavailable (the normal case, since pyrit can't co-install with garak).
+pyrit==0.6.0

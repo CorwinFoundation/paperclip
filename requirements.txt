@@ -17,6 +17,20 @@
 # CI regression installs requirements-scanner-regression.txt (deterministic
 # scoring slice). requirements-dev.txt adds test-only deps.
 #
+# ⚠ NOT SINGLE-VENV INSTALLABLE (by design — BEAAA-13331). This file is the
+# eval-framework RELEASE CONTRACT (source-of-truth pins), not a one-shot
+# `pip install -r` target: garak==0.10.0 (datasets<2.17) is mutually exclusive
+# with pyrit==0.6.0 (datasets>=3.0.0), so pip cannot solve the combined graph.
+# The contract is materialized across PER-FRAMEWORK venvs instead:
+#     scripts/build_eval_framework_venvs.sh        # builds garak/pyrit/agentdojo/inspect venvs
+#     requirements-eval-{garak,pyrit,agentdojo,inspect}.txt   # the per-venv slices
+# The soft-import runners (scanners/{pyrit,agentdojo,inspect}_runner.py) resolve
+# framework availability + version from those venvs via
+# scanners/eval_framework_venv.py. Deterministic scoring/CLI/tamper CI installs
+# only requirements-scanner-regression.txt (see ADR-0036); the production
+# runtime slice (BEAAA-13329) is a separate, non-conflicting install. See
+# docs/ops/eval-framework-venvs.md + ADR-0056.
+#
 # Promptfoo is a Node CLI invoked via subprocess from
 # scanners/promptfoo_runner.py — install with:
 #     npm install -g promptfoo@0.115.0

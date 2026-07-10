@@ -47,8 +47,14 @@ try:
     _PYRIT_AVAILABLE = True
     _PYRIT_VERSION = getattr(pyrit, "__version__", "unknown")
 except ImportError:
-    _PYRIT_AVAILABLE = False
-    _PYRIT_VERSION = "not-installed"
+    # pyrit==0.6.0 (datasets>=3.0.0) cannot share the harness venv with
+    # garak==0.10.0 (datasets<2.17). When the in-process import fails, fall
+    # back to the per-framework venv resolver (BEAAA-13331) — it returns
+    # (False, "not-installed") when no venv is configured, so this branch is
+    # byte-identical to the historical behavior on unconfigured CI hosts.
+    from scanners.eval_framework_venv import resolve_framework
+
+    _PYRIT_AVAILABLE, _PYRIT_VERSION = resolve_framework("pyrit")
 
 
 class PyRITRunnerError(RuntimeError):

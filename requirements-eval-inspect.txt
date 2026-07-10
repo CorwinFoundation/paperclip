@@ -1,0 +1,12 @@
+# Per-framework eval venv slice: Inspect AI (BEAAA-13331).
+#
+# Installed by scripts/build_eval_framework_venvs.sh into its OWN venv
+# (<ARE_EVAL_VENVS_DIR>/inspect-venv). Inspect AI is not part of the
+# garak/pyrit datasets conflict; the phase-1 inspect_runner path is an
+# in-process data-model round-trip, so to actually RUN that path in-tree you
+# still `pip install inspect-ai` into the harness venv. This slice exists so
+# the offline framework set is materializable uniformly (version-stamp +
+# future phase-2 native inspect_ai.eval() subprocess driver). Exact pin matches
+# requirements.txt; a bump is a rule-change (CTO co-sign + fresh N=5 delta) per
+# contracts/scanner-implementation-supervision-v1.md.
+inspect-ai==0.3.220
