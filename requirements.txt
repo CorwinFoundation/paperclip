@@ -1,6 +1,21 @@
-# are-scanner runtime + dev dependencies — pinned for reproducibility.
-# Source of truth for promptfoo (Node, npm) + garak (Python) versions
-# the scoring overlay is calibrated against (BEAAA-106).
+# are-scanner FULL EVAL-FRAMEWORK RELEASE CONTRACT (superset) — pinned for
+# reproducibility. Source of truth for promptfoo (Node, npm) + garak (Python)
+# versions the scoring overlay is calibrated against (BEAAA-106).
+#
+# !! NOT CO-INSTALLABLE IN ONE VENV BY DESIGN (BEAAA-13329 / ADR-0038) !!
+# This file pins the complete eval-framework surface, including two offline
+# frameworks whose transitive pins are mutually exclusive: garak==0.10.0
+# (datasets<2.17) vs pyrit==0.6.0 (datasets>=3.0.0). `pip install -r
+# requirements.txt` therefore cannot resolve into a single environment. That
+# is intentional — this is the release-contract superset, not an installable
+# lock. Offline calibration/CI materializes garak/pyrit/agentdojo/inspect-ai
+# as per-framework subprocess venvs.
+#
+# PRODUCTION installs requirements-runtime.txt (the live online-service import
+# closure: this set MINUS the four offline eval frameworks, PLUS the fastapi/
+# uvicorn/hugchat runtime pins). See requirements-runtime.txt + ADR-0038.
+# CI regression installs requirements-scanner-regression.txt (deterministic
+# scoring slice). requirements-dev.txt adds test-only deps.
 #
 # Promptfoo is a Node CLI invoked via subprocess from
 # scanners/promptfoo_runner.py — install with:

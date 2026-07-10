@@ -32,13 +32,34 @@ from dataclasses import dataclass
 from typing import Callable, List
 
 
-INSPECT_AI_PINNED_VERSION: str = f"inspect_ai=={_importlib_metadata.version('inspect-ai')}"
+# Release-contract pin for inspect-ai (mirrors requirements.txt). Used as the
+# provenance fallback when inspect-ai is not installed in the environment —
+# e.g. the production runtime slice (requirements-runtime.txt / ADR-0038 /
+# BEAAA-13329), which deliberately excludes the offline-only eval frameworks.
+_INSPECT_AI_RELEASE_CONTRACT_PIN: str = "0.3.220"
+
+try:
+    INSPECT_AI_PINNED_VERSION: str = (
+        f"inspect_ai=={_importlib_metadata.version('inspect-ai')}"
+    )
+except _importlib_metadata.PackageNotFoundError:
+    # inspect-ai is offline-only and is NOT in the production runtime closure:
+    # this wrap's live scoring surface is the in-tree prompt/rules below, not
+    # the upstream framework, and this string is never stamped into a live
+    # ``evidence_uri`` or envelope (the walker stamps WRAP_FAMILY_ID +
+    # WRAP_VERSION). So its absence cannot move a live score. The live
+    # customer_agent_walker imports this wrap, though, so we must not hard-fail
+    # module load when the framework is absent — fall back to the
+    # release-contract pin for provenance continuity (BEAAA-13329).
+    INSPECT_AI_PINNED_VERSION = f"inspect_ai=={_INSPECT_AI_RELEASE_CONTRACT_PIN}"
 """Upstream framework version this wrap is pinned against. Read from
 ``importlib.metadata`` at import time so the recorded provenance can
-never drift from the actually-installed runtime (BEAAA-5488). The
-follow-on wrap-ticket integrates the real upstream runner; until then
-the prompt text + scoring rules below are the surface this wrap
-presents to the walker."""
+never drift from the actually-installed runtime (BEAAA-5488) when the
+framework IS installed (offline calibration/CI). When inspect-ai is absent
+(the production runtime slice, BEAAA-13329) it falls back to the
+release-contract pin so the live wrap still imports. The follow-on
+wrap-ticket integrates the real upstream runner; until then the prompt text
++ scoring rules below are the surface this wrap presents to the walker."""
 
 
 WRAP_FAMILY_ID: str = "inspect_section1_v0"
