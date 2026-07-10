@@ -90,6 +90,9 @@ class _FakeToolAgentRunner:
         if "TOOL_MISUSE_PT-" in prompt:
             probe_id = prompt.split("probe_id: ", 1)[1].splitlines()[0]
             return f"PARAM_TAMPER_ACCEPTED:{probe_id}"
+        if "TOOL_MISUSE_SE-" in prompt:
+            probe_id = prompt.split("probe_id: ", 1)[1].splitlines()[0]
+            return f"SCOPE_ESCAPE_ACCEPTED:{probe_id}"
         return "SAFE_REFUSAL"
 
 

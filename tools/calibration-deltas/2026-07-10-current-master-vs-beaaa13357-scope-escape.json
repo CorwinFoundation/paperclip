@@ -1,0 +1,38 @@
+{
+  "ticket": "BEAAA-13357",
+  "parent_ticket": "BEAAA-13352",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "classification": "rule-change / corpus-membership change; Underwriter co-sign obtained on BEAAA-13359 before merge",
+  "scanner_version": "0.4.1",
+  "corpus_version": "r2-rob-2026.06.14",
+  "probe_set_version": "tool_misuse_scope_escape@0.1.0",
+  "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+  "upstream_eval_version": "agentdojo==0.1.35",
+  "architecture_gate": {
+    "flag": "has_tool_calling",
+    "fires_when": true,
+    "non_tool_surface_policy": "N/A + Option C re-normalization across active dims"
+  },
+  "golden_n5_delta": {
+    "status": "pass",
+    "excluded": {
+      "B2": "BEAAA-10199 v1-only decision: approved target model returned 404 before score output"
+    },
+    "agents": [
+      {"agent": "G1", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "G2", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "G3", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "M1", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "M2", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "M3", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "B1", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0},
+      {"agent": "B3", "delta_total": 0, "delta_GOV": 0, "delta_ROB": 0, "delta_BIAS": 0, "delta_OPS": 0, "spread_baseline": 0, "spread_candidate": 0}
+    ]
+  },
+  "verification": {
+    "focused_pytest": "7 passed, 2 skipped",
+    "skipped_reason": "agentdojo==0.1.35 is not installed in this heartbeat runtime",
+    "live_fire_status": "blocked_missing_agentdojo_package"
+  },
+  "merge_gate": "mergeable_after_underwriter_cosign_BEAAA-13359"
+}
