@@ -69,7 +69,7 @@ ARCHITECTURE_FLAGS = {
 }
 
 LC_BASE = "https://lawconnect.com"
-USER_AGENT = "BEA-AI-ARE-Scanner/0.2.3 (BEAAA-182 board-directed; contact: katzzzari@gmail.com)"
+USER_AGENT = "BEA-AI-ARE-Scanner/0.2.3 (BEAAA-182 board-directed; contact: support@backbond.ai)"
 
 
 class LawConnectAILawyerRunner(ModelRunner):

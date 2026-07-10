@@ -654,6 +654,115 @@ def _customer_payload(result: ScanResult) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# BEAAA-13169 (§4 P0) — public completed-scan envelope.
+#
+# The customer-facing ``GET /scan/{scan_id}`` must return the documented
+# external result object (the scored envelope) — not the internal runtime
+# projection (``rows_emitted`` / ``spread_per_dim`` / ``dim_results``). A
+# partner following the documented three-call flow reads the *product* here:
+# the score, its pillar subscores, the letter band, confidence, evidence
+# refs, and any uncovered dimensions. Sourced verbatim from the persisted
+# ``score_json`` envelope (the ``to_contract_output`` projection written at
+# kickoff-finalize time), so no scoring path is re-entered — this is a
+# read-only projection of the already-committed score (N=5 delta = 0).
+# ---------------------------------------------------------------------------
+
+#: Documented external result fields surfaced on the completed-scan envelope,
+#: in canonical order, per the design-partner onboarding three-call flow.
+_EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
+    "are_total",
+    "subscores",
+    "band",
+    "confidence",
+    "evidence_refs",
+    "uncovered_dimensions",
+)
+
+#: Reproducibility provenance carried on every reported score (Supreme Law:
+#: no score is reported without ``scanner_version`` / ``corpus_version`` /
+#: ``model_versions`` / ``seed``). Read from the persisted envelope.
+_EXTERNAL_ENVELOPE_PROVENANCE: tuple[str, ...] = (
+    "scanner_version",
+    "corpus_version",
+    "model_versions",
+    "seed",
+)
+
+
+def _band_letter(score_json: Mapping[str, Any]) -> Any:
+    """Project the partner-facing letter ``band`` from a score envelope.
+
+    The scoring engine emits a structured ``band: {letter, display, ...}``
+    block plus a flat ``band_letter`` string (``to_contract_output``). The
+    external envelope surfaces the single letter grade regardless of which
+    on-disk spelling the ``score_json`` uses — same bridge as
+    ``_chain_entry_from_row``.
+    """
+    band_letter = score_json.get("band_letter")
+    if isinstance(band_letter, str) and band_letter:
+        return band_letter
+    band_value = score_json.get("band")
+    if isinstance(band_value, Mapping):
+        return band_value.get("display") or band_value.get("letter")
+    return band_value
+
+
+def _external_result_envelope(
+    result: ScanResult, score_json: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Build the documented public completed-scan envelope (BEAAA-13169).
+
+    Projects only the external result object from the persisted
+    ``score_json`` — never the internal runtime fields. ``scan_id`` /
+    ``status`` frame the record; the six documented result fields plus
+    reproducibility provenance carry the product.
+    """
+    envelope: dict[str, Any] = {
+        "scan_id": result.scan_id,
+        "status": result.status,
+    }
+    for field_name in _EXTERNAL_ENVELOPE_FIELDS:
+        if field_name == "band":
+            envelope["band"] = _band_letter(score_json)
+        elif field_name == "uncovered_dimensions":
+            envelope["uncovered_dimensions"] = (
+                score_json.get("uncovered_dimensions") or []
+            )
+        else:
+            envelope[field_name] = score_json.get(field_name)
+    for field_name in _EXTERNAL_ENVELOPE_PROVENANCE:
+        envelope[field_name] = score_json.get(field_name)
+    # Completion flags mirror the scored envelope so a partner can branch on
+    # partial results without parsing the internal ``incomplete`` field.
+    envelope["partial_completion"] = bool(
+        score_json.get("partial_completion") or result.incomplete
+    )
+    envelope["confidence_below_adjudication_threshold"] = bool(
+        score_json.get("confidence_below_adjudication_threshold")
+        or result.incomplete
+    )
+    return envelope
+
+
+def _customer_result_response(
+    scan_id: str, result: ScanResult, runtime: "ScanRuntime"
+) -> dict[str, Any]:
+    """Customer-facing ``GET /scan/{scan_id}`` body (BEAAA-13169).
+
+    Returns the documented external result envelope when the runtime has a
+    persisted score for the scan (the live edge binds ``scan_log`` +
+    ``score_envelope_factory`` per ``make_default_production_scan_runtime``).
+    Falls back to the pre-BEAAA-13169 internal projection ONLY when no score
+    was persisted (legacy/unwired fixtures) so those paths stay byte-stable.
+    """
+    score_row = runtime.current_kickoff_row(scan_id)
+    score_json = score_row.get("score_json") if score_row else None
+    if isinstance(score_json, Mapping) and score_json:
+        return _external_result_envelope(result, score_json)
+    return _customer_payload(result)
+
+
+# ---------------------------------------------------------------------------
 # BEAAA-1273 (WS3) — `prior_scan_refs[]` projection + pagination cap.
 # ---------------------------------------------------------------------------
 
@@ -1230,7 +1339,15 @@ def scan_status_handler(
 
     Returns the scan's current state. ``audience`` selects the payload variant:
 
-    * ``"customer"`` (default) — strips ``live_probe_variance_band`` per Δ4.
+    * ``"customer"`` (default) — the documented public completed-scan
+      envelope (BEAAA-13169 §4 P0): the external result object
+      (``are_total``, ``subscores``, ``band``, ``confidence``,
+      ``evidence_refs``, ``uncovered_dimensions``) plus reproducibility
+      provenance, projected read-only from the persisted ``score_json``.
+      Never surfaces internal runtime fields (``rows_emitted`` /
+      ``spread_per_dim`` / ``dim_results``). Unwired/legacy runtimes with no
+      persisted score fall back to the pre-BEAAA-13169 internal projection
+      (which still strips ``live_probe_variance_band`` per Δ4).
     * ``"uw"`` — retains every field for the Underwriter pricing engine.
     * ``"ci_plugin"`` (BEAAA-11726 item 5b) — no-prompt categorized rollup
       for the CI/CD plugin; sourced from the score_json envelope + the
@@ -1270,7 +1387,7 @@ def scan_status_handler(
     if audience == "uw":
         return 200, _uw_payload(result)
     if audience == "customer":
-        return 200, _customer_payload(result)
+        return 200, _customer_result_response(scan_id, result, runtime)
     if audience == "ci_plugin":
         return 200, _ci_plugin_payload(
             scan_id,

@@ -65,7 +65,7 @@ ARCHITECTURE_FLAGS = {
 
 ATTICUS_BASE = "https://atticus.ask.lawconnect.com"
 SYDNEY_LOCATION_ID = "cc0c2843-ce9a-473c-be25-2636655d2beb"  # 2000 - Sydney NSW
-USER_AGENT = "BEA-AI-ARE-Scanner/0.2.3 (BEAAA-182 board-directed; contact: katzzzari@gmail.com)"
+USER_AGENT = "BEA-AI-ARE-Scanner/0.2.3 (BEAAA-182 board-directed; contact: support@backbond.ai)"
 
 
 class LawConnectAtticusRunner(ModelRunner):
