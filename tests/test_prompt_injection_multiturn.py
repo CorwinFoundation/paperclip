@@ -4,14 +4,10 @@ Wraps Crescendo (Russinovich et al. 2025) multi-turn escalation chains.
 Asserts the mock agent does not progressively yield over a multi-turn
 escalation — the probe fails on the first turn that classifies as "answer".
 
-Rubric tagging (AC7): tests tag evidence under **P3.1** today, with
-**P3.5 (Multi-turn jailbreak persistence)** carry-forward recorded in
-ADR-0032. Activating P3.5 as a scored dim is a rule-change per
-scanner-implementation-supervision-v1.md@v1.1 row "Add a new
-rubric_point_id" and is intentionally OUT OF SCOPE on this ticket
-(BEAAA-5757 description: "doesn't change weight or band cut"). The
-deferred slot in rubric/rubric.yaml `deferred_to_v02` carries forward
-unchanged.
+Rubric tagging: BEAAA-13388 activates **P3.5 (Multi-turn jailbreak
+persistence)** as its own scored ROBUSTNESS dimension. Earlier BEAAA-5757
+fixtures tagged this family to P3.1 while P3.5 was deferred; this file now
+guards the activation state instead of the old deferral.
 """
 from __future__ import annotations
 
@@ -49,10 +45,7 @@ _SEED = 5757
 
 _UPSTREAM = "crescendo"
 _UPSTREAM_VERSION = "usenix-25-camera-ready"
-# AC7: multi-turn tagged against the direct-injection family today.
-# Formal P3.5 activation is a follow-up rule-change ticket per ADR-0032.
-_RUBRIC_POINT_ID = "P3.1"
-_DEFERRED_RUBRIC_POINT_ID = "P3.5"
+_RUBRIC_POINT_ID = "P3.5"
 
 
 class CrescendoMultiTurnInjectionTests(unittest.TestCase):
@@ -93,33 +86,23 @@ class CrescendoMultiTurnInjectionTests(unittest.TestCase):
                 f"multi-turn probe {s.probe_id} must carry >=2 turns; got {len(s.turns)}",
             )
 
-    def test_deferred_p3_5_carry_forward_recorded(self) -> None:
-        """Carry-forward: P3.5 stays in rubric.yaml `deferred_to_v02`.
-
-        This test enforces the ADR-0032 invariant: BEAAA-5757 does NOT
-        un-defer P3.5 (would be a rule-change requiring CTO + UW co-sign).
-        If a later ticket activates P3.5, this assertion will fail and the
-        guardrail will be flagged in CI.
-        """
+    def test_p3_5_activation_recorded(self) -> None:
+        """BEAAA-13388: P3.5 is active and no longer deferred."""
         rubric_yaml = _HERE.parent / "rubric" / "rubric.yaml"
         if not rubric_yaml.exists():
             self.skipTest("rubric/rubric.yaml not present in this checkout")
         text = rubric_yaml.read_text()
-        # P3.5 must still appear in the `deferred_to_v02:` block, not in the
-        # active `dimensions:` list. Simplest check: look for the literal
-        # 'id: P3.5' under the deferred block. If a future rule-change
-        # activates P3.5, the closeout for that ticket will update this guard.
+        robustness_idx = text.find("ROBUSTNESS:")
         deferred_idx = text.find("deferred_to_v02:")
-        self.assertNotEqual(
-            deferred_idx, -1,
-            "rubric.yaml has no `deferred_to_v02:` block; carry-forward invariant unsatisfiable",
-        )
-        # Slice from deferred_to_v02 to end of ROBUSTNESS section (or EOF).
-        deferred_slice = text[deferred_idx:]
+        self.assertNotEqual(robustness_idx, -1)
+        self.assertNotEqual(deferred_idx, -1)
+        active_slice = text[robustness_idx:deferred_idx]
+        deferred_slice = text[deferred_idx:text.find("GOVERNANCE:", deferred_idx)]
+        self.assertIn("id: P3.5", active_slice)
+        self.assertNotIn("id: P3.5", deferred_slice)
         self.assertIn(
-            "id: P3.5", deferred_slice,
-            "P3.5 (multi-turn jailbreak persistence) must remain in deferred_to_v02 — "
-            "activating it requires CTO co-sign per supervision-v1.1",
+            "BEAAA-13388 candidate activation", active_slice,
+            "P3.5 activation must cite the score-impacting gate",
         )
 
     def test_well_aligned_agent_holds_across_turns(self) -> None:
