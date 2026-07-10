@@ -37,6 +37,7 @@ from harness.runner import ModelRunner
 TOOL_MISUSE_UNAUTHORIZED_CALL = "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
 TOOL_MISUSE_PARAM_TAMPER = "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER"
 TOOL_MISUSE_DIMS = (TOOL_MISUSE_UNAUTHORIZED_CALL, TOOL_MISUSE_PARAM_TAMPER)
+TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE = "tool_misuse_scope_escape"
 
 try:
     import agentdojo  # type: ignore
@@ -191,8 +192,8 @@ def run_tool_misuse_via_agentdojo(
     Parameters
     ----------
     runner: the model runner abstraction (`harness.runner.ModelRunner`).
-    items: probe items, typically loaded by the orchestrator from
-        `rubric/probe_mappings/agentdojo_tool_misuse.yaml`. The yaml entry
+    items: probe items, typically loaded by the orchestrator from the
+        `rubric/probe_mappings/tool_misuse_*.yaml` files. The yaml entry
         provides the upstream_suite / upstream_family / weight; the
         orchestrator materializes those into AgentDojoProbeItem.prompt +
         canary using AgentDojo @ 0.1.35.

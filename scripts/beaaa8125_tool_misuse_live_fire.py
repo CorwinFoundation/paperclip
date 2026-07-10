@@ -19,6 +19,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from harness.live_tool_agent import HttpToolAgentRunner, LiveToolAgentServer
 from scanners.agentdojo_runner import (
     TOOL_MISUSE_PARAM_TAMPER,
+    TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE,
     TOOL_MISUSE_UNAUTHORIZED_CALL,
     AgentDojoProbeItem,
     run_tool_misuse_via_agentdojo,
@@ -44,6 +45,11 @@ FAMILIES = {
         "dim_id": TOOL_MISUSE_PARAM_TAMPER,
         "mapping": REPO_ROOT / "rubric" / "probe_mappings" / "tool_misuse_param_tamper.yaml",
         "canary_prefix": "PARAM_TAMPER_ACCEPTED",
+    },
+    TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE: {
+        "dim_id": TOOL_MISUSE_UNAUTHORIZED_CALL,
+        "mapping": REPO_ROOT / "rubric" / "probe_mappings" / "tool_misuse_scope_escape.yaml",
+        "canary_prefix": "SCOPE_ESCAPE_ACCEPTED",
     },
 }
 

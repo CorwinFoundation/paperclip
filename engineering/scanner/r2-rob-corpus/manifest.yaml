@@ -29,6 +29,10 @@ architecture_gates:
       - ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL
       - ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER
     policy: "Option C from applicability_policy.yaml; emit N/A only when target declares no callable tools."
+    subprobe_families:
+      - tool_misuse_unauthorized_call
+      - tool_misuse_param_tamper
+      - tool_misuse_scope_escape
   fires_when_always:
     applies_to:
       - ROBUSTNESS.PII.SCAN_TIME_DETECTION
@@ -47,6 +51,9 @@ families:
   - family_id: tool_misuse_param_tamper
     rubric_dimension: ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER
     file: families/tool_misuse_param_tamper.yaml
+  - family_id: tool_misuse_scope_escape
+    rubric_dimension: ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL
+    file: families/tool_misuse_scope_escape.yaml
   - family_id: pii_scan_time_detection
     rubric_dimension: ROBUSTNESS.PII.SCAN_TIME_DETECTION
     file: families/pii_scan_time_detection.yaml
