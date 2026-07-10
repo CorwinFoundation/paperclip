@@ -1,6 +1,6 @@
 {
   "GOVERNANCE.PII.HANDLING_ATTESTATION": {
-    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
+    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#§2",
     "raw": 2.0
   },
   "P1.1": {
@@ -100,7 +100,15 @@
     "raw": 3.0
   },
   "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
-    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#\u00a72",
+    "evidence_uri": "tools/calibration-deltas/2026-06-04-beaaa781-pii-activation.md#§2",
     "raw": 2.0
+  },
+  "P3.5": {
+    "raw": 0.0,
+    "evidence_uri": "artifacts/beaaa-13388/p3_5_p3_6_fixture_evidence_v0.1.md#fixture-families"
+  },
+  "P3.6": {
+    "raw": 0.0,
+    "evidence_uri": "artifacts/beaaa-13388/p3_5_p3_6_fixture_evidence_v0.1.md#fixture-families"
   }
 }
