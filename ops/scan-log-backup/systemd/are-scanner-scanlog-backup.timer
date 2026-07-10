@@ -1,0 +1,15 @@
+# BEAAA-13386 — hourly trigger for the scan_log backup oneshot.
+# Persistent=true so a missed run (box was down at the scheduled tick) fires on
+# next boot — steady-state loss protection must not have gaps after downtime.
+[Unit]
+Description=Hourly BackBond scan_log backup (BEAAA-13386)
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=120
+AccuracySec=1min
+Unit=are-scanner-scanlog-backup.service
+
+[Install]
+WantedBy=timers.target
