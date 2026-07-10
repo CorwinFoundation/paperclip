@@ -1,0 +1,182 @@
+# BEAAA-13362 — Phase 2 CD pipeline (Option A, per ADR BEAAA-13360 / ADR-0057).
+#
+# Rule-execution under BEAAA-13358 / founder-directive-deploy-pipeline-2026-07-10.
+# No scoring / rubric / corpus / band / output-shape / tamper change — this is
+# deploy plumbing only. No Underwriter gate (ADR-0057 Consequences).
+#
+# CONTRACT
+# --------
+# On every push to master (i.e. every merge):
+#   1. build-push (GitHub-hosted runner, "from CI only"): build the immutable
+#      edge image from the Phase-1 Dockerfile, run the import-closure guard at
+#      build, push it *private* to ghcr.io/corwinfoundation/are-scanner:<sha>.
+#   2. deploy (self-hosted `production` runner on srv1749248, pull-based, zero
+#      inbound SSH): GATED by the `production` GitHub Environment whose required
+#      reviewer is the Founder. The Approve click IS the Founder gate — the job
+#      cannot start, and nothing reaches the box, without it. After approval:
+#      pull the tagged image, swap the running container, run the automated
+#      acceptance suite, auto-rollback on any failure, and post the deploy
+#      record back to the tracker.
+#
+# The deploy job never touches the image bytes it deploys except by the digest
+# `build-push` emitted, so "what was reviewed == what is deployed".
+#
+# PROVISIONING (Founder / operator, one-time — see docs/deploy/cd-pipeline.md):
+#   * GitHub → repo → Settings → Environments → `production`, required reviewer
+#     = Founder. This is what enforces the gate below.
+#   * Self-hosted runner registered on srv1749248 with labels
+#     [self-hosted, production], running as the unprivileged `are-deploy` user
+#     (ADR-0057). Ephemeral registration token; private repo (no fork-PR risk).
+#   * `are-deploy` may run ONLY scripts/deploy/box_deploy.sh via a
+#     sudoers-whitelisted wrapper — pull / activate / rollback / current.
+#   * Repo/org secrets/vars used below.
+
+name: CD
+
+on:
+  push:
+    branches: [master]
+  # Manual re-deploy of an already-built SHA (still Founder-gated on `deploy`).
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: "Git SHA of an already-pushed image to (re)deploy"
+        required: false
+
+concurrency:
+  # One deploy to prod at a time; never cancel an in-flight deploy.
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write   # push to GHCR under ghcr.io/corwinfoundation/*
+
+env:
+  IMAGE: ghcr.io/corwinfoundation/are-scanner
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Build + push the immutable image to GHCR. GitHub-hosted runner only.
+  # ---------------------------------------------------------------------------
+  build-push:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      ref: ${{ steps.push.outputs.ref }}
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        name: Resolve image SHA
+        run: |
+          SHA="${{ github.event.inputs.image_sha || github.sha }}"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Building ${IMAGE}:${SHA}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: push
+        name: Build + push (import-closure guard runs at build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Dockerfile is delivered by Phase 1 (BEAAA-13361). Its build stage
+          # runs the runtime-slice import-closure guard; a failing guard fails
+          # the build here, so a broken slice can never be pushed.
+          file: ./Dockerfile
+          push: true
+          # SHA-only tags — no :latest. The registry stays private.
+          tags: ${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Emit pushed ref
+        id: refout
+        run: |
+          echo "ref=${IMAGE}:${{ steps.meta.outputs.sha }}" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 2. Deploy to prod. Self-hosted `production` runner, gated by the
+  #    `production` Environment (required reviewer = Founder). Auto-rollback.
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: build-push
+    runs-on: [self-hosted, production]
+    environment: production      # <-- Founder required-reviewer gate lives here
+    env:
+      SHA: ${{ needs.build-push.outputs.sha }}
+      REF: ${{ env.IMAGE }}:${{ needs.build-push.outputs.sha }}
+      DIGEST: ${{ needs.build-push.outputs.digest }}
+      # Box-side facts (repo/org vars; never secrets in logs).
+      BASE_URL: ${{ vars.PROD_BASE_URL }}            # e.g. https://127.0.0.1:8443 (loopback on box)
+      STAGING_TENANT: ${{ vars.STAGING_TENANT_ID }}  # staging tenant — NEVER 'vapi'
+      STAGING_AGENT: ${{ vars.STAGING_AGENT_ID }}
+      SCAN_LOG_DB: ${{ vars.SCAN_LOG_DB }}           # /var/lib/are-scanner/scan_log.sqlite3
+      # Admin token to trigger the staging self-scan (mounted secret, not baked).
+      ARE_ADMIN_TOKEN: ${{ secrets.ARE_STAGING_ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record previous image (for rollback)
+        id: prev
+        run: |
+          PREV="$(sudo /usr/local/sbin/box_deploy current || true)"
+          echo "prev=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "Currently active image on box: ${PREV:-<none>}"
+
+      - name: Pull the tagged image
+        run: sudo /usr/local/sbin/box_deploy pull "${REF}"
+
+      - name: Swap the running container
+        run: sudo /usr/local/sbin/box_deploy activate "${REF}"
+
+      - name: Automated acceptance (health / smoke / envelope)
+        id: accept
+        run: |
+          scripts/deploy/acceptance_checks.sh \
+            --base-url "${BASE_URL}" \
+            --staging-tenant "${STAGING_TENANT}" \
+            --staging-agent "${STAGING_AGENT}" \
+            --scan-log-db "${SCAN_LOG_DB}" \
+            --admin-token "${ARE_ADMIN_TOKEN}" \
+            --out "${RUNNER_TEMP}/acceptance.json"
+
+      - name: AUTO-ROLLBACK on failed acceptance
+        if: failure() && steps.prev.outputs.prev != ''
+        run: |
+          echo "::error::Acceptance failed — rolling back to ${{ steps.prev.outputs.prev }}"
+          sudo /usr/local/sbin/box_deploy rollback "${{ steps.prev.outputs.prev }}"
+          # Re-run the health leg against the restored image; abort the job if
+          # even rollback is unhealthy (page the operator).
+          scripts/deploy/acceptance_checks.sh \
+            --base-url "${BASE_URL}" --health-only \
+            --out "${RUNNER_TEMP}/rollback-health.json"
+
+      - name: Post deploy record to tracker
+        if: always()
+        env:
+          PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
+          PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_BOT_KEY }}
+          TRACKER_ISSUE: BEAAA-13362
+        run: |
+          python3 scripts/deploy/post_deploy_record.py \
+            --sha "${SHA}" \
+            --ref "${REF}" \
+            --digest "${DIGEST}" \
+            --approver "${{ github.actor }}" \
+            --outcome "${{ job.status }}" \
+            --previous "${{ steps.prev.outputs.prev }}" \
+            --acceptance "${RUNNER_TEMP}/acceptance.json" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
