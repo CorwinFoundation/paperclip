@@ -1,50 +1,60 @@
-# BEAAA-13362 — Phase 2 CD pipeline (Option A, per ADR BEAAA-13360 / ADR-0057).
+# BEAAA-13362 — Phase 2 CD pipeline (operator-mediated PUSH, per ADR-0057 /
+# ADR BEAAA-13360 v2.0, corrected by CTO decision BEAAA-13387).
 #
 # Rule-execution under BEAAA-13358 / founder-directive-deploy-pipeline-2026-07-10.
 # No scoring / rubric / corpus / band / output-shape / tamper change — this is
 # deploy plumbing only. No Underwriter gate (ADR-0057 Consequences).
 #
+# WHY PUSH, NOT PULL (BEAAA-13387 / BEAAA-13385)
+# ----------------------------------------------
+# srv1749248 runs under default-deny EGRESS (SSRF/exfil containment wall) and
+# has no outbound HTTPS. A self-hosted GitHub Actions runner on the box would
+# have to reach api.github.com / pipelines.actions.githubusercontent.com
+# OUTBOUND to register and long-poll — impossible under the wall. So the box
+# never pulls its own release. GitHub Actions only builds+pushes the image and
+# holds the Founder gate; delivery INTO the box is an operator-mediated push
+# over the existing controlled inbound operator SSH channel (no box egress).
+#
 # CONTRACT
 # --------
 # On every push to master (i.e. every merge):
-#   1. build-push (GitHub-hosted runner, "from CI only"): build the immutable
-#      edge image from the Phase-1 Dockerfile, run the import-closure guard at
-#      build, push it *private* to ghcr.io/corwinfoundation/are-scanner:<sha>.
-#   2. deploy (self-hosted `production` runner on srv1749248, pull-based, zero
-#      inbound SSH): GATED by the `production` GitHub Environment whose required
-#      reviewer is the Founder. The Approve click IS the Founder gate — the job
-#      cannot start, and nothing reaches the box, without it. After approval:
-#      pull the tagged image, swap the running container, run the automated
-#      acceptance suite, auto-rollback on any failure, and post the deploy
-#      record back to the tracker.
+#   1. build-push (GitHub-hosted runner, "from CI only" — CI has egress): build
+#      the immutable edge image from the Phase-1 Dockerfile, run the
+#      import-closure guard at build, push it *private* to
+#      ghcr.io/corwinfoundation/are-scanner:<sha>, and record the image DIGEST.
+#   2. release-approval (GitHub-hosted runner, environment: production): GATED
+#      by the `production` GitHub Environment whose required reviewer is the
+#      Founder. The Approve click IS the Founder gate. On approval this job does
+#      NOT touch the box (the box has no egress and accepts no CI SSH-in); it
+#      records the approved SHA+digest as a release manifest artifact and posts
+#      an "approved — awaiting operator push" record to the tracker. That
+#      manifest is the operator's authorization to push the exact approved
+#      digest into the box.
 #
-# The deploy job never touches the image bytes it deploys except by the digest
-# `build-push` emitted, so "what was reviewed == what is deployed".
-#
-# PROVISIONING (Founder / operator, one-time — see docs/deploy/cd-pipeline.md):
-#   * GitHub → repo → Settings → Environments → `production`, required reviewer
-#     = Founder. This is what enforces the gate below.
-#   * Self-hosted runner registered on srv1749248 with labels
-#     [self-hosted, production], running as the unprivileged `are-deploy` user
-#     (ADR-0057). Ephemeral registration token; private repo (no fork-PR risk).
-#   * `are-deploy` may run ONLY scripts/deploy/box_deploy.sh via a
-#     sudoers-whitelisted wrapper — pull / activate / rollback / current.
-#   * Repo/org secrets/vars used below.
+# The operator then performs the push OFF this workflow, per
+# docs/deploy/cd-pipeline.md, on an egress-capable machine:
+#   pull image by approved digest from GHCR -> verify digest/signature ->
+#   docker/podman save -> scp tarball into the box over inbound operator SSH ->
+#   on the box: scripts/deploy/operator_push.sh (box_deploy load+re-verify
+#   digest -> activate -> acceptance_checks.sh -> auto-rollback on failure ->
+#   post_deploy_record.py). "What the Founder approved == what loads == what
+#   activates" is enforced by the on-box digest re-verify, not by trusting the
+#   transport.
 
 name: CD
 
 on:
   push:
     branches: [master]
-  # Manual re-deploy of an already-built SHA (still Founder-gated on `deploy`).
+  # Manual re-approval of an already-built SHA (still Founder-gated).
   workflow_dispatch:
     inputs:
       image_sha:
-        description: "Git SHA of an already-pushed image to (re)deploy"
+        description: "Git SHA of an already-pushed image to (re)approve for push"
         required: false
 
 concurrency:
-  # One deploy to prod at a time; never cancel an in-flight deploy.
+  # One release approval to prod at a time; never cancel an in-flight approval.
   group: cd-production
   cancel-in-progress: false
 
@@ -57,13 +67,14 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1. Build + push the immutable image to GHCR. GitHub-hosted runner only.
+  # 1. Build + push the immutable image to GHCR. GitHub-hosted runner only
+  #    (CI has egress; the box does not — that is the whole point of the pivot).
   # ---------------------------------------------------------------------------
   build-push:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
-      ref: ${{ steps.push.outputs.ref }}
+      ref: ${{ steps.refout.outputs.ref }}
       digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
@@ -108,75 +119,80 @@ jobs:
           echo "ref=${IMAGE}:${{ steps.meta.outputs.sha }}" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
-  # 2. Deploy to prod. Self-hosted `production` runner, gated by the
-  #    `production` Environment (required reviewer = Founder). Auto-rollback.
+  # 2. Release approval. GitHub-hosted runner, gated by the `production`
+  #    Environment (required reviewer = Founder). This job does NOT contact the
+  #    box: the box has no egress and accepts no CI SSH-in. It records the
+  #    approved digest for the operator-mediated push (see cd-pipeline.md).
   # ---------------------------------------------------------------------------
-  deploy:
+  release-approval:
     needs: build-push
-    runs-on: [self-hosted, production]
+    runs-on: ubuntu-latest
     environment: production      # <-- Founder required-reviewer gate lives here
     env:
       SHA: ${{ needs.build-push.outputs.sha }}
-      REF: ${{ env.IMAGE }}:${{ needs.build-push.outputs.sha }}
+      REF: ${{ needs.build-push.outputs.ref }}
       DIGEST: ${{ needs.build-push.outputs.digest }}
-      # Box-side facts (repo/org vars; never secrets in logs).
-      BASE_URL: ${{ vars.PROD_BASE_URL }}            # e.g. https://127.0.0.1:8443 (loopback on box)
-      STAGING_TENANT: ${{ vars.STAGING_TENANT_ID }}  # staging tenant — NEVER 'vapi'
-      STAGING_AGENT: ${{ vars.STAGING_AGENT_ID }}
-      SCAN_LOG_DB: ${{ vars.SCAN_LOG_DB }}           # /var/lib/are-scanner/scan_log.sqlite3
-      # Admin token to trigger the staging self-scan (mounted secret, not baked).
-      ARE_ADMIN_TOKEN: ${{ secrets.ARE_STAGING_ADMIN_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Record previous image (for rollback)
-        id: prev
+      - name: Write release manifest (operator push authorization)
+        id: manifest
         run: |
-          PREV="$(sudo /usr/local/sbin/box_deploy current || true)"
-          echo "prev=${PREV}" >> "$GITHUB_OUTPUT"
-          echo "Currently active image on box: ${PREV:-<none>}"
+          mkdir -p "${RUNNER_TEMP}/release"
+          MANIFEST="${RUNNER_TEMP}/release/release-manifest.json"
+          # The digest is the load-bearing field: the operator pulls THIS digest
+          # and the box re-verifies it before activate. Tag alone is advisory.
+          python3 - "$MANIFEST" <<'PY'
+          import json, os, sys
+          manifest = {
+              "sha": os.environ["SHA"],
+              "ref": os.environ["REF"],
+              "digest": os.environ["DIGEST"],
+              "approver": os.environ["GH_ACTOR"],
+              "run_url": os.environ["RUN_URL"],
+              "delivery": "operator-mediated-push",
+              "note": (
+                  "Founder-approved via the production Environment gate. Operator: "
+                  "pull this digest from GHCR on an egress-capable machine, verify "
+                  "digest+signature, docker/podman save, scp the tarball into the "
+                  "box over inbound operator SSH, then run "
+                  "scripts/deploy/operator_push.sh on the box (load+re-verify "
+                  "digest -> activate -> acceptance -> auto-rollback -> record). "
+                  "The box never pulls; general egress stays CLOSED (BEAAA-13385)."
+              ),
+          }
+          with open(sys.argv[1], "w") as f:
+              json.dump(manifest, f, indent=2)
+          print(json.dumps(manifest, indent=2))
+          PY
+          echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-      - name: Pull the tagged image
-        run: sudo /usr/local/sbin/box_deploy pull "${REF}"
+      - name: Upload release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ needs.build-push.outputs.sha }}
+          path: ${{ steps.manifest.outputs.path }}
+          if-no-files-found: error
 
-      - name: Swap the running container
-        run: sudo /usr/local/sbin/box_deploy activate "${REF}"
-
-      - name: Automated acceptance (health / smoke / envelope)
-        id: accept
-        run: |
-          scripts/deploy/acceptance_checks.sh \
-            --base-url "${BASE_URL}" \
-            --staging-tenant "${STAGING_TENANT}" \
-            --staging-agent "${STAGING_AGENT}" \
-            --scan-log-db "${SCAN_LOG_DB}" \
-            --admin-token "${ARE_ADMIN_TOKEN}" \
-            --out "${RUNNER_TEMP}/acceptance.json"
-
-      - name: AUTO-ROLLBACK on failed acceptance
-        if: failure() && steps.prev.outputs.prev != ''
-        run: |
-          echo "::error::Acceptance failed — rolling back to ${{ steps.prev.outputs.prev }}"
-          sudo /usr/local/sbin/box_deploy rollback "${{ steps.prev.outputs.prev }}"
-          # Re-run the health leg against the restored image; abort the job if
-          # even rollback is unhealthy (page the operator).
-          scripts/deploy/acceptance_checks.sh \
-            --base-url "${BASE_URL}" --health-only \
-            --out "${RUNNER_TEMP}/rollback-health.json"
-
-      - name: Post deploy record to tracker
+      - name: Post "approved — awaiting operator push" record to tracker
         if: always()
         env:
           PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
           PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_BOT_KEY }}
           TRACKER_ISSUE: BEAAA-13362
         run: |
+          # Acceptance is UNKNOWN at approval time — it runs on the box during
+          # the operator push. This record marks the Founder approval + the
+          # authorized digest; the operator's operator_push.sh posts the final
+          # pass/fail/rolled-back record after on-box acceptance.
           python3 scripts/deploy/post_deploy_record.py \
             --sha "${SHA}" \
             --ref "${REF}" \
             --digest "${DIGEST}" \
             --approver "${{ github.actor }}" \
-            --outcome "${{ job.status }}" \
-            --previous "${{ steps.prev.outputs.prev }}" \
-            --acceptance "${RUNNER_TEMP}/acceptance.json" \
+            --outcome "approved-awaiting-operator-push" \
+            --previous "" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# BEAAA-13362 — post-deploy automated acceptance suite (Option A, ADR-0057).
+# BEAAA-13362 — post-deploy automated acceptance suite (operator-mediated push,
+# ADR-0057 v2.0, corrected by BEAAA-13387).
 #
-# Runs on the self-hosted `production` runner immediately after the container
-# swap. ANY failed check exits non-zero, which trips the cd.yml auto-rollback.
-# Writes a machine-readable JSON summary (--out) that the deploy record embeds.
+# Runs ON THE BOX, invoked by scripts/deploy/operator_push.sh immediately after
+# the container swap (the box has no egress / no self-hosted runner — see the
+# pivot in ADR-0057). ANY failed check exits non-zero, which trips the
+# operator_push.sh auto-rollback. Writes a machine-readable JSON summary (--out)
+# that the deploy record embeds.
 #
 # Checks (exactly the scope of BEAAA-13362):
 #   1. health:   GET  /scanner/v1/sla                       == 200
