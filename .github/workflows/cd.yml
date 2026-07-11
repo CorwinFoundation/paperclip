@@ -21,25 +21,27 @@
 #   1. build-push (GitHub-hosted runner, "from CI only" — CI has egress): build
 #      the immutable edge image from the Phase-1 Dockerfile, run the
 #      import-closure guard at build, push it *private* to
-#      ghcr.io/corwinfoundation/are-scanner:<sha>, and record the image DIGEST.
+#      ghcr.io/corwinfoundation/are-scanner:<sha>, record the image DIGEST, and
+#      sign that digest with keyless cosign.
 #   2. release-approval (GitHub-hosted runner, environment: production): GATED
 #      by the `production` GitHub Environment whose required reviewer is the
 #      Founder. The Approve click IS the Founder gate. On approval this job does
 #      NOT touch the box (the box has no egress and accepts no CI SSH-in); it
-#      records the approved SHA+digest as a release manifest artifact and posts
-#      an "approved — awaiting operator push" record to the tracker. That
+#      records the approved SHA+digest as a signed release manifest artifact and
+#      posts an "approved — awaiting operator push" record to the tracker. That
 #      manifest is the operator's authorization to push the exact approved
 #      digest into the box.
 #
 # The operator then performs the push OFF this workflow, per
 # docs/deploy/cd-pipeline.md, on an egress-capable machine:
-#   pull image by approved digest from GHCR -> verify digest/signature ->
-#   docker/podman save -> scp tarball into the box over inbound operator SSH ->
-#   on the box: scripts/deploy/operator_push.sh (box_deploy load+re-verify
-#   digest -> activate -> acceptance_checks.sh -> auto-rollback on failure ->
+#   pull image by approved digest from GHCR -> cosign verify image signature ->
+#   docker/podman save -> scp tarball + signed manifest into the box over
+#   inbound operator SSH -> on the box: scripts/deploy/operator_push.sh
+#   (verify release-manifest signature -> box_deploy load+re-verify digest ->
+#   activate -> acceptance_checks.sh -> auto-rollback on failure ->
 #   post_deploy_record.py). "What the Founder approved == what loads == what
-#   activates" is enforced by the on-box digest re-verify, not by trusting the
-#   transport.
+#   activates" is enforced by signed manifest + on-box digest re-verify, not by
+#   trusting the transport.
 
 name: CD
 
@@ -177,15 +179,18 @@ jobs:
               "sha": os.environ["SHA"],
               "ref": os.environ["REF"],
               "digest": os.environ["DIGEST"],
+              "image_signature": "cosign-keyless-github-oidc",
+              "manifest_signature": "openssl-sha256-pem",
               "approver": os.environ["GH_ACTOR"],
               "run_url": os.environ["RUN_URL"],
               "delivery": "operator-mediated-push",
               "note": (
                   "Founder-approved via the production Environment gate. Operator: "
-                  "pull this digest from GHCR on an egress-capable machine, verify "
-                  "digest+signature, docker/podman save, scp the tarball into the "
-                  "box over inbound operator SSH, then run "
-                  "scripts/deploy/operator_push.sh on the box (load+re-verify "
+                  "pull this digest from GHCR on an egress-capable machine, "
+                  "cosign-verify the image signature, docker/podman save, scp "
+                  "the tarball plus this signed manifest into the box over "
+                  "inbound operator SSH, then run scripts/deploy/operator_push.sh "
+                  "on the box (verify manifest signature -> load+re-verify "
                   "digest -> activate -> acceptance -> auto-rollback -> record). "
                   "The box never pulls; general egress stays CLOSED (BEAAA-13385)."
               ),
@@ -199,11 +204,32 @@ jobs:
           GH_ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
+      - name: Sign release manifest for offline on-box verification
+        env:
+          CD_MANIFEST_SIGNING_KEY_PEM: ${{ secrets.CD_MANIFEST_SIGNING_KEY_PEM }}
+        run: |
+          test -n "${CD_MANIFEST_SIGNING_KEY_PEM}" || {
+            echo "::error::CD_MANIFEST_SIGNING_KEY_PEM secret is required for offline box verification"
+            exit 1
+          }
+          KEY="${RUNNER_TEMP}/release/manifest-signing-key.pem"
+          printf '%s\n' "${CD_MANIFEST_SIGNING_KEY_PEM}" > "${KEY}"
+          chmod 600 "${KEY}"
+          openssl dgst -sha256 \
+            -sign "${KEY}" \
+            -out "${{ steps.manifest.outputs.path }}.sig" \
+            "${{ steps.manifest.outputs.path }}"
+          openssl pkey -in "${KEY}" -pubout \
+            -out "${RUNNER_TEMP}/release/manifest-signing-pubkey.pem"
+
       - name: Upload release manifest
         uses: actions/upload-artifact@v4
         with:
           name: release-manifest-${{ needs.build-push.outputs.sha }}
-          path: ${{ steps.manifest.outputs.path }}
+          path: |
+            ${{ steps.manifest.outputs.path }}
+            ${{ steps.manifest.outputs.path }}.sig
+            ${{ runner.temp }}/release/manifest-signing-pubkey.pem
           if-no-files-found: error
 
       - name: Post "approved — awaiting operator push" record to tracker

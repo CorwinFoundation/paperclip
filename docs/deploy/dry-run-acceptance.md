@@ -10,6 +10,8 @@ the container and the box is provisioned (`docs/deploy/cd-pipeline.md`).
   against a **copy** of the prod state dir (never the live prod tenant).
 - `production` Environment + Founder required-reviewer configured.
 - Operator push path provisioned; `box_deploy` sudoers-whitelisted.
+- `CD_MANIFEST_SIGNING_KEY_PEM` configured in GitHub and the matching public key
+  installed on the box for `operator_push.sh --manifest-pubkey`.
 - Secrets/vars set; `STAGING_TENANT_ID` is a staging tenant, **not `vapi`**.
 
 ## A. Happy-path dry run
@@ -18,8 +20,9 @@ the container and the box is provisioned (`docs/deploy/cd-pipeline.md`).
 2. Confirm the `release-approval` job is **queued and blocked** on the Founder
    review gate (nothing has touched the box yet). This proves requirement #2.
 3. Founder clicks **Approve**.
-4. Observe: operator push → `box_deploy load` with on-box digest re-verify →
-   `activate` (swap) → `acceptance_checks.sh`:
+4. Observe: operator push → signed release-manifest verification on the box →
+   `box_deploy load` with on-box digest re-verify → `activate` (swap) →
+   `acceptance_checks.sh`:
    - `health` = 200 on `GET /scanner/v1/sla`
    - `auth_unauthenticated` / `auth_forged_key` = 401 on `POST /scanner/v1/scans`
    - `smoke_scan` writes a fresh `scan_log` row; `scan_log_pins` = `1|1|1`

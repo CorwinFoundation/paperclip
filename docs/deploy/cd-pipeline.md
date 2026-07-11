@@ -25,22 +25,25 @@ surface and opens no box egress.
 push to master
   └─ build-push  (GitHub-hosted CI — CI has egress)
      │   build image from Phase-1 Dockerfile, import-closure guard at build,
-     │   push PRIVATE → ghcr.io/corwinfoundation/are-scanner:<sha>, record DIGEST
+     │   push PRIVATE → ghcr.io/corwinfoundation/are-scanner:<sha>, record DIGEST,
+     │   sign the digest with keyless cosign
      └─ release-approval  (GitHub-hosted, environment: production)
         ├─ ⛔ FOUNDER GATE: the `production` Environment required-reviewer
         │      Approve click. No box contact from CI.
         ├─ write release-manifest.json  (sha · ref · DIGEST · approver · run-url)
+        ├─ sign release-manifest.json   offline verification artifact for the box
         └─ post "approved — awaiting operator push" record → tracker
 
         ── then, OFF this workflow, the operator performs the push ──
 
 operator, on an EGRESS-CAPABLE machine (not the box):
   ├─ docker pull <ref>@<DIGEST>        pull the Founder-approved digest from GHCR
-  ├─ verify digest + signature         (fail closed on mismatch)
+  ├─ cosign verify <ref>@<DIGEST>      verify image signature; fail closed
   ├─ docker/podman save → tarball
-  └─ scp tarball INTO the box          over the existing inbound operator SSH
+  └─ scp tarball + signed manifest INTO the box over inbound operator SSH
 
 operator, ON THE BOX  (scripts/deploy/operator_push.sh):
+  ├─ verify release-manifest.json.sig     offline signature check; fail closed
   ├─ box_deploy load <tarball> <DIGEST>   docker load + ON-BOX digest RE-VERIFY
   │                                       (fail closed if digest ≠ approved)
   ├─ box_deploy current                   record previous image (rollback target)
@@ -51,8 +54,8 @@ operator, ON THE BOX  (scripts/deploy/operator_push.sh):
 ```
 
 "What the Founder approved == what loads == what activates" is enforced by the
-**on-box digest re-verify** in `box_deploy load`, not by trusting the transport.
-The box never originates an outbound connection at any step.
+**signed release manifest** plus **on-box digest re-verify**, not by trusting the
+transport. The box never originates an outbound connection at any step.
 
 ## One-time provisioning (Founder / operator — cannot be done from an agent seat)
 
@@ -69,7 +72,15 @@ These are GitHub-org and on-box settings; no agent has repo-admin or box SSH.
    operator's egress-capable machine needs a read token to `docker pull` the
    approved digest.
 
-3. **Box deploy verb + sudoers whitelist.**
+3. **Manifest signing key.** Configure GitHub secret
+   `CD_MANIFEST_SIGNING_KEY_PEM` with the private PEM key used to sign
+   `release-manifest.json` after the Founder approval gate. Install the matching
+   public key on the box, e.g.
+   `/etc/are-scanner/cd-manifest-signing-pubkey.pem` (`root:root`, `0644`).
+   On-box activation refuses unsigned or mismatched manifests before any image
+   load.
+
+4. **Box deploy verb + sudoers whitelist.**
    Install `scripts/deploy/box_deploy.sh` → `/usr/local/sbin/box_deploy`
    (`root:root`, `0755`) and whitelist exactly it:
    ```
@@ -80,7 +91,7 @@ These are GitHub-org and on-box settings; no agent has repo-admin or box SSH.
    box-local overrides in `/etc/are-scanner/deploy.env` (`ARE_CONTAINER_NAME`,
    `ARE_STATE_DIR`, `ARE_SECRETS_ENV`, `ARE_BIND`, `ARE_CONTAINER_ENGINE`).
 
-4. **Box-local push env** (for `operator_push.sh`, in `/etc/are-scanner/deploy.env`
+5. **Box-local push env** (for `operator_push.sh`, in `/etc/are-scanner/deploy.env`
    or the operator's shell — never in CI):
    - `PROD_BASE_URL` (e.g. `https://127.0.0.1:8443` loopback on box),
      `STAGING_TENANT_ID` (**never `vapi`**), `STAGING_AGENT_ID`,
@@ -96,9 +107,12 @@ then on an egress-capable machine:
 
 ```
 docker pull "<ref>@<digest>"            # pull exactly the approved digest
-# verify signature (cosign, once BEAAA-10945 provenance signing lands)
+cosign verify \
+  --certificate-identity-regexp 'https://github.com/CorwinFoundation/are-scanner/.github/workflows/cd.yml@refs/heads/master' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  "<ref>@<digest>"
 docker save "<ref>" -o are-scanner-<sha>.tar
-scp are-scanner-<sha>.tar operator@<box>:/tmp/     # inbound operator SSH only
+scp are-scanner-<sha>.tar release-manifest.json release-manifest.json.sig operator@<box>:/tmp/
 ```
 
 then on the box:
@@ -110,11 +124,15 @@ scripts/deploy/operator_push.sh \
   --ref      <ref> \
   --sha      <sha> \
   --approver <approver-from-manifest> \
-  --run-url  <run-url-from-manifest>
+  --run-url  <run-url-from-manifest> \
+  --manifest /tmp/release-manifest.json \
+  --manifest-sig /tmp/release-manifest.json.sig \
+  --manifest-pubkey /etc/are-scanner/cd-manifest-signing-pubkey.pem
 ```
 
-`operator_push.sh` re-verifies the digest on the box, activates, runs
-acceptance, auto-rolls-back on any failure, and posts the final deploy record.
+`operator_push.sh` verifies the signed release manifest on the box, re-verifies
+the digest on load, activates, runs acceptance, auto-rolls-back on any failure,
+and posts the final deploy record.
 The first pipeline-driven deploy runs under CTO close-gate (Phase 3,
 BEAAA-13363).
 
@@ -133,9 +151,13 @@ the operator is paged.
 - **Zero box egress.** The box never originates an outbound connection —
   `box_deploy` has no `docker pull`; delivery is a tarball pushed in, rollback
   uses the locally-retained image. General egress stays CLOSED (BEAAA-13385).
-- **On-box digest re-verify.** `box_deploy load` fails closed unless the loaded
-  image carries the Founder-approved digest, so a tampered/wrong tarball never
-  activates.
+- **Build/sign/hash-pin.** CI signs the pushed image by digest with keyless
+  cosign, then the Founder-gated job signs a digest manifest for offline on-box
+  verification.
+- **On-box signature + digest re-verify.** `operator_push.sh` fails closed unless
+  the release manifest signature verifies and its SHA/ref/digest match the
+  operator arguments; `box_deploy load` then fails closed unless the loaded image
+  carries the Founder-approved digest.
 - **Staging self-scan never targets `vapi`** — `acceptance_checks.sh` fails
   closed if the resolved tenant is `vapi` (standing blackout, BEAAA-13170).
 - State + secrets are **host-mounted**, never baked into the image

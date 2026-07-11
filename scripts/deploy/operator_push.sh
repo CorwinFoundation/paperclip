@@ -25,7 +25,10 @@
 #     --ref      ghcr.io/corwinfoundation/are-scanner:<sha> \
 #     --sha      <sha> \
 #     --approver <founder-actor-from-manifest> \
-#     --run-url  <actions-run-url-from-manifest>
+#     --run-url  <actions-run-url-from-manifest> \
+#     --manifest /path/to/release-manifest.json \
+#     --manifest-sig /path/to/release-manifest.json.sig \
+#     --manifest-pubkey /etc/are-scanner/cd-manifest-signing-pubkey.pem
 #
 # Box-local facts come from /etc/are-scanner/deploy.env + operator env:
 #   PROD_BASE_URL, STAGING_TENANT_ID (never 'vapi'), STAGING_AGENT_ID,
@@ -38,6 +41,7 @@ BOX_DEPLOY="${ARE_BOX_DEPLOY:-/usr/local/sbin/box_deploy}"   # sudo-whitelisted
 SUDO="${ARE_SUDO:-sudo}"
 
 TARBALL=""; DIGEST=""; REF=""; SHA=""; APPROVER=""; RUN_URL=""
+MANIFEST=""; MANIFEST_SIG=""; MANIFEST_PUBKEY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --tarball)  TARBALL="$2"; shift 2;;
@@ -46,14 +50,54 @@ while [ $# -gt 0 ]; do
     --sha)      SHA="$2"; shift 2;;
     --approver) APPROVER="$2"; shift 2;;
     --run-url)  RUN_URL="$2"; shift 2;;
+    --manifest) MANIFEST="$2"; shift 2;;
+    --manifest-sig) MANIFEST_SIG="$2"; shift 2;;
+    --manifest-pubkey) MANIFEST_PUBKEY="$2"; shift 2;;
     *) echo "unknown arg: $1" >&2; exit 64;;
   esac
 done
-for req in TARBALL DIGEST SHA; do
+for req in TARBALL DIGEST SHA MANIFEST MANIFEST_SIG MANIFEST_PUBKEY; do
   [ -n "${!req}" ] || { echo "--${req,,} required" >&2; exit 64; }
 done
 
 log() { echo "[operator_push] $*" >&2; }
+
+verify_manifest() {
+  [ -f "${MANIFEST}" ] || { log "release manifest missing: ${MANIFEST}"; return 10; }
+  [ -f "${MANIFEST_SIG}" ] || { log "release manifest signature missing: ${MANIFEST_SIG}"; return 10; }
+  [ -f "${MANIFEST_PUBKEY}" ] || { log "manifest public key missing: ${MANIFEST_PUBKEY}"; return 10; }
+
+  openssl dgst -sha256 \
+    -verify "${MANIFEST_PUBKEY}" \
+    -signature "${MANIFEST_SIG}" \
+    "${MANIFEST}" >/dev/null || {
+      log "release manifest signature verification FAILED"; return 11;
+    }
+
+  MANIFEST="${MANIFEST}" SHA="${SHA}" DIGEST="${DIGEST}" REF="${REF}" python3 - <<'PY'
+import json, os, sys
+with open(os.environ["MANIFEST"]) as f:
+    manifest = json.load(f)
+expected = {
+    "sha": os.environ["SHA"],
+    "digest": os.environ["DIGEST"],
+}
+if os.environ.get("REF"):
+    expected["ref"] = os.environ["REF"]
+errors = [
+    f"{key}: manifest={manifest.get(key)!r} expected={value!r}"
+    for key, value in expected.items()
+    if manifest.get(key) != value
+]
+if manifest.get("delivery") != "operator-mediated-push":
+    errors.append(f"delivery={manifest.get('delivery')!r} expected='operator-mediated-push'")
+if manifest.get("manifest_signature") != "openssl-sha256-pem":
+    errors.append("manifest_signature marker missing")
+if errors:
+    print("\n".join(errors), file=sys.stderr)
+    sys.exit(12)
+PY
+}
 
 # Box-local facts (never echo secrets).
 # shellcheck disable=SC1090
@@ -86,19 +130,27 @@ record_and_exit() {
 PREV="$(${SUDO} "${BOX_DEPLOY}" current || true)"
 log "current image on box: ${PREV:-<none>}"
 
-# 2. Load + on-box digest re-verify. Emits the verified ref on success.
+# 2. Re-verify the approved manifest signature on the box before touching the
+#    container engine. The operator's off-box cosign image verification proves
+#    GHCR provenance; this offline manifest signature is the box-side gate that
+#    binds the passed SHA/ref/digest to the Founder-approved artifact.
+verify_manifest || {
+  log "approved manifest verification FAILED — refusing to load or activate"; OUTCOME="failure"; record_and_exit 10;
+}
+
+# 3. Load + on-box digest re-verify. Emits the verified ref on success.
 VERIFIED_REF="$(${SUDO} "${BOX_DEPLOY}" load "${TARBALL}" "${DIGEST}")" || {
   log "load/digest re-verify FAILED — refusing to activate"; OUTCOME="failure"; record_and_exit 5;
 }
 # Prefer the human-readable REF the manifest named; fall back to the loaded ref.
 ACTIVATE_REF="${REF:-${VERIFIED_REF}}"
 
-# 3. Activate.
+# 4. Activate.
 ${SUDO} "${BOX_DEPLOY}" activate "${ACTIVATE_REF}" || {
   log "activate FAILED"; OUTCOME="failure"; record_and_exit 6;
 }
 
-# 4. Acceptance suite (health / auth×2 / staging self-scan never-vapi with the
+# 5. Acceptance suite (health / auth×2 / staging self-scan never-vapi with the
 #    3 non-null pins / BEAAA-13169 envelope 6-fields). Any failure -> rollback.
 if "${HERE}/acceptance_checks.sh" \
       --base-url "${BASE_URL}" \
@@ -112,7 +164,7 @@ if "${HERE}/acceptance_checks.sh" \
 else
   OUTCOME="failure"
   log "acceptance FAILED"
-  # 5. AUTO-ROLLBACK to the previously-active image (retained locally; no egress).
+  # 6. AUTO-ROLLBACK to the previously-active image (retained locally; no egress).
   if [ -n "${PREV}" ]; then
     log "AUTO-ROLLBACK -> ${PREV}"
     ${SUDO} "${BOX_DEPLOY}" rollback "${PREV}" || log "ROLLBACK ITSELF FAILED — paging operator"
@@ -124,5 +176,5 @@ else
   fi
 fi
 
-# 6. Deploy record (always).
+# 7. Deploy record (always).
 record_and_exit "$([ "${OUTCOME}" = success ] && echo 0 || echo 1)"
