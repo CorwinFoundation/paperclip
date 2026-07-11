@@ -33,6 +33,11 @@ UPDATED_RELEASE = "1.1.0"
 CORPUS_VERSION = "0.1.1"
 SEED = 42
 GATE_THRESHOLD = 70.0
+DEMO_BOUNDARY_NOTICE = (
+    "Isolated synthetic lifecycle demonstration only. BOUND_DEMO and bind-threshold "
+    "signals in this report are fixture outputs, not evidence of bound insurance "
+    "coverage, premium, limits, policy issuance, or license status."
+)
 
 Emit = Callable[..., None]
 
@@ -130,9 +135,9 @@ def _installation_manifest(run_id: str, bind: dict[str, Any]) -> dict[str, Any]:
         "installed_at": _utc_now(),
         "environment": "synthetic-production",
         "components": [
-            {"name": "BackBond scanner CI gate", "version": "v1", "status": "installed"},
-            {"name": "ARE collector", "version": "0.1", "status": "installed"},
-            {"name": "Passive log reader", "version": "0.1", "status": "installed"},
+            {"name": "BackBond Scanner CI gate", "version": "v1", "status": "installed"},
+            {"name": "Passive Monitor collector", "version": "0.1", "status": "installed"},
+            {"name": "Passive Monitor log reader", "version": "0.1", "status": "installed"},
             {"name": "Log Tracker", "version": "0.1.1", "status": "installed"},
         ],
         "production_contacted": False,
@@ -210,6 +215,32 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
     ]
     row_html = "".join(f"<div><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>" for label, value in rows)
     return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{escape(certificate['certificate_title'])}</title><style>body{{margin:0;background:#0a0f17;color:#edf3fb;font-family:Inter,system-ui,sans-serif}}main{{width:min(820px,calc(100% - 32px));margin:40px auto;background:#121b28;border:1px solid #314259;border-radius:18px;padding:42px;box-shadow:0 24px 80px #0008}}.eyebrow{{color:#e7a96b;text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:800}}h1{{font-size:38px;margin:10px 0}}p{{color:#aab6c8;line-height:1.65}}section{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:28px 0}}section div{{padding:13px;border:1px solid #29374c;border-radius:10px;background:#0c131e}}span{{display:block;color:#8998ad;font-size:11px;text-transform:uppercase;letter-spacing:.08em}}strong{{display:block;margin-top:6px;overflow-wrap:anywhere}}.seal{{color:#57d49a;font-weight:800}}.notice{{border-left:3px solid #ffd16f;padding-left:14px;color:#d9c28e}}@media(max-width:650px){{main{{padding:24px}}section{{grid-template-columns:1fr}}}}</style></head><body><main><div class=\"eyebrow\">Signed verification envelope</div><h1>{escape(certificate['certificate_title'])}</h1><p>{escape(certificate['lead'])}</p><p class=\"seal\">✓ Signature verified</p><section>{row_html}</section><p class=\"notice\">{escape(certificate['disclaimer'])}</p></main></body></html>"""
+
+
+def _demo_boundary_block() -> str:
+    return (
+        '<div class="caveat-block">'
+        "<h3>Demonstration boundary</h3>"
+        f"<p>{escape(DEMO_BOUNDARY_NOTICE)}</p>"
+        "</div>"
+    )
+
+
+def _canonicalize_demo_report(html: str) -> str:
+    canonical = html
+    replacements = {
+        "<title>ARE Spot-Scan": "<title>BackBond Scanner Report",
+        "<title>ARE Score": "<title>BackBond Scanner Report",
+        "ARE Spot-Scan — Agent Risk Exposure Report Card": "BackBond Scanner Report",
+        "ARE Score — Agent Risk Exposure Report Card": "BackBond Scanner Report",
+        '<div class="report-brand">ARE Insurance</div>': '<div class="report-brand">BackBond Scanner</div>',
+    }
+    for old, new in replacements.items():
+        canonical = canonical.replace(old, new)
+    marker = '<div class="report-body">\n'
+    if marker in canonical and DEMO_BOUNDARY_NOTICE not in canonical:
+        canonical = canonical.replace(marker, marker + "\n" + _demo_boundary_block() + "\n", 1)
+    return canonical
 
 
 def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Callable[[], dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -311,6 +342,7 @@ def generate_final_report(output_dir: Path, lifecycle: dict[str, Any], passive: 
         provenance="measured — isolated synthetic lifecycle demonstration",
         admittance_decision=lifecycle["updated_admittance"],
     )
+    html = _canonicalize_demo_report(html)
     (output_dir / "backbond-report.html").write_text(html, encoding="utf-8")
     report = {
         "report_id": f"report-{lifecycle['certificate']['envelope_id']}",

@@ -54,8 +54,12 @@ def run(base_url: str, timeout_seconds: int) -> dict:
                 raise RuntimeError("certificate signature was not valid")
             certificate_html = _text(base + lifecycle["documents"]["certificate_url"])
             report_html = _text(base + lifecycle["documents"]["report_url"])
-            if "Certificate of BackBond Scan" not in certificate_html or "Agent Risk Exposure Report Card" not in report_html:
+            if "Certificate of BackBond Scan" not in certificate_html or "BackBond Scanner Report" not in report_html:
                 raise RuntimeError("certificate or report document could not be viewed")
+            if "ARE Spot-Scan" in report_html or "ARE Insurance" in report_html:
+                raise RuntimeError("report document contains stale ARE naming")
+            if "BOUND_DEMO and bind-threshold signals" not in report_html or "not evidence of bound insurance coverage" not in report_html:
+                raise RuntimeError("report document is missing the synthetic no-coverage boundary")
             return {
                 "run_id": run_id,
                 "status": "PASS",
