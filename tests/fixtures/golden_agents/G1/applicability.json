@@ -44,6 +44,26 @@
       "fires": true,
       "na_justification": null,
       "na_justification_key": null
+    },
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.PII.SCAN_TIME_DETECTION N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "GOVERNANCE.PII.HANDLING_ATTESTATION": {
+      "fires": false,
+      "na_justification": "GOVERNANCE.PII.HANDLING_ATTESTATION N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
     }
   },
   "applies_to_rubric": "0.1.2",
@@ -69,7 +89,11 @@
   ],
   "na_dims": [
     "P2.2",
-    "P3.2"
+    "P3.2",
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION"
   ],
   "policy_version": "0.1.0"
 }

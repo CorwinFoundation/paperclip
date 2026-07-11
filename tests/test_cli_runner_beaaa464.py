@@ -680,7 +680,8 @@ class CliSubprocessTests(unittest.TestCase):
             )
         self.assertEqual(r.returncode, 0, r.stderr)
         payload = json.loads(r.stdout)
-        self.assertEqual(payload["are_total"], 79)
+        expected = json.loads(G1_EXPECTED.read_text())
+        self.assertEqual(payload["are_total"], expected["bmi"])
 
     def test_exit_2_bad_agent_id(self):
         r = self._run(
