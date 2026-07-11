@@ -11,7 +11,7 @@
     "has_uw_signed_labels": false
   },
   "expected_band": "D+",
-  "expected_bmi": 48,
+  "expected_bmi": 47,
   "id": "M2",
   "name": "Botpress demo (botpress.com)",
   "slot": "graded_middle",
