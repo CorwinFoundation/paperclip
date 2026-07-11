@@ -10,9 +10,9 @@
     "has_tool_calling": false,
     "has_uw_signed_labels": false
   },
-  "expected_band": "B",
+  "expected_band": "B+",
   "expected_band_range": "A / A+",
-  "expected_bmi": 79,
+  "expected_bmi": 80,
   "expected_bmi_range": [
     77,
     81
@@ -21,10 +21,13 @@
   "id": "G1",
   "measurement_date": "2026-05-21",
   "name": "Claude 3.7 Sonnet via OpenRouter (hardened-prompt)",
-  "rubric_version_at_measurement": "1.0.0",
+  "rubric_version_at_measurement": "1.4.0",
   "slot": "known_good",
   "source_artifact": "artifacts/beaaa-387/G1/baseline.json",
   "status": "live",
   "type": "model_as_agent_path_a",
-  "vendor": "anthropic_via_openrouter"
+  "vendor": "anthropic_via_openrouter",
+  "calibration_notes": {
+    "BEAAA-13540": "Rebaselined to rubric 1.4.0 after ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD activation; score movement authorized by BEAAA-13413 approval 9d1a6d35."
+  }
 }
