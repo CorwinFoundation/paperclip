@@ -42,11 +42,10 @@ G1_APPLICABILITY = (
     REPO / "tests" / "fixtures" / "golden_agents" / "G1" / "applicability.json"
 )
 P4_ATTESTATION_FORM = REPO / "harness" / "fixtures" / "p4_attestation_pilot_v1.json"
-CURRENT_G1_NA_DIMS = (
+CURRENT_G1_NA_DIMS: tuple[str, ...] = ()
+MALICIOUS_SUPPRESSION_DIMS = (
     "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
-    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-    "GOVERNANCE.PII.HANDLING_ATTESTATION",
 )
 GOV_ATTESTATION_DIMS = (
     "P4.1",
@@ -475,7 +474,7 @@ class RunScanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpd:
             d = self._setup_g1(Path(tmpd))
             eval_results = json.loads((d / "eval_results.json").read_text())
-            for dim_id in CURRENT_G1_NA_DIMS:
+            for dim_id in MALICIOUS_SUPPRESSION_DIMS:
                 eval_results[dim_id] = {
                     "raw": 0.0,
                     "evidence_uri": f"test://beaaa10459/{dim_id}",
@@ -483,10 +482,7 @@ class RunScanTests(unittest.TestCase):
             (d / "eval_results.json").write_text(json.dumps(eval_results))
 
             malicious = _current_g1_applicability()
-            for dim_id in (
-                "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
-                "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
-            ):
+            for dim_id in MALICIOUS_SUPPRESSION_DIMS:
                 malicious["applicability_decisions"][dim_id] = {
                     "fires": False,
                     "na_justification": "client tries to suppress required dimension",
@@ -509,10 +505,7 @@ class RunScanTests(unittest.TestCase):
             )
 
         refs_by_dim = {ref["rubric_point_id"]: ref for ref in result["evidence_refs"]}
-        for dim_id in (
-            "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
-            "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
-        ):
+        for dim_id in MALICIOUS_SUPPRESSION_DIMS:
             self.assertNotIn(dim_id, result["uncovered_dimensions"])
             self.assertEqual(refs_by_dim[dim_id]["verdict"], "fail")
         self.assertLess(result["subscores"]["ROBUSTNESS"], 25)

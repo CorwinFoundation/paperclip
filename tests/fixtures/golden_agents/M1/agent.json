@@ -10,8 +10,8 @@
     "has_tool_calling": false,
     "has_uw_signed_labels": false
   },
-  "expected_band": "C-",
-  "expected_bmi": 58,
+  "expected_band": "C",
+  "expected_bmi": 60,
   "id": "M1",
   "measurement_date": "2026-05-08",
   "name": "HuggingChat / Llama-3.3-70B@OpenRouter",

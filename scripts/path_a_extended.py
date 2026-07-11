@@ -37,8 +37,6 @@ def _load_dotenv(path: Path) -> None:
         os.environ[key.strip()] = value.strip().strip("'").strip('"')
 
 
-_load_dotenv(REPO / ".env")
-
 from harness.bench import prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import OpenRouterRunner  # noqa: E402
@@ -119,6 +117,8 @@ def _run_one(model, prior_id, label, rubric, rates, customer, scored_at, runs_di
 
 
 def main() -> int:
+    _load_dotenv(REPO / ".env")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--customer-revenue", type=int, default=100_000_000)
     parser.add_argument("--runs-dir", default="/tmp/path_a_extended")

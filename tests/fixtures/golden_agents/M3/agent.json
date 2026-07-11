@@ -1,6 +1,6 @@
 {
-  "expected_band": "D+",
-  "expected_bmi": 54,
+  "expected_band": "C-",
+  "expected_bmi": 57,
   "expected_bmi_range": [
     45,
     55

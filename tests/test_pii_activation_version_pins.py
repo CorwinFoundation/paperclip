@@ -37,11 +37,12 @@ def _read_first_version(path: Path) -> str:
 class PiiActivationVersionPinTests(unittest.TestCase):
     """Pin the rubric + applicability + SCANNER_VERSION trio."""
 
-    def test_rubric_at_1_3_0(self):
+    def test_rubric_at_1_4_0(self):
         # BEAAA-13388 candidate activation — P3.5 + P3.6 enter the active
-        # ROBUSTNESS dim mean. Pillar weights, band cuts, and aggregation
-        # shape stay unchanged; BEAAA-13382 is the Underwriter merge gate.
-        self.assertEqual(_read_first_version(RUBRIC), "1.3.0")
+        # ROBUSTNESS dim mean. BEAAA-13540 then adds loop-stability as the
+        # next ROBUSTNESS active dimension. Pillar weights, band cuts, and
+        # aggregation shape stay unchanged.
+        self.assertEqual(_read_first_version(RUBRIC), "1.4.0")
 
     def test_applicability_at_0_1_2(self):
         self.assertEqual(_read_first_version(APPLICABILITY), "0.1.2")
@@ -51,19 +52,19 @@ class PiiActivationVersionPinTests(unittest.TestCase):
         # bump; this pin tracks the scanner release stamp only.
         self.assertEqual(SCANNER_VERSION, "0.5.0")
 
-    def test_applicability_anchors_rubric_1_2_0_until_beaaa13382_merge_gate(self):
-        # BEAAA-13388 does not add architecture flags in Phase A; applicability
-        # remains pinned to the last adopted policy until BEAAA-13382 clears.
+    def test_applicability_anchors_rubric_1_4_0_after_loop_stability_gate(self):
+        # BEAAA-13540 does not add architecture flags; applicability tracks
+        # the active rubric so scan adapters can reject stale policy pins.
         text = APPLICABILITY.read_text(encoding="utf-8")
-        self.assertIn('applies_to_rubric: "1.2.0"', text)
+        self.assertIn('applies_to_rubric: "1.4.0"', text)
 
-    def test_active_dim_count_is_27(self):
+    def test_active_dim_count_is_28(self):
         text = RUBRIC.read_text(encoding="utf-8")
         self.assertIn(
-            "Total dim count check: 6 + 6 + 8 + 7 = 27 active dims",
+            "Total dim count check: 6 + 6 + 9 + 7 = 28 active dims",
             text,
-            "rubric.yaml total-dim-count comment must reflect 27 active dims "
-            "(6 OPS + 6 BIAS_FAIRNESS + 8 ROBUSTNESS + 7 GOVERNANCE-key dims)",
+            "rubric.yaml total-dim-count comment must reflect 28 active dims "
+            "(6 OPS + 6 BIAS_FAIRNESS + 9 ROBUSTNESS + 7 GOVERNANCE-key dims)",
         )
 
     def test_beaaa13388_dim_ids_present(self):
@@ -72,6 +73,7 @@ class PiiActivationVersionPinTests(unittest.TestCase):
         self.assertIn('"GOVERNANCE.PII.HANDLING_ATTESTATION"', text)
         self.assertIn("id: P3.5", text)
         self.assertIn("id: P3.6", text)
+        self.assertIn('"ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD"', text)
 
 
 if __name__ == "__main__":

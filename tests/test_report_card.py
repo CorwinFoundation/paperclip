@@ -141,12 +141,11 @@ class BindEligibilityTests(unittest.TestCase):
         self.assertTrue(any("weak-link" in r for r in verdict["reasons"]))
 
     def test_p3_aggregate_floor_breach_reported(self):
-        # P3.1=P3.2=P3.3=2.0 ⇒ P3 score=15.0 > 11.25 ⇒ aggregate ok.
-        # Push to 1.4: P3 score=10.5 < 11.25 ⇒ aggregate floor fails AND
-        # weak-link fails (1.4 < 1.5).
+        # Push every active ROBUSTNESS dim to 1.4: pillar score=8.75 <
+        # 11.25, so aggregate floor fails AND weak-link fails (1.4 < 1.5).
         rubric = Rubric.load(RUBRIC_PATH)
         eo = json.loads(FIXTURE.read_text())
-        for did in ("P3.1", "P3.2", "P3.3"):
+        for did in rubric.pillars["ROBUSTNESS"]["dim_ids"]:
             eo[did] = {"raw": 1.4, "evidence_uri": f"https://eval.local/{did}"}
         out = score(
             rubric,
