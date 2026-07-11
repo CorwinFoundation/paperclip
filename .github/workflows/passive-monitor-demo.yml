@@ -1,0 +1,151 @@
+name: Passive Monitor Demo
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "tools/post-bind-ingest/**"
+      - "tools/log-tracker/**"
+      - "api/**"
+      - "ci_plugin/**"
+      - "harness/**"
+      - "report_card/**"
+      - "rubric/**"
+      - "scanners/**"
+      - "scripts/**"
+      - "underwriting/**"
+      - "tools/portal_v1/verify_v0_2.py"
+      - "tests/fixtures/golden_agents/G1/eval_outputs.json"
+      - ".github/workflows/passive-monitor-demo.yml"
+  push:
+    branches: [master]
+    paths:
+      - "tools/post-bind-ingest/**"
+      - "tools/log-tracker/**"
+      - "api/**"
+      - "ci_plugin/**"
+      - "harness/**"
+      - "report_card/**"
+      - "rubric/**"
+      - "scanners/**"
+      - "scripts/**"
+      - "underwriting/**"
+      - "tools/portal_v1/verify_v0_2.py"
+      - "tests/fixtures/golden_agents/G1/eval_outputs.json"
+      - ".github/workflows/passive-monitor-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: passive-monitor-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: test, build, and container proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            tools/post-bind-ingest/pyproject.toml
+            tools/log-tracker/pyproject.toml
+      - name: Install focused demo dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e tools/post-bind-ingest -e tools/log-tracker
+      - name: Run passive monitor and demo tests
+        run: |
+          python -m pytest -q \
+            tools/log-tracker/tests/test_package_metadata.py \
+            tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py \
+            tools/post-bind-ingest/tests/test_lifecycle_demo.py \
+            tools/post-bind-ingest/tests/test_demo_app.py \
+            tools/post-bind-ingest/tests/test_receiver.py \
+            tools/post-bind-ingest/tests/test_continuity_gate.py \
+            tools/post-bind-ingest/tests/test_detector_input.py
+      - name: Build presentation container
+        run: docker build -f tools/post-bind-ingest/demo/Dockerfile.demo -t backbond/passive-monitor-demo:${{ github.sha }} .
+      - name: Run container proof
+        env:
+          DEMO_GIT_SHA: ${{ github.sha }}
+          DEMO_GIT_REF: ${{ github.ref_name }}
+          DEMO_GITHUB_RUN_ID: ${{ github.run_id }}
+          DEMO_GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          docker run -d --name passive-demo-ci -p 127.0.0.1:8765:8765 \
+            -e DEMO_GIT_SHA -e DEMO_GIT_REF -e DEMO_GITHUB_RUN_ID -e DEMO_GITHUB_REPOSITORY \
+            backbond/passive-monitor-demo:${{ github.sha }}
+          for attempt in $(seq 1 40); do
+            curl --fail --silent http://127.0.0.1:8765/api/health && break
+            if [ "$attempt" = 40 ]; then docker logs passive-demo-ci; exit 1; fi
+            sleep 1
+          done
+          python tools/post-bind-ingest/demo/smoke_test.py --url http://127.0.0.1:8765 --timeout 180
+      - name: Package immutable release
+        run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: passive-monitor-demo-${{ github.sha }}
+          path: passive-monitor-demo-${{ github.sha }}.tgz
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload proof logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: passive-monitor-demo-failure-${{ github.run_id }}
+          path: |
+            .pytest_cache
+          if-no-files-found: ignore
+          retention-days: 7
+
+  deploy:
+    name: deploy and verify
+    needs: validate
+    if: vars.PASSIVE_DEMO_CD_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: passive-monitor-demo
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure deployment SSH
+        env:
+          SSH_KEY: ${{ secrets.PASSIVE_DEMO_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/passive-demo
+          chmod 600 ~/.ssh/passive-demo
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+      - name: Upload immutable release
+        env:
+          SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
+          SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
+        run: |
+          tar -czf passive-demo-release.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
+          ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-passive-demo/releases/${GITHUB_SHA}"
+          scp -i ~/.ssh/passive-demo passive-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-passive-demo/releases/${GITHUB_SHA}/"
+          ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-passive-demo/releases/${GITHUB_SHA} && tar -xzf passive-demo-release.tgz"
+      - name: Candidate deploy, rollback guard, and health check
+        env:
+          SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
+          SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
+        run: |
+          SAFE_REF="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._/-' '_')"
+          ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" \
+            "DEMO_GIT_SHA='${GITHUB_SHA}' DEMO_GIT_REF='${SAFE_REF}' DEMO_GITHUB_REPOSITORY='${GITHUB_REPOSITORY}' DEMO_GITHUB_RUN_ID='${GITHUB_RUN_ID}' DEMO_GITHUB_RUN_URL='${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}' DEMO_DEPLOYED_AT='$(date -u +%Y-%m-%dT%H:%M:%SZ)' bash '/opt/backbond-passive-demo/releases/${GITHUB_SHA}/tools/post-bind-ingest/demo/deploy.sh' '/opt/backbond-passive-demo/releases/${GITHUB_SHA}'"
+      - name: Verify public endpoint
+        if: vars.PASSIVE_DEMO_URL != ''
+        env:
+          PASSIVE_DEMO_URL: ${{ vars.PASSIVE_DEMO_URL }}
+        run: python tools/post-bind-ingest/demo/smoke_test.py --url "$PASSIVE_DEMO_URL" --timeout 180
