@@ -28,8 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -72,7 +72,7 @@ jobs:
       - name: Package immutable release
         run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz tools/post-bind-ingest tools/log-tracker
       - name: Upload release bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: passive-monitor-demo-${{ github.sha }}
           path: passive-monitor-demo-${{ github.sha }}.tgz
@@ -80,7 +80,7 @@ jobs:
           retention-days: 14
       - name: Upload proof logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: passive-monitor-demo-failure-${{ github.run_id }}
           path: |
@@ -96,7 +96,7 @@ jobs:
     timeout-minutes: 15
     environment: passive-monitor-demo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Configure deployment SSH
         env:
           SSH_KEY: ${{ secrets.PASSIVE_DEMO_SSH_KEY }}
