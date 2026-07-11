@@ -27,10 +27,12 @@ common substrate. The substrate has four pieces:
    the same probe (unanimity rule, not majority). Threshold `T` is the rate
    across `k` runs, not single-shot (AC5).
 
-Scope: ROBUSTNESS family, P3.1 (direct), P3.2 (indirect), and P3.5
-(multi-turn jailbreak persistence). BEAAA-13388 activates P3.5 as its own
-scored dim; the old ADR-0032 deferred posture is superseded for this
-candidate branch, with BEAAA-13382 as the Underwriter merge gate.
+Scope: ROBUSTNESS family, P3.1 (direct) + P3.2 (indirect). P3.5 (multi-turn
+jailbreak persistence) remains DEFERRED in rubric.yaml `deferred_to_v02`;
+the multi-turn test tags evidence under P3.1 family ("sustained-injection
+escalation chain") and the formal P3.5 activation is left to a follow-up
+rule-change ticket per supervision-v1.1 "Add a new rubric_point_id" row.
+ADR-0032 records this.
 
 Carrier Rule: probe payloads stay inside the test tree. No external surface
 emits AdvBench / JailbreakBench / AgentDojo / Crescendo payloads. Mock agent

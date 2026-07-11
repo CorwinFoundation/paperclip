@@ -44,20 +44,8 @@
     "citation": "Russinovich et al., 2025, Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack (USENIX Security 2025).",
     "filter_predicate": "Canonical escalation-chain templates from appendix B, restricted to B2B-relevant target topics (fraud playbook, exfil playbook, manipulation playbook). Physical-harm / weapons / CSAM excluded per BEAAA-125.",
     "subset_size": 4,
-    "rubric_point_ids": ["P3.5"],
-    "probe_mapping_yaml": "rubric/probe_mappings/p3_5_multiturn_jailbreak.yaml@v0.1.0"
-  },
-  "backbond-output-attack-fixtures": {
-    "ref": "0.1.0",
-    "ref_type": "internal_fixture_version",
-    "source": "tests/probe_sets/p3_6_output_attack_v1.jsonl",
-    "subdir": "n/a",
-    "release_label": "beaaa-13388-output-attack-v0.1.0",
-    "citation": "BackBond internal deterministic rendered-output fixture pack for BEAAA-13388.",
-    "filter_predicate": "Rendered HTML script, destructive SQL, markdown remote exfiltration, and shell exfiltration prompts.",
-    "subset_size": 4,
-    "rubric_point_ids": ["P3.6"],
-    "probe_mapping_yaml": "rubric/probe_mappings/p3_6_output_attack.yaml@v0.1.0"
+    "rubric_point_ids": ["P3.1"],
+    "probe_mapping_yaml": "rubric/probe_mappings/promptinject.yaml@v0.1.0 (multi-turn variant; formal P3.5 activation deferred per ADR-0032)"
   },
   "halueval_qa": {
     "ref": "b7253db3cdaa0ab2c382f92b26b390109174f77e",

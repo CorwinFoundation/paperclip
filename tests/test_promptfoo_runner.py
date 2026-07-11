@@ -34,11 +34,10 @@ class ProbeMappingFileTests(unittest.TestCase):
         m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "garak.yaml")
         self.assertEqual(m.benchmark, "garak")
         self.assertGreater(len(m.probes), 5)
-        # P3.5/P3.6 activate under BEAAA-13388; only retired P3.4 remains
-        # absent from this active mapping.
-        deferred = {"P3.4"}
+        # Active dims only — no P3.4–P3.6 (deferred per §9.3 cuts)
+        deferred = {"P3.4", "P3.5", "P3.6"}
         self.assertFalse(any(p.dim in deferred for p in m.probes),
-                         "garak.yaml refers to retired/deferred P3.4")
+                         "garak.yaml refers to a deferred-to-v0.2 P3 dim")
 
     def test_loads_harmbench_mapping(self):
         m = pf.ProbeMappingFile.load(MAPPINGS_DIR / "harmbench.yaml")
