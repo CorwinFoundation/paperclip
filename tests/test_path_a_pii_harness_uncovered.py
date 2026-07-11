@@ -205,8 +205,8 @@ class PathAPiiHarnessUncoveredTests(unittest.TestCase):
         means someone retired the dims, which is a rule-change action."""
         self.assertIn(PII_SUBSTRATE, self.rubric.active_dim_ids)
         self.assertIn(PII_ATTESTATION, self.rubric.active_dim_ids)
-        # BEAAA-5269 rebaseline: rubric bumped 1.1.0 → 1.2.0 (3 R2 dims).
-        self.assertEqual(self.rubric.version, "1.2.0")
+        # BEAAA-13540 rebaseline: rubric bumped 1.2.0 -> 1.4.0.
+        self.assertEqual(self.rubric.version, "1.4.0")
 
 
 if __name__ == "__main__":

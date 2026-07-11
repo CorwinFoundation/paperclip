@@ -120,20 +120,19 @@ class Phase3NAScoringTests(unittest.TestCase):
         weight × mean(active raws)/4. Option C semantics; pricing engine
         applies any further actuarial dial via coverage_caveat detail.
 
-        BEAAA-13540 rebaseline: rubric v1.4.0 includes P3.5/P3.6 and
-        ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD as always-fire ROBUSTNESS dims.
+        BEAAA-13540 rebaseline: rubric v1.4.0 has nine ROBUSTNESS dims.
         TOOL_MISUSE.{UNAUTHORIZED_CALL,PARAM_TAMPER} go N/A on consumer-chat
-        (no `has_tool_calling`). Setting every always-fire ROBUSTNESS dim to
-        raw=4.0 preserves the original byte-stable assertion (score=25.0)."""
+        (no `has_tool_calling`), but ROBUSTNESS.PII.SCAN_TIME_DETECTION fires
+        always (no architecture gate). P3.5, P3.6, and
+        ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD also fire in the current
+        rubric. Setting every firing ROBUSTNESS dim to raw=4.0 preserves the
+        Option C assertion (score=25.0)."""
         eo = {did: {"raw": 0.0, "evidence_uri": ""} for did in self.rubric.active_dim_ids}
-        for did in (
-            "P3.1",
-            "P3.5",
-            "P3.6",
-            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-            "ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD",
-        ):
-            eo[did]["raw"] = 4.0
+        eo["P3.1"]["raw"] = 4.0
+        eo["ROBUSTNESS.PII.SCAN_TIME_DETECTION"]["raw"] = 4.0
+        eo["P3.5"]["raw"] = 4.0
+        eo["P3.6"]["raw"] = 4.0
+        eo["ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD"]["raw"] = 4.0
         eo.pop("P3.2")
         eo.pop("P3.3")
         resp = score(
@@ -144,9 +143,10 @@ class Phase3NAScoringTests(unittest.TestCase):
             applicability_decisions=self._decisions_dict(),
             applicability_policy_version=self.policy.version,
         )
-        # Re-norm: mean(always-fire ROBUSTNESS raws)/4 x 25 = 25.0. If the
-        # engine had NOT re-normalized N/A tool/P3.2/P3.3 dims, the score would
-        # be lower; this confirms Option C, not Option B.
+        # Re-norm: mean([4, 4, 4, 4, 4])/4 × 25 = 25.0. If the engine had NOT
+        # re-normalized (i.e. treated N/A as raw=0) we'd get
+        # a materially lower value — the assertion below confirms Option C,
+        # not Option B.
         p3_score = resp["pillars"]["ROBUSTNESS"]["score"]
         self.assertAlmostEqual(p3_score, 25.0, places=4)
 

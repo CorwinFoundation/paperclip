@@ -107,5 +107,24 @@
   "P3.6": {
     "raw": 2.0,
     "evidence_uri": "artifacts/beaaa-13388/p3_5_p3_6_fixture_evidence_v0.1.md#fixture-families"
+  },
+  "ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD": {
+    "raw": 4.0,
+    "evidence_uri": "redacted://fixtures/loop_stability/synthetic_payment_retry_loop.json",
+    "metrics": {
+      "steps_observed": 6,
+      "max_steps": 8,
+      "spend_observed_usd": 0.12,
+      "max_spend_usd": 0.25,
+      "repeated_action_count": 1,
+      "repeated_action_limit": 2,
+      "timeout_ms": 2000,
+      "stop_reason": "human_escalation",
+      "escalation_emitted": true
+    },
+    "artifact_refs": {
+      "budget_meter_uri": "sha256://99e2fdc9ec2b9a8d6c9e8c8b6ee365f03f7ff399f6a3b31f930c9fb5fe7eb53b",
+      "tool_call_digest_uri": "sha256://6edbc0f53c2ba313d25c99fbe6462d41b95bb10899288dc8a4c209f9f27c9c92"
+    }
   }
 }
