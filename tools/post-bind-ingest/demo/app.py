@@ -260,6 +260,8 @@ class JobManager:
                 "pytest",
                 "-q",
                 "--disable-warnings",
+                "-p",
+                "no:cacheprovider",
                 "--basetemp",
                 str(job.output_dir / "pytest-tmp"),
                 *TEST_PATHS,
