@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """BEAAA-13362 — post the deploy record back to the tracker automatically.
 
-Runs as the final step of the cd.yml `deploy` job (if: always()), so every
-deploy attempt — pass, fail, or rolled-back — leaves an auditable record on the
+Runs as the final step of the operator-mediated push path, so every deploy
+attempt — pass, fail, or rolled-back — leaves an auditable record on the
 tracker: SHA, image digest, acceptance-checks output, Founder approver, and
-timestamp. Option A / ADR-0057.
+timestamp. Operator-mediated push / ADR-0057 v2.0.
 
 The record is posted as a first-class comment on the tracker issue via the
 Paperclip API (PAPERCLIP_API_URL + PAPERCLIP_API_KEY of a deploy-bot key).

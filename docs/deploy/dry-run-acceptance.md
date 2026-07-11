@@ -9,16 +9,17 @@ the container and the box is provisioned (`docs/deploy/cd-pipeline.md`).
 - Phase 1 image builds and `box_deploy activate` runs a healthy container
   against a **copy** of the prod state dir (never the live prod tenant).
 - `production` Environment + Founder required-reviewer configured.
-- Self-hosted `production` runner online; `box_deploy` sudoers-whitelisted.
+- Operator push path provisioned; `box_deploy` sudoers-whitelisted.
 - Secrets/vars set; `STAGING_TENANT_ID` is a staging tenant, **not `vapi`**.
 
 ## A. Happy-path dry run
 1. Merge a no-op commit to master (or `workflow_dispatch` with a known SHA) to
    **simulate the merge** → `build-push` builds + pushes `:<sha>` to GHCR.
-2. Confirm the `deploy` job is **queued and blocked** on the Founder review gate
-   (nothing has touched the box yet). ← proves requirement #2.
+2. Confirm the `release-approval` job is **queued and blocked** on the Founder
+   review gate (nothing has touched the box yet). This proves requirement #2.
 3. Founder clicks **Approve**.
-4. Observe: `box_deploy pull` → `activate` (swap) → `acceptance_checks.sh`:
+4. Observe: operator push → `box_deploy load` with on-box digest re-verify →
+   `activate` (swap) → `acceptance_checks.sh`:
    - `health` = 200 on `GET /scanner/v1/sla`
    - `auth_unauthenticated` / `auth_forged_key` = 401 on `POST /scanner/v1/scans`
    - `smoke_scan` writes a fresh `scan_log` row; `scan_log_pins` = `1|1|1`

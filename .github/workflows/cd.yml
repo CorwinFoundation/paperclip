@@ -46,6 +46,12 @@ name: CD
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cd.yml"
+      - "docs/deploy/**"
+      - "scripts/deploy/**"
   # Manual re-approval of an already-built SHA (still Founder-gated).
   workflow_dispatch:
     inputs:
@@ -60,17 +66,31 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write    # keyless Cosign signing
   packages: write   # push to GHCR under ghcr.io/corwinfoundation/*
 
 env:
   IMAGE: ghcr.io/corwinfoundation/are-scanner
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deploy shell scripts
+        run: |
+          bash -n scripts/deploy/acceptance_checks.sh
+          bash -n scripts/deploy/box_deploy.sh
+          bash -n scripts/deploy/operator_push.sh
+      - name: Validate deploy record helper
+        run: python3 -m py_compile scripts/deploy/post_deploy_record.py
+
   # ---------------------------------------------------------------------------
   # 1. Build + push the immutable image to GHCR. GitHub-hosted runner only
   #    (CI has egress; the box does not — that is the whole point of the pivot).
   # ---------------------------------------------------------------------------
   build-push:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
@@ -113,6 +133,14 @@ jobs:
             org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign pushed image by digest
+        env:
+          COSIGN_YES: "true"
+        run: cosign sign "${IMAGE}@${{ steps.push.outputs.digest }}"
+
       - name: Emit pushed ref
         id: refout
         run: |
@@ -125,6 +153,7 @@ jobs:
   #    approved digest for the operator-mediated push (see cd-pipeline.md).
   # ---------------------------------------------------------------------------
   release-approval:
+    if: github.event_name != 'pull_request'
     needs: build-push
     runs-on: ubuntu-latest
     environment: production      # <-- Founder required-reviewer gate lives here
