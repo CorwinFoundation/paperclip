@@ -18,6 +18,12 @@ def _json(url: str, *, method: str = "GET", timeout: int = 10) -> dict:
         return json.load(response)
 
 
+def _text(url: str, *, timeout: int = 20) -> str:
+    with request.urlopen(url, timeout=timeout) as response:
+        if response.status != 200:
+            raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
+        return response.read().decode("utf-8")
+
 def run(base_url: str, timeout_seconds: int) -> dict:
     base = base_url.rstrip("/")
     health = _json(base + "/api/health")
@@ -37,7 +43,29 @@ def run(base_url: str, timeout_seconds: int) -> dict:
                 raise RuntimeError("deployed proof result did not meet the acceptance contract")
             if result["tests"]["status"] != "passed" or len(result["tracker_rows"]) != 7:
                 raise RuntimeError("deployed test or persistence gate failed")
-            return {"run_id": run_id, "status": "PASS", "events": snapshot["event_count"], "elapsed_ms": result["elapsed_ms"]}
+            lifecycle = result["lifecycle"]
+            if lifecycle["initial_scan"]["score"] != 80 or lifecycle["updated_scan"]["score"] != 81:
+                raise RuntimeError("scanner lifecycle scores did not match the release proof")
+            if lifecycle["bind"]["admittance_class"] != "CONSTRAINED_BIND" or lifecycle["bind"]["real_policy_bound"] is not False:
+                raise RuntimeError("demonstration bind boundary failed")
+            if lifecycle["installation"]["status"] != "INSTALLED" or lifecycle["ci_gate"]["exit_code"] != 0:
+                raise RuntimeError("install or CI gate did not pass")
+            if lifecycle["certificate"]["signature_status"] != "valid":
+                raise RuntimeError("certificate signature was not valid")
+            certificate_html = _text(base + lifecycle["documents"]["certificate_url"])
+            report_html = _text(base + lifecycle["documents"]["report_url"])
+            if "Certificate of BackBond Scan" not in certificate_html or "Agent Risk Exposure Report Card" not in report_html:
+                raise RuntimeError("certificate or report document could not be viewed")
+            return {
+                "run_id": run_id,
+                "status": "PASS",
+                "events": snapshot["event_count"],
+                "elapsed_ms": result["elapsed_ms"],
+                "initial_score": lifecycle["initial_scan"]["score"],
+                "updated_score": lifecycle["updated_scan"]["score"],
+                "production_logs": len(result["raw_events"]),
+                "passive_findings": len(result["detections"]),
+            }
         time.sleep(0.5)
     raise TimeoutError(f"demo run {run_id} did not finish within {timeout_seconds}s")
 

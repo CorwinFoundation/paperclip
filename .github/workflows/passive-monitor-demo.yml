@@ -6,12 +6,32 @@ on:
     paths:
       - "tools/post-bind-ingest/**"
       - "tools/log-tracker/**"
+      - "api/**"
+      - "ci_plugin/**"
+      - "harness/**"
+      - "report_card/**"
+      - "rubric/**"
+      - "scanners/**"
+      - "scripts/**"
+      - "underwriting/**"
+      - "tools/portal_v1/verify_v0_2.py"
+      - "tests/fixtures/golden_agents/G1/eval_outputs.json"
       - ".github/workflows/passive-monitor-demo.yml"
   push:
     branches: [master]
     paths:
       - "tools/post-bind-ingest/**"
       - "tools/log-tracker/**"
+      - "api/**"
+      - "ci_plugin/**"
+      - "harness/**"
+      - "report_card/**"
+      - "rubric/**"
+      - "scanners/**"
+      - "scripts/**"
+      - "underwriting/**"
+      - "tools/portal_v1/verify_v0_2.py"
+      - "tests/fixtures/golden_agents/G1/eval_outputs.json"
       - ".github/workflows/passive-monitor-demo.yml"
   workflow_dispatch:
 
@@ -47,6 +67,7 @@ jobs:
           python -m pytest -q \
             tools/log-tracker/tests/test_package_metadata.py \
             tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py \
+            tools/post-bind-ingest/tests/test_lifecycle_demo.py \
             tools/post-bind-ingest/tests/test_demo_app.py \
             tools/post-bind-ingest/tests/test_receiver.py \
             tools/post-bind-ingest/tests/test_continuity_gate.py \
@@ -70,7 +91,7 @@ jobs:
           done
           python tools/post-bind-ingest/demo/smoke_test.py --url http://127.0.0.1:8765 --timeout 180
       - name: Package immutable release
-        run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz tools/post-bind-ingest tools/log-tracker
+        run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
       - name: Upload release bundle
         uses: actions/upload-artifact@v7
         with:
@@ -111,7 +132,7 @@ jobs:
           SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
           SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
         run: |
-          tar -czf passive-demo-release.tgz tools/post-bind-ingest tools/log-tracker
+          tar -czf passive-demo-release.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
           ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-passive-demo/releases/${GITHUB_SHA}"
           scp -i ~/.ssh/passive-demo passive-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-passive-demo/releases/${GITHUB_SHA}/"
           ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-passive-demo/releases/${GITHUB_SHA} && tar -xzf passive-demo-release.tgz"

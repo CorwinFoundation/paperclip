@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Presentation-ready BackBond passive monitor demo service.
+"""Presentation-ready BackBond scan-to-production lifecycle service.
 
-The service runs only fixed, repository-owned commands. A browser can watch a
-synthetic AI agent emit logs, the real passive pipeline analyze them, focused
-pytest gates execute, and the deployment metadata that reached the service.
+The service executes only fixed, repository-owned scanner, underwriting, CI,
+certificate, report-card, and passive-monitor paths in a synthetic environment.
 """
 
 from __future__ import annotations
@@ -25,6 +24,8 @@ import time
 import uuid
 from urllib.parse import parse_qs, urlparse
 
+from lifecycle import generate_final_report, run_preproduction
+
 
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
@@ -32,6 +33,7 @@ RUNNER = DEMO_DIR.parent / "scripts" / "run_passive_log_reader_e2e.py"
 INDEX = DEMO_DIR / "index_v2.html"
 TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py",
+    "tools/post-bind-ingest/tests/test_lifecycle_demo.py",
     "tools/post-bind-ingest/tests/test_receiver.py",
     "tools/post-bind-ingest/tests/test_continuity_gate.py",
     "tools/post-bind-ingest/tests/test_detector_input.py",
@@ -191,11 +193,11 @@ class JobManager:
         env["PYTHONUNBUFFERED"] = "1"
         return env
 
-    def _run_passive_pipeline(self, job: DemoJob) -> dict:
-        job.output_dir.mkdir(parents=True, exist_ok=False)
+    def _run_passive_pipeline(self, job: DemoJob, output_dir: Path) -> dict:
+        output_dir.mkdir(parents=True, exist_ok=False)
         job.emit("stage", "Synthetic AI agent and passive pipeline started", stage="agent", state="running")
         proc = subprocess.run(
-            [sys.executable, str(RUNNER), "--output-dir", str(job.output_dir)],
+            [sys.executable, str(RUNNER), "--output-dir", str(output_dir)],
             cwd=REPO_ROOT,
             env=self._command_env(),
             check=False,
@@ -206,12 +208,12 @@ class JobManager:
         )
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "passive pipeline failed")
-        report = json.loads((job.output_dir / "analysis-report.json").read_text(encoding="utf-8"))
+        report = json.loads((output_dir / "analysis-report.json").read_text(encoding="utf-8"))
         report["artifacts"] = {
             name: f"evidence://{job.run_id}/{Path(path).name}"
             for name, path in report.get("artifacts", {}).items()
         }
-        raw_events = _json_lines(job.output_dir / "synthetic-agent-raw.jsonl")
+        raw_events = _json_lines(output_dir / "synthetic-agent-raw.jsonl")
         for event in raw_events:
             job.emit(
                 "agent_log",
@@ -222,7 +224,7 @@ class JobManager:
             )
         job.emit("stage", "Synthetic AI agent completed", stage="agent", state="passed")
         job.emit("stage", "Collector, receiver, and passive detectors completed", stage="passive", state="running")
-        normalized = _json_lines(job.output_dir / "normalized-events.jsonl")
+        normalized = _json_lines(output_dir / "normalized-events.jsonl")
         detections = [event for event in normalized if event["event_type"] == "claim_candidate_event"]
         for detection in detections:
             payload = detection["payload"]
@@ -244,14 +246,14 @@ class JobManager:
         return {
             "report": report,
             "raw_events": raw_events,
-            "receiver_events": _receiver_events(job.output_dir / "receiver-batches"),
+            "receiver_events": _receiver_events(output_dir / "receiver-batches"),
             "normalized_events": [event for event in normalized if event["event_type"] != "claim_candidate_event"],
             "detections": detections,
-            "tracker_rows": _tracker_rows(job.output_dir / "log-tracker.sqlite3"),
+            "tracker_rows": _tracker_rows(output_dir / "log-tracker.sqlite3"),
         }
 
     def _run_tests(self, job: DemoJob) -> dict:
-        job.emit("stage", "Focused pytest gate started", stage="tests", state="running")
+        job.emit("test_output", "Focused lifecycle pytest gate started", stage="cicd")
         started = time.perf_counter()
         proc = subprocess.run(
             [
@@ -275,12 +277,11 @@ class JobManager:
         )
         output_lines = [line.rstrip() for line in proc.stdout.splitlines() if line.strip()]
         for clean in output_lines:
-            job.emit("test_output", clean, stage="tests")
+            job.emit("test_output", clean, stage="cicd")
         elapsed_ms = round((time.perf_counter() - started) * 1000)
         if proc.returncode != 0:
             raise RuntimeError("focused pytest gate failed")
         summary = output_lines[-1] if output_lines else "pytest completed"
-        job.emit("stage", summary, stage="tests", state="passed")
         return {"status": "passed", "summary": summary, "elapsed_ms": elapsed_ms, "command": "pytest " + " ".join(TEST_PATHS)}
 
     def _execute(self, job: DemoJob) -> None:
@@ -288,25 +289,32 @@ class JobManager:
         job.started_at = _utc_now()
         started = time.perf_counter()
         try:
-            job.emit("stage", "Isolated demo run created", stage="bootstrap", state="passed")
-            passive = self._run_passive_pipeline(job)
-            tests = self._run_tests(job)
+            lifecycle, tests = run_preproduction(
+                job.output_dir,
+                job.run_id,
+                job.emit,
+                lambda: self._run_tests(job),
+            )
+            passive = self._run_passive_pipeline(job, job.output_dir / "production")
+            monitoring_report = generate_final_report(job.output_dir, lifecycle, passive, job.emit)
             deployment = _deployment_metadata()
             job.emit(
-                "cicd",
+                "deployment",
                 f"Deployed from {deployment['git_ref']} at {deployment['git_sha'][:12]}",
-                stage="cicd",
+                stage="report",
                 deployment=deployment,
             )
             job.result = {
                 **passive,
+                "lifecycle": lifecycle,
+                "monitoring_report": monitoring_report,
                 "tests": tests,
                 "deployment": deployment,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000),
                 "evidence_id": job.run_id,
             }
             job.status = "passed"
-            job.emit("complete", "All demo gates passed", stage="complete", state="passed")
+            job.emit("complete", "Full scan-to-production lifecycle passed", stage="complete", state="passed")
         except Exception as exc:  # noqa: BLE001
             job.error = str(exc)
             job.status = "failed"
@@ -366,6 +374,16 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_html_file(self, path: Path) -> None:
+        data = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
@@ -373,7 +391,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_index()
             return
         if path == "/api/health":
-            self._send_json({"status": "ok", "mode": "synthetic-showcase", "production_contacted": False, "vapi_used": False, "deployment": _deployment_metadata()})
+            self._send_json({"status": "ok", "mode": "synthetic-lifecycle", "production_contacted": False, "vapi_used": False, "deployment": _deployment_metadata()})
             return
         if path == "/api/deployment":
             self._send_json(_deployment_metadata())
@@ -384,10 +402,23 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         prefix = "/api/runs/"
         if path.startswith(prefix):
-            run_id = path[len(prefix):]
+            remainder = path[len(prefix):]
+            parts = remainder.split("/")
+            run_id = parts[0]
             job = self.manager.get(run_id)
             if not job:
                 self._send_json({"error": "run_not_found"}, HTTPStatus.NOT_FOUND)
+                return
+            if len(parts) == 2 and parts[1] in {"certificate", "report"}:
+                filename = "certificate.html" if parts[1] == "certificate" else "backbond-report.html"
+                document = job.output_dir / filename
+                if job.status != "passed" or not document.is_file():
+                    self._send_json({"error": "document_not_ready"}, HTTPStatus.CONFLICT)
+                    return
+                self._send_html_file(document)
+                return
+            if len(parts) != 1:
+                self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
                 return
             query = parse_qs(parsed.query)
             try:
@@ -398,7 +429,6 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json(job.snapshot(after=after))
             return
         self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
-
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/")
         if path != "/api/runs":

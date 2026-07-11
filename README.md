@@ -143,16 +143,17 @@ regression on the golden roster runs at the merge gate per
 `agents/scanner-implementation-supervision-v1.md`; outputs land under
 `tools/calibration-deltas/`.
 
-## Live passive-monitor proof
+## Live scan-to-production proof
 
-The presentation environment runs a synthetic AI agent, signed passive-log
-ingestion, P1-P6 detection, Log Tracker persistence, focused tests, and CI/CD
-evidence as one browser-visible job. No production tenant or customer data is
-contacted.
+The presentation environment executes the real scanner, underwriting admittance
+rules, CI gate, signed certificate-of-scan flow, report-card renderer, synthetic
+production agent, passive P1-P6 detectors, and Log Tracker as one browser-visible
+lifecycle. No production tenant, customer data, or real insurance system is
+contacted; the demonstration bind and certificate boundaries are explicit.
 
 See [`tools/post-bind-ingest/demo/SHOWCASE.md`](tools/post-bind-ingest/demo/SHOWCASE.md)
-for local startup, smoke-test, container, deployment, rollback, and security
-instructions.
+for local startup, lifecycle acceptance criteria, container deployment, rollback,
+and security instructions.
 
 ## Running scans from the CLI
 

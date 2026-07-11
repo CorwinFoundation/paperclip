@@ -34,9 +34,18 @@ def test_job_streams_agent_passive_tests_and_cicd() -> None:
         snapshot = job.snapshot()
         assert snapshot["status"] == "passed", snapshot["error"]
         kinds = {event["kind"] for event in snapshot["events"]}
-        assert {"agent_log", "detection", "test_output", "cicd", "complete"} <= kinds
+        assert {"scan", "bind", "install", "version", "certificate", "agent_log", "detection", "test_output", "cicd", "report", "complete"} <= kinds
         result = snapshot["result"]
         assert result is not None
+        lifecycle = result["lifecycle"]
+        assert lifecycle["initial_scan"]["score"] == 80
+        assert lifecycle["updated_scan"]["score"] == 81
+        assert lifecycle["bind"]["admittance_class"] == "CONSTRAINED_BIND"
+        assert lifecycle["bind"]["real_policy_bound"] is False
+        assert lifecycle["installation"]["status"] == "INSTALLED"
+        assert lifecycle["ci_gate"]["status"] == "passed"
+        assert lifecycle["certificate"]["signature_status"] == "valid"
+        assert result["monitoring_report"]["production_logs"] == 9
         assert result["report"]["status"] == "PASS"
         assert result["report"]["perils_detected"] == ["P1", "P2", "P3", "P4", "P5", "P6"]
         assert result["tests"]["status"] == "passed"
