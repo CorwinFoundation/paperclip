@@ -14,8 +14,8 @@ display surface for the score and the report card.
 - Scanner: `0.5.0` (`SCANNER_VERSION` in `scanners/__init__.py`;
   BEAAA-6190 v0.5 RC cut — release-cut stamp only, rubric + contract
   literals held per the version note in `scanners/__init__.py`)
-- Rubric: `1.2.0`, locked through `2026-08-04` (`rubric/rubric.yaml`;
-  re-locked 2026-07-05 per BEAAA-11915 — unchanged 1.2.0, golden N=5 Δ0)
+- Rubric: `1.3.0`, locked through `2026-08-04` (`rubric/rubric.yaml`;
+  P3.5/P3.6 robustness dimensions activated with refreshed golden fixtures)
 - Contract: `are-scanner-api-v1@v1.3.0`
   (`contracts/are-scanner-api-v1.md` frontmatter + `CONTRACT_VERSION`;
   v1.0.x/v1.1.0/v1.2.0/v1.3.0 cumulative in the master contract;
@@ -142,6 +142,17 @@ run the same command before pushing Scanner changes. Calibration
 regression on the golden roster runs at the merge gate per
 `agents/scanner-implementation-supervision-v1.md`; outputs land under
 `tools/calibration-deltas/`.
+
+## Live passive-monitor proof
+
+The presentation environment runs a synthetic AI agent, signed passive-log
+ingestion, P1-P6 detection, Log Tracker persistence, focused tests, and CI/CD
+evidence as one browser-visible job. No production tenant or customer data is
+contacted.
+
+See [`tools/post-bind-ingest/demo/SHOWCASE.md`](tools/post-bind-ingest/demo/SHOWCASE.md)
+for local startup, smoke-test, container, deployment, rollback, and security
+instructions.
 
 ## Running scans from the CLI
 
