@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "log-tracker"
-version = "0.1.0"
+version = "0.1.1"
 description = "BackBond Log Tracker v0 evidence ledger"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["pydantic>=2.8,<3"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
