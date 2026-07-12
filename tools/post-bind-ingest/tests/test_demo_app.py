@@ -19,7 +19,10 @@ def test_deployment_metadata_contains_only_public_build_facts(monkeypatch) -> No
     monkeypatch.setenv("DEMO_GITHUB_REPOSITORY", "CorwinFoundation/are-scanner")
     metadata = _deployment_metadata()
     assert metadata["git_sha"] == "abc123"
-    assert metadata["github_run_url"].endswith("/actions/runs/42")
+    assert metadata["github_run_id"] == "42"
+    assert "github_run_url" not in metadata
+    assert "repository" not in metadata
+    assert "git_ref" not in metadata
     assert all(gate["status"] == "passed" for gate in metadata["gates"])
     assert not any("token" in key.lower() or "secret" in key.lower() for key in metadata)
 
