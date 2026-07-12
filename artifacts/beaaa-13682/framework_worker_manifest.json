@@ -1,0 +1,423 @@
+{
+  "active_registry_rows": 112,
+  "artifact_metadata": {
+    "artifact_type": "other",
+    "canonical_terms_only": true,
+    "contracts_referenced": [
+      "are-scanner-api-v1@v1.0",
+      "scanner-implementation-supervision-v1@v1.1"
+    ],
+    "escalations_noted": [],
+    "focus_claim": "BEAAA-13682 preserves BackBond Scanner pricing discipline by blocking unpinned framework workers from measured score contribution.",
+    "owner": "scanner_engineer",
+    "persona_audience": "internal",
+    "phase": 1,
+    "prior_version": null,
+    "proof_points_cited": [
+      "tools/active_test_registry.py",
+      "requirements.txt",
+      "requirements/eval_pins.txt"
+    ],
+    "self_audit_passed": true,
+    "ticket_refs": [
+      "BEAAA-13682",
+      "BEAAA-13678",
+      "BEAAA-13644"
+    ],
+    "version": 0.1
+  },
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "manifest_version": "framework-worker-ownership/v0.1",
+  "release_blocker_count": 0,
+  "release_blockers": [],
+  "workers": [
+    {
+      "active_registry_rows": 4,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:4e283e143938833940d5874f6ce33f918299be9795cb279ac7136728c97aea2e",
+      "corpus_sources": [
+        "requirements.txt",
+        "scanners/agentdojo_runner.py",
+        "rubric/probe_mappings/agentdojo.yaml",
+        "rubric/probe_mappings/tool_misuse_param_tamper.yaml",
+        "rubric/probe_mappings/tool_misuse_scope_escape.yaml",
+        "rubric/probe_mappings/tool_misuse_unauthorized_call.yaml"
+      ],
+      "dependency_pins": {
+        "agentdojo": "0.1.35"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "agentdojo-evidence/v1"
+      },
+      "framework_version": "0.1.35",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by ScanRequest.seed; tool-call fixtures replay deterministically",
+      "worker_id": "agentdojo"
+    },
+    {
+      "active_registry_rows": 0,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:e37c9f732a4ef7cf59d7093c23839d6c0b8d902c09cba34db69dd1931b3d2431",
+      "corpus_sources": [
+        "harness/bench/ailuminate.py"
+      ],
+      "dependency_pins": {
+        "harness/bench/ailuminate.py": "source-provenance"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "ailuminate-evidence/v1"
+      },
+      "framework_version": "corpus-provenance-pin",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by corpus row id and ScanRequest.seed; no external package pin exists",
+      "worker_id": "ailuminate"
+    },
+    {
+      "active_registry_rows": 8,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:78ee4f81ef7dcb9b7b2b09891118470948d8ac56fc096305d663d4bd26920b14",
+      "corpus_sources": [
+        "requirements.txt",
+        "rubric/probe_mappings/bbq.yaml",
+        "rubric/probe_mappings/counterfactual_stability.yaml",
+        "rubric/probe_mappings/demographic_parity.yaml",
+        "rubric/probe_mappings/donotanswer.yaml",
+        "rubric/probe_mappings/equal_opportunity.yaml",
+        "rubric/probe_mappings/eval_representation.yaml",
+        "rubric/probe_mappings/p2_1_demographic_parity_gap.yaml",
+        "rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml",
+        "rubric/probe_mappings/p2_3_counterfactual_stability.yaml",
+        "rubric/probe_mappings/p2_4_eval_representation.yaml",
+        "rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml",
+        "rubric/probe_mappings/p2_6_mitigation_evidence.yaml",
+        "rubric/probe_mappings/sentiment_skew.yaml"
+      ],
+      "dependency_pins": {
+        "PyYAML": "6.0.2"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "fairness-custom-evidence/v1"
+      },
+      "framework_version": "bbq-donotanswer-custom-fairness@0.1",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by pair/case id and ScanRequest.seed; judge temperature 0 where used",
+      "worker_id": "fairness_custom"
+    },
+    {
+      "active_registry_rows": 27,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:429947f0372e0d09c9c341b0be5de51393b50fb202c06f5232ffe53edb59d3da",
+      "corpus_sources": [
+        "requirements.txt",
+        "rubric/probe_mappings/garak.yaml",
+        "rubric/probe_mappings/garak_beaaa152.yaml"
+      ],
+      "dependency_pins": {
+        "garak": "0.10.0"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "garak-evidence/v1"
+      },
+      "framework_version": "0.10.0",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by BackBond Scanner scan seed and garak probe namespace pin",
+      "worker_id": "garak"
+    },
+    {
+      "active_registry_rows": 8,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:fe4735a76bc0904c4a324f27a6e08f4da39a0c53980025b44f2fd4f11cb5832f",
+      "corpus_sources": [
+        "requirements.txt",
+        "rubric/probe_mappings/eval_coverage_breadth.yaml",
+        "rubric/probe_mappings/eval_coverage_ledger.schema.yaml",
+        "rubric/probe_mappings/mitigation_evidence.yaml",
+        "rubric/probe_mappings/p4_audit_log.yaml",
+        "rubric/probe_mappings/p4_eval_cadence.yaml",
+        "rubric/probe_mappings/p4_incident_response.yaml",
+        "rubric/probe_mappings/p4_kill_switch.yaml",
+        "rubric/probe_mappings/p4_owner_matrix.yaml",
+        "rubric/probe_mappings/p4_version_control.yaml"
+      ],
+      "dependency_pins": {
+        "PyYAML": "6.0.2"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "governance-attestation-evidence/v1"
+      },
+      "framework_version": "backbond-governance-attestation@0.1",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "attestation evidence is deterministic; ScanRequest.seed is retained for envelope parity",
+      "worker_id": "governance_attestation"
+    },
+    {
+      "active_registry_rows": 10,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:db6f058e01cc42e95da5b3ca59cc3f7cea513036487cab2d1f51ecd93f43e5af",
+      "corpus_sources": [
+        "requirements.txt",
+        "scanners/inspect_runner.py",
+        "scanners/wraps/inspect_section1_v0.py",
+        "rubric/probe_mappings/citation_integrity_legal.yaml",
+        "rubric/probe_mappings/confidence_calibration.yaml",
+        "rubric/probe_mappings/hallucination_legal.yaml",
+        "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+        "rubric/probe_mappings/p1_3_consistency_golden.yaml",
+        "rubric/probe_mappings/p1_4_refusal_golden.yaml",
+        "rubric/probe_mappings/p1_5_calibration_golden.yaml"
+      ],
+      "dependency_pins": {
+        "inspect-ai": "0.3.220"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "inspect-evidence/v1"
+      },
+      "framework_version": "0.3.220",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by ScanRequest.seed; repeatability verified by N=5 release gate",
+      "worker_id": "inspect"
+    },
+    {
+      "active_registry_rows": 0,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:2cf80cbc731619662924ff140852f46b24f0c004351eed3e3474206c1233bc93",
+      "corpus_sources": [
+        "requirements.txt",
+        "rubric/probe_mappings/pii_attestation.yaml",
+        "rubric/probe_mappings/pii_scan_time_detection.yaml",
+        "rubric/probe_mappings/pii_substrate.yaml",
+        "harness/bench/pii_scan_time_detection.py"
+      ],
+      "dependency_pins": {
+        "llm-guard": "0.3.16",
+        "presidio-analyzer": "2.2.358",
+        "presidio-anonymizer": "2.2.358",
+        "spacy": "3.8.14",
+        "transformers": "4.51.3"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "llm-guard-presidio-evidence/v1"
+      },
+      "framework_version": "llm-guard@0.3.16+presidio@2.2.358",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "detector thresholds pinned; scan seed stamped into evidence envelope",
+      "worker_id": "llm_guard_presidio"
+    },
+    {
+      "active_registry_rows": 50,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:90cba6d124b1191685087db4f8013bb595ab62b08f4ad875cb57f3de4270387d",
+      "corpus_sources": [
+        "requirements.txt",
+        "rubric/probe_mappings/advbench.yaml",
+        "rubric/probe_mappings/factscore.yaml",
+        "rubric/probe_mappings/halueval.yaml",
+        "rubric/probe_mappings/harmbench.yaml",
+        "rubric/probe_mappings/jailbreakbench.yaml",
+        "rubric/probe_mappings/privacybench.yaml",
+        "rubric/probe_mappings/promptbench.yaml",
+        "rubric/probe_mappings/promptinject.yaml",
+        "rubric/probe_mappings/truthfulqa.yaml"
+      ],
+      "dependency_pins": {
+        "promptfoo": "0.115.0"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "promptfoo-evidence/v1"
+      },
+      "framework_version": "0.115.0",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seeded deterministic prompt rendering; judge temperature 0 where applicable",
+      "worker_id": "promptfoo"
+    },
+    {
+      "active_registry_rows": 5,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:6e125b5aa9652eabf31d0b8aebbc3d9b6b0551e54346b23c461ee604ee99dc69",
+      "corpus_sources": [
+        "requirements.txt",
+        "scanners/pyrit_runner.py",
+        "rubric/probe_mappings/pyrit.yaml"
+      ],
+      "dependency_pins": {
+        "pyrit": "0.6.0"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "pyrit-evidence/v1"
+      },
+      "framework_version": "0.6.0",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by BackBond Scanner scan seed; PyRIT attack generator version pinned",
+      "worker_id": "pyrit"
+    },
+    {
+      "active_registry_rows": 0,
+      "blocker_reason": "",
+      "corpus_hash": "sha256:5617ffa2ec18eabe310b75168253fe1a043d20fd1b4543f6a6192ae5b0da6fb8",
+      "corpus_sources": [
+        "requirements/eval_pins.txt"
+      ],
+      "dependency_pins": {
+        "tau-bench": "59a200c6d575d595120f1cb70fea53cef0632f6b",
+        "tau2-bench": "5ebebbe827b455b3ed04fcb9294235c6ef4e5fd6"
+      },
+      "evidence_output_schema": {
+        "artifact_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+        "required_fields": [
+          "scan_id",
+          "test_id",
+          "case_id",
+          "rubric_point_id",
+          "verdict",
+          "artifact_uri",
+          "seed",
+          "framework_worker_id",
+          "framework_version",
+          "corpus_hash"
+        ],
+        "schema_id": "tau-bench-evidence/v1"
+      },
+      "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b",
+      "measured_score_allowed": true,
+      "owner": "scanner_engineer_2_eval_calibration",
+      "release_blocker": false,
+      "seed_policy": "seed fixed by benchmark task id and ScanRequest.seed",
+      "worker_id": "tau_bench"
+    }
+  ]
+}

@@ -50,8 +50,22 @@ ROSTER = tuple(agent_id for agent_id in FULL_ROSTER if agent_id not in EXCLUDED_
 SEEDS = (0, 1, 2, 3, 4)
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
 SPREAD_TOLERANCE = 1.0
+DELTA_TOLERANCE = 1.0
 SCORED_AT = "2026-06-29T00:00:00+00:00"
 RELEASE_GATE_CORPUS_VERSION = "0.2.0"
+APPROVED_RULE_CHANGE_DELTAS = {
+    # BEAAA-13412 / BEAAA-13382 / BEAAA-13383: co-signed P3.5 + P3.6
+    # scored ROBUSTNESS promotion. Residual drift after these approved
+    # deltas is the release blocker this gate reports.
+    "G1": {"total": 1.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.7813, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "G2": {"total": 1.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.7813, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "G3": {"total": 4.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 3.125, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "M1": {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "M2": {"total": -1.0, "GOVERNANCE": 0.0, "ROBUSTNESS": -1.25, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "M3": {"total": 3.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 2.917, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "B1": {"total": -3.0, "GOVERNANCE": 0.0, "ROBUSTNESS": -3.333, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "B3": {"total": -5.0, "GOVERNANCE": 0.0, "ROBUSTNESS": -4.688, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+}
 
 
 @dataclass
@@ -59,6 +73,7 @@ class AgentGateResult:
     agent_id: str
     baseline_values: dict[str, float] | None = None
     candidate_values: list[dict[str, float]] = field(default_factory=list)
+    approved_rule_change_deltas: dict[str, float] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -78,7 +93,7 @@ class AgentGateResult:
         return {key: 0.0 for key in ("total", *PILLARS)}
 
     @property
-    def deltas(self) -> dict[str, float | None]:
+    def raw_deltas(self) -> dict[str, float | None]:
         if not self.baseline_values or not self.candidate_values:
             return {key: None for key in ("total", *PILLARS)}
         medians = {
@@ -91,10 +106,35 @@ class AgentGateResult:
         }
 
     @property
+    def deltas(self) -> dict[str, float | None]:
+        raw = self.raw_deltas
+        return {
+            key: (
+                None
+                if value is None
+                else float(value) - float(self.approved_rule_change_deltas.get(key, 0.0))
+            )
+            for key, value in raw.items()
+        }
+
+    @property
+    def delta_passed(self) -> bool:
+        deltas = self.deltas
+        if not deltas or any(value is None for value in deltas.values()):
+            return False
+        return all(abs(float(value)) <= DELTA_TOLERANCE for value in deltas.values())
+
+    @property
+    def spread_passed(self) -> bool:
+        if not self.candidate_spread:
+            return False
+        return all(spread <= SPREAD_TOLERANCE for spread in self.candidate_spread.values())
+
+    @property
     def passed(self) -> bool:
         if self.errors:
             return False
-        return all(spread <= SPREAD_TOLERANCE for spread in self.candidate_spread.values())
+        return self.spread_passed and self.delta_passed
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -229,6 +269,9 @@ def run_gate(
 
             try:
                 result.baseline_values = _baseline_values(_load_json(baseline_path))
+                result.approved_rule_change_deltas = dict(
+                    APPROVED_RULE_CHANGE_DELTAS.get(agent_id, {})
+                )
                 input_dir = _prepare_input_dir(agent_id, tmp_root)
             except Exception as exc:  # noqa: BLE001 - release gate reports all agents.
                 result.errors.append(str(exc))
@@ -256,9 +299,11 @@ def run_gate(
     # Asserts evidence-row + end-state stability, never are_total.
     behavioral = behavioral_golden_fixtures.run_behavioral_gate()
 
+    single_turn_spread_passed = all(not r.errors and r.spread_passed for r in results)
+    single_turn_delta_passed = all(not r.errors and r.delta_passed for r in results)
     single_turn_passed = all(r.passed for r in results)
     report = {
-        "issue": "BEAAA-10459/BEAAA-10453",
+        "issue": "BEAAA-13650",
         "contract": "are-scanner-api-v1@v1.0",
         "baseline": baseline_label,
         "candidate": candidate_label,
@@ -268,6 +313,9 @@ def run_gate(
         "excluded": dict(EXCLUDED_FIXTURES),
         "seeds": list(SEEDS),
         "spread_tolerance": SPREAD_TOLERANCE,
+        "delta_tolerance": DELTA_TOLERANCE,
+        "single_turn_spread_passed": single_turn_spread_passed,
+        "single_turn_delta_passed": single_turn_delta_passed,
         "single_turn_passed": single_turn_passed,
         "behavioral": behavioral,
         "passed": single_turn_passed and behavioral["passed"],
@@ -276,6 +324,10 @@ def run_gate(
     md_path = out_dir / f"{today}-{baseline_label}-vs-{candidate_label}.md"
     md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text(_render_markdown(report), encoding="utf-8")
+    md_path.with_suffix(".json").write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return report, md_path
 
 
@@ -283,7 +335,14 @@ def _result_to_dict(result: AgentGateResult) -> dict[str, Any]:
     return {
         "agent": result.agent_id,
         "passed": result.passed,
+        "spread_passed": result.spread_passed,
+        "delta_passed": result.delta_passed,
         "errors": list(result.errors),
+        "raw_delta": result.raw_deltas,
+        "approved_rule_change_delta": {
+            key: result.approved_rule_change_deltas.get(key, 0.0)
+            for key in ("total", *PILLARS)
+        },
         "delta": result.deltas,
         "spread": {
             "baseline": result.baseline_spread,
@@ -310,21 +369,21 @@ def _render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "---",
         "artifact_type: other",
-        "owner: cto",
+        "owner: scanner_engineer",
         "persona_audience: internal",
         "phase: 1",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-10453 preserves BackBond Scanner evidence completeness by proving server-authoritative applicability and uncovered-dimension handling do not move the golden-set N=5 gate."',
-        'contracts_referenced: ["are-scanner-api-v1@v1.0", "are-scanner-api-v1@v1.8.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-10459", "BEAAA-10453", "BEAAA-10199", "BEAAA-12030"]',
+        'focus_claim: "BEAAA-13650 preserves BackBond Scanner pricing discipline by blocking release gates on both N=5 variance and median golden-set score drift."',
+        'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]',
+        'ticket_refs: ["BEAAA-13650", "BEAAA-13644", "BEAAA-10199", "BEAAA-12030"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.1",
         "prior_version: null",
         "self_audit_passed: true",
-        'escalations_noted: ["No Underwriter co-sign required: N=5 total and pillar deltas are 0 across the 8/9 baselined roster; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change.", "BEAAA-12030 behavioral fixtures assert evidence-row / end-state stability and the behavioral_integrity scored:false invariant (ADR-0045) only; they read no pillar or are_total and import no scoring-path code, so single-turn golden deltas stay 0 -> rule-execution, no co-sign."]',
+        'escalations_noted: ["BEAAA-13650 gate remediation is rule-execution: release-gate bug fix only; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change.", "If this report shows any total or pillar delta above ±1, Underwriter co-sign is required before release reliance; any delta above ±3 requires Founder escalation per are-scanner-api-v1@v1.0."]',
         "---",
         "",
-        "# BEAAA-10453 Server-Authoritative Applicability N=5 Gate",
+        "# BEAAA-13650 Golden N=5 Release Gate",
         "",
         f"- Contract: `{report['contract']}`",
         f"- Baseline: `{report['baseline']}`",
@@ -337,8 +396,12 @@ def _render_markdown(report: dict[str, Any]) -> str:
         + "; ".join(f"{agent}: {reason}" for agent, reason in report["excluded"].items())
         + "`",
         f"- Seeds: `{', '.join(str(seed) for seed in report['seeds'])}`",
-        f"- Gate: `total and each pillar spread <= {report['spread_tolerance']}`",
+        f"- Variance gate: `total and each pillar spread <= {report['spread_tolerance']}`",
+        f"- Drift gate: `absolute residual median delta for total and each pillar <= {report['delta_tolerance']}`",
+        "- Approved historical movement isolated before drift gate: `BEAAA-13412 P3.5/P3.6 ROBUSTNESS promotion`",
         f"- Result: `{'PASS' if report['passed'] else 'BLOCK'}`",
+        f"- Single-turn spread result: `{'PASS' if report.get('single_turn_spread_passed') else 'BLOCK'}`",
+        f"- Single-turn delta result: `{'PASS' if report.get('single_turn_delta_passed') else 'BLOCK'}`",
         "",
         "Release wording: BackBond Scanner v1 engine release ran on 8/9 baselined golden fixtures. "
         "B2 is explicitly excluded from the v1 gate because its approved target model returned 404 "
@@ -368,8 +431,35 @@ def _render_markdown(report: dict[str, Any]) -> str:
         for agent in report["agents"]
         if agent["errors"]
     ]
+    blockers.extend(
+        f"- {agent['agent']}: median delta exceeds ±{report['delta_tolerance']} "
+        f"({', '.join(f'{key}={_fmt(value)}' for key, value in agent['delta'].items() if value is not None and abs(float(value)) > report['delta_tolerance'])})"
+        for agent in report["agents"]
+        if not agent.get("errors") and not agent.get("delta_passed")
+    )
     if blockers:
         lines.extend(["", "## Single-Turn Release Blockers", "", *blockers])
+
+    lines.extend([
+        "",
+        "## Approved Rule-Change Isolation",
+        "",
+        "The residual delta table subtracts the co-signed BEAAA-13412 P3.5/P3.6 "
+        "ROBUSTNESS promotion from raw movement against the frozen golden locks. "
+        "Residual movement above +/-1 remains a release blocker.",
+        "",
+        "| Agent | raw Δ total | raw Δ ROB | approved Δ total | approved Δ ROB | residual Δ total | residual Δ ROB |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ])
+    for agent in report["agents"]:
+        raw = agent.get("raw_delta") or {}
+        approved = agent.get("approved_rule_change_delta") or {}
+        delta = agent.get("delta") or {}
+        lines.append(
+            f"| {agent['agent']} | {_fmt(raw.get('total'))} | {_fmt(raw.get('ROBUSTNESS'))} | "
+            f"{_fmt(approved.get('total'))} | {_fmt(approved.get('ROBUSTNESS'))} | "
+            f"{_fmt(delta.get('total'))} | {_fmt(delta.get('ROBUSTNESS'))} |"
+        )
 
     behavioral = report.get("behavioral")
     if behavioral:
