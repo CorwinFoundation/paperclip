@@ -14,8 +14,8 @@ display surface for the score and the report card.
 - Scanner: `0.5.0` (`SCANNER_VERSION` in `scanners/__init__.py`;
   BEAAA-6190 v0.5 RC cut — release-cut stamp only, rubric + contract
   literals held per the version note in `scanners/__init__.py`)
-- Rubric: `1.2.0`, locked through `2026-08-04` (`rubric/rubric.yaml`;
-  re-locked 2026-07-05 per BEAAA-11915 — unchanged 1.2.0, golden N=5 Δ0)
+- Rubric: `1.3.0`, locked through `2026-08-04` (`rubric/rubric.yaml`;
+  P3.5/P3.6 robustness dimensions activated with refreshed golden fixtures)
 - Contract: `are-scanner-api-v1@v1.3.0`
   (`contracts/are-scanner-api-v1.md` frontmatter + `CONTRACT_VERSION`;
   v1.0.x/v1.1.0/v1.2.0/v1.3.0 cumulative in the master contract;
@@ -142,6 +142,18 @@ run the same command before pushing Scanner changes. Calibration
 regression on the golden roster runs at the merge gate per
 `agents/scanner-implementation-supervision-v1.md`; outputs land under
 `tools/calibration-deltas/`.
+
+## Live scan-to-production proof
+
+The presentation environment executes the real scanner, underwriting admittance
+rules, CI gate, signed certificate-of-scan flow, report-card renderer, synthetic
+production agent, passive P1-P6 detectors, and Log Tracker as one browser-visible
+lifecycle. No production tenant, customer data, or real insurance system is
+contacted; the demonstration bind and certificate boundaries are explicit.
+
+See [`tools/post-bind-ingest/demo/SHOWCASE.md`](tools/post-bind-ingest/demo/SHOWCASE.md)
+for local startup, lifecycle acceptance criteria, container deployment, rollback,
+and security instructions.
 
 ## Running scans from the CLI
 

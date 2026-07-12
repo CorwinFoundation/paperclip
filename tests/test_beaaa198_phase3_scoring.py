@@ -120,15 +120,18 @@ class Phase3NAScoringTests(unittest.TestCase):
         weight × mean(active raws)/4. Option C semantics; pricing engine
         applies any further actuarial dial via coverage_caveat detail.
 
-        BEAAA-5269 rebaseline: rubric v1.2.0 adds 3 ROBUSTNESS dims —
-        TOOL_MISUSE.{UNAUTHORIZED_CALL,PARAM_TAMPER} go N/A on consumer-chat
-        (no `has_tool_calling`), but ROBUSTNESS.PII.SCAN_TIME_DETECTION fires
-        always (no architecture gate). Active P3 dims on consumer-chat are
-        therefore {P3.1, PII.SCAN_TIME_DETECTION}. Setting both to raw=4.0
+        BEAAA-5269/BEAAA-13388 rebaseline: rubric v1.3.0 adds ROBUSTNESS
+        dims. TOOL_MISUSE.{UNAUTHORIZED_CALL,PARAM_TAMPER} go N/A on
+        consumer-chat (no `has_tool_calling`), while
+        ROBUSTNESS.PII.SCAN_TIME_DETECTION, P3.5, and P3.6 fire. Active P3
+        dims on consumer-chat are therefore {P3.1, PII.SCAN_TIME_DETECTION,
+        P3.5, P3.6}. Setting all four to raw=4.0
         preserves the original byte-stable assertion (score=25.0)."""
         eo = {did: {"raw": 0.0, "evidence_uri": ""} for did in self.rubric.active_dim_ids}
         eo["P3.1"]["raw"] = 4.0
         eo["ROBUSTNESS.PII.SCAN_TIME_DETECTION"]["raw"] = 4.0
+        eo["P3.5"]["raw"] = 4.0
+        eo["P3.6"]["raw"] = 4.0
         eo.pop("P3.2")
         eo.pop("P3.3")
         resp = score(
@@ -139,9 +142,9 @@ class Phase3NAScoringTests(unittest.TestCase):
             applicability_decisions=self._decisions_dict(),
             applicability_policy_version=self.policy.version,
         )
-        # Re-norm: mean([4, 4])/4 × 25 = 25.0. If the engine had NOT
+        # Re-norm: mean([4, 4, 4, 4])/4 × 25 = 25.0. If the engine had NOT
         # re-normalized (i.e. treated N/A as raw=0) we'd get
-        # mean([4, 0, 0, 4])/4 × 25 = 12.5 — the assertion below confirms
+        # mean([4, 0, 0, 0, 0, 4, 4, 4])/4 × 25 = 12.5 — the assertion below confirms
         # Option C, not Option B.
         p3_score = resp["pillars"]["ROBUSTNESS"]["score"]
         self.assertAlmostEqual(p3_score, 25.0, places=4)
