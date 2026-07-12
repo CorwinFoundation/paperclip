@@ -8,6 +8,7 @@ certificate, report-card, and passive-monitor paths in a synthetic environment.
 from __future__ import annotations
 
 import argparse
+import hmac
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
@@ -38,6 +39,24 @@ TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_continuity_gate.py",
     "tools/post-bind-ingest/tests/test_detector_input.py",
 )
+DEMO_ENV_FILE = Path("/etc/backbond/passive-demo.env")
+DEMO_RUN_QUOTA = int(os.environ.get("DEMO_RUN_QUOTA", "5"))
+
+
+def _load_demo_env_file(path: Path = DEMO_ENV_FILE) -> None:
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        clean = line.strip()
+        if not clean or clean.startswith("#") or "=" not in clean:
+            continue
+        key, value = clean.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+
+def _demo_access_token() -> str | None:
+    token = os.environ.get("DEMO_ACCESS_TOKEN")
+    return token if token else None
 
 
 def _utc_now() -> str:
@@ -83,19 +102,12 @@ def _receiver_events(receiver_dir: Path) -> list[dict]:
 
 
 def _deployment_metadata() -> dict:
-    repository = os.environ.get("DEMO_GITHUB_REPOSITORY", "CorwinFoundation/are-scanner")
     run_id = os.environ.get("DEMO_GITHUB_RUN_ID", "local")
-    run_url = os.environ.get("DEMO_GITHUB_RUN_URL")
-    if not run_url and run_id.isdigit():
-        run_url = f"https://github.com/{repository}/actions/runs/{run_id}"
     return {
         "environment": os.environ.get("DEMO_ENVIRONMENT", "local"),
         "workflow": os.environ.get("DEMO_WORKFLOW", "Local presentation runner"),
-        "repository": repository,
         "git_sha": os.environ.get("DEMO_GIT_SHA", "working-tree"),
-        "git_ref": os.environ.get("DEMO_GIT_REF", "local"),
         "github_run_id": run_id,
-        "github_run_url": run_url,
         "deployed_at": os.environ.get("DEMO_DEPLOYED_AT", _utc_now()),
         "gates": [
             {"name": "Focused unit + integration tests", "status": "passed"},
@@ -300,7 +312,7 @@ class JobManager:
             deployment = _deployment_metadata()
             job.emit(
                 "deployment",
-                f"Deployed from {deployment['git_ref']} at {deployment['git_sha'][:12]}",
+                f"Deployed revision {deployment['git_sha'][:12]}",
                 stage="report",
                 deployment=deployment,
             )
@@ -343,6 +355,7 @@ class JobManager:
 class DemoHandler(BaseHTTPRequestHandler):
     manager: JobManager
     rate_limit: dict[str, float] = {}
+    run_quota: dict[str, int] = {}
     rate_lock = threading.Lock()
 
     def log_message(self, format: str, *args) -> None:
@@ -383,6 +396,21 @@ class DemoHandler(BaseHTTPRequestHandler):
         self._security_headers()
         self.end_headers()
         self.wfile.write(data)
+
+    def _request_token(self, parsed) -> str:
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth.removeprefix("Bearer ").strip()
+        header_token = self.headers.get("X-Demo-Access-Token", "")
+        if header_token:
+            return header_token.strip()
+        return parse_qs(parsed.query).get("token", [""])[0].strip()
+
+    def _authorized_for_run(self, parsed) -> bool:
+        token = _demo_access_token()
+        if not token:
+            return True
+        return hmac.compare_digest(self._request_token(parsed), token)
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -430,9 +458,13 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
     def do_POST(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path.rstrip("/")
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
         if path != "/api/runs":
             self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+            return
+        if not self._authorized_for_run(parsed):
+            self._send_json({"error": "unauthorized"}, HTTPStatus.UNAUTHORIZED)
             return
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         if content_length > 1024:
@@ -448,11 +480,20 @@ class DemoHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "rate_limited", "retry_after_seconds": 3}, HTTPStatus.TOO_MANY_REQUESTS)
                 return
             self.rate_limit[client] = now
+            count = self.run_quota.get(client, 0)
+            if count >= DEMO_RUN_QUOTA:
+                self._send_json({"error": "run_quota_exceeded", "quota": DEMO_RUN_QUOTA}, HTTPStatus.TOO_MANY_REQUESTS)
+                return
+            self.run_quota[client] = count + 1
         job = self.manager.start()
         self._send_json({"run_id": job.run_id, "status": job.status}, HTTPStatus.ACCEPTED)
 
 
 def main() -> int:
+    _load_demo_env_file()
+    token = _demo_access_token()
+    if os.environ.get("DEMO_ENVIRONMENT") == "public-demo" and (not token or len(token) < 32):
+        raise SystemExit("public demo requires DEMO_ACCESS_TOKEN with at least 32 characters")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)

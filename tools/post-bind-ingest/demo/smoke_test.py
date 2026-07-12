@@ -9,9 +9,12 @@ import time
 from urllib import error, request
 
 
-def _json(url: str, *, method: str = "GET", timeout: int = 10) -> dict:
+def _json(url: str, *, method: str = "GET", token: str | None = None, timeout: int = 10) -> dict:
     payload = b"{}" if method == "POST" else None
-    req = request.Request(url, data=payload, method=method, headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["X-Demo-Access-Token"] = token
+    req = request.Request(url, data=payload, method=method, headers=headers)
     with request.urlopen(req, timeout=timeout) as response:
         if response.status not in {200, 202}:
             raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
@@ -24,12 +27,12 @@ def _text(url: str, *, timeout: int = 20) -> str:
             raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
         return response.read().decode("utf-8")
 
-def run(base_url: str, timeout_seconds: int) -> dict:
+def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dict:
     base = base_url.rstrip("/")
     health = _json(base + "/api/health")
     if health.get("status") != "ok" or health.get("production_contacted") is not False:
         raise RuntimeError(f"unhealthy or unsafe deployment: {health}")
-    started = _json(base + "/api/runs", method="POST")
+    started = _json(base + "/api/runs", method="POST", token=token)
     run_id = started["run_id"]
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -44,6 +47,7 @@ def run(base_url: str, timeout_seconds: int) -> dict:
             if result["tests"]["status"] != "passed" or len(result["tracker_rows"]) != 7:
                 raise RuntimeError("deployed test or persistence gate failed")
             lifecycle = result["lifecycle"]
+            deployment = result["deployment"]
             if lifecycle["initial_scan"]["score"] != 80 or lifecycle["updated_scan"]["score"] != 81:
                 raise RuntimeError("scanner lifecycle scores did not match the release proof")
             if lifecycle["bind"]["admittance_class"] != "CONSTRAINED_BIND" or lifecycle["bind"]["real_policy_bound"] is not False:
@@ -52,6 +56,13 @@ def run(base_url: str, timeout_seconds: int) -> dict:
                 raise RuntimeError("install or CI gate did not pass")
             if lifecycle["certificate"]["signature_status"] != "valid":
                 raise RuntimeError("certificate signature was not valid")
+            if "valid_through" in lifecycle["certificate"]:
+                raise RuntimeError("certificate exposes a validity window")
+            if lifecycle["certificate"].get("rubric_label") != "1.3.0 candidate":
+                raise RuntimeError("candidate rubric label is missing")
+            forbidden_deployment_keys = {"repository", "git_ref", "github_run_url"}
+            if forbidden_deployment_keys & deployment.keys():
+                raise RuntimeError("deployment payload exposes private CI metadata")
             certificate_html = _text(base + lifecycle["documents"]["certificate_url"])
             report_html = _text(base + lifecycle["documents"]["report_url"])
             if "Certificate of BackBond Scan" not in certificate_html or "BackBond Scanner Report" not in report_html:
@@ -77,10 +88,11 @@ def run(base_url: str, timeout_seconds: int) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True)
+    parser.add_argument("--token")
     parser.add_argument("--timeout", type=int, default=180)
     args = parser.parse_args()
     try:
-        print(json.dumps(run(args.url, args.timeout), sort_keys=True))
+        print(json.dumps(run(args.url, args.timeout, token=args.token), sort_keys=True))
     except (error.URLError, RuntimeError, TimeoutError) as exc:
         raise SystemExit(str(exc)) from exc
     return 0

@@ -10,18 +10,36 @@ import time
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
 sys.path.insert(0, str(DEMO_DIR))
 
-from app import JobManager, _deployment_metadata  # noqa: E402
+from app import DemoHandler, JobManager, _deployment_metadata  # noqa: E402
 
 
 def test_deployment_metadata_contains_only_public_build_facts(monkeypatch) -> None:
     monkeypatch.setenv("DEMO_GIT_SHA", "abc123")
     monkeypatch.setenv("DEMO_GITHUB_RUN_ID", "42")
     monkeypatch.setenv("DEMO_GITHUB_REPOSITORY", "CorwinFoundation/are-scanner")
+    monkeypatch.setenv("DEMO_GITHUB_RUN_URL", "https://github.com/private/actions/runs/42")
+    monkeypatch.setenv("DEMO_GIT_REF", "refs/pull/61/head")
     metadata = _deployment_metadata()
     assert metadata["git_sha"] == "abc123"
-    assert metadata["github_run_url"].endswith("/actions/runs/42")
+    assert metadata["github_run_id"] == "42"
+    assert "repository" not in metadata
+    assert "git_ref" not in metadata
+    assert "github_run_url" not in metadata
     assert all(gate["status"] == "passed" for gate in metadata["gates"])
     assert not any("token" in key.lower() or "secret" in key.lower() for key in metadata)
+
+
+def test_run_start_requires_demo_token_when_configured(monkeypatch) -> None:
+    class HandlerStub:
+        headers = {"X-Demo-Access-Token": "wrong"}
+
+        def _request_token(self, parsed) -> str:
+            return DemoHandler._request_token(self, parsed)
+
+    monkeypatch.setenv("DEMO_ACCESS_TOKEN", "abcdefghijklmnopqrstuvwxyz123456")
+    assert not DemoHandler._authorized_for_run(HandlerStub(), type("Parsed", (), {"query": ""})())
+    HandlerStub.headers = {"Authorization": "Bearer abcdefghijklmnopqrstuvwxyz123456"}
+    assert DemoHandler._authorized_for_run(HandlerStub(), type("Parsed", (), {"query": ""})())
 
 
 def test_job_streams_agent_passive_tests_and_cicd() -> None:

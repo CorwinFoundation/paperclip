@@ -9,6 +9,19 @@ RUN_VOLUME="backbond-passive-demo-runs"
 PROD_PORT="8765"
 CANDIDATE_PORT="18765"
 PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
+ENV_FILE="/etc/backbond/passive-demo.env"
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+DEMO_ACCESS_TOKEN="${DEMO_ACCESS_TOKEN:-}"
+if [[ "${DEMO_ENVIRONMENT:-public-demo}" == "public-demo" && "${#DEMO_ACCESS_TOKEN}" -lt 32 ]]; then
+  echo "public demo requires ${ENV_FILE} with a 32+ character DEMO_ACCESS_TOKEN" >&2
+  exit 1
+fi
 
 container_args() {
   printf '%s\n' \
@@ -26,7 +39,9 @@ container_args() {
     -e "DEMO_GITHUB_REPOSITORY=${DEMO_GITHUB_REPOSITORY:-CorwinFoundation/are-scanner}" \
     -e "DEMO_GITHUB_RUN_ID=${DEMO_GITHUB_RUN_ID:-manual}" \
     -e "DEMO_GITHUB_RUN_URL=${DEMO_GITHUB_RUN_URL:-}" \
-    -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}"
+    -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}" \
+    -e "DEMO_ACCESS_TOKEN=${DEMO_ACCESS_TOKEN:-}" \
+    -e "DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-5}"
 }
 
 wait_for_health() {
@@ -62,7 +77,7 @@ if ! wait_for_health "$CANDIDATE_PORT" 60; then
   exit 1
 fi
 if ! python3 "$SOURCE_DIR/tools/post-bind-ingest/demo/smoke_test.py" \
-  --url "http://127.0.0.1:${CANDIDATE_PORT}" --timeout 180; then
+  --url "http://127.0.0.1:${CANDIDATE_PORT}" --token "${DEMO_ACCESS_TOKEN:-}" --timeout 180; then
   docker logs "$CANDIDATE" --tail 200 || true
   docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
   echo "Candidate proof run failed" >&2

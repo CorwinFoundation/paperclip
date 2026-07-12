@@ -38,6 +38,7 @@ DEMO_BOUNDARY_NOTICE = (
     "signals in this report are fixture outputs, not evidence of bound insurance "
     "coverage, premium, limits, policy issuance, or license status."
 )
+CANDIDATE_RUBRIC_VERSIONS = {"1.3.0"}
 
 Emit = Callable[..., None]
 
@@ -94,6 +95,7 @@ def _with_applicability(scan: dict[str, Any]) -> dict[str, Any]:
 
 
 def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[str, Any]:
+    rubric_version = scan["rubric_version"]
     return {
         "scan_id": scan_id,
         "agent_id": AGENT_ID,
@@ -102,7 +104,8 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "band": scan["band"],
         "subscores": scan["subscores"],
         "scanner_version": scan["scanner_version"],
-        "rubric_version": scan["rubric_version"],
+        "rubric_version": rubric_version,
+        "rubric_label": f"{rubric_version} candidate" if rubric_version in CANDIDATE_RUBRIC_VERSIONS else rubric_version,
         "corpus_version": scan["corpus_version"],
         "snapshot_hash": scan["snapshot_hash"],
         "forensic_bundle_uri": scan["forensic_bundle_uri"],
@@ -146,6 +149,7 @@ def _installation_manifest(run_id: str, bind: dict[str, Any]) -> dict[str, Any]:
 
 def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, Any]:
     issued = datetime.now(UTC).replace(microsecond=0)
+    rubric_version = scan["rubric_version"]
     body: dict[str, Any] = {
         "certificate_title": certificate_copy.CERT_TITLE,
         "certificate_scope": "scan_only",
@@ -156,13 +160,13 @@ def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, A
         "threshold_status": "met_bind_threshold",
         "scan_id": scan_id,
         "envelope_id": f"demo-cert-{run_id}",
-        "rubric_version": scan["rubric_version"],
+        "rubric_version": rubric_version,
+        "rubric_label": f"{rubric_version} candidate" if rubric_version in CANDIDATE_RUBRIC_VERSIONS else rubric_version,
         "scanner_version": scan["scanner_version"],
         "corpus_version": scan["corpus_version"],
         "model_versions": scan.get("model_versions"),
         "seed": scan["seed"],
         "scan_date": issued.date().isoformat(),
-        "valid_through": (issued + timedelta(days=30)).date().isoformat(),
         "methodology_url": "https://github.com/CorwinFoundation/are-scanner",
         "probe_ledger_url": scan["forensic_bundle_uri"],
         "verification_path": f"/api/runs/{run_id}/certificate",
@@ -209,8 +213,8 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
         ("Scan ID", certificate["scan_id"]),
         ("Envelope ID", certificate["envelope_id"]),
         ("Scanner", certificate["scanner_version"]),
-        ("Rubric", certificate["rubric_version"]),
-        ("Valid through", certificate["valid_through"]),
+        ("Rubric", certificate.get("rubric_label", certificate["rubric_version"])),
+        ("Issued", certificate["scan_date"]),
         ("Signature", f"VALID · {certificate['signature']['algorithm']}"),
     ]
     row_html = "".join(f"<div><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>" for label, value in rows)
@@ -310,7 +314,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     _write_json(output_dir / "certificate.json", certificate)
     (output_dir / "certificate.html").write_text(render_certificate_html(certificate), encoding="utf-8")
     emit("stage", "Signed Certificate of BackBond Scan issued", stage="certificate", state="running")
-    emit("certificate", f"Certificate valid through {certificate['valid_through']}", stage="certificate", certificate=certificate)
+    emit("certificate", f"Point-in-time certificate issued on {certificate['scan_date']}", stage="certificate", certificate=certificate)
     emit("stage", "Certificate signature verified and ready to view", stage="certificate", state="passed")
 
     lifecycle = {

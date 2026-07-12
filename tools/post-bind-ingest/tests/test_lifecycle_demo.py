@@ -33,6 +33,9 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert lifecycle["ci_gate"]["exit_code"] == 0
         assert tests["status"] == "passed"
         assert lifecycle["certificate"]["certificate_scope"] == "scan_only"
+        assert "valid_through" not in lifecycle["certificate"]
+        assert lifecycle["certificate"]["rubric_label"] == "1.3.0 candidate"
+        assert lifecycle["updated_scan"]["rubric_label"] == "1.3.0 candidate"
         assert verify_certificate(lifecycle["certificate"])
         tampered = {**lifecycle["certificate"], "backbond_score": 0}
         assert not verify_certificate(tampered)
