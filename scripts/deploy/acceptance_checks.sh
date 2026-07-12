@@ -112,13 +112,16 @@ except Exception: print("")' 2>/dev/null || true)"
     [ "${status}" = "complete" ] || [ "${status}" = "partial" ] && break
     sleep 2
   done
-  record smoke_scan PASS "scan_id=${SCAN_ID} status=${status}"
+  if [ "${status}" != "complete" ] && [ "${status}" != "partial" ]; then
+    record smoke_scan FAIL "scan_id=${SCAN_ID} final_status=${status:-unavailable} (want complete|partial)"
+  else
+    record smoke_scan PASS "scan_id=${SCAN_ID} status=${status}"
 
-  # The three write-once pins must be non-null on the freshest row for this
-  # agent. Use Python's stdlib sqlite3 (always present) — not the sqlite3 CLI,
-  # which the box is not guaranteed to have.
-  if [ -n "${SCAN_LOG_DB}" ] && [ -f "${SCAN_LOG_DB}" ]; then
-    pins="$(SCAN_LOG_DB="${SCAN_LOG_DB}" STAGING_AGENT="${STAGING_AGENT}" python3 - <<'PY' 2>/dev/null || echo err
+    # The three write-once pins must be non-null on the freshest row for this
+    # agent. Use Python's stdlib sqlite3 (always present) — not the sqlite3 CLI,
+    # which the box is not guaranteed to have.
+    if [ -n "${SCAN_LOG_DB}" ] && [ -f "${SCAN_LOG_DB}" ]; then
+      pins="$(SCAN_LOG_DB="${SCAN_LOG_DB}" STAGING_AGENT="${STAGING_AGENT}" python3 - <<'PY' 2>/dev/null || echo err
 import os, sqlite3
 db, agent = os.environ["SCAN_LOG_DB"], os.environ["STAGING_AGENT"]
 con = sqlite3.connect(db)
@@ -130,19 +133,19 @@ row = con.execute(
 print("norow" if row is None else "|".join("1" if v is not None else "0" for v in row))
 PY
 )"
-    if [ "${pins}" = "1|1|1" ]; then
-      record scan_log_pins PASS "forensic_bundle_uri+snapshot_hash+probe_set_hash all non-null"
+      if [ "${pins}" = "1|1|1" ]; then
+        record scan_log_pins PASS "forensic_bundle_uri+snapshot_hash+probe_set_hash all non-null"
+      else
+        record scan_log_pins FAIL "pin presence (fbu|snap|probe)=${pins} (want 1|1|1)"
+      fi
     else
-      record scan_log_pins FAIL "pin presence (fbu|snap|probe)=${pins} (want 1|1|1)"
+      record scan_log_pins FAIL "scan_log db not found at '${SCAN_LOG_DB}'"
     fi
-  else
-    record scan_log_pins FAIL "scan_log db not found at '${SCAN_LOG_DB}'"
-  fi
 
-  # ---- 5. envelope: six external fields present, zero runtime fields --------
-  # Pass the body via a file (heredoc owns stdin, so we can't pipe the body).
-  printf '%s' "${body}" > "${OUT}.envelope.json"
-  ENVELOPE_FILE="${OUT}.envelope.json" python3 - <<'PY' && ev=PASS || ev=FAIL
+    # ---- 5. envelope: six external fields present, zero runtime fields --------
+    # Pass the body via a file (heredoc owns stdin, so we can't pipe the body).
+    printf '%s' "${body}" > "${OUT}.envelope.json"
+    ENVELOPE_FILE="${OUT}.envelope.json" python3 - <<'PY' && ev=PASS || ev=FAIL
 import os, sys, json
 try:
     with open(os.environ["ENVELOPE_FILE"]) as f:
@@ -162,8 +165,9 @@ if leaked:
     print(f"runtime fields leaked into customer envelope: {leaked}"); sys.exit(1)
 print("envelope ok: six external fields present, zero runtime fields")
 PY
-  [ "${ev}" = "PASS" ] && record envelope PASS "six fields, zero runtime" \
-    || record envelope FAIL "envelope check failed (see log)"
+    [ "${ev}" = "PASS" ] && record envelope PASS "six fields, zero runtime" \
+      || record envelope FAIL "envelope check failed (see log)"
+  fi
 fi
 
 # ---- summary -----------------------------------------------------------------
