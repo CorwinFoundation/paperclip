@@ -14,7 +14,7 @@ import pytest
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
 sys.path.insert(0, str(DEMO_DIR))
 
-from app import DemoHandler, RunQuota, _access_token_from_env  # noqa: E402
+from app import DemoHandler, RunQuota, _access_token_from_env, _bounded_content_length  # noqa: E402
 
 
 # Regression: ISSUE-002 — public demo exposed costly run execution without access control
@@ -35,6 +35,16 @@ def test_public_mode_requires_a_strong_access_token(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("DEMO_ACCESS_TOKEN", token)
     assert _access_token_from_env() == token
 
+
+def test_request_body_length_is_bounded_before_reading() -> None:
+    assert _bounded_content_length(None) == 0
+    assert _bounded_content_length("1024") == 1024
+    with pytest.raises(ValueError, match="invalid content length"):
+        _bounded_content_length("not-a-number")
+    with pytest.raises(ValueError, match="invalid content length"):
+        _bounded_content_length("-1")
+    with pytest.raises(OverflowError, match="request too large"):
+        _bounded_content_length("1025")
 
 def test_run_quota_is_enforced_per_client_and_resets() -> None:
     quota = RunQuota(max_requests=2, window_seconds=60)
