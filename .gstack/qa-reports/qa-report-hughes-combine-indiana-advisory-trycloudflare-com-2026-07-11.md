@@ -22,7 +22,7 @@ All founder-review blockers and record requirements are addressed in the remedia
 
 ## Automated verification
 
-- `111 passed in 7.98s` for `tools/post-bind-ingest/tests`, excluding only `test_collector_receiver_e2e.py` because the Go executable is not installed on this Windows runner.
+- `113 passed in 9.34s` for `tools/post-bind-ingest/tests`, excluding only `test_collector_receiver_e2e.py` because the Go executable is not installed on this Windows runner.
 - The omitted Go test was attempted and failed before execution with `FileNotFoundError: go`; it did not expose a product failure.
 - Authenticated deployed-contract smoke run: `PASS`.
   - Initial score: 80
