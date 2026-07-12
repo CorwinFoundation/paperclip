@@ -156,8 +156,7 @@ def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, A
         "corpus_version": scan["corpus_version"],
         "model_versions": scan.get("model_versions"),
         "seed": scan["seed"],
-        "scan_date": issued.date().isoformat(),
-        "valid_through": (issued + timedelta(days=30)).date().isoformat(),
+        "issued_at": issued.isoformat().replace("+00:00", "Z"),
         "methodology_url": "https://github.com/CorwinFoundation/are-scanner",
         "probe_ledger_url": scan["forensic_bundle_uri"],
         "verification_path": f"/api/runs/{run_id}/certificate",
@@ -205,7 +204,7 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
         ("Envelope ID", certificate["envelope_id"]),
         ("Scanner", certificate["scanner_version"]),
         ("Rubric", certificate["rubric_version"]),
-        ("Valid through", certificate["valid_through"]),
+        ("Issued at", certificate["issued_at"]),
         ("Signature", f"VALID · {certificate['signature']['algorithm']}"),
     ]
     row_html = "".join(f"<div><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>" for label, value in rows)
@@ -279,7 +278,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     _write_json(output_dir / "certificate.json", certificate)
     (output_dir / "certificate.html").write_text(render_certificate_html(certificate), encoding="utf-8")
     emit("stage", "Signed Certificate of BackBond Scan issued", stage="certificate", state="running")
-    emit("certificate", f"Certificate valid through {certificate['valid_through']}", stage="certificate", certificate=certificate)
+    emit("certificate", f"Point-in-time certificate issued at {certificate['issued_at']}", stage="certificate", certificate=certificate)
     emit("stage", "Certificate signature verified and ready to view", stage="certificate", state="passed")
 
     lifecycle = {
