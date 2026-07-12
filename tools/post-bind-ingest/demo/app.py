@@ -68,6 +68,17 @@ def _access_token_from_env() -> str | None:
         raise RuntimeError("public-demo requires DEMO_ACCESS_TOKEN with at least 32 characters")
     return token or None
 
+def _bounded_content_length(value: str | None, *, max_bytes: int = 1024) -> int:
+    try:
+        length = int(value or "0")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid content length") from exc
+    if length < 0:
+        raise ValueError("invalid content length")
+    if length > max_bytes:
+        raise OverflowError("request too large")
+    return length
+
 
 class RunQuota:
     def __init__(self, max_requests: int = 5, window_seconds: float = 3600.0) -> None:
@@ -479,8 +490,9 @@ class DemoHandler(BaseHTTPRequestHandler):
         return False
 
     def _handle_access(self) -> None:
-        content_length = int(self.headers.get("Content-Length", "0") or "0")
-        if content_length > 1024:
+        try:
+            content_length = _bounded_content_length(self.headers.get("Content-Length"))
+        except (OverflowError, ValueError):
             self._send_access_page(invalid=True)
             return
         form = parse_qs(self.rfile.read(content_length).decode("utf-8", errors="replace"))
@@ -558,9 +570,13 @@ class DemoHandler(BaseHTTPRequestHandler):
         if not self._require_authorized(path):
 
             return
-        content_length = int(self.headers.get("Content-Length", "0") or "0")
-        if content_length > 1024:
+        try:
+            content_length = _bounded_content_length(self.headers.get("Content-Length"))
+        except OverflowError:
             self._send_json({"error": "request_too_large"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return
+        except ValueError:
+            self._send_json({"error": "invalid_content_length"}, HTTPStatus.BAD_REQUEST)
             return
         if content_length:
             self.rfile.read(content_length)
