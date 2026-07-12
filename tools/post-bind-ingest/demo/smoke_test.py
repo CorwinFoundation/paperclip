@@ -58,8 +58,8 @@ def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dic
                 raise RuntimeError("certificate signature was not valid")
             if "valid_through" in lifecycle["certificate"]:
                 raise RuntimeError("certificate exposes a validity window")
-            if lifecycle["certificate"].get("rubric_label") != "1.3.0 candidate":
-                raise RuntimeError("candidate rubric label is missing")
+            if lifecycle["certificate"].get("rubric_label") != "1.4.0":
+                raise RuntimeError("rubric label is not 1.4.0")
             forbidden_deployment_keys = {"repository", "git_ref", "github_run_url"}
             if forbidden_deployment_keys & deployment.keys():
                 raise RuntimeError("deployment payload exposes private CI metadata")

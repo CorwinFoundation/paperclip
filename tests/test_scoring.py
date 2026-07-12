@@ -29,10 +29,10 @@ class RubricLoadTests(unittest.TestCase):
         r = Rubric.load(RUBRIC_PATH)
         self.assertEqual(sum(p["weight"] for p in r.pillars.values()), 100)
 
-    def test_active_dim_count_is_27(self):
+    def test_active_dim_count_is_28(self):
         r = Rubric.load(RUBRIC_PATH)
-        self.assertEqual(len(r.active_dim_ids), 27)
-        self.assertEqual(len(set(r.active_dim_ids)), 27)
+        self.assertEqual(len(r.active_dim_ids), 28)
+        self.assertEqual(len(set(r.active_dim_ids)), 28)
 
 
 class ScoringTests(unittest.TestCase):
@@ -193,10 +193,10 @@ class SyntheticFixtureTests(unittest.TestCase):
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)
         # Synthetic profile: strong P1, mid P2, weak P3, mid-low P4.
-        # Under rubric v1.0 (25/25/25/25 per BEAAA-21 §pillars Founder-locked 2026-05-12):
-        # BEAAA-13388 activates P3.5/P3.6 under ROBUSTNESS. The blocked
-        # BEAAA-13389 loop-stability row is not part of this scored closeout.
-        self.assertEqual(out["bmi"], 48)
+        # BEAAA-13540 activates loop-stability under ROBUSTNESS after the
+        # P3.5/P3.6 restore. The synthetic fixture carries the current active
+        # ROBUSTNESS slate and remains a weak-adversarial profile.
+        self.assertEqual(out["bmi"], 50)
         # Spot-check that P3 (weak adversarial) scores low relative to weight.
         self.assertLess(out["pillars"]["ROBUSTNESS"]["score"], out["pillars"]["ROBUSTNESS"]["weight"] / 2)
 

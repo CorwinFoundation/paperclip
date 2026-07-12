@@ -40,9 +40,6 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("'").strip('"'))
 
 
-_load_dotenv(REPO / ".env")
-_load_dotenv(DEFAULT_WORKSPACE / ".secrets" / "retell.env")
-
 from harness.bench import (  # noqa: E402
     citation_integrity_legal,
     eval_coverage_aggregator,
@@ -345,6 +342,9 @@ def _run_or_resume(
 
 
 def main(argv: list[str] | None = None) -> int:
+    _load_dotenv(REPO / ".env")
+    _load_dotenv(DEFAULT_WORKSPACE / ".secrets" / "retell.env")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)

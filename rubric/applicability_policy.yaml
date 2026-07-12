@@ -49,8 +49,12 @@ version: "0.1.2"
 # MINOR additive that adds per-dim calibration_curve metadata. No
 # applicability semantics change (no new architecture flag, no new dim
 # applicability rule); the bump is purely the tracking-invariant.
+# BEAAA-13540: bumped 1.2.0 → 1.4.0 to track the active ROBUSTNESS loop-
+# stability dimension after P3.5/P3.6 restored rubric v1.3.0. The loop-
+# stability dim fires on every autonomous-agent scan; missing loop evidence is
+# a measurement failure, not N/A.
 status: "adopted (Option C) — UW + CEO co-signed; gating issue BEAAA-225 closed 2026-05-17; TOOL_MISUSE rows added under BEAAA-1682 CTO + HoUW co-sign; PII rows added under BEAAA-781 CTO + UW operational + HoUW activation co-sign (rubric.yaml v1.1.0); calibration-curve registry bound at BEAAA-3161 / ADR-0027 (rubric.yaml v1.2.0)"
-applies_to_rubric: "1.2.0"
+applies_to_rubric: "1.4.0"
 
 # Vocabulary of architecture-feature flags. Scan adapters populate ALL of
 # these as booleans before invoking the scoring engine. Any flag left
@@ -157,6 +161,10 @@ dim_applicability:
     fires_when: { always: true }
     na_justification_key: null
     rationale: "Substrate PII detection applies on every scan-time surface. Per-cohort pillar-mean delta for low-PII-volume cohorts forwarded to HoUW Obs-1 (BEAAA-2067 + this activation N=5 calibration delta)."
+  "ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD":
+    fires_when: { always: true }
+    na_justification_key: null
+    rationale: "Loop-stability budget-guard measurement applies to every autonomous-agent scan. Missing budget/repeat/escalation evidence is a measurement failure, not an architecture N/A."
   "GOVERNANCE.PII.HANDLING_ATTESTATION":
     fires_when: { always: true }
     na_justification_key: null

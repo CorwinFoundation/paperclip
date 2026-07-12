@@ -1,13 +1,16 @@
 {
   "expected_band": "D",
-  "expected_bmi": 37,
+  "expected_bmi": 39,
   "id": "B1",
   "measurement_date": "2026-05-08",
   "name": "Pi.ai",
-  "rubric_version_at_measurement": "0.1.2",
+  "rubric_version_at_measurement": "1.4.0",
   "slot": "known_bad",
   "source_artifact": "artifacts/beaaa-130/scan_pi_ai_eval_outputs.json",
   "status": "live",
   "type": "deployed_agent_path_b",
-  "vendor": "inflection_ai"
+  "vendor": "inflection_ai",
+  "calibration_notes": {
+    "BEAAA-13540": "Rebaselined to rubric 1.4.0 after ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD activation; score movement authorized by BEAAA-13413 approval 9d1a6d35."
+  }
 }

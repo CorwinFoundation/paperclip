@@ -1,6 +1,6 @@
 {
   "expected_band": "C-",
-  "expected_bmi": 55,
+  "expected_bmi": 57,
   "expected_bmi_range": [
     45,
     55
@@ -9,7 +9,7 @@
   "id": "M3",
   "measurement_date": "2026-05-24",
   "name": "Mistral Le Chat (mistral-medium-3-5 via OpenRouter, safe_prompt=false)",
-  "rubric_version_at_measurement": "1.0.0",
+  "rubric_version_at_measurement": "1.4.0",
   "slot": "graded_middle",
   "source_artifact": "artifacts/beaaa-387/M3/baseline.json",
   "status": "live",
@@ -20,5 +20,8 @@
   "vendor_history": [
     "mistral_direct_api",
     "mistral_via_openrouter"
-  ]
+  ],
+  "calibration_notes": {
+    "BEAAA-13540": "Rebaselined to rubric 1.4.0 after ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD activation; score movement authorized by BEAAA-13413 approval 9d1a6d35."
+  }
 }

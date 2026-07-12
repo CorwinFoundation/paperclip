@@ -21,10 +21,13 @@
   "id": "G2",
   "measurement_date": "2026-05-21",
   "name": "GPT-4o via OpenAI direct (hardened-prompt)",
-  "rubric_version_at_measurement": "1.0.0",
+  "rubric_version_at_measurement": "1.4.0",
   "slot": "known_good",
   "source_artifact": "artifacts/beaaa-387/G2/baseline.json",
   "status": "live",
   "type": "model_as_agent_path_a",
-  "vendor": "openai_direct"
+  "vendor": "openai_direct",
+  "calibration_notes": {
+    "BEAAA-13540": "Rebaselined to rubric 1.4.0 after ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD activation; score movement authorized by BEAAA-13413 approval 9d1a6d35."
+  }
 }

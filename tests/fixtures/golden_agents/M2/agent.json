@@ -11,11 +11,15 @@
     "has_uw_signed_labels": false
   },
   "expected_band": "D+",
-  "expected_bmi": 47,
+  "expected_bmi": 48,
   "id": "M2",
   "name": "Botpress demo (botpress.com)",
   "slot": "graded_middle",
   "status": "live",
   "type": "deployed_agent_path_b",
-  "vendor": "botpress"
+  "vendor": "botpress",
+  "rubric_version_at_measurement": "1.4.0",
+  "calibration_notes": {
+    "BEAAA-13540": "Rebaselined to rubric 1.4.0 after ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD activation; score movement authorized by BEAAA-13413 approval 9d1a6d35."
+  }
 }
