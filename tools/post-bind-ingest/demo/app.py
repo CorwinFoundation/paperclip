@@ -334,7 +334,7 @@ class JobManager:
             deployment = _deployment_metadata()
             job.emit(
                 "deployment",
-                f"Deployed from {deployment['git_ref']} at {deployment['git_sha'][:12]}",
+                f"Verified build {deployment['git_sha'][:12]} in {deployment['environment']}",
                 stage="report",
                 deployment=deployment,
             )
