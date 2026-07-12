@@ -10,9 +10,13 @@ from __future__ import annotations
 import argparse
 from collections import deque
 from datetime import UTC, datetime, timedelta
+import hashlib
+import hmac
 from http import HTTPStatus
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -43,6 +47,36 @@ TEST_PATHS = (
 def _utc_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
+
+def _access_token_from_env() -> str | None:
+    environment = os.environ.get("DEMO_ENVIRONMENT", "local")
+    token = os.environ.get("DEMO_ACCESS_TOKEN", "").strip()
+    if environment == "public-demo" and len(token) < 32:
+        raise RuntimeError("public-demo requires DEMO_ACCESS_TOKEN with at least 32 characters")
+    return token or None
+
+
+class RunQuota:
+    def __init__(self, max_requests: int = 5, window_seconds: float = 3600.0) -> None:
+        if max_requests <= 0 or window_seconds <= 0:
+            raise ValueError("run quota values must be positive")
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.attempts: dict[str, deque[float]] = {}
+        self.lock = threading.Lock()
+
+    def allow(self, client: str, now: float | None = None) -> tuple[bool, int]:
+        current = time.monotonic() if now is None else now
+        cutoff = current - self.window_seconds
+        with self.lock:
+            attempts = self.attempts.setdefault(client, deque())
+            while attempts and attempts[0] <= cutoff:
+                attempts.popleft()
+            if len(attempts) >= self.max_requests:
+                retry_after = max(1, math.ceil(attempts[0] + self.window_seconds - current))
+                return False, retry_after
+            attempts.append(current)
+            return True, 0
 
 def _json_lines(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -342,8 +376,9 @@ class JobManager:
 
 class DemoHandler(BaseHTTPRequestHandler):
     manager: JobManager
-    rate_limit: dict[str, float] = {}
-    rate_lock = threading.Lock()
+    access_token: str | None = None
+    secure_cookie = False
+    run_quota = RunQuota()
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -384,14 +419,77 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _session_cookie_value(self) -> str | None:
+        if not self.access_token:
+            return None
+        return hashlib.sha256(self.access_token.encode("utf-8")).hexdigest()
+
+    def _is_authorized(self) -> bool:
+        if not self.access_token:
+            return True
+        authorization = self.headers.get("Authorization", "")
+        scheme, _, candidate = authorization.partition(" ")
+        if scheme.lower() == "bearer" and candidate:
+            return hmac.compare_digest(candidate, self.access_token)
+        try:
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        except CookieError:
+            return False
+        session = cookie.get("backbond_demo_access")
+        expected = self._session_cookie_value()
+        return bool(session and expected and hmac.compare_digest(session.value, expected))
+
+    def _send_access_page(self, invalid: bool = False) -> None:
+        message = "That access token was not accepted." if invalid else "Enter the partner-demo access token to continue."
+        body = f'''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BackBond demo access</title><style>body{{margin:0;background:#08111d;color:#edf5ff;font:16px system-ui;display:grid;min-height:100vh;place-items:center}}main{{width:min(420px,calc(100% - 40px));padding:32px;border:1px solid #29435d;border-radius:18px;background:#101d2c}}h1{{margin-top:0}}label,input,button{{display:block;width:100%;box-sizing:border-box}}input,button{{margin-top:10px;padding:12px;border-radius:8px}}button{{background:#58d6b4;border:0;font-weight:700}}</style><main><h1>BackBond lifecycle demo</h1><p>{message}</p><form method="post" action="/access"><label>Access token<input name="token" type="password" required autocomplete="current-password"></label><button type="submit">Open demo</button></form></main></html>'''.encode("utf-8")
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("WWW-Authenticate", 'Bearer realm="BackBond partner demo"')
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _require_authorized(self, path: str) -> bool:
+        if self._is_authorized():
+            return True
+        if path.startswith("/api/"):
+            self._send_json({"error": "authentication_required"}, HTTPStatus.UNAUTHORIZED)
+        else:
+            self._send_access_page()
+        return False
+
+    def _handle_access(self) -> None:
+        content_length = int(self.headers.get("Content-Length", "0") or "0")
+        if content_length > 1024:
+            self._send_access_page(invalid=True)
+            return
+        form = parse_qs(self.rfile.read(content_length).decode("utf-8", errors="replace"))
+        candidate = form.get("token", [""])[0]
+        if not self.access_token or not hmac.compare_digest(candidate, self.access_token):
+            self._send_access_page(invalid=True)
+            return
+        cookie = f"backbond_demo_access={self._session_cookie_value()}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800"
+        if self.secure_cookie:
+            cookie += "; Secure"
+        self.send_response(HTTPStatus.SEE_OTHER)
+        self.send_header("Location", "/")
+        self.send_header("Set-Cookie", cookie)
+        self.send_header("Cache-Control", "no-store")
+        self._security_headers()
+        self.end_headers()
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
-        if path == "/":
-            self._send_index()
-            return
         if path == "/api/health":
             self._send_json({"status": "ok", "mode": "synthetic-lifecycle", "production_contacted": False, "vapi_used": False, "deployment": _deployment_metadata()})
+            return
+        if not self._require_authorized(path):
+            return
+        if path == "/":
+            self._send_index()
             return
         if path == "/api/deployment":
             self._send_json(_deployment_metadata())
@@ -429,10 +527,16 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json(job.snapshot(after=after))
             return
         self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/")
+        if path == "/access":
+            self._handle_access()
+            return
         if path != "/api/runs":
             self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+            return
+        if not self._require_authorized(path):
             return
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         if content_length > 1024:
@@ -440,17 +544,13 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         if content_length:
             self.rfile.read(content_length)
-        client = self.client_address[0]
-        now = time.monotonic()
-        with self.rate_lock:
-            previous = self.rate_limit.get(client, 0.0)
-            if now - previous < 3:
-                self._send_json({"error": "rate_limited", "retry_after_seconds": 3}, HTTPStatus.TOO_MANY_REQUESTS)
-                return
-            self.rate_limit[client] = now
+        client = self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip() or self.client_address[0]
+        allowed, retry_after = self.run_quota.allow(client)
+        if not allowed:
+            self._send_json({"error": "run_quota_exceeded", "retry_after_seconds": retry_after}, HTTPStatus.TOO_MANY_REQUESTS)
+            return
         job = self.manager.start()
         self._send_json({"run_id": job.run_id, "status": job.status}, HTTPStatus.ACCEPTED)
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -458,6 +558,16 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--runs-dir", type=Path, default=Path.cwd() / ".passive-demo-runs")
     args = parser.parse_args()
+
+    try:
+        DemoHandler.access_token = _access_token_from_env()
+        DemoHandler.secure_cookie = os.environ.get("DEMO_ENVIRONMENT", "local") == "public-demo"
+        DemoHandler.run_quota = RunQuota(
+            max_requests=int(os.environ.get("DEMO_RUN_MAX_REQUESTS", "5")),
+            window_seconds=float(os.environ.get("DEMO_RUN_WINDOW_SECONDS", "3600")),
+        )
+    except (RuntimeError, TypeError, ValueError) as exc:
+        parser.error(str(exc))
 
     DemoHandler.manager = JobManager(args.runs_dir)
     server = ThreadingHTTPServer((args.host, args.port), DemoHandler)

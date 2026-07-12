@@ -5,35 +5,46 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from urllib import error, request
 
 
-def _json(url: str, *, method: str = "GET", timeout: int = 10) -> dict:
+def _json(url: str, *, method: str = "GET", timeout: int = 10, token: str | None = None) -> dict:
     payload = b"{}" if method == "POST" else None
-    req = request.Request(url, data=payload, method=method, headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = request.Request(url, data=payload, method=method, headers=headers)
     with request.urlopen(req, timeout=timeout) as response:
         if response.status not in {200, 202}:
             raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
         return json.load(response)
 
 
-def _text(url: str, *, timeout: int = 20) -> str:
-    with request.urlopen(url, timeout=timeout) as response:
+def _text(url: str, *, timeout: int = 20, token: str | None = None) -> str:
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    req = request.Request(url, headers=headers)
+    with request.urlopen(req, timeout=timeout) as response:
         if response.status != 200:
             raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
         return response.read().decode("utf-8")
 
-def run(base_url: str, timeout_seconds: int) -> dict:
+def run(base_url: str, timeout_seconds: int, token: str | None = None) -> dict:
     base = base_url.rstrip("/")
-    health = _json(base + "/api/health")
+    health = _json(base + "/api/health", token=token)
     if health.get("status") != "ok" or health.get("production_contacted") is not False:
         raise RuntimeError(f"unhealthy or unsafe deployment: {health}")
-    started = _json(base + "/api/runs", method="POST")
+    try:
+        started = _json(base + "/api/runs", method="POST", token=token)
+    except error.HTTPError as exc:
+        if exc.code == 401 and not token:
+            return {"status": "AUTH_GATE_ENFORCED", "health": "PASS"}
+        raise
     run_id = started["run_id"]
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        snapshot = _json(base + f"/api/runs/{run_id}", timeout=20)
+        snapshot = _json(base + f"/api/runs/{run_id}", timeout=20, token=token)
         if snapshot["status"] == "failed":
             raise RuntimeError(snapshot.get("error") or "deployed proof run failed")
         if snapshot["status"] == "passed":
@@ -52,8 +63,8 @@ def run(base_url: str, timeout_seconds: int) -> dict:
                 raise RuntimeError("install or CI gate did not pass")
             if lifecycle["certificate"]["signature_status"] != "valid":
                 raise RuntimeError("certificate signature was not valid")
-            certificate_html = _text(base + lifecycle["documents"]["certificate_url"])
-            report_html = _text(base + lifecycle["documents"]["report_url"])
+            certificate_html = _text(base + lifecycle["documents"]["certificate_url"], token=token)
+            report_html = _text(base + lifecycle["documents"]["report_url"], token=token)
             if "Certificate of BackBond Scan" not in certificate_html or "Agent Risk Exposure Report Card" not in report_html:
                 raise RuntimeError("certificate or report document could not be viewed")
             return {
@@ -74,9 +85,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True)
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--token", default=os.environ.get("DEMO_ACCESS_TOKEN"))
     args = parser.parse_args()
     try:
-        print(json.dumps(run(args.url, args.timeout), sort_keys=True))
+        print(json.dumps(run(args.url, args.timeout, args.token), sort_keys=True))
     except (error.URLError, RuntimeError, TimeoutError) as exc:
         raise SystemExit(str(exc)) from exc
     return 0

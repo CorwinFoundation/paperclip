@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -r /etc/backbond/passive-demo.env ]]; then
+  # Server-owned secrets are intentionally outside the repository and Actions logs.
+  source /etc/backbond/passive-demo.env
+fi
+: "${DEMO_ACCESS_TOKEN:?set DEMO_ACCESS_TOKEN (32+ characters) in /etc/backbond/passive-demo.env}"
+
 SOURCE_DIR="${1:?usage: deploy.sh SOURCE_DIR}"
 CONTAINER="backbond-passive-monitor-demo"
 IMAGE="backbond/passive-monitor-demo:${DEMO_GIT_SHA:?DEMO_GIT_SHA is required}"
@@ -20,6 +26,9 @@ container_args() {
     --user 10001:10001 \
     --mount "source=${RUN_VOLUME},target=/data/runs" \
     -e "DEMO_ENVIRONMENT=public-demo" \
+    -e "DEMO_ACCESS_TOKEN=${DEMO_ACCESS_TOKEN}" \
+    -e "DEMO_RUN_MAX_REQUESTS=${DEMO_RUN_MAX_REQUESTS:-5}" \
+    -e "DEMO_RUN_WINDOW_SECONDS=${DEMO_RUN_WINDOW_SECONDS:-3600}" \
     -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Passive Monitor Demo}" \
     -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}" \
     -e "DEMO_GIT_REF=${DEMO_GIT_REF:-unknown}" \
@@ -62,7 +71,7 @@ if ! wait_for_health "$CANDIDATE_PORT" 60; then
   exit 1
 fi
 if ! python3 "$SOURCE_DIR/tools/post-bind-ingest/demo/smoke_test.py" \
-  --url "http://127.0.0.1:${CANDIDATE_PORT}" --timeout 180; then
+  --url "http://127.0.0.1:${CANDIDATE_PORT}" --timeout 180 --token "$DEMO_ACCESS_TOKEN"; then
   docker logs "$CANDIDATE" --tail 200 || true
   docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
   echo "Candidate proof run failed" >&2
