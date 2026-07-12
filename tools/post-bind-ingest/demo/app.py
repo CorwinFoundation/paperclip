@@ -117,19 +117,11 @@ def _receiver_events(receiver_dir: Path) -> list[dict]:
 
 
 def _deployment_metadata() -> dict:
-    repository = os.environ.get("DEMO_GITHUB_REPOSITORY", "CorwinFoundation/are-scanner")
-    run_id = os.environ.get("DEMO_GITHUB_RUN_ID", "local")
-    run_url = os.environ.get("DEMO_GITHUB_RUN_URL")
-    if not run_url and run_id.isdigit():
-        run_url = f"https://github.com/{repository}/actions/runs/{run_id}"
     return {
         "environment": os.environ.get("DEMO_ENVIRONMENT", "local"),
         "workflow": os.environ.get("DEMO_WORKFLOW", "Local presentation runner"),
-        "repository": repository,
         "git_sha": os.environ.get("DEMO_GIT_SHA", "working-tree"),
-        "git_ref": os.environ.get("DEMO_GIT_REF", "local"),
-        "github_run_id": run_id,
-        "github_run_url": run_url,
+        "github_run_id": os.environ.get("DEMO_GITHUB_RUN_ID", "local"),
         "deployed_at": os.environ.get("DEMO_DEPLOYED_AT", _utc_now()),
         "gates": [
             {"name": "Focused unit + integration tests", "status": "passed"},
@@ -139,6 +131,14 @@ def _deployment_metadata() -> dict:
         ],
     }
 
+
+def _health_metadata() -> dict:
+    return {
+        "status": "ok",
+        "mode": "synthetic-lifecycle",
+        "production_contacted": False,
+        "vapi_used": False,
+    }
 
 class DemoJob:
     def __init__(self, run_id: str, output_dir: Path) -> None:
@@ -484,7 +484,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         if path == "/api/health":
-            self._send_json({"status": "ok", "mode": "synthetic-lifecycle", "production_contacted": False, "vapi_used": False, "deployment": _deployment_metadata()})
+            self._send_json(_health_metadata())
             return
         if not self._require_authorized(path):
             return
