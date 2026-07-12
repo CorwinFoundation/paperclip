@@ -1,87 +1,19 @@
-# are-scanner PRODUCTION RUNTIME dependency contract — the online-service slice.
-# BEAAA-13329 (rule-execution of ADR-0038, decisions/ADR-0038-runtime-requirements-slice.md).
+# Live BackBond Scanner edge runtime dependencies.
 #
-# WHAT THIS IS
-# ------------
-# This is the dependency set the *live* production service actually imports:
-# the FastAPI app (api/*) and the live customer-scan chain
-# (scanners.live_probe_orchestrator/workers, score_runtime,
-# customer_agent_walker, harness.runner/customer_runner/credentials/egress).
-# The production venv (deploy/cto_live_edge_boot.py under uvicorn) is built
-# from THIS file, not from requirements.txt.
-#
-# WHY THIS EXISTS (structural, not incidental)
-# --------------------------------------------
-# requirements.txt is the full eval-framework RELEASE-CONTRACT superset and is
-# NOT co-installable in one venv by design: garak==0.10.0 requires
-# datasets<2.17 while pyrit==0.6.0 requires datasets>=3.0.0 (garak ⊥ pyrit).
-# Both frameworks — plus agentdojo and inspect-ai — are OFFLINE-ONLY: they are
-# imported solely by scanners/{pyrit,agentdojo,inspect}_runner.py, each of
-# which soft-imports (try/except ImportError -> _AVAILABLE=False). garak is
-# never imported in Python at all (driven via the promptfoo Node CLI). None
-# of the four are in the live runtime import closure, so excluding them from
-# the production venv cannot move a live score and cannot crash the service.
-# See requirements-scanner-regression.txt for the same conflict noted on the
-# CI regression slice, and ADR-0038 for the full import-closure analysis.
-#
-# INVARIANT (enforced by CI): this file must stay a true SUPERSET of the live
-# import closure. tests/test_runtime_import_closure_beaaa13329.py builds a venv
-# from this file only, imports the live modules, and asserts the four eval
-# frameworks are NOT importable. If a live dependency is missing here, that
-# test fails — add the dep here (never re-add garak/pyrit/agentdojo/inspect-ai).
-#
-# Scoring / rubric / corpus / judges are UNCHANGED relative to requirements.txt;
-# this is a packaging change only.
+# BEAAA-13552 unblock for BEAAA-13361 image parity. This file is intentionally
+# narrower than requirements.txt: offline eval frameworks and heavyweight
+# detector stacks stay out of the live FastAPI edge image and remain in their
+# dedicated scanner/eval environments.
 
-# --- core scoring + scanner ---
+fastapi==0.136.1
+uvicorn==0.49.0
+pydantic==2.13.4
 PyYAML==6.0.2
 httpx==0.27.2
 
-# --- HTTP service surface (BEAAA-13329) ---
-# The production service IS a FastAPI app (api/app.py: `from fastapi import ...`)
-# served by uvicorn (deploy/cto_live_edge_boot.py: `uvicorn.run(app, ...)`).
-# These were previously pinned only in requirements-dev.txt; promoted to
-# first-class RUNTIME pins here because the live process imports and runs them.
-# starlette is intentionally left to fastapi's transitive constraint
-# (fastapi==0.136.1 requires starlette>=0.46.0); pydantic likewise.
-fastapi==0.136.1
-uvicorn==0.46.0
-
-# --- model SDKs (lazy-imported by harness/runner.py adapters) ---
+# Model SDKs are lazy-loaded by harness.runner when live-probe execution calls
+# customer-facing model adapters. Keeping the pins here preserves parity with
+# requirements.txt without pulling in offline eval frameworks.
 anthropic==0.39.0
-openai==1.58.1
+openai==1.54.4
 google-genai==0.3.0
-
-# --- HuggingChat target adapter (BEAAA-13329) ---
-# hugchat is in the live runtime closure via the HuggingChat customer-agent
-# adapter in harness/runner.py (`from hugchat import hugchat`), but was
-# unpinned anywhere. Pin it so the production venv is reproducible. Pulls only
-# requests / requests_toolbelt — no datasets, no conflict with the slice.
-hugchat==0.5.1
-
-# --- PII / scrubber substrate (BEAAA-2068 engine-import pre-flight) ---
-# Always-on PII rubric points (ROBUSTNESS.PII.SCAN_TIME_DETECTION +
-# GOVERNANCE.PII.HANDLING_ATTESTATION). Soft-loaded at scan time via
-# scanners/selective_loader.py, but genuinely part of the production runtime —
-# kept in the slice. None of these touch `datasets`, so they do not
-# reintroduce the garak/pyrit conflict. Pins are lockstep-bound to the
-# vendor-pin docs (BEAAA-815) and scanners/model_versions.json; bumping any of
-# them requires a fresh N=5 calibration delta per
-# contracts/scanner-implementation-supervision-v1.md.
-llm-guard==0.3.16
-presidio-analyzer==2.2.358
-presidio-anonymizer==2.2.358
-spacy==3.8.14
-transformers==4.51.3
-
-# --- deliberately EXCLUDED from the production venv (offline-only) ---
-# garak==0.10.0        (datasets<2.17)   -> scanners/promptfoo path, never imported in Python
-# pyrit==0.6.0         (datasets>=3.0.0) -> scanners/pyrit_runner.py     (soft-import)
-# agentdojo==0.1.35                       -> scanners/agentdojo_runner.py (soft-import)
-# inspect-ai==0.3.220                     -> scanners/inspect_runner.py   (soft-import)
-# These live in requirements.txt (the release-contract superset). Offline
-# calibration/CI materializes them as per-framework venvs invoked as
-# subprocess; they are never co-installed with the production runtime.
-#
-# --- pinned external CLI (Node, not pip-managed) ---
-# promptfoo == 0.115.0  (install via `npm install -g promptfoo@0.115.0`)

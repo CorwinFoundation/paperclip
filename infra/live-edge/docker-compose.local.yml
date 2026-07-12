@@ -1,0 +1,29 @@
+services:
+  scanner-live-edge:
+    image: backbond-scanner-live:${IMAGE_TAG:-local}
+    container_name: backbond-scanner-live-edge
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SCANNER_EDGE_PORT:-8077}:8077"
+    env_file:
+      - path: ${SCANNER_EDGE_ENV_FILE:-./infra/live-edge/scanner-edge.env}
+        required: false
+    environment:
+      ARE_SCAN_LOG_PATH: /var/lib/are-scanner/scan_log.sqlite3
+      ARE_RUNTIME_PROFILE: ${ARE_RUNTIME_PROFILE:-local_dev}
+    volumes:
+      - ${SCANNER_EDGE_STATE_DIR:-/var/lib/are-scanner}:/var/lib/are-scanner
+      - ${SCANNER_EDGE_SECRETS_CONF:-/dev/null}:/run/secrets/secrets.conf:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8077/openapi.json', timeout=2).read(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
