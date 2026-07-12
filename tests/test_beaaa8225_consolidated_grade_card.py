@@ -58,6 +58,8 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
         assert "BIND</div>" not in card_html
         assert "Eligible for primary cover" not in card_html
         assert "P2.2" in card_html
+        assert "P3.5" in card_html
+        assert "P3.6" in card_html
         assert ">N/A<" in card_html
         assert "0.0/4" not in card_html
         assert (out_dir / "consolidated_summary.json").exists()
