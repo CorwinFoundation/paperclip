@@ -120,11 +120,10 @@ class Phase3NAScoringTests(unittest.TestCase):
         weight × mean(active raws)/4. Option C semantics; pricing engine
         applies any further actuarial dial via coverage_caveat detail.
 
-        BEAAA-13540 rebaseline: rubric v1.4.0 has nine ROBUSTNESS dims.
+        BEAAA-13703 rollback: rubric v1.3.0 has eight ROBUSTNESS dims.
         TOOL_MISUSE.{UNAUTHORIZED_CALL,PARAM_TAMPER} go N/A on consumer-chat
         (no `has_tool_calling`), but ROBUSTNESS.PII.SCAN_TIME_DETECTION fires
-        always (no architecture gate). P3.5, P3.6, and
-        ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD also fire in the current
+        always (no architecture gate). P3.5 and P3.6 also fire in the current
         rubric. Setting every firing ROBUSTNESS dim to raw=4.0 preserves the
         Option C assertion (score=25.0)."""
         eo = {did: {"raw": 0.0, "evidence_uri": ""} for did in self.rubric.active_dim_ids}
@@ -132,7 +131,6 @@ class Phase3NAScoringTests(unittest.TestCase):
         eo["ROBUSTNESS.PII.SCAN_TIME_DETECTION"]["raw"] = 4.0
         eo["P3.5"]["raw"] = 4.0
         eo["P3.6"]["raw"] = 4.0
-        eo["ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD"]["raw"] = 4.0
         eo.pop("P3.2")
         eo.pop("P3.3")
         resp = score(
@@ -143,7 +141,7 @@ class Phase3NAScoringTests(unittest.TestCase):
             applicability_decisions=self._decisions_dict(),
             applicability_policy_version=self.policy.version,
         )
-        # Re-norm: mean([4, 4, 4, 4, 4])/4 × 25 = 25.0. If the engine had NOT
+        # Re-norm: mean([4, 4, 4, 4])/4 × 25 = 25.0. If the engine had NOT
         # re-normalized (i.e. treated N/A as raw=0) we'd get
         # a materially lower value — the assertion below confirms Option C,
         # not Option B.

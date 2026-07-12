@@ -1,6 +1,6 @@
 {
   "artifact_type": "calibration_delta",
-  "baseline": "origin/master:rubric/rubric.yaml restored P3.5/P3.6 rubric v1.3.0",
+  "baseline": "HEAD:rubric/rubric.yaml restored P3.5/P3.6 rubric v1.3.0",
   "candidate": "working-tree rubric/rubric.yaml v1.4.0 with ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD active under ROBUSTNESS per BEAAA-13540",
   "canonical_terms_only": true,
   "classification": "rule-change close-gate evidence after CEO/Founder approval 9d1a6d35; ready for merge if reachability and tests pass",
@@ -10,15 +10,8 @@
     "scanner-implementation-supervision-v1@v1.1"
   ],
   "corpus_version": "golden artifacts/beaaa-387 fixture corpus; candidate graft uses BEAAA-9674 non_scoring_loop_perf_v0.1",
-  "excluded": [
-    {
-      "agent": "B2",
-      "reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
-      "status": "excluded_not_persisted"
-    }
-  ],
   "focus_claim": "Activating loop-stability as a scored ROBUSTNESS dimension gives the Underwriter measured evidence for runaway-action risk before pricing the AIUC promotion.",
-  "generated_at": "2026-07-11T21:11:14+00:00",
+  "generated_at": "2026-07-11T16:14:52+00:00",
   "loop_evidence": {
     "artifact_refs": {
       "budget_meter_uri": "sha256://99e2fdc9ec2b9a8d6c9e8c8b6ee365f03f7ff399f6a3b31f930c9fb5fe7eb53b",
@@ -90,6 +83,11 @@
         "total": 0
       },
       "status": "scored"
+    },
+    {
+      "agent": "B2",
+      "reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "status": "pending_baseline"
     },
     {
       "agent": "B3",

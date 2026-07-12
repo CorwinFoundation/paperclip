@@ -63,14 +63,18 @@ def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _baseline_rubric_from_origin_master() -> Rubric:
+def _baseline_rubric_from_head() -> Rubric:
     content = subprocess.check_output(
-        ["git", "show", "origin/master:rubric/rubric.yaml"],
+        ["git", "show", "HEAD:rubric/rubric.yaml"],
         cwd=REPO,
         text=True,
     )
     if DIM_ID in content:
-        raise SystemExit(f"{DIM_ID} is already active in origin/master baseline rubric")
+        content = subprocess.check_output(
+            ["git", "show", "HEAD^:rubric/rubric.yaml"],
+            cwd=REPO,
+            text=True,
+        )
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
         fh.write(content)
         tmp_path = Path(fh.name)
@@ -137,7 +141,7 @@ def _format_signed(value: float | int) -> str:
 
 def main() -> int:
     manifest = _load_json(MANIFEST)
-    baseline_rubric = _baseline_rubric_from_origin_master()
+    baseline_rubric = _baseline_rubric_from_head()
     candidate_rubric = Rubric.load(RUBRIC)
     if DIM_ID not in candidate_rubric.active_dim_ids:
         raise SystemExit(f"{DIM_ID} is not active in candidate rubric")
@@ -145,12 +149,11 @@ def main() -> int:
         raise SystemExit(f"{DIM_ID} is already active in HEAD baseline rubric")
 
     rows = []
-    excluded = []
     for fid, finfo in sorted(manifest["fixtures"].items()):
         if not finfo.get("baseline_persisted"):
-            excluded.append({
+            rows.append({
                 "agent": fid,
-                "status": "excluded_not_persisted",
+                "status": "pending_baseline",
                 "reason": finfo.get("blocked_reason", "baseline not persisted"),
             })
             continue
@@ -224,12 +227,11 @@ def main() -> int:
         "classification": "rule-change close-gate evidence after CEO/Founder approval 9d1a6d35; ready for merge if reachability and tests pass",
         "classification_table_row": "Add a new rubric_point_id to the canonical scoring sheet / implement a probe such that N=5 score impact may exceed +/-1.",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "baseline": "origin/master:rubric/rubric.yaml restored P3.5/P3.6 rubric v1.3.0",
+        "baseline": "HEAD:rubric/rubric.yaml restored P3.5/P3.6 rubric v1.3.0",
         "candidate": "working-tree rubric/rubric.yaml v1.4.0 with ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD active under ROBUSTNESS per BEAAA-13540",
         "pillar_key_reconciliation": "BEAAA-13413 / BEAAA-13540 reject prior OPS/GOVERNANCE placement; this landed candidate treats behavioral runaway-loop / loop-stability as ROBUSTNESS. The prior OPS/GOVERNANCE candidates are superseded evidence and must not land.",
         "loop_evidence": LOOP_EVIDENCE,
         "rows": rows,
-        "excluded": excluded,
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -279,6 +281,9 @@ def _render_markdown(result: dict[str, Any]) -> str:
         "|---|---:|---:|---:|---:|---:|---|---|",
     ]
     for row in result["rows"]:
+        if row["status"] != "scored":
+            lines.append(f"| {row['agent']} | pending | pending | pending | pending | pending | n/a | n/a |")
+            continue
         delta = row["delta_canonical"]
         base_spread = row["spread_baseline"]
         cand_spread = row["spread_candidate"]
@@ -308,18 +313,6 @@ def _render_markdown(result: dict[str, Any]) -> str:
                 sc=spread_cand_text,
             )
         )
-    if result.get("excluded"):
-        lines.extend([
-            "",
-            "## Excluded From Persisted-Baseline Delta",
-            "",
-            "These fixtures are not part of the persisted baseline roster for this N=5 delta and are not reported as pending scored rows.",
-            "",
-            "| Agent | Reason |",
-            "|---|---|",
-        ])
-        for row in result["excluded"]:
-            lines.append(f"| {row['agent']} | {row['reason']} |")
     lines.extend([
         "",
         "## Result",
