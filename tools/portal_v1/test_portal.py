@@ -1505,12 +1505,20 @@ class TestRequestBodySizeCap:
         service, server = self._start_server(tmp_path)
         try:
             oversize = b"x" * (self.LARGE_CAP + 1)
-            code, _hdrs, resp = self._request(
-                "POST",
-                f"http://127.0.0.1:{server.server_port}/scans/abc-1/envelopes",
-                data=oversize,
-                content_type="application/json",
-            )
+            try:
+                code, _hdrs, resp = self._request(
+                    "POST",
+                    f"http://127.0.0.1:{server.server_port}/scans/abc-1/envelopes",
+                    data=oversize,
+                    content_type="application/json",
+                )
+            except urllib.error.URLError as exc:
+                # The handler rejects from Content-Length before reading the
+                # oversized body. On Python 3.12 CI the client can still be
+                # writing when the server closes with 413, surfacing BrokenPipe
+                # instead of the response body. That is the cap firing early.
+                assert isinstance(exc.reason, BrokenPipeError)
+                return
             assert code == 413, f"oversize envelope body must 413; got {code} {resp[:120]!r}"
             err = json.loads(resp)
             assert err["error"] == "request_body_too_large", err
