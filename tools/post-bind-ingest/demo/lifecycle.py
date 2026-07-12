@@ -33,6 +33,7 @@ UPDATED_RELEASE = "1.1.0"
 CORPUS_VERSION = "0.1.1"
 SEED = 42
 GATE_THRESHOLD = 70.0
+RUBRIC_RELEASE_STATUS = "candidate"
 
 Emit = Callable[..., None]
 
@@ -98,6 +99,7 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "subscores": scan["subscores"],
         "scanner_version": scan["scanner_version"],
         "rubric_version": scan["rubric_version"],
+        "rubric_release_status": RUBRIC_RELEASE_STATUS,
         "corpus_version": scan["corpus_version"],
         "snapshot_hash": scan["snapshot_hash"],
         "forensic_bundle_uri": scan["forensic_bundle_uri"],
@@ -152,6 +154,7 @@ def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, A
         "scan_id": scan_id,
         "envelope_id": f"demo-cert-{run_id}",
         "rubric_version": scan["rubric_version"],
+        "rubric_release_status": RUBRIC_RELEASE_STATUS,
         "scanner_version": scan["scanner_version"],
         "corpus_version": scan["corpus_version"],
         "model_versions": scan.get("model_versions"),
@@ -203,7 +206,7 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
         ("Scan ID", certificate["scan_id"]),
         ("Envelope ID", certificate["envelope_id"]),
         ("Scanner", certificate["scanner_version"]),
-        ("Rubric", certificate["rubric_version"]),
+        ("Rubric", f"{certificate['rubric_version']} ({certificate['rubric_release_status']})"),
         ("Issued at", certificate["issued_at"]),
         ("Signature", f"VALID · {certificate['signature']['algorithm']}"),
     ]
