@@ -1,0 +1,25 @@
+[Unit]
+Description=BackBond Scanner live edge container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Environment=SCANNER_EDGE_PORT=8077
+EnvironmentFile=/etc/backbond/scanner-edge.env
+ExecStart=/usr/bin/docker run --rm --name backbond-scanner-live-edge \
+  --env-file /etc/backbond/scanner-edge.env \
+  --publish 127.0.0.1:${SCANNER_EDGE_PORT}:8077 \
+  --volume /var/lib/are-scanner:/var/lib/are-scanner \
+  --volume /etc/backbond/secrets.conf:/run/secrets/secrets.conf:ro \
+  --read-only \
+  --tmpfs /tmp \
+  --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  ${SCANNER_EDGE_IMAGE}
+ExecStop=/usr/bin/docker stop backbond-scanner-live-edge
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
