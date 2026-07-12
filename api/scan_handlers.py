@@ -35,7 +35,7 @@ import hashlib
 import re
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping
 
@@ -49,6 +49,8 @@ from api.ci_scan_ext import (
     gate_disposition,
 )
 from api.config import ApiConfig
+from api.bundle import sign_manifest
+from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
 from api.scan_log import ScanLog
 from api.sla import (
@@ -257,6 +259,7 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
 #: is left ``None``, ``ScanRuntime.kickoff`` does NOT touch the scan_log —
 #: legacy WS1/WS2 wiring is byte-identical.
 ScoreEnvelopeFactory = Callable[[ScanResult, str, str], dict[str, Any]]
+FullSuiteManifestUriFactory = Callable[[str | None, str], str]
 
 
 class ScanRuntime:
@@ -284,6 +287,8 @@ class ScanRuntime:
         prior_agent_ids: Iterable[str] = (),
         scan_log: ScanLog | None = None,
         scanner_run_tracker: Any | None = None,
+        full_suite_registry_cases: Iterable[FullSuiteCase] = (),
+        full_suite_manifest_uri_factory: FullSuiteManifestUriFactory | None = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
@@ -317,6 +322,10 @@ class ScanRuntime:
         # unbound by default so legacy /scans and /rescans response bytes are
         # unchanged unless production wiring explicitly opts in.
         self._scanner_run_tracker = scanner_run_tracker
+        self._full_suite_registry_cases = tuple(full_suite_registry_cases)
+        self._full_suite_manifest_uri_factory = (
+            full_suite_manifest_uri_factory or _default_full_suite_manifest_uri
+        )
         self._run_timestamp_factory = run_timestamp_factory or _default_run_timestamp
         self._forensic_bundle_uri_factory = (
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
@@ -399,6 +408,11 @@ class ScanRuntime:
                 scanner_invocation_context
             )
         result = self._run_scan_fn(scan_request, secret)
+        result = self._apply_full_suite_manifest_guard(
+            scan_request,
+            result,
+            agent_id=agent_id,
+        )
         self._results[scan_request.scan_id] = result
         if agent_id is not None:
             self._agent_ids_with_prior_scan[agent_id] = self._now()
@@ -437,6 +451,46 @@ class ScanRuntime:
                         score_json=score_envelope,
                     )
         return result
+
+    def _apply_full_suite_manifest_guard(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+    ) -> ScanResult:
+        """Attach the full-suite manifest and fail closed for full scans.
+
+        Smoke/dev tiers are explicitly non-underwriting and may sample. Full
+        underwriting scans must carry every active registry case to completion
+        or return an incomplete result with evidence references in the
+        manifest.
+        """
+        if not self._full_suite_registry_cases:
+            return result
+        if scan_request.scan_tier in {"smoke", "dev"}:
+            return result
+
+        manifest_uri = self._full_suite_manifest_uri_factory(
+            agent_id or scan_request.agent_id,
+            scan_request.scan_id,
+        )
+        manifest, findings = build_full_suite_manifest(
+            scan_request=scan_request,
+            scan_result=result,
+            registry_cases=self._full_suite_registry_cases,
+            signer=sign_manifest,
+            manifest_uri=manifest_uri,
+        )
+        if not findings:
+            return replace(result, full_suite_manifest=manifest)
+        return replace(
+            result,
+            status="incomplete",
+            incomplete=True,
+            incomplete_reason="full_suite_manifest_incomplete",
+            full_suite_manifest=manifest,
+        )
 
     def fetch(self, scan_id: str) -> ScanResult | None:
         self._purge_expired_in_memory_state()
@@ -622,6 +676,7 @@ def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
         "total_spread": result.total_spread,
         "incomplete": result.incomplete,
         "incomplete_reason": result.incomplete_reason,
+        "full_suite_manifest": result.full_suite_manifest,
         "anti_gaming": result.anti_gaming.to_dict(),
         "dim_results": [
             {
@@ -674,6 +729,11 @@ def _default_forensic_bundle_uri(agent_id: str, scan_id: str) -> str:
     bucket / object-lock URI factory.
     """
     return f"s3://ifa-forensic-bundles/agent-{agent_id}/scan-{scan_id}.json"
+
+
+def _default_full_suite_manifest_uri(agent_id: str | None, scan_id: str) -> str:
+    agent_segment = agent_id or "unknown-agent"
+    return f"scanner://full-suite-manifests/{agent_segment}/{scan_id}.json"
 
 
 def _chain_entry_from_row(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -952,6 +1012,8 @@ def _kickoff_live_probe_scan(
         # Echo defaults so the vendor can reproduce: same agent + same version
         # => same score within +/-1. Full tier is byte-identical to v1.3.0.
         response["scan_tier"] = "smoke"
+        response["underwriting_eligible"] = False
+        response["non_underwriting_reason"] = "smoke_tier_sampled"
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
 

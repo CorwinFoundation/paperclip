@@ -79,6 +79,11 @@ def _sign(manifest: dict[str, Any]) -> str:
     return "hmac-sha256:" + mac.hexdigest()
 
 
+def sign_manifest(manifest: dict[str, Any]) -> str:
+    """Return the standard BackBond Scanner HMAC over canonical JSON."""
+    return _sign(manifest)
+
+
 def redact_scan_request(scan_request: dict[str, Any]) -> dict[str, Any]:
     """Return a deep copy of `scan_request` with `credential_ref` redacted.
 
