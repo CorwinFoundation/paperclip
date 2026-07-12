@@ -8,9 +8,9 @@ from api.full_scan_executor import (
     ASYNC_FULL_SCAN_API_VERSION,
     EvidenceAttemptRow,
     FullScanJobStore,
+    FullSuiteCase,
     build_attempt_manifest,
 )
-from api.full_suite_manifest import FullSuiteCase
 
 
 class Clock:

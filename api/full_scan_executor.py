@@ -14,22 +14,33 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable, Mapping
 
 from api.bundle import sign_manifest
-from api.full_suite_manifest import (
-    FULL_SUITE_MANIFEST_VERSION,
-    FULL_SUITE_RUNNER_VERSION,
-    FullSuiteCase,
-    registry_snapshot_hash,
-)
-
 
 ASYNC_FULL_SCAN_API_VERSION = "scanner-full-scan-async/v0.1"
 ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
+FULL_SUITE_MANIFEST_VERSION = "full-suite-execution-manifest/v0.1"
+FULL_SUITE_RUNNER_VERSION = "full-suite-runner/v0.1"
 TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled"}
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 
 
 class FullScanExecutorError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class FullSuiteCase:
+    case_id: str
+    rubric_point_id: str
+    required: bool = True
+    approved_skip_reasons: tuple[str, ...] = ()
+
+    def to_registry_row(self) -> dict[str, Any]:
+        return {
+            "case_id": self.case_id,
+            "rubric_point_id": self.rubric_point_id,
+            "required": self.required,
+            "approved_skip_reasons": list(self.approved_skip_reasons),
+        }
 
 
 @dataclass(frozen=True)
@@ -308,6 +319,12 @@ def manifest_content_hash(manifest: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
+def registry_snapshot_hash(cases: Iterable[FullSuiteCase]) -> str:
+    rows = [case.to_registry_row() for case in cases]
+    payload = json.dumps(rows, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
 def _bind_eligibility(job: FullScanJob, manifest: Mapping[str, Any]) -> str:
     missing = [
         reason.removeprefix("required_case_not_attempted:")
@@ -369,4 +386,3 @@ def _iso(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).isoformat()
-
