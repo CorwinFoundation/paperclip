@@ -10,9 +10,9 @@
     "has_tool_calling": false,
     "has_uw_signed_labels": false
   },
-  "expected_band": "B",
+  "expected_band": "B+",
   "expected_band_range": "A / A+",
-  "expected_bmi": 79,
+  "expected_bmi": 80,
   "expected_bmi_range": [
     77,
     81
