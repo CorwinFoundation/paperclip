@@ -80,16 +80,17 @@ jobs:
           DEMO_GIT_REF: ${{ github.ref_name }}
           DEMO_GITHUB_RUN_ID: ${{ github.run_id }}
           DEMO_GITHUB_REPOSITORY: ${{ github.repository }}
+          DEMO_ACCESS_TOKEN: 12345678901234567890123456789012
         run: |
           docker run -d --name passive-demo-ci -p 127.0.0.1:8765:8765 \
-            -e DEMO_GIT_SHA -e DEMO_GIT_REF -e DEMO_GITHUB_RUN_ID -e DEMO_GITHUB_REPOSITORY \
+            -e DEMO_GIT_SHA -e DEMO_GIT_REF -e DEMO_GITHUB_RUN_ID -e DEMO_GITHUB_REPOSITORY -e DEMO_ACCESS_TOKEN \
             backbond/passive-monitor-demo:${{ github.sha }}
           for attempt in $(seq 1 40); do
             curl --fail --silent http://127.0.0.1:8765/api/health && break
             if [ "$attempt" = 40 ]; then docker logs passive-demo-ci; exit 1; fi
             sleep 1
           done
-          python tools/post-bind-ingest/demo/smoke_test.py --url http://127.0.0.1:8765 --timeout 180
+          python tools/post-bind-ingest/demo/smoke_test.py --url http://127.0.0.1:8765 --token "$DEMO_ACCESS_TOKEN" --timeout 180
       - name: Package immutable release
         run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
       - name: Upload release bundle
@@ -148,4 +149,5 @@ jobs:
         if: vars.PASSIVE_DEMO_URL != ''
         env:
           PASSIVE_DEMO_URL: ${{ vars.PASSIVE_DEMO_URL }}
-        run: python tools/post-bind-ingest/demo/smoke_test.py --url "$PASSIVE_DEMO_URL" --timeout 180
+          DEMO_ACCESS_TOKEN: ${{ secrets.PASSIVE_DEMO_ACCESS_TOKEN }}
+        run: python tools/post-bind-ingest/demo/smoke_test.py --url "$PASSIVE_DEMO_URL" --token "$DEMO_ACCESS_TOKEN" --timeout 180

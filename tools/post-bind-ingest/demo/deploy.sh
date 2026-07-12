@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -r /etc/backbond/passive-demo.env ]]; then
-  # Server-owned secrets are intentionally outside the repository and Actions logs.
-  source /etc/backbond/passive-demo.env
-fi
-: "${DEMO_ACCESS_TOKEN:?set DEMO_ACCESS_TOKEN (32+ characters) in /etc/backbond/passive-demo.env}"
-
 SOURCE_DIR="${1:?usage: deploy.sh SOURCE_DIR}"
 CONTAINER="backbond-passive-monitor-demo"
 IMAGE="backbond/passive-monitor-demo:${DEMO_GIT_SHA:?DEMO_GIT_SHA is required}"
@@ -15,6 +9,19 @@ RUN_VOLUME="backbond-passive-demo-runs"
 PROD_PORT="8765"
 CANDIDATE_PORT="18765"
 PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
+ENV_FILE="/etc/backbond/passive-demo.env"
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+DEMO_ACCESS_TOKEN="${DEMO_ACCESS_TOKEN:-}"
+if [[ "${DEMO_ENVIRONMENT:-public-demo}" == "public-demo" && "${#DEMO_ACCESS_TOKEN}" -lt 32 ]]; then
+  echo "public demo requires ${ENV_FILE} with a 32+ character DEMO_ACCESS_TOKEN" >&2
+  exit 1
+fi
 
 container_args() {
   printf '%s\n' \
@@ -31,10 +38,7 @@ container_args() {
     -e "DEMO_RUN_WINDOW_SECONDS=${DEMO_RUN_WINDOW_SECONDS:-3600}" \
     -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Passive Monitor Demo}" \
     -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}" \
-    -e "DEMO_GIT_REF=${DEMO_GIT_REF:-unknown}" \
-    -e "DEMO_GITHUB_REPOSITORY=${DEMO_GITHUB_REPOSITORY:-CorwinFoundation/are-scanner}" \
     -e "DEMO_GITHUB_RUN_ID=${DEMO_GITHUB_RUN_ID:-manual}" \
-    -e "DEMO_GITHUB_RUN_URL=${DEMO_GITHUB_RUN_URL:-}" \
     -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}"
 }
 
@@ -72,6 +76,7 @@ if ! wait_for_health "$CANDIDATE_PORT" 60; then
 fi
 if ! python3 "$SOURCE_DIR/tools/post-bind-ingest/demo/smoke_test.py" \
   --url "http://127.0.0.1:${CANDIDATE_PORT}" --timeout 180 --token "$DEMO_ACCESS_TOKEN"; then
+
   docker logs "$CANDIDATE" --tail 200 || true
   docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
   echo "Candidate proof run failed" >&2

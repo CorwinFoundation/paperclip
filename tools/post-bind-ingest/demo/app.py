@@ -42,6 +42,19 @@ TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_continuity_gate.py",
     "tools/post-bind-ingest/tests/test_detector_input.py",
 )
+DEMO_ENV_FILE = Path("/etc/backbond/passive-demo.env")
+
+
+def _load_demo_env_file(path: Path = DEMO_ENV_FILE) -> None:
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        clean = line.strip()
+        if not clean or clean.startswith("#") or "=" not in clean:
+            continue
+        key, value = clean.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
 
 
 def _utc_now() -> str:
@@ -77,6 +90,7 @@ class RunQuota:
                 return False, retry_after
             attempts.append(current)
             return True, 0
+
 
 def _json_lines(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -117,11 +131,13 @@ def _receiver_events(receiver_dir: Path) -> list[dict]:
 
 
 def _deployment_metadata() -> dict:
+
     return {
         "environment": os.environ.get("DEMO_ENVIRONMENT", "local"),
         "workflow": os.environ.get("DEMO_WORKFLOW", "Local presentation runner"),
         "git_sha": os.environ.get("DEMO_GIT_SHA", "working-tree"),
         "github_run_id": os.environ.get("DEMO_GITHUB_RUN_ID", "local"),
+
         "deployed_at": os.environ.get("DEMO_DEPLOYED_AT", _utc_now()),
         "gates": [
             {"name": "Focused unit + integration tests", "status": "passed"},
@@ -335,6 +351,7 @@ class JobManager:
             job.emit(
                 "deployment",
                 f"Verified build {deployment['git_sha'][:12]} in {deployment['environment']}",
+
                 stage="report",
                 deployment=deployment,
             )
@@ -379,6 +396,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     access_token: str | None = None
     secure_cookie = False
     run_quota = RunQuota()
+
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -480,6 +498,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         self._security_headers()
         self.end_headers()
 
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
@@ -537,6 +556,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             return
         if not self._require_authorized(path):
+
             return
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         if content_length > 1024:
@@ -549,10 +569,13 @@ class DemoHandler(BaseHTTPRequestHandler):
         if not allowed:
             self._send_json({"error": "run_quota_exceeded", "retry_after_seconds": retry_after}, HTTPStatus.TOO_MANY_REQUESTS)
             return
+
         job = self.manager.start()
         self._send_json({"run_id": job.run_id, "status": job.status}, HTTPStatus.ACCEPTED)
 
 def main() -> int:
+    _load_demo_env_file()
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)

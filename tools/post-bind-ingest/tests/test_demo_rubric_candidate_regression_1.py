@@ -35,4 +35,4 @@ def test_demo_labels_the_in_flight_rubric_as_candidate() -> None:
 
         page = (DEMO_DIR / "index_v2.html").read_text(encoding="utf-8")
         assert "rubric_release_status" in page
-        assert "rubricLabel(c)" in page
+        assert "c.rubric_label||c.rubric_version" in page

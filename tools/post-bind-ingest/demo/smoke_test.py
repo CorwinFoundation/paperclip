@@ -15,6 +15,7 @@ def _json(url: str, *, method: str = "GET", timeout: int = 10, token: str | None
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+
     req = request.Request(url, data=payload, method=method, headers=headers)
     with request.urlopen(req, timeout=timeout) as response:
         if response.status not in {200, 202}:
@@ -41,6 +42,7 @@ def run(base_url: str, timeout_seconds: int, token: str | None = None) -> dict:
         if exc.code == 401 and not token:
             return {"status": "AUTH_GATE_ENFORCED", "health": "PASS"}
         raise
+
     run_id = started["run_id"]
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -55,6 +57,7 @@ def run(base_url: str, timeout_seconds: int, token: str | None = None) -> dict:
             if result["tests"]["status"] != "passed" or len(result["tracker_rows"]) != 7:
                 raise RuntimeError("deployed test or persistence gate failed")
             lifecycle = result["lifecycle"]
+            deployment = result["deployment"]
             if lifecycle["initial_scan"]["score"] != 80 or lifecycle["updated_scan"]["score"] != 81:
                 raise RuntimeError("scanner lifecycle scores did not match the release proof")
             if lifecycle["bind"]["admittance_class"] != "CONSTRAINED_BIND" or lifecycle["bind"]["real_policy_bound"] is not False:
@@ -63,10 +66,22 @@ def run(base_url: str, timeout_seconds: int, token: str | None = None) -> dict:
                 raise RuntimeError("install or CI gate did not pass")
             if lifecycle["certificate"]["signature_status"] != "valid":
                 raise RuntimeError("certificate signature was not valid")
+            if "valid_through" in lifecycle["certificate"]:
+                raise RuntimeError("certificate exposes a validity window")
+            if lifecycle["certificate"].get("rubric_label") != "1.3.0 (candidate)":
+                raise RuntimeError("candidate rubric label is missing")
+            forbidden_deployment_keys = {"repository", "git_ref", "github_run_url"}
+            if forbidden_deployment_keys & deployment.keys():
+                raise RuntimeError("deployment payload exposes private CI metadata")
             certificate_html = _text(base + lifecycle["documents"]["certificate_url"], token=token)
             report_html = _text(base + lifecycle["documents"]["report_url"], token=token)
-            if "Certificate of BackBond Scan" not in certificate_html or "Agent Risk Exposure Report Card" not in report_html:
+            if "Certificate of BackBond Scan" not in certificate_html or "BackBond Scanner Report" not in report_html:
+
                 raise RuntimeError("certificate or report document could not be viewed")
+            if "ARE Spot-Scan" in report_html or "ARE Insurance" in report_html:
+                raise RuntimeError("report document contains stale ARE naming")
+            if "BOUND_DEMO and bind-threshold signals" not in report_html or "not evidence of bound insurance coverage" not in report_html:
+                raise RuntimeError("report document is missing the synthetic no-coverage boundary")
             return {
                 "run_id": run_id,
                 "status": "PASS",
@@ -89,6 +104,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         print(json.dumps(run(args.url, args.timeout, args.token), sort_keys=True))
+
     except (error.URLError, RuntimeError, TimeoutError) as exc:
         raise SystemExit(str(exc)) from exc
     return 0
