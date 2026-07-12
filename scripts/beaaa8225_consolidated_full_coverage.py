@@ -66,7 +66,6 @@ NA_DIMS = (
     "P2.2",
     "P3.5",
     "P3.6",
-    "ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD",
 )
 EXPECTED_PROBEABLE_DIMS = 18
 SOURCE_ARTIFACTS_ENV = "BEAAA8225_SOURCE_ARTIFACTS_DIR"
@@ -359,7 +358,7 @@ def build_applicability() -> dict[str, Any]:
     }
     return {
         "policy_version": "0.1.2",
-        "applies_to_rubric": "1.4.0",
+        "applies_to_rubric": "1.3.0",
         "measured_dims": list(MEASURED_DIMS),
         "na_dims": list(NA_DIMS),
         "applicability_decisions": decisions,
