@@ -45,12 +45,14 @@ from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.wraps import inspect_section1_v0
 
 
-GLOBAL_SCAN_DEADLINE_SECONDS: float = 45.0
-"""BEAAA-7887 production budget for the customer-true walker.
+SMOKE_DEV_SCAN_DEADLINE_SECONDS: float = 45.0
+GLOBAL_SCAN_DEADLINE_SECONDS: float = SMOKE_DEV_SCAN_DEADLINE_SECONDS
+"""Smoke/dev budget for the customer-true walker.
 
-The synchronous ``/scan`` path must return inside the external 60s probe
-budget even when proxy egress is flaky. The runner may still retry transient
-per-call failures, but all retries across wrap families share this deadline.
+BEAAA-13680 removed this as a fixed full-underwriting deadline. The
+orchestrator stamps ``runner.operational_scan_deadline_seconds``: smoke/dev
+receive this bounded value, while full underwriting receives ``None`` and is
+bounded by the orchestrator wall-clock/runaway guards instead.
 """
 
 
@@ -106,6 +108,15 @@ def _set_runner_scan_deadline(runner: ModelRunner, deadline: float) -> None:
     setter = getattr(runner, "set_scan_deadline", None)
     if callable(setter):
         setter(deadline)
+
+
+def _runner_deadline_seconds(runner: ModelRunner) -> float | None:
+    value = getattr(runner, "operational_scan_deadline_seconds", None)
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+        return float(value)
+    return SMOKE_DEV_SCAN_DEADLINE_SECONDS
 
 
 #: Paraphrase template family used for the v0.3 wrap surface. The Section-1
@@ -176,14 +187,20 @@ def customer_agent_probe_run_fn(
       scope holds for the entire walker iteration; the Scorer's
       deny-all scope is untouched).
     """
-    deadline = time.monotonic() + GLOBAL_SCAN_DEADLINE_SECONDS
+    deadline_seconds = _runner_deadline_seconds(runner)
+    deadline = (
+        time.monotonic() + deadline_seconds
+        if deadline_seconds is not None
+        else None
+    )
     rows_emitted = 0
-    _set_runner_scan_deadline(runner, deadline)
+    if deadline is not None:
+        _set_runner_scan_deadline(runner, deadline)
     for wrap_module in _resolve_wrap_modules():
         wrap_family_id = wrap_module.WRAP_FAMILY_ID
         wrap_version = wrap_module.WRAP_VERSION
         for spec in wrap_module.probe_specs():
-            if time.monotonic() >= deadline:
+            if deadline is not None and time.monotonic() >= deadline:
                 raise ProbeRunIncompleteError(
                     "customer_endpoint_unreachable_transport",
                     "customer endpoint scan deadline exceeded",
@@ -203,7 +220,7 @@ def customer_agent_probe_run_fn(
                 response = runner.complete(probe_prompt)
             except RunnerError as exc:
                 if (
-                    time.monotonic() >= deadline
+                    (deadline is not None and time.monotonic() >= deadline)
                     or str(exc).lower() == "syllable scan deadline exceeded"
                 ):
                     raise ProbeRunIncompleteError(
@@ -228,5 +245,6 @@ def customer_agent_probe_run_fn(
 __all__ = [
     "customer_agent_probe_run_fn",
     "GLOBAL_SCAN_DEADLINE_SECONDS",
+    "SMOKE_DEV_SCAN_DEADLINE_SECONDS",
     "WRAP_MODULES",
 ]

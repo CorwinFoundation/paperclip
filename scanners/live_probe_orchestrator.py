@@ -175,10 +175,16 @@ _PILLAR_PREFIXES: tuple[str, ...] = ("P1", "P2", "P3", "P4")
 # T9 (BEAAA-545) — operational cap constants.
 # ---------------------------------------------------------------------------
 
-#: Hard ceiling on measurement rows emitted by a single scan, summed across
-#: all K replicates. The Phase-1 pinned corpus is well below this; the cap
-#: protects against a runaway probe_run_fn that yields without bound.
-MAX_PROBES_PER_SCAN: int = 1000
+#: Smoke/dev ceiling on measurement rows emitted by a single scan, summed
+#: across all K replicates. Full underwriting MUST NOT use this as a base-suite
+#: terminator; it is retained for smoke/dev boundedness and backwards imports.
+MAX_SMOKE_DEV_PROBES_PER_SCAN: int = 1000
+MAX_PROBES_PER_SCAN: int = MAX_SMOKE_DEV_PROBES_PER_SCAN
+
+#: Full-underwriting runaway guard. This is intentionally not a coverage cap:
+#: a full scan that reaches it returns ``incomplete_reason="probe_cap"`` and
+#: refuses completion instead of silently sampling the base suite.
+MAX_FULL_UNDERWRITING_PROBES_PER_SCAN: int = 100_000
 
 #: Hard ceiling on tokens (input + output) reported by ``probe_run_fn``
 #: across the entire scan. Tokens are surfaced by the probe wrapper via
@@ -230,6 +236,7 @@ class ScanRequest:
     seed: int
     requested_pillars: tuple[str, ...] = ()
     scan_mode: str = "live_probe"
+    scan_tier: str = "full"
     # T5 (BEAAA-544 / Δ2) — K-replicate per v1.1.0 contract.
     k_replicates: int = DEFAULT_K_REPLICATES
     # Agent identifier carried through to score_inputs for envelope assembly.
@@ -379,6 +386,13 @@ def _unpack_probe_yield(item: Any) -> tuple[str, dict[str, Any], int]:
     return dim_id, partial_row, tokens
 
 
+def _probe_cap_for_request(scan_request: ScanRequest) -> int:
+    """Return the tier-aware probe-row runaway guard for this scan."""
+    if scan_request.scan_tier in {"smoke", "dev"}:
+        return MAX_SMOKE_DEV_PROBES_PER_SCAN
+    return MAX_FULL_UNDERWRITING_PROBES_PER_SCAN
+
+
 # ---------------------------------------------------------------------------
 # Public surface — AC#1.
 # ---------------------------------------------------------------------------
@@ -478,6 +492,16 @@ def run_scan(
             active_runner.surface_seed = scan_request.surface_seed
         except AttributeError:
             pass
+        try:
+            active_runner.scan_tier = scan_request.scan_tier
+        except AttributeError:
+            pass
+        try:
+            active_runner.operational_scan_deadline_seconds = (
+                45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
+            )
+        except AttributeError:
+            pass
 
         # --- 4 & 5. Drive K replicates, stamp HOSTED_RUNNER, stream over IPC. ---
         # T5 (BEAAA-544 / Δ2) — K-replicate the corpus run for live-probe
@@ -521,6 +545,7 @@ def run_scan(
         cap_reason: str | None = None
         tokens_used = 0
         scan_started_at = _now()
+        probe_cap = _probe_cap_for_request(scan_request)
         for _replicate_idx in range(scan_request.k_replicates):
             if cap_reason is not None:
                 break
@@ -583,7 +608,7 @@ def run_scan(
                     # T9 — cap checks after the row lands so the row that
                     # tripped the cap still reaches the Scorer as evidence
                     # (partial-result emission, AC#5 on BEAAA-545).
-                    if rows_emitted >= MAX_PROBES_PER_SCAN:
+                    if rows_emitted >= probe_cap:
                         cap_reason = "probe_cap"
                         break
                     if tokens_used > MAX_TOKENS_PER_SCAN:
@@ -760,6 +785,8 @@ __all__ = [
     "InvalidKReplicatesError",
     "LIVE_PROBE_VARIANCE_BAND",
     "MAX_PROBES_PER_SCAN",
+    "MAX_FULL_UNDERWRITING_PROBES_PER_SCAN",
+    "MAX_SMOKE_DEV_PROBES_PER_SCAN",
     "MAX_TOKENS_PER_SCAN",
     "MAX_WALL_CLOCK_SECONDS",
     "OrchestratorError",

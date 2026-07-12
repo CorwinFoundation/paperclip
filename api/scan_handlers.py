@@ -900,6 +900,7 @@ def _kickoff_live_probe_scan(
             surface_seed=surface_seed,
             requested_pillars=requested_pillars,
             scan_mode=scan_mode,
+            scan_tier=scan_tier,
             k_replicates=k_replicates,
             agent_id=agent_id,
             invocation_context=scanner_invocation_context,
