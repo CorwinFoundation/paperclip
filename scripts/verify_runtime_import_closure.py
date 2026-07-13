@@ -39,6 +39,10 @@ LIVE_MODULES: tuple[str, ...] = (
     "harness.credentials",
     "harness.customer_runner",
     "harness.egress",
+    "harness.bench.factuality_golden",
+    "harness.bench.p1_3_consistency_golden",
+    "harness.bench.p1_4_refusal_golden",
+    "harness.bench.p1_5_calibration_golden",
     "harness.runner",
     "pricing.quote",
     "rubric.scoring",
@@ -48,6 +52,8 @@ LIVE_MODULES: tuple[str, ...] = (
     "scanners.live_probe_workers",
     "scanners.score_runtime",
     "scanners.snapshot_hash",
+    "tools.active_test_registry",
+    "tools.registered_case_executor",
 )
 
 OFFLINE_EVAL_MODULES: tuple[str, ...] = (
