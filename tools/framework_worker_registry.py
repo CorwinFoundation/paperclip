@@ -337,7 +337,11 @@ def worker_id_for_registry_row(row: dict[str, Any]) -> str:
 
 def build_worker_manifest(rows: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     rows = rows if rows is not None else build_registry()
-    active_rows = [row for row in rows if row.get("status") == "active"]
+    active_rows = [
+        row
+        for row in rows
+        if row.get("status") == "active" and row.get("production_runner_executable") is True
+    ]
     worker_usage = Counter(worker_id_for_registry_row(row) for row in active_rows)
     workers = []
     for worker_id in sorted(set(WORKERS) | set(worker_usage)):
