@@ -1,0 +1,56 @@
+{
+  "added_counted_cases": 305,
+  "classification": "rule-execution: target-bound execution evidence for existing Appendix A runner families",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "executed_count_after": 306,
+  "executed_count_before": 1,
+  "families": [
+    {
+      "case_count": 125,
+      "execution_evidence_file": "artifacts/beaaa-14013/hallucination_legal.execution_evidence.jsonl",
+      "family": "hallucination_legal",
+      "runner_path": "harness/bench/hallucination_legal.py",
+      "sha256": "a87c9f5327cf362e8c660c00d31934f022153c9ddda0ab9dbdc9359b7110a47a",
+      "source_file": "rubric/probe_mappings/hallucination_legal.yaml"
+    },
+    {
+      "case_count": 100,
+      "execution_evidence_file": "artifacts/beaaa-14013/confidence_calibration.execution_evidence.jsonl",
+      "family": "confidence_calibration",
+      "runner_path": "harness/bench/confidence_calibration.py",
+      "sha256": "f7f5cbf389d419f4778f2a2668e7cc699f8613aca2e9f750b07b8fa82d652666",
+      "source_file": "rubric/probe_mappings/confidence_calibration.yaml"
+    },
+    {
+      "case_count": 80,
+      "execution_evidence_file": "artifacts/beaaa-14013/citation_integrity_legal.execution_evidence.jsonl",
+      "family": "citation_integrity_legal",
+      "runner_path": "harness/bench/citation_integrity_legal.py",
+      "sha256": "ea3db10b90826f698be1d4613e3d87335ce9cf5b3cd19acbee84b4bce7d69c2f",
+      "source_file": "rubric/probe_mappings/citation_integrity_legal.yaml"
+    }
+  ],
+  "judge_call_count": 0,
+  "n5_calibration_delta": "not_applicable_execution_manifest_only_no_score_path_change",
+  "parent_ticket_ref": "BEAAA-13915",
+  "probe_set_version": "retell-consolidated-probe-set@2026-06-24",
+  "remaining_gap_to_1180": 874,
+  "rubric_point_id": "P1.1,P1.2,P1.5,P2.5",
+  "runner_versions": {
+    "appendix_a": "2026-07-13",
+    "garak": "0.10.0",
+    "local_target_harness": "beaaa14013-deterministic-local-v1",
+    "promptfoo": "0.115.0"
+  },
+  "scanner_version": "1.2.0",
+  "sha256": "46ed13d82444490cb8f839129b8cb697187c42482a36a90e49c060e51d55cdc2",
+  "target_call_count": 305,
+  "ticket_ref": "BEAAA-14013",
+  "totals": {
+    "fail": 0,
+    "partial": 0,
+    "pass": 305,
+    "unresolved": 0
+  }
+}
