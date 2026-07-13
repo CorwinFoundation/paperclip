@@ -76,7 +76,9 @@ if [[ ! -S "$SOCKET" ]]; then
   exit 1
 fi
 
-PYTHONPATH="$SOURCE_DIR" \
+CLAUDE_JUDGE_PROXY_TOKEN="$(grep -E '^CLAUDE_JUDGE_PROXY_TOKEN=' "$ENV_FILE" | tail -n 1 | cut -d= -f2-)" \
+  CLAUDE_JUDGE_MODEL="$(grep -E '^CLAUDE_JUDGE_MODEL=' "$ENV_FILE" | tail -n 1 | cut -d= -f2-)" \
+  PYTHONPATH="$SOURCE_DIR" \
   CLAUDE_JUDGE_SOCKET="$SOCKET" \
   python3 "$SOURCE_DIR/demo-real-agent/claude_judge_runner.py" --health-check
 echo "Claude Max judge bridge: ready"
