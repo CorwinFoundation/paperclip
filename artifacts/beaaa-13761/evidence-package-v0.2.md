@@ -46,4 +46,3 @@ target_calls = 110
 judge_calls = 90
 estimated_judge_cost_usd <= 100
 ```
-

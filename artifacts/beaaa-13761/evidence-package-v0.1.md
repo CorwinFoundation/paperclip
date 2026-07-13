@@ -111,7 +111,7 @@ Appendix A reconciliation:
 - Controlled target: `controlled.full-tier.dispatch-smoke.v0`
 - Manifest hash: `sha256:327b87d206d0c25dfdeb88284c4abf8f772cff1668aec43ecc97a386671f808b`
 - Expected: `281`
-- Applicable: `281` (all active executable rows in `tools.active_test_registry`) 
+- Applicable: `281` (all active executable rows in `tools.active_test_registry`)
 - Attempted: `281`
 - Terminal: `281`
 - Evidenced: `0`
@@ -144,4 +144,3 @@ Budget ceilings for the first measured controlled run:
 - Owner/action: `local-board` must execute BEAAA-13801, two operator-mediated push releases for `srv1749248` and post deploy records.
 - Date: cannot be scheduled by CTO in this heartbeat because BEAAA-13801 is a board/operator task currently `todo` and unassigned to an agent.
 - Parent disposition: block BEAAA-13761 on BEAAA-13801 until deploy records prove registry/worker versions are live.
-
