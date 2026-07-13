@@ -5,11 +5,11 @@ SOURCE_DIR="${1:?usage: deploy.sh SOURCE_DIR}"
 ENV_FILE="${REAL_AGENT_DEMO_ENV_FILE:-/etc/backbond/real-agent-demo.env}"
 CONTAINER="backbond-passive-monitor-demo"
 CANDIDATE="${CONTAINER}-candidate"
+ROLLBACK="${CONTAINER}-rollback"
 IMAGE="backbond/real-agent-demo:${DEMO_GIT_SHA:?DEMO_GIT_SHA is required}"
 RUN_VOLUME="backbond-real-agent-demo-runs"
 PROD_PORT="8765"
 CANDIDATE_PORT="18765"
-PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "missing $ENV_FILE; configure demo access, signing, and judge credentials" >&2
@@ -17,6 +17,10 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 if [[ "$(stat -c '%a' "$ENV_FILE")" != "600" ]]; then
   echo "$ENV_FILE must be mode 600" >&2
+  exit 1
+fi
+if [[ "$(stat -c '%u' "$ENV_FILE")" != "10001" ]]; then
+  echo "$ENV_FILE must be owned by uid 10001 for the unprivileged container" >&2
   exit 1
 fi
 
@@ -44,7 +48,7 @@ container_args() {
     --security-opt no-new-privileges \
     --user 10001:10001 \
     --mount "source=${RUN_VOLUME},target=/data/runs" \
-    --env-file "$ENV_FILE" \
+    --mount "type=bind,source=${ENV_FILE},target=/etc/backbond/real-agent-demo.env,readonly" \
     -e "DEMO_ENVIRONMENT=public-demo" \
     -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Real Agent 90-Case Demo}" \
     -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}" \
@@ -91,19 +95,24 @@ python3 "$SOURCE_DIR/demo-real-agent/smoke_test.py" \
   --url "http://127.0.0.1:${CANDIDATE_PORT}" --health-only
 docker rm -f "$CANDIDATE" >/dev/null
 
-docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-run_instance "$CONTAINER" "$PROD_PORT" "$IMAGE"
-if ! wait_for_health "$PROD_PORT"; then
+docker rm -f "$ROLLBACK" >/dev/null 2>&1 || true
+if docker inspect "$CONTAINER" >/dev/null 2>&1; then
+  docker stop "$CONTAINER" >/dev/null
+  docker rename "$CONTAINER" "$ROLLBACK"
+fi
+
+if ! run_instance "$CONTAINER" "$PROD_PORT" "$IMAGE" || ! wait_for_health "$PROD_PORT"; then
   docker logs "$CONTAINER" --tail 200 || true
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-  if [[ -n "$PREVIOUS_IMAGE" ]]; then
-    echo "rolling back to ${PREVIOUS_IMAGE}" >&2
-    run_instance "$CONTAINER" "$PROD_PORT" "$PREVIOUS_IMAGE"
-    wait_for_health "$PROD_PORT" 60 || true
+  if docker inspect "$ROLLBACK" >/dev/null 2>&1; then
+    echo "restoring the untouched previous container" >&2
+    docker rename "$ROLLBACK" "$CONTAINER"
+    docker start "$CONTAINER" >/dev/null
   fi
   exit 1
 fi
 
+docker rm -f "$ROLLBACK" >/dev/null 2>&1 || true
 echo "Deployment health: PASS"
 echo "Image: ${IMAGE}"
 echo "Full 90-case acceptance still required: run smoke_test.py with --execute"

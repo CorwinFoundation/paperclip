@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -12,7 +11,7 @@ DEMO_DIR = Path(__file__).resolve().parents[1]
 if str(DEMO_DIR) not in sys.path:
     sys.path.insert(0, str(DEMO_DIR))
 
-from app import JobManager  # noqa: E402
+from app import EvaluationBudgetConsumed, JobManager  # noqa: E402
 from harness.runner import MockRunner  # noqa: E402
 from real_scan import RealScanConfig, execute_real_scan, registry_inventory  # noqa: E402
 
@@ -33,7 +32,10 @@ EVIDENCE_SPAN_B: example
 
 def _subject(_endpoint: str, secret: str):
     assert secret == "test-secret"
-    return MockRunner("authenticated-test-agent", lambda _prompt: "Example answer.\nCONFIDENCE: 0.90")
+    return MockRunner(
+        "authenticated-test-agent",
+        lambda _prompt: "Example answer.\nCONFIDENCE: 0.90",
+    )
 
 
 def _judge():
@@ -46,7 +48,9 @@ def test_registry_inventory_is_exactly_the_real_90_case_plan() -> None:
     assert inventory["published_case_count"] == 90
     assert inventory["planned_target_calls"] == 110
     assert inventory["planned_judge_calls"] == 90
-    assert {family["family_id"]: family["cases"] for family in inventory["families"]} == {
+    assert {
+        family["family_id"]: family["cases"] for family in inventory["families"]
+    } == {
         "p1_1_factuality_golden": 30,
         "p1_3_consistency_golden": 20,
         "p1_4_refusal_golden": 20,
@@ -54,7 +58,9 @@ def test_registry_inventory_is_exactly_the_real_90_case_plan() -> None:
     }
 
 
-def test_real_scan_dispatches_all_90_and_reconciles_signed_evidence(monkeypatch, tmp_path) -> None:
+def test_real_scan_dispatches_all_90_and_reconciles_signed_evidence(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-only-signing-key")
     events: list[dict] = []
 
@@ -91,7 +97,9 @@ def test_real_scan_dispatches_all_90_and_reconciles_signed_evidence(monkeypatch,
     assert "authenticated-test-agent" in serialized
 
 
-def test_behavioral_failures_complete_the_scan_instead_of_crashing(monkeypatch, tmp_path) -> None:
+def test_behavioral_failures_complete_the_scan_instead_of_crashing(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-only-signing-key")
     result = execute_real_scan(
         tmp_path / "run",
@@ -110,7 +118,9 @@ def test_behavioral_failures_complete_the_scan_instead_of_crashing(monkeypatch, 
     assert all(case["execution_status"] == "complete" for case in result["cases"])
 
 
-def test_budget_exhaustion_is_visible_as_incomplete_evidence(monkeypatch, tmp_path) -> None:
+def test_budget_exhaustion_is_visible_as_incomplete_evidence(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-only-signing-key")
     result = execute_real_scan(
         tmp_path / "run",
@@ -135,25 +145,26 @@ def test_budget_exhaustion_is_visible_as_incomplete_evidence(monkeypatch, tmp_pa
     )
 
 
-def test_job_manager_reports_complete_analysis_with_fail_rows() -> None:
-    def fake_runner(output_dir: Path, run_id: str, emit):
-        output_dir.mkdir(parents=True)
-        emit(
-            "case_result",
-            "CASE-1: fail",
-            case_id="CASE-1",
-            verdict="fail",
-            completed=1,
-            total=1,
-        )
-        return {
-            "run_id": run_id,
-            "incomplete": False,
-            "verdict_counts": {"fail": 1},
-        }
+def _fake_runner(output_dir: Path, run_id: str, emit):
+    output_dir.mkdir(parents=True)
+    emit(
+        "case_result",
+        "CASE-1: fail",
+        case_id="CASE-1",
+        verdict="fail",
+        completed=1,
+        total=1,
+    )
+    return {
+        "run_id": run_id,
+        "incomplete": False,
+        "verdict_counts": {"fail": 1},
+    }
 
+
+def test_job_manager_reports_complete_analysis_with_fail_rows() -> None:
     with tempfile.TemporaryDirectory(prefix="real-agent-demo-") as tmp:
-        manager = JobManager(Path(tmp), scan_runner=fake_runner)
+        manager = JobManager(Path(tmp), scan_runner=_fake_runner)
         job = manager.start()
         deadline = time.monotonic() + 3
         while job.status in {"queued", "running"} and time.monotonic() < deadline:
@@ -164,7 +175,34 @@ def test_job_manager_reports_complete_analysis_with_fail_rows() -> None:
         assert snapshot["error"] is None
 
 
-def test_public_result_shape_contains_no_credential_fields(monkeypatch, tmp_path) -> None:
+def test_approved_evaluation_budget_is_one_persisted_run() -> None:
+    with tempfile.TemporaryDirectory(prefix="real-agent-demo-budget-") as tmp:
+        runs = Path(tmp)
+        manager = JobManager(runs, scan_runner=_fake_runner)
+        job = manager.start()
+        deadline = time.monotonic() + 3
+        while job.status in {"queued", "running"} and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert manager.evaluation_available() is False
+        try:
+            manager.start()
+        except EvaluationBudgetConsumed:
+            pass
+        else:
+            raise AssertionError("second run should not receive another $100 ceiling")
+        restarted = JobManager(runs, scan_runner=_fake_runner)
+        assert restarted.evaluation_available() is False
+        try:
+            restarted.start()
+        except EvaluationBudgetConsumed:
+            pass
+        else:
+            raise AssertionError("container restart must not reset evaluation budget")
+
+
+def test_public_result_shape_contains_no_credential_fields(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-only-signing-key")
     result = execute_real_scan(
         tmp_path / "run",

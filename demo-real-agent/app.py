@@ -29,7 +29,11 @@ from real_scan import (
 DEMO_DIR = Path(__file__).resolve().parent
 INDEX = DEMO_DIR / "index.html"
 ENV_FILE = Path("/etc/backbond/real-agent-demo.env")
-RUN_QUOTA = int(os.environ.get("DEMO_RUN_QUOTA", "2"))
+BUDGET_MARKER = ".initial-evaluation-budget-consumed"
+
+
+class EvaluationBudgetConsumed(RuntimeError):
+    pass
 
 
 def _load_env_file(path: Path = ENV_FILE) -> None:
@@ -110,6 +114,7 @@ class JobManager:
     ) -> None:
         self.runs_dir = runs_dir.resolve()
         self.runs_dir.mkdir(parents=True, exist_ok=True)
+        self.budget_marker = self.runs_dir / BUDGET_MARKER
         self.max_jobs = max_jobs
         self.scan_runner = scan_runner
         self.jobs: dict[str, DemoJob] = {}
@@ -118,6 +123,10 @@ class JobManager:
         self.latest_completed_id: str | None = None
         self.lock = threading.Lock()
 
+    def evaluation_available(self) -> bool:
+        with self.lock:
+            return not self.budget_marker.exists()
+
     def start(self) -> DemoJob:
         with self.lock:
             if self.active_job_id:
@@ -125,6 +134,19 @@ class JobManager:
                 if active and active.status in {"queued", "running"}:
                     return active
             run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+            try:
+                descriptor = os.open(
+                    self.budget_marker,
+                    os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                    0o600,
+                )
+            except FileExistsError as exc:
+                raise EvaluationBudgetConsumed(
+                    "the approved initial evaluation budget has already been used"
+                ) from exc
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                json.dump({"run_id": run_id, "reserved_at": _utc_now()}, handle)
+                handle.write("\n")
             job = DemoJob(run_id, self.runs_dir / run_id)
             self.jobs[run_id] = job
             self.job_order.append(run_id)
@@ -196,7 +218,6 @@ class JobManager:
 class DemoHandler(BaseHTTPRequestHandler):
     manager: JobManager
     rate_limit: dict[str, float] = {}
-    run_quota: dict[str, int] = {}
     rate_lock = threading.Lock()
 
     def log_message(self, _format: str, *_args: object) -> None:
@@ -232,18 +253,15 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def _request_token(self, parsed) -> str:
+    def _request_token(self) -> str:
         auth = self.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             return auth.removeprefix("Bearer ").strip()
-        header_token = self.headers.get("X-Demo-Access-Token", "")
-        if header_token:
-            return header_token.strip()
-        return parse_qs(parsed.query).get("token", [""])[0].strip()
+        return self.headers.get("X-Demo-Access-Token", "").strip()
 
-    def _authorized_for_run(self, parsed) -> bool:
+    def _authorized_for_run(self) -> bool:
         token = _access_token()
-        return not token or hmac.compare_digest(self._request_token(parsed), token)
+        return not token or hmac.compare_digest(self._request_token(), token)
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -262,6 +280,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                     "external_target_enabled": True,
                     "target_host": urlparse(config.agent_endpoint).hostname,
                     "judge_configured": judge_configured(),
+                    "evaluation_available": self.manager.evaluation_available(),
                     "active_case_count": inventory["active_case_count"],
                     "planned_target_calls": inventory["planned_target_calls"],
                     "planned_judge_calls": inventory["planned_judge_calls"],
@@ -298,7 +317,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         if parsed.path.rstrip("/") != "/api/runs":
             self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             return
-        if not self._authorized_for_run(parsed):
+        if not self._authorized_for_run():
             self._send_json({"error": "unauthorized"}, HTTPStatus.UNAUTHORIZED)
             return
         raw_length = self.headers.get("Content-Length", "0") or "0"
@@ -308,7 +327,9 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "invalid_content_length"}, HTTPStatus.BAD_REQUEST)
             return
         if content_length < 0 or content_length > 1024:
-            self._send_json({"error": "request_too_large"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            self._send_json(
+                {"error": "request_too_large"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+            )
             return
         if content_length:
             self.rfile.read(content_length)
@@ -321,16 +342,18 @@ class DemoHandler(BaseHTTPRequestHandler):
                     HTTPStatus.TOO_MANY_REQUESTS,
                 )
                 return
-            count = self.run_quota.get(client, 0)
-            if count >= RUN_QUOTA:
-                self._send_json(
-                    {"error": "run_quota_exceeded", "quota": RUN_QUOTA},
-                    HTTPStatus.TOO_MANY_REQUESTS,
-                )
-                return
             self.rate_limit[client] = now
-            self.run_quota[client] = count + 1
-        job = self.manager.start()
+        try:
+            job = self.manager.start()
+        except EvaluationBudgetConsumed:
+            self._send_json(
+                {
+                    "error": "initial_evaluation_budget_consumed",
+                    "detail": "The approved one-run evaluation budget has already been used.",
+                },
+                HTTPStatus.TOO_MANY_REQUESTS,
+            )
+            return
         self._send_json({"run_id": job.run_id, "status": job.status}, HTTPStatus.ACCEPTED)
 
 

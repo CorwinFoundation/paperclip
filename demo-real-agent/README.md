@@ -18,7 +18,7 @@ The UI intentionally does not display the old fixture score or manufacture an ag
 
 ## Runtime configuration
 
-`/etc/backbond/real-agent-demo.env` must contain:
+Create `/etc/backbond/real-agent-demo.env` as uid `10001`, mode `600`, with:
 
 ```text
 DEMO_ACCESS_TOKEN=<32+ random characters>
@@ -28,7 +28,15 @@ OPENROUTER_API_KEY=<judge key>
 
 `ANTHROPIC_API_KEY` may replace `OPENROUTER_API_KEY`. The target defaults to the existing authenticated Syllable demo agent at `https://apichat.syllable.cloud`; its public Syllable headers are supplied by the repository’s hardened customer runner. A non-Syllable target also requires `DEMO_AGENT_ENDPOINT` and `DEMO_AGENT_SECRET`.
 
-The deployment script fixes the initial authorization ceilings at 110 target calls, 90 judge calls, $100 estimated judge cost, and three hours wall clock.
+The secret file is bind-mounted read-only. Credential values are loaded into the scanner process but do not appear in `docker inspect`, API payloads, logs, manifests, or case evidence.
+
+The deployment fixes the authorization ceilings at 110 target calls, 90 judge calls, $100 estimated judge cost, and three hours wall clock. It also writes a persistent marker before the run starts. This enforces the approved initial budget as one total run, even after container restarts. An operator must explicitly remove `/data/runs/.initial-evaluation-budget-consumed` to authorize a later evaluation.
+
+Share an access link using a URL fragment so the run token is not sent in the initial HTTP request or recorded by the tunnel:
+
+```text
+https://demo.example/#token=<DEMO_ACCESS_TOKEN>
+```
 
 ## Acceptance
 
@@ -38,7 +46,7 @@ Health-only verification does not spend evaluation budget:
 python3 demo-real-agent/smoke_test.py --url http://127.0.0.1:8765 --health-only
 ```
 
-The post-deploy proof performs the real run:
+The post-deploy proof performs the one approved real run:
 
 ```bash
 python3 demo-real-agent/smoke_test.py \

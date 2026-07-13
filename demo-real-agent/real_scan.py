@@ -1,8 +1,8 @@
 """Real 90-case scanner orchestration for the public demo.
 
-This module deliberately reuses the production registry, dispatcher, target
-transport, judge adapters, evidence writer, budget ledger, and signed manifest.
-It does not synthesize a score or substitute fixture responses.
+This module reuses the production registry, dispatcher, target transport,
+judge adapters, evidence writer, budget ledger, and signed manifest. It does
+not synthesize a score or substitute fixture responses.
 """
 from __future__ import annotations
 
@@ -26,10 +26,7 @@ from tools.active_test_registry import (
     load_published_count,
     validate_registry,
 )
-from tools.registered_case_executor import (
-    ScanBudget,
-    build_registered_case_workers,
-)
+from tools.registered_case_executor import ScanBudget, build_registered_case_workers
 
 
 Emit = Callable[..., None]
@@ -41,6 +38,12 @@ FAMILY_LABELS = {
     "p1_3_consistency_golden": "Consistency under paraphrase",
     "p1_4_refusal_golden": "Refusal accuracy",
     "p1_5_calibration_golden": "Confidence calibration",
+}
+EXPECTED_FAMILY_COUNTS = {
+    "p1_1_factuality_golden": 30,
+    "p1_3_consistency_golden": 20,
+    "p1_4_refusal_golden": 20,
+    "p1_5_calibration_golden": 20,
 }
 PLANNED_CALLS = {
     "p1_1_factuality_golden": (30, 30),
@@ -125,6 +128,11 @@ def registry_inventory() -> dict[str, Any]:
             "published active count does not equal executable registry count"
         )
     by_family = Counter(str(row["test_id"]) for row in active)
+    if len(active) != 90 or dict(by_family) != EXPECTED_FAMILY_COUNTS:
+        raise RuntimeError(
+            "real demo is pinned to the canonical 90-case/four-family registry; "
+            f"observed {len(active)} cases across {dict(sorted(by_family.items()))}"
+        )
     return {
         "rows": rows,
         "active_rows": active,
@@ -135,10 +143,10 @@ def registry_inventory() -> dict[str, Any]:
         "families": [
             {
                 "family_id": family_id,
-                "label": FAMILY_LABELS.get(family_id, family_id),
+                "label": FAMILY_LABELS[family_id],
                 "cases": count,
-                "planned_target_calls": PLANNED_CALLS.get(family_id, (0, 0))[0],
-                "planned_judge_calls": PLANNED_CALLS.get(family_id, (0, 0))[1],
+                "planned_target_calls": PLANNED_CALLS[family_id][0],
+                "planned_judge_calls": PLANNED_CALLS[family_id][1],
             }
             for family_id, count in sorted(by_family.items())
         ],
@@ -146,7 +154,10 @@ def registry_inventory() -> dict[str, Any]:
 
 
 def judge_configured() -> bool:
-    return bool(os.environ.get("OPENROUTER_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
+    return bool(
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("ANTHROPIC_API_KEY")
+    )
 
 
 def validate_public_configuration(config: RealScanConfig) -> None:
@@ -161,8 +172,9 @@ def validate_public_configuration(config: RealScanConfig) -> None:
         )
     if config.max_estimated_judge_cost_usd > 100.0:
         raise RuntimeError("judge budget may not exceed the approved $100 ceiling")
-    if config.max_target_calls < 110 or config.max_judge_calls < 90:
-        raise RuntimeError("budget does not cover the canonical 90-case run")
+    if config.max_target_calls != 110 or config.max_judge_calls != 90:
+        raise RuntimeError("public demo budget must be exactly 110 target / 90 judge calls")
+    registry_inventory()
 
 
 def execute_real_scan(
@@ -254,11 +266,10 @@ def execute_real_scan(
         idempotency_key=f"demo:{run_id}:real-90",
     )
     lease = store.lease(job.job_id, ttl_seconds=config.max_wall_clock_seconds)
-    attempt_id = str(lease["attempt_id"])
     dispatch_registry_attempt(
         store,
         job.job_id,
-        attempt_id=attempt_id,
+        attempt_id=str(lease["attempt_id"]),
         registry_rows=active_rows,
         workers=wrapped_workers,
     )
@@ -269,14 +280,17 @@ def execute_real_scan(
     counts = manifest.get("counts", {})
     reconciliation = manifest.get("reconciliation", {})
     expected = len(active_rows)
-    if int(counts.get("expected") or 0) != expected:
-        raise RuntimeError("manifest expected count does not match active registry")
-    if int(counts.get("evidence_rows") or 0) != expected:
-        raise RuntimeError("manifest evidence count does not match active registry")
-    if int(reconciliation.get("attempted") or 0) != expected:
-        raise RuntimeError("manifest attempted count does not match active registry")
-    if int(reconciliation.get("terminal") or 0) != expected:
-        raise RuntimeError("manifest terminal count does not match active registry")
+    reconciled = (
+        int(counts.get("expected") or 0),
+        int(reconciliation.get("attempted") or 0),
+        int(reconciliation.get("terminal") or 0),
+        int(counts.get("evidence_rows") or 0),
+    )
+    if reconciled != (expected, expected, expected, expected):
+        raise RuntimeError(
+            "manifest reconciliation mismatch: "
+            f"expected/attempted/terminal/evidenced={reconciled}"
+        )
 
     row_by_case = {str(row["case_id"]): row for row in active_rows}
     cases: list[dict[str, Any]] = []
@@ -284,10 +298,11 @@ def execute_real_scan(
     for evidence in manifest.get("evidence_rows", []):
         case_id = str(evidence.get("probe_id") or "")
         registry_row = row_by_case.get(case_id, {})
-        family_id = str(registry_row.get("test_id") or evidence.get("test_id") or "")
+        family_id = str(
+            registry_row.get("test_id") or evidence.get("test_id") or ""
+        )
         verdict = str(evidence.get("verdict") or "unresolved")
         family_rollups[family_id][verdict] += 1
-        family_rollups[family_id]["total"] += 1
         cases.append(
             {
                 "case_id": case_id,
@@ -324,7 +339,6 @@ def execute_real_scan(
         "run_id": run_id,
         "job_id": finalized.job_id,
         "analysis_status": manifest.get("analysis_status"),
-        "bind_eligibility": manifest.get("bind_eligibility"),
         "active_case_count": expected,
         "target_host": urlsplit(config.agent_endpoint).hostname,
         "target_model": metadata["target_model"],
@@ -368,6 +382,7 @@ def execute_real_scan(
 
 
 __all__ = [
+    "EXPECTED_FAMILY_COUNTS",
     "FAMILY_LABELS",
     "RealScanConfig",
     "execute_real_scan",

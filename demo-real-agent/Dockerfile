@@ -19,7 +19,7 @@ COPY demo-real-agent /app/demo-real-agent
 
 RUN python -m pip install --no-cache-dir PyYAML==6.0.2 httpx==0.27.2 anthropic==0.84.0 \
     && useradd --uid 10001 --create-home --shell /usr/sbin/nologin demo \
-    && mkdir -p /data/runs \
+    && mkdir -p /data/runs /etc/backbond \
     && chown -R demo:demo /data
 
 USER 10001:10001
