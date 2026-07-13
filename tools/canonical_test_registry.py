@@ -52,13 +52,6 @@ REQUIRED_FIELDS = {
     "countable_as_active_executable",
     "evidence_uri_template",
 }
-EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
-    "concrete_input_or_action",
-    "expected_oracle",
-    "recorded_target_response",
-    "verdict",
-    "github_provenance",
-}
 APPENDIX_A_CANDIDATES = (
     Path("IFA/scanner-test-registry-baseline-2026-07-13.csv"),
     Path("backbond/operations/paperclip/paperclip_updates_2026-07-13/scanner-test-registry-baseline-2026-07-13.csv"),
@@ -351,11 +344,12 @@ def _appendix_rows(index: int, row: Mapping[str, Any], path: Path, repo: Path) -
                 "appendix_family_row": 0,
                 "embedded_case_index": case_index,
                 "promoted_embedded_case": 1,
+                "countable_as_executed_test": True,
                 "runner_path": family_row["runner_path"],
                 "target_bound": True,
                 "execution_evidenced": True,
                 "execution_evidence_ref": evidence.get("evidence_ref", ""),
-                "github_provenance": evidence.get("github_provenance", ""),
+                **{field: evidence.get(field, "") for field in EXECUTION_EVIDENCE_FIELDS},
                 "owner": "scanner_engineer",
                 "evidence_uri_template": "evidence://{scan_id}/appendix_a/{case_id}.json",
             }
@@ -447,7 +441,7 @@ def _load_case_execution_evidence(
                 return evidence_by_index, f"execution evidence line {line_number} missing positive embedded_case_index"
             missing = sorted(
                 field
-                for field in EXECUTION_EVIDENCE_REQUIRED_FIELDS
+                for field in EXECUTION_EVIDENCE_FIELDS
                 if payload.get(field) in (None, "")
             )
             if missing:

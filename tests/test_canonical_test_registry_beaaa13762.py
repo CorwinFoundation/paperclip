@@ -49,13 +49,13 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         if self.registry["metadata"]["source_mode"] == "appendix_a_case_level_with_active_registry":
             self.assertEqual(self.registry["metadata"]["appendix_family_count"], 61)
             self.assertEqual(self.registry["metadata"]["appendix_t1_embedded_case_count"], 715)
-            self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 715)
+            self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 0)
             self.assertEqual(
                 self.registry["metadata"]["counting_unit"],
                 "case-level registry rows: active probe-mapping cases plus Appendix A embedded cases backed by concrete in-repo runner/source paths",
             )
 
-    def test_beaaa13916_promotes_t1_appendix_families_to_case_rows(self) -> None:
+    def test_beaaa13992_does_not_promote_appendix_rows_without_case_evidence(self) -> None:
         promoted = [
             row
             for row in self.registry["rows"]
@@ -63,12 +63,9 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             and row.get("countable_as_active_executable") is True
             and row.get("appendix_family")
         ]
-        self.assertEqual(len(promoted), 715)
-        self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 715)
+        self.assertEqual(len(promoted), 0)
+        self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 0)
         self.assertEqual(self.registry["metadata"]["appendix_production_active_embedded_case_count"], 429)
-        for row in promoted:
-            self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
-            self.assertIn("{case_id}", row["evidence_uri_template"])
 
     def test_beaaa13990_public_executed_count_stays_at_audited_90(self) -> None:
         self.assertEqual(
@@ -137,14 +134,24 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         }
         self.assertFalse(validate_registry([row]))
 
-    def test_beaaa13916_disqualifies_non_t1_embedded_cases_at_case_level(self) -> None:
+    def test_beaaa13992_disqualifies_non_evidenced_embedded_cases_at_case_level(self) -> None:
         ledger = self.registry.get("disqualification_ledger", [])
-        self.assertEqual(len(ledger), 28)
-        self.assertEqual(self.registry["metadata"]["appendix_disqualified_embedded_case_count"], 28)
+        self.assertEqual(len(ledger), 743)
+        self.assertEqual(self.registry["metadata"]["appendix_disqualified_embedded_case_count"], 743)
         for row in ledger:
             self.assertFalse(row["countable_as_active_executable"])
             self.assertTrue(row["disqualification_reason"])
             self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
+
+    def test_beaaa13992_active_rows_count_only_target_bound_execution_evidence(self) -> None:
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 1)
+        active_rows = [
+            row
+            for row in self.registry["rows"]
+            if row.get("source_bucket") == "active_test_registry"
+            and row.get("countable_as_active_executable") is True
+        ]
+        self.assertEqual(len(active_rows), 1)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {
