@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable, Mapping, Sequence
@@ -49,6 +50,14 @@ class EvidenceAttemptRow:
     seed: int
     evidence_ref: str | None
     incomplete_reason: str | None = None
+    test_id: str = ""
+    verdict: str | None = None
+    target_calls: int = 0
+    judge_calls: int = 0
+    estimated_judge_input_tokens: int = 0
+    estimated_judge_output_tokens: int = 0
+    estimated_judge_cost_usd: float = 0.0
+    duration_ms: int = 0
 
     def to_manifest_row(self) -> dict[str, Any]:
         return {
@@ -61,6 +70,14 @@ class EvidenceAttemptRow:
             "seed": self.seed,
             "evidence_ref": self.evidence_ref,
             "incomplete_reason": self.incomplete_reason,
+            "test_id": self.test_id,
+            "verdict": self.verdict,
+            "target_calls": self.target_calls,
+            "judge_calls": self.judge_calls,
+            "estimated_judge_input_tokens": self.estimated_judge_input_tokens,
+            "estimated_judge_output_tokens": self.estimated_judge_output_tokens,
+            "estimated_judge_cost_usd": self.estimated_judge_cost_usd,
+            "duration_ms": self.duration_ms,
         }
 
 
@@ -72,6 +89,13 @@ class WorkerAttemptResult:
     evidence_ref: str | None
     incomplete_reason: str | None = None
     model_version: str | None = None
+    verdict: str | None = None
+    target_calls: int = 0
+    judge_calls: int = 0
+    estimated_judge_input_tokens: int = 0
+    estimated_judge_output_tokens: int = 0
+    estimated_judge_cost_usd: float = 0.0
+    duration_ms: int = 0
 
 
 @dataclass(frozen=True)
@@ -285,9 +309,29 @@ def build_attempt_manifest(
         for case in job.registry_cases
         if case.required and case.case_id not in completed
     ]
+    verdict_counts = Counter(
+        str(row.get("verdict") or "unresolved") for row in rows
+    )
+    status_counts = Counter(str(row.get("status") or "unknown") for row in rows)
+    budget = {
+        "target_calls": sum(int(row.get("target_calls") or 0) for row in rows),
+        "judge_calls": sum(int(row.get("judge_calls") or 0) for row in rows),
+        "estimated_judge_input_tokens": sum(
+            int(row.get("estimated_judge_input_tokens") or 0) for row in rows
+        ),
+        "estimated_judge_output_tokens": sum(
+            int(row.get("estimated_judge_output_tokens") or 0) for row in rows
+        ),
+        "estimated_judge_cost_usd": round(
+            sum(float(row.get("estimated_judge_cost_usd") or 0.0) for row in rows),
+            6,
+        ),
+        "wall_clock_ms": sum(int(row.get("duration_ms") or 0) for row in rows),
+        "limits": dict(job.model_versions.get("execution_budget") or {}),
+    }
     incomplete_reasons = [
-        f"required_case_not_attempted:{rubric_point_id}"
-        for rubric_point_id in missing_required
+        f"required_case_not_attempted:{case_id}"
+        for case_id in missing_required
     ]
     for row in rows:
         if row["status"] != "complete" and row.get("incomplete_reason"):
@@ -300,6 +344,7 @@ def build_attempt_manifest(
         "full_suite_manifest_version": FULL_SUITE_MANIFEST_VERSION,
         "runner_version": FULL_SUITE_RUNNER_VERSION,
         "job_id": job.job_id,
+        "manifest_evidence_ref": f"evidence://{job.job_id}/manifest.json",
         "agent_id": job.agent_id,
         "scanner_version": job.scanner_version,
         "corpus_version": job.corpus_version,
@@ -314,6 +359,20 @@ def build_attempt_manifest(
             "evidence_rows": len(rows),
             "missing_required": len(missing_required),
         },
+        "reconciliation": {
+            "attempted": len(rows),
+            "terminal": sum(
+                count
+                for status, count in status_counts.items()
+                if status in RECONCILED_TERMINAL_PROBE_STATUSES
+            ),
+            "by_status": dict(sorted(status_counts.items())),
+        },
+        "verdict_counts": dict(sorted(verdict_counts.items())),
+        "budget": budget,
+        "analysis_status": (
+            "complete" if not incomplete_reasons else "analysis_incomplete"
+        ),
         "incomplete": bool(incomplete_reasons),
         "incomplete_reasons": incomplete_reasons,
         "approved_blocker_ref": job.approved_blocker_ref,
@@ -632,6 +691,14 @@ def dispatch_registry_attempt(
                 seed=job.seed,
                 evidence_ref=result.evidence_ref,
                 incomplete_reason=result.incomplete_reason,
+                test_id=str(registry_row.get("test_id") or ""),
+                verdict=result.verdict,
+                target_calls=result.target_calls,
+                judge_calls=result.judge_calls,
+                estimated_judge_input_tokens=result.estimated_judge_input_tokens,
+                estimated_judge_output_tokens=result.estimated_judge_output_tokens,
+                estimated_judge_cost_usd=result.estimated_judge_cost_usd,
+                duration_ms=result.duration_ms,
             )
         )
 

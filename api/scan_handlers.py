@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field, replace
@@ -297,6 +298,9 @@ class ScanRuntime:
         full_suite_manifest_uri_factory: FullSuiteManifestUriFactory | None = None,
         full_scan_registry_rows: Iterable[Mapping[str, Any]] = (),
         full_scan_workers: Mapping[str, FrameworkWorker] | None = None,
+        full_scan_workers_factory: (
+            Callable[[ScanRequest, str], Mapping[str, FrameworkWorker]] | None
+        ) = None,
         full_scan_job_store: FullScanJobStore | None = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
@@ -337,8 +341,12 @@ class ScanRuntime:
         )
         self._full_scan_registry_rows = tuple(dict(row) for row in full_scan_registry_rows)
         self._full_scan_workers = dict(full_scan_workers or {})
+        self._full_scan_workers_factory = full_scan_workers_factory
         self._full_scan_job_store = full_scan_job_store or FullScanJobStore()
         self._full_scan_job_ids: dict[str, str] = {}
+        self._state_lock = threading.RLock()
+        self._full_scan_semaphore = threading.BoundedSemaphore(value=1)
+        self._background_threads: dict[str, threading.Thread] = {}
         self._run_timestamp_factory = run_timestamp_factory or _default_run_timestamp
         self._forensic_bundle_uri_factory = (
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
@@ -372,6 +380,10 @@ class ScanRuntime:
             scan_id
             for scan_id, created_at in self._scan_state_created_at.items()
             if created_at < cutoff
+            and (
+                self._results.get(scan_id) is None
+                or self._results[scan_id].status not in {"queued", "running"}
+            )
         ]
         for scan_id in expired_scan_ids:
             self._scan_state_created_at.pop(scan_id, None)
@@ -420,23 +432,119 @@ class ScanRuntime:
             self._scan_invocation_contexts[scan_request.scan_id] = dict(
                 scanner_invocation_context
             )
+
+        # A production full analysis is a registry job, not the historical
+        # four-prompt scoring walker. Return the scan id immediately and run
+        # the evidence-producing suite on a daemon worker.
+        if (
+            self._full_scan_registry_rows
+            and self._full_scan_workers_factory is not None
+            and scan_request.scan_tier not in {"smoke", "dev"}
+        ):
+            queued = ScanResult(
+                scan_id=scan_request.scan_id,
+                status="queued",
+                scanner_version=str(scan_request.scanner_version),
+                corpus_version=str(scan_request.corpus_version),
+                rows_emitted=0,
+                k_replicates=scan_request.k_replicates,
+            )
+            with self._state_lock:
+                self._results[scan_request.scan_id] = queued
+            thread = threading.Thread(
+                target=self._run_full_scan_background,
+                kwargs={
+                    "scan_request": scan_request,
+                    "secret": secret,
+                    "agent_id": agent_id,
+                },
+                name=f"are-full-scan-{scan_request.scan_id[:8]}",
+                daemon=True,
+            )
+            self._background_threads[scan_request.scan_id] = thread
+            thread.start()
+            return queued
+
         result = self._run_scan_fn(scan_request, secret)
         result = self._apply_registry_dispatch_guard(
             scan_request,
             result,
             agent_id=agent_id,
+            secret=secret,
         )
         result = self._apply_full_suite_manifest_guard(
             scan_request,
             result,
             agent_id=agent_id,
         )
-        self._results[scan_request.scan_id] = result
+        return self._record_completed_result(scan_request, result, agent_id=agent_id)
+
+    def _run_full_scan_background(
+        self,
+        *,
+        scan_request: ScanRequest,
+        secret: str,
+        agent_id: str | None,
+    ) -> None:
+        try:
+            with self._full_scan_semaphore:
+                base = ScanResult(
+                    scan_id=scan_request.scan_id,
+                    status="running",
+                    scanner_version=str(scan_request.scanner_version),
+                    corpus_version=str(scan_request.corpus_version),
+                    rows_emitted=0,
+                    k_replicates=scan_request.k_replicates,
+                )
+                with self._state_lock:
+                    self._results[scan_request.scan_id] = base
+                result = self._apply_registry_dispatch_guard(
+                    scan_request,
+                    base,
+                    agent_id=agent_id,
+                    secret=secret,
+                )
+                self._record_completed_result(
+                    scan_request,
+                    result,
+                    agent_id=agent_id,
+                )
+        except Exception as exc:  # never expose credential or response bodies
+            failed = ScanResult(
+                scan_id=scan_request.scan_id,
+                status="failed",
+                scanner_version=str(scan_request.scanner_version),
+                corpus_version=str(scan_request.corpus_version),
+                rows_emitted=0,
+                k_replicates=scan_request.k_replicates,
+                incomplete=True,
+                incomplete_reason=f"full_scan_worker_error:{type(exc).__name__}",
+            )
+            with self._state_lock:
+                self._results[scan_request.scan_id] = failed
+                self._scan_state_created_at[scan_request.scan_id] = self._now()
+        finally:
+            self._background_threads.pop(scan_request.scan_id, None)
+
+    def _record_completed_result(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+    ) -> ScanResult:
+        with self._state_lock:
+            self._results[scan_request.scan_id] = result
+            self._scan_state_created_at[scan_request.scan_id] = self._now()
         if agent_id is not None:
             self._agent_ids_with_prior_scan[agent_id] = self._now()
             if (
                 self._scan_log is not None
                 and self._score_envelope_factory is not None
+                and not (
+                    result.full_suite_manifest is not None
+                    and not result.dim_results
+                )
             ):
                 run_timestamp = self._run_timestamp_factory()
                 forensic_bundle_uri = self._forensic_bundle_uri_factory(
@@ -476,6 +584,7 @@ class ScanRuntime:
         result: ScanResult,
         *,
         agent_id: str | None,
+        secret: str = "",
     ) -> ScanResult:
         """Dispatch active executable registry rows for full underwriting scans.
 
@@ -490,15 +599,31 @@ class ScanRuntime:
         if scan_request.scan_tier in {"smoke", "dev"}:
             return result
 
+        workers = self._full_scan_workers
+        if self._full_scan_workers_factory is not None:
+            workers = dict(
+                self._full_scan_workers_factory(scan_request, secret)
+            )
+
+        first_worker = next(iter(workers.values()), None)
+        metadata_factory = getattr(first_worker, "manifest_metadata", None)
+        worker_metadata = (
+            dict(metadata_factory()) if callable(metadata_factory) else {}
+        )
+        model_versions: dict[str, Any] = {
+            "primary": str(
+                worker_metadata.get("target_model") or scan_request.agent_endpoint
+            ),
+            "judges": list(worker_metadata.get("judge_models") or []),
+        }
+        if worker_metadata.get("execution_budget"):
+            model_versions["execution_budget"] = worker_metadata["execution_budget"]
         registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
         job = self._full_scan_job_store.submit(
             agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
             scanner_version=str(scan_request.scanner_version),
             corpus_version=str(scan_request.corpus_version),
-            model_versions={
-                "primary": str(scan_request.agent_endpoint),
-                "judges": [],
-            },
+            model_versions=model_versions,
             seed=scan_request.seed,
             registry_cases=registry_cases,
             idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
@@ -514,16 +639,30 @@ class ScanRuntime:
                 job.job_id,
                 attempt_id=attempt_id,
                 registry_rows=self._full_scan_registry_rows,
-                workers=self._full_scan_workers,
+                workers=workers,
             )
             finalized = self._full_scan_job_store.finalize(job.job_id)
 
         manifest = finalized.final_manifest
+        if manifest is not None:
+            manifest_writer = getattr(first_worker, "write_manifest", None)
+            if callable(manifest_writer):
+                persisted_ref = manifest_writer(manifest)
+                if persisted_ref != manifest.get("manifest_evidence_ref"):
+                    raise RuntimeError(
+                        "persisted full-scan manifest reference mismatch"
+                    )
         if finalized.status == "complete":
-            return replace(result, full_suite_manifest=manifest)
+            return replace(
+                result,
+                status="complete",
+                rows_emitted=len(finalized.evidence_rows),
+                full_suite_manifest=manifest,
+            )
         return replace(
             result,
             status="incomplete",
+            rows_emitted=len(finalized.evidence_rows),
             incomplete=True,
             incomplete_reason="full_scan_registry_incomplete",
             full_suite_manifest=manifest,
