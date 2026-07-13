@@ -61,7 +61,7 @@ jobs:
       - name: Prove 90-case execution contract with controlled runners
         env:
           ARE_BUNDLE_SIGNING_KEY: ci-only-real-agent-demo-key
-        run: python -m pytest -q demo-real-agent/tests/test_real_agent_demo.py tests/test_registered_case_execution.py tests/test_full_scan_executor_beaaa13681.py
+        run: python -m pytest -q demo-real-agent/tests tests/test_registered_case_execution.py tests/test_full_scan_executor_beaaa13681.py
       - name: Build real-agent demo image
         run: docker build -f demo-real-agent/Dockerfile -t backbond/real-agent-demo:${{ github.sha }} .
       - name: Prove container identity without external model calls

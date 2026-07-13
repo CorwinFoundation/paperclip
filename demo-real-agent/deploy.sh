@@ -10,6 +10,9 @@ IMAGE="backbond/real-agent-demo:${DEMO_GIT_SHA:?DEMO_GIT_SHA is required}"
 RUN_VOLUME="backbond-real-agent-demo-runs"
 PROD_PORT="8765"
 CANDIDATE_PORT="18765"
+JUDGE_SOCKET_DIR="${CLAUDE_JUDGE_SOCKET_DIR:-/run/backbond-claude-judge}"
+JUDGE_SOCKET_HOST="${JUDGE_SOCKET_DIR}/judge.sock"
+CLAUDE_PROXY_ENABLED=false
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "missing $ENV_FILE; configure demo access, signing, and judge credentials" >&2
@@ -34,29 +37,45 @@ require_env_name() {
 
 require_env_name DEMO_ACCESS_TOKEN
 require_env_name ARE_BUNDLE_SIGNING_KEY
-if ! grep -Eq '^(OPENROUTER_API_KEY|ANTHROPIC_API_KEY)=.+' "$ENV_FILE"; then
-  echo "$ENV_FILE requires OPENROUTER_API_KEY or ANTHROPIC_API_KEY" >&2
+if grep -Eq '^DEMO_JUDGE_BACKEND=claude-code-proxy$' "$ENV_FILE"; then
+  CLAUDE_PROXY_ENABLED=true
+  require_env_name CLAUDE_JUDGE_PROXY_TOKEN
+  bash "$SOURCE_DIR/demo-real-agent/install_claude_judge_proxy.sh" "$SOURCE_DIR"
+  if [[ ! -S "$JUDGE_SOCKET_HOST" ]]; then
+    echo "Claude judge socket is not ready: $JUDGE_SOCKET_HOST" >&2
+    exit 1
+  fi
+elif ! grep -Eq '^(OPENROUTER_API_KEY|ANTHROPIC_API_KEY)=.+' "$ENV_FILE"; then
+  echo "$ENV_FILE requires an API judge or DEMO_JUDGE_BACKEND=claude-code-proxy" >&2
   exit 1
 fi
 
 container_args() {
-  printf '%s\n' \
-    --restart unless-stopped \
-    --read-only \
-    --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-    --cap-drop ALL \
-    --security-opt no-new-privileges \
-    --user 10001:10001 \
-    --mount "source=${RUN_VOLUME},target=/data/runs" \
-    --mount "type=bind,source=${ENV_FILE},target=/etc/backbond/real-agent-demo.env,readonly" \
-    -e "DEMO_ENVIRONMENT=public-demo" \
-    -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Real Agent 90-Case Demo}" \
-    -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}" \
-    -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}" \
-    -e "ARE_FULL_SCAN_MAX_TARGET_CALLS=110" \
-    -e "ARE_FULL_SCAN_MAX_JUDGE_CALLS=90" \
-    -e "ARE_FULL_SCAN_MAX_JUDGE_COST_USD=100" \
+  local args=(
+    --restart unless-stopped
+    --read-only
+    --tmpfs /tmp:rw,noexec,nosuid,size=64m
+    --cap-drop ALL
+    --security-opt no-new-privileges
+    --user 10001:10001
+    --mount "source=${RUN_VOLUME},target=/data/runs"
+    --mount "type=bind,source=${ENV_FILE},target=/etc/backbond/real-agent-demo.env,readonly"
+    -e "DEMO_ENVIRONMENT=public-demo"
+    -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Real Agent 90-Case Demo}"
+    -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}"
+    -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}"
+    -e "ARE_FULL_SCAN_MAX_TARGET_CALLS=110"
+    -e "ARE_FULL_SCAN_MAX_JUDGE_CALLS=90"
+    -e "ARE_FULL_SCAN_MAX_JUDGE_COST_USD=100"
     -e "ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS=10800"
+  )
+  if [[ "$CLAUDE_PROXY_ENABLED" == true ]]; then
+    args+=(
+      --mount "type=bind,source=${JUDGE_SOCKET_DIR},target=/run/claude-judge,readonly"
+      -e "CLAUDE_JUDGE_SOCKET=/run/claude-judge/judge.sock"
+    )
+  fi
+  printf '%s\n' "${args[@]}"
 }
 
 wait_for_health() {

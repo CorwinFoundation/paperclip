@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
+from claude_judge_runner import ClaudeCodeProxyRunner, DEFAULT_SOCKET_PATH
 from api.full_scan_executor import (
     FullScanJobStore,
     dispatch_registry_attempt,
@@ -153,11 +154,29 @@ def registry_inventory() -> dict[str, Any]:
     }
 
 
-def judge_configured() -> bool:
-    return bool(
-        os.environ.get("OPENROUTER_API_KEY")
-        or os.environ.get("ANTHROPIC_API_KEY")
+def _claude_proxy_enabled() -> bool:
+    return os.environ.get("DEMO_JUDGE_BACKEND") == "claude-code-proxy"
+
+
+def _claude_proxy_runner() -> ClaudeCodeProxyRunner:
+    return ClaudeCodeProxyRunner(
+        socket_path=os.environ.get("CLAUDE_JUDGE_SOCKET", DEFAULT_SOCKET_PATH),
+        token=os.environ.get("CLAUDE_JUDGE_PROXY_TOKEN", ""),
+        model=os.environ.get("CLAUDE_JUDGE_MODEL", "sonnet"),
+        timeout_seconds=float(os.environ.get("CLAUDE_JUDGE_TIMEOUT_SECONDS", "120")),
     )
+
+
+def judge_configured() -> bool:
+    if os.environ.get("OPENROUTER_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
+        return True
+    if not _claude_proxy_enabled():
+        return False
+    token = os.environ.get("CLAUDE_JUDGE_PROXY_TOKEN", "")
+    socket_path = Path(
+        os.environ.get("CLAUDE_JUDGE_SOCKET", DEFAULT_SOCKET_PATH)
+    )
+    return len(token) >= 32 and socket_path.exists()
 
 
 def validate_public_configuration(config: RealScanConfig) -> None:
@@ -168,7 +187,7 @@ def validate_public_configuration(config: RealScanConfig) -> None:
         raise RuntimeError("non-Syllable demo target requires DEMO_AGENT_SECRET")
     if not judge_configured():
         raise RuntimeError(
-            "real demo requires OPENROUTER_API_KEY or ANTHROPIC_API_KEY"
+            "real demo requires an API judge credential or ready Claude Max bridge"
         )
     if config.max_estimated_judge_cost_usd > 100.0:
         raise RuntimeError("judge budget may not exceed the approved $100 ceiling")
@@ -209,6 +228,8 @@ def execute_real_scan(
     )
 
     request = SimpleNamespace(agent_endpoint=config.agent_endpoint)
+    if judge_factory is None and _claude_proxy_enabled():
+        judge_factory = _claude_proxy_runner
     workers = build_registered_case_workers(
         request,
         config.agent_secret,

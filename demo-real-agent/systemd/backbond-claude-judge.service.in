@@ -1,0 +1,46 @@
+[Unit]
+Description=BackBond host-only Claude Max judge bridge
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=@SOCKET_GROUP@
+EnvironmentFile=/etc/backbond/real-agent-demo.env
+Environment=HOME=/root
+Environment=PYTHONPATH=@SOURCE_DIR@
+Environment=DISABLE_AUTOUPDATER=1
+WorkingDirectory=/var/lib/backbond-claude-judge
+RuntimeDirectory=backbond-claude-judge
+RuntimeDirectoryMode=0750
+UMask=0007
+ExecStart=/usr/bin/python3 @SOURCE_DIR@/demo-real-agent/claude_judge_proxy.py --socket /run/backbond-claude-judge/judge.sock --claude-binary @CLAUDE_BIN@ --work-dir /var/lib/backbond-claude-judge
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+KillMode=mixed
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=read-only
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=full
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/backbond-claude-judge /run/backbond-claude-judge -/root/.claude -/root/.claude.json
+MemoryMax=2G
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target

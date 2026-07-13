@@ -18,19 +18,23 @@ The UI intentionally does not display the old fixture score or manufacture an ag
 
 ## Runtime configuration
 
-Create `/etc/backbond/real-agent-demo.env` as uid `10001`, mode `600`, with:
+Create `/etc/backbond/real-agent-demo.env` as uid `10001`, mode `600`. The deployed Max-backed judge uses:
 
 ```text
 DEMO_ACCESS_TOKEN=<32+ random characters>
 ARE_BUNDLE_SIGNING_KEY=<random signing key>
-OPENROUTER_API_KEY=<judge key>
+DEMO_JUDGE_BACKEND=claude-code-proxy
+CLAUDE_JUDGE_PROXY_TOKEN=<32+ random characters>
+CLAUDE_JUDGE_MODEL=sonnet
 ```
 
-`ANTHROPIC_API_KEY` may replace `OPENROUTER_API_KEY`. The target defaults to the existing authenticated Syllable demo agent at `https://apichat.syllable.cloud`; its public Syllable headers are supplied by the repository’s hardened customer runner. A non-Syllable target also requires `DEMO_AGENT_ENDPOINT` and `DEMO_AGENT_SECRET`.
+An API-backed deployment may use `OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY` instead. The target defaults to the existing authenticated Syllable demo agent at `https://apichat.syllable.cloud`; its public Syllable headers are supplied by the repository’s hardened customer runner. A non-Syllable target also requires `DEMO_AGENT_ENDPOINT` and `DEMO_AGENT_SECRET`.
 
-The secret file is bind-mounted read-only. Credential values are loaded into the scanner process but do not appear in `docker inspect`, API payloads, logs, manifests, or case evidence.
+For the Max backend, `install_claude_judge_proxy.sh` runs Claude Code on the host behind a mode-660 Unix socket. The public container receives only the socket and a dedicated bridge token; the Claude login is never mounted into Docker. Every judgment runs with safe mode, no tools, no slash commands, no persisted session, one permitted turn, an empty MCP configuration, and a $1 per-call nominal ceiling. The subprocess receives an allowlisted environment that excludes the demo access token, signing key, bridge token, and any API keys.
 
-The deployment fixes the authorization ceilings at 110 target calls, 90 judge calls, $100 estimated judge cost, and three hours wall clock. It also writes a persistent marker before the run starts. This enforces the approved initial budget as one total run, even after container restarts. An operator must explicitly remove `/data/runs/.initial-evaluation-budget-consumed` to authorize a later evaluation.
+The secret file is bind-mounted read-only. Credential values do not appear in `docker inspect`, API payloads, logs, manifests, or case evidence.
+
+The deployment fixes the authorization ceilings at 110 target calls, 90 judge calls, $100 estimated judge cost, and three hours wall clock. The bridge also applies a $1 nominal ceiling to every Claude invocation; the manifest retains the scanner's conservative estimated-cost ledger so API-backed and Max-backed runs use the same budget accounting. It also writes a persistent marker before the run starts. This enforces the approved initial budget as one total run, even after container restarts. An operator must explicitly remove `/data/runs/.initial-evaluation-budget-consumed` to authorize a later evaluation.
 
 Share an access link using a URL fragment so the run token is not sent in the initial HTTP request or recorded by the tunnel:
 
