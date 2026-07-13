@@ -6,15 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
-    },
-    {
-      "name": "Loop stability budget guard",
-      "pillar": "OPS",
-      "rubric_point_id": "OPS.LOOP_STABILITY.BUDGET_GUARD",
-      "runnable_entries": [],
-      "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -61,7 +53,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -156,7 +148,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -164,7 +156,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Equal opportunity gap",
@@ -172,7 +164,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Counterfactual stability",
@@ -180,7 +172,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Representation in eval set",
@@ -188,7 +180,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -196,7 +188,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -204,7 +196,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -212,7 +204,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -220,7 +212,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -228,7 +220,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -236,7 +228,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -244,7 +236,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Audit log completeness",
@@ -252,7 +244,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Model/prompt version control",
@@ -260,7 +252,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -268,7 +260,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Incident-response playbook",
@@ -276,7 +268,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Eval re-run cadence",
@@ -284,7 +276,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Owner accountability matrix",
@@ -292,7 +284,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -300,7 +292,7 @@
       "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Tool misuse \u2014 parameter tampering",
@@ -308,7 +300,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -316,14 +308,14 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at 3bb1906"
+      "unavailable_reason": "no current customer-true walker row in WRAP_MODULES at f794e63"
     }
   ],
   "bucket_counts": {
     "attestation_only": 7,
-    "declared_minimum_only": 52,
-    "fixture_test_only": 76,
-    "inactive_deferred": 9,
+    "declared_minimum_only": 49,
+    "fixture_test_only": 75,
+    "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
     "runnable_today": 90
   },
@@ -340,7 +332,7 @@
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
     "supported_unique_executable_count": 90,
-    "unsupported_rows_count": 193
+    "unsupported_rows_count": 188
   },
   "dedupe_key_fields": [
     "framework",
@@ -350,17 +342,17 @@
     "mode"
   ],
   "metadata": {
-    "active_rubric_point_count": 28,
+    "active_rubric_point_count": 27,
     "classification": "rule-execution: refactor/metadata registry that does not touch scoring behavior",
     "contract": "are-scanner-api-v1@v1.0",
-    "corpus_version": "registry-baseline-3bb1906",
+    "corpus_version": "registry-baseline-f794e63",
     "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
     "open_source_first_constraint": "Parse existing corpus/mapping/harness/scanner assets as sources; only BackBond stable key, disposition buckets, and fail-closed reasons are hand-rolled.",
     "parser_dependency": "PyYAML==6.0.2",
     "probe_set_version": "active-probe-registry@0.1.0",
     "remediation_ticket_ref": "BEAAA-13739",
     "repo": ".",
-    "repo_head": "3bb1906d5b353e3dbb992721023a4943a6f3bd73",
+    "repo_head": "f794e634108b40c1196c881e5a17c4d87906f088",
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "1.2.0",
     "stdlib_dependencies": [
@@ -488,22 +480,6 @@
       "rubric_point_id": "P3.6",
       "source": "rubric/probe_mappings/p3_6_output_attack.yaml",
       "stable_executable_key": "e81348107f60968a6c2cf073ae9e97652d6c1b1d0de5e55b42c3ac1a8770287f"
-    },
-    {
-      "bucket": "inactive_deferred",
-      "case_id_or_probe_id": "loop_stability_budget_guard_v0_1",
-      "corpus_or_family": "loop_stability_budget_guard",
-      "countable_as_executable": false,
-      "evidence_uri_template": "evidence://{scan_id}/loop_stability_budget_guard/loop_stability_budget_guard_v0_1.json",
-      "framework": "backbond_loop_stability_budget_guard",
-      "framework_version": "0.1",
-      "mode": "deterministic_bench_worker_v0.1",
-      "reason": "conditional benchmark requires pre-existing loop evidence and is not invoked by the production full scan",
-      "rubric_point_id": "OPS.LOOP_STABILITY.BUDGET_GUARD",
-      "source": "harness/bench/loop_stability_budget_guard.py",
-      "stable_executable_key": "389af211cfcd5b65e806933522819d3e0faef3deb2553aef636cf16515a791e2",
-      "version_pin": "backbond_loop_stability_budget_guard@0.1",
-      "worker_runner": "bench_wrapper"
     },
     {
       "bucket": "runnable_today",
@@ -3117,19 +3093,6 @@
     },
     {
       "bucket": "fixture_test_only",
-      "case_id_or_probe_id": "p5_hallusquatting_promptware_v1.jsonl",
-      "corpus_or_family": "tests/probe_sets",
-      "countable_as_executable": false,
-      "framework": "fixture",
-      "framework_version": "n/a",
-      "mode": "fixture",
-      "reason": "fixture/test asset is not a production full-scan execution row",
-      "rubric_point_id": "n/a",
-      "source": "tests/probe_sets/p5_hallusquatting_promptware_v1.jsonl",
-      "stable_executable_key": "b9bdf3e7b62f20b5f72449fee38249be702a99fe6c37f9a063650b92f92277c1"
-    },
-    {
-      "bucket": "fixture_test_only",
       "case_id_or_probe_id": "p5_indirect_agentdojo_v1.jsonl",
       "corpus_or_family": "tests/probe_sets",
       "countable_as_executable": false,
@@ -3556,45 +3519,6 @@
       "rubric_point_id": "P1.1",
       "source": "rubric/probe_mappings/hallucination_legal.yaml",
       "stable_executable_key": "877eed1af8c47a94bd23606bd3dc865f71d0f90ebd79614fc0bb7c124aa05e62"
-    },
-    {
-      "bucket": "declared_minimum_only",
-      "case_id_or_probe_id": "hallusquatting.docs_domain_promptware",
-      "corpus_or_family": "hallusquatting_promptware",
-      "countable_as_executable": false,
-      "framework": "hallusquatting-promptware-fixtures",
-      "framework_version": "0.1.0",
-      "mode": "mapping",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.2",
-      "source": "rubric/probe_mappings/hallusquatting_promptware.yaml",
-      "stable_executable_key": "18db1e95cb3cd6ddad953f286b835c6af3b341f47186b86cda03017aaa3b4265"
-    },
-    {
-      "bucket": "declared_minimum_only",
-      "case_id_or_probe_id": "hallusquatting.package_promptware_fetch",
-      "corpus_or_family": "hallusquatting_promptware",
-      "countable_as_executable": false,
-      "framework": "hallusquatting-promptware-fixtures",
-      "framework_version": "0.1.0",
-      "mode": "mapping",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.2",
-      "source": "rubric/probe_mappings/hallusquatting_promptware.yaml",
-      "stable_executable_key": "57453d36ac864c269c0e3e884dd75c175280929c45cb329c6244d72fb4f8c38b"
-    },
-    {
-      "bucket": "declared_minimum_only",
-      "case_id_or_probe_id": "hallusquatting.plugin_script_promptware",
-      "corpus_or_family": "hallusquatting_promptware",
-      "countable_as_executable": false,
-      "framework": "hallusquatting-promptware-fixtures",
-      "framework_version": "0.1.0",
-      "mode": "mapping",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.6",
-      "source": "rubric/probe_mappings/hallusquatting_promptware.yaml",
-      "stable_executable_key": "daf047b7c119dbc42c595c098823229e4484085b22c72736e2f0399d14f5c7e3"
     },
     {
       "bucket": "proxy_grade_non_customer_measured",

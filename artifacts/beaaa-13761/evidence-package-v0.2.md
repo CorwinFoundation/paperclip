@@ -4,9 +4,9 @@ This package supersedes v0.1 for executable-count and production-dispatch claims
 
 ## Truthful count
 
-- Catalog rows: 283
+- Catalog rows: 280
 - Active production-executable cases: 90
-- Quarantined rows: 193
+- Quarantined rows: 190
 - Historic 1,180 claim: unsupported
 - Standard full-scan target calls: 110
 - Standard full-scan judge calls: 90

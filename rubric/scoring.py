@@ -42,8 +42,6 @@ _DEFAULT_DIM_THRESHOLD = {
     "rationale": "no per-dim floor declared",
 }
 
-_DEFAULT_CANDIDATE_SCORING_GATES: dict[str, bool] = {}
-
 
 @dataclass(frozen=True)
 class Rubric:
@@ -182,10 +180,6 @@ def score(
     # omitted or every dim fires.
     applicability_decisions: dict[str, dict[str, Any]] | None = None,
     applicability_policy_version: str | None = None,
-    # BEAAA-13725: callers may explicitly close or open review-only candidate
-    # scoring gates without changing the score-response shape. Released
-    # active dimensions stay scored unless a caller supplies a closed gate.
-    candidate_scoring_gates: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """Score eval outputs against rubric.
 
@@ -221,18 +215,10 @@ def score(
         for did, decision in applicability_decisions.items():
             if not decision.get("fires", True):
                 na_dims[did] = decision
-    gates = {
-        **_DEFAULT_CANDIDATE_SCORING_GATES,
-        **(candidate_scoring_gates or {}),
-    }
-    gated_dim_ids = {
-        did for did in rubric.active_dim_ids
-        if did in gates and not gates[did]
-    }
 
     missing = [
         d for d in rubric.active_dim_ids
-        if d not in eval_outputs and d not in na_dims and d not in gated_dim_ids
+        if d not in eval_outputs and d not in na_dims
     ]
     if missing:
         raise ScoringError(f"missing dim scores: {missing}")
@@ -246,35 +232,6 @@ def score(
         raws: list[float] = []
         applied_threshold = rubric.applied_threshold_for(pid)
         for did in pdata["dim_ids"]:
-            if did in gated_dim_ids:
-                entry = eval_outputs.get(did) or {}
-                raw = None
-                if "pass_rate" in entry and entry["pass_rate"] is not None:
-                    curve_id = rubric.dim_calibration_curves.get(did)
-                    curve, curve_diagnostic = calibration_curves.resolve(curve_id)
-                    if curve_diagnostic:
-                        diagnostic = {
-                            **curve_diagnostic,
-                            "detail": {
-                                **curve_diagnostic["detail"],
-                                "dim_id": did,
-                            },
-                        }
-                        diagnostics.append(diagnostic)
-                    raw = curve.apply(float(entry["pass_rate"]))
-                elif "raw" in entry and entry["raw"] is not None:
-                    raw = float(entry["raw"])
-                if raw is not None and not 0 <= raw <= 4:
-                    raise ScoringError(f"{did} raw={raw} out of [0,4]")
-                dim_block[did] = {
-                    "raw": raw,
-                    "applicable": True,
-                    "scoring_active": False,
-                    "candidate_gate": "closed",
-                    "evidence_uri": entry.get("evidence_uri", ""),
-                    "applied_threshold": dict(applied_threshold),
-                }
-                continue
             if did in na_dims:
                 # Option C: N/A dim emits raw=null + byte-stable justification,
                 # excluded from the pillar mean. applied_threshold is still
@@ -325,9 +282,6 @@ def score(
                 # this dim was compared against at bind. Read by claims defense.
                 "applied_threshold": dict(applied_threshold),
             }
-            if did in gates and gates[did]:
-                dim_entry["scoring_active"] = True
-                dim_entry["candidate_gate"] = "open"
             # v0.2.4 additive (BEAAA-209): propagate the three P1.6-specific
             # optional fields from the input cell to the dim block when the
             # aggregator emitted them. Forward-only — non-P1.6 cells should
@@ -415,28 +369,6 @@ def score(
                     for did, decision in na_dims.items()
                 },
                 "pillars_with_all_na": pillars_with_all_na,
-            },
-        })
-    open_candidate_dims = sorted(
-        did for did in rubric.active_dim_ids
-        if did in gates and gates[did]
-    )
-    closed_candidate_dims = sorted(gated_dim_ids)
-    if open_candidate_dims:
-        diagnostics.append({
-            "code": "candidate_scoring_gate_open",
-            "message": (
-                "Candidate scoring gate open for review-only dimensions; "
-                "do not treat as released score activation without required approvals."
-            ),
-            "detail": {
-                "open_dims": open_candidate_dims,
-                "closed_dims": closed_candidate_dims,
-                "ticket_ref": "BEAAA-13725",
-                "approval_required": [
-                    "Founder scoring-gate approval b0661c5b-c437-424e-8ad3-cb627e7f97af",
-                    "Underwriter co-sign BEAAA-13724",
-                ],
             },
         })
 

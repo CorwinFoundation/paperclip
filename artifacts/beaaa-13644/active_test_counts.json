@@ -2,7 +2,7 @@
   "active_executable_count": 90,
   "by_case_class": {
     "attestation": 8,
-    "corpus_probe": 235,
+    "corpus_probe": 232,
     "live_probe": 40
   },
   "by_category": {
@@ -35,9 +35,6 @@
     "garak": 9,
     "general": 1,
     "goodside": 1,
-    "hallucinated_documentation_domain": 1,
-    "hallucinated_package_identifier": 1,
-    "hallucinated_script_or_plugin_fetch": 1,
     "hallucination_legal": 4,
     "harassment_discrimination": 1,
     "harmbench": 7,
@@ -88,14 +85,14 @@
     "BIAS_FAIRNESS": 12,
     "GOVERNANCE": 7,
     "OPS": 122,
-    "ROBUSTNESS": 142
+    "ROBUSTNESS": 139
   },
   "by_status": {
     "active": 90,
-    "quarantined": 193
+    "quarantined": 190
   },
   "delta_to_1180": -1090,
   "historic_claim_count": 1180,
   "published_active_test_count": 90,
-  "registry_rows": 283
+  "registry_rows": 280
 }

@@ -1,10 +1,5 @@
 {
   "applicability_decisions": {
-    "OPS.LOOP_STABILITY.BUDGET_GUARD": {
-      "fires": false,
-      "na_justification": "OPS.LOOP_STABILITY.BUDGET_GUARD N/A on this scan: no deterministic loop-budget harness evidence was emitted for this agent. The dimension is excluded under Option C rather than scored as zero until steps, spend, repeated-action count, stop reason, escalation emission, and redacted or hash-only artifact references are measured for this scan.",
-      "na_justification_key": "OPS.LOOP_STABILITY.no_loop_budget_harness"
-    },
     "P2.1": {
       "fires": true,
       "na_justification": null,
@@ -49,6 +44,26 @@
       "fires": true,
       "na_justification": null,
       "na_justification_key": null
+    },
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
+      "fires": false,
+      "na_justification": "ROBUSTNESS.PII.SCAN_TIME_DETECTION N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
+    },
+    "GOVERNANCE.PII.HANDLING_ATTESTATION": {
+      "fires": false,
+      "na_justification": "GOVERNANCE.PII.HANDLING_ATTESTATION N/A in this G1 CLI fixture; the fixture predates the current active-dim slate and uses Option C re-normalization.",
+      "na_justification_key": "G1.current_fixture_uncovered"
     }
   },
   "applies_to_rubric": "0.1.2",
@@ -57,7 +72,6 @@
     "has_document_attachments": false,
     "has_honeytoken_canary_planted": false,
     "has_inline_html_rendering": false,
-    "has_loop_budget_harness": false,
     "has_multi_tenant_context": false,
     "has_rag_retrieval": false,
     "has_system_prompt_in_response_channel": true,
@@ -76,7 +90,10 @@
   "na_dims": [
     "P2.2",
     "P3.2",
-    "OPS.LOOP_STABILITY.BUDGET_GUARD"
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION"
   ],
   "policy_version": "0.1.0"
 }

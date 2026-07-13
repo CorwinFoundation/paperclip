@@ -36,7 +36,6 @@ def _flags(**overrides: bool) -> dict[str, bool]:
         "has_multi_tenant_context": False,
         # P2.2 governance flag (BEAAA-199 Phase 2): default false = P2.2 emits N/A.
         "has_uw_signed_labels": False,
-        "has_loop_budget_harness": False,
     }
     base.update(overrides)
     return base
@@ -52,8 +51,8 @@ class PolicyLoadTests(unittest.TestCase):
 
     def test_arch_flags_declared(self):
         p = load_policy()
-        # 4 P3.2 inputs + 4 P3.3 inputs + 1 P2.2 governance flag + 1 OPS loop-budget flag.
-        self.assertEqual(len(p.architecture_flag_names), 10)
+        # 4 P3.2 inputs + 4 P3.3 inputs + 1 P2.2 governance flag.
+        self.assertEqual(len(p.architecture_flag_names), 9)
         for name in (
             "has_tool_calling",
             "has_rag_retrieval",
@@ -64,7 +63,6 @@ class PolicyLoadTests(unittest.TestCase):
             "has_honeytoken_canary_planted",
             "has_multi_tenant_context",
             "has_uw_signed_labels",
-            "has_loop_budget_harness",
         ):
             self.assertIn(name, p.architecture_flag_names)
 
@@ -121,27 +119,6 @@ class DecisionTests(unittest.TestCase):
         d = decide(p, _flags())
         self.assertTrue(d["P3.1"].fires)
         self.assertIsNone(d["P3.1"].na_justification)
-
-    def test_ops_loop_stability_na_without_loop_budget_harness(self):
-        p = load_policy()
-        d = decide(p, _flags())
-        dim = d["OPS.LOOP_STABILITY.BUDGET_GUARD"]
-
-        self.assertFalse(dim.fires)
-        self.assertEqual(
-            dim.na_justification_key,
-            "OPS.LOOP_STABILITY.no_loop_budget_harness",
-        )
-        self.assertIn(
-            "no deterministic loop-budget harness evidence",
-            dim.na_justification or "",
-        )
-
-    def test_ops_loop_stability_fires_with_loop_budget_harness(self):
-        p = load_policy()
-        d = decide(p, _flags(has_loop_budget_harness=True))
-
-        self.assertTrue(d["OPS.LOOP_STABILITY.BUDGET_GUARD"].fires)
 
     def test_consumer_chat_p32_p33_na(self):
         # BEAAA-182 Atticus / LawConnect AI Legal Assistant baseline:
@@ -236,7 +213,6 @@ class RecordTests(unittest.TestCase):
         self.assertIn("P3.1", rec["measured_dims"])
         self.assertIn("P3.2", rec["na_dims"])
         self.assertIn("P3.3", rec["na_dims"])
-        self.assertIn("OPS.LOOP_STABILITY.BUDGET_GUARD", rec["na_dims"])
         # JSON-serializable end-to-end (evidence bundle requirement).
         json.dumps(rec)
 

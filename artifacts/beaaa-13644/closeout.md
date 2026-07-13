@@ -17,9 +17,9 @@ escalations_noted: ["CTO escalation required: required N=5 gate reports >1 score
 
 This historical closeout is superseded for count purposes by the regenerated machine-readable artifacts in this directory and `docs/runbooks/full-scan-execution-layer.md`.
 
-- Registry rows: 283
+- Registry rows: 280
 - Active production-executable cases: 90
-- Quarantined/non-executable rows: 193
+- Quarantined/non-executable rows: 190
 - Delta to the unsupported historic 1,180 claim: -1,090
 
 

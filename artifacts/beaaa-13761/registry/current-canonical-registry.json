@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "active_registry_point_count": 28,
+    "active_registry_point_count": 27,
     "active_test_registry_active_executable_count": 90,
-    "active_test_registry_rows": 283,
+    "active_test_registry_rows": 280,
     "ceo_dispositions": [
       "blocked_dependency",
       "duplicate",
@@ -21,7 +21,7 @@
     "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
     "parent_ticket_ref": "BEAAA-13761",
     "probe_set_version": "scanner-test-registry-baseline-2026-07-13/v0.1",
-    "registry_sha256": "2cd591fb8cc875362675881b607cbfcacb8c9625c22585017877aded1b6ed986",
+    "registry_sha256": "83c7083363286505b210d52d72634624dc3b87643955c695f2ebbd7df109e76c",
     "registry_version": "scanner-test-registry-baseline-2026-07-13/v0.1",
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "1.2.0",
@@ -708,42 +708,6 @@
       "source": "rubric/probe_mappings/hallucination_legal.yaml",
       "source_bucket": "declared_minimum_only",
       "version_pin": "hallucination_legal@0.3.0"
-    },
-    {
-      "asset_id": "18db1e95cb3cd6ddad953f286b835c6af3b341f47186b86cda03017aaa3b4265",
-      "case_id": "hallusquatting.docs_domain_promptware",
-      "countable_as_active_executable": false,
-      "disposition": "executable_not_connected",
-      "framework": "hallusquatting-promptware-fixtures",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.2",
-      "source": "rubric/probe_mappings/hallusquatting_promptware.yaml",
-      "source_bucket": "declared_minimum_only",
-      "version_pin": "hallusquatting-promptware-fixtures@0.1.0"
-    },
-    {
-      "asset_id": "57453d36ac864c269c0e3e884dd75c175280929c45cb329c6244d72fb4f8c38b",
-      "case_id": "hallusquatting.package_promptware_fetch",
-      "countable_as_active_executable": false,
-      "disposition": "executable_not_connected",
-      "framework": "hallusquatting-promptware-fixtures",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.2",
-      "source": "rubric/probe_mappings/hallusquatting_promptware.yaml",
-      "source_bucket": "declared_minimum_only",
-      "version_pin": "hallusquatting-promptware-fixtures@0.1.0"
-    },
-    {
-      "asset_id": "daf047b7c119dbc42c595c098823229e4484085b22c72736e2f0399d14f5c7e3",
-      "case_id": "hallusquatting.plugin_script_promptware",
-      "countable_as_active_executable": false,
-      "disposition": "executable_not_connected",
-      "framework": "hallusquatting-promptware-fixtures",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.6",
-      "source": "rubric/probe_mappings/hallusquatting_promptware.yaml",
-      "source_bucket": "declared_minimum_only",
-      "version_pin": "hallusquatting-promptware-fixtures@0.1.0"
     },
     {
       "asset_id": "58fb0850f5aaeb76301ef82a077d9c4b5c15967835a2cb3275c53377afe2f1ef",
@@ -1786,18 +1750,6 @@
       "reason": "fixture/test asset is not a production full-scan execution row",
       "rubric_point_id": "n/a",
       "source": "tests/probe_sets/p5_direct_jailbreakbench_v1.jsonl",
-      "source_bucket": "fixture_test_only",
-      "version_pin": "fixture@n/a"
-    },
-    {
-      "asset_id": "b9bdf3e7b62f20b5f72449fee38249be702a99fe6c37f9a063650b92f92277c1",
-      "case_id": "p5_hallusquatting_promptware_v1.jsonl",
-      "countable_as_active_executable": false,
-      "disposition": "fixture_only",
-      "framework": "fixture",
-      "reason": "fixture/test asset is not a production full-scan execution row",
-      "rubric_point_id": "n/a",
-      "source": "tests/probe_sets/p5_hallusquatting_promptware_v1.jsonl",
       "source_bucket": "fixture_test_only",
       "version_pin": "fixture@n/a"
     },
@@ -3324,18 +3276,6 @@
       "source": "rubric\\probe_mappings\\p1_5_calibration_golden.yaml",
       "source_bucket": "runnable_today",
       "version_pin": "p1_5_calibration_golden@0.1.0"
-    },
-    {
-      "asset_id": "389af211cfcd5b65e806933522819d3e0faef3deb2553aef636cf16515a791e2",
-      "case_id": "loop_stability_budget_guard_v0_1",
-      "countable_as_active_executable": false,
-      "disposition": "roadmap",
-      "framework": "backbond_loop_stability_budget_guard",
-      "reason": "conditional benchmark requires pre-existing loop evidence and is not invoked by the production full scan",
-      "rubric_point_id": "OPS.LOOP_STABILITY.BUDGET_GUARD",
-      "source": "harness/bench/loop_stability_budget_guard.py",
-      "source_bucket": "inactive_deferred",
-      "version_pin": "backbond_loop_stability_budget_guard@0.1"
     },
     {
       "asset_id": "405b12f9d1eba02b78a44b5126d7635f5f064070021f31bd787faa9665d7421e",

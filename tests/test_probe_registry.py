@@ -111,37 +111,6 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             self.assertIsNotNone(point["unavailable_reason"], rubric_point_id)
             self.assertFalse(point["runnable_entries"], rubric_point_id)
 
-    def test_conditional_loop_stability_row_is_not_counted(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            registry = self._emit(Path(tmp) / "registry.json")
-        active_by_id = {
-            point["rubric_point_id"]: point
-            for point in registry["active_rubric_points"]
-        }
-        loop_row = active_by_id["OPS.LOOP_STABILITY.BUDGET_GUARD"]
-
-        self.assertEqual(loop_row["pillar"], "OPS")
-        self.assertEqual(loop_row["status"], "fail_closed_unavailable")
-        self.assertIsNotNone(loop_row["unavailable_reason"])
-        self.assertFalse(loop_row["runnable_entries"])
-
-        executable_rows = [
-            row for row in registry["rows"]
-            if row["rubric_point_id"] == "OPS.LOOP_STABILITY.BUDGET_GUARD"
-            and row["bucket"] == "inactive_deferred"
-        ]
-        self.assertEqual(len(executable_rows), 1)
-        self.assertEqual(
-            executable_rows[0]["version_pin"],
-            "backbond_loop_stability_budget_guard@0.1",
-        )
-        self.assertEqual(
-            executable_rows[0]["source"],
-            "harness/bench/loop_stability_budget_guard.py",
-        )
-
-        self.assertFalse(executable_rows[0]["countable_as_executable"])
-
     def test_cto_open_source_first_constraint_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = self._emit(Path(tmp) / "registry.json")

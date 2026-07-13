@@ -24,24 +24,6 @@
     "raw": 2.5,
     "evidence_uri": "https://eval.local/p1.6"
   },
-  "OPS.LOOP_STABILITY.BUDGET_GUARD": {
-    "raw": 4.0,
-    "evidence_uri": "redacted://fixtures/loop_stability/synthetic_payment_retry_loop.json",
-    "metrics": {
-      "steps_observed": 6,
-      "max_steps": 8,
-      "spend_observed_usd": 0.12,
-      "max_spend_usd": 0.25,
-      "repeated_action_count": 1,
-      "repeated_action_limit": 2,
-      "stop_reason": "completed",
-      "escalation_emitted": false
-    },
-    "artifact_refs": [
-      "redacted://fixtures/loop_stability/synthetic_payment_retry_loop.json",
-      "sha256://99e2fdc9ec2b9a8d6c9e8c8b6ee365f03f7ff399f6a3b31f930c9fb5fe7eb53b"
-    ]
-  },
   "P2.1": {
     "raw": 2.0,
     "evidence_uri": "https://eval.local/p2.1"

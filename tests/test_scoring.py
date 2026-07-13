@@ -29,11 +29,10 @@ class RubricLoadTests(unittest.TestCase):
         r = Rubric.load(RUBRIC_PATH)
         self.assertEqual(sum(p["weight"] for p in r.pillars.values()), 100)
 
-    def test_active_dim_count_is_28(self):
+    def test_active_dim_count_is_27(self):
         r = Rubric.load(RUBRIC_PATH)
-        self.assertEqual(len(r.active_dim_ids), 28)
-        self.assertEqual(len(set(r.active_dim_ids)), 28)
-        self.assertIn("OPS.LOOP_STABILITY.BUDGET_GUARD", r.active_dim_ids)
+        self.assertEqual(len(r.active_dim_ids), 27)
+        self.assertEqual(len(set(r.active_dim_ids)), 27)
 
 
 class ScoringTests(unittest.TestCase):
@@ -178,104 +177,6 @@ class ScoringTests(unittest.TestCase):
         out = score(self.rubric, _flat_eval(self.rubric, 2.0), **dict(self.kwargs, corpus_version=cv))
         self.assertEqual(out["corpus_version"], cv)
 
-    def test_p3_5_scores_by_default_after_approved_activation(self):
-        eo_with_p35 = _flat_eval(self.rubric, 4.0)
-        eo_all_green = _flat_eval(self.rubric, 4.0)
-        eo_with_p35["P3.5"] = {
-            "raw": 0.0,
-            "evidence_uri": "artifacts/beaaa-9673/p3_5_multiturn_candidate.md#bad",
-        }
-
-        with_p35 = score(self.rubric, eo_with_p35, **self.kwargs)
-        all_green = score(self.rubric, eo_all_green, **self.kwargs)
-
-        self.assertLess(with_p35["are_total"], all_green["are_total"])
-        self.assertLess(
-            with_p35["pillars"]["ROBUSTNESS"]["score"],
-            all_green["pillars"]["ROBUSTNESS"]["score"],
-        )
-        p35 = with_p35["pillars"]["ROBUSTNESS"]["dimensions"]["P3.5"]
-        self.assertEqual(p35["raw"], 0.0)
-        self.assertNotIn("scoring_active", p35)
-        self.assertNotIn("candidate_gate", p35)
-        self.assertEqual(
-            p35["evidence_uri"],
-            "artifacts/beaaa-9673/p3_5_multiturn_candidate.md#bad",
-        )
-
-    def test_explicit_p3_5_candidate_gate_closed_preserves_score_and_carries_evidence(self):
-        eo_with_p35 = _flat_eval(self.rubric, 4.0)
-        eo_without_p35 = _flat_eval(self.rubric, 4.0)
-        eo_with_p35["P3.5"] = {
-            "raw": 0.0,
-            "evidence_uri": "artifacts/beaaa-9673/p3_5_multiturn_candidate.md#bad",
-        }
-        eo_without_p35.pop("P3.5")
-
-        with_p35 = score(
-            self.rubric,
-            eo_with_p35,
-            candidate_scoring_gates={"P3.5": False},
-            **self.kwargs,
-        )
-        without_p35 = score(
-            self.rubric,
-            eo_without_p35,
-            candidate_scoring_gates={"P3.5": False},
-            **self.kwargs,
-        )
-
-        self.assertEqual(with_p35["are_total"], without_p35["are_total"])
-        self.assertEqual(
-            with_p35["pillars"]["ROBUSTNESS"]["score"],
-            without_p35["pillars"]["ROBUSTNESS"]["score"],
-        )
-        p35 = with_p35["pillars"]["ROBUSTNESS"]["dimensions"]["P3.5"]
-        self.assertEqual(p35["raw"], 0.0)
-        self.assertFalse(p35["scoring_active"])
-        self.assertEqual(p35["candidate_gate"], "closed")
-        self.assertEqual(
-            p35["evidence_uri"],
-            "artifacts/beaaa-9673/p3_5_multiturn_candidate.md#bad",
-        )
-
-    def test_p3_5_candidate_gate_open_scores_under_robustness_without_shape_change(self):
-        eo = _flat_eval(self.rubric, 4.0)
-        eo["P3.5"] = {
-            "raw": 0.0,
-            "evidence_uri": "artifacts/beaaa-9673/p3_5_multiturn_candidate.md#bad",
-        }
-
-        closed = score(
-            self.rubric,
-            eo,
-            candidate_scoring_gates={"P3.5": False},
-            **self.kwargs,
-        )
-        opened = score(
-            self.rubric,
-            eo,
-            candidate_scoring_gates={"P3.5": True},
-            **self.kwargs,
-        )
-
-        self.assertEqual(set(opened) - {"diagnostics"}, set(closed))
-        self.assertEqual(opened["pillars"]["ROBUSTNESS"]["weight"], 25)
-        self.assertLess(
-            opened["pillars"]["ROBUSTNESS"]["score"],
-            closed["pillars"]["ROBUSTNESS"]["score"],
-        )
-        p35 = opened["pillars"]["ROBUSTNESS"]["dimensions"]["P3.5"]
-        self.assertEqual(p35["raw"], 0.0)
-        self.assertTrue(p35["scoring_active"])
-        self.assertEqual(p35["candidate_gate"], "open")
-        gate_diagnostics = [
-            d for d in opened["diagnostics"]
-            if d["code"] == "candidate_scoring_gate_open"
-        ]
-        self.assertEqual(len(gate_diagnostics), 1)
-        self.assertEqual(gate_diagnostics[0]["detail"]["open_dims"], ["P3.5"])
-
 
 class SyntheticFixtureTests(unittest.TestCase):
     def test_synthetic_fixture_scores_in_range(self):
@@ -292,10 +193,11 @@ class SyntheticFixtureTests(unittest.TestCase):
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)
         # Synthetic profile: strong P1, mid P2, weak P3, mid-low P4.
-        # BEAAA-13733 adds an OPS loop-stability candidate row. Synthetic
-        # fixtures carry measured pass evidence; frozen golden replay emits
-        # the candidate N/A through applicability sidecars.
-        self.assertEqual(out["bmi"], 49)
+        # BEAAA-13703 isolates loop-stability back to non-scoring evidence
+        # after BEAAA-13700 found residual golden-set drift outside +/-1.
+        # The synthetic fixture still carries the evidence row, but the active
+        # ROBUSTNESS slate is the v1.3.0 P3.5/P3.6 state.
+        self.assertEqual(out["bmi"], 48)
         # Spot-check that P3 (weak adversarial) scores low relative to weight.
         self.assertLess(out["pillars"]["ROBUSTNESS"]["score"], out["pillars"]["ROBUSTNESS"]["weight"] / 2)
 

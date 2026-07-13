@@ -4,7 +4,7 @@ This runbook defines what the scanner actually executes when a caller submits a 
 
 ## Current production inventory
 
-The production registry contains 283 catalog rows. Only 90 rows are active and executable because only those rows have all of the following:
+The production registry contains 280 catalog rows. Only 90 rows are active and executable because only those rows have all of the following:
 
 - a concrete target-agent payload;
 - a bound transport adapter;
@@ -22,7 +22,7 @@ The 90 executed cases are:
 | Confidence calibration | 20 | 20 | 20 |
 | **Total** | **90** | **110** | **90** |
 
-The other 193 catalog rows include Garak, AgentDojo, PyRIT, Promptfoo, tool-misuse, PII, governance, fixtures, and attestation assets. They remain visible as `quarantined`, but do not count as tests until a production adapter can invoke them against the submitted agent and emit evidence.
+The other 190 catalog rows include Garak, AgentDojo, PyRIT, Promptfoo, tool-misuse, PII, governance, fixtures, and attestation assets. They remain visible as `quarantined`, but do not count as tests until a production adapter can invoke them against the submitted agent and emit evidence.
 
 ## Request and execution flow
 
