@@ -9,7 +9,7 @@ ROLLBACK="${CONTAINER}-rollback"
 IMAGE="backbond/real-agent-demo:${DEMO_GIT_SHA:?DEMO_GIT_SHA is required}"
 RUN_VOLUME="backbond-real-agent-demo-runs"
 PROD_PORT="8765"
-CANDIDATE_PORT="18765"
+CANDIDATE_PORT="${CANDIDATE_PORT:-18765}"
 JUDGE_SOCKET_DIR="${CLAUDE_JUDGE_SOCKET_DIR:-/run/backbond-claude-judge}"
 JUDGE_SOCKET_HOST="${JUDGE_SOCKET_DIR}/judge.sock"
 CLAUDE_PROXY_ENABLED=false
@@ -103,7 +103,11 @@ docker build --pull -f "$SOURCE_DIR/demo-real-agent/Dockerfile" -t "$IMAGE" "$SO
 docker volume create "$RUN_VOLUME" >/dev/null
 
 docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
-run_instance "$CANDIDATE" "$CANDIDATE_PORT" "$IMAGE"
+if ! run_instance "$CANDIDATE" "$CANDIDATE_PORT" "$IMAGE"; then
+  docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+  echo "candidate failed to start on 127.0.0.1:${CANDIDATE_PORT}" >&2
+  exit 1
+fi
 if ! wait_for_health "$CANDIDATE_PORT"; then
   docker logs "$CANDIDATE" --tail 200 || true
   docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
