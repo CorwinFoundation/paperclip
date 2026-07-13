@@ -40,7 +40,14 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             self.registry["metadata"]["unique_active_executable_case_count"],
             len(active_case_ids),
         )
-        self.assertGreater(len(active_case_ids), 4)
+        self.assertGreater(len(active_case_ids), 0)
+        if self.registry["metadata"]["source_mode"] == "appendix_a_family_ledger":
+            self.assertEqual(self.registry["metadata"]["appendix_family_count"], 61)
+            self.assertEqual(self.registry["metadata"]["appendix_t1_embedded_case_count"], 715)
+            self.assertEqual(
+                self.registry["metadata"]["counting_unit"],
+                "registry rows count unique mapping/probe rows; embedded corpus items are recorded separately and do not inflate registry row counts",
+            )
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

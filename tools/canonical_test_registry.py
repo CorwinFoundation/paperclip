@@ -59,7 +59,7 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
     source_path = appendix_csv or default_appendix_a_path(repo)
     if source_path is not None:
         rows = _rows_from_appendix_csv(source_path, repo)
-        source_mode = "appendix_a_csv"
+        source_mode = "appendix_a_family_ledger"
         source_inputs = [str(_repo_relative(source_path, repo))]
     else:
         rows = _rows_from_probe_registry(repo)
@@ -91,9 +91,16 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
             "source_mode": source_mode,
             "source_inputs": source_inputs,
+            "counting_unit": "registry rows count unique mapping/probe rows; embedded corpus items are recorded separately and do not inflate registry row counts",
             "ceo_dispositions": sorted(CEO_DISPOSITIONS),
             "countable_disposition": COUNTABLE_DISPOSITION,
             "unique_active_executable_case_count": len({row["case_id"] for row in active_rows}),
+            "appendix_family_count": _sum_int_field(rows, "appendix_family_row"),
+            "appendix_embedded_case_count_total": _sum_int_field(rows, "embedded_case_count"),
+            "appendix_t1_embedded_case_count": _sum_int_field(rows, "t1_embedded_case_count"),
+            "appendix_production_active_embedded_case_count": _sum_int_field(
+                rows, "production_active_embedded_case_count"
+            ),
             "active_test_registry_rows": len(active_test_rows),
             "active_test_registry_active_executable_count": sum(
                 1
@@ -167,7 +174,10 @@ def _rows_from_appendix_csv(path: Path, repo: Path) -> list[dict[str, Any]]:
         reader = csv.DictReader(handle)
         rows = []
         for index, row in enumerate(reader):
-            disposition = _first_present(row, "disposition", "ceo_disposition", "status")
+            if "family" in row and "embedded_case_count" in row:
+                rows.append(_appendix_family_row(index, row, path, repo))
+                continue
+            disposition = _normalize_disposition(_first_present(row, "disposition", "ceo_disposition", "status"))
             case_id = _first_present(row, "case_id", "case_id_or_probe_id", "probe_id", "asset")
             normalized = {
                 "asset_id": _first_present(row, "asset_id", "stable_executable_key") or _csv_asset_id(index, row),
@@ -185,6 +195,36 @@ def _rows_from_appendix_csv(path: Path, repo: Path) -> list[dict[str, Any]]:
             }
             rows.append(normalized)
     return sorted(rows, key=lambda item: (item["disposition"], item["framework"], item["case_id"]))
+
+
+def _appendix_family_row(index: int, row: Mapping[str, Any], path: Path, repo: Path) -> dict[str, Any]:
+    family = _first_present(row, "family") or f"appendix_a_row_{index}"
+    disposition_raw = _first_present(row, "proposed_registry_status", "disposition", "status")
+    disposition = _normalize_disposition(disposition_raw)
+    embedded_case_count_raw = _first_present(row, "embedded_case_count")
+    embedded_case_count = _safe_int(embedded_case_count_raw)
+    tier = _first_present(row, "tier")
+    is_t1 = tier.startswith("T1 ")
+    is_production_active = disposition == COUNTABLE_DISPOSITION
+    return {
+        "asset_id": f"appendix_a:{family}",
+        "case_id": family,
+        "disposition": disposition,
+        "rubric_point_id": _first_present(row, "risk_dimensions") or "n/a",
+        "source": _first_present(row, "source_file") or str(_repo_relative(path, repo)),
+        "framework": _first_present(row, "runner_path") or "appendix_a_family_ledger",
+        "version_pin": "appendix_a@2026-07-13",
+        "countable_as_active_executable": is_production_active,
+        "source_bucket": tier or "appendix_a",
+        "reason": _first_present(row, "source_status_field") or "",
+        "appendix_family_row": 1,
+        "embedded_case_count": embedded_case_count,
+        "embedded_case_count_raw": embedded_case_count_raw,
+        "t1_embedded_case_count": embedded_case_count if is_t1 else 0,
+        "production_active_embedded_case_count": embedded_case_count if is_production_active else 0,
+        "proposed_registry_status_raw": disposition_raw,
+        "runner_path": _first_present(row, "runner_path"),
+    }
 
 
 def _mark_duplicate_executable_case_ids(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -227,6 +267,24 @@ def _first_present(row: Mapping[str, Any], *names: str) -> str:
 
 def _truthy(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _normalize_disposition(value: str) -> str:
+    normalized = value.strip()
+    if normalized.startswith("production_active"):
+        return COUNTABLE_DISPOSITION
+    return normalized
+
+
+def _safe_int(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _sum_int_field(rows: Iterable[Mapping[str, Any]], field: str) -> int:
+    return sum(_safe_int(str(row.get(field, 0))) for row in rows)
 
 
 def _framework_pin(row: Mapping[str, Any]) -> str:
