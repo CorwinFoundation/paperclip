@@ -5,6 +5,8 @@
   "corpus_version": "scanner-test-registry-baseline-2026-07-13",
   "executed_count_after": 306,
   "executed_count_before": 1,
+  "implementation_commit": "83133343526c7db14baab7e3aab57189c0d9919c",
+  "implementation_branch": "origin/beaaa-12093-master-candidate",
   "families": [
     {
       "case_count": 125,

@@ -34,6 +34,8 @@ BLUF: executed 305 Appendix A cases under the BEAAA-13915 correction gate by add
 
 ## Count Result
 
+Implementation commit: `83133343526c7db14baab7e3aab57189c0d9919c` on `origin/beaaa-12093-master-candidate`.
+
 | Metric | Value |
 | --- | ---: |
 | executed_count_before | 1 |
