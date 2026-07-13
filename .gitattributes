@@ -1,2 +1,5 @@
 # Artifact filenames must be Windows-portable: no colon, question mark,
 # asterisk, angle bracket, quote, pipe, or trailing space/dot.
+# Linux runtime and service files must remain LF in Windows checkouts.
+*.sh text eol=lf
+demo-real-agent/systemd/*.service.in text eol=lf
