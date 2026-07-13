@@ -925,6 +925,74 @@ def _customer_payload(result: ScanResult) -> dict[str, Any]:
         payload.pop(field_name, None)
     return payload
 
+_EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
+    "are_total",
+    "subscores",
+    "band",
+    "confidence",
+    "evidence_refs",
+    "uncovered_dimensions",
+)
+
+_EXTERNAL_ENVELOPE_PROVENANCE: tuple[str, ...] = (
+    "scanner_version",
+    "corpus_version",
+    "model_versions",
+    "seed",
+)
+
+
+def _band_letter(score_json: Mapping[str, Any]) -> Any:
+    """Project the partner-facing letter band from a score envelope."""
+    band_letter = score_json.get("band_letter")
+    if isinstance(band_letter, str) and band_letter:
+        return band_letter
+    band_value = score_json.get("band")
+    if isinstance(band_value, Mapping):
+        return band_value.get("display") or band_value.get("letter")
+    return band_value
+
+
+def _external_result_envelope(
+    result: ScanResult, score_json: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Build the documented public completed-scan envelope."""
+    envelope: dict[str, Any] = {
+        "scan_id": result.scan_id,
+        "status": result.status,
+    }
+    for field_name in _EXTERNAL_ENVELOPE_FIELDS:
+        if field_name == "band":
+            envelope["band"] = _band_letter(score_json)
+        elif field_name == "uncovered_dimensions":
+            envelope["uncovered_dimensions"] = (
+                score_json.get("uncovered_dimensions") or []
+            )
+        else:
+            envelope[field_name] = score_json.get(field_name)
+    for field_name in _EXTERNAL_ENVELOPE_PROVENANCE:
+        envelope[field_name] = score_json.get(field_name)
+    envelope["partial_completion"] = bool(
+        score_json.get("partial_completion") or result.incomplete
+    )
+    envelope["confidence_below_adjudication_threshold"] = bool(
+        score_json.get("confidence_below_adjudication_threshold")
+        or result.incomplete
+    )
+    return envelope
+
+
+def _customer_result_response(
+    scan_id: str, result: ScanResult, runtime: "ScanRuntime"
+) -> dict[str, Any]:
+    """Return the public score when persisted, else the legacy projection."""
+    score_row = runtime.current_kickoff_row(scan_id)
+    score_json = score_row.get("score_json") if score_row else None
+    if isinstance(score_json, Mapping) and score_json:
+        return _external_result_envelope(result, score_json)
+    return _customer_payload(result)
+
+
 
 # ---------------------------------------------------------------------------
 # BEAAA-1273 (WS3) — `prior_scan_refs[]` projection + pagination cap.
@@ -1551,7 +1619,7 @@ def scan_status_handler(
     if audience == "uw":
         return 200, _uw_payload(result)
     if audience == "customer":
-        return 200, _customer_payload(result)
+        return 200, _customer_result_response(scan_id, result, runtime)
     if audience == "ci_plugin":
         return 200, _ci_plugin_payload(
             scan_id,
