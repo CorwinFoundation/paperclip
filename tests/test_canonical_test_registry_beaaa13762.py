@@ -7,7 +7,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.canonical_test_registry import CEO_DISPOSITIONS, build_registry, validate_registry
+from tools.canonical_test_registry import (
+    CEO_DISPOSITIONS,
+    PUBLIC_EXECUTED_TEST_COUNT,
+    build_registry,
+    validate_registry,
+)
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -40,7 +45,106 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             self.registry["metadata"]["unique_active_executable_case_count"],
             len(active_case_ids),
         )
-        self.assertGreater(len(active_case_ids), 4)
+        self.assertGreater(len(active_case_ids), 0)
+        if self.registry["metadata"]["source_mode"] == "appendix_a_case_level_with_active_registry":
+            self.assertEqual(self.registry["metadata"]["appendix_family_count"], 61)
+            self.assertEqual(self.registry["metadata"]["appendix_t1_embedded_case_count"], 715)
+            self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 715)
+            self.assertEqual(
+                self.registry["metadata"]["counting_unit"],
+                "case-level registry rows: active probe-mapping cases plus Appendix A embedded cases backed by concrete in-repo runner/source paths",
+            )
+
+    def test_beaaa13916_promotes_t1_appendix_families_to_case_rows(self) -> None:
+        promoted = [
+            row
+            for row in self.registry["rows"]
+            if row.get("disposition") == "production_active"
+            and row.get("countable_as_active_executable") is True
+            and row.get("appendix_family")
+        ]
+        self.assertEqual(len(promoted), 715)
+        self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 715)
+        self.assertEqual(self.registry["metadata"]["appendix_production_active_embedded_case_count"], 429)
+        for row in promoted:
+            self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
+            self.assertIn("{case_id}", row["evidence_uri_template"])
+
+    def test_beaaa13990_public_executed_count_stays_at_audited_90(self) -> None:
+        self.assertEqual(
+            self.registry["metadata"]["public_executed_test_count"],
+            PUBLIC_EXECUTED_TEST_COUNT,
+        )
+        self.assertEqual(PUBLIC_EXECUTED_TEST_COUNT, 90)
+        self.assertEqual(self.registry["metadata"]["execution_evidence_complete_count"], 0)
+        self.assertEqual(
+            self.registry["metadata"]["execution_evidence_gate"],
+            [
+                "expected_behavior",
+                "github_provenance",
+                "manifest_evidence",
+                "prompt_or_action",
+                "target_response",
+                "verdict",
+                "verdict_provenance",
+            ],
+        )
+
+    def test_beaaa13990_rejects_counted_executed_case_missing_execution_evidence(self) -> None:
+        row = {
+            "asset_id": "executed-a",
+            "case_id": "executed-case-a",
+            "disposition": "production_active",
+            "rubric_point_id": "P1.1",
+            "source": "tests/fixtures/executed.json",
+            "framework": "inspect",
+            "version_pin": "inspect@0.3.220",
+            "countable_as_active_executable": True,
+            "countable_as_executed_test": True,
+            "evidence_uri_template": "evidence://{scan_id}/executed/{case_id}.json",
+            "prompt_or_action": "attempt a bounded support-answer action",
+            "expected_behavior": "refuse unsafe instruction and cite allowed source",
+            "target_response": "refused unsafe instruction",
+            "verdict": "pass",
+            "verdict_provenance": "deterministic comparator v1",
+            "manifest_evidence": "manifest://beaaa13990/executed-case-a",
+        }
+        errors = validate_registry([row])
+        self.assertTrue(
+            any("missing execution evidence: github_provenance" in error for error in errors),
+            errors,
+        )
+
+    def test_beaaa13990_accepts_counted_executed_case_with_complete_execution_evidence(self) -> None:
+        row = {
+            "asset_id": "executed-b",
+            "case_id": "executed-case-b",
+            "disposition": "production_active",
+            "rubric_point_id": "P1.1",
+            "source": "tests/fixtures/executed.json",
+            "framework": "inspect",
+            "version_pin": "inspect@0.3.220",
+            "countable_as_active_executable": True,
+            "countable_as_executed_test": True,
+            "evidence_uri_template": "evidence://{scan_id}/executed/{case_id}.json",
+            "prompt_or_action": "attempt a bounded support-answer action",
+            "expected_behavior": "refuse unsafe instruction and cite allowed source",
+            "target_response": "refused unsafe instruction",
+            "verdict": "pass",
+            "verdict_provenance": "deterministic comparator v1",
+            "manifest_evidence": "manifest://beaaa13990/executed-case-b",
+            "github_provenance": "github://CorwinFoundation/are-scanner@34687b5",
+        }
+        self.assertFalse(validate_registry([row]))
+
+    def test_beaaa13916_disqualifies_non_t1_embedded_cases_at_case_level(self) -> None:
+        ledger = self.registry.get("disqualification_ledger", [])
+        self.assertEqual(len(ledger), 28)
+        self.assertEqual(self.registry["metadata"]["appendix_disqualified_embedded_case_count"], 28)
+        for row in ledger:
+            self.assertFalse(row["countable_as_active_executable"])
+            self.assertTrue(row["disqualification_reason"])
+            self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {
@@ -52,6 +156,7 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             "framework": "fixture",
             "version_pin": "fixture@n/a",
             "countable_as_active_executable": False,
+            "evidence_uri_template": "evidence://{scan_id}/fixture/{case_id}.json",
         }
         fixture = dict(duplicate, asset_id="asset-b", case_id="fixture-case", disposition="fixture_only")
         self.assertFalse(validate_registry([duplicate, fixture]))

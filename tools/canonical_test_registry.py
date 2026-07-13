@@ -31,6 +31,16 @@ CEO_DISPOSITIONS = {
     "roadmap",
 }
 COUNTABLE_DISPOSITION = "production_active"
+PUBLIC_EXECUTED_TEST_COUNT = 90
+EXECUTION_EVIDENCE_FIELDS = {
+    "prompt_or_action",
+    "expected_behavior",
+    "target_response",
+    "verdict",
+    "verdict_provenance",
+    "manifest_evidence",
+    "github_provenance",
+}
 REQUIRED_FIELDS = {
     "asset_id",
     "case_id",
@@ -40,6 +50,14 @@ REQUIRED_FIELDS = {
     "framework",
     "version_pin",
     "countable_as_active_executable",
+    "evidence_uri_template",
+}
+EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
+    "concrete_input_or_action",
+    "expected_oracle",
+    "recorded_target_response",
+    "verdict",
+    "github_provenance",
 }
 APPENDIX_A_CANDIDATES = (
     Path("IFA/scanner-test-registry-baseline-2026-07-13.csv"),
@@ -59,8 +77,8 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
     source_path = appendix_csv or default_appendix_a_path(repo)
     if source_path is not None:
         rows = _rows_from_appendix_csv(source_path, repo)
-        source_mode = "appendix_a_csv"
-        source_inputs = [str(_repo_relative(source_path, repo))]
+        source_mode = "appendix_a_case_level_with_active_registry"
+        source_inputs = [str(_repo_relative(source_path, repo)), "rubric/probe_mappings/*.yaml"]
     else:
         rows = _rows_from_probe_registry(repo)
         source_mode = "probe_registry_fallback_appendix_a_source_missing"
@@ -80,6 +98,7 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
     payload = {
         "metadata": {
             "ticket_ref": "BEAAA-13762",
+            "expansion_ticket_ref": "BEAAA-13916",
             "parent_ticket_ref": "BEAAA-13761",
             "registry_version": REGISTRY_VERSION,
             "contract": CONTRACT_VERSION,
@@ -91,9 +110,18 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
             "source_mode": source_mode,
             "source_inputs": source_inputs,
+            "counting_unit": "case-level registry rows: active probe-mapping cases plus Appendix A embedded cases backed by concrete in-repo runner/source paths",
             "ceo_dispositions": sorted(CEO_DISPOSITIONS),
             "countable_disposition": COUNTABLE_DISPOSITION,
             "unique_active_executable_case_count": len({row["case_id"] for row in active_rows}),
+            "appendix_family_count": _sum_int_field(rows, "appendix_family_row"),
+            "appendix_embedded_case_count_total": _sum_int_field(rows, "embedded_case_count"),
+            "appendix_t1_embedded_case_count": _sum_int_field(rows, "t1_embedded_case_count"),
+            "appendix_production_active_embedded_case_count": _sum_int_field(
+                rows, "production_active_embedded_case_count"
+            ),
+            "appendix_promoted_embedded_case_count": _sum_int_field(rows, "promoted_embedded_case"),
+            "appendix_disqualified_embedded_case_count": _sum_int_field(rows, "disqualified_embedded_case_count"),
             "active_test_registry_rows": len(active_test_rows),
             "active_test_registry_active_executable_count": sum(
                 1
@@ -103,8 +131,18 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             "active_registry_point_count": len(active_registry.get("active_rubric_points", []))
             if isinstance(active_registry, dict)
             else 0,
+            "public_executed_test_count": PUBLIC_EXECUTED_TEST_COUNT,
+            "execution_evidence_gate": sorted(EXECUTION_EVIDENCE_FIELDS),
+            "execution_evidence_complete_count": _execution_evidence_complete_count(rows),
+            "remaining_gap_to_1180": max(0, 1180 - len({row["case_id"] for row in active_rows})),
+            "over_1180_by": max(0, len({row["case_id"] for row in active_rows}) - 1180),
         },
         "rows": rows,
+        "disqualification_ledger": [
+            row
+            for row in rows
+            if row.get("disqualification_reason") and row.get("embedded_case_index")
+        ],
     }
     payload["metadata"]["registry_sha256"] = _sha256_json(rows)
     if errors:
@@ -135,7 +173,36 @@ def validate_registry(rows: Iterable[Mapping[str, Any]]) -> list[str]:
             if case_id in seen_active_case_ids:
                 errors.append(f"duplicate executable case_id: {case_id}")
             seen_active_case_ids.add(case_id)
+        if row.get("countable_as_executed_test") is True:
+            errors.extend(_execution_evidence_errors(row, index))
     return errors
+
+
+def _execution_evidence_errors(row: Mapping[str, Any], index: int) -> list[str]:
+    missing = sorted(field for field in EXECUTION_EVIDENCE_FIELDS if not _has_evidence(row, field))
+    if not missing:
+        return []
+    asset_id = str(row.get("asset_id") or f"row {index}")
+    return [
+        f"{asset_id} is countable_as_executed_test but missing execution evidence: "
+        + ", ".join(missing)
+    ]
+
+
+def _execution_evidence_complete_count(rows: Iterable[Mapping[str, Any]]) -> int:
+    return sum(
+        1
+        for row in rows
+        if row.get("countable_as_executed_test") is True
+        and not _execution_evidence_errors(row, 0)
+    )
+
+
+def _has_evidence(row: Mapping[str, Any], field: str) -> bool:
+    value = row.get(field)
+    if isinstance(value, str):
+        return bool(value.strip())
+    return value not in (None, "", [], {})
 
 
 def _rows_from_probe_registry(repo: Path) -> list[dict[str, Any]]:
@@ -166,8 +233,12 @@ def _rows_from_appendix_csv(path: Path, repo: Path) -> list[dict[str, Any]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         rows = []
+        rows.extend(_active_registry_rows(repo))
         for index, row in enumerate(reader):
-            disposition = _first_present(row, "disposition", "ceo_disposition", "status")
+            if "family" in row and "embedded_case_count" in row:
+                rows.extend(_appendix_rows(index, row, path, repo))
+                continue
+            disposition = _normalize_disposition(_first_present(row, "disposition", "ceo_disposition", "status"))
             case_id = _first_present(row, "case_id", "case_id_or_probe_id", "probe_id", "asset")
             normalized = {
                 "asset_id": _first_present(row, "asset_id", "stable_executable_key") or _csv_asset_id(index, row),
@@ -185,6 +256,216 @@ def _rows_from_appendix_csv(path: Path, repo: Path) -> list[dict[str, Any]]:
             }
             rows.append(normalized)
     return sorted(rows, key=lambda item: (item["disposition"], item["framework"], item["case_id"]))
+
+
+def _active_registry_rows(repo: Path) -> list[dict[str, Any]]:
+    active_rows = build_active_test_registry(repo / "rubric" / "probe_mappings")
+    rows: list[dict[str, Any]] = []
+    for row in active_rows:
+        is_countable = row.get("status") == "active" and row.get("production_runner_executable") is True
+        if is_countable:
+            disposition = COUNTABLE_DISPOSITION
+        elif row.get("status") == "active":
+            disposition = "executable_not_connected"
+        else:
+            disposition = _normalize_disposition(str(row.get("status") or "needs_validation"))
+        case_id = f"active_registry:{row.get('test_id')}:{row.get('case_id')}"
+        rows.append(
+            {
+                "asset_id": f"active_registry:{row.get('test_id')}:{row.get('case_id')}",
+                "case_id": case_id,
+                "disposition": disposition,
+                "rubric_point_id": str(row.get("risk_or_rubric_id") or "n/a"),
+                "source": str(row.get("source_pack") or "rubric/probe_mappings"),
+                "framework": str(row.get("runner") or "active_test_registry"),
+                "version_pin": str(row.get("version_pin") or "unpinned"),
+                "countable_as_active_executable": is_countable,
+                "source_bucket": "active_test_registry",
+                "reason": "normalized from tools.active_test_registry",
+                "owner": str(row.get("owner") or "scanner_engineer"),
+                "evidence_uri_template": str(
+                    row.get("evidence_uri_template")
+                    or "evidence://{scan_id}/{test_id}/{case_id}.json"
+                ),
+            }
+        )
+    return rows
+
+
+def _appendix_rows(index: int, row: Mapping[str, Any], path: Path, repo: Path) -> list[dict[str, Any]]:
+    family_row = _appendix_family_row(index, row, path, repo)
+    embedded_case_count = int(family_row["embedded_case_count"])
+    if embedded_case_count <= 0:
+        return [family_row]
+
+    qualifies, reason, evidence_by_index = _appendix_family_qualifies(row, repo, embedded_case_count)
+    if not qualifies:
+        family_row["countable_as_active_executable"] = False
+        family_row["disqualification_reason"] = reason
+        disqualified = []
+        for case_index in range(1, embedded_case_count + 1):
+            case_id = f"appendix_a:{family_row['case_id']}:case_{case_index:04d}"
+            disqualified.append(
+                {
+                    "asset_id": case_id,
+                    "case_id": case_id,
+                    "disposition": family_row["disposition"],
+                    "rubric_point_id": family_row["rubric_point_id"],
+                    "source": family_row["source"],
+                    "framework": family_row["framework"],
+                    "version_pin": family_row["version_pin"],
+                    "countable_as_active_executable": False,
+                    "source_bucket": family_row["source_bucket"],
+                    "reason": reason,
+                    "appendix_family": family_row["case_id"],
+                    "appendix_family_row": 0,
+                    "embedded_case_index": case_index,
+                    "disqualified_embedded_case_count": 1,
+                    "disqualification_reason": reason,
+                    "runner_path": family_row["runner_path"],
+                    "owner": "scanner_engineer",
+                    "evidence_uri_template": "evidence://{scan_id}/appendix_a/{case_id}.json",
+                }
+            )
+        return [family_row, *disqualified]
+
+    family = family_row["case_id"]
+    family_row["countable_as_active_executable"] = False
+    promoted = []
+    for case_index in range(1, embedded_case_count + 1):
+        case_id = f"appendix_a:{family}:case_{case_index:04d}"
+        evidence = evidence_by_index.get(case_index, {})
+        promoted.append(
+            {
+                "asset_id": case_id,
+                "case_id": case_id,
+                "disposition": COUNTABLE_DISPOSITION,
+                "rubric_point_id": family_row["rubric_point_id"],
+                "source": family_row["source"],
+                "framework": family_row["framework"],
+                "version_pin": family_row["version_pin"],
+                "countable_as_active_executable": True,
+                "source_bucket": family_row["source_bucket"],
+                "reason": "Appendix A embedded case promoted with target-bound execution evidence",
+                "appendix_family": family,
+                "appendix_family_row": 0,
+                "embedded_case_index": case_index,
+                "promoted_embedded_case": 1,
+                "runner_path": family_row["runner_path"],
+                "target_bound": True,
+                "execution_evidenced": True,
+                "execution_evidence_ref": evidence.get("evidence_ref", ""),
+                "github_provenance": evidence.get("github_provenance", ""),
+                "owner": "scanner_engineer",
+                "evidence_uri_template": "evidence://{scan_id}/appendix_a/{case_id}.json",
+            }
+        )
+    return [family_row, *promoted]
+
+
+def _appendix_family_row(index: int, row: Mapping[str, Any], path: Path, repo: Path) -> dict[str, Any]:
+    family = _first_present(row, "family") or f"appendix_a_row_{index}"
+    disposition_raw = _first_present(row, "proposed_registry_status", "disposition", "status")
+    disposition = _normalize_disposition(disposition_raw)
+    embedded_case_count_raw = _first_present(row, "embedded_case_count")
+    embedded_case_count = _safe_int(embedded_case_count_raw)
+    tier = _first_present(row, "tier")
+    is_t1 = tier.startswith("T1 ")
+    is_production_active = disposition == COUNTABLE_DISPOSITION
+    return {
+        "asset_id": f"appendix_a:{family}",
+        "case_id": family,
+        "disposition": disposition,
+        "rubric_point_id": _first_present(row, "risk_dimensions") or "n/a",
+        "source": _first_present(row, "source_file") or str(_repo_relative(path, repo)),
+        "framework": _first_present(row, "runner_path") or "appendix_a_family_ledger",
+        "version_pin": "appendix_a@2026-07-13",
+        "countable_as_active_executable": is_production_active,
+        "source_bucket": tier or "appendix_a",
+        "reason": _first_present(row, "source_status_field") or "",
+        "appendix_family_row": 1,
+        "embedded_case_count": embedded_case_count,
+        "embedded_case_count_raw": embedded_case_count_raw,
+        "t1_embedded_case_count": embedded_case_count if is_t1 else 0,
+        "production_active_embedded_case_count": embedded_case_count if is_production_active else 0,
+        "proposed_registry_status_raw": disposition_raw,
+        "runner_path": _first_present(row, "runner_path"),
+        "execution_evidence_file": _first_present(row, "execution_evidence_file"),
+        "owner": "scanner_engineer",
+        "evidence_uri_template": "evidence://{scan_id}/appendix_a/{case_id}.json",
+    }
+
+
+def _appendix_family_qualifies(
+    row: Mapping[str, Any],
+    repo: Path,
+    embedded_case_count: int,
+) -> tuple[bool, str, dict[int, dict[str, Any]]]:
+    tier = _first_present(row, "tier")
+    if not tier.startswith("T1 "):
+        return False, f"not T1 in-repo executable tier: {tier or 'missing tier'}", {}
+    runner_path = _first_present(row, "runner_path")
+    source_file = _first_present(row, "source_file")
+    if not runner_path or runner_path == "-":
+        return False, "missing concrete runner path", {}
+    if " + " in runner_path:
+        return False, f"runner path is composite, not a single concrete path: {runner_path}", {}
+    runner = repo / runner_path
+    source = repo / source_file
+    if not runner.exists():
+        return False, f"runner path does not exist in repo: {runner_path}", {}
+    if not source.exists():
+        return False, f"source mapping/corpus path does not exist in repo: {source_file}", {}
+
+    evidence_file = _first_present(row, "execution_evidence_file")
+    if not evidence_file:
+        return False, "missing execution_evidence_file with target-bound case evidence", {}
+    evidence_path = repo / evidence_file
+    if not evidence_path.exists():
+        return False, f"execution evidence file does not exist in repo: {evidence_file}", {}
+    evidence_by_index, evidence_error = _load_case_execution_evidence(evidence_path, embedded_case_count)
+    if evidence_error:
+        return False, evidence_error, evidence_by_index
+    return True, "", evidence_by_index
+
+
+def _load_case_execution_evidence(
+    path: Path,
+    embedded_case_count: int,
+) -> tuple[dict[int, dict[str, Any]], str]:
+    evidence_by_index: dict[int, dict[str, Any]] = {}
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError as exc:
+                return evidence_by_index, f"invalid execution evidence JSONL at line {line_number}: {exc.msg}"
+            case_index = _safe_int(str(payload.get("embedded_case_index", "")))
+            if case_index <= 0:
+                return evidence_by_index, f"execution evidence line {line_number} missing positive embedded_case_index"
+            missing = sorted(
+                field
+                for field in EXECUTION_EVIDENCE_REQUIRED_FIELDS
+                if payload.get(field) in (None, "")
+            )
+            if missing:
+                return evidence_by_index, (
+                    f"execution evidence line {line_number} missing required fields: {', '.join(missing)}"
+                )
+            evidence_by_index[case_index] = payload
+    missing_indexes = [
+        index
+        for index in range(1, embedded_case_count + 1)
+        if index not in evidence_by_index
+    ]
+    if missing_indexes:
+        return evidence_by_index, (
+            "execution evidence missing embedded case indexes: "
+            + ",".join(str(index) for index in missing_indexes[:10])
+        )
+    return evidence_by_index, ""
 
 
 def _mark_duplicate_executable_case_ids(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -227,6 +508,24 @@ def _first_present(row: Mapping[str, Any], *names: str) -> str:
 
 def _truthy(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _normalize_disposition(value: str) -> str:
+    normalized = value.strip()
+    if normalized.startswith("production_active"):
+        return COUNTABLE_DISPOSITION
+    return normalized
+
+
+def _safe_int(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _sum_int_field(rows: Iterable[Mapping[str, Any]], field: str) -> int:
+    return sum(_safe_int(str(row.get(field, 0))) for row in rows)
 
 
 def _framework_pin(row: Mapping[str, Any]) -> str:
