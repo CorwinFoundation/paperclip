@@ -10,6 +10,8 @@ from typing import Any
 
 import yaml
 
+from tools.active_test_registry import build_registry as build_active_test_registry
+
 
 REPO_DEFAULT = Path.cwd()
 PY_YAML_PIN = "6.0.2"
@@ -111,7 +113,7 @@ def _mapping_rows(repo: Path) -> list[dict[str, Any]]:
                     "case_id_or_probe_id": probe_id,
                     "rubric_point_id": dim,
                     "mode": "mapping",
-                    "source": str(path.relative_to(repo)),
+                    "source": path.relative_to(repo).as_posix(),
                     "countable_as_executable": False,
                     "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
                 }
@@ -133,11 +135,11 @@ def _fixture_rows(repo: Path) -> list[dict[str, Any]]:
                     "bucket": "fixture_test_only",
                     "framework": "fixture",
                     "framework_version": "n/a",
-                    "corpus_or_family": str(root.relative_to(repo)),
+                    "corpus_or_family": root.relative_to(repo).as_posix(),
                     "case_id_or_probe_id": str(path.relative_to(root)),
                     "rubric_point_id": "n/a",
                     "mode": "fixture",
-                    "source": str(path.relative_to(repo)),
+                    "source": path.relative_to(repo).as_posix(),
                     "countable_as_executable": False,
                     "reason": "fixture/test asset is not a production full-scan execution row",
                 }
@@ -157,16 +159,63 @@ def _runnable_today_rows(repo: Path) -> list[dict[str, Any]]:
     for dim, upstream_task_id in sorted(dims.items()):
         rows.append(
             {
-                "bucket": "runnable_today",
+                "bucket": "inactive_deferred",
                 "framework": "inspect_ai",
                 "framework_version": "0.3.220",
                 "corpus_or_family": "inspect_section1_v0",
                 "case_id_or_probe_id": upstream_task_id,
                 "rubric_point_id": dim,
                 "mode": "customer_agent_walker_v0.3",
-                "source": str(wrap.relative_to(repo)),
+                "source": wrap.relative_to(repo).as_posix(),
+                "countable_as_executable": False,
+                "reason": "legacy smoke wrapper is not part of the production full-scan execution path",
+            }
+        )
+    loop_scorer = repo / "harness" / "bench" / "loop_stability_budget_guard.py"
+    if loop_scorer.exists():
+        rows.append(
+            {
+                "bucket": "inactive_deferred",
+                "framework": "backbond_loop_stability_budget_guard",
+                "framework_version": "0.1",
+                "corpus_or_family": "loop_stability_budget_guard",
+                "case_id_or_probe_id": "loop_stability_budget_guard_v0_1",
+                "rubric_point_id": "OPS.LOOP_STABILITY.BUDGET_GUARD",
+                "mode": "deterministic_bench_worker_v0.1",
+                "source": loop_scorer.relative_to(repo).as_posix(),
+                "countable_as_executable": False,
+                "reason": "conditional benchmark requires pre-existing loop evidence and is not invoked by the production full scan",
+                "evidence_uri_template": "evidence://{scan_id}/loop_stability_budget_guard/loop_stability_budget_guard_v0_1.json",
+                "worker_runner": "bench_wrapper",
+                "version_pin": "backbond_loop_stability_budget_guard@0.1",
+            }
+        )
+    return rows
+
+
+def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for row in build_active_test_registry(repo / "rubric" / "probe_mappings"):
+        if row.get("status") != "active" or row.get("production_runner_executable") is not True:
+            continue
+        version_pin = str(row.get("version_pin") or "")
+        _, _, framework_version = version_pin.partition("@")
+        source = str(row.get("source_pack") or "")
+        rows.append(
+            {
+                "bucket": "runnable_today",
+                "framework": str(row.get("runner") or row.get("test_id") or "unknown"),
+                "framework_version": framework_version or "unpinned",
+                "corpus_or_family": str(row.get("test_id") or ""),
+                "case_id_or_probe_id": str(row.get("case_id") or ""),
+                "rubric_point_id": str(row.get("risk_or_rubric_id") or ""),
+                "mode": "production_worker_registry_v0.1",
+                "source": source,
                 "countable_as_executable": True,
-                "reason": "current customer-true walker WRAP_MODULES emits this row",
+                "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+                "evidence_uri_template": str(row.get("evidence_uri_template") or "evidence://{scan_id}/{test_id}/{case_id}.json"),
+                "worker_runner": str(row.get("runner") or ""),
+                "version_pin": version_pin,
             }
         )
     return rows
@@ -177,7 +226,7 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
         raise RuntimeError(f"PyYAML=={PY_YAML_PIN} required for deterministic registry parsing")
     repo_head = _repo_head(repo)
     active_points = _active_rubric_points(repo)
-    rows = _runnable_today_rows(repo) + _mapping_rows(repo) + _fixture_rows(repo)
+    rows = _runnable_today_rows(repo) + _active_test_executable_rows(repo) + _mapping_rows(repo) + _fixture_rows(repo)
     unique: dict[str, dict[str, Any]] = {}
     for row in rows:
         row["stable_executable_key"] = _stable_key(row)
@@ -215,6 +264,7 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "active_rubric_point_count": len(active_points),
             "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
             "classification": "rule-execution: refactor/metadata registry that does not touch scoring behavior",
+            "remediation_ticket_ref": "BEAAA-13739",
             "parser_dependency": f"PyYAML=={PY_YAML_PIN}",
             "stdlib_dependencies": ["pathlib", "json", "csv", "hashlib"],
             "open_source_first_constraint": "Parse existing corpus/mapping/harness/scanner assets as sources; only BackBond stable key, disposition buckets, and fail-closed reasons are hand-rolled.",

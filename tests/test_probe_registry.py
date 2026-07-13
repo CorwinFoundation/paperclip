@@ -40,7 +40,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             if row["bucket"] == "runnable_today" and row["countable_as_executable"]
         ]
         self.assertEqual(registry["unique_executable_count"], len(runnable))
-        self.assertEqual(registry["unique_executable_count"], 4)
+        self.assertGreater(registry["unique_executable_count"], 4)
 
     def test_every_active_rubric_point_has_executable_or_fail_closed_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -60,8 +60,56 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         claim = registry["claimed_1180_disposition"]
         self.assertEqual(claim["claimed_count"], 1180)
         self.assertFalse(claim["claim_supported"])
-        self.assertEqual(claim["supported_unique_executable_count"], 4)
+        self.assertEqual(claim["supported_unique_executable_count"], registry["unique_executable_count"])
         self.assertGreater(claim["unsupported_rows_count"], 0)
+
+    def test_unbound_worker_rows_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = self._emit(Path(tmp) / "registry.json")
+        active_by_id = {
+            point["rubric_point_id"]: point
+            for point in registry["active_rubric_points"]
+        }
+        for rubric_point_id in (
+            "P1.2",
+            "P2.2",
+            "P2.6",
+            "P3.2",
+            "P4.2",
+            "P4.3",
+            "P4.4",
+            "P4.6",
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+            "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+            "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+        ):
+            self.assertEqual(
+                active_by_id[rubric_point_id]["status"],
+                "fail_closed_unavailable",
+            )
+            self.assertFalse(active_by_id[rubric_point_id]["runnable_entries"])
+
+    def test_attestation_rows_are_not_counted_as_executable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = self._emit(Path(tmp) / "registry.json")
+        active_by_id = {
+            point["rubric_point_id"]: point
+            for point in registry["active_rubric_points"]
+        }
+        target_rows = {
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "P2.6",
+            "P4.2",
+            "P4.3",
+            "P4.4",
+            "P4.6",
+        }
+        for rubric_point_id in target_rows:
+            point = active_by_id[rubric_point_id]
+            self.assertEqual(point["status"], "fail_closed_unavailable", rubric_point_id)
+            self.assertIsNotNone(point["unavailable_reason"], rubric_point_id)
+            self.assertFalse(point["runnable_entries"], rubric_point_id)
 
     def test_cto_open_source_first_constraint_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

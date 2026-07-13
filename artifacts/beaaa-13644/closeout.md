@@ -13,6 +13,15 @@ prior_version: null
 self_audit_passed: true
 escalations_noted: ["CTO escalation required: required N=5 gate reports >1 score deltas for G3, M1, and M3 despite no scoring-path edits in this ticket."]
 ---
+## 2026-07-13 execution-layer correction
+
+This historical closeout is superseded for count purposes by the regenerated machine-readable artifacts in this directory and `docs/runbooks/full-scan-execution-layer.md`.
+
+- Registry rows: 280
+- Active production-executable cases: 90
+- Quarantined/non-executable rows: 190
+- Delta to the unsupported historic 1,180 claim: -1,090
+
 
 # BEAAA-13644 Active-Test Registry Closeout
 

@@ -51,6 +51,52 @@ NON_EXECUTABLE_PACK_HINTS = (
     "mitigation_evidence",
     "eval_coverage_ledger",
 )
+EXECUTABLE_ATTESTATION_PACKS = {
+    "mitigation_evidence.yaml",
+    "p4_incident_response.yaml",
+    "p4_kill_switch.yaml",
+    "p4_owner_matrix.yaml",
+    "p4_version_control.yaml",
+    "pii_attestation.yaml",
+}
+SYNTHETIC_ATTESTATION_CASES = {
+    "pii_attestation.yaml": {
+        "case_id": "pii_attestation.evidence_pack",
+        "pillar": "GOVERNANCE",
+        "category": "pii_attestation",
+        "risk_or_rubric_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
+        "underwriting_trigger": "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    },
+}
+
+# These are the case families whose in-repo adapters accept a real target
+# runner and a real judge runner today. A mapping row is not executable just
+# because it names Garak, AgentDojo, promptfoo, or another framework. The
+# execution gate below is deliberately narrow: a case becomes active only
+# after the standard scan can deliver its payload to the subject and derive a
+# verdict from the response.
+BOUND_SUBJECT_CASE_FAMILIES = {
+    "p1_1_factuality_golden",
+    "p1_3_consistency_golden",
+    "p1_4_refusal_golden",
+    "p1_5_calibration_golden",
+}
+
+
+def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
+    if benchmark not in BOUND_SUBJECT_CASE_FAMILIES:
+        return False
+    if not (probe.get("probe_id") or probe.get("id")):
+        return False
+    if benchmark == "p1_1_factuality_golden":
+        return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
+    if benchmark == "p1_3_consistency_golden":
+        return bool(probe.get("prompt_a") and probe.get("prompt_b"))
+    if benchmark == "p1_4_refusal_golden":
+        return bool(probe.get("prompt") and probe.get("expected_action"))
+    if benchmark == "p1_5_calibration_golden":
+        return bool(probe.get("prompt") and probe.get("gold_answer"))
+    return False
 
 
 @dataclass(frozen=True)
@@ -81,6 +127,8 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 def _classify_runner(source_pack: str, benchmark: str) -> tuple[str, str, bool]:
     lower = f"{source_pack} {benchmark}".lower()
+    if Path(source_pack).name in EXECUTABLE_ATTESTATION_PACKS:
+        return "governance_attestation_worker", "attestation", True
     if any(hint in lower for hint in NON_EXECUTABLE_PACK_HINTS):
         return "attestation_substrate", "attestation", False
     if "live" in lower or "agentdojo" in lower or "tool_misuse" in lower:
@@ -92,6 +140,31 @@ def _classify_runner(source_pack: str, benchmark: str) -> tuple[str, str, bool]:
     return "bench_wrapper", "corpus_probe", True
 
 
+def _probe_bindings(data: dict[str, Any]) -> list[dict[str, str]]:
+    bindings: list[dict[str, str]] = []
+    for mapping in data.get("probes_map") or []:
+        pillar = mapping.get("pillar")
+        rubric_id = mapping.get("dim") or mapping.get("rubric_point_id")
+        if not (pillar and rubric_id):
+            continue
+        bindings.append(
+            {
+                "pillar": str(pillar),
+                "rubric_id": str(rubric_id),
+                "category": str(mapping.get("category") or ""),
+                "trigger": str(mapping.get("trigger_id") or rubric_id),
+            }
+        )
+    return bindings
+
+
+def _repo_relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
@@ -99,25 +172,20 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
         benchmark = str(data.get("benchmark") or path.stem)
         version = str(data.get("version") or "unpinned")
         runner, case_class, executable = _classify_runner(path.name, benchmark)
-        for probe in data.get("probes") or []:
-            pillar = probe.get("pillar")
-            rubric_id = probe.get("dim")
-            probe_id = probe.get("probe_id")
-            if not (pillar and rubric_id and probe_id):
-                continue
-            category = str(probe.get("category") or benchmark)
-            trigger = str(probe.get("trigger_id") or rubric_id)
+        map_bindings = _probe_bindings(data)
+        synthetic = SYNTHETIC_ATTESTATION_CASES.get(path.name)
+        if synthetic and not data.get("probes"):
             rows.append(
                 RegistryRow(
                     test_id=benchmark,
-                    case_id=str(probe_id),
-                    status="active",
-                    pillar=str(pillar),
-                    category=category,
-                    risk_or_rubric_id=str(rubric_id),
-                    source_pack=str(path.relative_to(REPO_ROOT)),
+                    case_id=synthetic["case_id"],
+                    status="quarantined",
+                    pillar=synthetic["pillar"],
+                    category=synthetic["category"],
+                    risk_or_rubric_id=synthetic["risk_or_rubric_id"],
+                    source_pack=_repo_relative(path),
                     runner=runner,
-                    underwriting_trigger=trigger,
+                    underwriting_trigger=synthetic["underwriting_trigger"],
                     required_or_optional="required",
                     version_pin=f"{benchmark}@{version}",
                     expected_result="deterministic verdict mapped to a rubric raw score",
@@ -125,9 +193,57 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     owner="scanner_engineer",
                     last_verified_at=LAST_VERIFIED_AT,
                     case_class=case_class,
-                    production_runner_executable=executable,
+                    production_runner_executable=False,
                 )
             )
+        for probe in data.get("probes") or []:
+            probe_id = probe.get("probe_id") or probe.get("id")
+            if not probe_id:
+                continue
+            direct_pillar = probe.get("pillar")
+            direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
+            if direct_pillar and direct_rubric_id:
+                bindings = [
+                    {
+                        "pillar": str(direct_pillar),
+                        "rubric_id": str(direct_rubric_id),
+                        "category": str(probe.get("category") or benchmark),
+                        "trigger": str(probe.get("trigger_id") or direct_rubric_id),
+                    }
+                ]
+            else:
+                bindings = [
+                    {
+                        **binding,
+                        "category": str(probe.get("category") or binding["category"] or benchmark),
+                    }
+                    for binding in map_bindings
+                ]
+            for binding in bindings:
+                bound_execution = executable and _case_has_bound_execution(
+                    benchmark, probe
+                )
+                rows.append(
+                    RegistryRow(
+                        test_id=benchmark,
+                        case_id=str(probe_id),
+                        status="active" if bound_execution else "quarantined",
+                        pillar=binding["pillar"],
+                        category=binding["category"],
+                        risk_or_rubric_id=binding["rubric_id"],
+                        source_pack=_repo_relative(path),
+                        runner=runner,
+                        underwriting_trigger=binding["trigger"],
+                        required_or_optional="required",
+                        version_pin=f"{benchmark}@{version}",
+                        expected_result="deterministic verdict mapped to a rubric raw score",
+                        evidence_uri_template="evidence://{scan_id}/{test_id}/{case_id}.json",
+                        owner="scanner_engineer",
+                        last_verified_at=LAST_VERIFIED_AT,
+                        case_class=case_class,
+                        production_runner_executable=bound_execution,
+                    )
+                )
     return [asdict(row) for row in rows]
 
 
