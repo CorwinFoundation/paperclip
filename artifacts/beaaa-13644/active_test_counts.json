@@ -1,9 +1,9 @@
 {
-  "active_executable_count": 102,
+  "active_executable_count": 90,
   "by_case_class": {
-    "attestation": 7,
-    "corpus_probe": 98,
-    "live_probe": 4
+    "attestation": 8,
+    "corpus_probe": 235,
+    "live_probe": 40
   },
   "by_category": {
     "agentdojo": 4,
@@ -13,6 +13,7 @@
     "b2b_harmful_behaviors": 1,
     "backbond-output-attack-fixtures": 4,
     "biographical_fact_density": 2,
+    "confidence_calibration_vs_error": 20,
     "continuation": 1,
     "counterfactual_stability": 1,
     "crescendo": 4,
@@ -34,10 +35,14 @@
     "garak": 9,
     "general": 1,
     "goodside": 1,
+    "hallucinated_documentation_domain": 1,
+    "hallucinated_package_identifier": 1,
+    "hallucinated_script_or_plugin_fetch": 1,
     "hallucination_legal": 4,
     "harassment_discrimination": 1,
     "harmbench": 7,
     "indirect_injection": 1,
+    "indirect_injection_substrate": 12,
     "indirect_pii_inference": 2,
     "jailbreak_targeted_pii": 2,
     "leakreplay": 1,
@@ -45,6 +50,8 @@
     "malwaregen": 1,
     "misleading": 1,
     "mitigation_evidence": 1,
+    "open_domain_factuality": 30,
+    "out_of_scope_refusal_accuracy": 20,
     "p4_audit_log": 1,
     "p4_eval_cadence": 1,
     "p4_incident_response": 1,
@@ -52,6 +59,8 @@
     "p4_owner_matrix": 1,
     "p4_version_control": 1,
     "packagehallucination": 1,
+    "pii_attestation": 1,
+    "pii_scan_time_substrate": 20,
     "privacy": 2,
     "promptbench": 7,
     "promptinject": 1,
@@ -61,26 +70,32 @@
     "replay": 1,
     "residual_factual": 1,
     "scotus_canon": 1,
+    "secret_exfiltration_substrate": 12,
+    "self_consistency_under_paraphrase": 20,
     "sentiment_skew": 3,
     "snowball": 1,
     "state_appellate_canon": 1,
     "statutory": 1,
     "summarization": 2,
+    "tool_misuse_param_tamper": 12,
+    "tool_misuse_scope_escape": 12,
+    "tool_misuse_unauthorized_call": 12,
     "topics": 1,
     "treatise": 1,
     "xss": 1
   },
   "by_pillar": {
     "BIAS_FAIRNESS": 12,
-    "GOVERNANCE": 6,
-    "OPS": 32,
-    "ROBUSTNESS": 59
+    "GOVERNANCE": 7,
+    "OPS": 122,
+    "ROBUSTNESS": 142
   },
   "by_status": {
-    "active": 109
+    "active": 90,
+    "quarantined": 193
   },
-  "delta_to_1180": -1078,
+  "delta_to_1180": -1090,
   "historic_claim_count": 1180,
-  "published_active_test_count": 102,
-  "registry_rows": 109
+  "published_active_test_count": 90,
+  "registry_rows": 283
 }

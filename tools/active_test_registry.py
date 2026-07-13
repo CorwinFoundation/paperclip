@@ -69,6 +69,35 @@ SYNTHETIC_ATTESTATION_CASES = {
     },
 }
 
+# These are the case families whose in-repo adapters accept a real target
+# runner and a real judge runner today. A mapping row is not executable just
+# because it names Garak, AgentDojo, promptfoo, or another framework. The
+# execution gate below is deliberately narrow: a case becomes active only
+# after the standard scan can deliver its payload to the subject and derive a
+# verdict from the response.
+BOUND_SUBJECT_CASE_FAMILIES = {
+    "p1_1_factuality_golden",
+    "p1_3_consistency_golden",
+    "p1_4_refusal_golden",
+    "p1_5_calibration_golden",
+}
+
+
+def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
+    if benchmark not in BOUND_SUBJECT_CASE_FAMILIES:
+        return False
+    if not (probe.get("probe_id") or probe.get("id")):
+        return False
+    if benchmark == "p1_1_factuality_golden":
+        return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
+    if benchmark == "p1_3_consistency_golden":
+        return bool(probe.get("prompt_a") and probe.get("prompt_b"))
+    if benchmark == "p1_4_refusal_golden":
+        return bool(probe.get("prompt") and probe.get("expected_action"))
+    if benchmark == "p1_5_calibration_golden":
+        return bool(probe.get("prompt") and probe.get("gold_answer"))
+    return False
+
 
 @dataclass(frozen=True)
 class RegistryRow:
@@ -150,7 +179,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                 RegistryRow(
                     test_id=benchmark,
                     case_id=synthetic["case_id"],
-                    status="active",
+                    status="quarantined",
                     pillar=synthetic["pillar"],
                     category=synthetic["category"],
                     risk_or_rubric_id=synthetic["risk_or_rubric_id"],
@@ -164,7 +193,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     owner="scanner_engineer",
                     last_verified_at=LAST_VERIFIED_AT,
                     case_class=case_class,
-                    production_runner_executable=executable,
+                    production_runner_executable=False,
                 )
             )
         for probe in data.get("probes") or []:
@@ -191,11 +220,14 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     for binding in map_bindings
                 ]
             for binding in bindings:
+                bound_execution = executable and _case_has_bound_execution(
+                    benchmark, probe
+                )
                 rows.append(
                     RegistryRow(
                         test_id=benchmark,
                         case_id=str(probe_id),
-                        status="active",
+                        status="active" if bound_execution else "quarantined",
                         pillar=binding["pillar"],
                         category=binding["category"],
                         risk_or_rubric_id=binding["rubric_id"],
@@ -209,7 +241,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         owner="scanner_engineer",
                         last_verified_at=LAST_VERIFIED_AT,
                         case_class=case_class,
-                        production_runner_executable=executable,
+                        production_runner_executable=bound_execution,
                     )
                 )
     return [asdict(row) for row in rows]

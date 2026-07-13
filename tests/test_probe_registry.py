@@ -63,7 +63,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         self.assertEqual(claim["supported_unique_executable_count"], registry["unique_executable_count"])
         self.assertGreater(claim["unsupported_rows_count"], 0)
 
-    def test_beaaa13739_worker_rows_make_active_points_executable(self) -> None:
+    def test_unbound_worker_rows_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = self._emit(Path(tmp) / "registry.json")
         active_by_id = {
@@ -84,10 +84,13 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
             "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
         ):
-            self.assertEqual(active_by_id[rubric_point_id]["status"], "executable")
-            self.assertTrue(active_by_id[rubric_point_id]["runnable_entries"])
+            self.assertEqual(
+                active_by_id[rubric_point_id]["status"],
+                "fail_closed_unavailable",
+            )
+            self.assertFalse(active_by_id[rubric_point_id]["runnable_entries"])
 
-    def test_beaaa13740_remaining_attestation_rows_are_not_fail_closed(self) -> None:
+    def test_attestation_rows_are_not_counted_as_executable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = self._emit(Path(tmp) / "registry.json")
         active_by_id = {
@@ -104,11 +107,11 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         }
         for rubric_point_id in target_rows:
             point = active_by_id[rubric_point_id]
-            self.assertEqual(point["status"], "executable", rubric_point_id)
-            self.assertIsNone(point["unavailable_reason"], rubric_point_id)
-            self.assertTrue(point["runnable_entries"], rubric_point_id)
+            self.assertEqual(point["status"], "fail_closed_unavailable", rubric_point_id)
+            self.assertIsNotNone(point["unavailable_reason"], rubric_point_id)
+            self.assertFalse(point["runnable_entries"], rubric_point_id)
 
-    def test_beaaa13741_ops_loop_stability_row_is_executable(self) -> None:
+    def test_conditional_loop_stability_row_is_not_counted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = self._emit(Path(tmp) / "registry.json")
         active_by_id = {
@@ -118,14 +121,14 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         loop_row = active_by_id["OPS.LOOP_STABILITY.BUDGET_GUARD"]
 
         self.assertEqual(loop_row["pillar"], "OPS")
-        self.assertEqual(loop_row["status"], "executable")
-        self.assertIsNone(loop_row["unavailable_reason"])
-        self.assertTrue(loop_row["runnable_entries"])
+        self.assertEqual(loop_row["status"], "fail_closed_unavailable")
+        self.assertIsNotNone(loop_row["unavailable_reason"])
+        self.assertFalse(loop_row["runnable_entries"])
 
         executable_rows = [
             row for row in registry["rows"]
             if row["rubric_point_id"] == "OPS.LOOP_STABILITY.BUDGET_GUARD"
-            and row["bucket"] == "runnable_today"
+            and row["bucket"] == "inactive_deferred"
         ]
         self.assertEqual(len(executable_rows), 1)
         self.assertEqual(
@@ -136,6 +139,8 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             executable_rows[0]["source"],
             "harness/bench/loop_stability_budget_guard.py",
         )
+
+        self.assertFalse(executable_rows[0]["countable_as_executable"])
 
     def test_cto_open_source_first_constraint_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

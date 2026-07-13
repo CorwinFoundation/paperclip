@@ -1,5 +1,5 @@
 {
-  "active_registry_rows": 283,
+  "active_registry_rows": 90,
   "artifact_metadata": {
     "artifact_type": "other",
     "canonical_terms_only": true,
@@ -32,9 +32,9 @@
   "release_blockers": [],
   "workers": [
     {
-      "active_registry_rows": 40,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:64627b348c83486dea95d27c7bd6599d0472bc56cca2c768c5288f7e970f5309",
+      "corpus_hash": "sha256:7ea2fd48ce2090a16c04574130796c9bcbe5f84d859a0c46248d2933c09e8529",
       "corpus_sources": [
         "requirements.txt",
         "scanners/agentdojo_runner.py",
@@ -72,7 +72,7 @@
     {
       "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:e37c9f732a4ef7cf59d7093c23839d6c0b8d902c09cba34db69dd1931b3d2431",
+      "corpus_hash": "sha256:09dd842eddfdd4e5c49e351e2a9f53b3976c2a15581acdd04a0a4729434fcf7b",
       "corpus_sources": [
         "harness/bench/ailuminate.py"
       ],
@@ -103,9 +103,9 @@
       "worker_id": "ailuminate"
     },
     {
-      "active_registry_rows": 8,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:b22ccb7a9d71202cc80b8d2fff1916b824fc6ff43d1a9c1fa23d4c71e48f9f46",
+      "corpus_hash": "sha256:98f199141c611f863576954035798c431474105bc6eb0b9e3a0161d7d6a020e7",
       "corpus_sources": [
         "requirements.txt",
         "rubric/probe_mappings/bbq.yaml",
@@ -149,9 +149,9 @@
       "worker_id": "fairness_custom"
     },
     {
-      "active_registry_rows": 27,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:c7576e94ddd9e3a49a1b518392e57a7508ae801f724f55132dc9695ef4184a2f",
+      "corpus_hash": "sha256:971a6ae2ec175e434d807206e423fb862fc6d5772fa7ec8c696ac4bf3c0597ba",
       "corpus_sources": [
         "requirements.txt",
         "rubric/probe_mappings/garak.yaml",
@@ -184,9 +184,9 @@
       "worker_id": "garak"
     },
     {
-      "active_registry_rows": 8,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:f535c49569075b7d6f768b8f5a5ff8b8fb66a24e3389c50a4236e2c71eff0b6f",
+      "corpus_hash": "sha256:9911cbb2f8bba61e0cba935f9a4dedb6ccb6b528e55cf44d40b3d02e8fe70b56",
       "corpus_sources": [
         "requirements.txt",
         "rubric/probe_mappings/eval_coverage_breadth.yaml",
@@ -226,9 +226,9 @@
       "worker_id": "governance_attestation"
     },
     {
-      "active_registry_rows": 100,
+      "active_registry_rows": 90,
       "blocker_reason": "",
-      "corpus_hash": "sha256:80b1339d7f060f0b283db48f1972a87cf0e2395a84cfee13dd560a0496279538",
+      "corpus_hash": "sha256:9a310ad3f8aaa2470f9af98b820c6d9815f5ee987ead6cd6643f2aca808123d9",
       "corpus_sources": [
         "requirements.txt",
         "scanners/inspect_runner.py",
@@ -268,9 +268,9 @@
       "worker_id": "inspect"
     },
     {
-      "active_registry_rows": 21,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:d0fd9c93377e394fc01e2d3ad3d4baad86cffd86efb69414b835e3cc42122416",
+      "corpus_hash": "sha256:a669db729f0ef5f247a35d70dfe6741d5caa6c6a3c7ff760aa8c375c3d14f62e",
       "corpus_sources": [
         "requirements.txt",
         "rubric/probe_mappings/pii_attestation.yaml",
@@ -309,9 +309,9 @@
       "worker_id": "llm_guard_presidio"
     },
     {
-      "active_registry_rows": 74,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:ba988751c878efc17638bfcd1267d255535141a165b46b0d4980c82bb323e5b3",
+      "corpus_hash": "sha256:959c721ca34a13dbfa7af24989693ac5b57e231a1053874a28c65ab1d397dd92",
       "corpus_sources": [
         "requirements.txt",
         "rubric/probe_mappings/advbench.yaml",
@@ -351,9 +351,9 @@
       "worker_id": "promptfoo"
     },
     {
-      "active_registry_rows": 5,
+      "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:e8d51b585ab621b18100b2971f5338e5e77a4c83f2fea5fd41996636f3a768d7",
+      "corpus_hash": "sha256:6992668c038b236e81058bffe3a3a0ae98fe7076af8efe8c7d2ad2229a1ca0fe",
       "corpus_sources": [
         "requirements.txt",
         "scanners/pyrit_runner.py",
@@ -388,7 +388,7 @@
     {
       "active_registry_rows": 0,
       "blocker_reason": "",
-      "corpus_hash": "sha256:5617ffa2ec18eabe310b75168253fe1a043d20fd1b4543f6a6192ae5b0da6fb8",
+      "corpus_hash": "sha256:ee5587dd4943741ad1739137431b1e2f3c8b6f1498255849f3d7a20904ec862d",
       "corpus_sources": [
         "requirements/eval_pins.txt"
       ],
