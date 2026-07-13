@@ -10,6 +10,7 @@ WORKDIR /app
 COPY api /app/api
 COPY harness /app/harness
 COPY rubric /app/rubric
+COPY scanners /app/scanners
 COPY tools/active_test_registry.py /app/tools/active_test_registry.py
 COPY tools/active_test_registry_claims.json /app/tools/active_test_registry_claims.json
 COPY tools/framework_worker_registry.py /app/tools/framework_worker_registry.py
