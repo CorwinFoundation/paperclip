@@ -1,0 +1,11 @@
+{
+  "active_case_count": 281,
+  "attempted_case_count": 281,
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "errors": [],
+  "evidenced_case_count": 281,
+  "expected_case_count": 281,
+  "passed": true,
+  "report_version": "full-scan-ci-vanish-gate/v0.1",
+  "terminal_case_count": 281
+}

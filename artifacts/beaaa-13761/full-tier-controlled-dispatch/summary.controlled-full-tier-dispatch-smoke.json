@@ -1,0 +1,42 @@
+{
+  "active_family_counts": {
+    "GOVERNANCE.PII.HANDLING_ATTESTATION": 1,
+    "P1.1": 43,
+    "P1.2": 6,
+    "P1.3": 29,
+    "P1.4": 21,
+    "P1.5": 21,
+    "P1.6": 1,
+    "P2.1": 2,
+    "P2.2": 1,
+    "P2.3": 1,
+    "P2.4": 1,
+    "P2.5": 6,
+    "P2.6": 1,
+    "P3.1": 33,
+    "P3.2": 25,
+    "P3.3": 19,
+    "P3.5": 4,
+    "P3.6": 5,
+    "P4.2": 1,
+    "P4.3": 1,
+    "P4.4": 1,
+    "P4.5": 1,
+    "P4.6": 1,
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 20,
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": 12,
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": 24
+  },
+  "agent_id": "controlled.full-tier.dispatch-smoke.v0",
+  "attempted": 281,
+  "evidenced": 0,
+  "expected": 281,
+  "job_id": "7c949939-b429-4b4a-aacf-74afcfec5cb6",
+  "manifest_hash": "sha256:327b87d206d0c25dfdeb88284c4abf8f772cff1668aec43ecc97a386671f808b",
+  "release_gate_errors": [],
+  "release_gate_passed": true,
+  "status_counts": {
+    "incomplete": 281
+  },
+  "terminal": 281
+}

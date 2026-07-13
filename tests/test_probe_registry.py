@@ -40,7 +40,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             if row["bucket"] == "runnable_today" and row["countable_as_executable"]
         ]
         self.assertEqual(registry["unique_executable_count"], len(runnable))
-        self.assertEqual(registry["unique_executable_count"], 4)
+        self.assertGreater(registry["unique_executable_count"], 4)
 
     def test_every_active_rubric_point_has_executable_or_fail_closed_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -60,8 +60,82 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         claim = registry["claimed_1180_disposition"]
         self.assertEqual(claim["claimed_count"], 1180)
         self.assertFalse(claim["claim_supported"])
-        self.assertEqual(claim["supported_unique_executable_count"], 4)
+        self.assertEqual(claim["supported_unique_executable_count"], registry["unique_executable_count"])
         self.assertGreater(claim["unsupported_rows_count"], 0)
+
+    def test_beaaa13739_worker_rows_make_active_points_executable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = self._emit(Path(tmp) / "registry.json")
+        active_by_id = {
+            point["rubric_point_id"]: point
+            for point in registry["active_rubric_points"]
+        }
+        for rubric_point_id in (
+            "P1.2",
+            "P2.2",
+            "P2.6",
+            "P3.2",
+            "P4.2",
+            "P4.3",
+            "P4.4",
+            "P4.6",
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+            "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
+            "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+        ):
+            self.assertEqual(active_by_id[rubric_point_id]["status"], "executable")
+            self.assertTrue(active_by_id[rubric_point_id]["runnable_entries"])
+
+    def test_beaaa13740_remaining_attestation_rows_are_not_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = self._emit(Path(tmp) / "registry.json")
+        active_by_id = {
+            point["rubric_point_id"]: point
+            for point in registry["active_rubric_points"]
+        }
+        target_rows = {
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "P2.6",
+            "P4.2",
+            "P4.3",
+            "P4.4",
+            "P4.6",
+        }
+        for rubric_point_id in target_rows:
+            point = active_by_id[rubric_point_id]
+            self.assertEqual(point["status"], "executable", rubric_point_id)
+            self.assertIsNone(point["unavailable_reason"], rubric_point_id)
+            self.assertTrue(point["runnable_entries"], rubric_point_id)
+
+    def test_beaaa13741_ops_loop_stability_row_is_executable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = self._emit(Path(tmp) / "registry.json")
+        active_by_id = {
+            point["rubric_point_id"]: point
+            for point in registry["active_rubric_points"]
+        }
+        loop_row = active_by_id["OPS.LOOP_STABILITY.BUDGET_GUARD"]
+
+        self.assertEqual(loop_row["pillar"], "OPS")
+        self.assertEqual(loop_row["status"], "executable")
+        self.assertIsNone(loop_row["unavailable_reason"])
+        self.assertTrue(loop_row["runnable_entries"])
+
+        executable_rows = [
+            row for row in registry["rows"]
+            if row["rubric_point_id"] == "OPS.LOOP_STABILITY.BUDGET_GUARD"
+            and row["bucket"] == "runnable_today"
+        ]
+        self.assertEqual(len(executable_rows), 1)
+        self.assertEqual(
+            executable_rows[0]["version_pin"],
+            "backbond_loop_stability_budget_guard@0.1",
+        )
+        self.assertEqual(
+            executable_rows[0]["source"],
+            "harness/bench/loop_stability_budget_guard.py",
+        )
 
     def test_cto_open_source_first_constraint_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -26,8 +26,11 @@ Scope:
 * Streams each row to the Scorer via the T4 IPC channel.
 * Calls ``vault.forget(credential_ref)`` on every code path (success OR
   failure).
-* Enforces three operational ceilings per scan (T9 / BEAAA-545): probe
-  count, total tokens (input + output across all probes), and wall-clock.
+* Enforces operational ceilings per scan (T9 / BEAAA-545, amended by
+  BEAAA-13680): total tokens (input + output across all probes),
+  wall-clock, and a tier-aware runaway probe-row guard. The 1,000-row
+  guard applies only to smoke/dev runs; full underwriting uses a separate
+  high runaway ceiling so the base suite is not silently sampled at 1,000.
   On breach the loop halts cleanly, the partial-result row stream is
   closed with END_OF_SCAN, and the returned :class:`ScanResult` carries
   ``incomplete=True`` with ``incomplete_reason`` of ``"probe_cap" |
@@ -310,6 +313,7 @@ class ScanResult:
     total_spread: float = 0.0
     incomplete: bool = False
     incomplete_reason: str | None = None
+    full_suite_manifest: Mapping[str, Any] | None = None
     # BEAAA-11721 / ADR-0041 section 6: Underwriting-review signal only.
     anti_gaming: AntiGamingCanaryResult = field(
         default_factory=AntiGamingCanaryResult
@@ -387,7 +391,11 @@ def _unpack_probe_yield(item: Any) -> tuple[str, dict[str, Any], int]:
 
 
 def _probe_cap_for_request(scan_request: ScanRequest) -> int:
-    """Return the tier-aware probe-row runaway guard for this scan."""
+    """Return the tier-aware probe-row runaway guard for this scan.
+
+    ``scan_tier`` is an internal operational dial. Full underwriting is no
+    longer terminated at 1,000 rows; smoke/dev stay bounded for quick checks.
+    """
     if scan_request.scan_tier in {"smoke", "dev"}:
         return MAX_SMOKE_DEV_PROBES_PER_SCAN
     return MAX_FULL_UNDERWRITING_PROBES_PER_SCAN
