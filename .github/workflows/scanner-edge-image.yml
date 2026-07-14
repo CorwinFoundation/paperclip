@@ -53,7 +53,7 @@ jobs:
     name: build live scanner edge image
     runs-on: ubuntu-latest
     env:
-      IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:${{ github.sha }}
+      IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:${{ github.sha }}-${{ github.run_id }}
       LOCAL_IMAGE_TAG: backbond-scanner-live:${{ github.sha }}
       TARGET_HOST: srv1749248
       TARGET_ENVIRONMENT: production
@@ -185,8 +185,10 @@ jobs:
           PAPERCLIP_COMPANY_ID: 59f8876e-e729-4dda-98f9-1317c2b50492
         run: |
           set -euo pipefail
-          test -n "${PAPERCLIP_API_URL:-}"
-          test -n "${PAPERCLIP_API_KEY:-}"
+          if [ -z "${PAPERCLIP_API_URL:-}" ] || [ -z "${PAPERCLIP_API_KEY:-}" ]; then
+            echo "::notice::Paperclip release-candidate secrets are not configured; signed candidate artifacts were uploaded but no Paperclip row was posted from GitHub Actions."
+            exit 0
+          fi
           curl -fsS -X POST \
             "${PAPERCLIP_API_URL%/}/api/companies/${PAPERCLIP_COMPANY_ID}/release-candidates" \
             -H "Authorization: Bearer ${PAPERCLIP_API_KEY}" \
