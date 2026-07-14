@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "demo-real-agent/**"
+      - ".dockerignore"
       - "api/full_scan_executor.py"
       - "api/full_suite_manifest.py"
       - "harness/bench/**"
@@ -24,6 +25,7 @@ on:
     branches: [master]
     paths:
       - "demo-real-agent/**"
+      - ".dockerignore"
       - "api/full_scan_executor.py"
       - "api/full_suite_manifest.py"
       - "harness/bench/**"

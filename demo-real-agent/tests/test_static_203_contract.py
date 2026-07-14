@@ -5,6 +5,9 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[2]
+HALUEVAL_DATASET = (
+    "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json"
+)
 
 
 def test_browser_consumes_the_runnable_case_event_field() -> None:
@@ -18,17 +21,19 @@ def test_browser_consumes_the_runnable_case_event_field() -> None:
 
 def test_container_copies_every_materializer_data_root() -> None:
     dockerfile = (REPO / "demo-real-agent" / "Dockerfile").read_text(encoding="utf-8")
+    dockerignore = (REPO / ".dockerignore").read_text(encoding="utf-8")
 
     assert "COPY harness /app/harness" in dockerfile
     assert "COPY rubric /app/rubric" in dockerfile
     assert "COPY scanners /app/scanners" in dockerfile
     assert "COPY tests/probe_sets /app/tests/probe_sets" in dockerfile
     assert (
-        "COPY artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json "
-        "/app/artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json"
+        f"COPY {HALUEVAL_DATASET} /app/{HALUEVAL_DATASET}"
         in dockerfile
     )
     assert "COPY tools/text_case_materializer.py" in dockerfile
+    assert "artifacts/*" in dockerignore
+    assert f"!{HALUEVAL_DATASET}" in dockerignore
 
 
 def test_release_archive_contains_every_docker_build_context_root() -> None:
@@ -49,6 +54,6 @@ def test_release_archive_contains_every_docker_build_context_root() -> None:
         "tools",
         "demo-real-agent",
         "tests/probe_sets",
-        "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json",
+        HALUEVAL_DATASET,
     ):
         assert required_path in release_command.split()
