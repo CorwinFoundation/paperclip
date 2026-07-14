@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping
 
 from tools import probe_registry
 from tools.active_test_registry import build_registry as build_active_test_registry
+from tools.real_agent_execution_gate import evaluate_real_agent_execution, quarantine_reason
 
 
 REGISTRY_VERSION = "scanner-test-registry-baseline-2026-07-13/v0.1"
@@ -32,6 +33,14 @@ CEO_DISPOSITIONS = {
 }
 COUNTABLE_DISPOSITION = "production_active"
 PUBLIC_EXECUTED_TEST_COUNT = 90
+INVALID_WAVE_TICKET_REFS = (
+    "BEAAA-13991",
+    "BEAAA-14012",
+    "BEAAA-14013",
+    "BEAAA-14014",
+    "BEAAA-14015",
+    "BEAAA-14016",
+)
 EXECUTION_EVIDENCE_FIELDS = {
     "prompt_or_action",
     "expected_behavior",
@@ -125,8 +134,21 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             if isinstance(active_registry, dict)
             else 0,
             "public_executed_test_count": PUBLIC_EXECUTED_TEST_COUNT,
+            "executed_agent_test_count": PUBLIC_EXECUTED_TEST_COUNT
+            + _executed_agent_evidence_complete_count(rows),
             "execution_evidence_gate": sorted(EXECUTION_EVIDENCE_FIELDS),
             "execution_evidence_complete_count": _execution_evidence_complete_count(rows),
+            "real_agent_execution_gate": [
+                "target_type_real_agent",
+                "target_identity_allowlisted",
+                "raw_request_present",
+                "raw_response_present",
+                "raw_request_response_identity_match",
+                "authenticated_request_proof",
+                "no_localhost_mock_fixture_replay_or_terminal_only_assertion",
+            ],
+            "invalid_wave_quarantined_ticket_refs": list(INVALID_WAVE_TICKET_REFS),
+            "invalid_wave_quarantined_additional_count": _invalid_wave_quarantined_count(rows),
             "remaining_gap_to_1180": max(0, 1180 - len({row["case_id"] for row in active_rows})),
             "over_1180_by": max(0, len({row["case_id"] for row in active_rows}) - 1180),
         },
@@ -135,6 +157,12 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             row
             for row in rows
             if row.get("disqualification_reason") and row.get("embedded_case_index")
+        ],
+        "invalid_wave_quarantine_ledger": [
+            row
+            for row in rows
+            if row.get("countable_as_executed_test") is True
+            and row.get("countable_as_executed_agent_test") is not True
         ],
     }
     payload["metadata"]["registry_sha256"] = _sha256_json(rows)
@@ -168,6 +196,13 @@ def validate_registry(rows: Iterable[Mapping[str, Any]]) -> list[str]:
             seen_active_case_ids.add(case_id)
         if row.get("countable_as_executed_test") is True:
             errors.extend(_execution_evidence_errors(row, index))
+        if row.get("countable_as_executed_agent_test") is True:
+            gate_result = evaluate_real_agent_execution(row)
+            if not gate_result.countable:
+                errors.append(
+                    f"{asset_id} is countable_as_executed_agent_test but fails real-agent gate: "
+                    + ",".join(gate_result.reasons)
+                )
     return errors
 
 
@@ -188,6 +223,19 @@ def _execution_evidence_complete_count(rows: Iterable[Mapping[str, Any]]) -> int
         for row in rows
         if row.get("countable_as_executed_test") is True
         and not _execution_evidence_errors(row, 0)
+    )
+
+
+def _executed_agent_evidence_complete_count(rows: Iterable[Mapping[str, Any]]) -> int:
+    return sum(1 for row in rows if row.get("countable_as_executed_agent_test") is True)
+
+
+def _invalid_wave_quarantined_count(rows: Iterable[Mapping[str, Any]]) -> int:
+    return sum(
+        1
+        for row in rows
+        if row.get("countable_as_executed_test") is True
+        and row.get("countable_as_executed_agent_test") is not True
     )
 
 
@@ -345,6 +393,8 @@ def _appendix_rows(index: int, row: Mapping[str, Any], path: Path, repo: Path) -
                 "embedded_case_index": case_index,
                 "promoted_embedded_case": 1,
                 "countable_as_executed_test": True,
+                "countable_as_executed_agent_test": False,
+                "executed_agent_quarantine_reason": quarantine_reason(evidence),
                 "runner_path": family_row["runner_path"],
                 "target_bound": True,
                 "execution_evidenced": True,
