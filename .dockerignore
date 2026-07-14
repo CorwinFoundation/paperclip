@@ -6,7 +6,12 @@ __pycache__/
 *.pyc
 .env
 .secrets/
-artifacts/
+artifacts/*
+!artifacts/beaaa-152/
+artifacts/beaaa-152/*
+!artifacts/beaaa-152/datasets/
+artifacts/beaaa-152/datasets/*
+!artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
 tmp/
 *.sqlite3
 *.db

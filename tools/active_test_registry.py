@@ -77,6 +77,7 @@ SYNTHETIC_ATTESTATION_CASES = {
 }
 
 
+
 @dataclass(frozen=True)
 class RegistryRow:
     test_id: str
@@ -146,18 +147,50 @@ def _repo_relative(path: Path) -> str:
         return str(path)
 
 
-def _execution_evidence_status(probe: dict[str, Any], mapping: dict[str, Any]) -> tuple[bool, bool, str]:
+def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
+    """Return whether the standard runtime can materialize and send this case."""
+
+    case_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if not case_id:
+        return False
+    if benchmark == "p1_1_factuality_golden":
+        return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
+    if benchmark == "p1_3_consistency_golden":
+        return bool(probe.get("prompt_a") and probe.get("prompt_b"))
+    if benchmark == "p1_4_refusal_golden":
+        return bool(probe.get("prompt") and probe.get("expected_action"))
+    if benchmark == "p1_5_calibration_golden":
+        return bool(probe.get("prompt") and probe.get("gold_answer"))
+
+    from tools.text_case_materializer import (
+        is_text_compatible_test,
+        materialize_text_case,
+    )
+
+    if not is_text_compatible_test(benchmark):
+        return False
+    try:
+        materialize_text_case(benchmark, case_id, probe)
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
+def _execution_evidence_status(
+    probe: dict[str, Any],
+    mapping: dict[str, Any],
+) -> tuple[bool, str]:
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
     if not isinstance(evidence, dict):
-        return False, False, "execution_evidence_not_object"
+        return False, "execution_evidence_not_object"
     missing = sorted(
         field
         for field in EXECUTION_EVIDENCE_REQUIRED_FIELDS
         if evidence.get(field) in (None, "")
     )
     if missing:
-        return False, False, "missing_execution_evidence:" + ",".join(missing)
-    return True, True, "target_bound_and_evidenced"
+        return False, "missing_execution_evidence:" + ",".join(missing)
+    return True, "target_bound_and_evidenced"
 
 
 def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
@@ -198,7 +231,13 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
                 continue
-            target_bound, execution_evidenced, evidence_status = _execution_evidence_status(probe, data)
+            execution_evidenced, evidence_status = _execution_evidence_status(
+                probe, data
+            )
+            materializable = executable and _case_has_bound_execution(benchmark, probe)
+            target_bound = execution_evidenced or materializable
+            if materializable and not execution_evidenced:
+                evidence_status = "target_bound_evidence_pending"
             executable_for_count = executable and target_bound and execution_evidenced
             direct_pillar = probe.get("pillar")
             direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
@@ -275,10 +314,25 @@ def validate_registry(rows: list[dict[str, Any]], published_count: int) -> list[
 
 
 def count_active_executable(rows: list[dict[str, Any]]) -> int:
+    """Count only rows that already satisfy the recorded-execution evidence gate."""
+
     return sum(
         1
         for row in rows
-        if row.get("status") == "active" and row.get("production_runner_executable") is True
+        if row.get("status") == "active"
+        and row.get("production_runner_executable") is True
+    )
+
+
+def count_target_bound_runtime(rows: list[dict[str, Any]]) -> int:
+    """Count active rows the standard runtime can execute to generate evidence."""
+
+    return sum(
+        1
+        for row in rows
+        if row.get("status") == "active"
+        and row.get("target_bound") is True
+        and row.get("case_class") != "attestation"
     )
 
 
@@ -288,9 +342,11 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
     by_status = Counter(row["status"] for row in rows)
     by_case_class = Counter(row["case_class"] for row in rows)
     active_executable = count_active_executable(rows)
+    target_bound_runtime = count_target_bound_runtime(rows)
     return {
         "registry_rows": len(rows),
         "active_executable_count": active_executable,
+        "target_bound_runtime_count": target_bound_runtime,
         "published_active_test_count": published_count,
         "historic_claim_count": HISTORIC_CLAIM_COUNT,
         "delta_to_1180": active_executable - HISTORIC_CLAIM_COUNT,
