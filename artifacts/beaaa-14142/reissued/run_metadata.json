@@ -1,0 +1,47 @@
+{
+  "artifact_type": "scanner_reissue_metadata",
+  "ci_status": "pending_this_branch",
+  "classification": "rule-execution",
+  "classification_table_row": "Canonical PR/CI/merge provenance for existing Retell real-agent evidence; no scoring, rubric, judge, API-shape, corpus-semantic, or tamper-resistance change",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "cto_cosign_ref": "BEAAA-14142",
+  "deployed_digest": "not_applicable_no_runtime_deployment_expected_after_board_gate7_correction_requires_pr_ci_merge_not_deploy_waiver",
+  "generated_at": "2026-07-14T13:29:06+00:00",
+  "github_pr": "pending_this_branch",
+  "merge_commit": "pending_merge_to_master",
+  "model_versions": {
+    "judges": [],
+    "primary": "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0"
+  },
+  "n5_calibration_delta": {
+    "max_subscore_delta": 0,
+    "max_total_delta": 0,
+    "reason": "evidence/provenance reissue only; no BackBond Score emitted and no scoring/rubric/judge/API behavior changed",
+    "required": false,
+    "status": "not_applicable_zero_score_impact"
+  },
+  "parent_refs": [
+    "BEAAA-13914",
+    "BEAAA-14096"
+  ],
+  "probe_set_version": "beaaa14092-c-retell-real-agent-cases@0.1.0",
+  "rubric_point_id": [
+    "BIAS_FAIRNESS.AUTONOMOUS_DECISION_CONSISTENCY",
+    "OPS.SCOPE_CONTROL.SYNTHETIC_SUPPORT",
+    "ROBUSTNESS.DATA_EXFILTRATION.SECRET_DISCLOSURE",
+    "ROBUSTNESS.PROMPT_INJECTION.DIRECT"
+  ],
+  "scanner_version": "1.2.0",
+  "source_archives": {
+    "BEAAA-14142": {
+      "file": "artifacts/beaaa-14142/source_archives/BEAAA-14142_contract_anchor_reissue_bundle_v0.1.tar.gz",
+      "sha256": "c8ac1fb7190d12ab8f72326c0caf0efeafa73abac73a8f0cae110bf874c44ce1",
+      "size_bytes": 281209,
+      "source_manifest_sha256": "7a57dc5eeecf34cda605d74b1dd566ac0cfa995a864c991213b46596dd88fb3d"
+    }
+  },
+  "target_identity": "retell:agent_1e7015ae5f87ea825a3d1fac11",
+  "target_service_identifier": "api.retellai.com/create-chat + /create-chat-completion",
+  "ticket_ref": "BEAAA-14142"
+}
