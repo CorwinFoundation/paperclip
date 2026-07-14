@@ -127,12 +127,14 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$DIGEST"
-          cosign sign --yes --bundle release-candidate/scanner-edge-image.sigstore.bundle "${IMAGE_REF%@*}@$DIGEST"
+          signed_ref="${IMAGE_REF%@*}@$DIGEST"
+          cosign sign --yes "$signed_ref"
           cosign attest --yes \
             --predicate release-candidate/scanner-edge-sbom.cdx.json \
             --type cyclonedx \
-            --bundle release-candidate/scanner-edge-provenance.sigstore.bundle \
-            "${IMAGE_REF%@*}@$DIGEST"
+            "$signed_ref"
+          printf 'cosign-signature:%s\n' "$signed_ref" > release-candidate/scanner-edge-image.signature-ref.txt
+          printf 'cosign-attestation:%s\n' "$signed_ref" > release-candidate/scanner-edge-provenance-ref.txt
 
       - name: Write release candidate payload
         if: github.event_name != 'pull_request'
@@ -147,8 +149,8 @@ jobs:
             --arg sourceIssueId "$SOURCE_ISSUE_ID" \
             --arg commitSha "$GITHUB_SHA" \
             --arg imageDigest "$DIGEST" \
-            --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.sigstore.bundle" \
-            --arg provenanceRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-provenance.sigstore.bundle" \
+            --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.signature-ref.txt" \
+            --arg provenanceRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-provenance-ref.txt" \
             --arg sbomHash "$SBOM_HASH" \
             --arg workflowRunUrl "$RUN_URL" \
             --arg environment "$TARGET_ENVIRONMENT" \
