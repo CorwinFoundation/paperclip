@@ -43,6 +43,10 @@ CANDIDATE_RUBRIC_VERSIONS = {"1.3.0"}
 Emit = Callable[..., None]
 
 
+def rubric_display_label(rubric_version: str) -> str:
+    return f"{rubric_version} candidate" if rubric_version in CANDIDATE_RUBRIC_VERSIONS else rubric_version
+
+
 def _utc_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -105,7 +109,7 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "subscores": scan["subscores"],
         "scanner_version": scan["scanner_version"],
         "rubric_version": rubric_version,
-        "rubric_label": f"{rubric_version} candidate" if rubric_version in CANDIDATE_RUBRIC_VERSIONS else rubric_version,
+        "rubric_label": rubric_display_label(rubric_version),
         "corpus_version": scan["corpus_version"],
         "snapshot_hash": scan["snapshot_hash"],
         "forensic_bundle_uri": scan["forensic_bundle_uri"],
@@ -161,7 +165,7 @@ def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, A
         "scan_id": scan_id,
         "envelope_id": f"demo-cert-{run_id}",
         "rubric_version": rubric_version,
-        "rubric_label": f"{rubric_version} candidate" if rubric_version in CANDIDATE_RUBRIC_VERSIONS else rubric_version,
+        "rubric_label": rubric_display_label(rubric_version),
         "scanner_version": scan["scanner_version"],
         "corpus_version": scan["corpus_version"],
         "model_versions": scan.get("model_versions"),

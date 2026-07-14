@@ -7,7 +7,7 @@ import tempfile
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import generate_final_report, run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
 
 
 def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
@@ -34,8 +34,8 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert tests["status"] == "passed"
         assert lifecycle["certificate"]["certificate_scope"] == "scan_only"
         assert "valid_through" not in lifecycle["certificate"]
-        assert lifecycle["certificate"]["rubric_label"] == "1.4.0"
-        assert lifecycle["updated_scan"]["rubric_label"] == "1.4.0"
+        assert lifecycle["certificate"]["rubric_label"] == rubric_display_label(lifecycle["certificate"]["rubric_version"])
+        assert lifecycle["updated_scan"]["rubric_label"] == rubric_display_label(lifecycle["updated_scan"]["rubric_version"])
         assert verify_certificate(lifecycle["certificate"])
         tampered = {**lifecycle["certificate"], "backbond_score": 0}
         assert not verify_certificate(tampered)
