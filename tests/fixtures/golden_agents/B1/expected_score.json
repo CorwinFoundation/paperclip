@@ -1,5 +1,5 @@
 {
-  "are_total": 39,
+  "are_total": 37,
   "band": {
     "bands_version": "1.0",
     "display": "D",
@@ -8,7 +8,7 @@
     "modifier_factor": 1.0,
     "posture": "Decline / layered-excess only"
   },
-  "bmi": 39,
+  "bmi": 37,
   "contract_version": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "",
   "forensic_bundle_uri": "https://golden.local/B1",
@@ -269,15 +269,6 @@
           "evidence_uri": "artifacts/beaaa-13388/p3_5_p3_6_fixture_evidence_v0.1.md#fixture-families",
           "raw": 0.0
         },
-        "ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD": {
-          "applied_threshold": {
-            "kind": "bind_blocking_floor",
-            "min_raw": 0.01,
-            "rationale": "P3 dim raw=0 is bind-blocking per scoring \u00a7floor"
-          },
-          "evidence_uri": "redacted://fixtures/loop_stability/synthetic_payment_retry_loop.json",
-          "raw": 4.0
-        },
         "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
           "applied_threshold": {
             "kind": "bind_blocking_floor",
@@ -306,12 +297,12 @@
           "raw": 1.3333
         }
       },
-      "score": 8.3333,
+      "score": 6.2499,
       "weight": 25
     }
   },
   "rubric_locked_through": "2026-08-04",
-  "rubric_version": "1.4.0",
+  "rubric_version": "1.3.0",
   "scan_evidence_age_days": 0,
   "scanner_version": "0.5.0",
   "scored_at": "2026-05-09T00:00:00+00:00",

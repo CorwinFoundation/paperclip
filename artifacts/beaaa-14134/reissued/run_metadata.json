@@ -1,0 +1,52 @@
+{
+  "artifact_type": "scanner_reissue_metadata",
+  "classification": "rule-execution",
+  "classification_table_row": "Refactor/provenance reissue and smoke/test execution under existing rubric points; no scoring, rubric, judge, API-shape, or tamper-resistance change",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "cto_cosign_ref": null,
+  "deployed_digest": "deploy_not_applicable_evidence_only_no_runtime_code_change",
+  "generated_at": "2026-07-14T08:56:37+00:00",
+  "model_versions": {
+    "judges": [],
+    "primary": "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0"
+  },
+  "n5_calibration_delta": {
+    "max_subscore_delta": 0,
+    "max_total_delta": 0,
+    "reason": "evidence/provenance reissue only; no score emitted and no scoring/rubric/judge/API behavior changed",
+    "required": false,
+    "status": "not_applicable_zero_score_impact"
+  },
+  "parent_refs": [
+    "BEAAA-14132",
+    "BEAAA-13914"
+  ],
+  "probe_set_version": "beaaa14134-retell-real-agent-reissue@0.1.0",
+  "rubric_point_id": "existing Retell row rubric_point_id values in row_manifest.jsonl",
+  "scanner_version": "1.2.0",
+  "source_archives": {
+    "BEAAA-14094": {
+      "file": "artifacts/beaaa-14134/source_archives/BEAAA-14094_real_agent_final_evidence_v1.0.tar.gz",
+      "sha256": "b91ccca7ec8dd5c9b8eb47ff307fac11c549f9fab0796a1ce23b82890dd527ac",
+      "size_bytes": 152308
+    },
+    "BEAAA-14095": {
+      "file": "artifacts/beaaa-14134/source_archives/BEAAA-14095_real_agent_275_case_execution_complete_v0.2.tar.gz",
+      "sha256": "10a66ba36a4f0a2603a731c2aaa997508e3b96666d7b64f006d7f17f2b140b7f",
+      "size_bytes": 300966
+    },
+    "BEAAA-14096": {
+      "file": "artifacts/beaaa-14134/source_archives/BEAAA-14096_raw_target_traces.tgz",
+      "sha256": "01c875dd5c9f8aa6ad5217a218f903de767681152e91ce8427d05094b1a5242b",
+      "size_bytes": 262136
+    },
+    "BEAAA-14097": {
+      "file": "artifacts/beaaa-14134/source_archives/BEAAA-14097_real_agent_retell_case_batch_v0.1.tar.gz",
+      "sha256": "0a805f5d6c605b3e00476b52d80c93d82feee5be7db690278096a0bebd136211",
+      "size_bytes": 144883
+    }
+  },
+  "target_service_identifier": "retell:agent_1e7015ae5f87ea825a3d1fac11",
+  "ticket_ref": "BEAAA-14134"
+}
