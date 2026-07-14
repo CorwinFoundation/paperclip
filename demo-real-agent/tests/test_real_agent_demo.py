@@ -13,7 +13,15 @@ if str(DEMO_DIR) not in sys.path:
 
 from app import EvaluationBudgetConsumed, JobManager  # noqa: E402
 from harness.runner import MockRunner  # noqa: E402
-from real_scan import RealScanConfig, execute_real_scan, registry_inventory  # noqa: E402
+from tools.active_test_registry import load_published_count  # noqa: E402
+from real_scan import (  # noqa: E402
+    EXPECTED_FAMILY_COUNTS,
+    PLANNED_JUDGE_CALLS,
+    PLANNED_TARGET_CALLS,
+    RealScanConfig,
+    execute_real_scan,
+    registry_inventory,
+)
 
 
 JUDGE_OUTPUT = """\
@@ -39,26 +47,29 @@ def _subject(_endpoint: str, secret: str):
 
 
 def _judge():
-    return MockRunner("real-judge-contract-test", lambda _prompt: JUDGE_OUTPUT)
+    def complete(prompt: str) -> str:
+        if '"verdict":"pass|partial|fail"' in prompt:
+            return json.dumps(
+                {"verdict": "pass", "reason": "The response satisfies the contract."}
+            )
+        return JUDGE_OUTPUT
+
+    return MockRunner("real-judge-contract-test", complete)
 
 
-def test_registry_inventory_is_exactly_the_real_90_case_plan() -> None:
+def test_registry_inventory_is_exactly_the_real_203_case_plan() -> None:
     inventory = registry_inventory()
-    assert inventory["active_case_count"] == 90
-    assert inventory["published_case_count"] == 90
-    assert inventory["planned_target_calls"] == 110
-    assert inventory["planned_judge_calls"] == 90
+    assert inventory["runnable_case_count"] == 203
+    assert inventory["published_executed_case_count"] == load_published_count()
+    assert inventory["evidenced_executable_case_count"] == load_published_count()
+    assert inventory["planned_target_calls"] == PLANNED_TARGET_CALLS == 246
+    assert inventory["planned_judge_calls"] == PLANNED_JUDGE_CALLS == 203
     assert {
         family["family_id"]: family["cases"] for family in inventory["families"]
-    } == {
-        "p1_1_factuality_golden": 30,
-        "p1_3_consistency_golden": 20,
-        "p1_4_refusal_golden": 20,
-        "p1_5_calibration_golden": 20,
-    }
+    } == EXPECTED_FAMILY_COUNTS
 
 
-def test_real_scan_dispatches_all_90_and_reconciles_signed_evidence(
+def test_real_scan_dispatches_all_203_and_reconciles_signed_evidence(
     monkeypatch, tmp_path
 ) -> None:
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-only-signing-key")
@@ -69,7 +80,7 @@ def test_real_scan_dispatches_all_90_and_reconciles_signed_evidence(
 
     result = execute_real_scan(
         tmp_path / "run",
-        "run-real-90",
+        "run-real-203",
         emit,
         config=RealScanConfig(
             agent_endpoint="https://agent.example.test",
@@ -79,17 +90,17 @@ def test_real_scan_dispatches_all_90_and_reconciles_signed_evidence(
         judge_factory=_judge,
     )
 
-    assert result["active_case_count"] == 90
-    assert len(result["cases"]) == 90
-    assert result["counts"]["expected"] == 90
-    assert result["counts"]["evidence_rows"] == 90
-    assert result["reconciliation"]["attempted"] == 90
-    assert result["reconciliation"]["terminal"] == 90
-    assert result["budget"]["target_calls"] == 110
-    assert result["budget"]["judge_calls"] == 90
+    assert result["runnable_case_count"] == 203
+    assert len(result["cases"]) == 203
+    assert result["counts"]["expected"] == 203
+    assert result["counts"]["evidence_rows"] == 203
+    assert result["reconciliation"]["attempted"] == 203
+    assert result["reconciliation"]["terminal"] == 203
+    assert result["budget"]["target_calls"] == 246
+    assert result["budget"]["judge_calls"] == 203
     assert result["budget"]["estimated_judge_cost_usd"] <= 100.0
     assert result["score"] is None
-    assert len([event for event in events if event["kind"] == "case_result"]) == 90
+    assert len([event for event in events if event["kind"] == "case_result"]) == 203
     assert result["manifest_hash"].startswith("sha256:")
     manifest_path = next((tmp_path / "run" / "evidence").glob("*/manifest.json"))
     serialized = manifest_path.read_text(encoding="utf-8")
@@ -130,14 +141,14 @@ def test_budget_exhaustion_is_visible_as_incomplete_evidence(
             agent_endpoint="https://agent.example.test",
             agent_secret="test-secret",
             max_target_calls=1,
-            max_judge_calls=90,
+            max_judge_calls=203,
         ),
         subject_factory=_subject,
         judge_factory=_judge,
     )
     assert result["incomplete"] is True
     assert result["analysis_status"] == "analysis_incomplete"
-    assert result["reconciliation"]["terminal"] == 90
+    assert result["reconciliation"]["terminal"] == 203
     assert result["budget"]["target_calls"] == 1
     assert any(
         case["incomplete_reason"] == "budget_exceeded:max_target_calls"

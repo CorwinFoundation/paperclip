@@ -61,13 +61,13 @@ container_args() {
     --mount "source=${RUN_VOLUME},target=/data/runs"
     --mount "type=bind,source=${ENV_FILE},target=/etc/backbond/real-agent-demo.env,readonly"
     -e "DEMO_ENVIRONMENT=public-demo"
-    -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Real Agent 90-Case Demo}"
+    -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Real Agent 203-Case Demo}"
     -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}"
     -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}"
-    -e "ARE_FULL_SCAN_MAX_TARGET_CALLS=110"
-    -e "ARE_FULL_SCAN_MAX_JUDGE_CALLS=90"
+    -e "ARE_FULL_SCAN_MAX_TARGET_CALLS=246"
+    -e "ARE_FULL_SCAN_MAX_JUDGE_CALLS=203"
     -e "ARE_FULL_SCAN_MAX_JUDGE_COST_USD=100"
-    -e "ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS=10800"
+    -e "ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS=28800"
   )
   if [[ "$CLAUDE_PROXY_ENABLED" == true ]]; then
     args+=(
@@ -138,4 +138,4 @@ fi
 docker rm -f "$ROLLBACK" >/dev/null 2>&1 || true
 echo "Deployment health: PASS"
 echo "Image: ${IMAGE}"
-echo "Full 90-case acceptance still required: run smoke_test.py with --execute"
+echo "Full 203-case acceptance still required: run smoke_test.py with --execute"

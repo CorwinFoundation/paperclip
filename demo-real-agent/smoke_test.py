@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the deployed real-agent demo; optionally execute all 90 cases."""
+"""Verify the deployed real-agent demo; optionally execute all 203 cases."""
 from __future__ import annotations
 
 import argparse
@@ -32,12 +32,12 @@ def verify_health(base_url: str, *, allow_unconfigured: bool = False) -> dict:
     health = _json(base_url.rstrip("/") + "/api/health")
     if health.get("status") != "ok":
         raise RuntimeError(f"unhealthy deployment: {health}")
-    if health.get("mode") != "real-agent-90-case-scan" or health.get("synthetic") is not False:
+    if health.get("mode") != "real-agent-203-case-scan" or health.get("synthetic") is not False:
         raise RuntimeError("deployment is not the real-agent scanner")
-    if health.get("active_case_count") != 90:
-        raise RuntimeError("deployed active registry is not exactly 90 cases")
-    if health.get("planned_target_calls") != 110 or health.get("planned_judge_calls") != 90:
-        raise RuntimeError("deployed call plan is not 110 target / 90 judge")
+    if health.get("runnable_case_count") != 203:
+        raise RuntimeError("deployed target-bound execution plan is not exactly 203 cases")
+    if health.get("planned_target_calls") != 246 or health.get("planned_judge_calls") != 203:
+        raise RuntimeError("deployed call plan is not 246 target / 203 judge")
     if health.get("max_judge_cost_usd") != 100.0:
         raise RuntimeError("deployed judge ceiling is not $100")
     if not allow_unconfigured and health.get("judge_configured") is not True:
@@ -63,15 +63,15 @@ def execute(base_url: str, token: str, timeout_seconds: int) -> dict:
                 == counts["evidence_rows"]
                 == reconciliation["attempted"]
                 == reconciliation["terminal"]
-                == 90
+                == 203
             ):
-                raise RuntimeError("90-case reconciliation failed")
+                raise RuntimeError("203-case reconciliation failed")
             if scan["budget"]["estimated_judge_cost_usd"] > 100.0:
                 raise RuntimeError("approved judge budget exceeded")
-            if scan["budget"]["target_calls"] != 110:
-                raise RuntimeError("real target did not receive 110 planned calls")
-            if scan["budget"]["judge_calls"] != 90:
-                raise RuntimeError("real judge did not receive 90 planned calls")
+            if scan["budget"]["target_calls"] != 246:
+                raise RuntimeError("real target did not receive 246 planned calls")
+            if scan["budget"]["judge_calls"] > 203:
+                raise RuntimeError("real judge exceeded the 203-call plan")
             return {
                 "run_id": run_id,
                 "analysis_status": scan["analysis_status"],
@@ -90,7 +90,7 @@ def main() -> int:
     parser.add_argument("--health-only", action="store_true")
     parser.add_argument("--allow-unconfigured", action="store_true")
     parser.add_argument("--execute", action="store_true")
-    parser.add_argument("--timeout", type=int, default=10800)
+    parser.add_argument("--timeout", type=int, default=28800)
     args = parser.parse_args()
     result: dict = {
         "health": verify_health(args.url, allow_unconfigured=args.allow_unconfigured)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Authenticated web service for the real 90-case agent evaluation."""
+"""Authenticated web service for the real 203-case agent evaluation."""
 from __future__ import annotations
 
 import argparse
@@ -60,7 +60,7 @@ def _deployment_metadata() -> dict[str, str]:
         "environment": os.environ.get("DEMO_ENVIRONMENT", "local"),
         "git_sha": os.environ.get("DEMO_GIT_SHA", "working-tree"),
         "deployed_at": os.environ.get("DEMO_DEPLOYED_AT", _utc_now()),
-        "workflow": os.environ.get("DEMO_WORKFLOW", "Real 90-case agent demo"),
+        "workflow": os.environ.get("DEMO_WORKFLOW", "Real 203-case agent demo"),
     }
 
 
@@ -183,7 +183,7 @@ class JobManager:
             job.status = "complete"
             job.emit(
                 "complete",
-                "Real 90-case evaluation completed",
+                "Real 203-case evaluation completed",
                 stage="complete",
                 state="passed" if not scan.get("incomplete") else "incomplete",
             )
@@ -275,13 +275,14 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json(
                 {
                     "status": "ok",
-                    "mode": "real-agent-90-case-scan",
+                    "mode": "real-agent-203-case-scan",
                     "synthetic": False,
                     "external_target_enabled": True,
                     "target_host": urlparse(config.agent_endpoint).hostname,
                     "judge_configured": judge_configured(),
                     "evaluation_available": self.manager.evaluation_available(),
-                    "active_case_count": inventory["active_case_count"],
+                    "runnable_case_count": inventory["runnable_case_count"],
+                    \
                     "planned_target_calls": inventory["planned_target_calls"],
                     "planned_judge_calls": inventory["planned_judge_calls"],
                     "max_judge_cost_usd": config.max_estimated_judge_cost_usd,

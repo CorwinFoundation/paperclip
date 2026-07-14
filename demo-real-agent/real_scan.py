@@ -1,4 +1,4 @@
-"""Real 90-case scanner orchestration for the public demo.
+"""Real 203-case scanner orchestration for the public demo.
 
 This module reuses the production registry, dispatcher, target transport,
 judge adapters, evidence writer, budget ledger, and signed manifest. It does
@@ -28,6 +28,7 @@ from tools.active_test_registry import (
     validate_registry,
 )
 from tools.registered_case_executor import ScanBudget, build_registered_case_workers
+from tools.text_case_materializer import materialize_text_case
 
 
 Emit = Callable[..., None]
@@ -38,20 +39,39 @@ FAMILY_LABELS = {
     "p1_1_factuality_golden": "Factuality golden set",
     "p1_3_consistency_golden": "Consistency under paraphrase",
     "p1_4_refusal_golden": "Refusal accuracy",
-    "p1_5_calibration_golden": "Confidence calibration",
+    "p1_5_calibration_golden": "Confidence calibration golden set",
 }
-EXPECTED_FAMILY_COUNTS = {
+CORE_FAMILY_COUNTS = {
     "p1_1_factuality_golden": 30,
     "p1_3_consistency_golden": 20,
     "p1_4_refusal_golden": 20,
     "p1_5_calibration_golden": 20,
 }
-PLANNED_CALLS = {
-    "p1_1_factuality_golden": (30, 30),
-    "p1_3_consistency_golden": (40, 20),
-    "p1_4_refusal_golden": (20, 20),
-    "p1_5_calibration_golden": (20, 20),
+TEXT_FAMILY_COUNTS = {
+    "advbench": 1,
+    "backbond-output-attack-fixtures": 4,
+    "citation_integrity_legal": 4,
+    "confidence_calibration": 1,
+    "crescendo": 4,
+    "factscore": 2,
+    "garak": 9,
+    "garak_beaaa152": 18,
+    "hallucination_legal": 4,
+    "halueval": 5,
+    "harmbench": 7,
+    "jailbreakbench": 8,
+    "p3_2_indirect_injection_rob": 12,
+    "p3_3_secret_exfiltration_rob": 12,
+    "perturbation_seeds": 1,
+    "privacybench": 5,
+    "promptbench": 7,
+    "promptinject": 2,
+    "pyrit": 5,
+    "truthfulqa": 2,
 }
+EXPECTED_FAMILY_COUNTS = {**CORE_FAMILY_COUNTS, **TEXT_FAMILY_COUNTS}
+PLANNED_TARGET_CALLS = 246
+PLANNED_JUDGE_CALLS = 203
 
 
 @dataclass(frozen=True)
@@ -60,12 +80,12 @@ class RealScanConfig:
     agent_secret: str = ""
     agent_id: str = "syllable-insurance-demo"
     scanner_version: str = "0.4.2"
-    corpus_version: str = "execution-registry@2026-07-13"
+    corpus_version: str = "execution-registry@2026-07-14"
     seed: int = 42
-    max_target_calls: int = 110
-    max_judge_calls: int = 90
+    max_target_calls: int = PLANNED_TARGET_CALLS
+    max_judge_calls: int = PLANNED_JUDGE_CALLS
     max_estimated_judge_cost_usd: float = 100.0
-    max_wall_clock_seconds: int = 3 * 60 * 60
+    max_wall_clock_seconds: int = 8 * 60 * 60
 
     @classmethod
     def from_env(cls) -> "RealScanConfig":
@@ -77,20 +97,20 @@ class RealScanConfig:
             agent_id=os.environ.get("DEMO_AGENT_ID", "syllable-insurance-demo"),
             scanner_version=os.environ.get("DEMO_SCANNER_VERSION", "0.4.2"),
             corpus_version=os.environ.get(
-                "DEMO_CORPUS_VERSION", "execution-registry@2026-07-13"
+                "DEMO_CORPUS_VERSION", "execution-registry@2026-07-14"
             ),
             seed=int(os.environ.get("DEMO_SCAN_SEED", "42")),
             max_target_calls=int(
-                os.environ.get("ARE_FULL_SCAN_MAX_TARGET_CALLS", "110")
+                os.environ.get("ARE_FULL_SCAN_MAX_TARGET_CALLS", str(PLANNED_TARGET_CALLS))
             ),
             max_judge_calls=int(
-                os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_CALLS", "90")
+                os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_CALLS", str(PLANNED_JUDGE_CALLS))
             ),
             max_estimated_judge_cost_usd=float(
                 os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_COST_USD", "100")
             ),
             max_wall_clock_seconds=int(
-                os.environ.get("ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS", "10800")
+                os.environ.get("ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS", "28800")
             ),
         )
 
@@ -112,42 +132,87 @@ class RealScanConfig:
         )
 
 
+def _family_label(family_id: str) -> str:
+    return FAMILY_LABELS.get(
+        family_id,
+        family_id.replace("-", " ").replace("_", " ").title(),
+    )
+
+
+def _planned_calls_for_row(row: Mapping[str, Any]) -> tuple[int, int]:
+    family_id = str(row.get("test_id") or "")
+    if family_id == "p1_3_consistency_golden":
+        return 2, 1
+    if family_id in CORE_FAMILY_COUNTS:
+        return 1, 1
+    spec = materialize_text_case(
+        family_id,
+        str(row.get("case_id") or ""),
+        row,
+    )
+    return len(spec.prompts), 1
+
+
 def registry_inventory() -> dict[str, Any]:
     rows = build_registry()
     published = load_published_count()
     errors = validate_registry(rows, published)
     if errors:
         raise RuntimeError("active registry invalid: " + "; ".join(errors))
-    active = [
+
+    evidenced_executable = count_active_executable(rows)
+    if evidenced_executable != published:
+        raise RuntimeError(
+            "published executed count does not equal evidence-gated registry count"
+        )
+
+    runnable = [
         row
         for row in rows
         if row.get("status") == "active"
-        and row.get("production_runner_executable") is True
+        and row.get("target_bound") is True
+        and str(row.get("test_id") or "") in EXPECTED_FAMILY_COUNTS
     ]
-    if count_active_executable(rows) != published:
+    by_family = Counter(str(row["test_id"]) for row in runnable)
+    if len(runnable) != 203 or dict(by_family) != EXPECTED_FAMILY_COUNTS:
         raise RuntimeError(
-            "published active count does not equal executable registry count"
+            "real demo is pinned to the 203-case target-bound execution plan; "
+            f"observed {len(runnable)} cases across {dict(sorted(by_family.items()))}"
         )
-    by_family = Counter(str(row["test_id"]) for row in active)
-    if len(active) != 90 or dict(by_family) != EXPECTED_FAMILY_COUNTS:
+
+    calls_by_family: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for row in runnable:
+        family_id = str(row["test_id"])
+        target_calls, judge_calls = _planned_calls_for_row(row)
+        calls_by_family[family_id][0] += target_calls
+        calls_by_family[family_id][1] += judge_calls
+
+    planned_target_calls = sum(value[0] for value in calls_by_family.values())
+    planned_judge_calls = sum(value[1] for value in calls_by_family.values())
+    if (
+        planned_target_calls != PLANNED_TARGET_CALLS
+        or planned_judge_calls != PLANNED_JUDGE_CALLS
+    ):
         raise RuntimeError(
-            "real demo is pinned to the canonical 90-case/four-family registry; "
-            f"observed {len(active)} cases across {dict(sorted(by_family.items()))}"
+            "203-case call plan drifted: "
+            f"{planned_target_calls} target / {planned_judge_calls} judge"
         )
+
     return {
         "rows": rows,
-        "active_rows": active,
-        "active_case_count": len(active),
-        "published_case_count": published,
-        "planned_target_calls": sum(value[0] for value in PLANNED_CALLS.values()),
-        "planned_judge_calls": sum(value[1] for value in PLANNED_CALLS.values()),
+        "runnable_rows": runnable,
+        "runnable_case_count": len(runnable),
+        "published_executed_case_count": published,
+        "evidenced_executable_case_count": evidenced_executable,
+        "planned_target_calls": planned_target_calls,
+        "planned_judge_calls": planned_judge_calls,
         "families": [
             {
                 "family_id": family_id,
-                "label": FAMILY_LABELS[family_id],
+                "label": _family_label(family_id),
                 "cases": count,
-                "planned_target_calls": PLANNED_CALLS[family_id][0],
-                "planned_judge_calls": PLANNED_CALLS[family_id][1],
+                "planned_target_calls": calls_by_family[family_id][0],
+                "planned_judge_calls": calls_by_family[family_id][1],
             }
             for family_id, count in sorted(by_family.items())
         ],
@@ -191,8 +256,14 @@ def validate_public_configuration(config: RealScanConfig) -> None:
         )
     if config.max_estimated_judge_cost_usd > 100.0:
         raise RuntimeError("judge budget may not exceed the approved $100 ceiling")
-    if config.max_target_calls != 110 or config.max_judge_calls != 90:
-        raise RuntimeError("public demo budget must be exactly 110 target / 90 judge calls")
+    if (
+        config.max_target_calls != PLANNED_TARGET_CALLS
+        or config.max_judge_calls != PLANNED_JUDGE_CALLS
+    ):
+        raise RuntimeError(
+            "public demo budget must be exactly "
+            f"{PLANNED_TARGET_CALLS} target / {PLANNED_JUDGE_CALLS} judge calls"
+        )
     registry_inventory()
 
 
@@ -205,17 +276,17 @@ def execute_real_scan(
     subject_factory: SubjectFactory | None = None,
     judge_factory: JudgeFactory | None = None,
 ) -> dict[str, Any]:
-    """Execute every active registry case and return a public-safe summary."""
+    """Execute the pinned target-bound registry plan and return a public-safe summary."""
     config = config or RealScanConfig.from_env()
     inventory = registry_inventory()
-    active_rows = inventory["active_rows"]
+    runnable_rows = inventory["runnable_rows"]
     output_dir.mkdir(parents=True, exist_ok=False)
 
     emit(
         "registry",
-        f"Canonical registry locked: {len(active_rows)} executable cases",
+        f"Execution plan locked: {len(runnable_rows)} target-bound cases",
         stage="registry",
-        active_cases=len(active_rows),
+        runnable_cases=len(runnable_rows),
         planned_target_calls=inventory["planned_target_calls"],
         planned_judge_calls=inventory["planned_judge_calls"],
         families=inventory["families"],
@@ -252,10 +323,10 @@ def execute_real_scan(
                 f"{row.get('case_id')}: {result.verdict or result.status}",
                 stage="scan",
                 completed=completed["count"],
-                total=len(active_rows),
+                total=len(runnable_rows),
                 case_id=str(row.get("case_id") or ""),
                 family_id=family_id,
-                family=FAMILY_LABELS.get(family_id, family_id),
+                family=_family_label(family_id),
                 execution_status=result.status,
                 verdict=result.verdict or "unresolved",
                 target_calls=result.target_calls,
@@ -283,16 +354,19 @@ def execute_real_scan(
             "execution_budget": metadata["execution_budget"],
         },
         seed=config.seed,
-        registry_cases=registry_cases_from_rows(active_rows),
-        idempotency_key=f"demo:{run_id}:real-90",
+        registry_cases=registry_cases_from_rows(
+            runnable_rows, execution_flag="target_bound"
+        ),
+        idempotency_key=f"demo:{run_id}:real-203",
     )
     lease = store.lease(job.job_id, ttl_seconds=config.max_wall_clock_seconds)
     dispatch_registry_attempt(
         store,
         job.job_id,
         attempt_id=str(lease["attempt_id"]),
-        registry_rows=active_rows,
+        registry_rows=runnable_rows,
         workers=wrapped_workers,
+        execution_flag="target_bound",
     )
     finalized = store.finalize(job.job_id)
     manifest = dict(finalized.final_manifest or {})
@@ -300,7 +374,7 @@ def execute_real_scan(
 
     counts = manifest.get("counts", {})
     reconciliation = manifest.get("reconciliation", {})
-    expected = len(active_rows)
+    expected = len(runnable_rows)
     reconciled = (
         int(counts.get("expected") or 0),
         int(reconciliation.get("attempted") or 0),
@@ -313,7 +387,7 @@ def execute_real_scan(
             f"expected/attempted/terminal/evidenced={reconciled}"
         )
 
-    row_by_case = {str(row["case_id"]): row for row in active_rows}
+    row_by_case = {str(row["case_id"]): row for row in runnable_rows}
     cases: list[dict[str, Any]] = []
     family_rollups: dict[str, Counter[str]] = defaultdict(Counter)
     for evidence in manifest.get("evidence_rows", []):
@@ -328,7 +402,7 @@ def execute_real_scan(
             {
                 "case_id": case_id,
                 "family_id": family_id,
-                "family": FAMILY_LABELS.get(family_id, family_id),
+                "family": _family_label(family_id),
                 "rubric_point_id": evidence.get("rubric_point_id"),
                 "execution_status": evidence.get("status"),
                 "verdict": verdict,
@@ -360,7 +434,7 @@ def execute_real_scan(
         "run_id": run_id,
         "job_id": finalized.job_id,
         "analysis_status": manifest.get("analysis_status"),
-        "active_case_count": expected,
+        "runnable_case_count": expected,
         "target_host": urlsplit(config.agent_endpoint).hostname,
         "target_model": metadata["target_model"],
         "judge_models": metadata["judge_models"],
@@ -379,7 +453,7 @@ def execute_real_scan(
         "finished_at": manifest.get("finished_at"),
         "score": None,
         "score_note": (
-            "No aggregate BackBond score is synthesized from this four-family subset. "
+            "No aggregate BackBond score is synthesized from this 203-case execution set. "
             "The measured output is the per-case verdict manifest."
         ),
         "approved_budget": asdict(config.budget()),
@@ -393,7 +467,7 @@ def execute_real_scan(
         stage="scan",
         state="passed" if not summary["incomplete"] else "incomplete",
         summary={
-            "active_case_count": expected,
+            "runnable_case_count": expected,
             "verdict_counts": summary["verdict_counts"],
             "budget": summary["budget"],
             "analysis_status": summary["analysis_status"],
@@ -403,8 +477,12 @@ def execute_real_scan(
 
 
 __all__ = [
+    "CORE_FAMILY_COUNTS",
     "EXPECTED_FAMILY_COUNTS",
     "FAMILY_LABELS",
+    "PLANNED_JUDGE_CALLS",
+    "PLANNED_TARGET_CALLS",
+    "TEXT_FAMILY_COUNTS",
     "RealScanConfig",
     "execute_real_scan",
     "judge_configured",

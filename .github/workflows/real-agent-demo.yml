@@ -1,4 +1,4 @@
-name: Real Agent 90-Case Demo
+name: Real Agent 203-Case Demo
 
 on:
   pull_request:
@@ -10,13 +10,15 @@ on:
       - "harness/bench/**"
       - "harness/customer_runner.py"
       - "harness/runner.py"
-      - "rubric/probe_mappings/p1_1_factuality_golden.yaml"
-      - "rubric/probe_mappings/p1_3_consistency_golden.yaml"
-      - "rubric/probe_mappings/p1_4_refusal_golden.yaml"
-      - "rubric/probe_mappings/p1_5_calibration_golden.yaml"
+      - "harness/fixtures/**"
+      - "tests/probe_sets/**"
+      - "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json"
+      - "rubric/probe_mappings/**"
+      - "scanners/**"
       - "tools/active_test_registry.py"
       - "tools/active_test_registry_claims.json"
       - "tools/registered_case_executor.py"
+      - "tools/text_case_materializer.py"
       - ".github/workflows/real-agent-demo.yml"
   push:
     branches: [master]
@@ -27,13 +29,15 @@ on:
       - "harness/bench/**"
       - "harness/customer_runner.py"
       - "harness/runner.py"
-      - "rubric/probe_mappings/p1_1_factuality_golden.yaml"
-      - "rubric/probe_mappings/p1_3_consistency_golden.yaml"
-      - "rubric/probe_mappings/p1_4_refusal_golden.yaml"
-      - "rubric/probe_mappings/p1_5_calibration_golden.yaml"
+      - "harness/fixtures/**"
+      - "tests/probe_sets/**"
+      - "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json"
+      - "rubric/probe_mappings/**"
+      - "scanners/**"
       - "tools/active_test_registry.py"
       - "tools/active_test_registry_claims.json"
       - "tools/registered_case_executor.py"
+      - "tools/text_case_materializer.py"
       - ".github/workflows/real-agent-demo.yml"
   workflow_dispatch:
 
@@ -58,10 +62,10 @@ jobs:
           cache-dependency-path: requirements-dev.txt
       - name: Install test dependencies
         run: python -m pip install -r requirements-dev.txt
-      - name: Prove 90-case execution contract with controlled runners
+      - name: Prove 203-case execution contract with controlled runners
         env:
           ARE_BUNDLE_SIGNING_KEY: ci-only-real-agent-demo-key
-        run: python -m pytest -q demo-real-agent/tests tests/test_registered_case_execution.py tests/test_full_scan_executor_beaaa13681.py
+        run: python -m pytest -q demo-real-agent/tests tests/test_registered_case_execution.py tests/test_text_case_activation.py tests/test_target_bound_full_scan.py tests/test_active_test_registry_beaaa13644.py tests/test_full_scan_executor_beaaa13681.py
       - name: Build real-agent demo image
         run: docker build -f demo-real-agent/Dockerfile -t backbond/real-agent-demo:${{ github.sha }} .
       - name: Prove container identity without external model calls
@@ -103,7 +107,7 @@ jobs:
           SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
           SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
         run: |
-          tar -czf real-agent-demo-release.tgz api harness rubric tools demo-real-agent
+          tar -czf real-agent-demo-release.tgz api harness rubric scanners tools demo-real-agent tests/probe_sets artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
           ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-real-agent-demo/releases/${GITHUB_SHA}"
           scp -i ~/.ssh/real-agent-demo real-agent-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-real-agent-demo/releases/${GITHUB_SHA}/"
           ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-real-agent-demo/releases/${GITHUB_SHA} && tar -xzf real-agent-demo-release.tgz"
