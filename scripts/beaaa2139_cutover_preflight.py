@@ -114,7 +114,11 @@ def _score_body(rubric: Rubric, raw: float = 2.0) -> dict:
     # verifier, byte-identical to the pre-signing behavior).
     signer = ProvenanceSigner.from_env()
     if signer is not None:
-        signer.stamp_eval_outputs(body["eval_outputs"])
+        signer.stamp_eval_outputs(
+            body["eval_outputs"],
+            tenant_id=body["tenant_id"],
+            snapshot_hash=body["snapshot"]["snapshot_hash"],
+        )
     return body
 
 

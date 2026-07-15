@@ -384,11 +384,49 @@ def test_redaction_fails_closed_when_declared_path_still_leaks_email() -> None:
         normalize_receiver_events(payload, jwt_keyring=KEYRING)
 
 
+def test_redaction_fails_closed_when_embedded_sentinel_still_leaks_email() -> None:
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "email", "arg": "[REDACTED] alice@example.com"}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    with pytest.raises(RedactionConformanceError, match="email-like value"):
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
+
+
+def test_redaction_fails_closed_when_embedded_sentinel_still_leaks_secret() -> None:
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "payment", "arg": "[REDACTED] sk-ab12cdef3456"}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    with pytest.raises(RedactionConformanceError, match="secret-like value"):
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
+
+
 def test_redaction_fails_closed_when_declared_path_not_proven_redacted() -> None:
     # Vendor declares `arg` redacted but leaves an ordinary, non-sentinel value.
     # We cannot confirm redaction actually happened -> reject.
     payload = _receiver_payload()
     payload["events"][0]["payload"] = {"tool_name": "note", "arg": "some plaintext value"}
+    payload["events"][0]["redaction_applied"] = ["arg"]
+    _sign_events_payload(payload)
+
+    with pytest.raises(RedactionConformanceError, match="not proven redacted"):
+        normalize_receiver_events(payload, jwt_keyring=KEYRING)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        123456789,
+        ["[REDACTED]"],
+        {"nested": "[REDACTED]"},
+    ],
+)
+def test_redaction_fails_closed_for_unsupported_declared_value_shapes(value: object) -> None:
+    payload = _receiver_payload()
+    payload["events"][0]["payload"] = {"tool_name": "note", "arg": value}
     payload["events"][0]["redaction_applied"] = ["arg"]
     _sign_events_payload(payload)
 

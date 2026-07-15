@@ -57,3 +57,11 @@ def test_release_archive_contains_every_docker_build_context_root() -> None:
         HALUEVAL_DATASET,
     ):
         assert required_path in release_command.split()
+
+
+def test_ci_container_supplies_strong_demo_access_token() -> None:
+    workflow = (REPO / ".github" / "workflows" / "real-agent-demo.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "-e DEMO_ACCESS_TOKEN=ci-only-real-agent-demo-access-token" in workflow

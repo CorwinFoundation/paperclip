@@ -318,9 +318,9 @@ def _is_proven_redacted(value: Any) -> bool:
         return True
     if isinstance(value, str):
         return bool(REDACTION_SENTINEL_RE.match(value))
-    # Non-scalar declared values (dict/list) are not self-proving; their
-    # contents are covered by the deep sensitive-content scan.
-    return True
+    # Numeric/container/object declarations are unsupported proof forms. Treat
+    # them as unredacted rather than inferring redaction from vendor intent.
+    return False
 
 
 def _verify_redaction_conformance(payload: dict[str, Any], redacted_paths: set[str]) -> None:
@@ -341,8 +341,6 @@ def _verify_redaction_conformance(payload: dict[str, Any], redacted_paths: set[s
     # (1) Sensitive content always fails; declaration cannot suppress a leak.
     for full_path, candidate in _walk_text_values(payload):
         if not isinstance(candidate, str):
-            continue
-        if REDACTED_TOKEN_RE.search(candidate):
             continue
         declared = _path_is_declared(full_path, redacted_paths)
         if EMAIL_RE.search(candidate):
