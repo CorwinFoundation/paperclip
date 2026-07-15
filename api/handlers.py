@@ -91,7 +91,12 @@ def score_handler(
     eval_outputs = body["eval_outputs"]
     try:
         enforce_input_safety(eval_outputs)
-        enforce_hosted_eval_only(eval_outputs, provenance_verifier=provenance_verifier)
+        enforce_hosted_eval_only(
+            eval_outputs,
+            tenant_id=body["tenant_id"],
+            snapshot_hash=snapshot["snapshot_hash"],
+            provenance_verifier=provenance_verifier,
+        )
     except IntakeError as exc:
         raise HandlerError(422, f"intake rejected: {exc}") from exc
 
