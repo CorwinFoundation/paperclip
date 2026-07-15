@@ -202,8 +202,10 @@ def main(argv: list[str] | None = None) -> int:
     except CliEvidenceError as exc:
         sys.stderr.write(f"are-scan: refuse-to-quote: {exc}\n")
         # Still emit the partial result so the operator can see what
-        # dims tripped the gate. Write to stderr so stdout stays
-        # machine-parseable when --out is absent.
+        # dims tripped the gate. Keep the JSON on the normal output
+        # channel/path so automation can parse exit-1 evidence.
+        if exc.partial_result is not None:
+            _emit(exc.partial_result, args.out)
         return EXIT_EVIDENCE_INCOMPLETE
     except Exception as exc:  # noqa: BLE001 — boundary handler
         sys.stderr.write(f"are-scan: internal error: {exc}\n")
