@@ -46,6 +46,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
+from importlib import metadata
 from pathlib import Path
 
 # Default root for the per-framework venvs. Overridable via ARE_EVAL_VENVS_DIR
@@ -74,6 +75,7 @@ class FrameworkSpec:
 
     key: str
     import_name: str
+    distribution_name: str
     pinned_version: str
     requirements: str
 
@@ -86,24 +88,28 @@ FRAMEWORKS: dict[str, FrameworkSpec] = {
     "garak": FrameworkSpec(
         key="garak",
         import_name="garak",
+        distribution_name="garak",
         pinned_version="0.10.0",
         requirements="requirements-eval-garak.txt",
     ),
     "pyrit": FrameworkSpec(
         key="pyrit",
         import_name="pyrit",
+        distribution_name="pyrit",
         pinned_version="0.6.0",
         requirements="requirements-eval-pyrit.txt",
     ),
     "agentdojo": FrameworkSpec(
         key="agentdojo",
         import_name="agentdojo",
+        distribution_name="agentdojo",
         pinned_version="0.1.35",
         requirements="requirements-eval-agentdojo.txt",
     ),
     "inspect": FrameworkSpec(
         key="inspect",
         import_name="inspect_ai",
+        distribution_name="inspect-ai",
         pinned_version="0.3.220",
         requirements="requirements-eval-inspect.txt",
     ),
@@ -183,8 +189,11 @@ def resolve_framework(
     if not py.exists():
         return (False, "not-installed")
     code = (
-        f"import {spec.import_name} as _m, sys; "
-        f"sys.stdout.write(getattr(_m, '__version__', 'unknown'))"
+        "import importlib, importlib.metadata, sys; "
+        f"_m=importlib.import_module({spec.import_name!r}); "
+        f"_v=getattr(_m, '__version__', None) or "
+        f"importlib.metadata.version({spec.distribution_name!r}); "
+        "sys.stdout.write(str(_v))"
     )
     try:
         proc = subprocess.run(
@@ -245,7 +254,14 @@ def resolve_or_import(framework: str, module: object | None) -> tuple[bool, str]
     venv probe.
     """
     if module is not None:
-        return (True, str(getattr(module, "__version__", "unknown")))
+        version = getattr(module, "__version__", None)
+        if version:
+            return (True, str(version))
+        spec = _require_known(framework)
+        try:
+            return (True, metadata.version(spec.distribution_name))
+        except metadata.PackageNotFoundError:
+            return (True, "unknown")
     return resolve_framework(framework)
 
 
