@@ -76,6 +76,17 @@ class ResolveFrameworkTests(unittest.TestCase):
             efv.resolve_or_import("pyrit", _FakeMod()), (True, "9.9.9")
         )
 
+    def test_resolve_or_import_uses_distribution_metadata_without_dunder_version(self) -> None:
+        class _FakeMod:
+            pass
+
+        with patch.object(efv.metadata, "version", return_value="0.1.35") as version:
+            self.assertEqual(
+                efv.resolve_or_import("agentdojo", _FakeMod()),
+                (True, "0.1.35"),
+            )
+        version.assert_called_once_with("agentdojo")
+
     def test_resolve_or_import_falls_back_when_module_none(self) -> None:
         with TemporaryDirectory() as tmp:
             with patch.dict(os.environ, {efv._ENV_VAR: tmp}):
@@ -120,6 +131,10 @@ class FrameworkRegistryTests(unittest.TestCase):
     def test_import_names(self) -> None:
         self.assertEqual(efv.FRAMEWORKS["inspect"].import_name, "inspect_ai")
         self.assertEqual(efv.FRAMEWORKS["pyrit"].import_name, "pyrit")
+
+    def test_distribution_names(self) -> None:
+        self.assertEqual(efv.FRAMEWORKS["inspect"].distribution_name, "inspect-ai")
+        self.assertEqual(efv.FRAMEWORKS["agentdojo"].distribution_name, "agentdojo")
 
 
 if __name__ == "__main__":
