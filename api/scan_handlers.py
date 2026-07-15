@@ -446,6 +446,7 @@ class ScanRuntime:
         agent_id: str | None = None,
         scanner_invocation_context: dict[str, Any] | None = None,
         webhook_cfg: dict[str, str] | None = None,
+        on_terminal: Callable[[], None] | None = None,
     ) -> ScanResult:
         """Run the scan now; record the result by scan_id.
 
@@ -458,6 +459,18 @@ class ScanRuntime:
         ``BEGIN IMMEDIATE`` transaction). The ``agent_id`` is also
         recorded in the WS1 in-memory shim so a subsequent /rescans on
         the same id passes the ``has_prior_scan_for_agent`` 422 guard.
+
+        BEAAA-14399 (P1#5 fix 3) — ``on_terminal`` is a caller-owned
+        callback fired exactly once when the scan reaches a terminal state
+        (complete / incomplete / failed / cancelled). The API edge passes the
+        EdgeGateway ``ConcurrencyLease.release`` here so the per-tenant
+        admission slot is held for the *actual execution*, not just until the
+        handler returns. For the synchronous scoring path the scan is terminal
+        before ``kickoff`` returns, so the callback fires inline; for the async
+        full-registry path the daemon worker owns it and fires on the terminal
+        transition. The callback stays decoupled from the gateway type — any
+        idempotent zero-arg release works. ``None`` (gateway disabled) is a
+        no-op.
         """
         # BEAAA-2175 (PR-B) — populate per-scan registries before invoking the
         # run_scan_fn closure so scorer paths can read the request and
@@ -502,27 +515,45 @@ class ScanRuntime:
                     "scan_request": scan_request,
                     "secret": secret,
                     "agent_id": agent_id,
+                    # BEAAA-14399 — hand admission-lease ownership to the
+                    # daemon worker; it releases on the terminal transition,
+                    # not when this handler returns the ``queued`` 202.
+                    "on_terminal": on_terminal,
                 },
                 name=f"are-full-scan-{scan_request.scan_id[:8]}",
                 daemon=True,
             )
             self._background_threads[scan_request.scan_id] = thread
-            thread.start()
+            try:
+                thread.start()
+            except BaseException:
+                # Never leak the admission slot if the worker cannot start —
+                # the terminal transition that would release it will never run.
+                self._background_threads.pop(scan_request.scan_id, None)
+                if on_terminal is not None:
+                    on_terminal()
+                raise
             return queued
 
-        result = self._run_scan_fn(scan_request, secret)
-        result = self._apply_registry_dispatch_guard(
-            scan_request,
-            result,
-            agent_id=agent_id,
-            secret=secret,
-        )
-        result = self._apply_full_suite_manifest_guard(
-            scan_request,
-            result,
-            agent_id=agent_id,
-        )
-        return self._record_completed_result(scan_request, result, agent_id=agent_id)
+        # Synchronous scoring path — the scan is terminal before ``kickoff``
+        # returns, so release the admission lease inline (BEAAA-14399).
+        try:
+            result = self._run_scan_fn(scan_request, secret)
+            result = self._apply_registry_dispatch_guard(
+                scan_request,
+                result,
+                agent_id=agent_id,
+                secret=secret,
+            )
+            result = self._apply_full_suite_manifest_guard(
+                scan_request,
+                result,
+                agent_id=agent_id,
+            )
+            return self._record_completed_result(scan_request, result, agent_id=agent_id)
+        finally:
+            if on_terminal is not None:
+                on_terminal()
 
     def _run_full_scan_background(
         self,
@@ -530,6 +561,7 @@ class ScanRuntime:
         scan_request: ScanRequest,
         secret: str,
         agent_id: str | None,
+        on_terminal: Callable[[], None] | None = None,
     ) -> None:
         try:
             with self._full_scan_semaphore:
@@ -570,6 +602,11 @@ class ScanRuntime:
                 self._scan_state_created_at[scan_request.scan_id] = self._now()
         finally:
             self._background_threads.pop(scan_request.scan_id, None)
+            # BEAAA-14399 — the scan is now terminal (complete / incomplete /
+            # failed); release the per-tenant admission lease so the next scan
+            # for this tenant is admitted. Idempotent by ConcurrencyLease.
+            if on_terminal is not None:
+                on_terminal()
 
     def _record_completed_result(
         self,
@@ -1215,6 +1252,7 @@ def _kickoff_live_probe_scan(
     scan_id_factory: Callable[[], str] | None,
     agent_id: str | None = None,
     scanner_invocation_context: dict[str, Any] | None = None,
+    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Shared body-validation + ScanRequest build + runtime.kickoff path.
 
@@ -1346,6 +1384,7 @@ def _kickoff_live_probe_scan(
             # from ``ScanRuntime._record_completed_result`` after terminal
             # persistence, never here at queue time.
             webhook_cfg=_webhook_cfg,
+            on_terminal=on_terminal,
         )
     except CorpusSnapshotMismatchError as exc:
         raise HandlerError(422, "corpus_snapshot_mismatch") from exc
@@ -1448,6 +1487,7 @@ def scan_handler(
     tenant_header: str | None,
     runtime: ScanRuntime,
     scan_id_factory: Callable[[], str] | None = None,
+    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scan handler.
 
@@ -1478,6 +1518,7 @@ def scan_handler(
         runtime=runtime,
         scan_id_factory=scan_id_factory,
         agent_id=agent_id_for_chain,
+        on_terminal=on_terminal,
     )
 
 
@@ -1490,6 +1531,7 @@ def rescan_handler(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
     clock: Clock | None = None,
+    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scanner/v1/rescans handler (measured path).
 
@@ -1558,6 +1600,9 @@ def rescan_handler(
         # factory closure can read it and stamp ``purpose`` on the §2.2
         # envelope without changing the ScoreEnvelopeFactory typedef.
         scanner_invocation_context=invocation_context,
+        # BEAAA-14399 — a measured rescan can also take the async full-scan
+        # path, so it carries the same admission-lease terminal handoff.
+        on_terminal=on_terminal,
     )
 
     elapsed_seconds = max(0.0, sla_clock.now() - start)

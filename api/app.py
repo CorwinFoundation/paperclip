@@ -336,13 +336,21 @@ def create_app(
     ) -> Any:
         tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         # BEAAA-11867 D3 — admit through the per-tenant limiter (no-op when the
-        # gateway is disabled). The lease models one in-flight scan; the
-        # current runtime executes the scan inline within kickoff, so holding
-        # the lease across the handler correctly bounds max-concurrent.
+        # gateway is disabled). The lease models one in-flight scan.
+        # BEAAA-14399 (P1#5 fix 3) — after the async full-scan cutover the scan
+        # keeps running on a daemon worker past the 202, so the lease must be
+        # held for the *actual execution*. We hand ``lease.release`` to the
+        # runtime as ``on_terminal``; it fires exactly once on the terminal
+        # transition (inline for the synchronous path, on the worker for the
+        # async path). The handler only releases the lease itself when it never
+        # reached the runtime (validation/503/JSON errors) so the admission slot
+        # is not leaked. ``ConcurrencyLease.release`` is idempotent, so a
+        # belt-and-braces double release is safe.
         try:
             lease = _admit_scan_or_none(request)
         except RateLimited as exc:
             return _rate_limited_response(exc)
+        lease_transferred = False
         try:
             if app.state.scan_runtime is None:
                 raise _http_error(503, "scan_runtime_unconfigured")
@@ -352,17 +360,20 @@ def create_app(
                     body,
                     tenant_header=tenant_context,
                     runtime=app.state.scan_runtime,
+                    on_terminal=(lease.release if lease is not None else None),
                 )
             except HandlerError as exc:
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            # The runtime now owns the lease's terminal release.
+            lease_transferred = True
             # Preserve the handler's status code (202 for the live-probe accept
             # path per contract v1.1.0). Returning the dict directly would let
             # FastAPI's default 200 win, dropping the contracted Accepted status.
             return JSONResponse(status_code=status, content=payload)
         finally:
-            if lease is not None:
+            if lease is not None and not lease_transferred:
                 lease.release()
 
     @app.post("/scanner/v1/scans")
@@ -418,6 +429,8 @@ def create_app(
             lease = _admit_scan_or_none(request)
         except RateLimited as exc:
             return _rate_limited_response(exc)
+        # BEAAA-14399 — same admission-lease terminal handoff as POST /scan.
+        lease_transferred = False
         try:
             try:
                 status, payload = rescan_handler(
@@ -426,15 +439,17 @@ def create_app(
                     runtime=app.state.scan_runtime,
                     sla_registry=app.state.sla_registry,
                     routing_event_sink=app.state.routing_event_sink,
+                    on_terminal=(lease.release if lease is not None else None),
                 )
             except HandlerError as exc:
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            lease_transferred = True
             # Preserve the handler's 202 accept status to match /scan parity.
             return JSONResponse(status_code=status, content=payload)
         finally:
-            if lease is not None:
+            if lease is not None and not lease_transferred:
                 lease.release()
 
     @app.get("/scanner/v1/sla")
