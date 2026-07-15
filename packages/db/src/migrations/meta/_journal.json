@@ -1184,6 +1184,20 @@
       "when": 1784037600000,
       "tag": "0170_company_skill_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1782440200000,
+      "tag": "0126_ceo_idle_packet_window_dedupe",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1783971000000,
+      "tag": "0127_release_candidate_approval_relay",
+      "breakpoints": true
     }
   ]
 }
