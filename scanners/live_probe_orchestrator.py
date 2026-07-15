@@ -94,6 +94,7 @@ from scanners.canary_anti_gaming import (
     records_from_probe_metadata,
     select_fresh_canary_hashes,
 )
+from scanners.replicate_median import _median_of
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
 
@@ -737,21 +738,11 @@ def run_scan(
 # ---------------------------------------------------------------------------
 
 
-def _median_of(values: Sequence[float]) -> float:
-    """Median per T5 spec.
-
-    * Odd K (default K=5): middle of the sorted list.
-    * Even K (K=10): lower-of-two-middles convention — keeps the aggregated
-      raw inside the observed range rather than an interpolated value that
-      no replicate actually produced (deterministic, audit-friendly).
-    """
-    if not values:
-        raise ValueError("_median_of: empty sequence")
-    sorted_values = sorted(values)
-    n = len(sorted_values)
-    if n % 2 == 1:
-        return float(sorted_values[n // 2])
-    return float(sorted_values[n // 2 - 1])
+# BEAAA-14422 / F3 — ``_median_of`` now lives in the dependency-free leaf
+# module ``scanners.replicate_median`` (imported above) so the Scorer-side
+# ``scanners.live_probe_workers`` can share the IDENTICAL median without
+# pulling ``harness.credentials`` across its import-isolation boundary. It
+# stays importable as ``live_probe_orchestrator._median_of`` for continuity.
 
 
 def _spread_of(values: Sequence[float]) -> float:
