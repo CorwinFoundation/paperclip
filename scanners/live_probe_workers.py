@@ -133,6 +133,7 @@ ALLOWED_ROW_FIELDS: frozenset[str] = frozenset({
     "eval_run_id",
     "evidence_uri",
     "evidence_sha256",
+    "replicate_index",
 })
 
 # Hard cap on serialized row bytes (DoS surface — the Prober's target is
@@ -361,7 +362,19 @@ def validate_inbound(message: Any) -> tuple[str, dict[str, Any]]:
         raise IntakeError("IPC message missing dim_id")
 
     entry = {k: v for k, v in message.items() if k != "dim_id"}
-    eval_outputs = {dim_id: entry}
+    replicate_index = entry.get("replicate_index")
+    if replicate_index is not None and (
+        not isinstance(replicate_index, int)
+        or isinstance(replicate_index, bool)
+        or replicate_index < 0
+    ):
+        raise IntakeError("IPC message replicate_index must be a non-negative int")
+    # ``replicate_index`` is internal IPC ordering metadata, not a Scanner
+    # eval-output field. Validate the existing contract-shaped entry verbatim,
+    # then retain the stable index for representative-row selection.
+    eval_outputs = {
+        dim_id: {k: v for k, v in entry.items() if k != "replicate_index"}
+    }
 
     # Δ1 — verbatim wrap. NOT a re-implementation, NOT a fork.
     enforce_hosted_eval_only(eval_outputs)
@@ -694,8 +707,8 @@ def _collapse_replicates_to_median_rows(
     Because ``_median_of`` uses the lower-of-two-middles convention, the
     median is ALWAYS a real replicate value (both K=5 and K=10). We select
     the replicate ENTRY whose ``raw`` equals that median — deterministic
-    tie-break: the lowest replicate index, i.e. the first such entry in
-    receive order — as the representative, so ``evidence_uri`` /
+    tie-break: the lowest stable ``replicate_index`` among median-valued
+    entries, independent of receive order — as the representative, so ``evidence_uri`` /
     ``evidence_sha256`` keep pointing at a real transcript that actually
     produced the scored raw. The median value itself is order-independent,
     so the scored raw is stable regardless of IPC receive order.
@@ -706,11 +719,11 @@ def _collapse_replicates_to_median_rows(
             continue
         raws = [float(entry["raw"]) for entry in entries]
         median = _median_of(raws)
-        # lower-of-two-middles => median is a real replicate value; pick the
-        # first entry that produced it (lowest replicate index tie-break).
-        representative = next(
+        # lower-of-two-middles => median is a real replicate value. Select
+        # the lowest producer index, never the first arrival.
+        representative = min(
             (entry for entry, raw in zip(entries, raws) if raw == median),
-            entries[0],
+            key=lambda entry: int(entry["replicate_index"]),
         )
         collapsed[dim_id] = representative
     return collapsed

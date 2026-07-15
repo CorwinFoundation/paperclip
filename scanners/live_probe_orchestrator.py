@@ -613,6 +613,10 @@ def run_scan(
                     # as anything other than HOSTED_RUNNER.
                     row["runner"] = HOSTED_RUNNER
                     row.setdefault("eval_run_id", eval_run_id)
+                    # Stable evidence tie-break metadata. Overwrite any
+                    # wrapper-supplied value so receive-order variation cannot
+                    # influence which median-valued transcript is selected.
+                    row["replicate_index"] = _replicate_idx
                     # AC#5 — ``ipc_outbound.send_row`` runs T4's
                     # ``serialize_measurement_row`` which enforces the closed
                     # allow-list. Any field outside the allow-list fails here

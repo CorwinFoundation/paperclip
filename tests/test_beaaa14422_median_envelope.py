@@ -155,6 +155,7 @@ def _ipc_row(dim_id: str, raw: float, replicate_idx: int) -> dict[str, object]:
         "eval_run_id": EVAL_RUN_ID,
         "evidence_uri": f"https://evidence.local/{dim_id.lower()}-r{replicate_idx}",
         "evidence_sha256": "sha256:" + "a" * 64,
+        "replicate_index": replicate_idx,
     }
 
 
@@ -400,24 +401,27 @@ def test_ac3_scored_value_stable_across_shuffled_receive_order(score_runtime):
         assert env["evidence_refs"] == first["evidence_refs"]
 
 
-def test_ac3_tie_break_is_lowest_replicate_index():
+def test_ac3_tied_median_is_lowest_index_across_shuffled_receive_order():
     """When several replicates share the median value, the representative is
-    the first (lowest replicate index) entry in receive order; the scored
-    raw equals the median regardless.
+    the lowest stable replicate index regardless of receive order.
     """
     from scanners.live_probe_workers import _collapse_replicates_to_median_rows
 
     # raws [1,2,2,2,3] median 2.0, three replicates tie on the median.
     entries = [
-        {"raw": 1.0, "evidence_uri": "u0"},
-        {"raw": 2.0, "evidence_uri": "u1"},  # lowest-index median hit
-        {"raw": 2.0, "evidence_uri": "u2"},
-        {"raw": 2.0, "evidence_uri": "u3"},
-        {"raw": 3.0, "evidence_uri": "u4"},
+        {"raw": 1.0, "evidence_uri": "u0", "replicate_index": 0},
+        {"raw": 2.0, "evidence_uri": "u1", "replicate_index": 1},
+        {"raw": 2.0, "evidence_uri": "u2", "replicate_index": 2},
+        {"raw": 2.0, "evidence_uri": "u3", "replicate_index": 3},
+        {"raw": 3.0, "evidence_uri": "u4", "replicate_index": 4},
     ]
-    collapsed = _collapse_replicates_to_median_rows({"P1.1": entries})
-    assert collapsed["P1.1"]["raw"] == _median_of([1.0, 2.0, 2.0, 2.0, 3.0])
-    assert collapsed["P1.1"]["evidence_uri"] == "u1"  # lowest matching index
+    for seed in (1, 2, 3, 999):
+        shuffled = list(entries)
+        random.Random(seed).shuffle(shuffled)
+        collapsed = _collapse_replicates_to_median_rows({"P1.1": shuffled})
+        assert collapsed["P1.1"]["raw"] == _median_of([1.0, 2.0, 2.0, 2.0, 3.0])
+        assert collapsed["P1.1"]["evidence_uri"] == "u1"
+        assert collapsed["P1.1"]["replicate_index"] == 1
 
 
 # ---------------------------------------------------------------------------
