@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
+import logging
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,12 +25,17 @@ from harness.runner import ModelRunner
 from tools.active_test_registry import (
     build_registry,
     count_active_executable,
+    distinct_case_collapses,
+    distinct_case_counts,
+    format_collapse_table,
     load_published_count,
     validate_registry,
 )
 from tools.registered_case_executor import ScanBudget, build_registered_case_workers
 from tools.text_case_materializer import materialize_text_case
 
+
+LOGGER = logging.getLogger(__name__)
 
 Emit = Callable[..., None]
 SubjectFactory = Callable[[str, str], ModelRunner]
@@ -198,10 +204,34 @@ def registry_inventory() -> dict[str, Any]:
             f"{planned_target_calls} target / {planned_judge_calls} judge"
         )
 
+    # Distinct-pair coverage (BEAAA-14423 / F10): several text-compatible rows
+    # materialize to byte-identical (prompts, expected) payloads via
+    # ``_stable_select`` hash-collisions. All 203 rows still execute, but they do
+    # not all represent independent evidence — coverage keys off distinct pairs,
+    # never the raw row count. Surface it as evidence and WARN on collapse.
+    distinct = distinct_case_counts(rows)
+    collapses = distinct_case_collapses(rows)
+    if collapses or distinct["cross_family_collapsed"] > 0:
+        LOGGER.warning(
+            "distinct-pair coverage collapse: %d runnable rows -> %d distinct "
+            "(prompts, expected) pairs (-%d byte-identical: -%d within-family, "
+            "-%d shared across families); within-family table:\n%s",
+            distinct["declared_total"],
+            distinct["total"],
+            distinct["declared_total"] - distinct["total"],
+            sum(c["collapsed"] for c in collapses),
+            distinct["cross_family_collapsed"],
+            format_collapse_table(collapses),
+        )
+    distinct_by_family = distinct["by_family"]
+
     return {
         "rows": rows,
         "runnable_rows": runnable,
         "runnable_case_count": len(runnable),
+        "distinct_case_count": distinct["total"],
+        "distinct_by_family": distinct_by_family,
+        "distinct_coverage_collapses": collapses,
         "published_executed_case_count": published,
         "evidenced_executable_case_count": evidenced_executable,
         "planned_target_calls": planned_target_calls,
@@ -211,6 +241,7 @@ def registry_inventory() -> dict[str, Any]:
                 "family_id": family_id,
                 "label": _family_label(family_id),
                 "cases": count,
+                "distinct_cases": distinct_by_family.get(family_id, count),
                 "planned_target_calls": calls_by_family[family_id][0],
                 "planned_judge_calls": calls_by_family[family_id][1],
             }

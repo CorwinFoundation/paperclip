@@ -85,6 +85,25 @@ def is_text_compatible_test(test_id: str) -> bool:
     return test_id in TEXT_COMPATIBLE_TEST_IDS
 
 
+def text_case_identity(spec: "TextCaseSpec") -> str:
+    """Stable identity for a materialized case's send-and-judge payload.
+
+    Two cases with byte-identical normalized ``(prompts, expected)`` collapse to
+    the same identity: they are the same evidence produced twice, not distinct
+    coverage.  ``judge_criteria`` / ``source_ref`` / provenance are deliberately
+    excluded — an identical prompt scored against an identical oracle yields
+    non-independent evidence regardless of the label on it.  This is the unit of
+    *distinct* coverage; raw registry-row count is not.
+    """
+
+    payload = {
+        "prompts": [str(prompt) for prompt in spec.prompts],
+        "expected": spec.expected,
+    }
+    canonical = json.dumps(payload, sort_keys=True, default=str, ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def materialize_text_case(
     test_id: str,
     case_id: str,
@@ -701,4 +720,5 @@ __all__ = [
     "TextCaseSpec",
     "is_text_compatible_test",
     "materialize_text_case",
+    "text_case_identity",
 ]

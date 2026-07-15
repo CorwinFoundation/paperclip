@@ -74,6 +74,7 @@ jobs:
         run: |
           docker run -d --name real-agent-demo-ci -p 127.0.0.1:8765:8765 \
             -e DEMO_GIT_SHA=${{ github.sha }} \
+            -e DEMO_ACCESS_TOKEN=ci-only-real-agent-demo-access-token \
             backbond/real-agent-demo:${{ github.sha }}
           for attempt in $(seq 1 40); do
             curl --fail --silent http://127.0.0.1:8765/api/health && break
