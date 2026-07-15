@@ -12,9 +12,11 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+from threading import RLock
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from api.bundle import sign_manifest
+from api.full_scan_job_persistence import FullScanJobPersistence
 from api.full_suite_manifest import (
     FULL_SUITE_MANIFEST_VERSION,
     FULL_SUITE_RUNNER_VERSION,
@@ -31,6 +33,13 @@ ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
 TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled"}
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
+
+# BEAAA-14401 — a recovered job whose stale attempt is cleared is re-queued for
+# resume. A job that cannot make progress across this many restart recoveries is
+# finalized to an explicit terminal failure so a poison job never resumes
+# forever (acceptance: "resume OR reach an explicit terminal failure").
+DEFAULT_MAX_RECOVERY_ATTEMPTS = 5
+RESTART_RECOVERY_INCOMPLETE_REASON = "process_restart_recovery_exhausted"
 
 
 class FullScanExecutorError(ValueError):
@@ -136,23 +145,58 @@ class FullScanJob:
     bind_eligibility: str = "blocked_base_suite_incomplete"
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # BEAAA-14401 — number of times a restart recovery sweep has re-queued this
+    # job after clearing a stale (dead-worker) attempt. Bounded by
+    # ``DEFAULT_MAX_RECOVERY_ATTEMPTS`` so an unresumable job reaches a terminal
+    # failure instead of looping forever.
+    recovery_count: int = 0
 
 
 FrameworkWorker = Callable[[Mapping[str, Any], FullScanJob], WorkerAttemptResult]
 
-
 class FullScanJobStore:
-    """In-memory async full-scan state store.
+    """Async full-scan state store with optional durable persistence.
 
-    Production can swap this surface for a durable DB-backed store without
-    changing the executor semantics: submit, status, lease, checkpoint, resume,
-    finalize.
+    The in-memory dict remains the hot read/write path (fast, lock-guarded).
+    When a ``persistence`` backend is supplied (BEAAA-14401), every job state
+    transition is also written through to durable storage, and existing jobs +
+    the idempotency index are loaded back on construction. This is how an
+    accepted job survives a process restart: ``submit``, ``lease``,
+    ``checkpoint``, ``finalize`` all persist, and :meth:`recover` sweeps
+    non-terminal jobs at startup so each either resumes or reaches an explicit
+    terminal failure — it never disappears.
+
+    ``persistence=None`` (the default) is byte-for-byte the legacy in-memory
+    behavior: no I/O, identical semantics.
     """
 
-    def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        clock: Callable[[], datetime] | None = None,
+        persistence: "FullScanJobPersistence | None" = None,
+    ) -> None:
         self._clock = clock or _utcnow
         self._jobs: dict[str, FullScanJob] = {}
         self._idempotency_index: dict[str, str] = {}
+        self._lock = RLock()
+        self._persistence = persistence
+        if persistence is not None:
+            for record in persistence.load_jobs():
+                job = _job_from_record(record)
+                self._jobs[job.job_id] = job
+            self._idempotency_index.update(persistence.load_idempotency())
+
+    def _persist(self, job: FullScanJob) -> None:
+        """Update the in-memory job and write it through to durable storage."""
+        self._jobs[job.job_id] = job
+        if self._persistence is not None:
+            self._persistence.save(
+                job_id=job.job_id,
+                status=job.status,
+                updated_at=_iso(job.updated_at) if job.updated_at else None,
+                record=_job_to_record(job),
+            )
 
     def submit(
         self,
@@ -166,63 +210,70 @@ class FullScanJobStore:
         idempotency_key: str | None = None,
         approved_blocker_ref: str | None = None,
     ) -> FullScanJob:
-        cases = tuple(registry_cases)
-        if not cases:
-            raise FullScanExecutorError("registry_cases must not be empty")
-        if idempotency_key and idempotency_key in self._idempotency_index:
-            return self._jobs[self._idempotency_index[idempotency_key]]
-        now = self._clock()
-        job = FullScanJob(
-            job_id=str(uuid.uuid4()),
-            agent_id=agent_id,
-            scanner_version=scanner_version,
-            corpus_version=corpus_version,
-            model_versions=dict(model_versions),
-            seed=seed,
-            registry_cases=cases,
-            approved_blocker_ref=approved_blocker_ref,
-            created_at=now,
-            updated_at=now,
-        )
-        self._jobs[job.job_id] = job
-        if idempotency_key:
-            self._idempotency_index[idempotency_key] = job.job_id
-        return job
+        with self._lock:
+            cases = tuple(registry_cases)
+            if not cases:
+                raise FullScanExecutorError("registry_cases must not be empty")
+            if idempotency_key and idempotency_key in self._idempotency_index:
+                return self._jobs[self._idempotency_index[idempotency_key]]
+            now = self._clock()
+            job = FullScanJob(
+                job_id=str(uuid.uuid4()),
+                agent_id=agent_id,
+                scanner_version=scanner_version,
+                corpus_version=corpus_version,
+                model_versions=dict(model_versions),
+                seed=seed,
+                registry_cases=cases,
+                approved_blocker_ref=approved_blocker_ref,
+                created_at=now,
+                updated_at=now,
+            )
+            self._persist(job)
+            if idempotency_key:
+                self._idempotency_index[idempotency_key] = job.job_id
+                if self._persistence is not None:
+                    self._persistence.save_idempotency(
+                        idempotency_key=idempotency_key, job_id=job.job_id
+                    )
+            return job
 
     def status(self, job_id: str) -> FullScanJob:
-        return self._get(job_id)
+        with self._lock:
+            return self._get(job_id)
 
     def lease(self, job_id: str, *, ttl_seconds: int = 300) -> dict[str, Any]:
-        if ttl_seconds <= 0:
-            raise FullScanExecutorError("ttl_seconds must be positive")
-        job = self._get(job_id)
-        now = self._clock()
-        if job.status in TERMINAL_JOB_STATUSES:
-            raise FullScanExecutorError("cannot lease terminal job")
-        if job.active_attempt_id and job.lease_expires_at and job.lease_expires_at > now:
+        with self._lock:
+            if ttl_seconds <= 0:
+                raise FullScanExecutorError("ttl_seconds must be positive")
+            job = self._get(job_id)
+            now = self._clock()
+            if job.status in TERMINAL_JOB_STATUSES:
+                raise FullScanExecutorError("cannot lease terminal job")
+            if job.active_attempt_id and job.lease_expires_at and job.lease_expires_at > now:
+                return {
+                    "job_id": job.job_id,
+                    "leased": False,
+                    "active_attempt_id": job.active_attempt_id,
+                    "lease_expires_at": _iso(job.lease_expires_at),
+                }
+            attempt_id = str(uuid.uuid4())
+            lease_expires_at = now + timedelta(seconds=ttl_seconds)
+            updated = replace(
+                job,
+                status="running",
+                attempts=job.attempts + (attempt_id,),
+                active_attempt_id=attempt_id,
+                lease_expires_at=lease_expires_at,
+                updated_at=now,
+            )
+            self._persist(updated)
             return {
                 "job_id": job.job_id,
-                "leased": False,
-                "active_attempt_id": job.active_attempt_id,
-                "lease_expires_at": _iso(job.lease_expires_at),
+                "leased": True,
+                "attempt_id": attempt_id,
+                "lease_expires_at": _iso(lease_expires_at),
             }
-        attempt_id = str(uuid.uuid4())
-        lease_expires_at = now + timedelta(seconds=ttl_seconds)
-        updated = replace(
-            job,
-            status="running",
-            attempts=job.attempts + (attempt_id,),
-            active_attempt_id=attempt_id,
-            lease_expires_at=lease_expires_at,
-            updated_at=now,
-        )
-        self._jobs[job_id] = updated
-        return {
-            "job_id": job.job_id,
-            "leased": True,
-            "attempt_id": attempt_id,
-            "lease_expires_at": _iso(lease_expires_at),
-        }
 
     def checkpoint(
         self,
@@ -231,59 +282,152 @@ class FullScanJobStore:
         attempt_id: str,
         rows: Iterable[EvidenceAttemptRow],
     ) -> FullScanJob:
-        job = self._get(job_id)
-        if job.status in TERMINAL_JOB_STATUSES:
-            raise FullScanExecutorError("cannot checkpoint terminal job")
-        if attempt_id not in job.attempts:
-            raise FullScanExecutorError("unknown attempt_id")
-        merged = {_row_key(row): row for row in job.evidence_rows}
-        for row in rows:
-            _validate_evidence_row(row)
-            merged[_row_key(row)] = row
-        updated = replace(
-            job,
-            status="running",
-            evidence_rows=tuple(merged[key] for key in sorted(merged)),
-            updated_at=self._clock(),
-        )
-        self._jobs[job_id] = updated
-        return updated
+        with self._lock:
+            job = self._get(job_id)
+            if job.status in TERMINAL_JOB_STATUSES:
+                raise FullScanExecutorError("cannot checkpoint terminal job")
+            self._require_active_lease(job, attempt_id=attempt_id)
+            merged = {_row_key(row): row for row in job.evidence_rows}
+            for row in rows:
+                _validate_evidence_row(row)
+                merged[_row_key(row)] = row
+            updated = replace(
+                job,
+                status="running",
+                evidence_rows=tuple(merged[key] for key in sorted(merged)),
+                updated_at=self._clock(),
+            )
+            self._persist(updated)
+            return updated
 
     def resume(self, job_id: str) -> dict[str, Any]:
-        job = self._get(job_id)
-        completed = _satisfied_case_ids(job.registry_cases, job.evidence_rows)
-        pending = [
-            case.to_registry_row()
-            for case in job.registry_cases
-            if case.required and case.case_id not in completed
-        ]
-        return {
-            "job_id": job.job_id,
-            "status": job.status,
-            "active_attempt_id": job.active_attempt_id,
-            "attempts": list(job.attempts),
-            "evidence_rows": [row.to_manifest_row() for row in job.evidence_rows],
-            "pending_cases": pending,
-        }
+        with self._lock:
+            job = self._get(job_id)
+            completed = _satisfied_case_ids(job.registry_cases, job.evidence_rows)
+            pending = [
+                case.to_registry_row()
+                for case in job.registry_cases
+                if case.required and case.case_id not in completed
+            ]
+            return {
+                "job_id": job.job_id,
+                "status": job.status,
+                "active_attempt_id": job.active_attempt_id,
+                "attempts": list(job.attempts),
+                "evidence_rows": [row.to_manifest_row() for row in job.evidence_rows],
+                "pending_cases": pending,
+            }
 
-    def finalize(self, job_id: str) -> FullScanJob:
-        job = self._get(job_id)
+    def finalize(self, job_id: str, *, attempt_id: str) -> FullScanJob:
+        with self._lock:
+            job = self._get(job_id)
+            self._require_active_lease(job, attempt_id=attempt_id)
+            manifest = build_attempt_manifest(job, finished_at=self._clock())
+            manifest_hash = manifest_content_hash(manifest)
+            bind_eligibility = _bind_eligibility(job, manifest)
+            final_status = "complete" if bind_eligibility == "eligible" else "incomplete"
+            updated = replace(
+                job,
+                status=final_status,
+                active_attempt_id=None,
+                lease_expires_at=None,
+                final_manifest=manifest,
+                final_manifest_hash=manifest_hash,
+                bind_eligibility=bind_eligibility,
+                updated_at=self._clock(),
+            )
+            self._persist(updated)
+            return updated
+
+    def recover(
+        self,
+        *,
+        max_recovery_attempts: int = DEFAULT_MAX_RECOVERY_ATTEMPTS,
+    ) -> dict[str, Any]:
+        """Restart-recovery sweep — run once at process startup.
+
+        Every persisted job has already been loaded into ``self._jobs`` by the
+        constructor, so no accepted job disappears on restart. This sweep then
+        makes each non-terminal job actionable again:
+
+        * A job that was ``running`` when the process died holds a stale
+          ``active_attempt_id`` whose worker thread/process no longer exists.
+          The dead attempt is cleared and the job is re-queued (``status`` ->
+          ``queued``), so the next :meth:`lease` can resume it. ``recovery_count``
+          is incremented.
+        * A job that exhausts ``max_recovery_attempts`` without completing is
+          finalized to an explicit terminal ``failed`` record — it never
+          resumes forever.
+        * A job that was cleanly ``queued`` (never leased) is already
+          resumable; it is left untouched (it survived).
+
+        Terminal jobs (already complete/incomplete/failed/cancelled) are
+        durable terminal records and are skipped. Returns a summary of the
+        job_ids resumed vs. failed for the startup audit log.
+        """
+        with self._lock:
+            resumed: list[str] = []
+            failed: list[str] = []
+            for job_id, job in list(self._jobs.items()):
+                if job.status in TERMINAL_JOB_STATUSES:
+                    continue
+                # Cleanly queued (never leased) — already resumable, survived.
+                if job.active_attempt_id is None and job.status == "queued":
+                    continue
+                if job.recovery_count + 1 > max_recovery_attempts:
+                    self._finalize_stranded(
+                        job, reason=RESTART_RECOVERY_INCOMPLETE_REASON
+                    )
+                    failed.append(job_id)
+                    continue
+                recovered = replace(
+                    job,
+                    status="queued",
+                    active_attempt_id=None,
+                    lease_expires_at=None,
+                    recovery_count=job.recovery_count + 1,
+                    updated_at=self._clock(),
+                )
+                self._persist(recovered)
+                resumed.append(job_id)
+            return {"resumed": resumed, "failed": failed}
+
+    def finalize_stranded(self, job_id: str, *, reason: str) -> FullScanJob:
+        """Force a non-terminal job to an explicit terminal ``failed`` record.
+
+        Used when a stranded job cannot resume (dependency permanently gone,
+        recovery budget exhausted). Signs the attempt manifest from whatever
+        evidence exists so the terminal record is auditable. No-op equivalence:
+        a lease is not required — recovery owns the job.
+        """
+        with self._lock:
+            job = self._get(job_id)
+            if job.status in TERMINAL_JOB_STATUSES:
+                return job
+            return self._finalize_stranded(job, reason=reason)
+
+    def _finalize_stranded(self, job: FullScanJob, *, reason: str) -> FullScanJob:
         manifest = build_attempt_manifest(job, finished_at=self._clock())
-        manifest_hash = manifest_content_hash(manifest)
-        bind_eligibility = _bind_eligibility(job, manifest)
-        final_status = "complete" if bind_eligibility == "eligible" else "incomplete"
         updated = replace(
             job,
-            status=final_status,
+            status="failed",
             active_attempt_id=None,
             lease_expires_at=None,
             final_manifest=manifest,
-            final_manifest_hash=manifest_hash,
-            bind_eligibility=bind_eligibility,
+            final_manifest_hash=manifest_content_hash(manifest),
+            bind_eligibility=_bind_eligibility(job, manifest),
             updated_at=self._clock(),
         )
-        self._jobs[job_id] = updated
+        self._persist(updated)
         return updated
+
+    def _require_active_lease(self, job: FullScanJob, *, attempt_id: str) -> None:
+        if attempt_id not in job.attempts:
+            raise FullScanExecutorError("unknown attempt_id")
+        if job.active_attempt_id != attempt_id:
+            raise FullScanExecutorError("attempt_id is not active")
+        if job.lease_expires_at is None or job.lease_expires_at <= self._clock():
+            raise FullScanExecutorError("attempt lease expired")
 
     def _get(self, job_id: str) -> FullScanJob:
         try:
@@ -825,3 +969,82 @@ def _iso(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).isoformat()
+
+
+def _parse_iso(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    return datetime.fromisoformat(value)
+
+
+def _job_to_record(job: FullScanJob) -> dict[str, Any]:
+    """Serialize a ``FullScanJob`` to a JSON-safe record for durable storage.
+
+    The record round-trips exactly back to the same ``FullScanJob`` via
+    :func:`_job_from_record` — the persisted state is the store's own output,
+    not a re-derivation, so no business logic is duplicated in the DB layer.
+    """
+    return {
+        "job_id": job.job_id,
+        "agent_id": job.agent_id,
+        "scanner_version": job.scanner_version,
+        "corpus_version": job.corpus_version,
+        "model_versions": dict(job.model_versions),
+        "seed": job.seed,
+        "registry_cases": [
+            {
+                "case_id": case.case_id,
+                "rubric_point_id": case.rubric_point_id,
+                "required": case.required,
+            }
+            for case in job.registry_cases
+        ],
+        "status": job.status,
+        "attempts": list(job.attempts),
+        "active_attempt_id": job.active_attempt_id,
+        "lease_expires_at": _iso(job.lease_expires_at) if job.lease_expires_at else None,
+        "evidence_rows": [row.to_manifest_row() for row in job.evidence_rows],
+        "approved_blocker_ref": job.approved_blocker_ref,
+        "final_manifest": job.final_manifest,
+        "final_manifest_hash": job.final_manifest_hash,
+        "bind_eligibility": job.bind_eligibility,
+        "created_at": _iso(job.created_at) if job.created_at else None,
+        "updated_at": _iso(job.updated_at) if job.updated_at else None,
+        "recovery_count": job.recovery_count,
+    }
+
+
+def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
+    """Reconstruct a ``FullScanJob`` from a durable record."""
+    return FullScanJob(
+        job_id=record["job_id"],
+        agent_id=record["agent_id"],
+        scanner_version=record["scanner_version"],
+        corpus_version=record["corpus_version"],
+        model_versions=dict(record["model_versions"]),
+        seed=record["seed"],
+        registry_cases=tuple(
+            FullSuiteCase(
+                case_id=case["case_id"],
+                rubric_point_id=case["rubric_point_id"],
+                required=case.get("required", True),
+            )
+            for case in record["registry_cases"]
+        ),
+        status=record["status"],
+        attempts=tuple(record.get("attempts", ())),
+        active_attempt_id=record.get("active_attempt_id"),
+        lease_expires_at=_parse_iso(record.get("lease_expires_at")),
+        evidence_rows=tuple(
+            EvidenceAttemptRow(**row) for row in record.get("evidence_rows", ())
+        ),
+        approved_blocker_ref=record.get("approved_blocker_ref"),
+        final_manifest=record.get("final_manifest"),
+        final_manifest_hash=record.get("final_manifest_hash"),
+        bind_eligibility=record.get(
+            "bind_eligibility", "blocked_base_suite_incomplete"
+        ),
+        created_at=_parse_iso(record.get("created_at")),
+        updated_at=_parse_iso(record.get("updated_at")),
+        recovery_count=record.get("recovery_count", 0),
+    )
