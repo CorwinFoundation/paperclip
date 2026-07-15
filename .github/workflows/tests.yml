@@ -133,5 +133,22 @@ jobs:
           print(f"{framework}: imported {import_name}=={version}")
           PY
 
+      - name: Report datasets resolver split
+        if: matrix.framework == 'garak' || matrix.framework == 'pyrit'
+        run: |
+          "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" - <<'PY'
+          import importlib.metadata
+          import os
+
+          framework = os.environ["EVAL_FRAMEWORK"]
+          version = importlib.metadata.version("datasets")
+          major_minor = tuple(int(part) for part in version.split(".")[:2])
+          if framework == "garak" and not major_minor < (2, 17):
+              raise SystemExit(f"garak expected datasets<2.17, got {version}")
+          if framework == "pyrit" and not major_minor >= (3, 0):
+              raise SystemExit(f"pyrit expected datasets>=3.0, got {version}")
+          print(f"{framework}: datasets=={version}")
+          PY
+
       - name: Run venv resolver unit smoke
         run: python -m unittest tests.scanners.test_eval_framework_venv
