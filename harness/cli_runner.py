@@ -40,6 +40,7 @@ _MAX_FILE_BYTES = 10 * 1024 * 1024
 _MAX_AGENT_ID_LEN = 128
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
+_TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
 # Dim IDs accepted on the CLI input surface. Two non-overlapping shapes:
 # legacy `P<n>.<m>` (rubric v1.0.0) and fully-qualified `Pillar.FAMILY.SUB`
 # (rubric v1.0.1, strict 3-segment all-caps). The union is a true superset
@@ -221,17 +222,34 @@ def _validate_caller_applicability(
         # No dim is being suppressed → no inflation surface → nothing to gate.
         return
 
-    if not architecture_flags:
+    # The sidecar and everything in it are caller-controlled.  In particular,
+    # its architecture_flags cannot independently authorize waivers.  The
+    # service/runner must inject the scanner-observed flags through its trusted
+    # process environment (or, in replay tooling, after verifying the signed
+    # evidence bundle).  Never fall back to the sidecar value.
+    trusted_raw = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
+    if not trusted_raw:
         raise ScoringError(
             "applicability sidecar asserts N/A for dims "
-            f"{asserted_na} but supplies no architecture_flags; the policy "
+            f"{asserted_na} but no trusted scanner architecture evidence was "
+            f"provided via {_TRUSTED_ARCHITECTURE_FLAGS_ENV}; the policy "
             "engine cannot independently confirm any waiver — fail-closed "
             "(BEAAA-14431 F11)"
         )
 
     try:
+        trusted_flags = json.loads(trusted_raw)
+    except json.JSONDecodeError as exc:
+        raise ScoringError(
+            f"trusted scanner architecture evidence in "
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} is invalid JSON — fail-closed"
+        ) from exc
+    if not isinstance(trusted_flags, dict):
+        raise ScoringError("trusted scanner architecture evidence must be an object")
+
+    try:
         policy = load_policy()
-        engine_decisions = decide(policy, architecture_flags)
+        engine_decisions = decide(policy, trusted_flags)
     except ApplicabilityError as exc:
         # Missing/unknown/non-bool flags, or a policy schema violation. The
         # engine could not rule → we cannot confirm → fail-closed.

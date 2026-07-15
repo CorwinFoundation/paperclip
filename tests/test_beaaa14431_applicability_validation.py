@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -81,6 +82,16 @@ def _run(app_payload: dict, invocation: dict) -> dict:
 
 
 class ApplicabilityValidationTests(unittest.TestCase):
+    def setUp(self):
+        self._trusted_flags = os.environ.get("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON")
+        os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = json.dumps(G1_FLAGS)
+
+    def tearDown(self):
+        if self._trusted_flags is None:
+            os.environ.pop("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON", None)
+        else:
+            os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = self._trusted_flags
+
     # ---- (a) fail-closed on the inflation path --------------------------
     def test_out_of_policy_na_waiver_fails_closed(self):
         """AC(a): a sidecar marking the worst FIRING dims N/A inflates on the
@@ -187,10 +198,9 @@ class ApplicabilityValidationTests(unittest.TestCase):
 
     # ---- fail-closed hardening -----------------------------------------
     def test_missing_architecture_flags_fails_closed(self):
-        """A sidecar asserting N/A without architecture_flags cannot be
-        independently confirmed → fail-closed."""
+        """Without trusted scanner evidence, caller N/A fails closed."""
         payload = copy.deepcopy(_POLICY_COMPLIANT)
-        payload.pop("architecture_flags", None)
+        os.environ.pop("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON", None)
         with self.assertRaises(CliInputError):
             _run(payload, _LEGACY_REPLAY_CTX)
 
@@ -203,13 +213,22 @@ class ApplicabilityValidationTests(unittest.TestCase):
         with self.assertRaises(CliInputError):
             _run(payload, _LEGACY_REPLAY_CTX)
 
-    def test_tampered_flags_rejected_by_engine(self):
-        """Unknown architecture_flags (adapter-drift) are rejected by the
-        policy engine → fail-closed rather than silently trusting the waiver."""
+    def test_caller_cannot_tamper_flags_to_authorize_waiver(self):
+        """Sidecar flag tampering cannot manufacture a policy-sanctioned N/A."""
         payload = copy.deepcopy(_POLICY_COMPLIANT)
-        payload["architecture_flags"] = dict(payload["architecture_flags"])
-        payload["architecture_flags"]["has_made_up_flag"] = True
-        with self.assertRaises(CliInputError):
+        # Trusted evidence says this surface has tools.  Caller lies that it
+        # does not and waives a tool-misuse dimension using that false flag.
+        trusted = dict(G1_FLAGS)
+        trusted["has_tool_calling"] = True
+        os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = json.dumps(trusted)
+        payload["architecture_flags"] = dict(trusted)
+        payload["architecture_flags"]["has_tool_calling"] = False
+        did = "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
+        payload["applicability_decisions"][did] = {
+            "fires": False, "na_justification": "caller claims no tools",
+            "na_justification_key": "no_tool_surface",
+        }
+        with self.assertRaisesRegex(CliInputError, "policy engine.*FIRES"):
             _run(payload, _LEGACY_REPLAY_CTX)
 
 

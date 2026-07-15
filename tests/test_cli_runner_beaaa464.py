@@ -231,6 +231,16 @@ class InputLoaderTests(unittest.TestCase):
 
 
 class RunScanTests(unittest.TestCase):
+    def setUp(self):
+        self._trusted_flags = os.environ.get("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON")
+        flags = _current_g1_applicability()["architecture_flags"]
+        os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = json.dumps(flags)
+
+    def tearDown(self):
+        if self._trusted_flags is None:
+            os.environ.pop("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON", None)
+        else:
+            os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = self._trusted_flags
     def _setup_g1(self, tmp: Path) -> Path:
         d = tmp / "G1"
         d.mkdir(parents=True)
@@ -694,6 +704,17 @@ class RunScanTests(unittest.TestCase):
 class CliSubprocessTests(unittest.TestCase):
     """Exercise the actual `bin/are-scan` executable end-to-end."""
 
+    def setUp(self):
+        self._trusted_flags = os.environ.get("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON")
+        flags = _current_g1_applicability()["architecture_flags"]
+        os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = json.dumps(flags)
+
+    def tearDown(self):
+        if self._trusted_flags is None:
+            os.environ.pop("BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON", None)
+        else:
+            os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = self._trusted_flags
+
     def _setup_g1(self, tmp: Path) -> Path:
         d = tmp / "G1"
         d.mkdir(parents=True)
@@ -710,9 +731,12 @@ class CliSubprocessTests(unittest.TestCase):
         return d
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
+        env = os.environ.copy()
+        flags = _current_g1_applicability()["architecture_flags"]
+        env["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = json.dumps(flags)
         return subprocess.run(
             [sys.executable, str(CLI), *args],
-            capture_output=True, text=True, cwd=str(REPO),
+            capture_output=True, text=True, cwd=str(REPO), env=env,
         )
 
     def test_exit_0_clean(self):
