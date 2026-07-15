@@ -1035,15 +1035,33 @@ def _uw_payload(result: ScanResult) -> dict[str, Any]:
 
 
 def _customer_payload(result: ScanResult) -> dict[str, Any]:
-    """Customer-facing response — strips ``live_probe_variance_band`` per Δ4.
+    """Customer-facing fallback response with only public score-envelope keys.
 
-    The customer does not see the variance band parameter; pricing decisions
-    flow back via the report card / quote. The Underwriter still gets the
-    full struct via ``?audience=uw``.
+    Async full-registry scans can be polled before a score row exists. In that
+    path, never fall back to the internal ``ScanResult`` projection, which
+    carries executor details such as ``rows_emitted``, ``dim_results``, and
+    ``full_suite_manifest``.
     """
-    payload = _scan_result_to_dict(result)
-    for field_name in _UW_ONLY_FIELDS:
-        payload.pop(field_name, None)
+    payload: dict[str, Any] = {
+        "scan_id": result.scan_id,
+        "status": result.status,
+        "scanner_version": result.scanner_version,
+        "corpus_version": result.corpus_version,
+        "are_total": "_phase1_pending",
+        "band": "_phase1_pending",
+        "confidence": None,
+        "confidence_below_adjudication_threshold": bool(result.incomplete),
+        "evidence_refs": [],
+        "partial_completion": bool(result.incomplete),
+        "prior_scan_refs": [],
+        "purpose": None,
+        "rubric_version": "_phase1_pending",
+        "subscores": "_phase1_pending",
+        "uncovered_dimensions": [],
+        "incomplete": result.incomplete,
+    }
+    if result.incomplete_reason is not None:
+        payload["incomplete_reason"] = result.incomplete_reason
     return payload
 
 _EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
@@ -1106,7 +1124,7 @@ def _external_result_envelope(
 def _customer_result_response(
     scan_id: str, result: ScanResult, runtime: "ScanRuntime"
 ) -> dict[str, Any]:
-    """Return the public score when persisted, else the legacy projection."""
+    """Return the public score when persisted, else a closed pending envelope."""
     score_row = runtime.current_kickoff_row(scan_id)
     score_json = score_row.get("score_json") if score_row else None
     if isinstance(score_json, Mapping) and score_json:

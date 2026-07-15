@@ -751,6 +751,31 @@ def test_scanner_v1_scan_dispatches_registry_rows_through_real_api_path(monkeypa
         "missing_required": 0,
     }
 
+    customer_response = TestClient(app).get(f"/scan/{scan_id}?audience=customer")
+    assert customer_response.status_code == 200
+    customer_payload = customer_response.json()
+    assert set(customer_payload) == {
+        "scan_id",
+        "status",
+        "scanner_version",
+        "corpus_version",
+        "are_total",
+        "band",
+        "confidence",
+        "confidence_below_adjudication_threshold",
+        "evidence_refs",
+        "partial_completion",
+        "prior_scan_refs",
+        "purpose",
+        "rubric_version",
+        "subscores",
+        "uncovered_dimensions",
+        "incomplete",
+    }
+    assert "rows_emitted" not in customer_payload
+    assert "dim_results" not in customer_payload
+    assert "full_suite_manifest" not in customer_payload
+
 
 def test_scanner_v1_scan_blocks_full_status_when_registry_worker_missing(monkeypatch):
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-13763-test-key")
