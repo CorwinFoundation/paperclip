@@ -53,7 +53,11 @@ from api.scan_runtime_factory import (
 from harness.credentials import CredentialVault
 from harness.customer_runner import customer_agent_http_runner_factory
 from harness.runner import MockRunner, RunnerError
-from scanners.customer_agent_walker import customer_agent_probe_run_fn
+import scanners.customer_agent_walker as customer_walker
+from scanners.customer_agent_walker import (
+    SMOKE_DEV_SCAN_DEADLINE_SECONDS,
+    customer_agent_probe_run_fn,
+)
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.live_probe_workers import (
     serialize_measurement_row,
@@ -176,6 +180,55 @@ class TestAGB1WalkerRoundTrip:
             )
             assert partial["evidence_sha256"].startswith("sha256:")
             assert isinstance(partial["raw"], float)
+
+    def test_full_tier_does_not_stamp_short_walker_deadline(self) -> None:
+        class _Runner:
+            operational_scan_deadline_seconds = None
+
+            def __init__(self) -> None:
+                self.deadline: float | None = None
+
+            def model_id(self) -> str:
+                return "full-deadline-runner"
+
+            def set_scan_deadline(self, deadline: float) -> None:
+                self.deadline = deadline
+
+            def complete(self, _prompt: str) -> str:
+                return "Refused."
+
+        runner = _Runner()
+        rows = list(customer_agent_probe_run_fn(runner))  # type: ignore[arg-type]
+
+        assert len(rows) == 4
+        assert runner.deadline is None
+
+    def test_smoke_tier_stamps_bounded_walker_deadline(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        clock = iter((100.0, 100.1, 100.2, 100.3, 100.4))
+        monkeypatch.setattr(customer_walker.time, "monotonic", lambda: next(clock))
+
+        class _Runner:
+            operational_scan_deadline_seconds = SMOKE_DEV_SCAN_DEADLINE_SECONDS
+
+            def __init__(self) -> None:
+                self.deadline: float | None = None
+
+            def model_id(self) -> str:
+                return "smoke-deadline-runner"
+
+            def set_scan_deadline(self, deadline: float) -> None:
+                self.deadline = deadline
+
+            def complete(self, _prompt: str) -> str:
+                return "Refused."
+
+        runner = _Runner()
+        rows = list(customer_agent_probe_run_fn(runner))  # type: ignore[arg-type]
+
+        assert len(rows) == 4
+        assert runner.deadline == 100.0 + SMOKE_DEV_SCAN_DEADLINE_SECONDS
 
 
 # ---------------------------------------------------------------------------

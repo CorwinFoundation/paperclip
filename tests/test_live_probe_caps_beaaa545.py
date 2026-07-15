@@ -30,7 +30,9 @@ from harness.credentials import CredentialVault
 from harness.runner import MockRunner
 from scanners.live_probe_orchestrator import (
     DEFAULT_K_REPLICATES,
+    MAX_FULL_UNDERWRITING_PROBES_PER_SCAN,
     MAX_PROBES_PER_SCAN,
+    MAX_SMOKE_DEV_PROBES_PER_SCAN,
     MAX_TOKENS_PER_SCAN,
     MAX_WALL_CLOCK_SECONDS,
     ProbeRunIncompleteError,
@@ -74,7 +76,12 @@ def loaded_vault():
     vault.forget_all()
 
 
-def _request(corpus_hash: str, *, k_replicates: int = DEFAULT_K_REPLICATES) -> ScanRequest:
+def _request(
+    corpus_hash: str,
+    *,
+    k_replicates: int = DEFAULT_K_REPLICATES,
+    scan_tier: str = "full",
+) -> ScanRequest:
     return ScanRequest(
         scan_id="t9-scan",
         tenant_id="tenant-001",
@@ -85,6 +92,7 @@ def _request(corpus_hash: str, *, k_replicates: int = DEFAULT_K_REPLICATES) -> S
         corpus_version="0.1.0",
         seed=42,
         scan_mode="live_probe",
+        scan_tier=scan_tier,
         k_replicates=k_replicates,
     )
 
@@ -108,8 +116,13 @@ def _drain_channel(channel: WorkerChannel) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def test_ac1_probe_cap_default_is_1000():
+def test_ac1_smoke_dev_probe_cap_default_is_1000():
     assert MAX_PROBES_PER_SCAN == 1000
+    assert MAX_SMOKE_DEV_PROBES_PER_SCAN == 1000
+
+
+def test_ac1_full_underwriting_probe_cap_is_not_1000():
+    assert MAX_FULL_UNDERWRITING_PROBES_PER_SCAN > 1000
 
 
 def test_ac1_token_cap_default_is_one_million():
@@ -125,12 +138,12 @@ def test_ac1_wallclock_cap_default_is_1800_seconds():
 # ---------------------------------------------------------------------------
 
 
-def test_ac2_probe_cap_halts_at_default(monkeypatch, corpus_tarball, corpus_hash, loaded_vault):
+def test_ac2_smoke_probe_cap_halts_at_default(monkeypatch, corpus_tarball, corpus_hash, loaded_vault):
     """Cap probe limit to a small value via monkeypatch — confirm the
-    orchestrator emits exactly ``MAX_PROBES_PER_SCAN`` rows then halts
+    orchestrator emits exactly the smoke/dev cap rows then halts
     with ``incomplete_reason='probe_cap'``.
     """
-    monkeypatch.setattr(orch, "MAX_PROBES_PER_SCAN", 3)
+    monkeypatch.setattr(orch, "MAX_SMOKE_DEV_PROBES_PER_SCAN", 3)
 
     def big_fn(_runner):
         # Generate plenty more rows than the cap.
@@ -143,7 +156,7 @@ def test_ac2_probe_cap_halts_at_default(monkeypatch, corpus_tarball, corpus_hash
 
     channel = WorkerChannel(max_queue=256)
     result = run_scan(
-        _request(corpus_hash),
+        _request(corpus_hash, scan_tier="smoke"),
         loaded_vault,
         channel,
         corpus_tarball_path=corpus_tarball,
@@ -157,6 +170,66 @@ def test_ac2_probe_cap_halts_at_default(monkeypatch, corpus_tarball, corpus_hash
     # AC#5 — every row crossed the IPC channel.
     drained = _drain_channel(channel)
     assert len(drained) == 3
+
+
+def test_full_underwriting_attempts_more_than_1000_base_rows(
+    monkeypatch, corpus_tarball, corpus_hash, loaded_vault
+):
+    monkeypatch.setattr(orch, "MAX_FULL_UNDERWRITING_PROBES_PER_SCAN", 10_000)
+
+    def full_fn(_runner):
+        for i in range(1005):
+            yield f"P1.{(i % 9) + 1}", {
+                "raw": 1.0,
+                "evidence_uri": f"https://evidence.local/full-{i}",
+                "evidence_sha256": "sha256:" + "8" * 64,
+            }
+
+    channel = WorkerChannel(max_queue=8192)
+    result = run_scan(
+        _request(corpus_hash, k_replicates=5, scan_tier="full"),
+        loaded_vault,
+        channel,
+        corpus_tarball_path=corpus_tarball,
+        probe_run_fn=full_fn,
+        runner=_runner(),
+    )
+
+    assert result.rows_emitted == 1005 * 5
+    assert result.incomplete_reason != "probe_cap"
+    assert len(_drain_channel(channel)) == 1005 * 5
+
+
+def test_full_underwriting_runaway_guard_refuses_instead_of_sampling(
+    monkeypatch, corpus_tarball, corpus_hash, loaded_vault
+):
+    monkeypatch.setattr(orch, "MAX_FULL_UNDERWRITING_PROBES_PER_SCAN", 7)
+
+    def runaway_fn(_runner):
+        i = 0
+        while True:
+            yield f"P1.{(i % 9) + 1}", {
+                "raw": 1.0,
+                "evidence_uri": f"https://evidence.local/runaway-{i}",
+                "evidence_sha256": "sha256:" + "9" * 64,
+            }
+            i += 1
+
+    channel = WorkerChannel(max_queue=64)
+    result = run_scan(
+        _request(corpus_hash, scan_tier="full"),
+        loaded_vault,
+        channel,
+        corpus_tarball_path=corpus_tarball,
+        probe_run_fn=runaway_fn,
+        runner=_runner(),
+    )
+
+    assert result.status == "incomplete"
+    assert result.incomplete is True
+    assert result.incomplete_reason == "probe_cap"
+    assert result.rows_emitted == 7
+    assert len(_drain_channel(channel)) == 7
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +348,7 @@ def test_ac4_wallclock_cap_halts_with_mocked_time(monkeypatch, corpus_tarball, c
 
 def test_ac5_partial_rows_cross_ipc_before_cap(monkeypatch, corpus_tarball, corpus_hash, loaded_vault):
     """Rows emitted BEFORE the cap fire reach the Scorer side cleanly."""
-    monkeypatch.setattr(orch, "MAX_PROBES_PER_SCAN", 4)
+    monkeypatch.setattr(orch, "MAX_SMOKE_DEV_PROBES_PER_SCAN", 4)
 
     def fn(_runner):
         for i in range(10):
@@ -287,7 +360,7 @@ def test_ac5_partial_rows_cross_ipc_before_cap(monkeypatch, corpus_tarball, corp
 
     channel = WorkerChannel(max_queue=256)
     run_scan(
-        _request(corpus_hash),
+        _request(corpus_hash, scan_tier="smoke"),
         loaded_vault,
         channel,
         corpus_tarball_path=corpus_tarball,

@@ -376,7 +376,10 @@ class _SyllableCustomerAgentRunner(ModelRunner):
 
         for attempt in range(self.MAX_TRANSIENT_ATTEMPTS):
             try:
-                with ScopedEgressAllowlist(self._base_url) as scope:
+                with ScopedEgressAllowlist(
+                    self._base_url,
+                    live_bind_scope_id=egress_session_id,
+                ) as scope:
                     with scope.client(
                         timeout=self._request_timeout_for_deadline(),
                         follow_redirects=False,

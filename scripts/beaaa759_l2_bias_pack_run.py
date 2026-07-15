@@ -55,8 +55,6 @@ def _load_dotenv(path: Path) -> None:
         os.environ[key.strip()] = value.strip().strip("'").strip('"')
 
 
-_load_dotenv(REPO / ".env")
-
 from harness.pipeline import run_bias_pack  # noqa: E402
 from harness.runner import AnthropicRunner, MockRunner  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
@@ -718,6 +716,8 @@ def calibration_delta() -> dict[str, Any]:
 
 
 def main() -> None:
+    _load_dotenv(REPO / ".env")
+
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--fixture", default="all",

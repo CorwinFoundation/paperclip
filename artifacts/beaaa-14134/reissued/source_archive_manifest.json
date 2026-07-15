@@ -1,0 +1,22 @@
+{
+  "BEAAA-14094": {
+    "file": "artifacts/beaaa-14134/source_archives/BEAAA-14094_real_agent_final_evidence_v1.0.tar.gz",
+    "sha256": "b91ccca7ec8dd5c9b8eb47ff307fac11c549f9fab0796a1ce23b82890dd527ac",
+    "size_bytes": 152308
+  },
+  "BEAAA-14095": {
+    "file": "artifacts/beaaa-14134/source_archives/BEAAA-14095_real_agent_275_case_execution_complete_v0.2.tar.gz",
+    "sha256": "10a66ba36a4f0a2603a731c2aaa997508e3b96666d7b64f006d7f17f2b140b7f",
+    "size_bytes": 300966
+  },
+  "BEAAA-14096": {
+    "file": "artifacts/beaaa-14134/source_archives/BEAAA-14096_raw_target_traces.tgz",
+    "sha256": "01c875dd5c9f8aa6ad5217a218f903de767681152e91ce8427d05094b1a5242b",
+    "size_bytes": 262136
+  },
+  "BEAAA-14097": {
+    "file": "artifacts/beaaa-14134/source_archives/BEAAA-14097_real_agent_retell_case_batch_v0.1.tar.gz",
+    "sha256": "0a805f5d6c605b3e00476b52d80c93d82feee5be7db690278096a0bebd136211",
+    "size_bytes": 144883
+  }
+}

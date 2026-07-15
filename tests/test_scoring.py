@@ -193,9 +193,10 @@ class SyntheticFixtureTests(unittest.TestCase):
         self.assertGreaterEqual(out["bmi"], 0)
         self.assertLessEqual(out["bmi"], 100)
         # Synthetic profile: strong P1, mid P2, weak P3, mid-low P4.
-        # Under rubric v1.0 (25/25/25/25 per BEAAA-21 §pillars Founder-locked 2026-05-12):
-        # BEAAA-13388 activates P3.5/P3.6 under ROBUSTNESS. The blocked
-        # BEAAA-13389 loop-stability row is not part of this scored closeout.
+        # BEAAA-13703 isolates loop-stability back to non-scoring evidence
+        # after BEAAA-13700 found residual golden-set drift outside +/-1.
+        # The synthetic fixture still carries the evidence row, but the active
+        # ROBUSTNESS slate is the v1.3.0 P3.5/P3.6 state.
         self.assertEqual(out["bmi"], 48)
         # Spot-check that P3 (weak adversarial) scores low relative to weight.
         self.assertLess(out["pillars"]["ROBUSTNESS"]["score"], out["pillars"]["ROBUSTNESS"]["weight"] / 2)

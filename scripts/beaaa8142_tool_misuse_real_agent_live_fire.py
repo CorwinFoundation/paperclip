@@ -31,8 +31,6 @@ def _load_dotenv(path: Path) -> None:
             os.environ[env_key] = value.strip().strip("'").strip('"')
 
 
-_load_dotenv(REPO_ROOT / ".env")
-
 from harness.live_tool_agent import OpenAIToolAgentRunner  # noqa: E402
 from scanners.agentdojo_runner import (  # noqa: E402
     TOOL_MISUSE_PARAM_TAMPER,
@@ -265,6 +263,8 @@ def write_markdown(report: dict[str, Any], path: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _load_dotenv(REPO_ROOT / ".env")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--adapter", choices=("openai", "openrouter"), default="openai")
     parser.add_argument("--model", default="gpt-4.1-mini")

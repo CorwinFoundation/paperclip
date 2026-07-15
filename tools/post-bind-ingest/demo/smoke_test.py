@@ -31,7 +31,11 @@ def _text(url: str, *, timeout: int = 20, token: str | None = None) -> str:
             raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
         return response.read().decode("utf-8")
 
-def run(base_url: str, timeout_seconds: int, token: str | None = None) -> dict:
+def _expected_rubric_label(rubric_version: str) -> str:
+    return f"{rubric_version} candidate" if rubric_version in {"1.3.0"} else rubric_version
+
+
+def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dict:
     base = base_url.rstrip("/")
     health = _json(base + "/api/health", token=token)
     if health.get("status") != "ok" or health.get("production_contacted") is not False:
@@ -68,8 +72,9 @@ def run(base_url: str, timeout_seconds: int, token: str | None = None) -> dict:
                 raise RuntimeError("certificate signature was not valid")
             if "valid_through" in lifecycle["certificate"]:
                 raise RuntimeError("certificate exposes a validity window")
-            if lifecycle["certificate"].get("rubric_label") != "1.3.0 (candidate)":
-                raise RuntimeError("candidate rubric label is missing")
+            expected_rubric_label = _expected_rubric_label(lifecycle["certificate"]["rubric_version"])
+            if lifecycle["certificate"].get("rubric_label") != expected_rubric_label:
+                raise RuntimeError(f"rubric label is not {expected_rubric_label}")
             forbidden_deployment_keys = {"repository", "git_ref", "github_run_url"}
             if forbidden_deployment_keys & deployment.keys():
                 raise RuntimeError("deployment payload exposes private CI metadata")

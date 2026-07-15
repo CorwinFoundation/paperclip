@@ -44,6 +44,12 @@ LIVE_MODULES = (
     "harness.customer_runner",
     "harness.credentials",
     "harness.egress",
+    "harness.bench.factuality_golden",
+    "harness.bench.p1_3_consistency_golden",
+    "harness.bench.p1_4_refusal_golden",
+    "harness.bench.p1_5_calibration_golden",
+    "tools.active_test_registry",
+    "tools.registered_case_executor",
 )
 
 # The four offline-only eval frameworks that MUST be absent from the prod venv.

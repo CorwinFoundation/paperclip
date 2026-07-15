@@ -1484,18 +1484,46 @@ class TestRequestBodySizeCap:
         except _admin_urlerr.HTTPError as err:
             return err.code, dict(err.headers), err.read()
 
+    @staticmethod
+    def _raw_content_length_request(server, path: str, content_length: int) -> bytes:
+        # The handler rejects oversized Content-Length before reading the body.
+        # Send headers only so the assertion is not coupled to client-side
+        # broken-pipe timing after the server has already returned 413.
+        import socket as _socket
+
+        sock = _socket.create_connection(("127.0.0.1", server.server_port))
+        try:
+            request = (
+                f"POST {path} HTTP/1.1\r\n"
+                "Host: 127.0.0.1\r\n"
+                "Content-Type: application/json\r\n"
+                f"Content-Length: {content_length}\r\n"
+                "\r\n"
+            ).encode("ascii")
+            sock.sendall(request)
+            response = b""
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+                if b"\r\n\r\n" in response and b"request_body_too_large" in response:
+                    break
+                if len(response) > 8192:
+                    break
+            return response
+        finally:
+            sock.close()
+
     def test_row1_oversize_body_on_default_route_returns_413(self, tmp_path):
         service, server = self._start_server(tmp_path)
         try:
-            oversize = b"x" * (self.DEFAULT_CAP + 1)
-            code, _hdrs, resp = self._request(
-                "POST",
-                f"http://127.0.0.1:{server.server_port}/connectors/enroll",
-                data=oversize,
-                content_type="application/json",
+            response = self._raw_content_length_request(
+                server, "/connectors/enroll", self.DEFAULT_CAP + 1
             )
-            assert code == 413, f"oversize body must 413; got {code} {resp[:120]!r}"
-            err = json.loads(resp)
+            status_line = response.split(b"\r\n", 1)[0]
+            assert b" 413 " in status_line, f"oversize body must 413; got {status_line!r}"
+            err = json.loads(response.split(b"\r\n\r\n", 1)[1])
             assert err["error"] == "request_body_too_large", err
 
         finally:
@@ -1504,23 +1532,12 @@ class TestRequestBodySizeCap:
     def test_row2_oversize_body_on_envelopes_route_returns_413_at_large_cap(self, tmp_path):
         service, server = self._start_server(tmp_path)
         try:
-            oversize = b"x" * (self.LARGE_CAP + 1)
-            try:
-                code, _hdrs, resp = self._request(
-                    "POST",
-                    f"http://127.0.0.1:{server.server_port}/scans/abc-1/envelopes",
-                    data=oversize,
-                    content_type="application/json",
-                )
-            except urllib.error.URLError as exc:
-                # The handler rejects from Content-Length before reading the
-                # oversized body. On Python 3.12 CI the client can still be
-                # writing when the server closes with 413, surfacing BrokenPipe
-                # instead of the response body. That is the cap firing early.
-                assert isinstance(exc.reason, BrokenPipeError)
-                return
-            assert code == 413, f"oversize envelope body must 413; got {code} {resp[:120]!r}"
-            err = json.loads(resp)
+            response = self._raw_content_length_request(
+                server, "/scans/abc-1/envelopes", self.LARGE_CAP + 1
+            )
+            status_line = response.split(b"\r\n", 1)[0]
+            assert b" 413 " in status_line, f"oversize envelope body must 413; got {status_line!r}"
+            err = json.loads(response.split(b"\r\n\r\n", 1)[1])
             assert err["error"] == "request_body_too_large", err
         finally:
             self._stop_server(service, server)

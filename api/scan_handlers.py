@@ -33,9 +33,10 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping
 
@@ -49,6 +50,14 @@ from api.ci_scan_ext import (
     gate_disposition,
 )
 from api.config import ApiConfig
+from api.bundle import sign_manifest
+from api.full_scan_executor import (
+    FrameworkWorker,
+    FullScanJobStore,
+    dispatch_registry_attempt,
+    registry_cases_from_rows,
+)
+from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
 from api.scan_log import ScanLog
 from api.sla import (
@@ -257,6 +266,7 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
 #: is left ``None``, ``ScanRuntime.kickoff`` does NOT touch the scan_log —
 #: legacy WS1/WS2 wiring is byte-identical.
 ScoreEnvelopeFactory = Callable[[ScanResult, str, str], dict[str, Any]]
+FullSuiteManifestUriFactory = Callable[[str | None, str], str]
 
 
 class ScanRuntime:
@@ -284,6 +294,14 @@ class ScanRuntime:
         prior_agent_ids: Iterable[str] = (),
         scan_log: ScanLog | None = None,
         scanner_run_tracker: Any | None = None,
+        full_suite_registry_cases: Iterable[FullSuiteCase] = (),
+        full_suite_manifest_uri_factory: FullSuiteManifestUriFactory | None = None,
+        full_scan_registry_rows: Iterable[Mapping[str, Any]] = (),
+        full_scan_workers: Mapping[str, FrameworkWorker] | None = None,
+        full_scan_workers_factory: (
+            Callable[[ScanRequest, str], Mapping[str, FrameworkWorker]] | None
+        ) = None,
+        full_scan_job_store: FullScanJobStore | None = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
@@ -317,6 +335,18 @@ class ScanRuntime:
         # unbound by default so legacy /scans and /rescans response bytes are
         # unchanged unless production wiring explicitly opts in.
         self._scanner_run_tracker = scanner_run_tracker
+        self._full_suite_registry_cases = tuple(full_suite_registry_cases)
+        self._full_suite_manifest_uri_factory = (
+            full_suite_manifest_uri_factory or _default_full_suite_manifest_uri
+        )
+        self._full_scan_registry_rows = tuple(dict(row) for row in full_scan_registry_rows)
+        self._full_scan_workers = dict(full_scan_workers or {})
+        self._full_scan_workers_factory = full_scan_workers_factory
+        self._full_scan_job_store = full_scan_job_store or FullScanJobStore()
+        self._full_scan_job_ids: dict[str, str] = {}
+        self._state_lock = threading.RLock()
+        self._full_scan_semaphore = threading.BoundedSemaphore(value=1)
+        self._background_threads: dict[str, threading.Thread] = {}
         self._run_timestamp_factory = run_timestamp_factory or _default_run_timestamp
         self._forensic_bundle_uri_factory = (
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
@@ -350,6 +380,10 @@ class ScanRuntime:
             scan_id
             for scan_id, created_at in self._scan_state_created_at.items()
             if created_at < cutoff
+            and (
+                self._results.get(scan_id) is None
+                or self._results[scan_id].status not in {"queued", "running"}
+            )
         ]
         for scan_id in expired_scan_ids:
             self._scan_state_created_at.pop(scan_id, None)
@@ -398,13 +432,119 @@ class ScanRuntime:
             self._scan_invocation_contexts[scan_request.scan_id] = dict(
                 scanner_invocation_context
             )
+
+        # A production full analysis is a registry job, not the historical
+        # four-prompt scoring walker. Return the scan id immediately and run
+        # the evidence-producing suite on a daemon worker.
+        if (
+            self._full_scan_registry_rows
+            and self._full_scan_workers_factory is not None
+            and scan_request.scan_tier not in {"smoke", "dev"}
+        ):
+            queued = ScanResult(
+                scan_id=scan_request.scan_id,
+                status="queued",
+                scanner_version=str(scan_request.scanner_version),
+                corpus_version=str(scan_request.corpus_version),
+                rows_emitted=0,
+                k_replicates=scan_request.k_replicates,
+            )
+            with self._state_lock:
+                self._results[scan_request.scan_id] = queued
+            thread = threading.Thread(
+                target=self._run_full_scan_background,
+                kwargs={
+                    "scan_request": scan_request,
+                    "secret": secret,
+                    "agent_id": agent_id,
+                },
+                name=f"are-full-scan-{scan_request.scan_id[:8]}",
+                daemon=True,
+            )
+            self._background_threads[scan_request.scan_id] = thread
+            thread.start()
+            return queued
+
         result = self._run_scan_fn(scan_request, secret)
-        self._results[scan_request.scan_id] = result
+        result = self._apply_registry_dispatch_guard(
+            scan_request,
+            result,
+            agent_id=agent_id,
+            secret=secret,
+        )
+        result = self._apply_full_suite_manifest_guard(
+            scan_request,
+            result,
+            agent_id=agent_id,
+        )
+        return self._record_completed_result(scan_request, result, agent_id=agent_id)
+
+    def _run_full_scan_background(
+        self,
+        *,
+        scan_request: ScanRequest,
+        secret: str,
+        agent_id: str | None,
+    ) -> None:
+        try:
+            with self._full_scan_semaphore:
+                base = ScanResult(
+                    scan_id=scan_request.scan_id,
+                    status="running",
+                    scanner_version=str(scan_request.scanner_version),
+                    corpus_version=str(scan_request.corpus_version),
+                    rows_emitted=0,
+                    k_replicates=scan_request.k_replicates,
+                )
+                with self._state_lock:
+                    self._results[scan_request.scan_id] = base
+                result = self._apply_registry_dispatch_guard(
+                    scan_request,
+                    base,
+                    agent_id=agent_id,
+                    secret=secret,
+                )
+                self._record_completed_result(
+                    scan_request,
+                    result,
+                    agent_id=agent_id,
+                )
+        except Exception as exc:  # never expose credential or response bodies
+            failed = ScanResult(
+                scan_id=scan_request.scan_id,
+                status="failed",
+                scanner_version=str(scan_request.scanner_version),
+                corpus_version=str(scan_request.corpus_version),
+                rows_emitted=0,
+                k_replicates=scan_request.k_replicates,
+                incomplete=True,
+                incomplete_reason=f"full_scan_worker_error:{type(exc).__name__}",
+            )
+            with self._state_lock:
+                self._results[scan_request.scan_id] = failed
+                self._scan_state_created_at[scan_request.scan_id] = self._now()
+        finally:
+            self._background_threads.pop(scan_request.scan_id, None)
+
+    def _record_completed_result(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+    ) -> ScanResult:
+        with self._state_lock:
+            self._results[scan_request.scan_id] = result
+            self._scan_state_created_at[scan_request.scan_id] = self._now()
         if agent_id is not None:
             self._agent_ids_with_prior_scan[agent_id] = self._now()
             if (
                 self._scan_log is not None
                 and self._score_envelope_factory is not None
+                and not (
+                    result.full_suite_manifest is not None
+                    and not result.dim_results
+                )
             ):
                 run_timestamp = self._run_timestamp_factory()
                 forensic_bundle_uri = self._forensic_bundle_uri_factory(
@@ -437,6 +577,138 @@ class ScanRuntime:
                         score_json=score_envelope,
                     )
         return result
+
+    def _apply_registry_dispatch_guard(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+        secret: str = "",
+    ) -> ScanResult:
+        """Dispatch active executable registry rows for full underwriting scans.
+
+        This is the BEAAA-13763 bridge from the standard API launch path to
+        the async full-scan attempt ledger. The legacy four-prompt walker may
+        still run first, but it cannot make a full-tier scan complete unless
+        the registry dispatcher also returns complete terminal evidence for
+        every active executable registry case.
+        """
+        if not self._full_scan_registry_rows:
+            return result
+        if scan_request.scan_tier in {"smoke", "dev"}:
+            return result
+
+        workers = self._full_scan_workers
+        if self._full_scan_workers_factory is not None:
+            workers = dict(
+                self._full_scan_workers_factory(scan_request, secret)
+            )
+
+        first_worker = next(iter(workers.values()), None)
+        metadata_factory = getattr(first_worker, "manifest_metadata", None)
+        worker_metadata = (
+            dict(metadata_factory()) if callable(metadata_factory) else {}
+        )
+        model_versions: dict[str, Any] = {
+            "primary": str(
+                worker_metadata.get("target_model") or scan_request.agent_endpoint
+            ),
+            "judges": list(worker_metadata.get("judge_models") or []),
+        }
+        if worker_metadata.get("execution_budget"):
+            model_versions["execution_budget"] = worker_metadata["execution_budget"]
+        registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
+        job = self._full_scan_job_store.submit(
+            agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
+            scanner_version=str(scan_request.scanner_version),
+            corpus_version=str(scan_request.corpus_version),
+            model_versions=model_versions,
+            seed=scan_request.seed,
+            registry_cases=registry_cases,
+            idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
+        )
+        self._full_scan_job_ids[scan_request.scan_id] = job.job_id
+        lease = self._full_scan_job_store.lease(job.job_id)
+        attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
+        if not isinstance(attempt_id, str) or not attempt_id:
+            finalized = self._full_scan_job_store.finalize(job.job_id)
+        else:
+            dispatch_registry_attempt(
+                self._full_scan_job_store,
+                job.job_id,
+                attempt_id=attempt_id,
+                registry_rows=self._full_scan_registry_rows,
+                workers=workers,
+            )
+            finalized = self._full_scan_job_store.finalize(job.job_id)
+
+        manifest = finalized.final_manifest
+        if manifest is not None:
+            manifest_writer = getattr(first_worker, "write_manifest", None)
+            if callable(manifest_writer):
+                persisted_ref = manifest_writer(manifest)
+                if persisted_ref != manifest.get("manifest_evidence_ref"):
+                    raise RuntimeError(
+                        "persisted full-scan manifest reference mismatch"
+                    )
+        if finalized.status == "complete":
+            return replace(
+                result,
+                status="complete",
+                rows_emitted=len(finalized.evidence_rows),
+                full_suite_manifest=manifest,
+            )
+        return replace(
+            result,
+            status="incomplete",
+            rows_emitted=len(finalized.evidence_rows),
+            incomplete=True,
+            incomplete_reason="full_scan_registry_incomplete",
+            full_suite_manifest=manifest,
+        )
+
+    def _apply_full_suite_manifest_guard(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+    ) -> ScanResult:
+        """Attach the full-suite manifest and fail closed for full scans.
+
+        Smoke/dev tiers are explicitly non-underwriting and may sample. Full
+        underwriting scans must carry every active registry case to completion
+        or return an incomplete result with evidence references in the
+        manifest.
+        """
+        if self._full_scan_registry_rows:
+            return result
+        if not self._full_suite_registry_cases:
+            return result
+        if scan_request.scan_tier in {"smoke", "dev"}:
+            return result
+
+        manifest_uri = self._full_suite_manifest_uri_factory(
+            agent_id or scan_request.agent_id,
+            scan_request.scan_id,
+        )
+        manifest, findings = build_full_suite_manifest(
+            scan_request=scan_request,
+            scan_result=result,
+            registry_cases=self._full_suite_registry_cases,
+            signer=sign_manifest,
+            manifest_uri=manifest_uri,
+        )
+        if not findings:
+            return replace(result, full_suite_manifest=manifest)
+        return replace(
+            result,
+            status="incomplete",
+            incomplete=True,
+            incomplete_reason="full_suite_manifest_incomplete",
+            full_suite_manifest=manifest,
+        )
 
     def fetch(self, scan_id: str) -> ScanResult | None:
         self._purge_expired_in_memory_state()
@@ -622,6 +894,7 @@ def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
         "total_spread": result.total_spread,
         "incomplete": result.incomplete,
         "incomplete_reason": result.incomplete_reason,
+        "full_suite_manifest": result.full_suite_manifest,
         "anti_gaming": result.anti_gaming.to_dict(),
         "dim_results": [
             {
@@ -652,23 +925,6 @@ def _customer_payload(result: ScanResult) -> dict[str, Any]:
         payload.pop(field_name, None)
     return payload
 
-
-# ---------------------------------------------------------------------------
-# BEAAA-13169 (§4 P0) — public completed-scan envelope.
-#
-# The customer-facing ``GET /scan/{scan_id}`` must return the documented
-# external result object (the scored envelope) — not the internal runtime
-# projection (``rows_emitted`` / ``spread_per_dim`` / ``dim_results``). A
-# partner following the documented three-call flow reads the *product* here:
-# the score, its pillar subscores, the letter band, confidence, evidence
-# refs, and any uncovered dimensions. Sourced verbatim from the persisted
-# ``score_json`` envelope (the ``to_contract_output`` projection written at
-# kickoff-finalize time), so no scoring path is re-entered — this is a
-# read-only projection of the already-committed score (N=5 delta = 0).
-# ---------------------------------------------------------------------------
-
-#: Documented external result fields surfaced on the completed-scan envelope,
-#: in canonical order, per the design-partner onboarding three-call flow.
 _EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
     "are_total",
     "subscores",
@@ -678,9 +934,6 @@ _EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
     "uncovered_dimensions",
 )
 
-#: Reproducibility provenance carried on every reported score (Supreme Law:
-#: no score is reported without ``scanner_version`` / ``corpus_version`` /
-#: ``model_versions`` / ``seed``). Read from the persisted envelope.
 _EXTERNAL_ENVELOPE_PROVENANCE: tuple[str, ...] = (
     "scanner_version",
     "corpus_version",
@@ -690,14 +943,7 @@ _EXTERNAL_ENVELOPE_PROVENANCE: tuple[str, ...] = (
 
 
 def _band_letter(score_json: Mapping[str, Any]) -> Any:
-    """Project the partner-facing letter ``band`` from a score envelope.
-
-    The scoring engine emits a structured ``band: {letter, display, ...}``
-    block plus a flat ``band_letter`` string (``to_contract_output``). The
-    external envelope surfaces the single letter grade regardless of which
-    on-disk spelling the ``score_json`` uses — same bridge as
-    ``_chain_entry_from_row``.
-    """
+    """Project the partner-facing letter band from a score envelope."""
     band_letter = score_json.get("band_letter")
     if isinstance(band_letter, str) and band_letter:
         return band_letter
@@ -710,13 +956,7 @@ def _band_letter(score_json: Mapping[str, Any]) -> Any:
 def _external_result_envelope(
     result: ScanResult, score_json: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """Build the documented public completed-scan envelope (BEAAA-13169).
-
-    Projects only the external result object from the persisted
-    ``score_json`` — never the internal runtime fields. ``scan_id`` /
-    ``status`` frame the record; the six documented result fields plus
-    reproducibility provenance carry the product.
-    """
+    """Build the documented public completed-scan envelope."""
     envelope: dict[str, Any] = {
         "scan_id": result.scan_id,
         "status": result.status,
@@ -732,8 +972,6 @@ def _external_result_envelope(
             envelope[field_name] = score_json.get(field_name)
     for field_name in _EXTERNAL_ENVELOPE_PROVENANCE:
         envelope[field_name] = score_json.get(field_name)
-    # Completion flags mirror the scored envelope so a partner can branch on
-    # partial results without parsing the internal ``incomplete`` field.
     envelope["partial_completion"] = bool(
         score_json.get("partial_completion") or result.incomplete
     )
@@ -747,19 +985,13 @@ def _external_result_envelope(
 def _customer_result_response(
     scan_id: str, result: ScanResult, runtime: "ScanRuntime"
 ) -> dict[str, Any]:
-    """Customer-facing ``GET /scan/{scan_id}`` body (BEAAA-13169).
-
-    Returns the documented external result envelope when the runtime has a
-    persisted score for the scan (the live edge binds ``scan_log`` +
-    ``score_envelope_factory`` per ``make_default_production_scan_runtime``).
-    Falls back to the pre-BEAAA-13169 internal projection ONLY when no score
-    was persisted (legacy/unwired fixtures) so those paths stay byte-stable.
-    """
+    """Return the public score when persisted, else the legacy projection."""
     score_row = runtime.current_kickoff_row(scan_id)
     score_json = score_row.get("score_json") if score_row else None
     if isinstance(score_json, Mapping) and score_json:
         return _external_result_envelope(result, score_json)
     return _customer_payload(result)
+
 
 
 # ---------------------------------------------------------------------------
@@ -783,6 +1015,11 @@ def _default_forensic_bundle_uri(agent_id: str, scan_id: str) -> str:
     bucket / object-lock URI factory.
     """
     return f"s3://ifa-forensic-bundles/agent-{agent_id}/scan-{scan_id}.json"
+
+
+def _default_full_suite_manifest_uri(agent_id: str | None, scan_id: str) -> str:
+    agent_segment = agent_id or "unknown-agent"
+    return f"scanner://full-suite-manifests/{agent_segment}/{scan_id}.json"
 
 
 def _chain_entry_from_row(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -1009,6 +1246,7 @@ def _kickoff_live_probe_scan(
             surface_seed=surface_seed,
             requested_pillars=requested_pillars,
             scan_mode=scan_mode,
+            scan_tier=scan_tier,
             k_replicates=k_replicates,
             agent_id=agent_id,
             invocation_context=scanner_invocation_context,
@@ -1060,6 +1298,8 @@ def _kickoff_live_probe_scan(
         # Echo defaults so the vendor can reproduce: same agent + same version
         # => same score within +/-1. Full tier is byte-identical to v1.3.0.
         response["scan_tier"] = "smoke"
+        response["underwriting_eligible"] = False
+        response["non_underwriting_reason"] = "smoke_tier_sampled"
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
 
@@ -1339,15 +1579,7 @@ def scan_status_handler(
 
     Returns the scan's current state. ``audience`` selects the payload variant:
 
-    * ``"customer"`` (default) — the documented public completed-scan
-      envelope (BEAAA-13169 §4 P0): the external result object
-      (``are_total``, ``subscores``, ``band``, ``confidence``,
-      ``evidence_refs``, ``uncovered_dimensions``) plus reproducibility
-      provenance, projected read-only from the persisted ``score_json``.
-      Never surfaces internal runtime fields (``rows_emitted`` /
-      ``spread_per_dim`` / ``dim_results``). Unwired/legacy runtimes with no
-      persisted score fall back to the pre-BEAAA-13169 internal projection
-      (which still strips ``live_probe_variance_band`` per Δ4).
+    * ``"customer"`` (default) — strips ``live_probe_variance_band`` per Δ4.
     * ``"uw"`` — retains every field for the Underwriter pricing engine.
     * ``"ci_plugin"`` (BEAAA-11726 item 5b) — no-prompt categorized rollup
       for the CI/CD plugin; sourced from the score_json envelope + the

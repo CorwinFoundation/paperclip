@@ -358,7 +358,7 @@ def build_applicability() -> dict[str, Any]:
     }
     return {
         "policy_version": "0.1.2",
-        "applies_to_rubric": "1.2.0",
+        "applies_to_rubric": "1.3.0",
         "measured_dims": list(MEASURED_DIMS),
         "na_dims": list(NA_DIMS),
         "applicability_decisions": decisions,

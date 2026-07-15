@@ -43,12 +43,11 @@ def _flags(**overrides: bool) -> dict[str, bool]:
 
 class PolicyLoadTests(unittest.TestCase):
     def test_default_policy_loads(self):
-        # BEAAA-5269 rebaseline: applicability policy bumped to v0.1.2
-        # (P4 N/A justification family added), applies_to_rubric pinned to
-        # rubric v1.2.0 (25 active dims).
+        # BEAAA-13703 rollback: applicability policy remains v0.1.2 and
+        # tracks rubric v1.3.0 after loop-stability was isolated non-scoring.
         p = load_policy()
         self.assertEqual(p.version, "0.1.2")
-        self.assertEqual(p.applies_to_rubric, "1.2.0")
+        self.assertEqual(p.applies_to_rubric, "1.3.0")
 
     def test_arch_flags_declared(self):
         p = load_policy()

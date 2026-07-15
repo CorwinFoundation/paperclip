@@ -10,10 +10,15 @@
     "has_tool_calling": false,
     "has_uw_signed_labels": false
   },
+  "calibration_notes": {
+    "BEAAA-13540": "Historical rubric 1.4.0 activation of ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD; score movement authorized by BEAAA-13413 approval 9d1a6d35.",
+    "BEAAA-13703": "Supersedes BEAAA-13540 for current score locks: loop-stability evidence remains in eval_outputs but is isolated as non-scoring under rubric 1.3.0 until it can clear the ±1 golden-set gate."
+  },
   "expected_band": "D+",
   "expected_bmi": 47,
   "id": "M2",
   "name": "Botpress demo (botpress.com)",
+  "rubric_version_at_measurement": "1.3.0",
   "slot": "graded_middle",
   "status": "live",
   "type": "deployed_agent_path_b",

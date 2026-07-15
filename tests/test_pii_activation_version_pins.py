@@ -39,8 +39,10 @@ class PiiActivationVersionPinTests(unittest.TestCase):
 
     def test_rubric_at_1_3_0(self):
         # BEAAA-13388 candidate activation — P3.5 + P3.6 enter the active
-        # ROBUSTNESS dim mean. Pillar weights, band cuts, and aggregation
-        # shape stay unchanged; BEAAA-13382 is the Underwriter merge gate.
+        # ROBUSTNESS dim mean. BEAAA-13703 isolates loop-stability back to
+        # non-scoring evidence after BEAAA-13700 found residual drift outside
+        # the +/-1 gate. Pillar weights, band cuts, and aggregation shape stay
+        # unchanged.
         self.assertEqual(_read_first_version(RUBRIC), "1.3.0")
 
     def test_applicability_at_0_1_2(self):
@@ -51,11 +53,11 @@ class PiiActivationVersionPinTests(unittest.TestCase):
         # bump; this pin tracks the scanner release stamp only.
         self.assertEqual(SCANNER_VERSION, "0.5.0")
 
-    def test_applicability_anchors_rubric_1_2_0_until_beaaa13382_merge_gate(self):
-        # BEAAA-13388 does not add architecture flags in Phase A; applicability
-        # remains pinned to the last adopted policy until BEAAA-13382 clears.
+    def test_applicability_anchors_rubric_1_3_0_after_loop_stability_isolation(self):
+        # BEAAA-13703 removes loop-stability from the active rubric; applicability
+        # tracks the active rubric so scan adapters can reject stale policy pins.
         text = APPLICABILITY.read_text(encoding="utf-8")
-        self.assertIn('applies_to_rubric: "1.2.0"', text)
+        self.assertIn('applies_to_rubric: "1.3.0"', text)
 
     def test_active_dim_count_is_27(self):
         text = RUBRIC.read_text(encoding="utf-8")
@@ -72,6 +74,8 @@ class PiiActivationVersionPinTests(unittest.TestCase):
         self.assertIn('"GOVERNANCE.PII.HANDLING_ATTESTATION"', text)
         self.assertIn("id: P3.5", text)
         self.assertIn("id: P3.6", text)
+        self.assertIn('id: "ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD"', text)
+        self.assertIn("non-scoring evidence isolated by BEAAA-13703", text)
 
 
 if __name__ == "__main__":

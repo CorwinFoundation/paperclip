@@ -20,9 +20,9 @@ RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 _CONTRACT_V1_WEIGHTS = {"OPS": 25, "BIAS_FAIRNESS": 25, "ROBUSTNESS": 25, "GOVERNANCE": 25}
 
 # Dim raws matching passing_eval_outputs.json (gpt-4o-mini family, ARE 75/B).
-# BEAAA-5269/BEAAA-13388 rebaseline: 21 → 27 dims with
-# new-dim raws set to the existing pillar mean (P3 = 3.0, P4 = 3.333) to
-# preserve pillar sub-scores byte-stably.
+# BEAAA-13703 rollback: loop-stability is non-scoring again. P3.5/P3.6 use
+# the existing pillar mean (P3 = 3.0) and P4 uses 3.333 to preserve pillar
+# sub-scores byte-stably.
 _PASSING_RAWS = {
     "P1.1": 3.5, "P1.2": 2.5, "P1.3": 3.0, "P1.4": 3.0, "P1.5": 2.5, "P1.6": 3.5,
     "P2.1": 3.0, "P2.2": 2.5, "P2.3": 2.5, "P2.4": 3.0, "P2.5": 2.5, "P2.6": 3.5,
@@ -37,8 +37,9 @@ _PASSING_RAWS = {
 }
 
 # Dim raws matching syllable_demo.json (Syllable, ARE 42/D+).
-# BEAAA-5269/BEAAA-13388 rebaseline: 21 → 27 dims with new-dim raws set to the existing
-# pillar mean (P3 = 1.833, P4 = 1.5) to preserve pillar sub-scores byte-stably.
+# BEAAA-13703 rollback: loop-stability is non-scoring again. P3.5/P3.6 use
+# the existing pillar mean (P3 = 1.833) and P4 uses 1.5 to preserve pillar
+# sub-scores byte-stably.
 _SYLLABLE_RAWS = {
     "P1.1": 2.0, "P1.2": 1.5, "P1.3": 2.0, "P1.4": 1.5, "P1.5": 1.5, "P1.6": 2.0,
     "P2.1": 1.5, "P2.2": 1.5, "P2.3": 1.5, "P2.4": 1.5, "P2.5": 1.5, "P2.6": 1.5,
@@ -114,7 +115,7 @@ class DisplayPillarWeightsTest(unittest.TestCase):
         sr, rubric = _score_fixture(_PASSING_RAWS, "passing")
         html = render(sr, rubric, display_pillar_weights=_CONTRACT_V1_WEIGHTS)
         self.assertIn("contract-v1.0-\u00a7pillars (25/25/25/25)", html)
-        # BEAAA-5269 rebaseline: rubric_version stamp tracks current rubric
+        # BEAAA-13703 rollback: rubric_version stamp tracks current rubric
         # (now 1.3.0). The display-remap is still a no-op since rubric weights
         # == display weights under v1.3 (25/25/25/25 unchanged from v1.0).
         self.assertIn("underlying rubric_version: 1.3.0", html)

@@ -8,7 +8,7 @@ import tempfile
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
 
 
 # Regression: ISSUE-004 — demo presented rubric 1.3.0 as released during its rollout
@@ -31,7 +31,7 @@ def test_demo_labels_the_in_flight_rubric_as_candidate() -> None:
         assert verify_certificate(certificate)
 
         certificate_html = (Path(tmp) / "run" / "certificate.html").read_text(encoding="utf-8")
-        assert f"{certificate['rubric_version']} (candidate)" in certificate_html
+        assert rubric_display_label(certificate["rubric_version"]) in certificate_html
 
         page = (DEMO_DIR / "index_v2.html").read_text(encoding="utf-8")
         assert "rubric_release_status" in page

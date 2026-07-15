@@ -43,10 +43,17 @@ def _install_fake_scope(monkeypatch, responder):
     calls: list[dict[str, Any]] = []
 
     class _Client:
-        def __init__(self, timeout: float, follow_redirects: bool, session_id: str):
+        def __init__(
+            self,
+            timeout: float,
+            follow_redirects: bool,
+            session_id: str,
+            live_bind_scope_id: str | None,
+        ):
             self._timeout = timeout
             self._follow_redirects = follow_redirects
             self._session_id = session_id
+            self._live_bind_scope_id = live_bind_scope_id
 
         def __enter__(self) -> "_Client":
             return self
@@ -70,13 +77,20 @@ def _install_fake_scope(monkeypatch, responder):
                 "timeout": self._timeout,
                 "follow_redirects": self._follow_redirects,
                 "session_id": self._session_id,
+                "live_bind_scope_id": self._live_bind_scope_id,
             }
             calls.append(call)
             return responder(url, call, calls)
 
     class _Scope:
-        def __init__(self, allowed_host: str):
+        def __init__(
+            self,
+            allowed_host: str,
+            *,
+            live_bind_scope_id: str | None = None,
+        ):
             self.allowed_host = allowed_host
+            self.live_bind_scope_id = live_bind_scope_id
 
         def __enter__(self) -> "_Scope":
             return self
@@ -91,7 +105,12 @@ def _install_fake_scope(monkeypatch, responder):
             follow_redirects: bool,
             session_id: str,
         ) -> _Client:
-            return _Client(timeout, follow_redirects, session_id)
+            return _Client(
+                timeout,
+                follow_redirects,
+                session_id,
+                self.live_bind_scope_id,
+            )
 
     monkeypatch.setattr("harness.customer_runner.ScopedEgressAllowlist", _Scope)
     return calls
@@ -141,6 +160,9 @@ def test_apichat_factory_uses_syllable_two_step_route(monkeypatch) -> None:
     assert {call["session_id"] for call in calls} and len(
         {call["session_id"] for call in calls}
     ) == 1
+    assert {call["live_bind_scope_id"] for call in calls} == {
+        calls[0]["session_id"]
+    }
 
 
 def test_apichat_retries_transient_proxy_status(monkeypatch) -> None:
