@@ -55,15 +55,19 @@ jobs:
         include:
           - framework: garak
             import-name: garak
+            distribution-name: garak
             expected-version: 0.10.0
           - framework: pyrit
             import-name: pyrit
+            distribution-name: pyrit
             expected-version: 0.6.0
           - framework: agentdojo
             import-name: agentdojo
+            distribution-name: agentdojo
             expected-version: 0.1.35
           - framework: inspect
             import-name: inspect_ai
+            distribution-name: inspect-ai
             expected-version: 0.3.220
     env:
       PYTHONHASHSEED: "0"
@@ -71,6 +75,7 @@ jobs:
       ARE_EVAL_VENVS_DIR: ${{ github.workspace }}/.cache/are-eval-venvs
       EVAL_FRAMEWORK: ${{ matrix.framework }}
       EVAL_IMPORT_NAME: ${{ matrix.import-name }}
+      EVAL_DISTRIBUTION_NAME: ${{ matrix.distribution-name }}
       EVAL_EXPECTED_VERSION: ${{ matrix.expected-version }}
     steps:
       - name: Checkout source
@@ -119,13 +124,15 @@ jobs:
         run: |
           "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" - <<'PY'
           import importlib
+          import importlib.metadata
           import os
 
           framework = os.environ["EVAL_FRAMEWORK"]
           import_name = os.environ["EVAL_IMPORT_NAME"]
+          distribution_name = os.environ["EVAL_DISTRIBUTION_NAME"]
           expected = os.environ["EVAL_EXPECTED_VERSION"]
-          module = importlib.import_module(import_name)
-          version = getattr(module, "__version__", "unknown")
+          importlib.import_module(import_name)
+          version = importlib.metadata.version(distribution_name)
           if version != expected:
               raise SystemExit(
                   f"{framework} import mismatch: {version!r} != {expected!r}"
