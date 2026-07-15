@@ -108,7 +108,7 @@ def main() -> int:
     parser.add_argument("--token", default=os.environ.get("DEMO_ACCESS_TOKEN"))
     args = parser.parse_args()
     try:
-        print(json.dumps(run(args.url, args.timeout, args.token), sort_keys=True))
+        print(json.dumps(run(args.url, args.timeout, token=args.token), sort_keys=True))
 
     except (error.URLError, RuntimeError, TimeoutError) as exc:
         raise SystemExit(str(exc)) from exc
