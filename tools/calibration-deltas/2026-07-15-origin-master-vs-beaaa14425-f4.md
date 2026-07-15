@@ -24,8 +24,8 @@ per-pillar spread **diagnostic** (`_pillar_of`); it does not touch the offline
 scoring engine that the golden set exercises, so baseline and candidate produce
 identical output. No golden moves >1 → **CEO gate not triggered.**
 
-- baseline: `origin/master` @ `8b41bbf2ecd4f593cc8d429ff91d260b99e4aea4`
-- candidate: `beaaa-14425-f4` @ `252a0da945c958f892c0d011a6a9ff26e63154ea`
+- baseline: `origin/master` @ `d9cf93972ce480a2674ba7d5ca0f45ed78dd1f53`
+- candidate: `beaaa-14425-f4` @ `be0c059fd6c836225cdf6827b372f18110fd7e2e`
 - scanner_version: `0.5.0`  *(issue metadata stated 0.3.0; the live in-tree
   `scanners.SCANNER_VERSION` is 0.5.0 — the stale value is noted, not propagated)*
 - corpus_version: `fixture-pinned per golden expected_score.json`
