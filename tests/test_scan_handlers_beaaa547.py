@@ -809,7 +809,11 @@ def test_end_to_end_smoke_with_real_orchestrator(corpus_tarball, corpus_hash, tm
         get_status, get_payload = scan_status_handler("smoke-1", runtime=runtime)
         assert get_status == 200
         assert get_payload["status"] == "complete"
-        assert get_payload["rows_emitted"] == 10  # 5 replicates × 2 dims
+        assert get_payload["are_total"] == "_phase1_pending"
+        assert get_payload["evidence_refs"] == []
+        assert "rows_emitted" not in get_payload
+        assert "dim_results" not in get_payload
+        assert "full_suite_manifest" not in get_payload
         assert get_payload["incomplete"] is False
     finally:
         vault.forget_all()
