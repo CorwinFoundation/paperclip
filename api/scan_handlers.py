@@ -751,7 +751,7 @@ class ScanRuntime:
         lease = self._full_scan_job_store.lease(job.job_id)
         attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
         if not isinstance(attempt_id, str) or not attempt_id:
-            finalized = self._full_scan_job_store.finalize(job.job_id)
+            raise RuntimeError("full-scan lease did not return an attempt_id")
         else:
             dispatch_registry_attempt(
                 self._full_scan_job_store,
@@ -760,7 +760,9 @@ class ScanRuntime:
                 registry_rows=self._full_scan_registry_rows,
                 workers=workers,
             )
-            finalized = self._full_scan_job_store.finalize(job.job_id)
+            finalized = self._full_scan_job_store.finalize(
+                job.job_id, attempt_id=attempt_id
+            )
 
         manifest = finalized.final_manifest
         if manifest is not None:

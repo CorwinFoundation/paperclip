@@ -318,10 +318,15 @@ class FullScanJobStore:
                 "pending_cases": pending,
             }
 
-    def finalize(self, job_id: str, *, attempt_id: str) -> FullScanJob:
+    def finalize(
+        self, job_id: str, *, attempt_id: str | None = None
+    ) -> FullScanJob:
         with self._lock:
             job = self._get(job_id)
-            self._require_active_lease(job, attempt_id=attempt_id)
+            active_attempt_id = attempt_id or job.active_attempt_id
+            if active_attempt_id is None:
+                raise FullScanExecutorError("job has no active attempt")
+            self._require_active_lease(job, attempt_id=active_attempt_id)
             manifest = build_attempt_manifest(job, finished_at=self._clock())
             manifest_hash = manifest_content_hash(manifest)
             bind_eligibility = _bind_eligibility(job, manifest)
