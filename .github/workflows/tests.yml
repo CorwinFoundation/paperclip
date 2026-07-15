@@ -45,3 +45,93 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -v -ra tests
+
+  eval-framework-venvs:
+    name: eval venv (${{ matrix.framework }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - framework: garak
+            import-name: garak
+            expected-version: 0.10.0
+          - framework: pyrit
+            import-name: pyrit
+            expected-version: 0.6.0
+          - framework: agentdojo
+            import-name: agentdojo
+            expected-version: 0.1.35
+          - framework: inspect
+            import-name: inspect_ai
+            expected-version: 0.3.220
+    env:
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+      ARE_EVAL_VENVS_DIR: ${{ github.workspace }}/.cache/are-eval-venvs
+      EVAL_FRAMEWORK: ${{ matrix.framework }}
+      EVAL_IMPORT_NAME: ${{ matrix.import-name }}
+      EVAL_EXPECTED_VERSION: ${{ matrix.expected-version }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-eval-garak.txt
+            requirements-eval-pyrit.txt
+            requirements-eval-agentdojo.txt
+            requirements-eval-inspect.txt
+
+      - name: Restore eval venv cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ARE_EVAL_VENVS_DIR }}/${{ matrix.framework }}-venv
+          key: eval-venv-${{ runner.os }}-py312-${{ matrix.framework }}-${{ hashFiles('requirements-eval-*.txt', 'scripts/build_eval_framework_venvs.sh', 'scanners/eval_framework_venv.py') }}
+
+      - name: Build and verify pinned eval venv
+        run: scripts/build_eval_framework_venvs.sh "$EVAL_FRAMEWORK"
+
+      - name: Verify resolver sees pinned framework
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          from scanners.eval_framework_venv import FRAMEWORKS, resolve_framework
+
+          framework = os.environ["EVAL_FRAMEWORK"]
+          expected = FRAMEWORKS[framework].pinned_version
+          available, version = resolve_framework(framework)
+          if not available or version != expected:
+              raise SystemExit(
+                  f"{framework} resolver mismatch: available={available} "
+                  f"version={version!r} expected={expected!r}"
+              )
+          print(f"{framework}: resolver verified {version}")
+          PY
+
+      - name: Smoke import real pinned framework
+        run: |
+          "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" - <<'PY'
+          import importlib
+          import os
+
+          framework = os.environ["EVAL_FRAMEWORK"]
+          import_name = os.environ["EVAL_IMPORT_NAME"]
+          expected = os.environ["EVAL_EXPECTED_VERSION"]
+          module = importlib.import_module(import_name)
+          version = getattr(module, "__version__", "unknown")
+          if version != expected:
+              raise SystemExit(
+                  f"{framework} import mismatch: {version!r} != {expected!r}"
+              )
+          print(f"{framework}: imported {import_name}=={version}")
+          PY
+
+      - name: Run venv resolver unit smoke
+        run: python -m unittest tests.scanners.test_eval_framework_venv
