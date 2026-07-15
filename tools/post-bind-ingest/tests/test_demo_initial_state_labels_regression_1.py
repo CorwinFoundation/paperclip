@@ -21,6 +21,9 @@ def test_initial_ui_labels_wait_for_actual_lifecycle_results() -> None:
     assert "state.deployment.git_ref" not in page
     assert "state.deployment.workflow" in page
 
-    assert "l?.certificate?.signature_status==='valid'?'signed':'waiting'" in page
-    assert "state.result?.monitoring_report?'ready':'waiting'" in page
+    assert "cert?.signature_status==='valid'?'signed':l?.terminal_failure?'blocked':'waiting'" in page
+    assert "state.result?.monitoring_report?'ready':l?.terminal_failure?'blocked':'waiting'" in page
     assert "state.result?'ready':'waiting'" in page
+    assert "location.protocol==='file:'" in page
+    assert "Open the HTTP demo, not this HTML file." in page
+    assert "start-showcase.ps1" in page

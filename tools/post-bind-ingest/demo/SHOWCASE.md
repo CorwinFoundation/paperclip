@@ -21,7 +21,15 @@ From the repository root on the configured Windows workstation:
 .\tools\post-bind-ingest\demo\start-showcase.ps1
 ```
 
-Open `http://127.0.0.1:8765` and choose **Run full lifecycle**.
+Open `http://127.0.0.1:8765`, choose a scenario, and select **Run scenario**.
+
+The scenario selector provides three deterministic proof paths:
+
+- **Happy path** completes the signed certificate, production logs, passive analysis, and report.
+- **Fail: initial scan rejected** produces a `38/D` scan and stops at the synthetic admittance gate.
+- **Fail: CI/CD regression** binds the initial `80/B+` release, then drops release `1.2.0` to `45/D+` and blocks it with exit code `1` before certificate issuance.
+
+The Scans view includes score rings and pillar radar charts. The CI/CD view includes a release-delta bar with the pass threshold marked explicitly.
 
 For a portable Python environment, install the focused runtime dependencies and packages:
 

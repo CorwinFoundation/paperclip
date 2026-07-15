@@ -43,6 +43,7 @@ TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_detector_input.py",
 )
 DEMO_ENV_FILE = Path("/etc/backbond/passive-demo.env")
+ALLOWED_SCENARIOS = {"happy", "bind_reject", "cicd_regression"}
 
 
 def _load_demo_env_file(path: Path = DEMO_ENV_FILE) -> None:
@@ -80,6 +81,24 @@ def _bounded_content_length(value: str | None, *, max_bytes: int = 1024) -> int:
     return length
 
 
+def _scenario_from_body(body: bytes) -> str:
+    if not body:
+        return "happy"
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("request body must be valid UTF-8 JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be a JSON object")
+    unknown = set(payload) - {"scenario"}
+    if unknown:
+        raise ValueError(f"unsupported request fields: {', '.join(sorted(unknown))}")
+    scenario = payload.get("scenario", "happy")
+    if not isinstance(scenario, str) or scenario not in ALLOWED_SCENARIOS:
+        raise ValueError(f"unsupported scenario: {scenario}")
+    return scenario
+
+
 class RunQuota:
     def __init__(self, max_requests: int = 5, window_seconds: float = 3600.0) -> None:
         if max_requests <= 0 or window_seconds <= 0:
@@ -102,6 +121,14 @@ class RunQuota:
             attempts.append(current)
             return True, 0
 
+
+def _run_quota_from_env(environment: str) -> RunQuota | None:
+    if environment != "public-demo":
+        return None
+    return RunQuota(
+        max_requests=int(os.environ.get("DEMO_RUN_MAX_REQUESTS", "5")),
+        window_seconds=float(os.environ.get("DEMO_RUN_WINDOW_SECONDS", "3600")),
+    )
 
 def _json_lines(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -168,9 +195,10 @@ def _health_metadata() -> dict:
     }
 
 class DemoJob:
-    def __init__(self, run_id: str, output_dir: Path) -> None:
+    def __init__(self, run_id: str, output_dir: Path, scenario: str = "happy") -> None:
         self.run_id = run_id
         self.output_dir = output_dir
+        self.scenario = scenario
         self.status = "queued"
         self.created_at = _utc_now()
         self.started_at: str | None = None
@@ -196,6 +224,7 @@ class DemoJob:
         with self.lock:
             return {
                 "run_id": self.run_id,
+                "scenario": self.scenario,
                 "status": self.status,
                 "created_at": self.created_at,
                 "started_at": self.started_at,
@@ -218,14 +247,14 @@ class JobManager:
         self.latest_completed_id: str | None = None
         self.lock = threading.Lock()
 
-    def start(self) -> DemoJob:
+    def start(self, scenario: str = "happy") -> DemoJob:
         with self.lock:
             if self.active_job_id:
                 active = self.jobs.get(self.active_job_id)
                 if active and active.status in {"queued", "running"}:
                     return active
             run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
-            job = DemoJob(run_id, self.runs_dir / run_id)
+            job = DemoJob(run_id, self.runs_dir / run_id, scenario)
             self.jobs[run_id] = job
             self.job_order.append(run_id)
             self.active_job_id = run_id
@@ -355,7 +384,30 @@ class JobManager:
                 job.run_id,
                 job.emit,
                 lambda: self._run_tests(job),
+                scenario=job.scenario,
             )
+            terminal_failure = lifecycle.get("terminal_failure")
+            if terminal_failure:
+                deployment = _deployment_metadata()
+                job.result = {
+                    "lifecycle": lifecycle,
+                    "tests": tests,
+                    "deployment": deployment,
+                    "elapsed_ms": round((time.perf_counter() - started) * 1000),
+                    "evidence_id": job.run_id,
+                    "scenario": job.scenario,
+                    "expected_failure": True,
+                }
+                job.error = terminal_failure["message"]
+                job.status = "failed"
+                job.emit(
+                    "error",
+                    terminal_failure["message"],
+                    stage=terminal_failure["stage"],
+                    state="failed",
+                    expected_failure=True,
+                )
+                return
             passive = self._run_passive_pipeline(job, job.output_dir / "production")
             monitoring_report = generate_final_report(job.output_dir, lifecycle, passive, job.emit)
             deployment = _deployment_metadata()
@@ -406,7 +458,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     manager: JobManager
     access_token: str | None = None
     secure_cookie = False
-    run_quota = RunQuota()
+    run_quota: RunQuota | None = RunQuota()
 
 
     def log_message(self, format: str, *args) -> None:
@@ -578,16 +630,21 @@ class DemoHandler(BaseHTTPRequestHandler):
         except ValueError:
             self._send_json({"error": "invalid_content_length"}, HTTPStatus.BAD_REQUEST)
             return
-        if content_length:
-            self.rfile.read(content_length)
-        client = self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip() or self.client_address[0]
-        allowed, retry_after = self.run_quota.allow(client)
-        if not allowed:
-            self._send_json({"error": "run_quota_exceeded", "retry_after_seconds": retry_after}, HTTPStatus.TOO_MANY_REQUESTS)
+        body = self.rfile.read(content_length) if content_length else b""
+        try:
+            scenario = _scenario_from_body(body)
+        except ValueError as exc:
+            self._send_json({"error": "invalid_run_request", "detail": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
+        if self.run_quota is not None:
+            client = self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip() or self.client_address[0]
+            allowed, retry_after = self.run_quota.allow(client)
+            if not allowed:
+                self._send_json({"error": "run_quota_exceeded", "retry_after_seconds": retry_after}, HTTPStatus.TOO_MANY_REQUESTS)
+                return
 
-        job = self.manager.start()
-        self._send_json({"run_id": job.run_id, "status": job.status}, HTTPStatus.ACCEPTED)
+        job = self.manager.start(scenario=scenario)
+        self._send_json({"run_id": job.run_id, "status": job.status, "scenario": job.scenario}, HTTPStatus.ACCEPTED)
 
 def main() -> int:
     _load_demo_env_file()
@@ -599,12 +656,10 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        environment = os.environ.get("DEMO_ENVIRONMENT", "local")
         DemoHandler.access_token = _access_token_from_env()
-        DemoHandler.secure_cookie = os.environ.get("DEMO_ENVIRONMENT", "local") == "public-demo"
-        DemoHandler.run_quota = RunQuota(
-            max_requests=int(os.environ.get("DEMO_RUN_MAX_REQUESTS", "5")),
-            window_seconds=float(os.environ.get("DEMO_RUN_WINDOW_SECONDS", "3600")),
-        )
+        DemoHandler.secure_cookie = environment == "public-demo"
+        DemoHandler.run_quota = _run_quota_from_env(environment)
     except (RuntimeError, TypeError, ValueError) as exc:
         parser.error(str(exc))
 

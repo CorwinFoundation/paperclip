@@ -14,7 +14,7 @@ import pytest
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
 sys.path.insert(0, str(DEMO_DIR))
 
-from app import DemoHandler, RunQuota, _access_token_from_env, _bounded_content_length  # noqa: E402
+from app import DemoHandler, RunQuota, _access_token_from_env, _bounded_content_length, _run_quota_from_env, _scenario_from_body  # noqa: E402
 
 
 # Regression: ISSUE-002 — public demo exposed costly run execution without access control
@@ -46,6 +46,23 @@ def test_request_body_length_is_bounded_before_reading() -> None:
     with pytest.raises(OverflowError, match="request too large"):
         _bounded_content_length("1025")
 
+
+def test_run_scenario_payload_is_strictly_validated() -> None:
+    assert _scenario_from_body(b"") == "happy"
+    assert _scenario_from_body(b"{}") == "happy"
+    assert _scenario_from_body(b'{"scenario":"bind_reject"}') == "bind_reject"
+    assert _scenario_from_body(b'{"scenario":"cicd_regression"}') == "cicd_regression"
+    with pytest.raises(ValueError, match="valid UTF-8 JSON"):
+        _scenario_from_body(b"not-json")
+    with pytest.raises(ValueError, match="JSON object"):
+        _scenario_from_body(b"[]")
+    with pytest.raises(ValueError, match="unsupported scenario"):
+        _scenario_from_body(b'{"scenario":"arbitrary-command"}')
+    with pytest.raises(ValueError, match="unsupported scenario"):
+        _scenario_from_body(b'{"scenario":[]}')
+    with pytest.raises(ValueError, match="unsupported request fields"):
+        _scenario_from_body(b'{"scenario":"happy","command":"rm"}')
+
 def test_run_quota_is_enforced_per_client_and_resets() -> None:
     quota = RunQuota(max_requests=2, window_seconds=60)
     assert quota.allow("client-a", now=0) == (True, 0)
@@ -56,6 +73,17 @@ def test_run_quota_is_enforced_per_client_and_resets() -> None:
     assert quota.allow("client-b", now=2) == (True, 0)
     assert quota.allow("client-a", now=61) == (True, 0)
 
+
+def test_run_quota_is_enabled_only_for_public_demo(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMO_RUN_MAX_REQUESTS", "2")
+    monkeypatch.setenv("DEMO_RUN_WINDOW_SECONDS", "60")
+
+    assert _run_quota_from_env("local") is None
+    public_quota = _run_quota_from_env("public-demo")
+    assert public_quota is not None
+    assert public_quota.allow("client", now=0) == (True, 0)
+    assert public_quota.allow("client", now=1) == (True, 0)
+    assert public_quota.allow("client", now=2)[0] is False
 
 class _StubManager:
     def __init__(self) -> None:
@@ -81,6 +109,46 @@ def _request(port: int, method: str, path: str, *, body: str = "", headers: dict
     connection.close()
     return result
 
+
+def test_local_demo_allows_unlimited_rehearsal_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _LocalManager:
+        def __init__(self) -> None:
+            self.started = 0
+
+        def start(self, scenario: str = "happy"):
+            self.started += 1
+            return type(
+                "LocalJob",
+                (),
+                {"run_id": f"local-{self.started}", "status": "queued", "scenario": scenario},
+            )()
+
+    manager = _LocalManager()
+    monkeypatch.setattr(DemoHandler, "manager", manager, raising=False)
+    monkeypatch.setattr(DemoHandler, "access_token", None)
+    monkeypatch.setattr(DemoHandler, "secure_cookie", False)
+    monkeypatch.setattr(DemoHandler, "run_quota", None)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    port = server.server_address[1]
+    try:
+        for _ in range(7):
+            status, _headers, payload = _request(
+                port,
+                "POST",
+                "/api/runs",
+                body='{"scenario":"bind_reject"}',
+                headers={"Content-Type": "application/json"},
+            )
+            assert status == 202, payload
+        assert manager.started == 7
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 def test_http_boundary_requires_login_and_uses_an_httponly_cookie(monkeypatch: pytest.MonkeyPatch) -> None:
     manager = _StubManager()
