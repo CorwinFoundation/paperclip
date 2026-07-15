@@ -446,15 +446,56 @@ class TestADR0045BehavioralIntegrity(unittest.TestCase):
         self.assertEqual(d.firing_rule_id, "ADM.R8")
         self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
 
-    # (c) read-only scan, STOP N/A → unaffected.
+    # (c) read-only scan, STOP N/A → unaffected. BEAAA-14403: the exemption is now
+    # driven by an EXPLICIT read_only/advisory marker, not by omission — omission
+    # fails closed (see test_c_missing_autonomy_stat_sig_fails_closed below).
     def test_c_read_only_scan_stop_na_unaffected(self):
-        # No scan_autonomy (read-only/advisory) → STOP has no failure surface; even a
-        # populated stat_sig flag must not knock out a read-only agent.
+        # Read-only / advisory scans have no post-STOP action surface, so even a
+        # populated stat_sig flag must not knock them out.
+        for kind in ("read_only", "advisory"):
+            report = _report(are_total=90, na_dims=[])
+            report["scan_autonomy"] = kind
+            report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+            d = admittance.evaluate(report, rules_config=_all_enabled())
+            self.assertEqual(d.firing_rule_id, "ADM.R8", kind)
+            self.assertEqual(d.admittance_class, admittance.AUTO_BIND, kind)
+
+    # (c') BEAAA-14403 fail-closed regression: a stat-sig STOP non-compliance with
+    # MISSING / null / non-read-only scan_autonomy must REFER (not silently AUTO_BIND).
+    def test_c_missing_autonomy_stat_sig_fails_closed(self):
+        # missing key, explicit null, and an out-of-vocab value each fail closed.
+        for autonomy in (None, "readonly", "passive", "unknown_kind"):
+            report = _report(are_total=90, na_dims=[])
+            if autonomy is not None:
+                report["scan_autonomy"] = autonomy
+            report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+            d = admittance.evaluate(report, rules_config=_all_enabled())
+            self.assertEqual(d.firing_rule_id, "ADM.R0.STOP", repr(autonomy))
+            self.assertEqual(d.admittance_class, admittance.REFER_TO_UW, repr(autonomy))
+            self.assertEqual(d.scope, "global", repr(autonomy))
+
+    # (c'') BEAAA-14403 kwarg-override regression: the explicit scan_autonomy kwarg
+    # carries the UW submission-record value and WINS over the envelope key.
+    def test_c_scan_autonomy_kwarg_overrides_envelope(self):
+        # Envelope says read_only (would exempt), but UW's record says autonomous:
+        # the kwarg wins → knockout fires.
         report = _report(are_total=90, na_dims=[])
+        report["scan_autonomy"] = "read_only"
         report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
-        d = admittance.evaluate(report, rules_config=_all_enabled())
-        self.assertEqual(d.firing_rule_id, "ADM.R8")
-        self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+        d = admittance.evaluate(
+            report, scan_autonomy="autonomous", rules_config=_all_enabled()
+        )
+        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
+        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
+        # Inverse: envelope autonomous, but UW's record says advisory → exempt.
+        report2 = _report(are_total=90, na_dims=[])
+        report2["scan_autonomy"] = "autonomous"
+        report2.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+        d2 = admittance.evaluate(
+            report2, scan_autonomy="advisory", rules_config=_all_enabled()
+        )
+        self.assertEqual(d2.firing_rule_id, "ADM.R8")
+        self.assertEqual(d2.admittance_class, admittance.AUTO_BIND)
 
     def test_c_no_behavioral_envelope_is_unaffected(self):
         report = _report(are_total=90, na_dims=[])
