@@ -60,6 +60,8 @@ def test_main_exits_before_serving_on_exposed_bind(monkeypatch) -> None:
     # AC1 end-to-end — main() must fail closed *before* a socket is bound/served.
     monkeypatch.delenv("DEMO_ACCESS_TOKEN", raising=False)
     monkeypatch.delenv("DEMO_ENVIRONMENT", raising=False)
+    # Keep the test hermetic: do not touch any host /etc/backbond env file.
+    monkeypatch.setattr(app, "_load_env_file", lambda *a, **k: None)
     monkeypatch.setattr(sys, "argv", ["app", "--host", "0.0.0.0"])
 
     def _boom(*_args, **_kwargs):  # pragma: no cover - guard, must not run
