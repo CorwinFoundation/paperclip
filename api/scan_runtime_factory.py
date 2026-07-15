@@ -58,6 +58,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import tarfile
 import tempfile
 import uuid
@@ -65,6 +66,8 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from api.config import ApiConfig
+from api.full_scan_executor import FullScanJobStore
+from api.full_scan_job_persistence import FullScanJobPersistence
 from api.scan_handlers import (
     ScanRuntime,
     _apply_prior_scan_cap,
@@ -94,6 +97,8 @@ from scanners.live_probe_workers import (
     validate_inbound_envelope,
 )
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
+
+LOGGER = logging.getLogger(__name__)
 
 
 # ADR-0017 addendum-1 §2.4 — Phase 1 prod fleet scan_log path on EFS-mounted
@@ -802,6 +807,25 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     if str(parent_dir) and str(parent_dir) != ".":
         parent_dir.mkdir(parents=True, exist_ok=True)
     scan_log = ScanLog(scan_log_path)
+    # BEAAA-14401 — bind the durable full-scan job store next to the scan_log so
+    # accepted queued/running full scans survive a process restart, then run the
+    # recovery sweep once at startup. Default path is the scan_log sibling on the
+    # Phase 1 EFS mount; ``ARE_FULL_SCAN_JOB_STORE_PATH`` overrides for test rigs.
+    job_store_default = str(
+        Path(scan_log_path).with_name("full_scan_jobs.sqlite3")
+    )
+    job_store_path = ApiConfig.from_env().full_scan_job_store_path(job_store_default)
+    durable_job_store = FullScanJobStore(
+        persistence=FullScanJobPersistence(job_store_path)
+    )
+    recovery = durable_job_store.recover()
+    if recovery["resumed"] or recovery["failed"]:
+        LOGGER.info(
+            "full_scan_job_store restart recovery: resumed=%s failed=%s",
+            recovery["resumed"],
+            recovery["failed"],
+        )
+    runtime._full_scan_job_store = durable_job_store
     # Post-set the persistence bindings on the constructed ScanRuntime so
     # the score_envelope_factory can close over the runtime and project
     # prior_scan_refs at envelope build time per addendum §2.2.
