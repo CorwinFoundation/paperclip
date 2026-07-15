@@ -51,6 +51,7 @@ from api.ci_scan_ext import (
     ci_plugin_result,
     compute_probe_set_hash,
     gate_disposition,
+    resolve_gate_threshold,
 )
 from api.config import ApiConfig
 from api.bundle import sign_manifest
@@ -750,7 +751,7 @@ class ScanRuntime:
         lease = self._full_scan_job_store.lease(job.job_id)
         attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
         if not isinstance(attempt_id, str) or not attempt_id:
-            finalized = self._full_scan_job_store.finalize(job.job_id)
+            raise RuntimeError("full-scan lease did not return an attempt_id")
         else:
             dispatch_registry_attempt(
                 self._full_scan_job_store,
@@ -759,7 +760,9 @@ class ScanRuntime:
                 registry_rows=self._full_scan_registry_rows,
                 workers=workers,
             )
-            finalized = self._full_scan_job_store.finalize(job.job_id)
+            finalized = self._full_scan_job_store.finalize(
+                job.job_id, attempt_id=attempt_id
+            )
 
         manifest = finalized.final_manifest
         if manifest is not None:
@@ -1720,12 +1723,15 @@ def scan_status_handler(
 
     * ``"customer"`` (default) — strips ``live_probe_variance_band`` per Δ4.
     * ``"uw"`` — retains every field for the Underwriter pricing engine.
-    * ``"ci_plugin"`` (BEAAA-11726 item 5b) — no-prompt categorized rollup
-      for the CI/CD plugin; sourced from the score_json envelope + the
-      threshold-source API lookup. ``ci_threshold_lookup(tenant_id)`` must
-      return ``(band_letter | None, fail_below_score | None)``; pass
-      ``None`` for the callable to skip the threshold gate (returns
-      ``disposition: infra_retry`` for any non-completed scan).
+    * ``"ci_plugin"`` (BEAAA-11726 item 5b / BEAAA-14394 fix 1) — no-prompt
+      categorized rollup for the CI/CD plugin; sourced from the score_json
+      envelope + the threshold-source API lookup. ``ci_threshold_lookup`` is
+      keyed by the **authenticated tenant / account** (NOT ``scan_id`` — a
+      vendor must not be able to move the gate per-scan), and must return
+      ``(policy_band_letter | None, fail_below_score | None)``. The effective
+      gate is the contracted band floor plus any *stricter* numeric override
+      (``resolve_gate_threshold``). Pass ``None`` for the callable to skip the
+      threshold gate (returns ``disposition: infra_retry`` for any scan).
 
     BEAAA-11858 — access control (pure gating; no scoring change):
 
@@ -1746,13 +1752,12 @@ def scan_status_handler(
     result = runtime.fetch(scan_id)
     if result is None:
         raise HandlerError(404, "scan_not_found")
-    if authenticated_tenant_id is not None:
-        owning_request = runtime.current_scan_request(scan_id)
-        owner_tenant_id = (
-            owning_request.tenant_id if owning_request is not None else None
-        )
-        if owner_tenant_id != authenticated_tenant_id:
-            raise HandlerError(404, "scan_not_found")
+    owning_request = runtime.current_scan_request(scan_id)
+    owner_tenant_id = (
+        owning_request.tenant_id if owning_request is not None else None
+    )
+    if authenticated_tenant_id is not None and owner_tenant_id != authenticated_tenant_id:
+        raise HandlerError(404, "scan_not_found")
     if audience == "uw" and not uw_entitled:
         raise HandlerError(403, "audience_forbidden")
     if audience == "uw":
@@ -1760,10 +1765,16 @@ def scan_status_handler(
     if audience == "customer":
         return 200, _customer_result_response(scan_id, result, runtime)
     if audience == "ci_plugin":
+        # Key the threshold lookup by the authenticated tenant when bearer
+        # auth is active, else by the scan's owning tenant (local/test no-auth
+        # path). NEVER by scan_id — the gate band is an account property and a
+        # vendor must not be able to move the bar for an individual scan.
+        gate_tenant_id = authenticated_tenant_id or owner_tenant_id
         return 200, _ci_plugin_payload(
             scan_id,
             result,
             runtime,
+            gate_tenant_id=gate_tenant_id,
             ci_threshold_lookup=ci_threshold_lookup,
             dashboard_base_url=dashboard_base_url,
         )
@@ -1775,14 +1786,18 @@ def _ci_plugin_payload(
     result: ScanResult,
     runtime: ScanRuntime,
     *,
+    gate_tenant_id: str | None,
     ci_threshold_lookup: "Callable[[str], tuple[str | None, float | None]] | None",
     dashboard_base_url: str,
 ) -> dict[str, Any]:
     """Build the ci_plugin audience response for GET /scan/{scan_id}.
 
     Reads band/are_total from the persisted score_json envelope (via
-    ``current_kickoff_row``). Applies the threshold-source API lookup to
-    determine gate disposition. Never emits probe prompt text (the adapter
+    ``current_kickoff_row``). Applies the threshold-source API lookup —
+    keyed by ``gate_tenant_id`` (the authenticated tenant / account, never
+    the scan_id) — to determine gate disposition. The effective gate is the
+    contracted policy-band floor plus any *stricter* numeric override
+    (``resolve_gate_threshold``). Never emits probe prompt text (the adapter
     in ci_scan_ext.ci_plugin_result reads only dim ids/labels/raws).
     """
     scan_completed = not result.incomplete
@@ -1797,16 +1812,24 @@ def _ci_plugin_payload(
     are_total = score_env.get("are_total") or score_env.get("bmi")
 
     # Threshold-source API lookup determines gate pass/fail.
-    # CEO-ruled (BEAAA-11725): default gate = vendor's contracted policy band;
-    # fail_below_score is a stricter-only override.
+    # CEO-ruled (BEAAA-11725): default gate = vendor's contracted policy band
+    # (looked up by *account/tenant*); fail_below_score is a stricter-only
+    # override. The lookup is skipped (→ infra_retry) when the scan has not
+    # completed, no source is wired, no tenant is resolvable, or the score
+    # envelope carries no ARE total.
     gate_passed: bool | None = None
-    if scan_completed and ci_threshold_lookup is not None and are_total is not None:
+    if (
+        scan_completed
+        and ci_threshold_lookup is not None
+        and gate_tenant_id is not None
+        and are_total is not None
+        and isinstance(are_total, (int, float))
+    ):
         try:
-            _contracted_band, fail_below = ci_threshold_lookup(
-                result.scan_id if hasattr(result, "scan_id") else scan_id
-            )
-            if fail_below is not None and isinstance(are_total, (int, float)):
-                gate_passed = float(are_total) >= float(fail_below)
+            contracted_band, fail_below = ci_threshold_lookup(gate_tenant_id)
+            effective_threshold = resolve_gate_threshold(contracted_band, fail_below)
+            if effective_threshold is not None:
+                gate_passed = float(are_total) >= float(effective_threshold)
         except Exception:
             gate_passed = None
 

@@ -71,6 +71,8 @@ Anti-pattern guards
 """
 from __future__ import annotations
 
+import functools
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -170,8 +172,19 @@ DEFAULT_K_REPLICATES: int = 5
 #: v1.1.0 contract field name ``live_probe_variance_band``.
 LIVE_PROBE_VARIANCE_BAND: int = 2
 
-#: Canonical pillar prefixes (P1=GOV, P2=ROB, P3=BIAS_FAIRNESS, P4=OPS).
+#: Canonical pillar prefixes, keyed to rubric.yaml pillars:
+#: P1=OPS, P2=BIAS_FAIRNESS, P3=ROBUSTNESS, P4=GOVERNANCE (see rubric/rubric.yaml).
 _PILLAR_PREFIXES: tuple[str, ...] = ("P1", "P2", "P3", "P4")
+
+#: Repo root → rubric.yaml. Mirrors the resolution convention in
+#: ``api.scan_runtime_factory`` (``Path(__file__).parents[1]``) so the
+#: pillar-name→prefix map below is derived from the same single source of
+#: truth the scorer loads, never a hardcoded duplicate table (BEAAA-14425 F4).
+_RUBRIC_PATH: Path = Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
+
+#: Matches a ``P<n>.<m>`` dim id and captures its pillar prefix (``P<n>``).
+#: Used to anchor each rubric pillar to its canonical prefix.
+_PILLAR_PREFIX_RE = re.compile(r"^(P\d+)\.")
 
 
 # ---------------------------------------------------------------------------
@@ -747,12 +760,52 @@ def _spread_of(values: Sequence[float]) -> float:
     return float(max(values) - min(values))
 
 
+@functools.lru_cache(maxsize=1)
+def _pillar_prefix_by_name() -> Mapping[str, str]:
+    """Rubric-derived pillar-name → canonical-prefix map (single source of truth).
+
+    For each pillar in ``rubric/rubric.yaml``, find the first ``P<n>.<m>`` dim
+    id under it and use its prefix as that pillar's canonical prefix — e.g.
+    ``OPS`` carries ``P1.1`` → ``OPS→P1``, ``ROBUSTNESS`` carries ``P3.1`` →
+    ``ROBUSTNESS→P3``. This lets fully-qualified named dims
+    (``ROBUSTNESS.PII.SCAN_TIME_DETECTION``, ``GOVERNANCE.PII.*``,
+    ``ROBUSTNESS.TOOL_MISUSE.*``) resolve to the same ``P<n>`` bucket the
+    ``P<n>.<m>`` dims land in, so they are not silently dropped from
+    ``pillar_spread`` (BEAAA-14425 Defect B). Loaded once and cached; the
+    rubric is a pinned file that does not change within a process.
+    """
+    # Imported lazily to avoid pulling the rubric/scoring dependency chain into
+    # module import time (and any import-order coupling with the scorer path).
+    from rubric.scoring import Rubric
+
+    rubric = Rubric.load(_RUBRIC_PATH)
+    mapping: dict[str, str] = {}
+    for pillar_name, pdata in rubric.pillars.items():
+        for did in pdata["dim_ids"]:
+            match = _PILLAR_PREFIX_RE.match(did)
+            if match:
+                mapping[pillar_name] = match.group(1)
+                break
+    return mapping
+
+
 def _pillar_of(dim_id: str) -> str:
-    if "." in dim_id:
-        head = dim_id.split(".", 1)[0]
-        if head in _PILLAR_PREFIXES:
-            return head
-    return ""
+    """Resolve a dim_id to its canonical pillar prefix (``P1``..``P4``).
+
+    Accepts both prefix-form dims (``P3.2``) and fully-qualified named dims
+    (``ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL``). Named dims resolve their
+    leading pillar-name segment through the rubric-derived map so they are
+    reflected in ``pillar_spread`` under the correct pillar. Returns ``""``
+    for dim_ids with no ``.`` separator or no rubric pillar home.
+    """
+    if "." not in dim_id:
+        return ""
+    head = dim_id.split(".", 1)[0]
+    if head in _PILLAR_PREFIXES:
+        return head
+    # Fully-qualified named dim: head is a pillar name (ROBUSTNESS, GOVERNANCE,
+    # …). Resolve to its canonical prefix via the rubric-derived map.
+    return _pillar_prefix_by_name().get(head, "")
 
 
 def _aggregate_band(

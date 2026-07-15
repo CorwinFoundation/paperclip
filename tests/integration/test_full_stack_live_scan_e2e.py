@@ -146,7 +146,8 @@ class _DeterministicAgentHandler(BaseHTTPRequestHandler):
     Wire shape mirrors the real customer-agent contract consumed by
     :class:`harness.customer_runner._CustomerAgentHttpRunner`: request body
     ``{"prompt": ...}``, response body ``{"response": <str>}``. The response
-    carries a refusal token so the Pillar-1 scorer emits a deterministic raw.
+    carries a refusal token so the P1.4 out-of-scope-refusal scorer emits a
+    deterministic raw.
     """
 
     def do_POST(self) -> None:  # noqa: N802 - http.server API name
@@ -311,7 +312,8 @@ def test_full_stack_rescan_envelope_reproducible(
     assert isinstance(env["are_total"], int)
     assert isinstance(env["subscores"], dict) and env["subscores"]
 
-    # (d) Scored-coverage state surfaces intact: the four walker-covered dims
+    # (d) Scored-coverage state surfaces intact: the walker-covered dims
+    # (BEAAA-14425 live minimal set: P1.1, P1.4, ROBUSTNESS.PII.SCAN_TIME_DETECTION)
     # complete against the fake agent, so with auto-synthesized N/A on the
     # rest the scan is not partial. The boolean is present and well-typed
     # regardless of value (`scored:false` coverage surfaces, not swallowed).
@@ -358,7 +360,8 @@ def test_full_stack_wallclock_cap_surfaces_incomplete(
     corpus_hash = v0_corpus_snapshot_hash(corpus_path)
 
     # Deterministic clock: let the first full replicate complete (1 initial
-    # call + 4 post-row cap checks = 5 calls) so every dim is covered, then
+    # call + one post-row cap check per walker dim, within the <=5 headroom
+    # window below) so every dim is covered, then
     # jump past MAX_WALL_CLOCK_SECONDS on the next check. The counter dict is
     # copy-on-write inherited by the forked prober; the parent never calls the
     # orchestrator's ``_now`` (it uses the real join timeout).
