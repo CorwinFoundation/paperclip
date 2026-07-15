@@ -71,6 +71,8 @@ Anti-pattern guards
 """
 from __future__ import annotations
 
+import functools
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -92,6 +94,7 @@ from scanners.canary_anti_gaming import (
     records_from_probe_metadata,
     select_fresh_canary_hashes,
 )
+from scanners.replicate_median import _median_of
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
 
@@ -170,8 +173,19 @@ DEFAULT_K_REPLICATES: int = 5
 #: v1.1.0 contract field name ``live_probe_variance_band``.
 LIVE_PROBE_VARIANCE_BAND: int = 2
 
-#: Canonical pillar prefixes (P1=GOV, P2=ROB, P3=BIAS_FAIRNESS, P4=OPS).
+#: Canonical pillar prefixes, keyed to rubric.yaml pillars:
+#: P1=OPS, P2=BIAS_FAIRNESS, P3=ROBUSTNESS, P4=GOVERNANCE (see rubric/rubric.yaml).
 _PILLAR_PREFIXES: tuple[str, ...] = ("P1", "P2", "P3", "P4")
+
+#: Repo root → rubric.yaml. Mirrors the resolution convention in
+#: ``api.scan_runtime_factory`` (``Path(__file__).parents[1]``) so the
+#: pillar-name→prefix map below is derived from the same single source of
+#: truth the scorer loads, never a hardcoded duplicate table (BEAAA-14425 F4).
+_RUBRIC_PATH: Path = Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
+
+#: Matches a ``P<n>.<m>`` dim id and captures its pillar prefix (``P<n>``).
+#: Used to anchor each rubric pillar to its canonical prefix.
+_PILLAR_PREFIX_RE = re.compile(r"^(P\d+)\.")
 
 
 # ---------------------------------------------------------------------------
@@ -599,6 +613,10 @@ def run_scan(
                     # as anything other than HOSTED_RUNNER.
                     row["runner"] = HOSTED_RUNNER
                     row.setdefault("eval_run_id", eval_run_id)
+                    # Stable evidence tie-break metadata. Overwrite any
+                    # wrapper-supplied value so receive-order variation cannot
+                    # influence which median-valued transcript is selected.
+                    row["replicate_index"] = _replicate_idx
                     # AC#5 — ``ipc_outbound.send_row`` runs T4's
                     # ``serialize_measurement_row`` which enforces the closed
                     # allow-list. Any field outside the allow-list fails here
@@ -724,21 +742,11 @@ def run_scan(
 # ---------------------------------------------------------------------------
 
 
-def _median_of(values: Sequence[float]) -> float:
-    """Median per T5 spec.
-
-    * Odd K (default K=5): middle of the sorted list.
-    * Even K (K=10): lower-of-two-middles convention — keeps the aggregated
-      raw inside the observed range rather than an interpolated value that
-      no replicate actually produced (deterministic, audit-friendly).
-    """
-    if not values:
-        raise ValueError("_median_of: empty sequence")
-    sorted_values = sorted(values)
-    n = len(sorted_values)
-    if n % 2 == 1:
-        return float(sorted_values[n // 2])
-    return float(sorted_values[n // 2 - 1])
+# BEAAA-14422 / F3 — ``_median_of`` now lives in the dependency-free leaf
+# module ``scanners.replicate_median`` (imported above) so the Scorer-side
+# ``scanners.live_probe_workers`` can share the IDENTICAL median without
+# pulling ``harness.credentials`` across its import-isolation boundary. It
+# stays importable as ``live_probe_orchestrator._median_of`` for continuity.
 
 
 def _spread_of(values: Sequence[float]) -> float:
@@ -747,12 +755,52 @@ def _spread_of(values: Sequence[float]) -> float:
     return float(max(values) - min(values))
 
 
+@functools.lru_cache(maxsize=1)
+def _pillar_prefix_by_name() -> Mapping[str, str]:
+    """Rubric-derived pillar-name → canonical-prefix map (single source of truth).
+
+    For each pillar in ``rubric/rubric.yaml``, find the first ``P<n>.<m>`` dim
+    id under it and use its prefix as that pillar's canonical prefix — e.g.
+    ``OPS`` carries ``P1.1`` → ``OPS→P1``, ``ROBUSTNESS`` carries ``P3.1`` →
+    ``ROBUSTNESS→P3``. This lets fully-qualified named dims
+    (``ROBUSTNESS.PII.SCAN_TIME_DETECTION``, ``GOVERNANCE.PII.*``,
+    ``ROBUSTNESS.TOOL_MISUSE.*``) resolve to the same ``P<n>`` bucket the
+    ``P<n>.<m>`` dims land in, so they are not silently dropped from
+    ``pillar_spread`` (BEAAA-14425 Defect B). Loaded once and cached; the
+    rubric is a pinned file that does not change within a process.
+    """
+    # Imported lazily to avoid pulling the rubric/scoring dependency chain into
+    # module import time (and any import-order coupling with the scorer path).
+    from rubric.scoring import Rubric
+
+    rubric = Rubric.load(_RUBRIC_PATH)
+    mapping: dict[str, str] = {}
+    for pillar_name, pdata in rubric.pillars.items():
+        for did in pdata["dim_ids"]:
+            match = _PILLAR_PREFIX_RE.match(did)
+            if match:
+                mapping[pillar_name] = match.group(1)
+                break
+    return mapping
+
+
 def _pillar_of(dim_id: str) -> str:
-    if "." in dim_id:
-        head = dim_id.split(".", 1)[0]
-        if head in _PILLAR_PREFIXES:
-            return head
-    return ""
+    """Resolve a dim_id to its canonical pillar prefix (``P1``..``P4``).
+
+    Accepts both prefix-form dims (``P3.2``) and fully-qualified named dims
+    (``ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL``). Named dims resolve their
+    leading pillar-name segment through the rubric-derived map so they are
+    reflected in ``pillar_spread`` under the correct pillar. Returns ``""``
+    for dim_ids with no ``.`` separator or no rubric pillar home.
+    """
+    if "." not in dim_id:
+        return ""
+    head = dim_id.split(".", 1)[0]
+    if head in _PILLAR_PREFIXES:
+        return head
+    # Fully-qualified named dim: head is a pillar name (ROBUSTNESS, GOVERNANCE,
+    # …). Resolve to its canonical prefix via the rubric-derived map.
+    return _pillar_prefix_by_name().get(head, "")
 
 
 def _aggregate_band(

@@ -68,8 +68,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write    # keyless Cosign signing
-  packages: write   # push to GHCR under ghcr.io/corwinfoundation/*
 
 env:
   IMAGE: ghcr.io/corwinfoundation/are-scanner
@@ -77,6 +75,8 @@ env:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Validate deploy shell scripts
@@ -87,24 +87,57 @@ jobs:
       - name: Validate deploy record helper
         run: python3 -m py_compile scripts/deploy/post_deploy_record.py
 
+  resolve-image-sha:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    env:
+      DISPATCH_IMAGE_SHA: ${{ github.event.inputs.image_sha }}
+      DEFAULT_IMAGE_SHA: ${{ github.sha }}
+    steps:
+      - id: meta
+        name: Resolve and validate image SHA
+        run: |
+          set -euo pipefail
+          SHA="${DISPATCH_IMAGE_SHA:-$DEFAULT_IMAGE_SHA}"
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40,64}$ ]]; then
+            echo "::error::image_sha must be a full lowercase hex Git SHA or image SHA (40-64 chars)"
+            exit 1
+          fi
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Building ${IMAGE}:${SHA}"
+
   # ---------------------------------------------------------------------------
   # 1. Build + push the immutable image to GHCR. GitHub-hosted runner only
   #    (CI has egress; the box does not — that is the whole point of the pivot).
   # ---------------------------------------------------------------------------
   build-push:
     if: github.event_name != 'pull_request'
+    needs:
+      - validate
+      - resolve-image-sha
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write    # keyless Cosign signing
+      packages: write   # push to GHCR under ghcr.io/corwinfoundation/*
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
       ref: ${{ steps.refout.outputs.ref }}
       digest: ${{ steps.push.outputs.digest }}
+    env:
+      RESOLVED_IMAGE_SHA: ${{ needs.resolve-image-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
 
       - id: meta
-        name: Resolve image SHA
+        name: Emit validated image SHA
         run: |
-          SHA="${{ github.event.inputs.image_sha || github.sha }}"
+          set -euo pipefail
+          SHA="$RESOLVED_IMAGE_SHA"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "Building ${IMAGE}:${SHA}"
 

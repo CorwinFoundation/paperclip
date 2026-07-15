@@ -123,7 +123,11 @@ class ProducerSignerLockstepTests(unittest.TestCase):
 
         # Live edge: verifier wired. The runner signs with the SAME key.
         signed = _score_request(self.rubric)
-        ProvenanceSigner(KEY).stamp_eval_outputs(signed["eval_outputs"])
+        ProvenanceSigner(KEY).stamp_eval_outputs(
+            signed["eval_outputs"],
+            tenant_id=signed["tenant_id"],
+            snapshot_hash=signed["snapshot"]["snapshot_hash"],
+        )
         for entry in signed["eval_outputs"].values():
             self.assertIn("provenance_sig", entry)
         r = self._keyed_edge().post("/score", json=signed, headers=_tenant())
@@ -147,11 +151,18 @@ class ProducerSignerLockstepTests(unittest.TestCase):
             self.assertIsNotNone(signer)
             self.assertIsNotNone(verifier)
             req = _score_request(self.rubric)
-            signer.stamp_eval_outputs(req["eval_outputs"])
+            signer.stamp_eval_outputs(
+                req["eval_outputs"],
+                tenant_id=req["tenant_id"],
+                snapshot_hash=req["snapshot"]["snapshot_hash"],
+            )
             for dim_id, entry in req["eval_outputs"].items():
                 # verifier accepts (no raise) exactly what the signer produced
                 verifier.verify(
-                    dim_id, entry["runner"], entry["eval_run_id"], entry["provenance_sig"]
+                    tenant_id=req["tenant_id"],
+                    snapshot_hash=req["snapshot"]["snapshot_hash"],
+                    dim_id=dim_id,
+                    entry=entry,
                 )
         finally:
             if saved is None:
@@ -190,7 +201,11 @@ class ForgedProvenanceRejectedTests(unittest.TestCase):
         # A runner signing with a DIFFERENT key (e.g. stale/rotated) is not
         # trusted by the edge — protects against key drift.
         req = _score_request(self.rubric)
-        ProvenanceSigner(b"a-different-key").stamp_eval_outputs(req["eval_outputs"])
+        ProvenanceSigner(b"a-different-key").stamp_eval_outputs(
+            req["eval_outputs"],
+            tenant_id=req["tenant_id"],
+            snapshot_hash=req["snapshot"]["snapshot_hash"],
+        )
         r = self.client.post("/score", json=req, headers=_tenant())
         self.assertEqual(r.status_code, 422, r.text)
 
@@ -208,19 +223,31 @@ class ProvenanceSignerUnitTests(unittest.TestCase):
         signer = ProvenanceSigner(KEY)
         bad = {"P1.1": {"raw": 2.0, "runner": HOSTED_RUNNER}}
         with self.assertRaises(IntakeError):
-            signer.stamp_eval_outputs(bad)
+            signer.stamp_eval_outputs(
+                bad,
+                tenant_id=TENANT_A,
+                snapshot_hash=SNAPSHOT_HASH,
+            )
 
     def test_stamp_skips_non_hosted_entries(self):
         signer = ProvenanceSigner(KEY)
         eo = {"P1.1": {"raw": 2.0, "runner": "self-report", "eval_run_id": RUN_ID}}
         before = copy.deepcopy(eo)
-        signer.stamp_eval_outputs(eo)
+        signer.stamp_eval_outputs(
+            eo,
+            tenant_id=TENANT_A,
+            snapshot_hash=SNAPSHOT_HASH,
+        )
         # non-hosted entry left untouched (edge rejects it anyway on runner)
         self.assertEqual(eo, before)
 
     def test_empty_mapping_raises(self):
         with self.assertRaises(IntakeError):
-            ProvenanceSigner(KEY).stamp_eval_outputs({})
+            ProvenanceSigner(KEY).stamp_eval_outputs(
+                {},
+                tenant_id=TENANT_A,
+                snapshot_hash=SNAPSHOT_HASH,
+            )
 
 
 class ProvenanceCustodyGuardTests(unittest.TestCase):

@@ -68,6 +68,8 @@ FIRED_PROBE_AUDIT_SPINE_PATH_ENV: str = "ARE_FIRED_PROBE_AUDIT_SPINE_PATH"
 FIRED_PROBE_LEDGER_PATH_ENV: str = "ARE_FIRED_PROBE_LEDGER_PATH"
 V0_CORPUS_DIR_ENV: str = "ARE_V0_CORPUS_DIR"
 SCAN_LOG_PATH_ENV: str = "ARE_SCAN_LOG_PATH"
+#: BEAAA-14401 — durable full-scan job store path (restart-safe accepted jobs).
+FULL_SCAN_JOB_STORE_PATH_ENV: str = "ARE_FULL_SCAN_JOB_STORE_PATH"
 
 #: Truthy-token sets used by the pre-existing boolean toggles (preserved exactly).
 _TRUTHY: frozenset[str] = frozenset({"on", "1", "true", "yes"})
@@ -216,3 +218,9 @@ class ApiConfig:
 
     def scan_log_path(self, default: str) -> str:
         return self.env.get(SCAN_LOG_PATH_ENV, default)
+
+    def full_scan_job_store_path(self, default: str) -> str:
+        """``ARE_FULL_SCAN_JOB_STORE_PATH`` (BEAAA-14401). Durable SQLite path
+        for the restart-safe full-scan job store; defaults to the sibling of
+        the scan_log on the Phase 1 EFS mount."""
+        return self.env.get(FULL_SCAN_JOB_STORE_PATH_ENV, default)
