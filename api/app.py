@@ -9,7 +9,10 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from api.webhook_outbox import WebhookOutbox
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -202,6 +205,7 @@ def create_app(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
     provenance_verifier: EvalProvenanceVerifier | None = None,
+    webhook_outbox: "WebhookOutbox | None" = None,
 ) -> FastAPI:
     runtime_profile = current_runtime_profile()
     # BEAAA-12021 — build + validate the typed config once at startup.
@@ -226,6 +230,28 @@ def create_app(
         bundles=app.state.bundles,
         scan_runtime=app.state.scan_runtime,
     )
+    # BEAAA-14400 (P1#5 fix 2) — durable signed-webhook outbox. Explicit
+    # injection wins (tests); otherwise build the production outbox (env-backed
+    # fail-closed secret resolver + httpx poster) on the same
+    # ``production_scan_wiring`` gate as the scan runtime, so the default
+    # (unwired) boot keeps ``POST /scan`` byte-identical with no delivery.
+    # The lazy import keeps httpx off the import path for callers that never
+    # deliver a webhook.
+    if webhook_outbox is None and config.production_scan_wiring:
+        from .webhook_outbox import make_default_webhook_outbox
+        webhook_outbox = make_default_webhook_outbox()
+    app.state.webhook_outbox = webhook_outbox
+    # Thread the outbox onto the runtime so the terminal chokepoint
+    # ``ScanRuntime._record_completed_result`` can deliver on completion (sync
+    # AND async background paths), keyed by scan_id — never at queue time.
+    if app.state.scan_runtime is not None:
+        app.state.scan_runtime.attach_webhook_outbox(app.state.webhook_outbox)
+    # Restart-recovery drain: replay any deliveries left ``pending`` by a prior
+    # process. A no-op with the in-memory default; composes with fix 4
+    # (BEAAA-14401), which injects a durable store whose ``pending()`` survives
+    # a restart. ``delivered`` records are skipped, so recovery never dupes.
+    if app.state.webhook_outbox is not None:
+        app.state.webhook_outbox.deliver_pending()
     # BEAAA-1274 (WS4) — per-purpose SLA metric registry + routing-event sink.
     # Default sinks survive the lifetime of the app instance so the rolling
     # window observed by ``GET /scanner/v1/sla`` matches the window the
