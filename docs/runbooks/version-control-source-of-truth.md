@@ -151,4 +151,3 @@ on canonical master.
 
 When this table changes, update it in the same PR that transfers ownership or
 post the handoff on the relevant Paperclip ticket before work continues.
-
