@@ -59,6 +59,23 @@ GOV_ATTESTATION_DIMS = (
 FIXED_SCORED_AT = datetime(2026, 5, 17, 12, 0, 0, tzinfo=timezone.utc)
 
 
+# BEAAA-14431 (F11): the two PII rubric_point_ids are fires_when:always in
+# rubric/applicability_policy.yaml — they have NO architecture gate and may
+# never be waived. The shipped G1 golden fixture (tests/fixtures/golden_agents/
+# G1/applicability.json) carries an out-of-policy `G1.current_fixture_uncovered`
+# N/A waiver on both, a known score-direct L1-calibration artifact (LLM Guard
+# not invoked on locked eval_outputs). run_scan now validates caller-asserted
+# N/A against the policy engine and fails closed on that out-of-policy waiver,
+# so the CLI legacy-replay fixture must fire PII (raws are present in G1's
+# eval_outputs.json). The score-direct golden lock (expected_score.json,
+# consumed by harness/golden_set/*) is intentionally left unchanged — it
+# replays through score() with no validation, so N=5 stays Δ0.
+_PII_ALWAYS_FIRES_DIMS = (
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+)
+
+
 def _current_g1_applicability() -> dict:
     payload = json.loads(G1_APPLICABILITY.read_text())
     decisions = payload.setdefault("applicability_decisions", {})
@@ -77,6 +94,15 @@ def _current_g1_applicability() -> dict:
         )
         if dim_id not in na_dims:
             na_dims.append(dim_id)
+    # Fire the PII dims so the sidecar is policy-compliant for the CLI path.
+    for dim_id in _PII_ALWAYS_FIRES_DIMS:
+        decisions[dim_id] = {
+            "fires": True,
+            "na_justification": None,
+            "na_justification_key": None,
+        }
+        if dim_id in na_dims:
+            na_dims.remove(dim_id)
     return payload
 
 
@@ -232,17 +258,45 @@ class RunScanTests(unittest.TestCase):
                 rubric_path=RUBRIC_PATH,
                 scored_at=FIXED_SCORED_AT,
             )
-        expected = json.loads(G1_EXPECTED.read_text())
-        # Core scoring math must match the locked golden — this is the
-        # Supreme Law in-band-with-priors reproducibility check.
-        self.assertEqual(result["bmi"], expected["bmi"])
-        self.assertEqual(result["are_total"], expected["bmi"])
+        # BEAAA-14431 (F11): the CLI now validates caller-asserted N/A against
+        # the policy engine and fires the always-on PII dims, so the CLI
+        # envelope legitimately diverges from the score-direct golden lock
+        # (expected_score.json), which still replays the known out-of-policy
+        # `G1.current_fixture_uncovered` PII waiver with no validation. The
+        # reproducibility check is therefore self-consistent: the CLI output
+        # MUST equal a direct score() call with the same policy-compliant
+        # decisions the CLI honored. (The golden lock stays 80; the
+        # policy-compliant CLI score is 79 — the 1pt delta IS the removed PII
+        # inflation, surfaced as a finding on this ticket.)
+        from rubric.scoring import Rubric as _Rubric, score as _score
+        _rub = _Rubric.load(RUBRIC_PATH)
+        _app = _current_g1_applicability()
+        _direct = _score(
+            _rub,
+            json.loads(G1_EVAL.read_text()),
+            snapshot_hash=result["snapshot_hash"],
+            forensic_bundle_uri=result["forensic_bundle_uri"],
+            scored_at=FIXED_SCORED_AT,
+            scanner_version=result["scanner_version"],
+            corpus_version="0.1.1",
+            seed=42,
+            applicability_decisions=_app["applicability_decisions"],
+            applicability_policy_version=_app.get("policy_version"),
+        )
+        self.assertEqual(result["are_total"], _direct["are_total"])
         for pid in ("OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"):
             self.assertAlmostEqual(
                 result["subscores"][pid],
-                expected["pillars"][pid]["score"],
+                _direct["pillars"][pid]["score"],
                 places=3,
             )
+        # The always-fires PII dims must be scored, never waived, on the CLI path.
+        self.assertNotIn(
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION", result["uncovered_dimensions"]
+        )
+        self.assertNotIn(
+            "GOVERNANCE.PII.HANDLING_ATTESTATION", result["uncovered_dimensions"]
+        )
         # Output-shape additions must all be present (contract surface).
         for field in (
             "are_total", "subscores", "band",
@@ -673,8 +727,19 @@ class CliSubprocessTests(unittest.TestCase):
             )
         self.assertEqual(r.returncode, 0, r.stderr)
         payload = json.loads(r.stdout)
-        expected = json.loads(G1_EXPECTED.read_text())
-        self.assertEqual(payload["are_total"], expected["bmi"])
+        # BEAAA-14431 (F11): CLI fires the always-on PII dims (policy-compliant),
+        # diverging by 1pt from the score-direct golden lock's out-of-policy
+        # PII waiver (80). Assert the in-process run_scan and the subprocess
+        # CLI agree — the reproducibility invariant that actually matters here.
+        in_proc = run_scan(
+            agent_id="G1",
+            input_dir=self._setup_g1(Path(tempfile.mkdtemp())),
+            seed=42,
+            corpus_version="0.1.1",
+            rubric_path=RUBRIC_PATH,
+            scored_at=FIXED_SCORED_AT,
+        )
+        self.assertEqual(payload["are_total"], in_proc["are_total"])
 
     def test_exit_2_bad_agent_id(self):
         r = self._run(
