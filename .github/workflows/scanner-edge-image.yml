@@ -1,6 +1,22 @@
 name: scanner-edge-image
 
 on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "requirements-runtime.txt"
+      - "scripts/verify_runtime_import_closure.py"
+      - "infra/live-edge/**"
+      - "api/**"
+      - "harness/**"
+      - "pricing/**"
+      - "rubric/**"
+      - "scanners/**"
+      - ".github/workflows/scanner-edge-image.yml"
   pull_request:
     branches:
       - main
@@ -18,20 +34,42 @@ on:
       - "scanners/**"
       - ".github/workflows/scanner-edge-image.yml"
   workflow_dispatch:
+    inputs:
+      sequence:
+        description: "Release-candidate sequence for srv1749248 production"
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "2"
 
 permissions:
   contents: read
+  id-token: write
+  packages: write
 
 jobs:
   image-build:
     name: build live scanner edge image
     runs-on: ubuntu-latest
     env:
-      IMAGE_TAG: backbond-scanner-live:${{ github.sha }}
+      IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:${{ github.sha }}-${{ github.run_id }}
+      LOCAL_IMAGE_TAG: backbond-scanner-live:${{ github.sha }}
+      TARGET_HOST: srv1749248
+      TARGET_ENVIRONMENT: production
+      SOURCE_ISSUE_ID: 59747255-955b-41e2-addd-89a78b118380
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR for candidate builds
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build image tagged by git SHA
         uses: docker/build-push-action@v6
@@ -40,13 +78,119 @@ jobs:
           file: Dockerfile
           push: false
           load: true
-          tags: ${{ env.IMAGE_TAG }}
+          tags: |
+            ${{ env.LOCAL_IMAGE_TAG }}
+            ${{ env.IMAGE_REF }}
           build-args: |
             GIT_SHA=${{ github.sha }}
 
       - name: Verify image metadata
         run: |
-          test "$(docker image inspect "$IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "${{ github.sha }}"
+          test "$(docker image inspect "$LOCAL_IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "${{ github.sha }}"
 
       - name: Re-run import closure inside built image
-        run: docker run --rm --entrypoint python "$IMAGE_TAG" scripts/verify_runtime_import_closure.py
+        run: docker run --rm --entrypoint python "$LOCAL_IMAGE_TAG" scripts/verify_runtime_import_closure.py
+
+      - name: Push candidate image and capture registry digest
+        if: github.event_name != 'pull_request'
+        id: push_image
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE_REF"
+          digest="$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{ .Manifest.Digest }}')"
+          test -n "$digest"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Install Syft for release-candidate SBOM
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM and image tarball
+        if: github.event_name != 'pull_request'
+        id: candidate_files
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+          syft "$LOCAL_IMAGE_TAG" -o cyclonedx-json=release-candidate/scanner-edge-sbom.cdx.json
+          docker save "$LOCAL_IMAGE_TAG" -o release-candidate/scanner-edge-image.tar
+          sha256sum release-candidate/scanner-edge-sbom.cdx.json | tee release-candidate/scanner-edge-sbom.sha256
+          echo "sbom_hash=$(cut -d' ' -f1 release-candidate/scanner-edge-sbom.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image digest and attest provenance
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          test -n "$DIGEST"
+          signed_ref="${IMAGE_REF%@*}@$DIGEST"
+          cosign sign --yes "$signed_ref"
+          cosign attest --yes \
+            --predicate release-candidate/scanner-edge-sbom.cdx.json \
+            --type cyclonedx \
+            "$signed_ref"
+          printf 'cosign-signature:%s\n' "$signed_ref" > release-candidate/scanner-edge-image.signature-ref.txt
+          printf 'cosign-attestation:%s\n' "$signed_ref" > release-candidate/scanner-edge-provenance-ref.txt
+
+      - name: Write release candidate payload
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+          SBOM_HASH: ${{ steps.candidate_files.outputs.sbom_hash }}
+          SEQUENCE: ${{ github.event.inputs.sequence || '1' }}
+        run: |
+          set -euo pipefail
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          jq -n \
+            --arg sourceIssueId "$SOURCE_ISSUE_ID" \
+            --arg commitSha "$GITHUB_SHA" \
+            --arg imageDigest "$DIGEST" \
+            --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.signature-ref.txt" \
+            --arg provenanceRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-provenance-ref.txt" \
+            --arg sbomHash "$SBOM_HASH" \
+            --arg workflowRunUrl "$RUN_URL" \
+            --arg environment "$TARGET_ENVIRONMENT" \
+            --arg targetHost "$TARGET_HOST" \
+            --argjson sequence "$SEQUENCE" \
+            '{
+              sourceIssueId: $sourceIssueId,
+              commitSha: $commitSha,
+              imageDigest: $imageDigest,
+              signatureBundleRef: $signatureBundleRef,
+              provenanceRef: $provenanceRef,
+              sbomHash: $sbomHash,
+              workflowRunUrl: $workflowRunUrl,
+              environment: $environment,
+              targetHost: $targetHost,
+              sequence: $sequence
+            }' | tee release-candidate/scanner-release-candidate.json
+
+      - name: Upload release candidate artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-edge-release-candidate-${{ github.sha }}-${{ github.event.inputs.sequence || '1' }}
+          path: release-candidate/
+          if-no-files-found: error
+
+      - name: Post release candidate to Paperclip
+        if: github.event_name != 'pull_request'
+        env:
+          PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
+          PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_RELEASE_CANDIDATE_KEY }}
+          PAPERCLIP_COMPANY_ID: 59f8876e-e729-4dda-98f9-1317c2b50492
+        run: |
+          set -euo pipefail
+          if [ -z "${PAPERCLIP_API_URL:-}" ] || [ -z "${PAPERCLIP_API_KEY:-}" ]; then
+            echo "::notice::Paperclip release-candidate secrets are not configured; signed candidate artifacts were uploaded but no Paperclip row was posted from GitHub Actions."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            "${PAPERCLIP_API_URL%/}/api/companies/${PAPERCLIP_COMPANY_ID}/release-candidates" \
+            -H "Authorization: Bearer ${PAPERCLIP_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data-binary @release-candidate/scanner-release-candidate.json

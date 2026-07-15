@@ -1,0 +1,47 @@
+{
+  "by_ticket": {
+    "BEAAA-14094": {
+      "accepted": 275,
+      "attempted": 275,
+      "evidenced": 275,
+      "excluded": 0,
+      "terminal": 275
+    },
+    "BEAAA-14095": {
+      "accepted": 275,
+      "attempted": 275,
+      "evidenced": 275,
+      "excluded": 0,
+      "terminal": 275
+    },
+    "BEAAA-14096": {
+      "accepted": 0,
+      "attempted": 270,
+      "evidenced": 270,
+      "excluded": 270,
+      "terminal": 270
+    },
+    "BEAAA-14097": {
+      "accepted": 270,
+      "attempted": 270,
+      "evidenced": 270,
+      "excluded": 0,
+      "terminal": 270
+    }
+  },
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "counts": {
+    "accepted": 820,
+    "attempted": 1090,
+    "evidenced": 1090,
+    "excluded": 270,
+    "terminal": 1090
+  },
+  "exclusion_reason": "270 BEAAA-14096 rows remain excluded because source rows record are-scanner-api-v1@v1.3.0 while this issue is anchored to are-scanner-api-v1@v1.0.",
+  "remaining": 270,
+  "ticket_ref": "BEAAA-14134",
+  "verdicts": {
+    "fail": 247,
+    "pass": 843
+  }
+}

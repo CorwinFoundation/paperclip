@@ -582,14 +582,23 @@ def manifest_content_hash(manifest: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
-def registry_cases_from_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[FullSuiteCase, ...]:
-    """Convert canonical active-test registry rows into unique executable cases."""
+def registry_cases_from_rows(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    execution_flag: str = "production_runner_executable",
+) -> tuple[FullSuiteCase, ...]:
+    """Convert selected active-test registry rows into unique executable cases.
+
+    Production callers use the evidence-gated default. Evidence-generation
+    workflows may explicitly select another boolean capability flag, such as
+    target_bound, without changing the published executed-test count.
+    """
     cases: list[FullSuiteCase] = []
     seen: set[str] = set()
     for row in rows:
         if row.get("status") != "active":
             continue
-        if row.get("production_runner_executable") is not True:
+        if row.get(execution_flag) is not True:
             continue
         case_id = str(row.get("case_id") or "")
         rubric_point_id = str(row.get("risk_or_rubric_id") or row.get("rubric_point_id") or "")
@@ -611,6 +620,7 @@ def dispatch_registry_attempt(
     attempt_id: str,
     registry_rows: Sequence[Mapping[str, Any]],
     workers: Mapping[str, FrameworkWorker] | None = None,
+    execution_flag: str = "production_runner_executable",
 ) -> FullScanJob:
     """Run one registry-driven attempt and checkpoint terminal evidence rows.
 
@@ -627,7 +637,7 @@ def dispatch_registry_attempt(
     for registry_row in registry_rows:
         if registry_row.get("status") != "active":
             continue
-        if registry_row.get("production_runner_executable") is not True:
+        if registry_row.get(execution_flag) is not True:
             continue
         case_id = str(registry_row.get("case_id") or "")
         if case_id not in expected_case_ids:

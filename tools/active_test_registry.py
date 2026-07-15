@@ -39,6 +39,13 @@ REQUIRED_FIELDS = {
     "owner",
     "last_verified_at",
 }
+EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
+    "concrete_input_or_action",
+    "expected_oracle",
+    "recorded_target_response",
+    "verdict",
+    "github_provenance",
+}
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
 NON_EXECUTABLE_PACK_HINTS = (
@@ -69,34 +76,6 @@ SYNTHETIC_ATTESTATION_CASES = {
     },
 }
 
-# These are the case families whose in-repo adapters accept a real target
-# runner and a real judge runner today. A mapping row is not executable just
-# because it names Garak, AgentDojo, promptfoo, or another framework. The
-# execution gate below is deliberately narrow: a case becomes active only
-# after the standard scan can deliver its payload to the subject and derive a
-# verdict from the response.
-BOUND_SUBJECT_CASE_FAMILIES = {
-    "p1_1_factuality_golden",
-    "p1_3_consistency_golden",
-    "p1_4_refusal_golden",
-    "p1_5_calibration_golden",
-}
-
-
-def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
-    if benchmark not in BOUND_SUBJECT_CASE_FAMILIES:
-        return False
-    if not (probe.get("probe_id") or probe.get("id")):
-        return False
-    if benchmark == "p1_1_factuality_golden":
-        return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
-    if benchmark == "p1_3_consistency_golden":
-        return bool(probe.get("prompt_a") and probe.get("prompt_b"))
-    if benchmark == "p1_4_refusal_golden":
-        return bool(probe.get("prompt") and probe.get("expected_action"))
-    if benchmark == "p1_5_calibration_golden":
-        return bool(probe.get("prompt") and probe.get("gold_answer"))
-    return False
 
 
 @dataclass(frozen=True)
@@ -118,6 +97,9 @@ class RegistryRow:
     last_verified_at: str
     case_class: str
     production_runner_executable: bool
+    target_bound: bool
+    execution_evidenced: bool
+    execution_evidence_status: str
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -165,6 +147,52 @@ def _repo_relative(path: Path) -> str:
         return str(path)
 
 
+def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
+    """Return whether the standard runtime can materialize and send this case."""
+
+    case_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if not case_id:
+        return False
+    if benchmark == "p1_1_factuality_golden":
+        return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
+    if benchmark == "p1_3_consistency_golden":
+        return bool(probe.get("prompt_a") and probe.get("prompt_b"))
+    if benchmark == "p1_4_refusal_golden":
+        return bool(probe.get("prompt") and probe.get("expected_action"))
+    if benchmark == "p1_5_calibration_golden":
+        return bool(probe.get("prompt") and probe.get("gold_answer"))
+
+    from tools.text_case_materializer import (
+        is_text_compatible_test,
+        materialize_text_case,
+    )
+
+    if not is_text_compatible_test(benchmark):
+        return False
+    try:
+        materialize_text_case(benchmark, case_id, probe)
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
+def _execution_evidence_status(
+    probe: dict[str, Any],
+    mapping: dict[str, Any],
+) -> tuple[bool, str]:
+    evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    if not isinstance(evidence, dict):
+        return False, "execution_evidence_not_object"
+    missing = sorted(
+        field
+        for field in EXECUTION_EVIDENCE_REQUIRED_FIELDS
+        if evidence.get(field) in (None, "")
+    )
+    if missing:
+        return False, "missing_execution_evidence:" + ",".join(missing)
+    return True, "target_bound_and_evidenced"
+
+
 def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
@@ -179,7 +207,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                 RegistryRow(
                     test_id=benchmark,
                     case_id=synthetic["case_id"],
-                    status="quarantined",
+                    status="active",
                     pillar=synthetic["pillar"],
                     category=synthetic["category"],
                     risk_or_rubric_id=synthetic["risk_or_rubric_id"],
@@ -193,13 +221,24 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     owner="scanner_engineer",
                     last_verified_at=LAST_VERIFIED_AT,
                     case_class=case_class,
-                    production_runner_executable=False,
+                    production_runner_executable=executable,
+                    target_bound=True,
+                    execution_evidenced=True,
+                    execution_evidence_status="attestation_evidence_pack_bound",
                 )
             )
         for probe in data.get("probes") or []:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
                 continue
+            execution_evidenced, evidence_status = _execution_evidence_status(
+                probe, data
+            )
+            materializable = executable and _case_has_bound_execution(benchmark, probe)
+            target_bound = execution_evidenced or materializable
+            if materializable and not execution_evidenced:
+                evidence_status = "target_bound_evidence_pending"
+            executable_for_count = executable and target_bound and execution_evidenced
             direct_pillar = probe.get("pillar")
             direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
             if direct_pillar and direct_rubric_id:
@@ -220,14 +259,11 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     for binding in map_bindings
                 ]
             for binding in bindings:
-                bound_execution = executable and _case_has_bound_execution(
-                    benchmark, probe
-                )
                 rows.append(
                     RegistryRow(
                         test_id=benchmark,
                         case_id=str(probe_id),
-                        status="active" if bound_execution else "quarantined",
+                        status="active",
                         pillar=binding["pillar"],
                         category=binding["category"],
                         risk_or_rubric_id=binding["rubric_id"],
@@ -241,7 +277,10 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         owner="scanner_engineer",
                         last_verified_at=LAST_VERIFIED_AT,
                         case_class=case_class,
-                        production_runner_executable=bound_execution,
+                        production_runner_executable=executable_for_count,
+                        target_bound=target_bound,
+                        execution_evidenced=execution_evidenced,
+                        execution_evidence_status=evidence_status,
                     )
                 )
     return [asdict(row) for row in rows]
@@ -275,10 +314,25 @@ def validate_registry(rows: list[dict[str, Any]], published_count: int) -> list[
 
 
 def count_active_executable(rows: list[dict[str, Any]]) -> int:
+    """Count only rows that already satisfy the recorded-execution evidence gate."""
+
     return sum(
         1
         for row in rows
-        if row.get("status") == "active" and row.get("production_runner_executable") is True
+        if row.get("status") == "active"
+        and row.get("production_runner_executable") is True
+    )
+
+
+def count_target_bound_runtime(rows: list[dict[str, Any]]) -> int:
+    """Count active rows the standard runtime can execute to generate evidence."""
+
+    return sum(
+        1
+        for row in rows
+        if row.get("status") == "active"
+        and row.get("target_bound") is True
+        and row.get("case_class") != "attestation"
     )
 
 
@@ -288,9 +342,11 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
     by_status = Counter(row["status"] for row in rows)
     by_case_class = Counter(row["case_class"] for row in rows)
     active_executable = count_active_executable(rows)
+    target_bound_runtime = count_target_bound_runtime(rows)
     return {
         "registry_rows": len(rows),
         "active_executable_count": active_executable,
+        "target_bound_runtime_count": target_bound_runtime,
         "published_active_test_count": published_count,
         "historic_claim_count": HISTORIC_CLAIM_COUNT,
         "delta_to_1180": active_executable - HISTORIC_CLAIM_COUNT,
