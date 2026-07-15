@@ -475,5 +475,58 @@ class FCaveatCalibrationGuardTests(unittest.TestCase):
         self.assertAlmostEqual(_f_caveat(5), 1.25)
 
 
+class AdmittanceFailClosedGuardTests(unittest.TestCase):
+    """F2 / REV-002 (BEAAA-14398): the money path fails closed on any
+    admittance_class it does not explicitly rate.
+
+    Before this guard, a decision whose class was neither REFUSE, REFER_TO_UW,
+    CONSTRAINED_BIND nor AUTO_BIND (lowercase 'refuse', a typo, a corrupted
+    intake, or a decision dict carrying admittance_class=None) fell through to
+    the rated path and returned a full-limit quote with f_caveat=1.0 — a
+    money-path fail-open. The guard now raises ManualReferral (fail closed to a
+    human); it does NOT case-normalize an unknown value into a guessed REFUSE.
+    """
+
+    def setUp(self):
+        self.rates = Rates.load(RATES_PATH)
+
+    def test_unrecognized_class_fails_closed_to_manual_referral(self):
+        # A typo/corrupted class present alongside a decision must not rate.
+        decision = {"admittance_class": "AUTO_BIN", "firing_rule_id": "ADM.RX"}
+        with self.assertRaises(ManualReferral) as ctx:
+            quote(_score(92), STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        bd = ctx.exception.breakdown
+        self.assertNotIn("annual_premium_usd", bd)
+        self.assertEqual(bd["admittance"]["admittance_class"], "AUTO_BIN")
+
+    def test_lowercase_refuse_is_referred_not_mapped_to_ineligible(self):
+        # AC#3 load-bearing: an unknown class is fail-closed to a human, never
+        # guessed into REFUSE/Ineligible via case normalization.
+        decision = {"admittance_class": "refuse", "firing_rule_id": "ADM.R1"}
+        with self.assertRaises(ManualReferral):
+            quote(_score(63), STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        # Explicitly assert it is NOT the Ineligible (REFUSE) path.
+        with self.assertRaises(ManualReferral):
+            quote(_score(63), STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+
+    def test_decision_present_with_none_class_fails_closed(self):
+        # Corrupted intake: a decision object exists but carries no class.
+        decision = {"admittance_class": None, "firing_rule_id": "ADM.R?"}
+        with self.assertRaises(ManualReferral) as ctx:
+            quote(_score(78), STD_CUSTOMER, rates=self.rates, admittance_decision=decision)
+        self.assertNotIn("annual_premium_usd", ctx.exception.breakdown)
+
+    def test_none_legacy_path_unchanged_by_guard(self):
+        # AC#2: the admittance_decision-is-None legacy path must remain rated and
+        # byte-identical — the guard lives inside the `is not None` block only.
+        score = _score(78)
+        q_guarded = quote(score, STD_CUSTOMER, rates=self.rates)
+        q_ref = quote(score, STD_CUSTOMER, rates=self.rates, admittance_decision=None)
+        self.assertEqual(q_guarded, q_ref)
+        self.assertIn("annual_premium_usd", q_guarded)
+        self.assertNotIn("admittance", q_guarded["breakdown"])
+        self.assertNotIn("f_caveat", q_guarded["breakdown"])
+
+
 if __name__ == "__main__":
     unittest.main()

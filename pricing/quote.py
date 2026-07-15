@@ -620,6 +620,21 @@ def quote(
                 f"admittance class REFER_TO_UW — rule {rule_id} fired; route to manual UW queue (ADR-0007 §1.3).",
                 breakdown={"admittance": decision_dict, "evidence": evidence, "rates_version": rates.version},
             )
+        # F2 / REV-002 (BEAAA-14398): fail-closed default on the money path.
+        # REFUSE and REFER_TO_UW already raised above; the only classes that may
+        # continue to the rated path are CONSTRAINED_BIND and AUTO_BIND. Any other
+        # value present alongside a decision (lowercase 'refuse', a typo, a
+        # corrupted intake, or None-with-decision-present) previously fell through
+        # to a full-limit rated quote with f_caveat=1.0 — a money-path fail-open.
+        # Fail closed to a human instead. We do NOT normalize case (render.py:980
+        # uppercases for display only); an unrecognized class is referred, never
+        # guessed into REFUSE/Ineligible.
+        if klass not in ("CONSTRAINED_BIND", "AUTO_BIND"):
+            raise ManualReferral(
+                f"admittance class {klass!r} not recognized — rule {rule_id}; "
+                f"fail-closed to manual underwriting, no premium produced (F2 / ADR-0007 §1.3).",
+                breakdown={"admittance": decision_dict, "rates_version": rates.version},
+            )
 
     # v0.1.1 additive (BEAAA-70): round-trip scan_evidence_age_days and
     # pillar_floors through the quote breakdown so pricing engine and
