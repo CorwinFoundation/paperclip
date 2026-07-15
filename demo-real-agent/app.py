@@ -51,6 +51,28 @@ def _access_token() -> str | None:
     return os.environ.get("DEMO_ACCESS_TOKEN") or None
 
 
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def _require_token_for_nonloopback_bind(host: str) -> None:
+    """Fail closed when binding a reachable interface without a strong token.
+
+    ``_authorized_for_run`` fails open when ``DEMO_ACCESS_TOKEN`` is unset so
+    loopback development stays frictionless. That is only safe while the
+    listener is unreachable off-box, so any non-loopback bind (e.g. the
+    container ``--host 0.0.0.0``) requires a configured 32+ character token —
+    regardless of ``DEMO_ENVIRONMENT`` — before we serve real judge budget.
+    """
+    if host in _LOOPBACK_HOSTS:
+        return
+    token = _access_token()
+    if not token or len(token) < 32:
+        raise SystemExit(
+            f"binding {host!r} exposes /api/runs off-loopback; set a 32+ "
+            "character DEMO_ACCESS_TOKEN to serve"
+        )
+
+
 def _utc_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -370,6 +392,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--runs-dir", type=Path, default=Path.cwd() / ".real-demo-runs")
     args = parser.parse_args()
+    _require_token_for_nonloopback_bind(args.host)
     DemoHandler.manager = JobManager(args.runs_dir)
     server = ThreadingHTTPServer((args.host, args.port), DemoHandler)
     server.daemon_threads = True
