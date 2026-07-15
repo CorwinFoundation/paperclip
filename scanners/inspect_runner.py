@@ -52,8 +52,15 @@ try:
     _INSPECT_AVAILABLE = True
     _INSPECT_VERSION = getattr(inspect_ai, "__version__", "unknown")
 except ImportError:
-    _INSPECT_AVAILABLE = False
-    _INSPECT_VERSION = "not-installed"
+    # Fall back to the per-framework venv resolver (BEAAA-13331). inspect-ai is
+    # not in the garak/pyrit datasets conflict, but it lives in its own venv
+    # under the same recipe so the full offline framework set is materializable
+    # uniformly. Returns (False, "not-installed") when unconfigured; the
+    # in-process Sample/Score symbols stay None so run_via_inspect still raises
+    # a clear InspectRunnerError (the phase-1 path needs the symbols locally).
+    from scanners.eval_framework_venv import resolve_framework
+
+    _INSPECT_AVAILABLE, _INSPECT_VERSION = resolve_framework("inspect")
     Sample = None  # type: ignore
     Score = None  # type: ignore
 
@@ -98,6 +105,18 @@ def _require_inspect() -> None:
         raise InspectRunnerError(
             "inspect-ai not installed; pip install inspect-ai. "
             "See requirements.txt for the pinned version."
+        )
+    # BEAAA-13331: _INSPECT_AVAILABLE can be True because a per-framework venv
+    # was resolved out-of-process, but the phase-1 in-process driver still
+    # needs the local inspect_ai.dataset.Sample / scorer.Score symbols. If they
+    # are absent, direct the operator to the in-process install (phase-1) or the
+    # venv subprocess driver (phase-2), rather than crashing on Sample(None).
+    if Sample is None or Score is None:
+        raise InspectRunnerError(
+            "inspect-ai resolved via per-framework venv but its symbols are "
+            "not importable in this interpreter; the phase-1 in-process driver "
+            "requires `pip install inspect-ai` here, or use the phase-2 "
+            "subprocess venv driver (scanners.eval_framework_venv.run_in_venv)."
         )
 
 

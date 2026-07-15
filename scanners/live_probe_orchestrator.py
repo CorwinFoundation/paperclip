@@ -26,8 +26,11 @@ Scope:
 * Streams each row to the Scorer via the T4 IPC channel.
 * Calls ``vault.forget(credential_ref)`` on every code path (success OR
   failure).
-* Enforces three operational ceilings per scan (T9 / BEAAA-545): probe
-  count, total tokens (input + output across all probes), and wall-clock.
+* Enforces operational ceilings per scan (T9 / BEAAA-545, amended by
+  BEAAA-13680): total tokens (input + output across all probes),
+  wall-clock, and a tier-aware runaway probe-row guard. The 1,000-row
+  guard applies only to smoke/dev runs; full underwriting uses a separate
+  high runaway ceiling so the base suite is not silently sampled at 1,000.
   On breach the loop halts cleanly, the partial-result row stream is
   closed with END_OF_SCAN, and the returned :class:`ScanResult` carries
   ``incomplete=True`` with ``incomplete_reason`` of ``"probe_cap" |
@@ -68,6 +71,8 @@ Anti-pattern guards
 """
 from __future__ import annotations
 
+import functools
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -89,6 +94,7 @@ from scanners.canary_anti_gaming import (
     records_from_probe_metadata,
     select_fresh_canary_hashes,
 )
+from scanners.replicate_median import _median_of
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
 
@@ -167,18 +173,35 @@ DEFAULT_K_REPLICATES: int = 5
 #: v1.1.0 contract field name ``live_probe_variance_band``.
 LIVE_PROBE_VARIANCE_BAND: int = 2
 
-#: Canonical pillar prefixes (P1=GOV, P2=ROB, P3=BIAS_FAIRNESS, P4=OPS).
+#: Canonical pillar prefixes, keyed to rubric.yaml pillars:
+#: P1=OPS, P2=BIAS_FAIRNESS, P3=ROBUSTNESS, P4=GOVERNANCE (see rubric/rubric.yaml).
 _PILLAR_PREFIXES: tuple[str, ...] = ("P1", "P2", "P3", "P4")
+
+#: Repo root → rubric.yaml. Mirrors the resolution convention in
+#: ``api.scan_runtime_factory`` (``Path(__file__).parents[1]``) so the
+#: pillar-name→prefix map below is derived from the same single source of
+#: truth the scorer loads, never a hardcoded duplicate table (BEAAA-14425 F4).
+_RUBRIC_PATH: Path = Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
+
+#: Matches a ``P<n>.<m>`` dim id and captures its pillar prefix (``P<n>``).
+#: Used to anchor each rubric pillar to its canonical prefix.
+_PILLAR_PREFIX_RE = re.compile(r"^(P\d+)\.")
 
 
 # ---------------------------------------------------------------------------
 # T9 (BEAAA-545) — operational cap constants.
 # ---------------------------------------------------------------------------
 
-#: Hard ceiling on measurement rows emitted by a single scan, summed across
-#: all K replicates. The Phase-1 pinned corpus is well below this; the cap
-#: protects against a runaway probe_run_fn that yields without bound.
-MAX_PROBES_PER_SCAN: int = 1000
+#: Smoke/dev ceiling on measurement rows emitted by a single scan, summed
+#: across all K replicates. Full underwriting MUST NOT use this as a base-suite
+#: terminator; it is retained for smoke/dev boundedness and backwards imports.
+MAX_SMOKE_DEV_PROBES_PER_SCAN: int = 1000
+MAX_PROBES_PER_SCAN: int = MAX_SMOKE_DEV_PROBES_PER_SCAN
+
+#: Full-underwriting runaway guard. This is intentionally not a coverage cap:
+#: a full scan that reaches it returns ``incomplete_reason="probe_cap"`` and
+#: refuses completion instead of silently sampling the base suite.
+MAX_FULL_UNDERWRITING_PROBES_PER_SCAN: int = 100_000
 
 #: Hard ceiling on tokens (input + output) reported by ``probe_run_fn``
 #: across the entire scan. Tokens are surfaced by the probe wrapper via
@@ -230,6 +253,7 @@ class ScanRequest:
     seed: int
     requested_pillars: tuple[str, ...] = ()
     scan_mode: str = "live_probe"
+    scan_tier: str = "full"
     # T5 (BEAAA-544 / Δ2) — K-replicate per v1.1.0 contract.
     k_replicates: int = DEFAULT_K_REPLICATES
     # Agent identifier carried through to score_inputs for envelope assembly.
@@ -303,6 +327,7 @@ class ScanResult:
     total_spread: float = 0.0
     incomplete: bool = False
     incomplete_reason: str | None = None
+    full_suite_manifest: Mapping[str, Any] | None = None
     # BEAAA-11721 / ADR-0041 section 6: Underwriting-review signal only.
     anti_gaming: AntiGamingCanaryResult = field(
         default_factory=AntiGamingCanaryResult
@@ -377,6 +402,17 @@ def _unpack_probe_yield(item: Any) -> tuple[str, dict[str, Any], int]:
             "partial_row) or (dim_id, partial_row, probe_tokens)"
         )
     return dim_id, partial_row, tokens
+
+
+def _probe_cap_for_request(scan_request: ScanRequest) -> int:
+    """Return the tier-aware probe-row runaway guard for this scan.
+
+    ``scan_tier`` is an internal operational dial. Full underwriting is no
+    longer terminated at 1,000 rows; smoke/dev stay bounded for quick checks.
+    """
+    if scan_request.scan_tier in {"smoke", "dev"}:
+        return MAX_SMOKE_DEV_PROBES_PER_SCAN
+    return MAX_FULL_UNDERWRITING_PROBES_PER_SCAN
 
 
 # ---------------------------------------------------------------------------
@@ -478,6 +514,16 @@ def run_scan(
             active_runner.surface_seed = scan_request.surface_seed
         except AttributeError:
             pass
+        try:
+            active_runner.scan_tier = scan_request.scan_tier
+        except AttributeError:
+            pass
+        try:
+            active_runner.operational_scan_deadline_seconds = (
+                45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
+            )
+        except AttributeError:
+            pass
 
         # --- 4 & 5. Drive K replicates, stamp HOSTED_RUNNER, stream over IPC. ---
         # T5 (BEAAA-544 / Δ2) — K-replicate the corpus run for live-probe
@@ -521,6 +567,7 @@ def run_scan(
         cap_reason: str | None = None
         tokens_used = 0
         scan_started_at = _now()
+        probe_cap = _probe_cap_for_request(scan_request)
         for _replicate_idx in range(scan_request.k_replicates):
             if cap_reason is not None:
                 break
@@ -566,6 +613,10 @@ def run_scan(
                     # as anything other than HOSTED_RUNNER.
                     row["runner"] = HOSTED_RUNNER
                     row.setdefault("eval_run_id", eval_run_id)
+                    # Stable evidence tie-break metadata. Overwrite any
+                    # wrapper-supplied value so receive-order variation cannot
+                    # influence which median-valued transcript is selected.
+                    row["replicate_index"] = _replicate_idx
                     # AC#5 — ``ipc_outbound.send_row`` runs T4's
                     # ``serialize_measurement_row`` which enforces the closed
                     # allow-list. Any field outside the allow-list fails here
@@ -583,7 +634,7 @@ def run_scan(
                     # T9 — cap checks after the row lands so the row that
                     # tripped the cap still reaches the Scorer as evidence
                     # (partial-result emission, AC#5 on BEAAA-545).
-                    if rows_emitted >= MAX_PROBES_PER_SCAN:
+                    if rows_emitted >= probe_cap:
                         cap_reason = "probe_cap"
                         break
                     if tokens_used > MAX_TOKENS_PER_SCAN:
@@ -691,21 +742,11 @@ def run_scan(
 # ---------------------------------------------------------------------------
 
 
-def _median_of(values: Sequence[float]) -> float:
-    """Median per T5 spec.
-
-    * Odd K (default K=5): middle of the sorted list.
-    * Even K (K=10): lower-of-two-middles convention — keeps the aggregated
-      raw inside the observed range rather than an interpolated value that
-      no replicate actually produced (deterministic, audit-friendly).
-    """
-    if not values:
-        raise ValueError("_median_of: empty sequence")
-    sorted_values = sorted(values)
-    n = len(sorted_values)
-    if n % 2 == 1:
-        return float(sorted_values[n // 2])
-    return float(sorted_values[n // 2 - 1])
+# BEAAA-14422 / F3 — ``_median_of`` now lives in the dependency-free leaf
+# module ``scanners.replicate_median`` (imported above) so the Scorer-side
+# ``scanners.live_probe_workers`` can share the IDENTICAL median without
+# pulling ``harness.credentials`` across its import-isolation boundary. It
+# stays importable as ``live_probe_orchestrator._median_of`` for continuity.
 
 
 def _spread_of(values: Sequence[float]) -> float:
@@ -714,12 +755,52 @@ def _spread_of(values: Sequence[float]) -> float:
     return float(max(values) - min(values))
 
 
+@functools.lru_cache(maxsize=1)
+def _pillar_prefix_by_name() -> Mapping[str, str]:
+    """Rubric-derived pillar-name → canonical-prefix map (single source of truth).
+
+    For each pillar in ``rubric/rubric.yaml``, find the first ``P<n>.<m>`` dim
+    id under it and use its prefix as that pillar's canonical prefix — e.g.
+    ``OPS`` carries ``P1.1`` → ``OPS→P1``, ``ROBUSTNESS`` carries ``P3.1`` →
+    ``ROBUSTNESS→P3``. This lets fully-qualified named dims
+    (``ROBUSTNESS.PII.SCAN_TIME_DETECTION``, ``GOVERNANCE.PII.*``,
+    ``ROBUSTNESS.TOOL_MISUSE.*``) resolve to the same ``P<n>`` bucket the
+    ``P<n>.<m>`` dims land in, so they are not silently dropped from
+    ``pillar_spread`` (BEAAA-14425 Defect B). Loaded once and cached; the
+    rubric is a pinned file that does not change within a process.
+    """
+    # Imported lazily to avoid pulling the rubric/scoring dependency chain into
+    # module import time (and any import-order coupling with the scorer path).
+    from rubric.scoring import Rubric
+
+    rubric = Rubric.load(_RUBRIC_PATH)
+    mapping: dict[str, str] = {}
+    for pillar_name, pdata in rubric.pillars.items():
+        for did in pdata["dim_ids"]:
+            match = _PILLAR_PREFIX_RE.match(did)
+            if match:
+                mapping[pillar_name] = match.group(1)
+                break
+    return mapping
+
+
 def _pillar_of(dim_id: str) -> str:
-    if "." in dim_id:
-        head = dim_id.split(".", 1)[0]
-        if head in _PILLAR_PREFIXES:
-            return head
-    return ""
+    """Resolve a dim_id to its canonical pillar prefix (``P1``..``P4``).
+
+    Accepts both prefix-form dims (``P3.2``) and fully-qualified named dims
+    (``ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL``). Named dims resolve their
+    leading pillar-name segment through the rubric-derived map so they are
+    reflected in ``pillar_spread`` under the correct pillar. Returns ``""``
+    for dim_ids with no ``.`` separator or no rubric pillar home.
+    """
+    if "." not in dim_id:
+        return ""
+    head = dim_id.split(".", 1)[0]
+    if head in _PILLAR_PREFIXES:
+        return head
+    # Fully-qualified named dim: head is a pillar name (ROBUSTNESS, GOVERNANCE,
+    # …). Resolve to its canonical prefix via the rubric-derived map.
+    return _pillar_prefix_by_name().get(head, "")
 
 
 def _aggregate_band(
@@ -760,6 +841,8 @@ __all__ = [
     "InvalidKReplicatesError",
     "LIVE_PROBE_VARIANCE_BAND",
     "MAX_PROBES_PER_SCAN",
+    "MAX_FULL_UNDERWRITING_PROBES_PER_SCAN",
+    "MAX_SMOKE_DEV_PROBES_PER_SCAN",
     "MAX_TOKENS_PER_SCAN",
     "MAX_WALL_CLOCK_SECONDS",
     "OrchestratorError",

@@ -37,6 +37,7 @@ from harness.runner import ModelRunner
 TOOL_MISUSE_UNAUTHORIZED_CALL = "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
 TOOL_MISUSE_PARAM_TAMPER = "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER"
 TOOL_MISUSE_DIMS = (TOOL_MISUSE_UNAUTHORIZED_CALL, TOOL_MISUSE_PARAM_TAMPER)
+TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE = "tool_misuse_scope_escape"
 
 try:
     import agentdojo  # type: ignore
@@ -44,8 +45,13 @@ try:
     _AGENTDOJO_AVAILABLE = True
     _AGENTDOJO_VERSION = getattr(agentdojo, "__version__", "unknown")
 except ImportError:
-    _AGENTDOJO_AVAILABLE = False
-    _AGENTDOJO_VERSION = "not-installed"
+    # Fall back to the per-framework venv resolver (BEAAA-13331) so agentdojo
+    # can be materialized in its own venv alongside the garak/pyrit split.
+    # Returns (False, "not-installed") when unconfigured — byte-identical to
+    # the historical branch.
+    from scanners.eval_framework_venv import resolve_framework
+
+    _AGENTDOJO_AVAILABLE, _AGENTDOJO_VERSION = resolve_framework("agentdojo")
 
 
 class AgentDojoRunnerError(RuntimeError):
@@ -191,8 +197,8 @@ def run_tool_misuse_via_agentdojo(
     Parameters
     ----------
     runner: the model runner abstraction (`harness.runner.ModelRunner`).
-    items: probe items, typically loaded by the orchestrator from
-        `rubric/probe_mappings/agentdojo_tool_misuse.yaml`. The yaml entry
+    items: probe items, typically loaded by the orchestrator from the
+        `rubric/probe_mappings/tool_misuse_*.yaml` files. The yaml entry
         provides the upstream_suite / upstream_family / weight; the
         orchestrator materializes those into AgentDojoProbeItem.prompt +
         canary using AgentDojo @ 0.1.35.

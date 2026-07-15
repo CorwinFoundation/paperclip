@@ -42,8 +42,6 @@ def _load_dotenv(path: Path) -> None:
         os.environ[key.strip()] = value.strip().strip("'").strip('"')
 
 
-_load_dotenv(REPO / ".env")
-
 from harness import applicability, p2_emit  # noqa: E402
 from harness.bench import indirect_injection, prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.golden_set.persist_baseline import (  # noqa: E402
@@ -607,6 +605,8 @@ def run_fixture(
 
 
 def main() -> int:
+    _load_dotenv(REPO / ".env")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixture", required=True,
                         choices=list(FIXTURE_CONFIG.keys()) + ["all"])

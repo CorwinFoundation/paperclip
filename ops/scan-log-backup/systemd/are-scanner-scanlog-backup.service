@@ -1,0 +1,34 @@
+# BEAAA-13386 — recurring scan_log backup (BEAAA-12895 criterion 6).
+# oneshot invoked by are-scanner-scanlog-backup.timer. Egress-free by design:
+# PrivateNetwork=true makes it physically impossible for this unit to reach the
+# network, reinforcing the srv1749248 containment wall / default-deny egress.
+[Unit]
+Description=BackBond scan_log integrity-checked local backup (BEAAA-13386)
+Documentation=file:/opt/are-scanner/ops/scan-log-backup/README.md
+After=are-scanner.service
+Wants=are-scanner.service
+
+[Service]
+Type=oneshot
+User=are-scanner
+Group=are-scanner
+ExecStart=/usr/bin/python3 /opt/are-scanner/ops/scan-log-backup/backup_scan_log.py \
+    --src /var/lib/are-scanner/scan_log.sqlite3 \
+    --backup-root /var/lib/are-scanner/backups/scan_log
+Nice=10
+IOSchedulingClass=idle
+
+# --- Containment / hardening: zero network, minimal writable surface ---
+PrivateNetwork=true
+IPAddressDeny=any
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/are-scanner/backups
+ReadOnlyPaths=/var/lib/are-scanner/scan_log.sqlite3
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true

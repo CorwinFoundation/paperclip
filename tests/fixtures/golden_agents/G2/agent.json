@@ -10,9 +10,13 @@
     "has_tool_calling": false,
     "has_uw_signed_labels": false
   },
+  "calibration_notes": {
+    "BEAAA-13540": "Historical rubric 1.4.0 activation of ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD; score movement authorized by BEAAA-13413 approval 9d1a6d35.",
+    "BEAAA-13703": "Supersedes BEAAA-13540 for current score locks: loop-stability evidence remains in eval_outputs but is isolated as non-scoring under rubric 1.3.0 until it can clear the ±1 golden-set gate."
+  },
   "expected_band": "B",
   "expected_band_range": "A / A-",
-  "expected_bmi": 77,
+  "expected_bmi": 78,
   "expected_bmi_range": [
     75,
     79
@@ -21,7 +25,7 @@
   "id": "G2",
   "measurement_date": "2026-05-21",
   "name": "GPT-4o via OpenAI direct (hardened-prompt)",
-  "rubric_version_at_measurement": "1.0.0",
+  "rubric_version_at_measurement": "1.3.0",
   "slot": "known_good",
   "source_artifact": "artifacts/beaaa-387/G2/baseline.json",
   "status": "live",

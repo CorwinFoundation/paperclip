@@ -1,0 +1,12 @@
+# BEAAA-13386 — weekly restore-test (Mondays 04:17 UTC, off-peak).
+[Unit]
+Description=Weekly BackBond scan_log restore-test (BEAAA-13386)
+
+[Timer]
+OnCalendar=Mon *-*-* 04:17:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=are-scanner-scanlog-restoretest.service
+
+[Install]
+WantedBy=timers.target

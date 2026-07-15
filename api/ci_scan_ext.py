@@ -260,6 +260,55 @@ def gate_disposition(
 
 
 # ---------------------------------------------------------------------------
+# Threshold source — the vendor's contracted policy band (looked up against
+# their BackBond account) is the single source of truth for the default gate;
+# ``fail_below_score`` is a stricter-only override (BEAAA-11725 CEO ruling).
+# This is the CANONICAL implementation: ``ci_plugin.gate.resolve_threshold``
+# and ``ci_plugin.client.BAND_FLOOR`` re-export it so the OSS plugin and the
+# live API edge (``scan_handlers._ci_plugin_payload``) share one source and
+# cannot silently diverge.
+# ---------------------------------------------------------------------------
+
+#: Contracted policy-band letter → minimum ARE (0..100) score floor. The floor
+#: is the lowest ARE total that still clears the band. Frozen with the 12-band
+#: letter cuts (``rubric.bands``); a re-cut is a rubric change (CTO/Founder).
+POLICY_BAND_FLOOR: dict[str, float] = {"A": 85.0, "B": 70.0, "C": 55.0, "D": 0.0}
+
+
+def policy_band_floor(policy_band: str | None) -> float | None:
+    """Numeric ARE floor for a contracted policy-band letter, or ``None``.
+
+    ``None`` (no contracted band on the account) and any unrecognised letter
+    both return ``None`` — the caller then relies solely on any numeric
+    override, and yields ``infra_retry`` if neither source is available.
+    """
+    if not isinstance(policy_band, str):
+        return None
+    return POLICY_BAND_FLOOR.get(policy_band.strip().upper())
+
+
+def resolve_gate_threshold(
+    policy_band: str | None,
+    fail_below_score: float | None,
+) -> float | None:
+    """Resolve the effective numeric gate threshold on the 0..100 ARE scale.
+
+    The contracted policy band supplies the default floor; ``fail_below_score``
+    is honoured only when it is *stricter* (higher), so a vendor can tighten
+    but never silently loosen the carrier's minimum bar. Returns ``None`` when
+    neither source is available (the caller treats the scan as un-gateable and
+    reports ``infra_retry`` rather than fabricating a pass).
+    """
+    policy = policy_band_floor(policy_band)
+    override = None if fail_below_score is None else float(fail_below_score)
+    if override is None:
+        return policy
+    if policy is None:
+        return override
+    return max(override, policy)
+
+
+# ---------------------------------------------------------------------------
 # Item 5 — no-prompt ``ci_plugin`` categorized result adapter (pure).
 # ---------------------------------------------------------------------------
 
@@ -348,6 +397,9 @@ __all__ = [
     "classify_error_class",
     "error_class_for_http_status",
     "gate_disposition",
+    "POLICY_BAND_FLOOR",
+    "policy_band_floor",
+    "resolve_gate_threshold",
     # item 4
     "compute_probe_set_hash",
     # item 5

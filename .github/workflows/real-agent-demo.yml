@@ -1,0 +1,123 @@
+name: Real Agent 203-Case Demo
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "demo-real-agent/**"
+      - ".dockerignore"
+      - "api/full_scan_executor.py"
+      - "api/full_suite_manifest.py"
+      - "harness/bench/**"
+      - "harness/customer_runner.py"
+      - "harness/runner.py"
+      - "harness/fixtures/**"
+      - "tests/probe_sets/**"
+      - "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json"
+      - "rubric/probe_mappings/**"
+      - "scanners/**"
+      - "tools/active_test_registry.py"
+      - "tools/active_test_registry_claims.json"
+      - "tools/registered_case_executor.py"
+      - "tools/text_case_materializer.py"
+      - ".github/workflows/real-agent-demo.yml"
+  push:
+    branches: [master]
+    paths:
+      - "demo-real-agent/**"
+      - ".dockerignore"
+      - "api/full_scan_executor.py"
+      - "api/full_suite_manifest.py"
+      - "harness/bench/**"
+      - "harness/customer_runner.py"
+      - "harness/runner.py"
+      - "harness/fixtures/**"
+      - "tests/probe_sets/**"
+      - "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json"
+      - "rubric/probe_mappings/**"
+      - "scanners/**"
+      - "tools/active_test_registry.py"
+      - "tools/active_test_registry_claims.json"
+      - "tools/registered_case_executor.py"
+      - "tools/text_case_materializer.py"
+      - ".github/workflows/real-agent-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-agent-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: registry, execution, redaction, and container proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Prove 203-case execution contract with controlled runners
+        env:
+          ARE_BUNDLE_SIGNING_KEY: ci-only-real-agent-demo-key
+        run: python -m pytest -q demo-real-agent/tests tests/test_registered_case_execution.py tests/test_text_case_activation.py tests/test_target_bound_full_scan.py tests/test_active_test_registry_beaaa13644.py tests/test_full_scan_executor_beaaa13681.py
+      - name: Build real-agent demo image
+        run: docker build -f demo-real-agent/Dockerfile -t backbond/real-agent-demo:${{ github.sha }} .
+      - name: Prove container identity without external model calls
+        run: |
+          docker run -d --name real-agent-demo-ci -p 127.0.0.1:8765:8765 \
+            -e DEMO_GIT_SHA=${{ github.sha }} \
+            -e DEMO_ACCESS_TOKEN=ci-only-real-agent-demo-access-token \
+            backbond/real-agent-demo:${{ github.sha }}
+          for attempt in $(seq 1 40); do
+            curl --fail --silent http://127.0.0.1:8765/api/health && break
+            if [ "$attempt" = 40 ]; then docker logs real-agent-demo-ci; exit 1; fi
+            sleep 1
+          done
+          python demo-real-agent/smoke_test.py \
+            --url http://127.0.0.1:8765 \
+            --health-only --allow-unconfigured
+      - name: Upload container logs on failure
+        if: failure()
+        run: docker logs real-agent-demo-ci || true
+
+  deploy:
+    name: deploy real scanner and health-check
+    needs: validate
+    if: vars.REAL_AGENT_DEMO_CD_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure deployment SSH
+        env:
+          SSH_KEY: ${{ secrets.PASSIVE_DEMO_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/real-agent-demo
+          chmod 600 ~/.ssh/real-agent-demo
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+      - name: Upload immutable release
+        env:
+          SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
+          SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
+        run: |
+          tar -czf real-agent-demo-release.tgz api harness rubric scanners tools demo-real-agent tests/probe_sets artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
+          ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-real-agent-demo/releases/${GITHUB_SHA}"
+          scp -i ~/.ssh/real-agent-demo real-agent-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-real-agent-demo/releases/${GITHUB_SHA}/"
+          ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-real-agent-demo/releases/${GITHUB_SHA} && tar -xzf real-agent-demo-release.tgz"
+      - name: Deploy candidate and verify real-scanner identity
+        env:
+          SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
+          SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
+        run: |
+          ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" \
+            "DEMO_GIT_SHA='${GITHUB_SHA}' DEMO_DEPLOYED_AT='$(date -u +%Y-%m-%dT%H:%M:%SZ)' bash '/opt/backbond-real-agent-demo/releases/${GITHUB_SHA}/demo-real-agent/deploy.sh' '/opt/backbond-real-agent-demo/releases/${GITHUB_SHA}'"

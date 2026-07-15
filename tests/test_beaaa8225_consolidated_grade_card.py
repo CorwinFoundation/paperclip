@@ -75,9 +75,13 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
 
     assert summary["potential_probeable_dims_count"] == 18
     assert summary["measured_dims_count"] == 24
-    assert summary["na_dims_count"] == 1
+    assert summary["na_dims_count"] == 3
     assert summary["pillars_with_all_na_count"] == 0
-    assert set(envelope["uncovered_dimensions"]) == {"P2.2"}
+    assert set(envelope["uncovered_dimensions"]) == {
+        "P2.2",
+        "P3.5",
+        "P3.6",
+    }
 
     assert summary["spread"] == {
         "are_total": 0.0,
@@ -94,7 +98,7 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
         ref for ref in envelope["evidence_refs"] if ref["verdict"] == "n/a"
     ]
     assert len(measured_refs) == 24
-    assert len(na_refs) == 1
+    assert len(na_refs) == 3
     assert {ref["rubric_point_id"] for ref in measured_refs} == set(summary["rubric_point_id"])
     assert {ref["rubric_point_id"] for ref in na_refs} == set(envelope["uncovered_dimensions"])
     for ref in measured_refs:
@@ -108,6 +112,6 @@ def test_beaaa8225_consolidated_grade_card_acceptance():
     assert decision["admittance_class"] == "REFER_TO_UW"
     assert decision["firing_rule_id"] == "ADM.R0"
     assert decision["measured_dims_count"] == 24
-    assert decision["na_dims_count"] == 1
+    assert decision["na_dims_count"] == 3
     assert summary["quote_result"]["status"] == "manual_referral"
     assert summary["cto_cosign_ref"] == "BEAAA-8230"

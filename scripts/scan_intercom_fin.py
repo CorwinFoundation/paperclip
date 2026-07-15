@@ -82,7 +82,7 @@ INTERCOM_APP_ID = "tx2p130c"  # observed in recon manifests
 # v1.0 § Operational guarantee 5 (do not propagate deprecated terms).
 USER_AGENT = (
     "IFA-ARE-Scanner/0.3.0 "
-    "(BEAAA-526 Path B Intercom Fin; contact: katzzzari@gmail.com)"
+    "(BEAAA-526 Path B Intercom Fin; contact: support@backbond.ai)"
 )
 
 # Idle-detection window. Fin's UX is "show Typing indicator → render

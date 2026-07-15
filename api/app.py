@@ -5,12 +5,15 @@ and lets unittest target handlers directly without booting an ASGI app.
 """
 from __future__ import annotations
 
-import os
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from api.webhook_outbox import WebhookOutbox
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -20,6 +23,7 @@ from rubric.scoring import Rubric
 from harness.secret_redaction import redact_secret_obj
 
 from .bundle import BundleStore
+from .config import ApiConfig
 from .edge_gateway import AuthError, EdgeGateway, RateLimited
 from .handlers import (
     HandlerError,
@@ -28,6 +32,7 @@ from .handlers import (
     score_handler,
     validate_quote_tenant_context,
 )
+from .intake_guard import EvalProvenanceVerifier
 from .runtime_guards import (
     bundle_store_from_env,
     current_runtime_profile,
@@ -75,15 +80,59 @@ API_AUTH_TOKENS_ENV: str = "ARE_API_AUTH_TOKENS_JSON"
 #: self-elevate to the UW struct. Only consulted when bearer auth is active.
 UW_AUDIENCE_TENANTS_ENV: str = "ARE_UW_AUDIENCE_TENANTS_JSON"
 
+#: BEAAA-14394 (fix 1) — the CI-gate threshold source. A JSON object mapping
+#: ``tenant_id`` → ``{"policy_band": "B", "fail_below_score": 72}`` that models
+#: the vendor's contracted BackBond account band (CEO ruling BEAAA-11725:
+#: server-side single source of truth, so a vendor cannot loosen the gate
+#: locally). Unset/empty ⇒ no source is wired and the ci_plugin audience
+#: reports ``infra_retry`` (fail-closed: never fabricate a pass). Parsed once
+#: at startup so a malformed config fails fast rather than per-request.
+CI_THRESHOLD_BANDS_ENV: str = "ARE_CI_THRESHOLD_BANDS_JSON"
+
+
+def _ci_threshold_source_from_env() -> (
+    "Any | None"
+):
+    """Build the tenant-keyed CI-gate threshold source from the environment.
+
+    Returns a callable ``tenant_id -> (policy_band | None, fail_below_score |
+    None)`` when ``ARE_CI_THRESHOLD_BANDS_JSON`` is configured, else ``None``.
+    Unknown tenants resolve to ``(None, None)`` — no contracted band on file,
+    which the handler treats as ``infra_retry`` (fail-closed).
+    """
+    raw = os.environ.get(CI_THRESHOLD_BANDS_ENV)
+    if not raw:
+        return None
+    try:
+        mapping = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("ci_threshold_bands_invalid") from exc
+    if not isinstance(mapping, dict):
+        raise ValueError("ci_threshold_bands_invalid")
+
+    def _lookup(tenant_id: str) -> tuple[str | None, float | None]:
+        entry = mapping.get(tenant_id)
+        if not isinstance(entry, dict):
+            return None, None
+        band = entry.get("policy_band")
+        fail_below = entry.get("fail_below_score")
+        band_out = band if isinstance(band, str) and band else None
+        fail_out = (
+            float(fail_below)
+            if isinstance(fail_below, (int, float)) and not isinstance(fail_below, bool)
+            else None
+        )
+        return band_out, fail_out
+
+    return _lookup
+
 
 def _http_error(status_code: int, detail: Any) -> HTTPException:
     return HTTPException(status_code=status_code, detail=redact_secret_obj(detail))
 
 
 def _api_auth_required(runtime_profile: str) -> bool:
-    if os.environ.get(API_AUTH_TOKENS_ENV):
-        return True
-    return runtime_profile in {"pilot", "prod"}
+    return ApiConfig.from_env().api_auth_required(runtime_profile)
 
 
 def _bearer_token(request: Request) -> str:
@@ -114,7 +163,7 @@ def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | No
         except AuthError as exc:
             raise _http_error(401, exc.code) from exc
 
-    raw_mapping = os.environ.get(API_AUTH_TOKENS_ENV)
+    raw_mapping = ApiConfig.from_env().api_auth_tokens_raw
     required = _api_auth_required(runtime_profile)
     if not raw_mapping and not required:
         return None
@@ -169,7 +218,7 @@ def _uw_audience_entitled(authenticated_tenant_id: str | None) -> bool:
     """
     if authenticated_tenant_id is None:
         return True
-    raw = os.environ.get(UW_AUDIENCE_TENANTS_ENV)
+    raw = ApiConfig.from_env().uw_audience_tenants_raw
     if not raw:
         return False
     try:
@@ -202,10 +251,14 @@ def create_app(
     scan_runtime: ScanRuntime | None = None,
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
+    provenance_verifier: EvalProvenanceVerifier | None = None,
+    webhook_outbox: "WebhookOutbox | None" = None,
+    ci_threshold_source: "Any | None" = None,
 ) -> FastAPI:
     runtime_profile = current_runtime_profile()
-    if not os.environ.get("ARE_BUNDLE_SIGNING_KEY") and os.environ.get("ARE_ALLOW_DEV_SIGNING_KEY") != "true":
-        raise ValueError("ARE_BUNDLE_SIGNING_KEY must be set in production")
+    # BEAAA-12021 — build + validate the typed config once at startup.
+    config = ApiConfig.from_env()
+    config.require_production_signing_key()
     app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.runtime_profile = runtime_profile
@@ -216,7 +269,7 @@ def create_app(
     # 503 path so the offline ``/score`` path is untouched. Lazy-import the
     # factory so test setups that never construct a real ``ScanRuntime``
     # don't pay the multiprocessing import cost.
-    if scan_runtime is None and os.environ.get(PRODUCTION_SCAN_WIRING_ENV) == "1":
+    if scan_runtime is None and config.production_scan_wiring:
         from .scan_runtime_factory import make_default_production_scan_runtime
         scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
@@ -225,6 +278,28 @@ def create_app(
         bundles=app.state.bundles,
         scan_runtime=app.state.scan_runtime,
     )
+    # BEAAA-14400 (P1#5 fix 2) — durable signed-webhook outbox. Explicit
+    # injection wins (tests); otherwise build the production outbox (env-backed
+    # fail-closed secret resolver + httpx poster) on the same
+    # ``production_scan_wiring`` gate as the scan runtime, so the default
+    # (unwired) boot keeps ``POST /scan`` byte-identical with no delivery.
+    # The lazy import keeps httpx off the import path for callers that never
+    # deliver a webhook.
+    if webhook_outbox is None and config.production_scan_wiring:
+        from .webhook_outbox import make_default_webhook_outbox
+        webhook_outbox = make_default_webhook_outbox()
+    app.state.webhook_outbox = webhook_outbox
+    # Thread the outbox onto the runtime so the terminal chokepoint
+    # ``ScanRuntime._record_completed_result`` can deliver on completion (sync
+    # AND async background paths), keyed by scan_id — never at queue time.
+    if app.state.scan_runtime is not None:
+        app.state.scan_runtime.attach_webhook_outbox(app.state.webhook_outbox)
+    # Restart-recovery drain: replay any deliveries left ``pending`` by a prior
+    # process. A no-op with the in-memory default; composes with fix 4
+    # (BEAAA-14401), which injects a durable store whose ``pending()`` survives
+    # a restart. ``delivered`` records are skipped, so recovery never dupes.
+    if app.state.webhook_outbox is not None:
+        app.state.webhook_outbox.deliver_pending()
     # BEAAA-1274 (WS4) — per-purpose SLA metric registry + routing-event sink.
     # Default sinks survive the lifetime of the app instance so the rolling
     # window observed by ``GET /scanner/v1/sla`` matches the window the
@@ -236,6 +311,26 @@ def create_app(
     # boot keeps the legacy flat-dict auth path with no rate limiting. Rollback
     # is config-only: unset the flag.
     app.state.edge_gateway = EdgeGateway.from_env()
+    # BEAAA-10945 (SEC-6 live edge) — the intake provenance verifier. Explicit
+    # injection wins (tests); otherwise build from ``ARE_EVAL_PROVENANCE_KEY``.
+    # ``from_env`` returns None when the key is absent, which leaves the /score
+    # provenance check inert (offline replay / golden N=5). On the live edge the
+    # key is mandatory: ``validate_runtime_environment`` above already refuses to
+    # start a pilot/prod runtime without it, so a keyless live edge cannot boot.
+    app.state.provenance_verifier = (
+        provenance_verifier
+        if provenance_verifier is not None
+        else EvalProvenanceVerifier.from_env()
+    )
+    # BEAAA-14394 (fix 1) — tenant-keyed CI-gate threshold source. Explicit
+    # injection wins (tests); otherwise build from ``ARE_CI_THRESHOLD_BANDS_JSON``.
+    # ``None`` leaves the ci_plugin audience reporting ``infra_retry`` (no gate
+    # source wired), which is the fail-closed default.
+    app.state.ci_threshold_source = (
+        ci_threshold_source
+        if ci_threshold_source is not None
+        else _ci_threshold_source_from_env()
+    )
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
@@ -265,6 +360,7 @@ def create_app(
                 tenant_header=tenant_context,
                 rubric=app.state.rubric,
                 bundles=app.state.bundles,
+                provenance_verifier=app.state.provenance_verifier,
             )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
@@ -297,13 +393,21 @@ def create_app(
     ) -> Any:
         tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         # BEAAA-11867 D3 — admit through the per-tenant limiter (no-op when the
-        # gateway is disabled). The lease models one in-flight scan; the
-        # current runtime executes the scan inline within kickoff, so holding
-        # the lease across the handler correctly bounds max-concurrent.
+        # gateway is disabled). The lease models one in-flight scan.
+        # BEAAA-14399 (P1#5 fix 3) — after the async full-scan cutover the scan
+        # keeps running on a daemon worker past the 202, so the lease must be
+        # held for the *actual execution*. We hand ``lease.release`` to the
+        # runtime as ``on_terminal``; it fires exactly once on the terminal
+        # transition (inline for the synchronous path, on the worker for the
+        # async path). The handler only releases the lease itself when it never
+        # reached the runtime (validation/503/JSON errors) so the admission slot
+        # is not leaked. ``ConcurrencyLease.release`` is idempotent, so a
+        # belt-and-braces double release is safe.
         try:
             lease = _admit_scan_or_none(request)
         except RateLimited as exc:
             return _rate_limited_response(exc)
+        lease_transferred = False
         try:
             if app.state.scan_runtime is None:
                 raise _http_error(503, "scan_runtime_unconfigured")
@@ -313,17 +417,20 @@ def create_app(
                     body,
                     tenant_header=tenant_context,
                     runtime=app.state.scan_runtime,
+                    on_terminal=(lease.release if lease is not None else None),
                 )
             except HandlerError as exc:
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            # The runtime now owns the lease's terminal release.
+            lease_transferred = True
             # Preserve the handler's status code (202 for the live-probe accept
             # path per contract v1.1.0). Returning the dict directly would let
             # FastAPI's default 200 win, dropping the contracted Accepted status.
             return JSONResponse(status_code=status, content=payload)
         finally:
-            if lease is not None:
+            if lease is not None and not lease_transferred:
                 lease.release()
 
     @app.post("/scanner/v1/scans")
@@ -352,7 +459,7 @@ def create_app(
         # to ``off`` explicitly.
         body = await request.json()
         tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
-        if os.environ.get(RESCANS_MEASURED_ENV) == RESCANS_MEASURED_OFF:
+        if ApiConfig.from_env().rescans_measured_off:
             return JSONResponse(
                 status_code=200,
                 content={
@@ -379,6 +486,8 @@ def create_app(
             lease = _admit_scan_or_none(request)
         except RateLimited as exc:
             return _rate_limited_response(exc)
+        # BEAAA-14399 — same admission-lease terminal handoff as POST /scan.
+        lease_transferred = False
         try:
             try:
                 status, payload = rescan_handler(
@@ -387,15 +496,17 @@ def create_app(
                     runtime=app.state.scan_runtime,
                     sla_registry=app.state.sla_registry,
                     routing_event_sink=app.state.routing_event_sink,
+                    on_terminal=(lease.release if lease is not None else None),
                 )
             except HandlerError as exc:
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            lease_transferred = True
             # Preserve the handler's 202 accept status to match /scan parity.
             return JSONResponse(status_code=status, content=payload)
         finally:
-            if lease is not None:
+            if lease is not None and not lease_transferred:
                 lease.release()
 
     @app.get("/scanner/v1/sla")
@@ -420,6 +531,7 @@ def create_app(
                 audience=audience,
                 authenticated_tenant_id=authenticated_tenant_id,
                 uw_entitled=_uw_audience_entitled(authenticated_tenant_id),
+                ci_threshold_lookup=app.state.ci_threshold_source,
             )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc

@@ -19,14 +19,16 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol
 
-from api.ci_scan_ext import verify_signature
+from api.ci_scan_ext import POLICY_BAND_FLOOR, verify_signature
 
 # Band cut floors from the contract (are-scanner-api-v1 §Output: A 85+, B
 # 70-84, C 55-69, D <55). Used only as a fallback when the scanner does not
 # return an explicit numeric ``policy_band_floor`` for the vendor's
 # contracted band. The authoritative threshold source is the API lookup
-# (BEAAA-11725); this map is the documented last resort.
-BAND_FLOOR: dict[str, float] = {"A": 85.0, "B": 70.0, "C": 55.0, "D": 0.0}
+# (BEAAA-11725); this map is the documented last resort. Re-exported from the
+# canonical ``api.ci_scan_ext.POLICY_BAND_FLOOR`` so the OSS plugin and the
+# live API edge share one floor table and cannot silently diverge.
+BAND_FLOOR: dict[str, float] = POLICY_BAND_FLOOR
 
 
 @dataclass(frozen=True)

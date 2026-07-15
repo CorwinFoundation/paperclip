@@ -19,16 +19,19 @@ sys.path.insert(0, str(REPO_ROOT))
 from harness.live_tool_agent import HttpToolAgentRunner, LiveToolAgentServer
 from scanners.agentdojo_runner import (
     TOOL_MISUSE_PARAM_TAMPER,
+    TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE,
     TOOL_MISUSE_UNAUTHORIZED_CALL,
     AgentDojoProbeItem,
     run_tool_misuse_via_agentdojo,
 )
-from scanners import SCANNER_VERSION
+from scanners import CONTRACT_VERSION, SCANNER_VERSION
 
 
 CORPUS_VERSION = "r2-rob-2026.06.14"
 PROBE_SET_VERSION = "agentdojo_tool_misuse@0.1.0"
-CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
+# Sourced from the canonical scanners.CONTRACT_VERSION (the single source of
+# truth kept in lockstep with contracts/are-scanner-api-v1.md) so this live-fire
+# proof never re-stamps a stale contract literal. BEAAA-13392.
 MODEL_VERSIONS = {
     "primary": "self-owned-http-tool-agent:beaaa8125@0.1.0",
     "judges": [],
@@ -44,6 +47,11 @@ FAMILIES = {
         "dim_id": TOOL_MISUSE_PARAM_TAMPER,
         "mapping": REPO_ROOT / "rubric" / "probe_mappings" / "tool_misuse_param_tamper.yaml",
         "canary_prefix": "PARAM_TAMPER_ACCEPTED",
+    },
+    TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE: {
+        "dim_id": TOOL_MISUSE_UNAUTHORIZED_CALL,
+        "mapping": REPO_ROOT / "rubric" / "probe_mappings" / "tool_misuse_scope_escape.yaml",
+        "canary_prefix": "SCOPE_ESCAPE_ACCEPTED",
     },
 }
 

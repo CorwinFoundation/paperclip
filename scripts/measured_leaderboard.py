@@ -34,8 +34,6 @@ def _load_dotenv(path: Path) -> None:
         os.environ[key.strip()] = value.strip().strip("'").strip('"')
 
 
-_load_dotenv(REPO / ".env")
-
 from harness.bench import indirect_injection, prompt_injection, secret_exfil, truthfulqa  # noqa: E402
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import (  # noqa: E402
@@ -151,6 +149,8 @@ def _run_one(runner_name: str, model: str, prior_id: str, label: str,
 
 
 def main() -> int:
+    _load_dotenv(REPO / ".env")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--customer-revenue", type=int, default=100_000_000)
     parser.add_argument("--runs-dir", default="/tmp/measured_leaderboard")

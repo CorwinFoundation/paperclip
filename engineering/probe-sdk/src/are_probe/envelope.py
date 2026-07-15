@@ -86,6 +86,17 @@ def _evidence_refs_from_results(
     return refs
 
 
+def _merged_evidence_refs(
+    contract_output: dict,
+    eval_results: dict,
+    family_results: list,
+    corpus_pack,
+) -> list[dict]:
+    refs = list(contract_output["evidence_refs"])
+    refs.extend(_evidence_refs_from_results(eval_results, family_results, corpus_pack))
+    return refs
+
+
 def build_envelope(
     *,
     contract_output: dict,
@@ -112,8 +123,8 @@ def build_envelope(
         "band": band_letter,
         "band_detail": band_raw if isinstance(band_raw, dict) else None,
         "confidence": contract_output.get("confidence", 1.0),
-        "evidence_refs": _evidence_refs_from_results(
-            eval_results, family_results, corpus_pack
+        "evidence_refs": _merged_evidence_refs(
+            contract_output, eval_results, family_results, corpus_pack
         ),
         "uncovered_dimensions": [
             dim_id for dim_id, d in sorted(eval_results.items())

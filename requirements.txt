@@ -1,6 +1,35 @@
-# are-scanner runtime + dev dependencies — pinned for reproducibility.
-# Source of truth for promptfoo (Node, npm) + garak (Python) versions
-# the scoring overlay is calibrated against (BEAAA-106).
+# are-scanner FULL EVAL-FRAMEWORK RELEASE CONTRACT (superset) — pinned for
+# reproducibility. Source of truth for promptfoo (Node, npm) + garak (Python)
+# versions the scoring overlay is calibrated against (BEAAA-106).
+#
+# !! NOT CO-INSTALLABLE IN ONE VENV BY DESIGN (BEAAA-13329 / ADR-0038) !!
+# This file pins the complete eval-framework surface, including two offline
+# frameworks whose transitive pins are mutually exclusive: garak==0.10.0
+# (datasets<2.17) vs pyrit==0.6.0 (datasets>=3.0.0). `pip install -r
+# requirements.txt` therefore cannot resolve into a single environment. That
+# is intentional — this is the release-contract superset, not an installable
+# lock. Offline calibration/CI materializes garak/pyrit/agentdojo/inspect-ai
+# as per-framework subprocess venvs.
+#
+# PRODUCTION installs requirements-runtime.txt (the live online-service import
+# closure: this set MINUS the four offline eval frameworks, PLUS the fastapi/
+# uvicorn/hugchat runtime pins). See requirements-runtime.txt + ADR-0038.
+# CI regression installs requirements-scanner-regression.txt (deterministic
+# scoring slice). requirements-dev.txt adds test-only deps.
+#
+# ⚠ NOT SINGLE-VENV INSTALLABLE (by design — BEAAA-13331). This file is the
+# eval-framework RELEASE CONTRACT (source-of-truth pins), not a one-shot
+# `pip install -r` target: garak==0.10.0 (datasets<2.17) is mutually exclusive
+# with pyrit==0.6.0 (datasets>=3.0.0), so pip cannot solve the combined graph.
+# The contract is materialized across PER-FRAMEWORK venvs instead:
+#     scripts/build_eval_framework_venvs.sh        # builds garak/pyrit/agentdojo/inspect venvs
+#     requirements-eval-{garak,pyrit,agentdojo,inspect}.txt   # the per-venv slices
+# The soft-import runners (scanners/{pyrit,agentdojo,inspect}_runner.py) resolve
+# framework availability + version from those venvs via
+# scanners/eval_framework_venv.py. Deterministic scoring/CLI/tamper CI installs
+# only requirements-scanner-regression.txt (see ADR-0036); the production
+# runtime slice (BEAAA-13329) is a separate, non-conflicting install. See
+# docs/ops/eval-framework-venvs.md + ADR-0056.
 #
 # Promptfoo is a Node CLI invoked via subprocess from
 # scanners/promptfoo_runner.py — install with:
@@ -49,8 +78,13 @@ pyrit==0.6.0
 agentdojo==0.1.35
 
 # --- model SDKs (lazy-imported by harness/runner.py adapters) ---
+# openai is bumped to satisfy pyrit==0.6.0 (requires openai>=1.58.1); the
+# previous 1.54.4 pin made the release venv unresolvable (BEAAA-12895). Only
+# lazy-imported by the live model adapters via `from openai import OpenAI`
+# (harness/runner.py, harness/live_tool_agent.py); the deterministic golden
+# scoring path does not import it, so the bump cannot move golden scores.
 anthropic==0.39.0
-openai==1.54.4
+openai==1.58.1
 google-genai==0.3.0
 
 # --- PII / scrubber substrate (BEAAA-2068 engine-import pre-flight) ---

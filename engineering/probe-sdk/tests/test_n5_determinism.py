@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from are_probe.eval_results_builder import RUBRIC_V1_2_0_DIM_IDS
 from fixture_target import serve_in_thread
 
 SDK_ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,17 @@ SCAN_BIN = os.environ.get("ARE_SCAN_BIN", "")
 
 def _have_scan_bin() -> bool:
     return bool(SCAN_BIN) and Path(SCAN_BIN).is_file()
+
+
+def _write_dp_attestations(path: Path) -> Path:
+    path.write_text(json.dumps({
+        dim_id: {
+            "raw": 2.5,
+            "evidence_uri": f"are-probe://dp-attested/{dim_id}",
+        }
+        for dim_id in RUBRIC_V1_2_0_DIM_IDS
+    }, sort_keys=True, indent=2))
+    return path
 
 
 @pytest.fixture(scope="module")
@@ -49,6 +61,7 @@ def n5_envelopes(fixture_url):
         cfg["scanner_bin_default"] = SCAN_BIN
         cfg_path = td / "cfg.yaml"
         cfg_path.write_text(yaml.safe_dump(cfg))
+        dp_path = _write_dp_attestations(td / "dp_attestations.json")
 
         env = dict(os.environ)
         env["ARE_SCAN_BIN"] = SCAN_BIN
@@ -61,6 +74,7 @@ def n5_envelopes(fixture_url):
                  "--config", str(cfg_path),
                  "--out", str(out),
                  "--agent", "are-probe-r1-fixture",
+                 "--dp-attestations", str(dp_path),
                  "--freeze-timestamp"],
                 env=env, capture_output=True, text=True, check=False,
             )
@@ -117,6 +131,7 @@ def test_ops_refusal_accuracy_maps_shared_refusal_corpus_to_p1_4(fixture_url):
         cfg["scanner_bin_default"] = SCAN_BIN
         cfg_path = td / "cfg.yaml"
         cfg_path.write_text(yaml.safe_dump(cfg))
+        dp_path = _write_dp_attestations(td / "dp_attestations.json")
 
         env = dict(os.environ)
         env["ARE_SCAN_BIN"] = SCAN_BIN
@@ -127,6 +142,7 @@ def test_ops_refusal_accuracy_maps_shared_refusal_corpus_to_p1_4(fixture_url):
              "--config", str(cfg_path),
              "--out", str(out),
              "--agent", "are-probe-ops-p14-fixture",
+             "--dp-attestations", str(dp_path),
              "--freeze-timestamp"],
             env=env, capture_output=True, text=True, check=False,
         )

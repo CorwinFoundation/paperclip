@@ -138,6 +138,12 @@ def test_admin_audit_summary_shows_chain_status_and_events(service):
 def test_envelope_ingest_scores_reports_and_audit_chain(service):
     signing_key, dp, enrollment = enroll_ready_dp(service)
     scan = service.trigger_scan(dp["dp_id"])
+    trigger_manifest = scan["vendor_scan_capability_manifest"]
+    assert trigger_manifest["portal_version"] == portal.PORTAL_VERSION
+    assert trigger_manifest["scanner_version"] == portal.SCANNER_VERSION
+    assert trigger_manifest["corpus_version"] == portal.CORPUS_VERSION
+    assert trigger_manifest["fixture_fallback_mode"] in {"fixture_fallback", "real_scanner_binary"}
+    assert {"ARE_SCAN_BIN", "ARE_SCAN_REQUIRE_REAL", "ARE_PRODUCTION_SCAN_WIRING", "ARE_WALKER_CUSTOMER_AGENT", "ARE_SCORER_REAL"} <= set(trigger_manifest["environment"])
     while True:
         status, task = service.next_task(scan["scan_id"], enrollment["connector_id"])
         if status == 204:
@@ -168,6 +174,14 @@ def test_envelope_ingest_scores_reports_and_audit_chain(service):
     score = json.loads(row["score_json"])
     assert score["portal_version"] == portal.PORTAL_VERSION
     assert score["connector_version"] == "0.1.x"
+    manifest = score["vendor_scan_capability_manifest"]
+    assert manifest["fixture_fallback_mode"] == "fixture_fallback"
+    assert manifest["scanner_binary_path"] is None
+    assert any(
+        item["reason_code"] == "production_runtime_unconfigured"
+        for item in manifest["developed_but_unavailable_capability_families"]
+    )
+    assert service.get_vendor_scan_capability_manifest(scan["scan_id"]) == manifest
     assert score["endpoint_config_hash"].startswith("sha256:")
     assert len(score["evidence_refs"]) >= 10
     tagged_refs = [ref for ref in score["evidence_refs"] if ref.get("perils")]
@@ -205,6 +219,58 @@ def test_are_scan_binary_path_is_used_and_validated(service, tmp_path, monkeypat
     assert score["are_total"] == 72
     assert score["seed"] == "fake-are-scan"
     assert score["portal_version"] == portal.PORTAL_VERSION
+    manifest = score["vendor_scan_capability_manifest"]
+    assert manifest["scanner_binary_path"] == str(fake_are_scan)
+    assert manifest["fixture_fallback_mode"] == "real_scanner_binary"
+    assert manifest["pin_mismatches"] == []
+
+
+def test_vendor_scan_manifest_records_real_scanner_binary_pin_mismatch(service, tmp_path, monkeypatch):
+    fake_are_scan = tmp_path / "fake_are_scan"
+    _write_fake_are_scan(
+        fake_are_scan,
+        {
+            "are_total": 72,
+            "subscores": {"GOVERNANCE": 18, "ROBUSTNESS": 18, "BIAS_FAIRNESS": 18, "OPS": 18},
+            "band": "B",
+            "confidence": 0.91,
+            "evidence_refs": [],
+            "uncovered_dimensions": [],
+            "scanner_version": "0.5.0",
+            "corpus_version": "0.2.0",
+            "model_versions": {},
+            "seed": "fake-are-scan",
+            "run_timestamp": "2026-06-12T00:00:00Z",
+        },
+    )
+    monkeypatch.setenv("ARE_SCAN_BIN", str(fake_are_scan))
+    manifest = service.vendor_scan_capability_manifest(
+        scanner_binary_path=str(fake_are_scan),
+        fallback_mode="real_scanner_binary",
+        scanner_reported_version="0.5.0",
+        scanner_reported_corpus_version=portal.CORPUS_VERSION,
+    )
+    assert manifest["pin_mismatches"] == [
+        {
+            "field": "scanner_version",
+            "portal_pin": portal.SCANNER_VERSION,
+            "scanner_reported": "0.5.0",
+            "reason_code": "scanner_binary_pin_mismatch",
+        }
+    ]
+    signing_key, dp, enrollment = enroll_ready_dp(service)
+    scan = service.trigger_scan(dp["dp_id"])
+    with pytest.raises(PortalError) as err:
+        submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+    assert err.value.code == "are_scan_output_invalid"
+
+
+def test_vendor_scan_manifest_marks_production_runtime_configured(service, monkeypatch):
+    monkeypatch.setenv("ARE_PRODUCTION_SCAN_WIRING", "1")
+    manifest = service.vendor_scan_capability_manifest(scanner_binary_path=None, fallback_mode="fixture_fallback")
+    reason_codes = {item["reason_code"] for item in manifest["developed_but_unavailable_capability_families"]}
+    assert "production_runtime_unconfigured" not in reason_codes
+    assert manifest["environment"]["ARE_PRODUCTION_SCAN_WIRING"] == "1"
 
 
 def test_are_scan_invalid_rubric_perils_is_rejected(service, tmp_path, monkeypatch):
@@ -1418,18 +1484,46 @@ class TestRequestBodySizeCap:
         except _admin_urlerr.HTTPError as err:
             return err.code, dict(err.headers), err.read()
 
+    @staticmethod
+    def _raw_content_length_request(server, path: str, content_length: int) -> bytes:
+        # The handler rejects oversized Content-Length before reading the body.
+        # Send headers only so the assertion is not coupled to client-side
+        # broken-pipe timing after the server has already returned 413.
+        import socket as _socket
+
+        sock = _socket.create_connection(("127.0.0.1", server.server_port))
+        try:
+            request = (
+                f"POST {path} HTTP/1.1\r\n"
+                "Host: 127.0.0.1\r\n"
+                "Content-Type: application/json\r\n"
+                f"Content-Length: {content_length}\r\n"
+                "\r\n"
+            ).encode("ascii")
+            sock.sendall(request)
+            response = b""
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+                if b"\r\n\r\n" in response and b"request_body_too_large" in response:
+                    break
+                if len(response) > 8192:
+                    break
+            return response
+        finally:
+            sock.close()
+
     def test_row1_oversize_body_on_default_route_returns_413(self, tmp_path):
         service, server = self._start_server(tmp_path)
         try:
-            oversize = b"x" * (self.DEFAULT_CAP + 1)
-            code, _hdrs, resp = self._request(
-                "POST",
-                f"http://127.0.0.1:{server.server_port}/connectors/enroll",
-                data=oversize,
-                content_type="application/json",
+            response = self._raw_content_length_request(
+                server, "/connectors/enroll", self.DEFAULT_CAP + 1
             )
-            assert code == 413, f"oversize body must 413; got {code} {resp[:120]!r}"
-            err = json.loads(resp)
+            status_line = response.split(b"\r\n", 1)[0]
+            assert b" 413 " in status_line, f"oversize body must 413; got {status_line!r}"
+            err = json.loads(response.split(b"\r\n\r\n", 1)[1])
             assert err["error"] == "request_body_too_large", err
 
         finally:
@@ -1438,15 +1532,12 @@ class TestRequestBodySizeCap:
     def test_row2_oversize_body_on_envelopes_route_returns_413_at_large_cap(self, tmp_path):
         service, server = self._start_server(tmp_path)
         try:
-            oversize = b"x" * (self.LARGE_CAP + 1)
-            code, _hdrs, resp = self._request(
-                "POST",
-                f"http://127.0.0.1:{server.server_port}/scans/abc-1/envelopes",
-                data=oversize,
-                content_type="application/json",
+            response = self._raw_content_length_request(
+                server, "/scans/abc-1/envelopes", self.LARGE_CAP + 1
             )
-            assert code == 413, f"oversize envelope body must 413; got {code} {resp[:120]!r}"
-            err = json.loads(resp)
+            status_line = response.split(b"\r\n", 1)[0]
+            assert b" 413 " in status_line, f"oversize envelope body must 413; got {status_line!r}"
+            err = json.loads(response.split(b"\r\n\r\n", 1)[1])
             assert err["error"] == "request_body_too_large", err
         finally:
             self._stop_server(service, server)

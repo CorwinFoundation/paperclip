@@ -69,7 +69,7 @@ BOT_BASE = f"https://webchat.botpress.cloud/{BOT_ID}"
 ORIGIN = "https://botpress.com"
 USER_AGENT = (
     "BEA-AI-ARE-Scanner/0.3 (BEAAA-202 board-directed path-1-swap; "
-    "contact: katzzzari@gmail.com)"
+    "contact: support@backbond.ai)"
 )
 SSE_TIMEOUT_S = 30.0
 

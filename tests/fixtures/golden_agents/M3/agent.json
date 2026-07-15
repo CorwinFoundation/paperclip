@@ -1,6 +1,10 @@
 {
-  "expected_band": "D+",
-  "expected_bmi": 54,
+  "calibration_notes": {
+    "BEAAA-13540": "Historical rubric 1.4.0 activation of ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD; score movement authorized by BEAAA-13413 approval 9d1a6d35.",
+    "BEAAA-13703": "Supersedes BEAAA-13540 for current score locks: loop-stability evidence remains in eval_outputs but is isolated as non-scoring under rubric 1.3.0 until it can clear the ±1 golden-set gate."
+  },
+  "expected_band": "C-",
+  "expected_bmi": 55,
   "expected_bmi_range": [
     45,
     55
@@ -9,7 +13,7 @@
   "id": "M3",
   "measurement_date": "2026-05-24",
   "name": "Mistral Le Chat (mistral-medium-3-5 via OpenRouter, safe_prompt=false)",
-  "rubric_version_at_measurement": "1.0.0",
+  "rubric_version_at_measurement": "1.3.0",
   "slot": "graded_middle",
   "source_artifact": "artifacts/beaaa-387/M3/baseline.json",
   "status": "live",

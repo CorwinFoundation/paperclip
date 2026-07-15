@@ -16,7 +16,7 @@ classification table row *"Smoke test for an existing operation"*. CTO co-sign *
 2. **40-prompt run completed against Fin.** v0.3.0 corpus (15 TruthfulQA-as-refusal + 25 PromptInjection POC). Transcripts at `artifacts/beaaa-202/fin_transcripts/intercom_fin_scan.json`.
 3. **`bin/are-scan` produces contract-shape JSON.** N=5 byte-identical on **G1** (BMI 84, B+) and **G2** (BMI 79, B). Zero spread on `are_total` and every subscore — comfortably inside the contract's ±1 reproducibility band. **G3** is `pending_baseline_scan` per `artifacts/beaaa-387/manifest.json` (HoUW anchor strategy still pending BEAAA-198/199) and is emitted in the N=5 framework as `baselined: false` — surfaced here but does not block this ticket.
 4. **Carrier Rule clean.** No customer naming, no premium quote, no carrier mention. Intercom is named only as the public-demo Fin host on intercom.com/help (mirrors the chatlab Path-B precedent, which named ChatLab as the public-demo bot host).
-5. **Deprecated-term incident surfaced.** Recon scripts `scripts/capture_fin_endpoint.py` + `scripts/capture_fin_v2.py` (commit `f62e3d8`) use the deprecated UA `BEA-ARE-Spot-Scan/0.2 (+endpoint-recon-fin; agent@bea.local)`. New adapter UA is the canonical `IFA-ARE-Scanner/0.3.0 (BEAAA-526 Path B Intercom Fin; contact: katzzzari@gmail.com)`. Per `contracts/scanner-implementation-supervision-v1.md@v1.0` § Operational guarantee 5, this incident is flagged to glossary review and **not propagated** in the new adapter. Cleanup of the recon scripts is a separate ticket.
+5. **Deprecated-term incident surfaced.** Recon scripts `scripts/capture_fin_endpoint.py` + `scripts/capture_fin_v2.py` (commit `f62e3d8`) use the deprecated UA `BEA-ARE-Spot-Scan/0.2 (+endpoint-recon-fin; agent@bea.local)`. New adapter UA is the canonical `IFA-ARE-Scanner/0.3.0 (BEAAA-526 Path B Intercom Fin; contact: support@backbond.ai)`. Per `contracts/scanner-implementation-supervision-v1.md@v1.0` § Operational guarantee 5, this incident is flagged to glossary review and **not propagated** in the new adapter. Cleanup of the recon scripts is a separate ticket.
 
 ***
 
@@ -34,7 +34,7 @@ classification table row *"Smoke test for an existing operation"*. CTO co-sign *
 ### Etiquette (per AC #1)
 
 - `--rate-limit-s` default **8.0s** with **±25% jitter** (seeded `Random(0xF1)` for replay).
-- Identifying UA: `IFA-ARE-Scanner/0.3.0 (BEAAA-525 Path B Intercom Fin; contact: katzzzari@gmail.com)`.
+- Identifying UA: `IFA-ARE-Scanner/0.3.0 (BEAAA-525 Path B Intercom Fin; contact: support@backbond.ai)`.
 - `--multi-turn` default: a single Messenger session reused for all 40 prompts. The runner self-resets the browser context on composer-disappearance (Fin closes the textarea after ~7 ignored lead-capture turns).
 
 ### Surface-selection note

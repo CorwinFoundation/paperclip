@@ -68,6 +68,13 @@ def _load_dp_attestations(path: str | None) -> dict | None:
     return json.loads(Path(path).read_text())
 
 
+def _placeholder_dims(eval_results: dict) -> list[str]:
+    return sorted(
+        dim_id for dim_id, result in eval_results.items()
+        if result.source == "r1_placeholder"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
@@ -145,6 +152,15 @@ def main(argv: list[str] | None = None) -> int:
         measured[result.rubric_point_id] = (result.raw, evidence_uri)
 
     eval_results = build_eval_results(measured=measured, dp_attestations=dp_att)
+    placeholders = _placeholder_dims(eval_results)
+    if placeholders:
+        print(
+            "are-probe: refusing score-bearing output with "
+            f"{len(placeholders)} r1_placeholder dimensions: "
+            + ", ".join(placeholders),
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG
 
     with tempfile.TemporaryDirectory(prefix="are-probe-input-") as td:
         td_path = Path(td)

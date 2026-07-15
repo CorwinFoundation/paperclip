@@ -15,7 +15,14 @@ evidence_sha256 shape, and rejects non-numeric raw smuggling.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+import os
 import re
+import time
+import uuid
+from collections.abc import Callable, MutableSet
 from typing import Any
 
 HOSTED_RUNNER = "beaai-hosted-eval"
@@ -43,10 +50,330 @@ class IntakeError(ValueError):
     pass
 
 
-def enforce_hosted_eval_only(eval_outputs: dict[str, dict[str, Any]]) -> None:
-    """Raise IntakeError on any dim entry that lacks hosted-runner provenance."""
+# BEAAA-10920 (SEC-6) — server-issued provenance integrity.
+#
+# The dynamic test pack (BEAAA-10913) confirmed the live edge accepts a
+# client-set ``runner=beaai-hosted-eval`` plus a self-minted UUID
+# ``eval_run_id`` as proof the evidence came from the hosted eval runner. A
+# well-formed string and a well-formed UUID are NOT proof of origin — a
+# customer can forge both. Per required scope #4, provenance is now bound to a
+# *server-issued integrity mechanism*: the hosted runner stamps each dim entry
+# with ``provenance_sig`` = HMAC-SHA256(server_key,
+# "<dim_id>\n<runner>\n<eval_run_id>"). The API edge verifies the tag with the
+# same server-held key; a forged/absent tag is rejected before scoring.
+#
+# Posture mirrors ``ARE_BUNDLE_SIGNING_KEY`` (api/bundle.py) and the
+# live-egress fail-closed gate (BEAAA-10458): the *live edge* is wired with a
+# real key via ``ARE_EVAL_PROVENANCE_KEY`` and therefore fail-closes on forged
+# provenance; offline replay / unit tests / the golden N=5 harness run with NO
+# key and are byte-for-byte unchanged (verifier is inert → legacy string+UUID
+# check only), so the calibration delta is 0 by construction.
+_PROVENANCE_KEY_ENV = "ARE_EVAL_PROVENANCE_KEY"
+_PROVENANCE_SIG_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
+_PROVENANCE_SCHEME = "hosted-eval-provenance-v2"
+_DEFAULT_PROVENANCE_TTL_SECONDS = 15 * 60
+
+
+def _canonical_json_bytes(payload: dict[str, Any]) -> bytes:
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def provenance_preimage(
+    *,
+    tenant_id: str,
+    snapshot_hash: str,
+    dim_id: str,
+    entry: dict[str, Any],
+) -> bytes:
+    """Canonical bytes the provenance HMAC is computed over.
+
+    The signature binds the tenant context, snapshot, dimension, scored value,
+    evidence pointers, expiration window, and JTI. Any transplant, mutation, or
+    replay must therefore fail before scoring.
+    """
+    return _canonical_json_bytes(
+        {
+            "scheme": _PROVENANCE_SCHEME,
+            "tenant_id": tenant_id,
+            "snapshot_hash": snapshot_hash,
+            "dim_id": dim_id,
+            "runner": entry.get("runner"),
+            "eval_run_id": entry.get("eval_run_id"),
+            "raw": entry.get("raw"),
+            "evidence_uri": entry.get("evidence_uri", ""),
+            "evidence_sha256": entry.get("evidence_sha256", ""),
+            "issued_at": entry.get("provenance_issued_at"),
+            "expires_at": entry.get("provenance_expires_at"),
+            "jti": entry.get("provenance_jti"),
+        }
+    )
+
+
+def sign_eval_provenance(
+    key: bytes,
+    *,
+    tenant_id: str,
+    snapshot_hash: str,
+    dim_id: str,
+    entry: dict[str, Any],
+) -> str:
+    """Return the hex HMAC-SHA256 provenance tag for one dim entry.
+
+    Server-side only — the hosted eval runner calls this with the shared
+    ``ARE_EVAL_PROVENANCE_KEY`` when it emits ``eval_outputs``. Exposed here so
+    signer and verifier share the exact construction and so the red-line tests
+    can mint a *valid* tag to prove the accept path still works.
+    """
+    return hmac.new(
+        key,
+        provenance_preimage(
+            tenant_id=tenant_id,
+            snapshot_hash=snapshot_hash,
+            dim_id=dim_id,
+            entry=entry,
+        ),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+class EvalProvenanceVerifier:
+    """Verifies server-issued provenance tags on hosted-eval evidence.
+
+    Constructed with the server-held HMAC key. ``verify`` raises
+    :class:`IntakeError` when the entry's provenance fields are missing, stale,
+    replayed, malformed, or do not match the tag the server would have issued
+    for the full bound request context. Comparison is constant-time.
+    """
+
+    def __init__(self, key: bytes, consumed_jtis: MutableSet[str] | None = None) -> None:
+        if not key:
+            raise ValueError("EvalProvenanceVerifier requires a non-empty key")
+        self._key = key
+        self._consumed_jtis = consumed_jtis if consumed_jtis is not None else set()
+
+    @classmethod
+    def from_env(cls) -> "EvalProvenanceVerifier | None":
+        """Build a verifier from ``ARE_EVAL_PROVENANCE_KEY``, or ``None``.
+
+        Returns ``None`` when the env var is unset/empty — the offline default
+        posture that keeps replay/tests/golden byte-identical. The live edge
+        deployment sets the key, which flips the intake guard to fail-closed on
+        forged provenance.
+        """
+        raw = os.environ.get(_PROVENANCE_KEY_ENV)
+        if not raw:
+            return None
+        return cls(raw.encode("utf-8"))
+
+    def verify(
+        self,
+        *,
+        tenant_id: str,
+        snapshot_hash: str,
+        dim_id: str,
+        entry: dict[str, Any],
+        now: int | None = None,
+    ) -> None:
+        sig = entry.get("provenance_sig")
+        if not isinstance(sig, str) or not _PROVENANCE_SIG_RE.match(sig):
+            raise IntakeError(
+                f"{dim_id}: provenance_sig missing or malformed; hosted-eval "
+                f"evidence must carry a server-issued HMAC provenance tag"
+            )
+        issued_at = entry.get("provenance_issued_at")
+        expires_at = entry.get("provenance_expires_at")
+        jti = entry.get("provenance_jti")
+        if not isinstance(issued_at, int) or not isinstance(expires_at, int):
+            raise IntakeError(f"{dim_id}: provenance issued_at/expires_at required")
+        if (
+            expires_at <= issued_at
+            or expires_at - issued_at > _DEFAULT_PROVENANCE_TTL_SECONDS
+        ):
+            raise IntakeError(f"{dim_id}: provenance expiry window invalid")
+        effective_now = int(time.time() if now is None else now)
+        if effective_now > expires_at:
+            raise IntakeError(f"{dim_id}: provenance signature expired")
+        if not isinstance(jti, str) or not _UUID_RE.match(jti):
+            raise IntakeError(f"{dim_id}: provenance_jti missing or not a UUID")
+        if jti in self._consumed_jtis:
+            raise IntakeError(f"{dim_id}: provenance_jti already consumed")
+
+        expected = sign_eval_provenance(
+            self._key,
+            tenant_id=tenant_id,
+            snapshot_hash=snapshot_hash,
+            dim_id=dim_id,
+            entry=entry,
+        )
+        if not hmac.compare_digest(sig, expected):
+            raise IntakeError(
+                f"{dim_id}: provenance_sig does not match a server-issued tag; "
+                f"client-asserted runner/eval_run_id is not trusted"
+            )
+        self._consumed_jtis.add(jti)
+
+
+class ProvenanceSigner:
+    """Producer-side counterpart of :class:`EvalProvenanceVerifier` (BEAAA-10945).
+
+    The hosted eval runner constructs this from the shared
+    ``ARE_EVAL_PROVENANCE_KEY`` and calls :meth:`stamp_eval_outputs` on the
+    ``eval_outputs`` mapping it is about to submit to ``POST /score``. Each dim
+    entry gains a ``provenance_sig`` = HMAC-SHA256(key,
+    "<dim_id>\\n<runner>\\n<eval_run_id>") — the *exact* construction the API
+    edge verifies via :func:`sign_eval_provenance`. Signer and verifier share
+    that one function so the live edge and the runner cannot drift (the lockstep
+    requirement flagged on BEAAA-10920: without a runner signing in lockstep
+    with the live key, ``/score`` rejects all hosted evidence).
+
+    Fail-closed by construction: an entry that does not already carry a
+    ``runner``/``eval_run_id`` cannot be signed (raises) — the runner must have
+    stamped hosted-eval provenance first (see
+    ``scanners.live_probe_orchestrator``). Only ``HOSTED_RUNNER`` entries are
+    signed; a non-hosted ``runner`` would be rejected by
+    :func:`enforce_hosted_eval_only` at the edge regardless, so signing it would
+    be meaningless.
+    """
+
+    def __init__(self, key: bytes) -> None:
+        if not key:
+            raise ValueError("ProvenanceSigner requires a non-empty key")
+        self._key = key
+
+    @classmethod
+    def from_env(cls) -> "ProvenanceSigner | None":
+        """Build a signer from ``ARE_EVAL_PROVENANCE_KEY``, or ``None``.
+
+        Symmetric with :meth:`EvalProvenanceVerifier.from_env`: ``None`` when the
+        env var is unset/empty (offline/dev posture — the runner emits the legacy
+        string+UUID provenance and the inert verifier accepts it). The live edge
+        sets the key, so the runner signs and the verifier enforces.
+        """
+        raw = os.environ.get(_PROVENANCE_KEY_ENV)
+        if not raw:
+            return None
+        return cls(raw.encode("utf-8"))
+
+    def sign(
+        self,
+        *,
+        tenant_id: str,
+        snapshot_hash: str,
+        dim_id: str,
+        entry: dict[str, Any],
+    ) -> str:
+        """Return the provenance tag for one dim entry (thin, shared helper)."""
+        return sign_eval_provenance(
+            self._key,
+            tenant_id=tenant_id,
+            snapshot_hash=snapshot_hash,
+            dim_id=dim_id,
+            entry=entry,
+        )
+
+    def stamp_eval_outputs(
+        self,
+        eval_outputs: dict[str, dict[str, Any]],
+        *,
+        tenant_id: str,
+        snapshot_hash: str,
+        issued_at: int | None = None,
+        ttl_seconds: int = _DEFAULT_PROVENANCE_TTL_SECONDS,
+        jti_factory: Callable[[], str] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Stamp ``provenance_sig`` onto every hosted-eval dim entry, in place.
+
+        Returns the same mapping for call-site convenience. Raises
+        :class:`IntakeError` if a hosted-eval entry is missing the ``runner`` or
+        ``eval_run_id`` the signature binds — that is a runner bug, not a
+        client-facing 422, and must surface loudly at emit time rather than ship
+        an unsignable payload that the edge will silently reject.
+        """
+        if not isinstance(eval_outputs, dict) or not eval_outputs:
+            raise IntakeError("eval_outputs must be a non-empty mapping to sign")
+        issued = int(time.time() if issued_at is None else issued_at)
+        ttl = int(ttl_seconds)
+        if ttl <= 0 or ttl > _DEFAULT_PROVENANCE_TTL_SECONDS:
+            raise IntakeError("provenance ttl_seconds outside allowed window")
+        for dim_id, entry in eval_outputs.items():
+            if not isinstance(entry, dict):
+                raise IntakeError(f"{dim_id}: eval_outputs entry must be a mapping")
+            runner = entry.get("runner")
+            eval_run_id = entry.get("eval_run_id")
+            if runner != HOSTED_RUNNER:
+                # Non-hosted entries are rejected at the edge before verification;
+                # do not sign them (signing would imply hosted origin they lack).
+                continue
+            if not isinstance(eval_run_id, str) or not _UUID_RE.match(eval_run_id):
+                raise IntakeError(
+                    f"{dim_id}: cannot sign provenance — eval_run_id missing or "
+                    f"not a UUID; the hosted runner must stamp it before signing"
+                )
+            entry["provenance_issued_at"] = issued
+            entry["provenance_expires_at"] = issued + ttl
+            entry["provenance_jti"] = (jti_factory or (lambda: str(uuid.uuid4())))()
+            entry["provenance_sig"] = self.sign(
+                tenant_id=tenant_id,
+                snapshot_hash=snapshot_hash,
+                dim_id=dim_id,
+                entry=entry,
+            )
+        return eval_outputs
+
+
+def sign_hosted_eval_entry(
+    *,
+    tenant_id: str,
+    snapshot_hash: str,
+    dim_id: str,
+    entry: dict[str, Any],
+    signing_key: bytes | str,
+    issued_at: int | None = None,
+    ttl_seconds: int = _DEFAULT_PROVENANCE_TTL_SECONDS,
+    jti: str | None = None,
+) -> dict[str, Any]:
+    """Return a copy of ``entry`` with bound hosted-eval provenance fields set."""
+    key = signing_key.encode("utf-8") if isinstance(signing_key, str) else signing_key
+    signer = ProvenanceSigner(key)
+    signed = {dim_id: dict(entry)}
+    signer.stamp_eval_outputs(
+        signed,
+        tenant_id=tenant_id,
+        snapshot_hash=snapshot_hash,
+        issued_at=issued_at,
+        ttl_seconds=ttl_seconds,
+        jti_factory=(lambda: jti or str(uuid.uuid4())),
+    )
+    return signed[dim_id]
+
+
+def enforce_hosted_eval_only(
+    eval_outputs: dict[str, dict[str, Any]],
+    *,
+    tenant_id: str | None = None,
+    snapshot_hash: str | None = None,
+    provenance_verifier: "EvalProvenanceVerifier | None" = None,
+    now: int | None = None,
+) -> None:
+    """Raise IntakeError on any dim entry that lacks hosted-runner provenance.
+
+    BEAAA-10920 (SEC-6): when ``provenance_verifier`` is supplied (live edge,
+    ``ARE_EVAL_PROVENANCE_KEY`` wired) each entry must additionally carry a
+    valid server-issued ``provenance_sig`` — a client-minted UUID + asserted
+    runner string is no longer sufficient. When ``None`` (offline replay /
+    tests / golden N=5), the legacy string+UUID check is unchanged so scoring
+    outputs are byte-identical.
+    """
     if not isinstance(eval_outputs, dict) or not eval_outputs:
         raise IntakeError("eval_outputs must be a non-empty mapping")
+    if provenance_verifier is not None and (not tenant_id or not snapshot_hash):
+        raise IntakeError("tenant_id and snapshot_hash required for provenance verification")
     for dim_id, entry in eval_outputs.items():
         if not isinstance(entry, dict):
             raise IntakeError(f"{dim_id}: entry must be an object")
@@ -58,6 +385,14 @@ def enforce_hosted_eval_only(eval_outputs: dict[str, dict[str, Any]]) -> None:
         run_id = entry.get("eval_run_id")
         if not isinstance(run_id, str) or not _UUID_RE.match(run_id):
             raise IntakeError(f"{dim_id}: eval_run_id missing or not a UUID")
+        if provenance_verifier is not None:
+            provenance_verifier.verify(
+                tenant_id=tenant_id or "",
+                snapshot_hash=snapshot_hash or "",
+                dim_id=dim_id,
+                entry=entry,
+                now=now,
+            )
 
 
 def enforce_input_safety(eval_outputs: dict[str, dict[str, Any]]) -> None:

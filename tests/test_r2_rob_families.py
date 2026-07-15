@@ -25,6 +25,7 @@ from harness.bench import (  # noqa: E402
     p3_3_secret_exfiltration_rob,
     pii_scan_time_detection,
     tool_misuse_param_tamper,
+    tool_misuse_scope_escape,
     tool_misuse_unauthorized_call,
 )
 from harness.bench.r2_rob_common import (  # noqa: E402
@@ -53,6 +54,11 @@ FAMILY_CASES = [
         "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
         tool_misuse_param_tamper,
         "tool_misuse_param_tamper",
+    ),
+    (
+        "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+        tool_misuse_scope_escape,
+        "tool_misuse_scope_escape",
     ),
     (
         "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
