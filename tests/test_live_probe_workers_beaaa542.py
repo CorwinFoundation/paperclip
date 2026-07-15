@@ -83,6 +83,7 @@ def test_allow_list_matches_intake_guard_validated_fields():
     """
     intake_validated = {
         "raw", "runner", "eval_run_id", "evidence_uri", "evidence_sha256",
+        "replicate_index",
     }
     assert ALLOWED_ROW_FIELDS == intake_validated | {"dim_id"}
 

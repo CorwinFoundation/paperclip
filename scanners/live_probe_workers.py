@@ -86,6 +86,18 @@ from api.intake_guard import (
 )
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
 
+# BEAAA-14422 / code-review F3 — shared per-dim K-replicate median. The
+# Scorer scores the persisted envelope from the SAME aggregation the
+# orchestrator uses for ``ScanResult.dim_results``, so a nondeterministic
+# agent cannot produce two different ``are_total`` on the two authoritative
+# surfaces. ``_median_of`` is imported from the dependency-free leaf module
+# ``scanners.replicate_median`` (NOT from ``scanners.live_probe_orchestrator``,
+# which would pull ``harness.credentials`` across the Scorer-side
+# import-isolation boundary — Hard Invariant #4). Do NOT reimplement a
+# second median: the orchestrator imports the SAME function, so the two
+# surfaces are byte-identical BY CONSTRUCTION.
+from scanners.replicate_median import _median_of
+
 
 # BEAAA-7837 — scorer-side row drain ceiling. The customer runner's
 # per-request timeout is 30s, so 60s gives a slow probe one full request
@@ -121,6 +133,7 @@ ALLOWED_ROW_FIELDS: frozenset[str] = frozenset({
     "eval_run_id",
     "evidence_uri",
     "evidence_sha256",
+    "replicate_index",
 })
 
 # Hard cap on serialized row bytes (DoS surface — the Prober's target is
@@ -349,7 +362,19 @@ def validate_inbound(message: Any) -> tuple[str, dict[str, Any]]:
         raise IntakeError("IPC message missing dim_id")
 
     entry = {k: v for k, v in message.items() if k != "dim_id"}
-    eval_outputs = {dim_id: entry}
+    replicate_index = entry.get("replicate_index")
+    if replicate_index is not None and (
+        not isinstance(replicate_index, int)
+        or isinstance(replicate_index, bool)
+        or replicate_index < 0
+    ):
+        raise IntakeError("IPC message replicate_index must be a non-negative int")
+    # ``replicate_index`` is internal IPC ordering metadata, not a Scanner
+    # eval-output field. Validate the existing contract-shaped entry verbatim,
+    # then retain the stable index for representative-row selection.
+    eval_outputs = {
+        dim_id: {k: v for k, v in entry.items() if k != "replicate_index"}
+    }
 
     # Δ1 — verbatim wrap. NOT a re-implementation, NOT a fork.
     enforce_hosted_eval_only(eval_outputs)
@@ -663,6 +688,47 @@ def run_prober(
             channel.send_end_of_scan()
 
 
+def _collapse_replicates_to_median_rows(
+    accumulated_replicates: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
+    """Collapse per-dim replicate entry lists to one median-representative
+    row per dim (BEAAA-14422 / code-review F3).
+
+    The Prober sends EVERY replicate row over IPC, so the Scorer sees K
+    entries per dim. Scoring the *last* one (last-write-wins) diverges from
+    the orchestrator's ``ScanResult.dim_results[dim].raw`` — which is
+    ``_median_of`` of the K replicate raws — the moment the agent is
+    nondeterministic (median != last). This collapses each dim to the raw
+    the orchestrator reports, using the SHARED
+    :func:`scanners.replicate_median._median_of` (the same function the
+    orchestrator imports — not reimplemented) so the two authoritative
+    surfaces are byte-identical BY CONSTRUCTION.
+
+    Because ``_median_of`` uses the lower-of-two-middles convention, the
+    median is ALWAYS a real replicate value (both K=5 and K=10). We select
+    the replicate ENTRY whose ``raw`` equals that median — deterministic
+    tie-break: the lowest stable ``replicate_index`` among median-valued
+    entries, independent of receive order — as the representative, so ``evidence_uri`` /
+    ``evidence_sha256`` keep pointing at a real transcript that actually
+    produced the scored raw. The median value itself is order-independent,
+    so the scored raw is stable regardless of IPC receive order.
+    """
+    collapsed: dict[str, dict[str, Any]] = {}
+    for dim_id, entries in accumulated_replicates.items():
+        if not entries:
+            continue
+        raws = [float(entry["raw"]) for entry in entries]
+        median = _median_of(raws)
+        # lower-of-two-middles => median is a real replicate value. Select
+        # the lowest producer index, never the first arrival.
+        representative = min(
+            (entry for entry, raw in zip(entries, raws) if raw == median),
+            key=lambda entry: int(entry["replicate_index"]),
+        )
+        collapsed[dim_id] = representative
+    return collapsed
+
+
 def run_scorer(
     *,
     channel: WorkerChannel,
@@ -718,7 +784,11 @@ def run_scorer(
             "scripts/check_no_apiedge_score.py."
         )
 
-    accumulated: dict[str, dict[str, Any]] = {}
+    # BEAAA-14422 / F3 — accumulate ALL replicate rows per dim (NOT
+    # last-write-wins). The list is collapsed to one median-representative
+    # row per dim on END_OF_SCAN, so the envelope is scored from the same
+    # per-dim median the orchestrator reports on ScanResult.dim_results.
+    accumulated_replicates: dict[str, list[dict[str, Any]]] = {}
     with ScopedEgressAllowlist([]):
         while True:
             try:
@@ -748,15 +818,46 @@ def run_scorer(
                 continue
             on_validated_row(dim_id, entry)
             if score_runtime is not None:
-                # Last-write-wins on duplicate dim_id — matches
-                # rubric.scoring.score expectations (one row per dim).
-                accumulated[dim_id] = entry
+                # BEAAA-14422 / F3 — keep every replicate row per dim so the
+                # envelope can be scored from the K-replicate median (the
+                # collapse happens on END_OF_SCAN, below). The prior
+                # last-write-wins kept only the final replicate, which
+                # silently diverged from ScanResult for nondeterministic
+                # agents (median != last).
+                accumulated_replicates.setdefault(dim_id, []).append(entry)
 
         # BEAAA-2182 Track A — END_OF_SCAN reached. If a Scorer-side
         # score_runtime was provided, project the §2.2 envelope and ship
         # it back over the return channel. Tuple sentinel mirrors Prober.
         if score_runtime is not None:
             try:
+                # BEAAA-14422 / F3 — collapse the per-dim replicate lists to
+                # one median-representative row BEFORE scoring, so
+                # compute_envelope's one-row-per-dim signature is unchanged
+                # and the persisted are_total matches ScanResult by
+                # construction (shared _median_of, lower-of-two-middles).
+                accumulated = _collapse_replicates_to_median_rows(
+                    accumulated_replicates
+                )
+                # AC#5 permanent guard — the raw about to be scored for each
+                # dim MUST equal the shared K-replicate median of that dim's
+                # received replicates. This runs on the standard scan path,
+                # so any future reintroduction of divergence (e.g. a revert
+                # to last-write-wins that bypasses the collapse) fails loudly
+                # here — not only in the one replay fixture. Fail-closed: the
+                # AssertionError is caught below and shipped as an ("err", …)
+                # tuple, so the scan errors rather than persisting a
+                # divergent envelope.
+                for _dim_id, _row in accumulated.items():
+                    _median = _median_of(
+                        [float(e["raw"]) for e in accumulated_replicates[_dim_id]]
+                    )
+                    if float(_row["raw"]) != _median:
+                        raise AssertionError(
+                            "BEAAA-14422 invariant violated: scored raw "
+                            f"{_row['raw']!r} for dim {_dim_id!r} != shared "
+                            f"K-replicate median {_median!r}"
+                        )
                 envelope = score_runtime.compute_envelope(
                     accumulated_rows=accumulated,
                     **(score_inputs or {}),

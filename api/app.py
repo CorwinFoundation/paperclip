@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -78,6 +79,52 @@ API_AUTH_TOKENS_ENV: str = "ARE_API_AUTH_TOKENS_JSON"
 #: Unset/empty ⇒ no tenant is uw-entitled (fail closed): vendor tokens cannot
 #: self-elevate to the UW struct. Only consulted when bearer auth is active.
 UW_AUDIENCE_TENANTS_ENV: str = "ARE_UW_AUDIENCE_TENANTS_JSON"
+
+#: BEAAA-14394 (fix 1) — the CI-gate threshold source. A JSON object mapping
+#: ``tenant_id`` → ``{"policy_band": "B", "fail_below_score": 72}`` that models
+#: the vendor's contracted BackBond account band (CEO ruling BEAAA-11725:
+#: server-side single source of truth, so a vendor cannot loosen the gate
+#: locally). Unset/empty ⇒ no source is wired and the ci_plugin audience
+#: reports ``infra_retry`` (fail-closed: never fabricate a pass). Parsed once
+#: at startup so a malformed config fails fast rather than per-request.
+CI_THRESHOLD_BANDS_ENV: str = "ARE_CI_THRESHOLD_BANDS_JSON"
+
+
+def _ci_threshold_source_from_env() -> (
+    "Any | None"
+):
+    """Build the tenant-keyed CI-gate threshold source from the environment.
+
+    Returns a callable ``tenant_id -> (policy_band | None, fail_below_score |
+    None)`` when ``ARE_CI_THRESHOLD_BANDS_JSON`` is configured, else ``None``.
+    Unknown tenants resolve to ``(None, None)`` — no contracted band on file,
+    which the handler treats as ``infra_retry`` (fail-closed).
+    """
+    raw = os.environ.get(CI_THRESHOLD_BANDS_ENV)
+    if not raw:
+        return None
+    try:
+        mapping = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("ci_threshold_bands_invalid") from exc
+    if not isinstance(mapping, dict):
+        raise ValueError("ci_threshold_bands_invalid")
+
+    def _lookup(tenant_id: str) -> tuple[str | None, float | None]:
+        entry = mapping.get(tenant_id)
+        if not isinstance(entry, dict):
+            return None, None
+        band = entry.get("policy_band")
+        fail_below = entry.get("fail_below_score")
+        band_out = band if isinstance(band, str) and band else None
+        fail_out = (
+            float(fail_below)
+            if isinstance(fail_below, (int, float)) and not isinstance(fail_below, bool)
+            else None
+        )
+        return band_out, fail_out
+
+    return _lookup
 
 
 def _http_error(status_code: int, detail: Any) -> HTTPException:
@@ -206,6 +253,7 @@ def create_app(
     routing_event_sink: RoutingEventSink | None = None,
     provenance_verifier: EvalProvenanceVerifier | None = None,
     webhook_outbox: "WebhookOutbox | None" = None,
+    ci_threshold_source: "Any | None" = None,
 ) -> FastAPI:
     runtime_profile = current_runtime_profile()
     # BEAAA-12021 — build + validate the typed config once at startup.
@@ -274,6 +322,15 @@ def create_app(
         if provenance_verifier is not None
         else EvalProvenanceVerifier.from_env()
     )
+    # BEAAA-14394 (fix 1) — tenant-keyed CI-gate threshold source. Explicit
+    # injection wins (tests); otherwise build from ``ARE_CI_THRESHOLD_BANDS_JSON``.
+    # ``None`` leaves the ci_plugin audience reporting ``infra_retry`` (no gate
+    # source wired), which is the fail-closed default.
+    app.state.ci_threshold_source = (
+        ci_threshold_source
+        if ci_threshold_source is not None
+        else _ci_threshold_source_from_env()
+    )
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
@@ -336,13 +393,21 @@ def create_app(
     ) -> Any:
         tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
         # BEAAA-11867 D3 — admit through the per-tenant limiter (no-op when the
-        # gateway is disabled). The lease models one in-flight scan; the
-        # current runtime executes the scan inline within kickoff, so holding
-        # the lease across the handler correctly bounds max-concurrent.
+        # gateway is disabled). The lease models one in-flight scan.
+        # BEAAA-14399 (P1#5 fix 3) — after the async full-scan cutover the scan
+        # keeps running on a daemon worker past the 202, so the lease must be
+        # held for the *actual execution*. We hand ``lease.release`` to the
+        # runtime as ``on_terminal``; it fires exactly once on the terminal
+        # transition (inline for the synchronous path, on the worker for the
+        # async path). The handler only releases the lease itself when it never
+        # reached the runtime (validation/503/JSON errors) so the admission slot
+        # is not leaked. ``ConcurrencyLease.release`` is idempotent, so a
+        # belt-and-braces double release is safe.
         try:
             lease = _admit_scan_or_none(request)
         except RateLimited as exc:
             return _rate_limited_response(exc)
+        lease_transferred = False
         try:
             if app.state.scan_runtime is None:
                 raise _http_error(503, "scan_runtime_unconfigured")
@@ -352,17 +417,20 @@ def create_app(
                     body,
                     tenant_header=tenant_context,
                     runtime=app.state.scan_runtime,
+                    on_terminal=(lease.release if lease is not None else None),
                 )
             except HandlerError as exc:
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            # The runtime now owns the lease's terminal release.
+            lease_transferred = True
             # Preserve the handler's status code (202 for the live-probe accept
             # path per contract v1.1.0). Returning the dict directly would let
             # FastAPI's default 200 win, dropping the contracted Accepted status.
             return JSONResponse(status_code=status, content=payload)
         finally:
-            if lease is not None:
+            if lease is not None and not lease_transferred:
                 lease.release()
 
     @app.post("/scanner/v1/scans")
@@ -418,6 +486,8 @@ def create_app(
             lease = _admit_scan_or_none(request)
         except RateLimited as exc:
             return _rate_limited_response(exc)
+        # BEAAA-14399 — same admission-lease terminal handoff as POST /scan.
+        lease_transferred = False
         try:
             try:
                 status, payload = rescan_handler(
@@ -426,15 +496,17 @@ def create_app(
                     runtime=app.state.scan_runtime,
                     sla_registry=app.state.sla_registry,
                     routing_event_sink=app.state.routing_event_sink,
+                    on_terminal=(lease.release if lease is not None else None),
                 )
             except HandlerError as exc:
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            lease_transferred = True
             # Preserve the handler's 202 accept status to match /scan parity.
             return JSONResponse(status_code=status, content=payload)
         finally:
-            if lease is not None:
+            if lease is not None and not lease_transferred:
                 lease.release()
 
     @app.get("/scanner/v1/sla")
@@ -459,6 +531,7 @@ def create_app(
                 audience=audience,
                 authenticated_tenant_id=authenticated_tenant_id,
                 uw_entitled=_uw_audience_entitled(authenticated_tenant_id),
+                ci_threshold_lookup=app.state.ci_threshold_source,
             )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
