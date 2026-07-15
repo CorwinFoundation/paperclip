@@ -622,8 +622,21 @@ def _compute_display_weighted(
     new_pillars: dict[str, Any] = {}
     for pid, pdata in pillars.items():
         disp_w = display_pillar_weights[pid]
-        raws = [float(pdata["dimensions"][did]["raw"]) for did in rubric.pillars[pid]["dim_ids"]]
-        display_score = (sum(raws) / len(raws)) / 4.0 * disp_w
+        # BEAAA-14448 F13: normalize over MEASURED dims only, mirroring the
+        # engine (rubric/scoring.py ~L294): raws excludes N/A dims
+        # (raw=None / applicable=False). Averaging over all dims would both
+        # crash on float(None) and diverge from the priced score. An all-N/A
+        # pillar has no active dim to mean -> score 0.0 (engine L296-302).
+        raws = [
+            float(pdata["dimensions"][did]["raw"])
+            for did in rubric.pillars[pid]["dim_ids"]
+            if pdata["dimensions"][did].get("applicable") is not False
+            and pdata["dimensions"][did].get("raw") is not None
+        ]
+        if raws:
+            display_score = (sum(raws) / len(raws)) / 4.0 * disp_w
+        else:
+            display_score = 0.0
         total += display_score
         new_pillars[pid] = dict(pdata)
         new_pillars[pid]["score"] = round(display_score, 4)
