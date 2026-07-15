@@ -47,7 +47,13 @@ def compute_reproducibility(replicates: list[dict[str, Any]]) -> dict[str, Any]:
         for r in replicates:
             for pid, pdata in r["pillars"].items():
                 if did in pdata["dimensions"]:
-                    raws.append(float(pdata["dimensions"][did]["raw"]))
+                    # BEAAA-14448 F13: N/A dims (Option C) carry raw=None.
+                    # Skip the append (float(None) would raise); a dim that
+                    # is N/A across all replicates leaves `raws` empty and is
+                    # dropped by the `if raws:` guard below.
+                    _r = pdata["dimensions"][did].get("raw")
+                    if _r is not None:
+                        raws.append(float(_r))
                     break
         if raws:
             stats = _percentile_stats(raws)

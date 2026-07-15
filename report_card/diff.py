@@ -39,6 +39,12 @@ def compute_diff(
     dim_deltas: dict[str, dict[str, float]] = {}
     for pid, pdata in current.get("pillars", {}).items():
         for did, entry in pdata.get("dimensions", {}).items():
+            # BEAAA-14448 F13: N/A dims (Option C) carry raw=None /
+            # applicable=False. You cannot delta an unmeasured dim, and
+            # float(None) would raise — skip with the canonical predicate
+            # (matches render.py:575).
+            if entry.get("applicable") is False or entry.get("raw") is None:
+                continue
             cur_raw = float(entry.get("raw", 0))
             pri_raw = _find_prior_raw(prior, did)
             if pri_raw is None:
@@ -71,7 +77,11 @@ def _find_prior_raw(prior: dict[str, Any], dim_id: str) -> float | None:
     for pid, pdata in prior.get("pillars", {}).items():
         dims = pdata.get("dimensions", {})
         if dim_id in dims:
-            return float(dims[dim_id].get("raw", 0))
+            # BEAAA-14448 F13: prior-side dim may be N/A (raw=None). Return
+            # None so the caller (L44 `if pri_raw is None: continue`) drops
+            # the delta rather than coercing None to 0.0.
+            raw = dims[dim_id].get("raw")
+            return None if raw is None else float(raw)
     return None
 
 
