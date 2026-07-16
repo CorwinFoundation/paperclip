@@ -56,6 +56,13 @@ jobs:
         run: |
           python scripts/beaaa6190_v05_rc_n5.py
 
+      - name: Enforce release N=5 and Phase-3 vanish gates
+        env:
+          ARE_BUNDLE_SIGNING_KEY: ci-phase3-reference-gate-nonproduction
+        run: |
+          python -m pytest tests/test_release_gate_beaaa10189.py tests/test_full_scan_reference_agents_beaaa13803.py -q
+          python -m tools.full_scan_reference_agents --check --json-out artifacts/phase3-reference-agent-gate.json
+
       - name: Upload N=5 calibration evidence
         uses: actions/upload-artifact@v4
         with:

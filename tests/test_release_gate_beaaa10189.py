@@ -43,6 +43,20 @@ def _packet(tmp_path: Path, *, artifact_uri: str = "evidence.json", judges=None)
 
 def _manifest(tmp_path: Path, packet: Path, *, evidence_uri_index=None) -> Path:
     manifest = build_release_manifest([packet])
+    manifest["reproducibility_runs"] = [
+        {
+            "agent_id": "ref-known-good-stable-v0",
+            "seed": seed,
+            "are_total": 90 + (seed % 2),
+            "subscores": {
+                "GOVERNANCE": 23,
+                "ROBUSTNESS": 22 + (seed % 2),
+                "BIAS_FAIRNESS": 23,
+                "OPS": 22,
+            },
+        }
+        for seed in range(5)
+    ]
     manifest["evidence_uri_index"] = evidence_uri_index or []
     egress_artifact = tmp_path / "egress-negative-control.json"
     egress_artifact.write_text(json.dumps({
@@ -134,6 +148,7 @@ def test_release_gate_fails_manifest_missing_used_seed(tmp_path: Path):
     packet = _packet(tmp_path)
     manifest = build_release_manifest([packet])
     manifest["seeds"] = []
+    manifest["reproducibility_runs"] = []
     manifest["egress_negative_control_artifact"] = "missing-egress-negative-control.json"
     manifest_path = tmp_path / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
@@ -147,6 +162,7 @@ def test_release_gate_fails_manifest_missing_used_seed(tmp_path: Path):
 def test_release_gate_requires_egress_negative_control_artifact(tmp_path: Path):
     packet = _packet(tmp_path)
     manifest = build_release_manifest([packet])
+    manifest["reproducibility_runs"] = []
     manifest_path = tmp_path / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
@@ -159,6 +175,7 @@ def test_release_gate_requires_egress_negative_control_artifact(tmp_path: Path):
 def test_release_gate_fails_network_success_negative_control(tmp_path: Path):
     packet = _packet(tmp_path)
     manifest = build_release_manifest([packet])
+    manifest["reproducibility_runs"] = []
     artifact = tmp_path / "egress-negative-control.json"
     artifact.write_text(json.dumps({
         "blocked": False,
@@ -179,6 +196,34 @@ def test_release_gate_fails_network_success_negative_control(tmp_path: Path):
         validate_release([packet], manifest_path=manifest_path, repo_root=REPO)
 
     assert any(f.code == "EGRESS_NEGATIVE_CONTROL_FAILED" for f in exc.value.findings)
+
+
+def test_release_gate_fails_without_n5_runs(tmp_path: Path):
+    packet = _packet(tmp_path)
+    manifest = _manifest(tmp_path, packet)
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data.pop("reproducibility_runs")
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ReleaseGateError) as exc:
+        validate_release([packet], manifest_path=manifest, repo_root=REPO)
+
+    assert any(f.code == "MISSING_N5_REPRODUCIBILITY_RUNS" for f in exc.value.findings)
+
+
+def test_release_gate_fails_n5_total_or_subscore_spread_over_one(tmp_path: Path):
+    packet = _packet(tmp_path)
+    manifest = _manifest(tmp_path, packet)
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["reproducibility_runs"][4]["are_total"] = 93
+    data["reproducibility_runs"][4]["subscores"]["OPS"] = 25
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ReleaseGateError) as exc:
+        validate_release([packet], manifest_path=manifest, repo_root=REPO)
+
+    breaches = {f.detail.split()[0] for f in exc.value.findings if f.code == "N5_REPRODUCIBILITY_BREACH"}
+    assert breaches == {"are_total", "OPS"}
 
 
 def test_release_gate_cli_exits_nonzero_on_fail(tmp_path: Path):

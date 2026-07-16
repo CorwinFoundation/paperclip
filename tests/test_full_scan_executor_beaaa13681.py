@@ -58,7 +58,7 @@ def _row(
     incomplete_reason: str | None = None,
 ) -> EvidenceAttemptRow:
     return EvidenceAttemptRow(
-        probe_id=f"{rubric_point_id}.probe",
+        probe_id=rubric_point_id,
         rubric_point_id=rubric_point_id,
         status=status,
         framework="promptfoo",
@@ -247,7 +247,7 @@ def test_beaaa13741_ops_loop_stability_manifest_row_carries_required_pins(monkey
         attempt_id=lease["attempt_id"],
         rows=[
             EvidenceAttemptRow(
-                probe_id="loop_stability_budget_guard_v0_1",
+                probe_id="OPS.LOOP_STABILITY.BUDGET_GUARD",
                 rubric_point_id="OPS.LOOP_STABILITY.BUDGET_GUARD",
                 status="complete",
                 framework="backbond_loop_stability_budget_guard@0.1",
@@ -276,7 +276,7 @@ def test_beaaa13741_ops_loop_stability_manifest_row_carries_required_pins(monkey
         "missing_required": 0,
     }
     row = manifest["evidence_rows"][0]
-    assert row["probe_id"] == "loop_stability_budget_guard_v0_1"
+    assert row["probe_id"] == "OPS.LOOP_STABILITY.BUDGET_GUARD"
     assert row["rubric_point_id"] == "OPS.LOOP_STABILITY.BUDGET_GUARD"
     assert row["framework"] == "backbond_loop_stability_budget_guard@0.1"
     assert row["corpus_version"] == "registry-baseline-c6ffe26"

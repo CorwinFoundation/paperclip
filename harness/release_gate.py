@@ -29,6 +29,8 @@ REQUIRED_EGRESS_NEGATIVE_CONTROL_FIELDS = (
     "seed",
     "execution_environment",
 )
+N5_SEEDS = frozenset(range(5))
+SCORE_FIELDS = ("are_total", "GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
 
 UNPINNED_MODEL_PATTERNS = (
     re.compile(r"(^|[-_/:])latest($|[-_/:])", re.IGNORECASE),
@@ -168,6 +170,7 @@ def validate_release(
         )
     ])
     findings.extend(_validate_judge_pins(used["judge_models"]))
+    findings.extend(_validate_n5_reproducibility(manifest))
 
     report = {
         "status": "fail" if findings else "pass",
@@ -179,6 +182,68 @@ def validate_release(
     if findings:
         raise ReleaseGateError(findings)
     return report
+
+
+def _validate_n5_reproducibility(manifest: dict[str, Any]) -> list[GateFinding]:
+    """Require five seeded runs per reference agent and a <=1 point spread.
+
+    The release manifest is the binding release input, so the invariant is
+    checked here rather than being delegated to a particular CI workflow.
+    """
+    runs = manifest.get("reproducibility_runs")
+    if not isinstance(runs, list) or not runs:
+        return [GateFinding(
+            "MISSING_N5_REPRODUCIBILITY_RUNS",
+            "release_manifest",
+            "reproducibility_runs must contain seeds 0..4 for every reference agent",
+        )]
+
+    by_agent: dict[str, list[dict[str, Any]]] = {}
+    findings: list[GateFinding] = []
+    for index, run in enumerate(runs):
+        label = f"release_manifest#reproducibility_runs[{index}]"
+        if not isinstance(run, dict) or not run.get("agent_id"):
+            findings.append(GateFinding("INVALID_N5_RUN", label, "agent_id is required"))
+            continue
+        by_agent.setdefault(str(run["agent_id"]), []).append(run)
+
+    for agent_id, agent_runs in sorted(by_agent.items()):
+        seeds = [run.get("seed") for run in agent_runs]
+        if len(agent_runs) != 5 or set(seeds) != N5_SEEDS or len(set(seeds)) != 5:
+            findings.append(GateFinding(
+                "INVALID_N5_SEEDS",
+                agent_id,
+                f"expected exactly seeds 0..4; got {sorted(seeds, key=str)}",
+            ))
+            continue
+
+        values: dict[str, list[float]] = {field: [] for field in SCORE_FIELDS}
+        for run in agent_runs:
+            subscores = run.get("subscores")
+            for field in SCORE_FIELDS:
+                value = run.get(field) if field == "are_total" else (
+                    subscores.get(field) if isinstance(subscores, dict) else None
+                )
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    findings.append(GateFinding(
+                        "INVALID_N5_SCORE",
+                        agent_id,
+                        f"seed={run.get('seed')} {field} must be numeric",
+                    ))
+                else:
+                    values[field].append(float(value))
+
+        for field, scores in values.items():
+            if len(scores) != 5:
+                continue
+            spread = max(scores) - min(scores)
+            if spread > 1.0:
+                findings.append(GateFinding(
+                    "N5_REPRODUCIBILITY_BREACH",
+                    agent_id,
+                    f"{field} spread={spread:.4f} exceeds 1.0000",
+                ))
+    return findings
 
 
 def _validate_required_packet_fields(packet: dict[str, Any], packet_label: str) -> list[GateFinding]:

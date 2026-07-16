@@ -165,8 +165,9 @@ class ApplicabilityValidationTests(unittest.TestCase):
             _signing_key(),
         )
         score(rub, ev, applicability_decisions=validated, **kw)
+        import rubric.scoring as scoring_module
         with self.assertRaisesRegex(ScoringError, "raw applicability_decisions"):
-            score(
+            scoring_module._score_with_required_corpus_pin(
                 rub, ev,
                 applicability_decisions=malicious["applicability_decisions"],
                 **kw,
