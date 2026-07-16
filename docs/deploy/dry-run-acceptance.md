@@ -1,50 +1,57 @@
-# CD dry-run acceptance procedure (BEAAA-13362 acceptance-of-record)
+# CD dry-run acceptance procedure
 
-The ticket acceptance is **one end-to-end dry run against a staging container**
-plus a **forced-failure run proving auto-rollback**, then **CTO co-sign**. This
-is the exact runbook the operator/CTO executes once Phase 1 (BEAAA-13361) lands
-the container and the box is provisioned (`docs/deploy/cd-pipeline.md`).
+Run this procedure on an isolated staging host or a production-faithful mirror
+using a copy of scanner state. Never use the live `vapi` tenant and never inject
+an intentional failure into live production.
 
 ## Preconditions
-- Phase 1 image builds and `box_deploy activate` runs a healthy container
-  against a **copy** of the prod state dir (never the live prod tenant).
-- `production` Environment + Founder required-reviewer configured.
-- Operator push path provisioned; `box_deploy` sudoers-whitelisted.
-- `CD_MANIFEST_SIGNING_KEY_PEM` configured in GitHub and the matching public key
-  installed on the box for `operator_push.sh --manifest-pubkey`.
-- Secrets/vars set; `STAGING_TENANT_ID` is a staging tenant, **not `vapi`**.
 
-## A. Happy-path dry run
-1. Merge a no-op commit to master (or `workflow_dispatch` with a known SHA) to
-   **simulate the merge** → `build-push` builds + pushes `:<sha>` to GHCR.
-2. Confirm the `release-approval` job is **queued and blocked** on the Founder
-   review gate (nothing has touched the box yet). This proves requirement #2.
-3. Founder clicks **Approve**.
-4. Observe: operator push → signed release-manifest verification on the box →
-   `box_deploy load` with on-box digest re-verify → `activate` (swap) →
-   `acceptance_checks.sh`:
-   - `health` = 200 on `GET /scanner/v1/sla`
-   - `auth_unauthenticated` / `auth_forged_key` = 401 on `POST /scanner/v1/scans`
-   - `smoke_scan` writes a fresh `scan_log` row; `scan_log_pins` = `1|1|1`
-     (forensic_bundle_uri + snapshot_hash + probe_set_hash all non-null)
-   - `envelope` = six external fields present, zero runtime fields (BEAAA-13169)
-5. Confirm the **deploy record** comment lands on BEAAA-13362 with SHA, digest,
-   checks table, approver, timestamp. ← proves requirement #5.
+- The branch containing the deployment changes has passed Linux CI, including
+  Bash syntax and archive-verification tests.
+- Repository Issues are enabled and the approval issue is assigned to
+  `CorwinFoundation`.
+- `CD_MANIFEST_SIGNING_KEY_PEM` is configured in GitHub; its matching public key
+  is preinstalled at `/etc/are-scanner/cd-manifest-signing-pubkey.pem`.
+- `box_deploy`, `operator_push.sh`, acceptance checks, deploy-record helper, and
+  root-owned deployment configuration are provisioned on the staging host.
+- `STAGING_TENANT_ID` identifies a non-`vapi` tenant and the state directory is a
+  staging copy.
 
-## B. Forced-failure run (auto-rollback proof)
-1. Break one check deterministically on the *staging* container only — e.g.
-   point `PROD_BASE_URL` health at a port serving 503, **or** inject an image
-   whose envelope leaks a runtime field.
-2. Re-run the pipeline; approve the gate.
-3. Observe: acceptance fails → `AUTO-ROLLBACK` restarts the container on the
-   **previous** image → rollback health leg passes → deploy record posts
-   `outcome=failure … AUTO-ROLLED BACK`. ← proves requirement #4.
-4. Confirm the staging container is back on the prior image and healthy.
+## Happy-path proof
 
-## C. Sign-off
-- Attach both run URLs + both deploy-record comments.
-- **CTO co-sign** on the Phase-2 PR (`cto_cosign_ref`).
-- Then Phase 3 (BEAAA-13363) cuts the live edge over to this pipeline.
+1. Trigger the workflow for the current `master` commit.
+2. Confirm the image build produces `image-payload-<sha>` and that the approval
+   issue names the same SHA, registry digest, and archive SHA-256.
+3. Approve the issue from `CorwinFoundation`.
+4. Confirm `release-manifest-<sha>` is created and its signed fields match the
+   image artifact and Actions run.
+5. Transfer the archive, manifest, and signature to the staging host. Run the
+   operator command using the preinstalled public-key trust anchor.
+6. Confirm acceptance reports:
+   - `GET /scanner/v1/sla` returns 200.
+   - Unauthenticated and forged-key scan requests return 401.
+   - A non-`vapi` smoke scan writes a fresh scan-log row.
+   - Forensic bundle URI, snapshot hash, and probe-set hash are pinned.
+   - The customer envelope contains only the six external fields and no runtime
+     fields.
+7. Confirm the deploy record contains SHA, digest, checks, approver, timestamp,
+   and the Actions run URL.
 
-> This is a **staging** dry run. The first *production* deploy through the
-> pipeline is Phase 3, operator-run, against the live edge.
+## Forced-failure rollback proof
+
+On the isolated staging host only, make one acceptance input deterministically
+invalid—for example, point the candidate base URL at a local 503 listener or use
+an invalid staging-agent identifier. Do not use `vapi` as the failure mechanism.
+
+1. Deliver another approved candidate through the same signed-artifact path.
+2. Confirm acceptance fails and activation does not become the final serving
+   state.
+3. For a first-cutover mirror, confirm Nginx still serves or is restored to the
+   legacy port and the legacy service remains active.
+4. For a container-to-container update, confirm the previous local image is
+   restarted.
+5. Confirm rollback health passes and the deploy record reports failure and
+   rollback evidence.
+
+Attach both Actions run URLs, the two deploy records, and the rollback health
+evidence to the change record before authorizing the real production cutover.

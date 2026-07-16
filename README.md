@@ -143,6 +143,11 @@ regression on the golden roster runs at the merge gate per
 `agents/scanner-implementation-supervision-v1.md`; outputs land under
 `tools/calibration-deltas/`.
 
+Production container delivery uses the zero-egress, Founder-gated flow in
+[`docs/deploy/cd-pipeline.md`](docs/deploy/cd-pipeline.md). The reversible
+systemd-to-container migration is in [`first-container-cutover.md`](docs/deploy/first-container-cutover.md),
+with staging proof in [`dry-run-acceptance.md`](docs/deploy/dry-run-acceptance.md).
+
 ## Live scan-to-production proof
 
 The presentation environment executes the real scanner, underwriting admittance

@@ -1,177 +1,109 @@
-# CD pipeline — containerized, Founder-gated deploy (operator-mediated push)
+# CD pipeline — Founder-gated, operator-mediated production delivery
 
-**BEAAA-13362 (Phase 2)** · rule-execution under BEAAA-13358 /
-`founder-directive-deploy-pipeline-2026-07-10` · mechanism per ADR-0057 v2.0
-(BEAAA-13360), corrected by CTO decision **BEAAA-13387**. No scoring / rubric /
-corpus / band / output-shape / tamper change — deploy plumbing only, **no
-Underwriter gate**.
+The production scanner host has default-deny outbound network access. GitHub
+Actions therefore builds and packages each release, while an operator sends the
+approved files to the host over the existing inbound SSH channel. The host never
+pulls an image or opens general egress.
 
-## Why push, not pull
+The first migration from the systemd service is documented in
+[`first-container-cutover.md`](first-container-cutover.md). This document
+describes the release trust chain and the repeatable delivery flow.
 
-srv1749248 runs under **default-deny egress** (BEAAA-13385): no outbound HTTPS,
-by design, as the scanner's SSRF/exfil containment wall. A self-hosted GitHub
-Actions runner on the box (the original Option A) would have to reach
-`api.github.com` / `pipelines.actions.githubusercontent.com` **outbound** to
-register and long-poll for jobs — impossible under the wall. So **the box never
-pulls its own release.** GitHub Actions only builds+pushes the image and holds
-the Founder gate; delivery **into** the box is an operator-mediated push over
-the existing controlled inbound operator SSH channel. The wall is EGRESS, not
-ingress — the operator SSH-in already exists, so the push adds no new inbound
-surface and opens no box egress.
+## Release sequence
 
-## What ships every merge
+For every commit merged to `master`, `.github/workflows/cd.yml`:
 
-```
-push to master
-  └─ build-push  (GitHub-hosted CI — CI has egress)
-     │   build image from Phase-1 Dockerfile, import-closure guard at build,
-     │   push PRIVATE → ghcr.io/corwinfoundation/are-scanner:<sha>, record DIGEST,
-     │   sign the digest with keyless cosign
-     └─ release-approval  (GitHub-hosted, environment: production)
-        ├─ ⛔ FOUNDER GATE: the `production` Environment required-reviewer
-        │      Approve click. No box contact from CI.
-        ├─ write release-manifest.json  (sha · ref · DIGEST · approver · run-url)
-        ├─ sign release-manifest.json   offline verification artifact for the box
-        └─ post "approved — awaiting operator push" record → tracker
+1. Validates the deploy scripts.
+2. Builds `ghcr.io/corwinfoundation/are-scanner:<git-sha>` from that exact event
+   commit and sets the OCI revision label to the same SHA.
+3. Pushes and keyless-signs the registry digest with Cosign.
+4. Pulls that digest on the GitHub runner, saves the SHA-tagged image as a Docker
+   archive, hashes the archive, and uploads `image-payload-<sha>`.
+5. Opens an approval issue assigned to `CorwinFoundation`. The job does not
+   continue until that account approves it.
+6. Writes and signs a release manifest containing the Git SHA, image ref,
+   registry digest, exact archive SHA-256, artifact name, approver, and Actions
+   run URL. It uploads `release-manifest-<sha>`.
+7. Records “approved — awaiting operator push” only after manifest signing and
+   artifact upload succeed.
 
-        ── then, OFF this workflow, the operator performs the push ──
+A manual workflow dispatch follows the same path and always builds the event's
+current `master` SHA. It cannot relabel arbitrary or older source as a different
+commit.
 
-operator, on an EGRESS-CAPABLE machine (not the box):
-  ├─ docker pull <ref>@<DIGEST>        pull the Founder-approved digest from GHCR
-  ├─ cosign verify <ref>@<DIGEST>      verify image signature; fail closed
-  ├─ docker/podman save → tarball
-  └─ scp tarball + signed manifest INTO the box over inbound operator SSH
+## Trust chain
 
-operator, ON THE BOX  (scripts/deploy/operator_push.sh):
-  ├─ verify release-manifest.json.sig     offline signature check; fail closed
-  ├─ box_deploy load <tarball> <DIGEST>   docker load + ON-BOX digest RE-VERIFY
-  │                                       (fail closed if digest ≠ approved)
-  ├─ box_deploy current                   record previous image (rollback target)
-  ├─ box_deploy activate <ref>            swap running container, keep prev image
-  ├─ acceptance_checks.sh                 health / auth×2 / staging self-scan / envelope
-  ├─ on failure → box_deploy rollback <prev>  (local retag+restart, seconds; NO egress)
-  └─ post_deploy_record.py                SHA·digest·checks·approver·ts → tracker
-```
+The box trusts only the public key installed at
+`/etc/are-scanner/cd-manifest-signing-pubkey.pem`. The public-key copy in the
+Actions artifact is informational and is never accepted as a command-line trust
+anchor.
 
-"What the Founder approved == what loads == what activates" is enforced by the
-**signed release manifest** plus **on-box digest re-verify**, not by trusting the
-transport. The box never originates an outbound connection at any step.
+`operator_push.sh` verifies the signed manifest before loading anything. It then
+requires every operator-supplied field to equal the signed value. `box_deploy`
+verifies the archive SHA-256, requires the expected tag to exist after load, and
+requires the image's OCI revision label to equal the approved Git SHA.
 
-## One-time provisioning (Founder / operator — cannot be done from an agent seat)
+This binds the following chain:
 
-These are GitHub-org and on-box settings; no agent has repo-admin or box SSH.
+`approved Actions run → signed manifest → exact Docker archive → image tag and revision → activated container`
 
-1. **`production` GitHub Environment + Founder gate.**
-   Repo → Settings → Environments → **New** `production` →
-   **Required reviewers** = the Founder. This single setting *is* the gate the
-   `release-approval` job blocks on.
+The registry digest remains in the signed audit record. Docker archives do not
+reliably preserve registry `RepoDigest` metadata, so the on-box content check is
+the signed archive SHA-256 rather than a post-load `RepoDigest` comparison.
 
-2. **GHCR access.** `GITHUB_TOKEN` with `packages: write` (already granted in
-   `cd.yml`) pushes to `ghcr.io/corwinfoundation/*`. Ensure the package is
-   **private** and the repo can write it (org → Packages → visibility). The
-   operator's egress-capable machine needs a read token to `docker pull` the
-   approved digest.
+## One-time GitHub setup
 
-3. **Manifest signing key.** Configure GitHub secret
-   `CD_MANIFEST_SIGNING_KEY_PEM` with the private PEM key used to sign
-   `release-manifest.json` after the Founder approval gate. Install the matching
-   public key on the box, e.g.
-   `/etc/are-scanner/cd-manifest-signing-pubkey.pem` (`root:root`, `0644`).
-   On-box activation refuses unsigned or mismatched manifests before any image
-   load.
+- Repository Issues must remain enabled for the approval gate.
+- The Actions secret `CD_MANIFEST_SIGNING_KEY_PEM` must contain the private PEM
+  key whose public half is installed on the box.
+- `GITHUB_TOKEN` receives `packages: write` only in the image-build job and
+  `issues: write` only where the approval gate needs it.
+- The `production` Environment is retained as an audit label. The approval issue
+  is the enforced Founder gate for this repository.
+- `PAPERCLIP_API_URL` and `PAPERCLIP_DEPLOY_BOT_KEY` are optional for tracker
+  posting; they do not weaken artifact verification.
 
-4. **Box deploy verb + sudoers whitelist.**
-   Install `scripts/deploy/box_deploy.sh` → `/usr/local/sbin/box_deploy`
-   (`root:root`, `0755`) and whitelist exactly it:
-   ```
-   are-deploy ALL=(root) NOPASSWD: /usr/local/sbin/box_deploy
-   ```
-   `are-deploy` gets **no other** root capability, and — unlike Option A —
-   there is **no self-hosted runner process** on the box at all. Optionally drop
-   box-local overrides in `/etc/are-scanner/deploy.env` (`ARE_CONTAINER_NAME`,
-   `ARE_STATE_DIR`, `ARE_SECRETS_ENV`, `ARE_BIND`, `ARE_CONTAINER_ENGINE`).
+## Per-release operator delivery
 
-5. **Box-local push env** (for `operator_push.sh`, in `/etc/are-scanner/deploy.env`
-   or the operator's shell — never in CI):
-   - `PROD_BASE_URL` (e.g. `https://127.0.0.1:8443` loopback on box),
-     `STAGING_TENANT_ID` (**never `vapi`**), `STAGING_AGENT_ID`,
-     `SCAN_LOG_DB` (`/var/lib/are-scanner/scan_log.sqlite3`).
-   - `ARE_STAGING_ADMIN_TOKEN` — admin key to trigger the staging self-scan.
-   - `PAPERCLIP_API_URL`, `PAPERCLIP_DEPLOY_BOT_KEY` — deploy-record poster.
+After the approval issue is approved, download both artifacts from the same
+Actions run:
 
-## Operator push runbook (per release)
+- `image-payload-<sha>` containing `are-scanner-<sha>.tar` and its checksum file.
+- `release-manifest-<sha>` containing `release-manifest.json`, its signature, and
+  an informational public-key copy.
 
-After the Founder approves the `release-approval` job, download the
-`release-manifest-<sha>` artifact (sha · ref · **digest** · approver · run-url),
-then on an egress-capable machine:
+Read `sha`, `ref`, `digest`, `tar_sha256`, `approver`, and `run_url` from the
+manifest. Send only the archive, manifest, and signature to the box. Do not use
+the downloaded public-key copy in place of the preinstalled trust anchor.
 
-```
-docker pull "<ref>@<digest>"            # pull exactly the approved digest
-cosign verify \
-  --certificate-identity-regexp 'https://github.com/CorwinFoundation/are-scanner/.github/workflows/cd.yml@refs/heads/master' \
-  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-  "<ref>@<digest>"
-docker save "<ref>" -o are-scanner-<sha>.tar
-scp are-scanner-<sha>.tar release-manifest.json release-manifest.json.sig operator@<box>:/tmp/
-```
+For an ordinary container-to-container release, run:
 
-then on the box:
-
-```
-scripts/deploy/operator_push.sh \
-  --tarball  /tmp/are-scanner-<sha>.tar \
-  --digest   <digest> \
-  --ref      <ref> \
-  --sha      <sha> \
-  --approver <approver-from-manifest> \
-  --run-url  <run-url-from-manifest> \
+```sh
+/root/deploy/operator_push.sh \
+  --tarball /tmp/are-scanner-<sha>.tar \
+  --tar-sha256 <tar_sha256> \
+  --digest <digest> \
+  --ref <ref> \
+  --sha <sha> \
+  --approver <approver> \
+  --run-url <run_url> \
   --manifest /tmp/release-manifest.json \
-  --manifest-sig /tmp/release-manifest.json.sig \
-  --manifest-pubkey /etc/are-scanner/cd-manifest-signing-pubkey.pem
+  --manifest-sig /tmp/release-manifest.json.sig
 ```
 
-`operator_push.sh` verifies the signed release manifest on the box, re-verifies
-the digest on load, activates, runs acceptance, auto-rolls-back on any failure,
-and posts the final deploy record.
-The first pipeline-driven deploy runs under CTO close-gate (Phase 3,
-BEAAA-13363).
+Use `--first-cutover` only for the documented systemd-to-container migration.
 
-## Auto-rollback
+## Failure and rollback behavior
 
-Any failed acceptance check exits `acceptance_checks.sh` non-zero → the
-`operator_push.sh` auto-rollback restarts the container on the previously-active
-image (retained on the box, so it is a local retag+restart, seconds — **no
-egress, no pull**) and re-runs the health leg. The deploy record is posted
-either way, flagged `AUTO-ROLLED BACK`. If even the previous image is absent
-locally (should never happen — it is never pruned) the box cannot self-heal and
-the operator is paged.
+- Signature, field, archive, ref, or revision mismatch: fail before activation.
+- Candidate acceptance failure: remove the first-cutover candidate, or restart
+  the previous retained image during later deployments.
+- Nginx cutover or public health failure: restore the saved legacy Nginx config
+  and verify the systemd-backed route.
+- If ingress restoration is uncertain, keep the candidate running so Nginx is
+  never intentionally pointed at a stopped process, and page the operator.
+- Images are not pruned by the deployment scripts.
 
-## Safety invariants
-
-- **Zero box egress.** The box never originates an outbound connection —
-  `box_deploy` has no `docker pull`; delivery is a tarball pushed in, rollback
-  uses the locally-retained image. General egress stays CLOSED (BEAAA-13385).
-- **Build/sign/hash-pin.** CI signs the pushed image by digest with keyless
-  cosign, then the Founder-gated job signs a digest manifest for offline on-box
-  verification.
-- **On-box signature + digest re-verify.** `operator_push.sh` fails closed unless
-  the release manifest signature verifies and its SHA/ref/digest match the
-  operator arguments; `box_deploy load` then fails closed unless the loaded image
-  carries the Founder-approved digest.
-- **Staging self-scan never targets `vapi`** — `acceptance_checks.sh` fails
-  closed if the resolved tenant is `vapi` (standing blackout, BEAAA-13170).
-- State + secrets are **host-mounted**, never baked into the image
-  (`/var/lib/are-scanner/`, `secrets.env`). `ScanLog._migrate()` (PR #51)
-  forward-migrates additive columns on connect, so image swap is safe.
-- Image builds from `requirements-runtime.txt` (ADR-0038 slice); a failing
-  import-closure guard **fails the build**, so a broken slice can't be pushed.
-
-## Dependency / status
-
-- Consumes the **container contract** from Phase 1 (BEAAA-13361): the
-  `Dockerfile`, `ARE_CONTAINER_NAME`, `ARE_BIND`, host-mount layout.
-- Phase 1's Dockerfile builds in **CI, not on the box** (BEAAA-13387), so its
-  stale BEAAA-12895 blocker is released; it stays blocked only on the ADR pivot.
-- The **end-to-end dry-run acceptance + CTO co-sign** (this ticket's acceptance)
-  runs once Phase 1 lands the container and the box is provisioned.
-  See `docs/deploy/dry-run-acceptance.md`.
+The `vapi` tenant remains prohibited in deployment acceptance. State and secrets
+stay host-mounted under `/var/lib/are-scanner` and `/etc/are-scanner/secrets.env`;
+they are never embedded in an artifact.
