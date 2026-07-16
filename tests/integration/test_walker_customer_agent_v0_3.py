@@ -86,8 +86,8 @@ class _DeterministicEchoHandler(BaseHTTPRequestHandler):
     """Returns a deterministic JSON response per request.
 
     The response text encodes a refusal token so the
-    ``inspect_section1_v0`` wrap's Pillar-1 scorer emits raw=3.0
-    deterministically; other pillars score against the body shape.
+    ``inspect_section1_v0`` wrap's P1.4 out-of-scope-refusal scorer emits
+    raw=3.0 deterministically; other dims score against the body shape.
     The response NEVER echoes the Authorization header — that is the
     AG-B7 trust boundary (the echo server represents the customer
     endpoint; if the customer endpoint leaked our credential back in
@@ -146,7 +146,13 @@ class TestAGB1WalkerRoundTrip:
         """BEAAA-8303: seed one cheap evidence row before slower prompts."""
         specs = inspect_section1_v0.probe_specs()
 
-        assert [spec.dim_id for spec in specs] == ["P4.1", "P1.1", "P2.1", "P3.1"]
+        # BEAAA-14425 Defect A: labels corrected to rubric peril home; the
+        # home-less instruction-following probe is parked out of the live set.
+        assert [spec.dim_id for spec in specs] == [
+            "P1.4",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+            "P1.1",
+        ]
 
     def test_syllable_deadline_error_maps_to_partial_completion(self) -> None:
         class _DeadlineRunner:
@@ -169,14 +175,20 @@ class TestAGB1WalkerRoundTrip:
             agent_endpoint, AGB7_FIXTURE_TOKEN
         )
         rows = list(customer_agent_probe_run_fn(runner))
-        assert len(rows) == 4, f"expected 4 wrap'd probe rows, got {len(rows)}"
-        # P1.1 — refusal token in response → raw=3.0 per Pillar-1 scorer.
+        assert len(rows) == 3, f"expected 3 wrap'd probe rows, got {len(rows)}"
+        # BEAAA-14425 Defect A: live minimal set covers OPS (P1.1, P1.4) +
+        # ROBUSTNESS (PII scan-time); BIAS_FAIRNESS + GOVERNANCE have no live
+        # probe. The refusal token → P1.4 out-of-scope-refusal scorer emits 3.0.
         dim_ids = {dim_id for dim_id, _ in rows}
-        assert dim_ids == {"P1.1", "P2.1", "P3.1", "P4.1"}, dim_ids
+        assert dim_ids == {
+            "P1.1",
+            "P1.4",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        }, dim_ids
         for dim_id, partial in rows:
             assert partial["evidence_uri"] == (
                 "https://evidence.are-scanner.local/wrap/"
-                f"inspect_section1_v0/0.1.0/{dim_id}"
+                f"inspect_section1_v0/{inspect_section1_v0.WRAP_VERSION}/{dim_id}"
             )
             assert partial["evidence_sha256"].startswith("sha256:")
             assert isinstance(partial["raw"], float)
@@ -200,7 +212,7 @@ class TestAGB1WalkerRoundTrip:
         runner = _Runner()
         rows = list(customer_agent_probe_run_fn(runner))  # type: ignore[arg-type]
 
-        assert len(rows) == 4
+        assert len(rows) == 3
         assert runner.deadline is None
 
     def test_smoke_tier_stamps_bounded_walker_deadline(
@@ -227,7 +239,7 @@ class TestAGB1WalkerRoundTrip:
         runner = _Runner()
         rows = list(customer_agent_probe_run_fn(runner))  # type: ignore[arg-type]
 
-        assert len(rows) == 4
+        assert len(rows) == 3
         assert runner.deadline == 100.0 + SMOKE_DEV_SCAN_DEADLINE_SECONDS
 
 
@@ -290,12 +302,16 @@ def _synthetic_walker_rows() -> dict[str, dict[str, Any]]:
     return rows
 
 
-def _full_applicability_for_walker_rows(active_dim_ids: list[str]) -> dict[str, dict[str, Any]]:
-    """Customer-supplied applicability that marks the 4 walker-covered
+def _full_applicability_for_walker_rows(
+    active_dim_ids: list[str], covered: set[str]
+) -> dict[str, dict[str, Any]]:
+    """Customer-supplied applicability that marks the ``covered`` walker
     dims as fires=True and every other active dim as fires=False with
-    the customer's N/A justification (CASE 2 round-trip).
+    the customer's N/A justification (CASE 2 round-trip). ``covered`` is
+    the exact set of dim_ids the walker emitted rows for, so fires=True
+    dims and scored dims match one-for-one (BEAAA-14425: the live minimal
+    set changed, so callers pass the actual coverage rather than a literal).
     """
-    covered = {"P1.1", "P2.1", "P3.1", "P4.1"}
     decisions: dict[str, dict[str, Any]] = {}
     for did in active_dim_ids:
         if did in covered:
@@ -315,7 +331,7 @@ class TestAGB3Case2ApplicabilityFromInvocationContext:
     ) -> None:
         rows = _synthetic_walker_rows()
         decisions = _full_applicability_for_walker_rows(
-            score_runtime.rubric.active_dim_ids
+            score_runtime.rubric.active_dim_ids, set(rows)
         )
         env = score_runtime.compute_envelope(
             accumulated_rows=rows,
@@ -342,7 +358,7 @@ class TestAGB3Case2ApplicabilityFromInvocationContext:
         (CLI / golden-fixture path)."""
         rows = _synthetic_walker_rows()
         explicit = _full_applicability_for_walker_rows(
-            score_runtime.rubric.active_dim_ids
+            score_runtime.rubric.active_dim_ids, set(rows)
         )
         # Provide a different (but valid) decisions dict via context;
         # the explicit kwarg should win.
@@ -427,7 +443,8 @@ class TestAGB5EnvelopeByteStableAcrossReplicates:
         """
         agent_endpoint, _ = echo_server
         decisions = _full_applicability_for_walker_rows(
-            score_runtime.rubric.active_dim_ids
+            score_runtime.rubric.active_dim_ids,
+            {s.dim_id for s in inspect_section1_v0.probe_specs()},
         )
         serialized_envelopes: list[str] = []
         for replicate_idx in range(5):
@@ -534,7 +551,7 @@ class TestAGB7CredentialBytesIPCAudit:
                 accumulated[dim_id] = partial
 
             decisions = _full_applicability_for_walker_rows(
-                score_runtime.rubric.active_dim_ids
+                score_runtime.rubric.active_dim_ids, set(accumulated)
             )
             env = score_runtime.compute_envelope(
                 accumulated_rows=accumulated,

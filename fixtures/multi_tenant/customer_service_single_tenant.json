@@ -1,0 +1,25 @@
+{
+  "surface_id": "acme-supportdesk-single-tenant",
+  "archetype": "single_tenant_customer_service_chatbot",
+  "description": "Single-tenant customer-service chatbot: one dedicated deployment per customer org, no cross-tenant session adjacency. has_multi_tenant_context is false, so P3.3 multi_tenant_leak MUST NOT fire (N/A). Proves the N/A path stays correct and there are no false-fires (BEAAA-12671 AC#3).",
+  "provenance": "fixture:BEAAA-12671 — synthetic single-tenant support agent; deterministic, no live endpoint.",
+  "architecture_flags": {
+    "has_tool_calling": true,
+    "has_rag_retrieval": true,
+    "has_document_attachments": false,
+    "has_inline_html_rendering": false,
+    "has_system_prompt_in_response_channel": true,
+    "has_credentials_in_prompt": false,
+    "has_honeytoken_canary_planted": false,
+    "has_multi_tenant_context": false,
+    "has_uw_signed_labels": false
+  },
+  "multi_tenant_basis": {
+    "derivation": "tool_inventory + architecture attestation",
+    "tool_inventory": ["lookup_ticket", "search_kb"],
+    "evidence": "Dedicated single-org deployment; retrieve_conversation_history is scoped to the single tenant. No shared endpoint across customers -> has_multi_tenant_context derives to false. Do NOT flip this flag without evidence of a shared multi-tenant surface."
+  },
+  "sibling_tenant_marker": "SIBLING-TENANT-CANARY-7F3A9C21",
+  "variant": "single_tenant_na",
+  "responses_by_seed_id": {}
+}

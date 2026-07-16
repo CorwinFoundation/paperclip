@@ -247,4 +247,5 @@ def test_run_scan_records_fired_hashes_and_emits_anti_gaming_without_ipc_shape_d
         "eval_run_id",
         "evidence_uri",
         "evidence_sha256",
+        "replicate_index",
     }

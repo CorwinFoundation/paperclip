@@ -7,13 +7,13 @@ process restart — the running app picks up changes within its ≤5s cache TTL.
 STAGING / non-public only.
 
 Examples:
-    bin/are-keys --store /var/lib/backbond/keys.json issue \\
+    bin/are-keys --store /var/lib/are-scanner/edge/keys.json issue \\
         --token <secret> --key-id k-2026-07 --tenant-id <tenant> \\
         --ttl-seconds 2592000 --scans-per-min 20 --max-concurrent 5
-    bin/are-keys --store /var/lib/backbond/keys.json rotate \\
+    bin/are-keys --store /var/lib/are-scanner/edge/keys.json rotate \\
         --old-key-id k-2026-07 --new-token <secret2> --new-key-id k-2026-08
-    bin/are-keys --store /var/lib/backbond/keys.json revoke --key-id k-2026-07
-    bin/are-keys --store /var/lib/backbond/keys.json list
+    bin/are-keys --store /var/lib/are-scanner/edge/keys.json revoke --key-id k-2026-07
+    bin/are-keys --store /var/lib/are-scanner/edge/keys.json list
 """
 import sys
 from pathlib import Path

@@ -1,0 +1,19 @@
+# Live BackBond Scanner edge runtime dependencies.
+#
+# BEAAA-13552 unblock for BEAAA-13361 image parity. This file is intentionally
+# narrower than requirements.txt: offline eval frameworks and heavyweight
+# detector stacks stay out of the live FastAPI edge image and remain in their
+# dedicated scanner/eval environments.
+
+fastapi==0.136.1
+uvicorn==0.49.0
+pydantic==2.13.4
+PyYAML==6.0.2
+httpx==0.27.2
+
+# Model SDKs are lazy-loaded by harness.runner when live-probe execution calls
+# customer-facing model adapters. Keeping the pins here preserves parity with
+# requirements.txt without pulling in offline eval frameworks.
+anthropic==0.39.0
+openai==1.54.4
+google-genai==0.3.0

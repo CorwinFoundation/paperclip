@@ -33,6 +33,11 @@ def test_beaaa8225_source_artifacts_env_override(monkeypatch, tmp_path):
     assert runner.source_artifacts_dir() == source_root.resolve()
 
 
+@pytest.mark.xfail(
+    raises=runner.cli_runner.CliInputError,
+    reason="BEAAA-14431: unsigned legacy applicability waivers now fail closed",
+    strict=True,
+)
 def test_beaaa8225_consolidated_grade_card_acceptance():
     source_root = runner.source_artifacts_dir()
     missing_sources = [path for path in REQUIRED_SOURCE_ARTIFACTS if not (source_root / path).exists()]

@@ -45,8 +45,13 @@ try:
     _AGENTDOJO_AVAILABLE = True
     _AGENTDOJO_VERSION = getattr(agentdojo, "__version__", "unknown")
 except ImportError:
-    _AGENTDOJO_AVAILABLE = False
-    _AGENTDOJO_VERSION = "not-installed"
+    # Fall back to the per-framework venv resolver (BEAAA-13331) so agentdojo
+    # can be materialized in its own venv alongside the garak/pyrit split.
+    # Returns (False, "not-installed") when unconfigured — byte-identical to
+    # the historical branch.
+    from scanners.eval_framework_venv import resolve_framework
+
+    _AGENTDOJO_AVAILABLE, _AGENTDOJO_VERSION = resolve_framework("agentdojo")
 
 
 class AgentDojoRunnerError(RuntimeError):

@@ -227,18 +227,32 @@ paths:
             enum: [customer, uw]
             default: customer
           description: |
-            Selects the response variant. ``customer`` strips
-            ``live_probe_variance_band`` per Δ4 (BEAAA-547 customer-facing
-            adapter rule). ``uw`` retains every field for Underwriter
-            pricing consumption and is gated on caller entitlement
-            (BEAAA-11858): a caller not on the uw-audience allowlist
-            (e.g. a CI vendor token) receives 403 ``audience_forbidden``.
+            Selects the response variant. ``customer`` (default, BEAAA-13169
+            §4 P0) returns the public completed-scan envelope: the external
+            result object (``are_total``, ``subscores``, ``band``,
+            ``confidence``, ``evidence_refs``, ``uncovered_dimensions``) plus
+            reproducibility provenance (``scanner_version``,
+            ``corpus_version``, ``model_versions``, ``seed``) and the
+            ``partial_completion`` / ``confidence_below_adjudication_threshold``
+            flags — projected read-only from the persisted score. It does NOT
+            surface internal runtime fields (``rows_emitted`` /
+            ``spread_per_dim`` / ``dim_results``). ``uw`` retains every field
+            (including ``live_probe_variance_band``) for Underwriter pricing
+            consumption and is gated on caller entitlement (BEAAA-11858): a
+            caller not on the uw-audience allowlist (e.g. a CI vendor token)
+            receives 403 ``audience_forbidden``.
       responses:
         '200':
-          description: Current scan state with aggregated result (when complete)
+          description: |
+            Current scan state. For ``audience=customer`` this is the public
+            completed-scan envelope (external result object + provenance); for
+            ``audience=uw`` it is the full internal ScanResult struct.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ScanResult' }
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CompletedScanEnvelope'
+                  - $ref: '#/components/schemas/ScanResult'
         '401': { description: authorization_bearer_required / authorization_invalid }
         '403': { description: audience_forbidden (caller not entitled to the uw payload) }
         '404':
@@ -751,12 +765,63 @@ components:
           items:
             type: string
             enum: [GOVERNANCE, ROBUSTNESS, BIAS_FAIRNESS, OPS]
+    CompletedScanEnvelope:
+      type: object
+      description: |
+        BEAAA-13169 §4 P0 — the public completed-scan envelope returned by
+        ``GET /scan/{scanId}`` for ``audience=customer``. This is the external
+        result object a design partner reads at the finish line of the
+        three-call flow: the score and its decomposition, plus reproducibility
+        provenance. Projected read-only from the persisted score; carries NO
+        internal runtime fields.
+      required:
+        [scan_id, status, are_total, subscores, band, confidence,
+         evidence_refs, uncovered_dimensions, scanner_version, corpus_version,
+         seed, partial_completion, confidence_below_adjudication_threshold]
+      properties:
+        scan_id: { type: string }
+        status: { type: string, enum: [complete, partial, accepted, incomplete] }
+        are_total:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: "The 100-point BackBond Score."
+        subscores:
+          type: object
+          additionalProperties: { type: number }
+          description: |
+            Per-pillar contract subscores keyed by canonical pillar name
+            (GOVERNANCE / ROBUSTNESS / BIAS_FAIRNESS / OPS).
+        band:
+          type: string
+          description: "Letter grade for the total (e.g. A+, D)."
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: "Deterministic confidence proxy (1.0 − share of uncovered dims)."
+        evidence_refs:
+          type: array
+          items: { type: object }
+          description: "Per-dimension evidence references (URI + sha256)."
+        uncovered_dimensions:
+          type: array
+          items: { type: object }
+          description: "Dimensions not measured this run ({dim_id, reason}); empty when full."
+        scanner_version: { type: string }
+        corpus_version: { type: string }
+        model_versions:
+          description: "Pinned judge/model versions (object or null under rollback)."
+        seed: { type: integer }
+        partial_completion: { type: boolean }
+        confidence_below_adjudication_threshold: { type: boolean }
     ScanResult:
       type: object
       description: |
-        v1.1.0 live-probe aggregated result. Customer-facing variant
-        strips ``live_probe_variance_band`` (Δ4); UW-facing variant
-        retains every field.
+        v1.1.0 live-probe aggregated result — the UW-facing (``audience=uw``)
+        internal struct. Customer-facing variant strips
+        ``live_probe_variance_band`` (Δ4); the customer completed-scan
+        envelope is ``CompletedScanEnvelope`` (BEAAA-13169 §4 P0).
       required: [scan_id, status, scanner_version, corpus_version, rows_emitted, k_replicates, incomplete]
       properties:
         scan_id: { type: string }

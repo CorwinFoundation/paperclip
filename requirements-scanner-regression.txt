@@ -10,6 +10,12 @@
 # Keep the upstream eval pins in requirements.txt as the release contract
 # source of truth. This file is only the non-conflicting dependency slice
 # required by .github/workflows/scanner-regression.yml.
+#
+# The garak/pyrit datasets conflict is no longer a standing footgun: the full
+# eval-framework contract is materialized across per-framework venvs via
+# scripts/build_eval_framework_venvs.sh (BEAAA-13331 / ADR-0056), so no job
+# ever asks pip to solve the impossible combined graph. This slice stays
+# minimal because the deterministic gate does not run live upstream evals.
 PyYAML==6.0.2
 httpx==0.27.2
 pytest==9.0.3

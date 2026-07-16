@@ -24,12 +24,14 @@ from scanners.agentdojo_runner import (
     AgentDojoProbeItem,
     run_tool_misuse_via_agentdojo,
 )
-from scanners import SCANNER_VERSION
+from scanners import CONTRACT_VERSION, SCANNER_VERSION
 
 
 CORPUS_VERSION = "r2-rob-2026.06.14"
 PROBE_SET_VERSION = "agentdojo_tool_misuse@0.1.0"
-CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
+# Sourced from the canonical scanners.CONTRACT_VERSION (the single source of
+# truth kept in lockstep with contracts/are-scanner-api-v1.md) so this live-fire
+# proof never re-stamps a stale contract literal. BEAAA-13392.
 MODEL_VERSIONS = {
     "primary": "self-owned-http-tool-agent:beaaa8125@0.1.0",
     "judges": [],

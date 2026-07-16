@@ -90,6 +90,14 @@ def validate_runtime_environment(
         raise RuntimeGuardError("dev signing key is forbidden in pilot/prod")
     if not source.get("ARE_BUNDLE_SIGNING_KEY"):
         raise RuntimeGuardError("ARE_BUNDLE_SIGNING_KEY required in pilot/prod")
+    # BEAAA-10945 (SEC-6 live edge) — the server-issued provenance key shares the
+    # bundle signing key's custody class: on the live edge it MUST be present so
+    # the intake verifier fails closed on forged hosted-run provenance (a
+    # client-minted runner + UUID is no longer sufficient). Absent it, the
+    # verifier is inert and any customer can assert hosted-eval origin, so a
+    # pilot/prod runtime without it is unsafe to start.
+    if not source.get("ARE_EVAL_PROVENANCE_KEY"):
+        raise RuntimeGuardError("ARE_EVAL_PROVENANCE_KEY required in pilot/prod")
     if bundles.is_in_memory:
         raise RuntimeGuardError("in-memory forensic bundle storage is forbidden in pilot/prod")
 

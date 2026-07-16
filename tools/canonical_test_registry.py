@@ -15,7 +15,12 @@ from typing import Any, Iterable, Mapping
 
 from tools import probe_registry
 from tools.active_test_registry import build_registry as build_active_test_registry
-from tools.real_agent_execution_gate import evaluate_real_agent_execution, quarantine_reason
+from tools.real_agent_execution_gate import (
+    AuthoritativeRealAgentVerifier,
+    evaluate_real_agent_execution,
+    load_authoritative_verifier,
+    quarantine_reason,
+)
 
 
 REGISTRY_VERSION = "scanner-test-registry-baseline-2026-07-13/v0.1"
@@ -75,7 +80,13 @@ def default_appendix_a_path(repo: Path) -> Path | None:
     return None
 
 
-def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path | None = None) -> dict[str, Any]:
+def build_registry(
+    repo: Path = probe_registry.REPO_DEFAULT,
+    appendix_csv: Path | None = None,
+    *,
+    real_agent_verifier: AuthoritativeRealAgentVerifier | None = None,
+    real_agent_evidence_manifest: Path | None = None,
+) -> dict[str, Any]:
     source_path = appendix_csv or default_appendix_a_path(repo)
     if source_path is not None:
         rows = _rows_from_appendix_csv(source_path, repo)
@@ -86,7 +97,12 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
         source_mode = "probe_registry_fallback_appendix_a_source_missing"
         source_inputs = list(probe_registry.SOURCE_INPUTS)
 
-    rows = _mark_duplicate_executable_case_ids(rows)
+    if real_agent_evidence_manifest is not None:
+        rows.extend(_load_real_agent_evidence_manifest(real_agent_evidence_manifest))
+        source_inputs.append(str(_repo_relative(real_agent_evidence_manifest, repo)))
+    rows = _enforce_real_agent_quarantine(
+        _mark_duplicate_executable_case_ids(rows), verifier=real_agent_verifier
+    )
     active_rows = [
         row
         for row in rows
@@ -96,7 +112,12 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
     active_test_rows = build_active_test_registry(repo / "rubric" / "probe_mappings")
     active_registry_path = repo / "tools" / "probe-registry" / "active_registry.json"
     active_registry = _load_json_if_present(active_registry_path)
-    errors = validate_registry(rows)
+    errors = validate_registry(rows, real_agent_verifier=real_agent_verifier)
+    executed_agent_case_ids = {
+        str(row["case_id"])
+        for row in rows
+        if row.get("countable_as_executed_agent_test") is True
+    }
     payload = {
         "metadata": {
             "ticket_ref": "BEAAA-13762",
@@ -134,20 +155,19 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             if isinstance(active_registry, dict)
             else 0,
             "public_executed_test_count": PUBLIC_EXECUTED_TEST_COUNT,
-            "executed_agent_test_count": PUBLIC_EXECUTED_TEST_COUNT
-            + _executed_agent_evidence_complete_count(rows),
+            "executed_agent_test_count": len(executed_agent_case_ids),
             "execution_evidence_gate": sorted(EXECUTION_EVIDENCE_FIELDS),
             "execution_evidence_complete_count": _execution_evidence_complete_count(rows),
             "real_agent_execution_gate": [
                 "target_type_real_agent",
-                "target_identity_allowlisted",
+                "target_identity_control_plane_approved",
                 "raw_request_present",
                 "raw_response_present",
-                "raw_request_response_identity_match",
-                "authenticated_request_proof",
+                "request_origin_control_plane_approved",
+                "authority_signed_request_response_digest_envelope",
                 "no_localhost_mock_fixture_replay_or_terminal_only_assertion",
             ],
-            "invalid_wave_quarantined_ticket_refs": list(INVALID_WAVE_TICKET_REFS),
+            "invalid_wave_quarantined_ticket_refs": sorted(_invalid_wave_ticket_refs(rows)),
             "invalid_wave_quarantined_additional_count": _invalid_wave_quarantined_count(rows),
             "remaining_gap_to_1180": max(0, 1180 - len({row["case_id"] for row in active_rows})),
             "over_1180_by": max(0, len({row["case_id"] for row in active_rows}) - 1180),
@@ -161,7 +181,7 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
         "invalid_wave_quarantine_ledger": [
             row
             for row in rows
-            if row.get("countable_as_executed_test") is True
+            if _row_ticket_refs(row) & set(INVALID_WAVE_TICKET_REFS)
             and row.get("countable_as_executed_agent_test") is not True
         ],
     }
@@ -171,7 +191,10 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
     return payload
 
 
-def validate_registry(rows: Iterable[Mapping[str, Any]]) -> list[str]:
+def validate_registry(
+    rows: Iterable[Mapping[str, Any]], *,
+    real_agent_verifier: AuthoritativeRealAgentVerifier | None = None,
+) -> list[str]:
     errors: list[str] = []
     seen_asset_ids: set[str] = set()
     seen_active_case_ids: set[str] = set()
@@ -197,7 +220,12 @@ def validate_registry(rows: Iterable[Mapping[str, Any]]) -> list[str]:
         if row.get("countable_as_executed_test") is True:
             errors.extend(_execution_evidence_errors(row, index))
         if row.get("countable_as_executed_agent_test") is True:
-            gate_result = evaluate_real_agent_execution(row)
+            if row.get("countable_as_executed_test") is not True:
+                errors.append(f"{asset_id} is agent-countable but not countable_as_executed_test")
+            execution_errors = _execution_evidence_errors(row, index)
+            if execution_errors:
+                errors.extend(execution_errors)
+            gate_result = evaluate_real_agent_execution(row, verifier=real_agent_verifier)
             if not gate_result.countable:
                 errors.append(
                     f"{asset_id} is countable_as_executed_agent_test but fails real-agent gate: "
@@ -226,17 +254,63 @@ def _execution_evidence_complete_count(rows: Iterable[Mapping[str, Any]]) -> int
     )
 
 
-def _executed_agent_evidence_complete_count(rows: Iterable[Mapping[str, Any]]) -> int:
-    return sum(1 for row in rows if row.get("countable_as_executed_agent_test") is True)
+def _enforce_real_agent_quarantine(
+    rows: Iterable[dict[str, Any]], *, verifier: AuthoritativeRealAgentVerifier | None
+) -> list[dict[str, Any]]:
+    enforced: list[dict[str, Any]] = []
+    for source in rows:
+        row = dict(source)
+        if row.get("countable_as_executed_agent_test") is True:
+            result = evaluate_real_agent_execution(row, verifier=verifier)
+            execution_errors = (
+                ["not_countable_as_executed_test"]
+                if row.get("countable_as_executed_test") is not True
+                else _execution_evidence_errors(row, 0)
+            )
+            if not result.countable or execution_errors:
+                row["countable_as_executed_agent_test"] = False
+                row["executed_agent_quarantined"] = True
+                row["executed_agent_quarantine_reason"] = ";".join(
+                    [*execution_errors, *result.reasons]
+                )
+        enforced.append(row)
+    return enforced
 
 
 def _invalid_wave_quarantined_count(rows: Iterable[Mapping[str, Any]]) -> int:
     return sum(
         1
         for row in rows
-        if row.get("countable_as_executed_test") is True
+        if _row_ticket_refs(row) & set(INVALID_WAVE_TICKET_REFS)
         and row.get("countable_as_executed_agent_test") is not True
     )
+
+
+def _invalid_wave_ticket_refs(rows: Iterable[Mapping[str, Any]]) -> set[str]:
+    refs: set[str] = set()
+    for row in rows:
+        if row.get("countable_as_executed_agent_test") is not True:
+            refs.update(_row_ticket_refs(row) & set(INVALID_WAVE_TICKET_REFS))
+    return refs
+
+
+def _row_ticket_refs(row: Mapping[str, Any]) -> set[str]:
+    value = row.get("ticket_refs", row.get("ticket_ref", []))
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, (list, tuple, set)):
+        return {str(item) for item in value}
+    return set()
+
+
+def _load_real_agent_evidence_manifest(path: Path) -> list[dict[str, Any]]:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    rows = document.get("rows") if isinstance(document, Mapping) else document
+    if not isinstance(rows, list):
+        raise ValueError("real-agent evidence manifest must be a list or contain rows")
+    if any(not isinstance(row, Mapping) for row in rows):
+        raise ValueError("real-agent evidence manifest rows must be objects")
+    return [dict(row) for row in rows]
 
 
 def _has_evidence(row: Mapping[str, Any], field: str) -> bool:
@@ -609,10 +683,22 @@ def main() -> int:
     parser.add_argument("--repo", default=str(probe_registry.REPO_DEFAULT))
     parser.add_argument("--appendix-csv", type=Path)
     parser.add_argument("--emit", type=Path, required=True)
+    parser.add_argument("--real-agent-approvals", type=Path)
+    parser.add_argument("--real-agent-evidence-manifest", type=Path)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
-    registry = build_registry(Path(args.repo), appendix_csv=args.appendix_csv)
+    if bool(args.real_agent_approvals) != bool(args.real_agent_evidence_manifest):
+        parser.error("real-agent approvals and evidence manifest must be supplied together")
+    verifier = (
+        load_authoritative_verifier(args.real_agent_approvals)
+        if args.real_agent_approvals else None
+    )
+    registry = build_registry(
+        Path(args.repo), appendix_csv=args.appendix_csv,
+        real_agent_verifier=verifier,
+        real_agent_evidence_manifest=args.real_agent_evidence_manifest,
+    )
     args.emit.parent.mkdir(parents=True, exist_ok=True)
     args.emit.write_text(json.dumps(registry, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(registry["metadata"], indent=2, sort_keys=True))

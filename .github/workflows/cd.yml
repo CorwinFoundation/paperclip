@@ -1,0 +1,286 @@
+# BEAAA-13362 — Phase 2 CD pipeline (operator-mediated PUSH, per ADR-0057 /
+# ADR BEAAA-13360 v2.0, corrected by CTO decision BEAAA-13387).
+#
+# Rule-execution under BEAAA-13358 / founder-directive-deploy-pipeline-2026-07-10.
+# No scoring / rubric / corpus / band / output-shape / tamper change — this is
+# deploy plumbing only. No Underwriter gate (ADR-0057 Consequences).
+#
+# WHY PUSH, NOT PULL (BEAAA-13387 / BEAAA-13385)
+# ----------------------------------------------
+# srv1749248 runs under default-deny EGRESS (SSRF/exfil containment wall) and
+# has no outbound HTTPS. A self-hosted GitHub Actions runner on the box would
+# have to reach api.github.com / pipelines.actions.githubusercontent.com
+# OUTBOUND to register and long-poll — impossible under the wall. So the box
+# never pulls its own release. GitHub Actions only builds+pushes the image and
+# holds the Founder gate; delivery INTO the box is an operator-mediated push
+# over the existing controlled inbound operator SSH channel (no box egress).
+#
+# CONTRACT
+# --------
+# On every push to master (i.e. every merge):
+#   1. build-push (GitHub-hosted runner, "from CI only" — CI has egress): build
+#      the immutable edge image from the Phase-1 Dockerfile, run the
+#      import-closure guard at build, push it *private* to
+#      ghcr.io/corwinfoundation/are-scanner:<sha>, record the image DIGEST, and
+#      sign that digest with keyless cosign.
+#   2. release-approval (GitHub-hosted runner, environment: production): GATED
+#      by the `production` GitHub Environment whose required reviewer is the
+#      Founder. The Approve click IS the Founder gate. On approval this job does
+#      NOT touch the box (the box has no egress and accepts no CI SSH-in); it
+#      records the approved SHA+digest as a signed release manifest artifact and
+#      posts an "approved — awaiting operator push" record to the tracker. That
+#      manifest is the operator's authorization to push the exact approved
+#      digest into the box.
+#
+# The operator then performs the push OFF this workflow, per
+# docs/deploy/cd-pipeline.md, on an egress-capable machine:
+#   pull image by approved digest from GHCR -> cosign verify image signature ->
+#   docker/podman save -> scp tarball + signed manifest into the box over
+#   inbound operator SSH -> on the box: scripts/deploy/operator_push.sh
+#   (verify release-manifest signature -> box_deploy load+re-verify digest ->
+#   activate -> acceptance_checks.sh -> auto-rollback on failure ->
+#   post_deploy_record.py). "What the Founder approved == what loads == what
+#   activates" is enforced by signed manifest + on-box digest re-verify, not by
+#   trusting the transport.
+
+name: CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cd.yml"
+      - "docs/deploy/**"
+      - "scripts/deploy/**"
+  # Manual re-approval of an already-built SHA (still Founder-gated).
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: "Git SHA of an already-pushed image to (re)approve for push"
+        required: false
+
+concurrency:
+  # One release approval to prod at a time; never cancel an in-flight approval.
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/corwinfoundation/are-scanner
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deploy shell scripts
+        run: |
+          bash -n scripts/deploy/acceptance_checks.sh
+          bash -n scripts/deploy/box_deploy.sh
+          bash -n scripts/deploy/operator_push.sh
+      - name: Validate deploy record helper
+        run: python3 -m py_compile scripts/deploy/post_deploy_record.py
+
+  resolve-image-sha:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    env:
+      DISPATCH_IMAGE_SHA: ${{ github.event.inputs.image_sha }}
+      DEFAULT_IMAGE_SHA: ${{ github.sha }}
+    steps:
+      - id: meta
+        name: Resolve and validate image SHA
+        run: |
+          set -euo pipefail
+          SHA="${DISPATCH_IMAGE_SHA:-$DEFAULT_IMAGE_SHA}"
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40,64}$ ]]; then
+            echo "::error::image_sha must be a full lowercase hex Git SHA or image SHA (40-64 chars)"
+            exit 1
+          fi
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Building ${IMAGE}:${SHA}"
+
+  # ---------------------------------------------------------------------------
+  # 1. Build + push the immutable image to GHCR. GitHub-hosted runner only
+  #    (CI has egress; the box does not — that is the whole point of the pivot).
+  # ---------------------------------------------------------------------------
+  build-push:
+    if: github.event_name != 'pull_request'
+    needs:
+      - validate
+      - resolve-image-sha
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write    # keyless Cosign signing
+      packages: write   # push to GHCR under ghcr.io/corwinfoundation/*
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      ref: ${{ steps.refout.outputs.ref }}
+      digest: ${{ steps.push.outputs.digest }}
+    env:
+      RESOLVED_IMAGE_SHA: ${{ needs.resolve-image-sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        name: Emit validated image SHA
+        run: |
+          set -euo pipefail
+          SHA="$RESOLVED_IMAGE_SHA"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Building ${IMAGE}:${SHA}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: push
+        name: Build + push (import-closure guard runs at build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Dockerfile is delivered by Phase 1 (BEAAA-13361). Its build stage
+          # runs the runtime-slice import-closure guard; a failing guard fails
+          # the build here, so a broken slice can never be pushed.
+          file: ./Dockerfile
+          push: true
+          # SHA-only tags — no :latest. The registry stays private.
+          tags: ${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign pushed image by digest
+        env:
+          COSIGN_YES: "true"
+        run: cosign sign "${IMAGE}@${{ steps.push.outputs.digest }}"
+
+      - name: Emit pushed ref
+        id: refout
+        run: |
+          echo "ref=${IMAGE}:${{ steps.meta.outputs.sha }}" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 2. Release approval. GitHub-hosted runner, gated by the `production`
+  #    Environment (required reviewer = Founder). This job does NOT contact the
+  #    box: the box has no egress and accepts no CI SSH-in. It records the
+  #    approved digest for the operator-mediated push (see cd-pipeline.md).
+  # ---------------------------------------------------------------------------
+  release-approval:
+    if: github.event_name != 'pull_request'
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment: production      # <-- Founder required-reviewer gate lives here
+    env:
+      SHA: ${{ needs.build-push.outputs.sha }}
+      REF: ${{ needs.build-push.outputs.ref }}
+      DIGEST: ${{ needs.build-push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write release manifest (operator push authorization)
+        id: manifest
+        run: |
+          mkdir -p "${RUNNER_TEMP}/release"
+          MANIFEST="${RUNNER_TEMP}/release/release-manifest.json"
+          # The digest is the load-bearing field: the operator pulls THIS digest
+          # and the box re-verifies it before activate. Tag alone is advisory.
+          python3 - "$MANIFEST" <<'PY'
+          import json, os, sys
+          manifest = {
+              "sha": os.environ["SHA"],
+              "ref": os.environ["REF"],
+              "digest": os.environ["DIGEST"],
+              "image_signature": "cosign-keyless-github-oidc",
+              "manifest_signature": "openssl-sha256-pem",
+              "approver": os.environ["GH_ACTOR"],
+              "run_url": os.environ["RUN_URL"],
+              "delivery": "operator-mediated-push",
+              "note": (
+                  "Founder-approved via the production Environment gate. Operator: "
+                  "pull this digest from GHCR on an egress-capable machine, "
+                  "cosign-verify the image signature, docker/podman save, scp "
+                  "the tarball plus this signed manifest into the box over "
+                  "inbound operator SSH, then run scripts/deploy/operator_push.sh "
+                  "on the box (verify manifest signature -> load+re-verify "
+                  "digest -> activate -> acceptance -> auto-rollback -> record). "
+                  "The box never pulls; general egress stays CLOSED (BEAAA-13385)."
+              ),
+          }
+          with open(sys.argv[1], "w") as f:
+              json.dump(manifest, f, indent=2)
+          print(json.dumps(manifest, indent=2))
+          PY
+          echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Sign release manifest for offline on-box verification
+        env:
+          CD_MANIFEST_SIGNING_KEY_PEM: ${{ secrets.CD_MANIFEST_SIGNING_KEY_PEM }}
+        run: |
+          test -n "${CD_MANIFEST_SIGNING_KEY_PEM}" || {
+            echo "::error::CD_MANIFEST_SIGNING_KEY_PEM secret is required for offline box verification"
+            exit 1
+          }
+          KEY="${RUNNER_TEMP}/release/manifest-signing-key.pem"
+          printf '%s\n' "${CD_MANIFEST_SIGNING_KEY_PEM}" > "${KEY}"
+          chmod 600 "${KEY}"
+          openssl dgst -sha256 \
+            -sign "${KEY}" \
+            -out "${{ steps.manifest.outputs.path }}.sig" \
+            "${{ steps.manifest.outputs.path }}"
+          openssl pkey -in "${KEY}" -pubout \
+            -out "${RUNNER_TEMP}/release/manifest-signing-pubkey.pem"
+
+      - name: Upload release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ needs.build-push.outputs.sha }}
+          path: |
+            ${{ steps.manifest.outputs.path }}
+            ${{ steps.manifest.outputs.path }}.sig
+            ${{ runner.temp }}/release/manifest-signing-pubkey.pem
+          if-no-files-found: error
+
+      - name: Post "approved — awaiting operator push" record to tracker
+        if: always()
+        env:
+          PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
+          PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_BOT_KEY }}
+          TRACKER_ISSUE: BEAAA-13362
+        run: |
+          # Acceptance is UNKNOWN at approval time — it runs on the box during
+          # the operator push. This record marks the Founder approval + the
+          # authorized digest; the operator's operator_push.sh posts the final
+          # pass/fail/rolled-back record after on-box acceptance.
+          python3 scripts/deploy/post_deploy_record.py \
+            --sha "${SHA}" \
+            --ref "${REF}" \
+            --digest "${DIGEST}" \
+            --approver "${{ github.actor }}" \
+            --outcome "approved-awaiting-operator-push" \
+            --previous "" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

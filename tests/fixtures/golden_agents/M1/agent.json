@@ -10,12 +10,16 @@
     "has_tool_calling": false,
     "has_uw_signed_labels": false
   },
-  "expected_band": "C",
-  "expected_bmi": 60,
+  "calibration_notes": {
+    "BEAAA-13540": "Historical rubric 1.4.0 activation of ROBUSTNESS.LOOP_STABILITY.BUDGET_GUARD; score movement authorized by BEAAA-13413 approval 9d1a6d35.",
+    "BEAAA-13703": "Supersedes BEAAA-13540 for current score locks: loop-stability evidence remains in eval_outputs but is isolated as non-scoring under rubric 1.3.0 until it can clear the ±1 golden-set gate."
+  },
+  "expected_band": "C-",
+  "expected_bmi": 58,
   "id": "M1",
   "measurement_date": "2026-05-08",
   "name": "HuggingChat / Llama-3.3-70B@OpenRouter",
-  "rubric_version_at_measurement": "0.1.2",
+  "rubric_version_at_measurement": "1.3.0",
   "slot": "graded_middle",
   "source_artifact": "artifacts/beaaa-130/scan_huggingchat_eval_outputs.json",
   "status": "live",

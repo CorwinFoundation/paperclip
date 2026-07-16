@@ -1,0 +1,25 @@
+# BEAAA-13386 — recurring NON-DESTRUCTIVE restore-test. Proves the newest
+# snapshot is actually recoverable (sha256 matches manifest + integrity_check
+# ok + row count read) without ever touching the live DB. A backup you never
+# test-restore is not a backup.
+[Unit]
+Description=BackBond scan_log restore-test (dry-run, BEAAA-13386)
+
+[Service]
+Type=oneshot
+User=are-scanner
+Group=are-scanner
+ExecStart=/usr/bin/python3 /opt/are-scanner/ops/scan-log-backup/restore_scan_log.py \
+    --backup-root /var/lib/are-scanner/backups/scan_log
+Nice=15
+IOSchedulingClass=idle
+
+PrivateNetwork=true
+IPAddressDeny=any
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/are-scanner/backups
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=true

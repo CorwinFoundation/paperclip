@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -15,6 +16,9 @@ from tools.canonical_test_registry import (
     validate_registry,
 )
 from tools.real_agent_execution_gate import evaluate_real_agent_execution
+from tools.real_agent_execution_gate import (
+    ApprovedAgent, AuthoritativeRealAgentVerifier, load_authoritative_verifier,
+)
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -51,16 +55,13 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         if self.registry["metadata"]["source_mode"] == "appendix_a_case_level_with_active_registry":
             self.assertEqual(self.registry["metadata"]["appendix_family_count"], 61)
             self.assertEqual(self.registry["metadata"]["appendix_t1_embedded_case_count"], 715)
-            self.assertEqual(
-                self.registry["metadata"]["appendix_promoted_embedded_case_count"],
-                self.registry["metadata"]["execution_evidence_complete_count"],
-            )
+            self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 0)
             self.assertEqual(
                 self.registry["metadata"]["counting_unit"],
                 "case-level registry rows: active probe-mapping cases plus Appendix A embedded cases backed by concrete in-repo runner/source paths",
             )
 
-    def test_beaaa13992_promotes_appendix_rows_only_with_case_evidence(self) -> None:
+    def test_beaaa13992_does_not_promote_appendix_rows_without_case_evidence(self) -> None:
         promoted = [
             row
             for row in self.registry["rows"]
@@ -68,18 +69,9 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             and row.get("countable_as_active_executable") is True
             and row.get("appendix_family")
         ]
-        self.assertEqual(
-            len(promoted),
-            self.registry["metadata"]["appendix_promoted_embedded_case_count"],
-        )
-        self.assertGreater(len(promoted), 0)
-        for row in promoted:
-            self.assertTrue(row.get("countable_as_executed_test"), msg=row)
-            self.assertTrue(row.get("target_bound"), msg=row)
-            self.assertTrue(row.get("execution_evidenced"), msg=row)
-            for field in self.registry["metadata"]["execution_evidence_gate"]:
-                self.assertTrue(row.get(field), msg=(field, row))
-        self.assertEqual(self.registry["metadata"]["appendix_production_active_embedded_case_count"], 541)
+        self.assertEqual(len(promoted), 0)
+        self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 0)
+        self.assertEqual(self.registry["metadata"]["appendix_production_active_embedded_case_count"], 429)
 
     def test_beaaa13990_public_executed_count_stays_at_audited_90(self) -> None:
         self.assertEqual(
@@ -87,7 +79,7 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             PUBLIC_EXECUTED_TEST_COUNT,
         )
         self.assertEqual(PUBLIC_EXECUTED_TEST_COUNT, 90)
-        self.assertGreaterEqual(self.registry["metadata"]["execution_evidence_complete_count"], 0)
+        self.assertEqual(self.registry["metadata"]["execution_evidence_complete_count"], 0)
         self.assertEqual(
             self.registry["metadata"]["execution_evidence_gate"],
             [
@@ -173,17 +165,26 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             "raw_request": {
                 "method": "POST",
                 "url": "https://demo-agent.backbond.ai/invoke",
-                "target_identity": "backbond-approved-demo-agent-v1",
-                "authorization_sha256": "sha256:abc",
+                "request_sha256": "sha256:abc",
             },
             "raw_response": {
                 "status_code": 200,
-                "target_identity": "backbond-approved-demo-agent-v1",
                 "body_sha256": "sha256:def",
             },
         }
-        self.assertTrue(evaluate_real_agent_execution(row).countable)
-        self.assertFalse(validate_registry([row]))
+        verifier = self._verifier()
+        row["authority_signature"] = verifier.sign_for_test(row)
+        self.assertTrue(evaluate_real_agent_execution(row, verifier=verifier).countable)
+        self.assertFalse(validate_registry([row], real_agent_verifier=verifier))
+
+    @staticmethod
+    def _verifier() -> AuthoritativeRealAgentVerifier:
+        approval = ApprovedAgent(
+            identity="backbond-approved-demo-agent-v1",
+            https_origin="https://demo-agent.backbond.ai",
+            evidence_hmac_key=b"test-control-plane-key-not-from-row-32-bytes",
+        )
+        return AuthoritativeRealAgentVerifier({approval.identity: approval})
 
     def test_beaaa14087_rejects_disallowed_executed_agent_classes(self) -> None:
         base = {
@@ -210,15 +211,15 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             "raw_request": {
                 "method": "POST",
                 "url": "https://demo-agent.backbond.ai/invoke",
-                "target_identity": "backbond-approved-demo-agent-v1",
-                "authorization_sha256": "sha256:abc",
+                "request_sha256": "sha256:abc",
             },
             "raw_response": {
                 "status_code": 200,
-                "target_identity": "backbond-approved-demo-agent-v1",
                 "body_sha256": "sha256:def",
             },
         }
+        verifier = self._verifier()
+        base["authority_signature"] = verifier.sign_for_test(base)
         cases = {
             "localhost": {"raw_request": {**base["raw_request"], "url": "http://localhost:8000/invoke"}},
             "127.0.0.1": {"raw_request": {**base["raw_request"], "url": "http://127.0.0.1:18112/invoke"}},
@@ -238,42 +239,141 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         for label, patch in cases.items():
             with self.subTest(label=label):
                 row = {**base, **patch, "asset_id": f"candidate-{label}"}
-                result = evaluate_real_agent_execution(row)
+                # Re-sign benign field changes so each rejection proves the named class.
+                if label not in {"localhost", "127.0.0.1"}:
+                    row["authority_signature"] = verifier.sign_for_test(row)
+                result = evaluate_real_agent_execution(row, verifier=verifier)
                 self.assertFalse(result.countable, msg=result)
-                self.assertTrue(validate_registry([row]), msg=label)
+                self.assertTrue(validate_registry([row], real_agent_verifier=verifier), msg=label)
+
+    def test_beaaa14087_rejects_caller_spoofed_identity_and_hash(self) -> None:
+        row = {
+            "case_id": "spoof", "target_type": "real_agent",
+            "target_identity": "backbond-approved-demo-agent-v1",
+            "raw_request": {"url": "https://demo-agent.backbond.ai/invoke", "request_sha256": "sha256:caller"},
+            "raw_response": {"body_sha256": "sha256:caller"},
+            "authority_signature": "caller-supplied-but-invalid",
+        }
+        result = evaluate_real_agent_execution(row, verifier=self._verifier())
+        self.assertFalse(result.countable)
+        self.assertIn("invalid_authority_signature", result.reasons)
+
+    def test_beaaa14087_approval_configuration_is_fail_closed(self) -> None:
+        with self.assertRaises(ValueError):
+            ApprovedAgent("weak", "https://agent.example", b"short")
+        with self.assertRaises(ValueError):
+            ApprovedAgent("loopback", "https://127.0.0.1", b"x" * 32)
+        with self.assertRaises(ValueError):
+            ApprovedAgent("private", "https://10.0.0.1", b"x" * 32)
+
+    def test_beaaa14087_malformed_port_rejects_without_raising(self) -> None:
+        row = self._authenticated_registry_row(self._verifier(), "bad-port")
+        row["raw_request"]["url"] = "https://demo-agent.backbond.ai:bad/invoke"
+        result = evaluate_real_agent_execution(row, verifier=self._verifier())
+        self.assertFalse(result.countable)
+        self.assertIn("request_origin_not_control_plane_approved", result.reasons)
+
+    def test_beaaa14087_unrelated_metadata_markers_do_not_quarantine(self) -> None:
+        verifier = self._verifier()
+        row = self._authenticated_registry_row(verifier, "benign-metadata")
+        row["notes"] = "The documentation discusses replay and echo attacks."
+        self.assertTrue(evaluate_real_agent_execution(row, verifier=verifier).countable)
+
+    def test_beaaa14087_agent_count_is_subset_of_general_execution_gate(self) -> None:
+        verifier = self._verifier()
+        row = self._authenticated_registry_row(verifier, "not-general-executed")
+        row["countable_as_executed_test"] = False
+        errors = validate_registry([row], real_agent_verifier=verifier)
+        self.assertTrue(any("agent-countable but not countable" in error for error in errors), errors)
+
+    def test_beaaa14087_invalid_wave_ledger_is_row_bound(self) -> None:
+        from tools.canonical_test_registry import (
+            _invalid_wave_quarantined_count, _invalid_wave_ticket_refs,
+        )
+        rows = [
+            {"ticket_ref": "BEAAA-14012", "countable_as_executed_agent_test": False},
+            {"ticket_ref": "BEAAA-99999", "countable_as_executed_agent_test": False},
+        ]
+        self.assertEqual(_invalid_wave_quarantined_count(rows), 1)
+        self.assertEqual(_invalid_wave_ticket_refs(rows), {"BEAAA-14012"})
+
+    def test_beaaa14087_production_verifier_loads_server_owned_secret(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "approvals.json"
+            path.write_text(json.dumps({"approved_agents": [{
+                "identity": "backbond-approved-demo-agent-v1",
+                "https_origin": "https://demo-agent.backbond.ai",
+                "hmac_key_env": "BEAAA14087_TEST_HMAC_KEY",
+            }]}), encoding="utf-8")
+            prior = os.environ.get("BEAAA14087_TEST_HMAC_KEY")
+            os.environ["BEAAA14087_TEST_HMAC_KEY"] = "x" * 32
+            try:
+                verifier = load_authoritative_verifier(path)
+            finally:
+                if prior is None:
+                    os.environ.pop("BEAAA14087_TEST_HMAC_KEY", None)
+                else:
+                    os.environ["BEAAA14087_TEST_HMAC_KEY"] = prior
+        row = self._authenticated_registry_row(verifier, "production-compose")
+        self.assertTrue(evaluate_real_agent_execution(row, verifier=verifier).countable)
+
+    def test_beaaa14087_absent_manifest_and_verifier_fail_closed_to_zero(self) -> None:
+        registry = build_registry(REPO)
+        self.assertEqual(registry["metadata"]["executed_agent_test_count"], 0)
+
+    def test_beaaa14087_authenticated_manifest_counts_deduplicated_rows_only(self) -> None:
+        verifier = self._verifier()
+        row = self._authenticated_registry_row(verifier, "authenticated-case")
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "evidence.json"
+            manifest.write_text(json.dumps({"rows": [row]}), encoding="utf-8")
+            registry = build_registry(
+                REPO, real_agent_verifier=verifier,
+                real_agent_evidence_manifest=manifest,
+            )
+        self.assertEqual(registry["metadata"]["executed_agent_test_count"], 1)
+
+    def _authenticated_registry_row(self, verifier, case_id: str) -> dict:
+        row = {
+            "asset_id": f"real-{case_id}", "case_id": case_id,
+            "disposition": "production_active", "rubric_point_id": "P1.1",
+            "source": "evidence/real-agent.json", "framework": "real_agent_runner",
+            "version_pin": "real-agent-runner@1.0", "countable_as_active_executable": True,
+            "countable_as_executed_test": True, "countable_as_executed_agent_test": True,
+            "evidence_uri_template": "evidence://{scan_id}/real-agent/{case_id}.json",
+            "prompt_or_action": "bounded action", "expected_behavior": "safe response",
+            "target_response": "safe response", "verdict": "pass",
+            "verdict_provenance": "deterministic comparator v1",
+            "manifest_evidence": "manifest://authenticated", "github_provenance": "github://repo@sha",
+            "target_type": "real_agent", "target_identity": "backbond-approved-demo-agent-v1",
+            "raw_request": {"url": "https://demo-agent.backbond.ai/invoke", "request_sha256": "sha256:a"},
+            "raw_response": {"body_sha256": "sha256:b"},
+        }
+        row["authority_signature"] = verifier.sign_for_test(row)
+        return row
 
     def test_beaaa14087_registry_quarantines_invalid_wave_rows_from_executed_agent_count(self) -> None:
         metadata = self.registry["metadata"]
-        self.assertEqual(metadata["executed_agent_test_count"], PUBLIC_EXECUTED_TEST_COUNT)
-        self.assertEqual(
-            metadata["invalid_wave_quarantined_ticket_refs"],
-            list(INVALID_WAVE_TICKET_REFS),
-        )
-        self.assertGreater(metadata["invalid_wave_quarantined_additional_count"], 0)
+        self.assertEqual(metadata["executed_agent_test_count"], 0)
+        self.assertEqual(metadata["invalid_wave_quarantined_ticket_refs"], [])
+        self.assertEqual(metadata["invalid_wave_quarantined_additional_count"], 0)
         self.assertEqual(
             metadata["real_agent_execution_gate"],
             [
                 "target_type_real_agent",
-                "target_identity_allowlisted",
+                "target_identity_control_plane_approved",
                 "raw_request_present",
                 "raw_response_present",
-                "raw_request_response_identity_match",
-                "authenticated_request_proof",
+                "request_origin_control_plane_approved",
+                "authority_signed_request_response_digest_envelope",
                 "no_localhost_mock_fixture_replay_or_terminal_only_assertion",
             ],
         )
 
     def test_beaaa13992_disqualifies_non_evidenced_embedded_cases_at_case_level(self) -> None:
         ledger = self.registry.get("disqualification_ledger", [])
-        self.assertEqual(
-            len(ledger),
-            self.registry["metadata"]["appendix_disqualified_embedded_case_count"],
-        )
-        self.assertEqual(
-            self.registry["metadata"]["appendix_disqualified_embedded_case_count"]
-            + self.registry["metadata"]["appendix_promoted_embedded_case_count"],
-            self.registry["metadata"]["appendix_embedded_case_count_total"],
-        )
+        self.assertEqual(len(ledger), 743)
+        self.assertEqual(self.registry["metadata"]["appendix_disqualified_embedded_case_count"], 743)
         for row in ledger:
             self.assertFalse(row["countable_as_active_executable"])
             self.assertTrue(row["disqualification_reason"])

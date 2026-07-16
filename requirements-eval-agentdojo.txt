@@ -1,0 +1,11 @@
+# Per-framework eval venv slice: AgentDojo (BEAAA-13331).
+#
+# Installed by scripts/build_eval_framework_venvs.sh into its OWN venv
+# (<ARE_EVAL_VENVS_DIR>/agentdojo-venv). AgentDojo is not part of the
+# garak/pyrit datasets conflict, but it is materialized in an isolated venv
+# under the same recipe so the full offline framework set is built uniformly
+# and its heavy transitive deps (torch/transformers) stay out of the harness
+# interpreter. Exact pin matches requirements.txt; a bump is a rule-change
+# (CTO co-sign + fresh N=5 delta) per
+# contracts/scanner-implementation-supervision-v1.md.
+agentdojo==0.1.35

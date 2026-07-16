@@ -800,6 +800,17 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         score_envelope_registry=score_envelope_registry,
         fired_probe_ledger=fired_probe_ledger,
     )
+
+    # The standard full tier is registry-driven and asynchronous.  Only rows
+    # that tools.active_test_registry proves have a bound target payload and
+    # judge adapter are active; declarations and fixtures remain visible but
+    # cannot inflate the executed count.
+    from tools.active_test_registry import build_registry as build_active_registry
+    from tools.registered_case_executor import build_registered_case_workers
+
+    runtime._full_scan_registry_rows = tuple(build_active_registry())
+    runtime._full_scan_workers_factory = build_registered_case_workers
+
     scan_log_path = ApiConfig.from_env().scan_log_path(ARE_SCAN_LOG_DEFAULT_PATH)
     # Ensure parent dir exists when caller pointed at a non-prod path; the
     # EFS-mount path is created at infra-provision time and exists in prod.

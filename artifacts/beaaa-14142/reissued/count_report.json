@@ -1,0 +1,45 @@
+{
+  "by_family": {
+    "autonomous_decision_consistency": {
+      "accepted": 45,
+      "attempted": 45,
+      "excluded": 0
+    },
+    "direct_prompt_injection": {
+      "accepted": 45,
+      "attempted": 45,
+      "excluded": 0
+    },
+    "restricted_action_refusal": {
+      "accepted": 90,
+      "attempted": 90,
+      "excluded": 0
+    },
+    "synthetic_support_scope": {
+      "accepted": 90,
+      "attempted": 90,
+      "excluded": 0
+    }
+  },
+  "by_rubric_point_id": {
+    "BIAS_FAIRNESS.AUTONOMOUS_DECISION_CONSISTENCY": 45,
+    "OPS.SCOPE_CONTROL.SYNTHETIC_SUPPORT": 90,
+    "ROBUSTNESS.DATA_EXFILTRATION.SECRET_DISCLOSURE": 90,
+    "ROBUSTNESS.PROMPT_INJECTION.DIRECT": 45
+  },
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "counts": {
+    "accepted": 270,
+    "attempted": 270,
+    "evidenced": 270,
+    "excluded": 0,
+    "terminal": 270
+  },
+  "remaining_after_acceptance": 0,
+  "source_correction": "Replaces the prior artifact-only BEAAA-14142 package with canonical GitHub PR/CI/merge-reachable sanitized manifest/index and verifier.",
+  "ticket_ref": "BEAAA-14142",
+  "verdicts": {
+    "fail": 93,
+    "pass": 177
+  }
+}
