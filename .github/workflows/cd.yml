@@ -23,9 +23,9 @@
 #      import-closure guard at build, push it *private* to
 #      ghcr.io/corwinfoundation/are-scanner:<sha>, record the image DIGEST, and
 #      sign that digest with keyless cosign.
-#   2. release-approval (GitHub-hosted runner, environment: production): GATED
-#      by the `production` GitHub Environment whose required reviewer is the
-#      Founder. The Approve click IS the Founder gate. On approval this job does
+#   2. release-approval (GitHub-hosted runner, environment: production): gated
+#      by an explicit approval issue assigned to the Founder account. The
+#      production Environment is retained as an audit label. On approval the job does
 #      NOT touch the box (the box has no egress and accepts no CI SSH-in); it
 #      records the approved SHA+digest as a signed release manifest artifact and
 #      posts an "approved — awaiting operator push" record to the tracker. That
@@ -34,13 +34,13 @@
 #
 # The operator then performs the push OFF this workflow, per
 # docs/deploy/cd-pipeline.md, on an egress-capable machine:
-#   pull image by approved digest from GHCR -> cosign verify image signature ->
-#   docker/podman save -> scp tarball + signed manifest into the box over
-#   inbound operator SSH -> on the box: scripts/deploy/operator_push.sh
-#   (verify release-manifest signature -> box_deploy load+re-verify digest ->
+#   download the CI-packaged image archive and signed manifest from the same
+#   approved run -> scp them into the box over inbound operator SSH -> on the
+#   box: scripts/deploy/operator_push.sh (verify release-manifest signature ->
+#   box_deploy verify exact archive hash, loaded ref, and git revision ->
 #   activate -> acceptance_checks.sh -> auto-rollback on failure ->
 #   post_deploy_record.py). "What the Founder approved == what loads == what
-#   activates" is enforced by signed manifest + on-box digest re-verify, not by
+#   activates" is enforced by signed manifest + on-box archive verification, not by
 #   trusting the transport.
 
 name: CD
@@ -54,12 +54,8 @@ on:
       - ".github/workflows/cd.yml"
       - "docs/deploy/**"
       - "scripts/deploy/**"
-  # Manual re-approval of an already-built SHA (still Founder-gated).
+  # Manual build of the event's current master SHA (still Founder-gated).
   workflow_dispatch:
-    inputs:
-      image_sha:
-        description: "Git SHA of an already-pushed image to (re)approve for push"
-        required: false
 
 concurrency:
   # One release approval to prod at a time; never cancel an in-flight approval.
@@ -68,6 +64,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 env:
   IMAGE: ghcr.io/corwinfoundation/are-scanner
@@ -95,16 +92,15 @@ jobs:
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
     env:
-      DISPATCH_IMAGE_SHA: ${{ github.event.inputs.image_sha }}
       DEFAULT_IMAGE_SHA: ${{ github.sha }}
     steps:
       - id: meta
-        name: Resolve and validate image SHA
+        name: Validate event commit SHA
         run: |
           set -euo pipefail
-          SHA="${DISPATCH_IMAGE_SHA:-$DEFAULT_IMAGE_SHA}"
-          if ! [[ "$SHA" =~ ^[0-9a-f]{40,64}$ ]]; then
-            echo "::error::image_sha must be a full lowercase hex Git SHA or image SHA (40-64 chars)"
+          SHA="${DEFAULT_IMAGE_SHA}"
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::github.sha must be a full lowercase 40-character Git SHA"
             exit 1
           fi
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
@@ -128,6 +124,8 @@ jobs:
       sha: ${{ steps.meta.outputs.sha }}
       ref: ${{ steps.refout.outputs.ref }}
       digest: ${{ steps.push.outputs.digest }}
+      tar_sha256: ${{ steps.payload.outputs.tar_sha256 }}
+      artifact_name: ${{ steps.payload.outputs.artifact_name }}
     env:
       RESOLVED_IMAGE_SHA: ${{ needs.resolve-image-sha.outputs.sha }}
     steps:
@@ -161,6 +159,8 @@ jobs:
           # the build here, so a broken slice can never be pushed.
           file: ./Dockerfile
           push: true
+          build-args: |
+            GIT_SHA=${{ steps.meta.outputs.sha }}
           # SHA-only tags — no :latest. The registry stays private.
           tags: ${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
           provenance: false
@@ -181,9 +181,38 @@ jobs:
         run: |
           echo "ref=${IMAGE}:${{ steps.meta.outputs.sha }}" >> "$GITHUB_OUTPUT"
 
+      - name: Package exact image for offline operator delivery
+        id: payload
+        env:
+          REF: ${{ steps.refout.outputs.ref }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/delivery"
+          docker pull "${IMAGE}@${DIGEST}"
+          docker tag "${IMAGE}@${DIGEST}" "${REF}"
+          TARBALL="${RUNNER_TEMP}/delivery/are-scanner-${SHA}.tar"
+          docker save "${REF}" -o "${TARBALL}"
+          TAR_SHA256="$(sha256sum "${TARBALL}" | cut -d' ' -f1)"
+          printf '%s  %s\n' "${TAR_SHA256}" "$(basename "${TARBALL}")" \
+            > "${TARBALL}.sha256"
+          echo "tar_sha256=${TAR_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=image-payload-${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload offline image payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.payload.outputs.artifact_name }}
+          path: |
+            ${{ runner.temp }}/delivery/are-scanner-${{ steps.meta.outputs.sha }}.tar
+            ${{ runner.temp }}/delivery/are-scanner-${{ steps.meta.outputs.sha }}.tar.sha256
+          if-no-files-found: error
+          retention-days: 7
+
   # ---------------------------------------------------------------------------
-  # 2. Release approval. GitHub-hosted runner, gated by the `production`
-  #    Environment (required reviewer = Founder). This job does NOT contact the
+  # 2. Release approval. GitHub-hosted runner, gated by an explicit approval
+  #    issue assigned to the Founder account. This job does NOT contact the
   #    box: the box has no egress and accepts no CI SSH-in. It records the
   #    approved digest for the operator-mediated push (see cd-pipeline.md).
   # ---------------------------------------------------------------------------
@@ -191,12 +220,34 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build-push
     runs-on: ubuntu-latest
-    environment: production      # <-- Founder required-reviewer gate lives here
+    environment: production      # Audit label; explicit issue gate is below.
+    permissions:
+      contents: read
+      issues: write
     env:
       SHA: ${{ needs.build-push.outputs.sha }}
       REF: ${{ needs.build-push.outputs.ref }}
       DIGEST: ${{ needs.build-push.outputs.digest }}
+      TAR_SHA256: ${{ needs.build-push.outputs.tar_sha256 }}
+      ARTIFACT_NAME: ${{ needs.build-push.outputs.artifact_name }}
+      APPROVER: CorwinFoundation
     steps:
+      - name: Founder approval gate
+        uses: trstringer/manual-approval@fa642940caf8412403569b28b2db4a1df08a83a3
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: CorwinFoundation
+          minimum-approvals: 1
+          issue-title: "Production deploy approval: ${{ needs.build-push.outputs.sha }}"
+          issue-body: |
+            Approve or deny production delivery of the exact scanner image built from
+            `${{ needs.build-push.outputs.sha }}`.
+
+            Registry digest: `${{ needs.build-push.outputs.digest }}`
+            Offline payload SHA-256: `${{ needs.build-push.outputs.tar_sha256 }}`
+          exclude-workflow-initiator-as-approver: false
+          fail-on-denial: true
+
       - uses: actions/checkout@v4
 
       - name: Write release manifest (operator push authorization)
@@ -212,19 +263,20 @@ jobs:
               "sha": os.environ["SHA"],
               "ref": os.environ["REF"],
               "digest": os.environ["DIGEST"],
+              "tar_sha256": os.environ["TAR_SHA256"],
+              "image_artifact": os.environ["ARTIFACT_NAME"],
               "image_signature": "cosign-keyless-github-oidc",
               "manifest_signature": "openssl-sha256-pem",
-              "approver": os.environ["GH_ACTOR"],
+              "approver": os.environ["APPROVER"],
               "run_url": os.environ["RUN_URL"],
               "delivery": "operator-mediated-push",
               "note": (
-                  "Founder-approved via the production Environment gate. Operator: "
-                  "pull this digest from GHCR on an egress-capable machine, "
-                  "cosign-verify the image signature, docker/podman save, scp "
-                  "the tarball plus this signed manifest into the box over "
+                  "Founder-approved via the production approval issue. Operator: "
+                  "download the exact image payload artifact and this signed "
+                  "manifest, verify the payload SHA-256, then scp them into the box over "
                   "inbound operator SSH, then run scripts/deploy/operator_push.sh "
-                  "on the box (verify manifest signature -> load+re-verify "
-                  "digest -> activate -> acceptance -> auto-rollback -> record). "
+                  "on the box (verify manifest signature -> verify archive/ref/revision "
+                  "-> activate -> acceptance -> auto-rollback -> record). "
                   "The box never pulls; general egress stays CLOSED (BEAAA-13385)."
               ),
           }
@@ -234,7 +286,6 @@ jobs:
           PY
           echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
         env:
-          GH_ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Sign release manifest for offline on-box verification
@@ -266,7 +317,7 @@ jobs:
           if-no-files-found: error
 
       - name: Post "approved — awaiting operator push" record to tracker
-        if: always()
+        if: success()
         env:
           PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
           PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_BOT_KEY }}
@@ -280,7 +331,7 @@ jobs:
             --sha "${SHA}" \
             --ref "${REF}" \
             --digest "${DIGEST}" \
-            --approver "${{ github.actor }}" \
+            --approver "${APPROVER}" \
             --outcome "approved-awaiting-operator-push" \
             --previous "" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
