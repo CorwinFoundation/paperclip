@@ -53,6 +53,7 @@ SPREAD_TOLERANCE = 1.0
 DELTA_TOLERANCE = 1.0
 SCORED_AT = "2026-06-29T00:00:00+00:00"
 RELEASE_GATE_CORPUS_VERSION = "0.2.0"
+MOVEMENT_ACCOUNTING_DECISION_REF = "BEAAA-14949#decision@f7aacc18"
 BEAAA_13412_DELTAS = {
     # BEAAA-13412 / BEAAA-13382 / BEAAA-13383: co-signed P3.5 + P3.6
     # scored ROBUSTNESS promotion. Residual drift after these approved
@@ -350,7 +351,7 @@ def run_gate(
     single_turn_delta_passed = all(not r.errors and r.delta_passed for r in results)
     single_turn_passed = all(r.passed for r in results)
     report = {
-        "issue": "BEAAA-14874",
+        "issue": "BEAAA-14948",
         "contract": "are-scanner-api-v1@v1.3.0",
         "scanner_version": "0.6.0",
         "corpus_version": RELEASE_GATE_CORPUS_VERSION,
@@ -360,6 +361,7 @@ def run_gate(
             "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
         ],
         "cto_cosign_ref": "BEAAA-14867",
+        "movement_accounting_decision_ref": MOVEMENT_ACCOUNTING_DECISION_REF,
         "baseline": baseline_label,
         "candidate": candidate_label,
         "claim": "8/9 baselined",
@@ -376,6 +378,10 @@ def run_gate(
         "passed": single_turn_passed and behavioral["passed"],
         "agents": [_result_to_dict(r) for r in results],
     }
+    report["release_reliance_authorized"] = report["passed"]
+    report["unresolved_movement_accounting"] = _unresolved_movement_accounting(
+        report["agents"]
+    )
     md_path = out_dir / f"{today}-{baseline_label}-vs-{candidate_label}.md"
     md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text(_render_markdown(report), encoding="utf-8")
@@ -407,6 +413,18 @@ def _result_to_dict(result: AgentGateResult) -> dict[str, Any]:
     }
 
 
+def _unresolved_movement_accounting(agents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "agent": agent["agent"],
+            "residual": dict(agent["delta"]),
+            "status": "underwriter_acknowledged_not_release_authorized",
+        }
+        for agent in agents
+        if not agent["errors"] and not agent["delta_passed"]
+    ]
+
+
 def _fmt(value: Any) -> str:
     if value is None:
         return "BLOCK"
@@ -425,27 +443,28 @@ def _render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "---",
         "artifact_type: other",
-        "owner: scanner_engineer",
+        "owner: scanner_engineer_2",
         "persona_audience: internal",
         "phase: 1",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-14874 preserves BackBond Scanner pricing discipline by isolating only independently approved historical movement before the N=5 residual gate."',
+        'focus_claim: "BEAAA-14948 preserves BackBond Scanner pricing discipline by reporting acknowledged M2/M3 residual movement without authorizing release reliance."',
         'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-14874", "BEAAA-14867", "BEAAA-14868", "BEAAA-14798", "BEAAA-13412"]',
+        'ticket_refs: ["BEAAA-14948", "BEAAA-14949", "BEAAA-14950", "BEAAA-14874", "BEAAA-14798", "BEAAA-13412"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
-        "version: 0.1",
-        "prior_version: null",
+        "version: 0.2",
+        'prior_version: "BEAAA-14874 receipt v0.1"',
         "self_audit_passed: true",
-        'escalations_noted: ["BEAAA-14874 is approved rule-change execution under CTO decision BEAAA-14867, Underwriter co-sign BEAAA-14868, and Founder comment 88696878-087a-463f-b48a-eac74a660df0."]',
+        'escalations_noted: ["BEAAA-14949 revision f7aacc18 and BEAAA-14950 acknowledge the corrected residual accounting but do not authorize release or pricing reliance outside the +/-1 gate."]',
         "---",
         "",
-        "# BEAAA-14874 Golden N=5 Release Gate",
+        "# BEAAA-14948 Golden N=5 Release Gate Reconciliation",
         "",
         f"- Contract: `{report['contract']}`",
         f"- Scanner version: `{report['scanner_version']}`",
         f"- Probe-set-version: `{report['probe-set-version']}`",
         f"- Rubric points: `{', '.join(report['rubric_point_id'])}`",
         f"- CTO co-sign: `{report['cto_cosign_ref']}`",
+        f"- Movement-accounting decision: `{report.get('movement_accounting_decision_ref', 'n/a')}`",
         f"- Baseline: `{report['baseline']}`",
         f"- Candidate: `{report['candidate']}`",
         f"- Release-gate corpus version: `{RELEASE_GATE_CORPUS_VERSION}`",
@@ -460,6 +479,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- Drift gate: `absolute residual median delta for total and each pillar <= {report['delta_tolerance']}`",
         "- Approved historical movements are separately attributed below: `BEAAA-13412` and `BEAAA-14798`",
         f"- Result: `{'PASS' if report['passed'] else 'BLOCK'}`",
+        f"- Release reliance authorized: `{'yes' if report.get('release_reliance_authorized') else 'no'}`",
         f"- Single-turn spread result: `{'PASS' if report.get('single_turn_spread_passed') else 'BLOCK'}`",
         f"- Single-turn delta result: `{'PASS' if report.get('single_turn_delta_passed') else 'BLOCK'}`",
         "",
@@ -499,6 +519,23 @@ def _render_markdown(report: dict[str, Any]) -> str:
     )
     if blockers:
         lines.extend(["", "## Single-Turn Release Blockers", "", *blockers])
+
+    unresolved = report.get("unresolved_movement_accounting") or []
+    if unresolved:
+        lines.extend([
+            "",
+            "## Unresolved Movement Accounting",
+            "",
+            "Underwriter acknowledgement records these residuals truthfully but does not "
+            "authorize release or pricing reliance. They remain release blockers.",
+            "",
+        ])
+        for item in unresolved:
+            residual = item["residual"]
+            lines.append(
+                f"- {item['agent']}: total={_fmt(residual.get('total'))}, "
+                f"ROBUSTNESS={_fmt(residual.get('ROBUSTNESS'))}; status={item['status']}"
+            )
 
     lines.extend([
         "",
