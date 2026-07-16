@@ -224,6 +224,7 @@ def validate_for_scoring(
     trusted_flags: dict[str, bool],
     claimed_decisions: dict[str, dict[str, Any]],
     active_dim_ids: list[str],
+    signing_key: bytes,
 ) -> ValidatedApplicability:
     """Validate claimed waivers against trusted flags and issue an opaque token."""
     engine = decide(policy, trusted_flags)
@@ -249,4 +250,6 @@ def validate_for_scoring(
         for did, decision in engine.items()
         if did in active
     }
-    return ValidatedApplicability._from_policy_validation(canonical, policy.version)
+    return ValidatedApplicability._signed_from_policy_validation(
+        canonical, policy.version, signing_key
+    )

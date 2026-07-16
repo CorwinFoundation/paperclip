@@ -34,6 +34,7 @@ from harness.applicability import (
     load_policy,
     validate_for_scoring,
 )
+from api.bundle import _signing_key
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -519,6 +520,7 @@ def run_scan(
                 trusted_flags,
                 applicability_decisions,
                 rubric.active_dim_ids,
+                _signing_key(),
             )
             applicability_policy_version = applicability_decisions.policy_version
         score_result = score(

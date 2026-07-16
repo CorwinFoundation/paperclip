@@ -29,6 +29,7 @@ from harness.applicability import (  # noqa: E402
     validate_for_scoring,
 )
 from scanners import CONTRACT_VERSION, SCANNER_VERSION  # noqa: E402
+from api.bundle import _signing_key  # noqa: E402
 
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 FIXTURES = REPO / "tests" / "fixtures" / "golden_agents"
@@ -57,6 +58,7 @@ def _score_fixture(rubric: Rubric, fixture_id: str, seed: int) -> dict[str, Any]
             applicability["architecture_flags"],
             canonical["applicability_decisions"],
             rubric.active_dim_ids,
+            _signing_key(),
         )
     return score(
         rubric,

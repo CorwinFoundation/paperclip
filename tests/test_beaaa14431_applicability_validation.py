@@ -39,7 +39,13 @@ from harness.applicability import (  # noqa: E402
     validate_for_scoring,
 )
 from harness.cli_runner import CliInputError, run_scan  # noqa: E402
-from rubric.scoring import Rubric, ScoringError, score  # noqa: E402
+from rubric.scoring import (  # noqa: E402
+    Rubric,
+    ScoringError,
+    ValidatedApplicability,
+    score,
+)
+from api.bundle import _signing_key  # noqa: E402
 
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 G1 = REPO / "tests" / "fixtures" / "golden_agents" / "G1"
@@ -97,6 +103,32 @@ class ApplicabilityValidationTests(unittest.TestCase):
             os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = self._trusted_flags
 
     # ---- (a) fail-closed on the inflation path --------------------------
+    def test_caller_cannot_forge_validated_applicability_token(self):
+        """CTO re-review regression: a constructed or wrong-key token fails."""
+        rub = Rubric.load(RUBRIC_PATH)
+        ev = json.loads(G1_EVAL.read_text())
+        forged_decisions = copy.deepcopy(
+            _POLICY_COMPLIANT["applicability_decisions"]
+        )
+        target = min(ev, key=lambda did: ev[did]["raw"])
+        forged_decisions[target] = {
+            "fires": False,
+            "na_justification": "forged waiver",
+            "na_justification_key": None,
+        }
+        forged = ValidatedApplicability._signed_from_policy_validation(
+            forged_decisions, load_policy().version, b"attacker-controlled-key"
+        )
+        with self.assertRaisesRegex(ScoringError, "signature mismatch"):
+            score(
+                rub,
+                ev,
+                snapshot_hash="sha256:x",
+                forensic_bundle_uri="u",
+                corpus_version="0.1.1",
+                applicability_decisions=forged,
+            )
+
     def test_out_of_policy_na_waiver_fails_closed(self):
         """AC(a): a sidecar marking the worst FIRING dims N/A inflates on the
         unvalidated score path but fails closed through run_scan after the fix."""
@@ -130,6 +162,7 @@ class ApplicabilityValidationTests(unittest.TestCase):
             load_policy(), G1_FLAGS,
             _POLICY_COMPLIANT["applicability_decisions"],
             rub.active_dim_ids,
+            _signing_key(),
         )
         score(rub, ev, applicability_decisions=validated, **kw)
         with self.assertRaisesRegex(ScoringError, "raw applicability_decisions"):
@@ -166,6 +199,7 @@ class ApplicabilityValidationTests(unittest.TestCase):
                 load_policy(), G1_FLAGS,
                 _POLICY_COMPLIANT["applicability_decisions"],
                 rub.active_dim_ids,
+                _signing_key(),
             ),
             applicability_policy_version=_POLICY_COMPLIANT.get("policy_version"),
         )

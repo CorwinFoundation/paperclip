@@ -32,6 +32,7 @@ from harness.cli_runner import (  # noqa: E402
 )
 from harness.contract_envelope import _validate_scored_evidence_refs  # noqa: E402
 from harness.applicability import load_policy, validate_for_scoring  # noqa: E402
+from api.bundle import _signing_key  # noqa: E402
 
 CLI = REPO / "bin" / "are-scan"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -296,6 +297,7 @@ class RunScanTests(unittest.TestCase):
                 _app["architecture_flags"],
                 _app["applicability_decisions"],
                 _rub.active_dim_ids,
+                _signing_key(),
             ),
             applicability_policy_version=load_policy().version,
         )

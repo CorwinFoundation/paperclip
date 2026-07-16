@@ -13,6 +13,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
+import hmac
+import json
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -38,34 +41,54 @@ class ValidatedApplicability:
     ``score`` deliberately rejects caller JSON/dicts containing N/A waivers.
     """
 
-    __slots__ = ("_decisions", "policy_version")
-    _ISSUER = object()
+    __slots__ = ("_decisions", "policy_version", "_signature")
 
     def __init__(
         self,
         decisions: Mapping[str, Mapping[str, Any]],
         policy_version: str,
-        *,
-        _issuer: object,
+        signature: str,
     ) -> None:
-        if _issuer is not self._ISSUER:
-            raise ScoringError(
-                "ValidatedApplicability must be produced by trusted scanner validation"
-            )
         frozen = {
             did: MappingProxyType(dict(decision))
             for did, decision in decisions.items()
         }
         self._decisions = MappingProxyType(frozen)
         self.policy_version = policy_version
+        self._signature = signature
 
     @classmethod
-    def _from_policy_validation(
+    def _signed_from_policy_validation(
         cls,
         decisions: Mapping[str, Mapping[str, Any]],
         policy_version: str,
+        signing_key: bytes,
     ) -> "ValidatedApplicability":
-        return cls(decisions, policy_version, _issuer=cls._ISSUER)
+        signature = hmac.new(
+            signing_key,
+            cls._canonical(decisions, policy_version),
+            hashlib.sha256,
+        ).hexdigest()
+        return cls(decisions, policy_version, signature)
+
+    @staticmethod
+    def _canonical(
+        decisions: Mapping[str, Mapping[str, Any]], policy_version: str
+    ) -> bytes:
+        return json.dumps(
+            {"decisions": {k: dict(v) for k, v in decisions.items()},
+             "policy_version": policy_version},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    def _verify(self, signing_key: bytes) -> bool:
+        expected = hmac.new(
+            signing_key,
+            self._canonical(self._decisions, self.policy_version),
+            hashlib.sha256,
+        ).hexdigest()
+        return hmac.compare_digest(self._signature, expected)
 
     @property
     def decisions(self) -> Mapping[str, Mapping[str, Any]]:
@@ -256,6 +279,11 @@ def score(
     # Empty set when caller omits the kwarg → behavior matches v0.2.3 exactly.
     na_dims: dict[str, Mapping[str, Any]] = {}
     if isinstance(applicability_decisions, ValidatedApplicability):
+        # Import lazily to keep the rubric module usable without API startup.
+        # The bundle key is scanner-held authority; caller JSON cannot mint it.
+        from api.bundle import _signing_key
+        if not applicability_decisions._verify(_signing_key()):
+            raise ScoringError("validated applicability signature mismatch")
         decisions = applicability_decisions.decisions
         if (
             applicability_policy_version is not None
