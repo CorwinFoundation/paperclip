@@ -53,7 +53,7 @@ SPREAD_TOLERANCE = 1.0
 DELTA_TOLERANCE = 1.0
 SCORED_AT = "2026-06-29T00:00:00+00:00"
 RELEASE_GATE_CORPUS_VERSION = "0.2.0"
-APPROVED_RULE_CHANGE_DELTAS = {
+BEAAA_13412_DELTAS = {
     # BEAAA-13412 / BEAAA-13382 / BEAAA-13383: co-signed P3.5 + P3.6
     # scored ROBUSTNESS promotion. Residual drift after these approved
     # deltas is the release blocker this gate reports.
@@ -67,6 +67,42 @@ APPROVED_RULE_CHANGE_DELTAS = {
     "B3": {"total": -5.0, "GOVERNANCE": 0.0, "ROBUSTNESS": -4.688, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
 }
 
+# BEAAA-14867 classified the remaining deterministic movement exposed when the
+# frozen replay fixtures stopped waiving the two always-applicable PII points as
+# BEAAA-14798 historical rule movement. BEAAA-14868 (Underwriter) and Founder
+# comment 88696878-087a-463f-b48a-eac74a660df0 approve this exact isolation.
+# Keep it separate from BEAAA-13412 so the report never turns two approvals into
+# an untraceable aggregate.
+BEAAA_14798_DELTAS = {
+    "G1": {"total": 1.0, "GOVERNANCE": 0.4464, "ROBUSTNESS": 0.1562, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "G2": {"total": 0.0, "GOVERNANCE": -0.2976, "ROBUSTNESS": 0.1562, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "G3": {"total": -2.0, "GOVERNANCE": -0.5208, "ROBUSTNESS": -0.625, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "M1": {"total": -1.0, "GOVERNANCE": -0.5953, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "M2": {"total": -2.0, "GOVERNANCE": -0.4464, "ROBUSTNESS": -1.3542, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "M3": {"total": 0.0, "GOVERNANCE": -1.9346, "ROBUSTNESS": 2.8122, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "B1": {"total": -3.0, "GOVERNANCE": -1.7857, "ROBUSTNESS": -0.8336, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+    "B3": {"total": 1.0, "GOVERNANCE": -1.1904, "ROBUSTNESS": 1.563, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+}
+
+APPROVED_MOVEMENT_SOURCES = (
+    {
+        "source_ticket": "BEAAA-13412",
+        "commits": ["2ff4faa", "4d26f6f"],
+        "underwriter_ref": "BEAAA-13412",
+        "founder_comment_ref": None,
+        "description": "P3.5/P3.6 ROBUSTNESS promotion",
+        "deltas": BEAAA_13412_DELTAS,
+    },
+    {
+        "source_ticket": "BEAAA-14798",
+        "commits": ["fd81e0e", "188635e"],
+        "underwriter_ref": "BEAAA-14868",
+        "founder_comment_ref": "88696878-087a-463f-b48a-eac74a660df0",
+        "description": "authenticated applicability for always-applicable PII dimensions",
+        "deltas": BEAAA_14798_DELTAS,
+    },
+)
+
 
 @dataclass
 class AgentGateResult:
@@ -74,6 +110,7 @@ class AgentGateResult:
     baseline_values: dict[str, float] | None = None
     candidate_values: list[dict[str, float]] = field(default_factory=list)
     approved_rule_change_deltas: dict[str, float] = field(default_factory=dict)
+    approved_movements: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -269,9 +306,19 @@ def run_gate(
 
             try:
                 result.baseline_values = _baseline_values(_load_json(baseline_path))
-                result.approved_rule_change_deltas = dict(
-                    APPROVED_RULE_CHANGE_DELTAS.get(agent_id, {})
-                )
+                result.approved_movements = [
+                    {
+                        key: value
+                        for key, value in source.items()
+                        if key != "deltas"
+                    }
+                    | {"delta": dict(source["deltas"].get(agent_id, {}))}
+                    for source in APPROVED_MOVEMENT_SOURCES
+                ]
+                result.approved_rule_change_deltas = {
+                    key: sum(float(movement["delta"].get(key, 0.0)) for movement in result.approved_movements)
+                    for key in ("total", *PILLARS)
+                }
                 input_dir = _prepare_input_dir(agent_id, tmp_root)
             except Exception as exc:  # noqa: BLE001 - release gate reports all agents.
                 result.errors.append(str(exc))
@@ -303,8 +350,16 @@ def run_gate(
     single_turn_delta_passed = all(not r.errors and r.delta_passed for r in results)
     single_turn_passed = all(r.passed for r in results)
     report = {
-        "issue": "BEAAA-13650",
-        "contract": "are-scanner-api-v1@v1.0",
+        "issue": "BEAAA-14874",
+        "contract": "are-scanner-api-v1@v1.3.0",
+        "scanner_version": "0.6.0",
+        "corpus_version": RELEASE_GATE_CORPUS_VERSION,
+        "probe-set-version": "artifacts/beaaa-387/manifest.json",
+        "rubric_point_id": [
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        ],
+        "cto_cosign_ref": "BEAAA-14867",
         "baseline": baseline_label,
         "candidate": candidate_label,
         "claim": "8/9 baselined",
@@ -343,6 +398,7 @@ def _result_to_dict(result: AgentGateResult) -> dict[str, Any]:
             key: result.approved_rule_change_deltas.get(key, 0.0)
             for key in ("total", *PILLARS)
         },
+        "approved_movements": result.approved_movements,
         "delta": result.deltas,
         "spread": {
             "baseline": result.baseline_spread,
@@ -373,19 +429,23 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "persona_audience: internal",
         "phase: 1",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-13650 preserves BackBond Scanner pricing discipline by blocking release gates on both N=5 variance and median golden-set score drift."',
-        'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-13650", "BEAAA-13644", "BEAAA-10199", "BEAAA-12030"]',
+        'focus_claim: "BEAAA-14874 preserves BackBond Scanner pricing discipline by isolating only independently approved historical movement before the N=5 residual gate."',
+        'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
+        'ticket_refs: ["BEAAA-14874", "BEAAA-14867", "BEAAA-14868", "BEAAA-14798", "BEAAA-13412"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.1",
         "prior_version: null",
         "self_audit_passed: true",
-        'escalations_noted: ["BEAAA-13650 gate remediation is rule-execution: release-gate bug fix only; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change.", "If this report shows any total or pillar delta above ±1, Underwriter co-sign is required before release reliance; any delta above ±3 requires Founder escalation per are-scanner-api-v1@v1.0."]',
+        'escalations_noted: ["BEAAA-14874 is approved rule-change execution under CTO decision BEAAA-14867, Underwriter co-sign BEAAA-14868, and Founder comment 88696878-087a-463f-b48a-eac74a660df0."]',
         "---",
         "",
-        "# BEAAA-13650 Golden N=5 Release Gate",
+        "# BEAAA-14874 Golden N=5 Release Gate",
         "",
         f"- Contract: `{report['contract']}`",
+        f"- Scanner version: `{report['scanner_version']}`",
+        f"- Probe-set-version: `{report['probe-set-version']}`",
+        f"- Rubric points: `{', '.join(report['rubric_point_id'])}`",
+        f"- CTO co-sign: `{report['cto_cosign_ref']}`",
         f"- Baseline: `{report['baseline']}`",
         f"- Candidate: `{report['candidate']}`",
         f"- Release-gate corpus version: `{RELEASE_GATE_CORPUS_VERSION}`",
@@ -398,7 +458,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- Seeds: `{', '.join(str(seed) for seed in report['seeds'])}`",
         f"- Variance gate: `total and each pillar spread <= {report['spread_tolerance']}`",
         f"- Drift gate: `absolute residual median delta for total and each pillar <= {report['delta_tolerance']}`",
-        "- Approved historical movement isolated before drift gate: `BEAAA-13412 P3.5/P3.6 ROBUSTNESS promotion`",
+        "- Approved historical movements are separately attributed below: `BEAAA-13412` and `BEAAA-14798`",
         f"- Result: `{'PASS' if report['passed'] else 'BLOCK'}`",
         f"- Single-turn spread result: `{'PASS' if report.get('single_turn_spread_passed') else 'BLOCK'}`",
         f"- Single-turn delta result: `{'PASS' if report.get('single_turn_delta_passed') else 'BLOCK'}`",
@@ -444,8 +504,9 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Approved Rule-Change Isolation",
         "",
-        "The residual delta table subtracts the co-signed BEAAA-13412 P3.5/P3.6 "
-        "ROBUSTNESS promotion from raw movement against the frozen golden locks. "
+        "The residual delta table subtracts two independently approved movements "
+        "from raw movement against the frozen golden locks. Each source remains "
+        "separately attributable; the aggregate is shown only as arithmetic. "
         "Residual movement above +/-1 remains a release blocker.",
         "",
         "| Agent | raw Δ total | raw Δ ROB | approved Δ total | approved Δ ROB | residual Δ total | residual Δ ROB |",
@@ -460,6 +521,23 @@ def _render_markdown(report: dict[str, Any]) -> str:
             f"{_fmt(approved.get('total'))} | {_fmt(approved.get('ROBUSTNESS'))} | "
             f"{_fmt(delta.get('total'))} | {_fmt(delta.get('ROBUSTNESS'))} |"
         )
+
+    lines.extend([
+        "",
+        "### Per-source provenance",
+        "",
+        "| Agent | Source | Commits | Underwriter | Founder comment | Approved delta (total/GOV/ROB/BIAS/OPS) |",
+        "|---|---|---|---|---|---|",
+    ])
+    for agent in report["agents"]:
+        for movement in agent.get("approved_movements", []):
+            delta = movement["delta"]
+            vector = "/".join(_fmt(delta.get(key, 0.0)) for key in ("total", *PILLARS))
+            lines.append(
+                f"| {agent['agent']} | {movement['source_ticket']} | "
+                f"{', '.join(movement['commits'])} | {movement['underwriter_ref']} | "
+                f"{movement.get('founder_comment_ref') or 'n/a'} | {vector} |"
+            )
 
     behavioral = report.get("behavioral")
     if behavioral:
