@@ -33,15 +33,13 @@ container_args() {
     --user 10001:10001 \
     --mount "source=${RUN_VOLUME},target=/data/runs" \
     -e "DEMO_ENVIRONMENT=public-demo" \
+    -e "DEMO_ACCESS_TOKEN=${DEMO_ACCESS_TOKEN}" \
+    -e "DEMO_RUN_MAX_REQUESTS=${DEMO_RUN_MAX_REQUESTS:-5}" \
+    -e "DEMO_RUN_WINDOW_SECONDS=${DEMO_RUN_WINDOW_SECONDS:-3600}" \
     -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Passive Monitor Demo}" \
     -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}" \
-    -e "DEMO_GIT_REF=${DEMO_GIT_REF:-unknown}" \
-    -e "DEMO_GITHUB_REPOSITORY=${DEMO_GITHUB_REPOSITORY:-CorwinFoundation/are-scanner}" \
     -e "DEMO_GITHUB_RUN_ID=${DEMO_GITHUB_RUN_ID:-manual}" \
-    -e "DEMO_GITHUB_RUN_URL=${DEMO_GITHUB_RUN_URL:-}" \
-    -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}" \
-    -e "DEMO_ACCESS_TOKEN=${DEMO_ACCESS_TOKEN:-}" \
-    -e "DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-5}"
+    -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}"
 }
 
 wait_for_health() {
@@ -77,7 +75,8 @@ if ! wait_for_health "$CANDIDATE_PORT" 60; then
   exit 1
 fi
 if ! python3 "$SOURCE_DIR/tools/post-bind-ingest/demo/smoke_test.py" \
-  --url "http://127.0.0.1:${CANDIDATE_PORT}" --token "${DEMO_ACCESS_TOKEN:-}" --timeout 180; then
+  --url "http://127.0.0.1:${CANDIDATE_PORT}" --timeout 180 --token "$DEMO_ACCESS_TOKEN"; then
+
   docker logs "$CANDIDATE" --tail 200 || true
   docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
   echo "Candidate proof run failed" >&2

@@ -74,3 +74,76 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "ARE Insurance" not in html
         assert "BOUND_DEMO and bind-threshold signals" in html
         assert "not evidence of bound insurance coverage" in html
+
+
+def test_bind_reject_scenario_stops_before_installation() -> None:
+    events: list[dict] = []
+
+    def emit(kind: str, message: str, **details) -> None:
+        events.append({"kind": kind, "message": message, **details})
+
+    with tempfile.TemporaryDirectory(prefix="scanner-bind-reject-") as tmp:
+        lifecycle, tests = run_preproduction(
+            Path(tmp) / "run",
+            "bind-reject",
+            emit,
+            lambda: {"status": "passed"},
+            scenario="bind_reject",
+        )
+
+    assert lifecycle["initial_scan"]["score"] == 38
+    assert lifecycle["bind"]["status"] == "REJECTED"
+    assert lifecycle["initial_admittance"]["admittance_class"] == "REFUSE"
+    assert lifecycle["installation"] is None
+    assert lifecycle["ci_gate"] is None
+    assert lifecycle["certificate"] is None
+    assert lifecycle["terminal_failure"]["stage"] == "bind"
+    analysis = lifecycle["failure_analysis"]
+    assert analysis["headline"] == "Initial scan rejected: critical controls are missing"
+    assert len(analysis["findings"]) == 4
+    assert any(finding["title"] == "Hardcoded service credential" for finding in analysis["findings"])
+    assert len(analysis["remediation"]) == 3
+    assert tests["status"] == "not_run"
+    assert len([event for event in events if event["kind"] == "scenario_finding"]) == 4
+    assert any(event.get("stage") == "bind" and event.get("state") == "failed" for event in events)
+
+
+def test_cicd_regression_scenario_blocks_release_with_negative_delta() -> None:
+    events: list[dict] = []
+
+    def emit(kind: str, message: str, **details) -> None:
+        events.append({"kind": kind, "message": message, **details})
+
+    with tempfile.TemporaryDirectory(prefix="scanner-cicd-regression-") as tmp:
+        lifecycle, tests = run_preproduction(
+            Path(tmp) / "run",
+            "cicd-regression",
+            emit,
+            lambda: {"status": "passed", "summary": "tests passed", "elapsed_ms": 1},
+            scenario="cicd_regression",
+        )
+
+    assert lifecycle["initial_scan"]["score"] == 80
+    assert lifecycle["updated_scan"]["score"] == 45
+    assert lifecycle["updated_scan"]["agent_release"] == "1.2.0"
+    assert lifecycle["score_delta"] == -35
+    assert lifecycle["ci_gate"]["status"] == "failed"
+    assert lifecycle["ci_gate"]["exit_code"] == 1
+    assert lifecycle["certificate"] is None
+    assert lifecycle["terminal_failure"]["stage"] == "cicd"
+    analysis = lifecycle["failure_analysis"]
+    assert len(analysis["findings"]) == 4
+    assert any(finding["title"] == "Prompt-injection defense removed" for finding in analysis["findings"])
+    assert "-35 point delta" in analysis["summary"]
+    assert tests["status"] == "passed"
+    assert len([event for event in events if event["kind"] == "scenario_finding"]) == 4
+    assert any(event.get("stage") == "cicd" and event.get("state") == "failed" for event in events)
+
+
+def test_demo_ui_renders_failure_explanations_and_pillar_impact() -> None:
+    html = (DEMO_DIR / "index_v2.html").read_text(encoding="utf-8")
+
+    assert "Why this scenario failed" in html
+    assert "function failureAnalysis" in html
+    assert "function pillarImpact" in html
+    assert "scenario_finding" in html

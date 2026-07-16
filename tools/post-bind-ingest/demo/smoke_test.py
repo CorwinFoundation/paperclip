@@ -5,15 +5,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from urllib import error, request
 
 
-def _json(url: str, *, method: str = "GET", token: str | None = None, timeout: int = 10) -> dict:
+def _json(url: str, *, method: str = "GET", timeout: int = 10, token: str | None = None) -> dict:
     payload = b"{}" if method == "POST" else None
     headers = {"Content-Type": "application/json"}
     if token:
-        headers["X-Demo-Access-Token"] = token
+        headers["Authorization"] = f"Bearer {token}"
+
     req = request.Request(url, data=payload, method=method, headers=headers)
     with request.urlopen(req, timeout=timeout) as response:
         if response.status not in {200, 202}:
@@ -21,12 +23,13 @@ def _json(url: str, *, method: str = "GET", token: str | None = None, timeout: i
         return json.load(response)
 
 
-def _text(url: str, *, timeout: int = 20) -> str:
-    with request.urlopen(url, timeout=timeout) as response:
+def _text(url: str, *, timeout: int = 20, token: str | None = None) -> str:
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    req = request.Request(url, headers=headers)
+    with request.urlopen(req, timeout=timeout) as response:
         if response.status != 200:
             raise RuntimeError(f"unexpected HTTP {response.status}: {url}")
         return response.read().decode("utf-8")
-
 
 def _expected_rubric_label(rubric_version: str) -> str:
     return f"{rubric_version} candidate" if rubric_version in {"1.3.0"} else rubric_version
@@ -34,14 +37,20 @@ def _expected_rubric_label(rubric_version: str) -> str:
 
 def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dict:
     base = base_url.rstrip("/")
-    health = _json(base + "/api/health")
+    health = _json(base + "/api/health", token=token)
     if health.get("status") != "ok" or health.get("production_contacted") is not False:
         raise RuntimeError(f"unhealthy or unsafe deployment: {health}")
-    started = _json(base + "/api/runs", method="POST", token=token)
+    try:
+        started = _json(base + "/api/runs", method="POST", token=token)
+    except error.HTTPError as exc:
+        if exc.code == 401 and not token:
+            return {"status": "AUTH_GATE_ENFORCED", "health": "PASS"}
+        raise
+
     run_id = started["run_id"]
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        snapshot = _json(base + f"/api/runs/{run_id}", timeout=20)
+        snapshot = _json(base + f"/api/runs/{run_id}", timeout=20, token=token)
         if snapshot["status"] == "failed":
             raise RuntimeError(snapshot.get("error") or "deployed proof run failed")
         if snapshot["status"] == "passed":
@@ -69,9 +78,10 @@ def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dic
             forbidden_deployment_keys = {"repository", "git_ref", "github_run_url"}
             if forbidden_deployment_keys & deployment.keys():
                 raise RuntimeError("deployment payload exposes private CI metadata")
-            certificate_html = _text(base + lifecycle["documents"]["certificate_url"])
-            report_html = _text(base + lifecycle["documents"]["report_url"])
+            certificate_html = _text(base + lifecycle["documents"]["certificate_url"], token=token)
+            report_html = _text(base + lifecycle["documents"]["report_url"], token=token)
             if "Certificate of BackBond Scan" not in certificate_html or "BackBond Scanner Report" not in report_html:
+
                 raise RuntimeError("certificate or report document could not be viewed")
             if "ARE Spot-Scan" in report_html or "ARE Insurance" in report_html:
                 raise RuntimeError("report document contains stale ARE naming")
@@ -94,11 +104,12 @@ def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dic
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True)
-    parser.add_argument("--token")
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--token", default=os.environ.get("DEMO_ACCESS_TOKEN"))
     args = parser.parse_args()
     try:
         print(json.dumps(run(args.url, args.timeout, token=args.token), sort_keys=True))
+
     except (error.URLError, RuntimeError, TimeoutError) as exc:
         raise SystemExit(str(exc)) from exc
     return 0
