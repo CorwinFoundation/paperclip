@@ -1,6 +1,6 @@
 # Version-control source of truth and parallel-work protocol
 
-Last reconciled: 2026-07-16 UTC.
+Last reconciled: 2026-07-16 UTC after `origin/master@3b66ccfdec700e6d8037e64757f8127d14c2bcbb`.
 
 This runbook defines where Scanner code is authoritative and how Codex and
 Paperclip agents work in parallel without overwriting each other. The short
@@ -31,10 +31,10 @@ This table is a dated recovery snapshot, not a permanent test-count claim.
 
 | Lane | Location and state | Disposition |
 | --- | --- | --- |
-| Canonical production baseline | `origin/master@b1656c900e8ec6e1c0d3f5c70d0871fa8b5273c3`; PRs #109 and #113 merged after the original `1040082` baseline | Starting point for every new worktree. |
-| Company Appendix A reconciliation | `beaaa-13802-clean-reconcile@35f7f43600c053364058a7cf01fab14cd24c1998`; one commit directly on `1040082` | **Canonical company lane for BEAAA-13802.** Refresh from current `origin/master`, resolve conflicts, and merge before text-case activation. |
+| Canonical production baseline | `origin/master@3b66ccfdec700e6d8037e64757f8127d14c2bcbb`; PRs #109, #113, and #65 are reachable from this baseline | Starting point for every new worktree. |
+| Company Appendix A reconciliation | `beaaa-13802-clean-reconcile@35f7f43600c053364058a7cf01fab14cd24c1998`; one commit directly on the earlier `1040082` baseline, carried into the C7 integration branch after a clean `origin/master` refresh | **Canonical company lane for BEAAA-13802.** Do not treat it as merged until the integration branch SHA is reachable from `origin/master`. |
 | Duplicate company reconciliation branch | `beaaa-13802-master-reconcile@3ea64b1fe7d39983df97793c5d3cc4a28983b3f5`; same reconciliation family as the canonical company lane | Frozen. Do not add commits. Remove after the canonical PR merges. |
-| Codex text-case activation draft | Historical alias `are-scanner-execution-pr` / `feat/activate-text-workers` was not recoverable as a live checkout in the 2026-07-16 C1 sweep; substance maps to GitHub `feat/real-scan-execution-layer` and `beaaa-13761-execution-evidence` | Reconstruct only after BEAAA-13802 / PR #69 merges. |
+| Codex text-case activation draft | Historical alias `are-scanner-execution-pr` / `feat/activate-text-workers` was not recoverable as a live checkout in the 2026-07-16 C1 sweep; substance maps to GitHub `feat/real-scan-execution-layer` and `beaaa-13761-execution-evidence` | Reconstruct only after BEAAA-13802 / PR #69 is reachable from `origin/master`; no production deployment follows from documentation merge alone. |
 | Paperclip shared checkout | VM branch `beaaa-12093-master-candidate@34687b5`; at audit time its cached `origin/master` was `ad1b172`, with 121 modified/untracked paths and no `tools/registered_case_executor.py` | Quarantined as a recovery source. Do not commit, merge, reset, or push this mixed checkout. |
 
 The VM shared checkout contains work from unrelated tickets. Preserve it until
