@@ -10,6 +10,7 @@ const mockAssetService = vi.hoisted(() => ({
 }));
 
 const mockReleaseCandidateService = vi.hoisted(() => ({
+  getById: vi.fn(),
   getApprovedLease: vi.fn(),
   recordDeployEvent: vi.fn(),
   verifyRelayAuthorization: vi.fn(),
@@ -54,6 +55,7 @@ function createApp(beforeRoutes?: express.RequestHandler) {
 
 describe("release candidate routes", () => {
   beforeEach(() => {
+    mockReleaseCandidateService.getById.mockReset();
     mockReleaseCandidateService.getApprovedLease.mockReset();
     mockReleaseCandidateService.recordDeployEvent.mockReset();
     mockReleaseCandidateService.verifyRelayAuthorization.mockReset();
@@ -156,6 +158,13 @@ describe("release candidate routes", () => {
   it("passes deploy-record tokens only from the header and keeps the request target token-free", async () => {
     const authorizationId = "99999999-9999-4999-8999-999999999999";
     const requestTargets: string[] = [];
+    mockReleaseCandidateService.getApprovedLease.mockResolvedValue({
+      authorization: { id: authorizationId },
+      candidate: {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        companyId,
+      },
+    });
     mockReleaseCandidateService.recordDeployEvent.mockResolvedValue({
       eventType: "deploy_started",
       authorization: { id: authorizationId },
@@ -293,6 +302,7 @@ describe("release candidate routes", () => {
   it("posts idempotent deploy receipts without the one-time deploy token", async () => {
     const candidateId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const authorizationId = "99999999-9999-4999-8999-999999999999";
+    mockReleaseCandidateService.getById.mockResolvedValue({ id: candidateId, companyId });
     mockReleaseCandidateService.recordDeployReceipt.mockResolvedValue({
       alreadyRecorded: true,
       eventType: "deploy_receipt_duplicate",

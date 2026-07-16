@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   issueComments,
@@ -511,6 +511,7 @@ export function releaseCandidateService(db: Db) {
       }).where(and(
         eq(releaseDeployAuthorizations.id, authorization.id),
         eq(releaseDeployAuthorizations.tokenHash, authorization.tokenHash),
+        isNull(releaseDeployAuthorizations.usedAt),
       )).returning();
       if (!updatedAuth) throw conflict("Failed to consume deploy authorization");
       const [updatedCandidate] = await db.update(releaseCandidates).set({

@@ -6,7 +6,7 @@ import type { Db } from "@paperclipai/db";
 import type { StorageService } from "../storage/types.js";
 import { validate } from "../middleware/validate.js";
 import { badRequest, notFound, unauthorized } from "../errors.js";
-import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { assertCompanyAccess, getActorInfo, hasCompanyAccess } from "./authz.js";
 import { assetService } from "../services/assets.js";
 import { issueService } from "../services/issues.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
@@ -118,6 +118,7 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
     const query = approvedLeaseQuerySchema.parse(req.query);
     const token = readDeployTokenHeader(req);
     const { authorization, candidate } = await candidates.getApprovedLease(query.authorizationId, token);
+    if (!hasCompanyAccess(req, candidate.companyId)) throw notFound("Deploy authorization not found");
     assertCompanyAccess(req, candidate.companyId);
     const tokenScope = releaseCandidateRelayPaths.deployTokenScope(candidate);
     const stagedArtifactPath = authorization.leaseArtifactAssetId
@@ -194,12 +195,14 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
     async (req, res) => {
       const actor = getActorInfo(req);
       const token = readDeployTokenHeader(req);
+      const lease = await candidates.getApprovedLease(req.body.authorizationId, token);
+      if (!hasCompanyAccess(req, lease.candidate.companyId)) throw notFound("Deploy authorization not found");
+      assertCompanyAccess(req, lease.candidate.companyId);
       const result = await candidates.recordDeployEvent({ ...req.body, token }, {
         agentId: actor.agentId,
         userId: actor.actorType === "user" ? actor.actorId : null,
         runId: actor.runId,
       });
-      assertCompanyAccess(req, result.candidate.companyId);
       res.status(201).json({
         ok: true,
         eventType: result.eventType,
@@ -212,7 +215,7 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
 
   router.get("/release-candidates/:candidateId", async (req, res) => {
     const candidate = await candidates.getById(req.params.candidateId as string);
-    if (!candidate) throw notFound("Release candidate not found");
+    if (!candidate || !hasCompanyAccess(req, candidate.companyId)) throw notFound("Release candidate not found");
     assertCompanyAccess(req, candidate.companyId);
     res.json(candidate);
   });
@@ -224,6 +227,9 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
       const candidateId = req.params.candidateId as string;
       const body = req.body as z.infer<typeof deployRecordReceiptSchema>;
       const actor = getActorInfo(req);
+      const candidate = await candidates.getById(candidateId);
+      if (!candidate || !hasCompanyAccess(req, candidate.companyId)) throw notFound("Release candidate not found");
+      assertCompanyAccess(req, candidate.companyId);
       const record = (body.record && typeof body.record === "object" && !Array.isArray(body.record))
         ? body.record as Record<string, unknown>
         : body as Record<string, unknown>;
@@ -238,7 +244,6 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
         userId: actor.actorType === "user" ? actor.actorId : null,
         runId: actor.runId,
       });
-      assertCompanyAccess(req, result.candidate.companyId);
       res.status(result.alreadyRecorded ? 200 : 201).json({
         ok: true,
         alreadyRecorded: result.alreadyRecorded,
@@ -255,7 +260,7 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
     validate(updateReleaseCandidateSchema),
     async (req, res) => {
       const candidate = await candidates.getById(req.params.candidateId as string);
-      if (!candidate) throw notFound("Release candidate not found");
+      if (!candidate || !hasCompanyAccess(req, candidate.companyId)) throw notFound("Release candidate not found");
       assertCompanyAccess(req, candidate.companyId);
       const actor = getActorInfo(req);
       const updated = await candidates.updateMutable(candidate.id, req.body, {
@@ -272,7 +277,7 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
     validate(createApprovalInteractionSchema),
     async (req, res) => {
       const candidate = await candidates.getById(req.params.candidateId as string);
-      if (!candidate) throw notFound("Release candidate not found");
+      if (!candidate || !hasCompanyAccess(req, candidate.companyId)) throw notFound("Release candidate not found");
       assertCompanyAccess(req, candidate.companyId);
       const actor = getActorInfo(req);
       const sourceIssue = await issueService(db).getById(candidate.sourceIssueId);
@@ -319,6 +324,7 @@ export function releaseCandidateRoutes(db: Db, storage: StorageService) {
         tarballSha256: expectedTarballSha,
         signatureBundleSha256: expectedSignatureBundleSha,
       });
+      if (!hasCompanyAccess(req, candidate.companyId)) throw notFound("Deploy authorization not found");
       assertCompanyAccess(req, candidate.companyId);
       const stored = await storage.putFile({
         companyId: candidate.companyId,
