@@ -28,7 +28,12 @@ from typing import Any
 from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
-from harness.applicability import ApplicabilityError, decide, load_policy
+from harness.applicability import (
+    ApplicabilityError,
+    decide,
+    load_policy,
+    validate_for_scoring,
+)
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -506,6 +511,16 @@ def run_scan(
             _validate_caller_applicability(
                 rubric, applicability_decisions, inputs.architecture_flags
             )
+            trusted_flags = json.loads(
+                os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV]
+            )
+            applicability_decisions = validate_for_scoring(
+                load_policy(),
+                trusted_flags,
+                applicability_decisions,
+                rubric.active_dim_ids,
+            )
+            applicability_policy_version = applicability_decisions.policy_version
         score_result = score(
             rubric,
             inputs.eval_results,

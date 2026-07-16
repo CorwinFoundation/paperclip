@@ -37,6 +37,8 @@ from typing import Any
 
 import yaml
 
+from rubric.scoring import ScoringError, ValidatedApplicability
+
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY_PATH = REPO / "rubric" / "applicability_policy.yaml"
 
@@ -215,3 +217,36 @@ def applicability_record(policy: Policy, flags: dict[str, bool]) -> dict[str, An
         "na_dims": [did for did, d in decisions.items() if not d.fires],
         "measured_dims": [did for did, d in decisions.items() if d.fires],
     }
+
+
+def validate_for_scoring(
+    policy: Policy,
+    trusted_flags: dict[str, bool],
+    claimed_decisions: dict[str, dict[str, Any]],
+    active_dim_ids: list[str],
+) -> ValidatedApplicability:
+    """Validate claimed waivers against trusted flags and issue an opaque token."""
+    engine = decide(policy, trusted_flags)
+    active = set(active_dim_ids)
+    for did, claimed in claimed_decisions.items():
+        if did not in active:
+            raise ScoringError(
+                f"applicability waiver for {did!r} rejected: not an active rubric dim"
+            )
+        if claimed.get("fires") is False:
+            expected = engine.get(did)
+            if expected is None or expected.fires:
+                raise ScoringError(
+                    f"applicability waiver for {did!r} rejected: policy engine "
+                    "independently rules this dim FIRES"
+                )
+    canonical = {
+        did: {
+            "fires": decision.fires,
+            "na_justification": decision.na_justification,
+            "na_justification_key": decision.na_justification_key,
+        }
+        for did, decision in engine.items()
+        if did in active
+    }
+    return ValidatedApplicability._from_policy_validation(canonical, policy.version)

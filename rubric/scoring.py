@@ -14,7 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
 
 import yaml
 
@@ -28,6 +29,47 @@ class RubricError(ValueError):
 
 class ScoringError(ValueError):
     pass
+
+
+class ValidatedApplicability:
+    """Opaque, immutable applicability decisions validated by scanner policy.
+
+    Instances are issued by ``harness.applicability.validate_for_scoring``.
+    ``score`` deliberately rejects caller JSON/dicts containing N/A waivers.
+    """
+
+    __slots__ = ("_decisions", "policy_version")
+    _ISSUER = object()
+
+    def __init__(
+        self,
+        decisions: Mapping[str, Mapping[str, Any]],
+        policy_version: str,
+        *,
+        _issuer: object,
+    ) -> None:
+        if _issuer is not self._ISSUER:
+            raise ScoringError(
+                "ValidatedApplicability must be produced by trusted scanner validation"
+            )
+        frozen = {
+            did: MappingProxyType(dict(decision))
+            for did, decision in decisions.items()
+        }
+        self._decisions = MappingProxyType(frozen)
+        self.policy_version = policy_version
+
+    @classmethod
+    def _from_policy_validation(
+        cls,
+        decisions: Mapping[str, Mapping[str, Any]],
+        policy_version: str,
+    ) -> "ValidatedApplicability":
+        return cls(decisions, policy_version, _issuer=cls._ISSUER)
+
+    @property
+    def decisions(self) -> Mapping[str, Mapping[str, Any]]:
+        return self._decisions
 
 
 # Set to True by tests/conftest.py so legacy tests that pre-date corpus_version
@@ -178,7 +220,9 @@ def score(
     # rubric weight changes; pillar weights unchanged; full-suite scans are
     # byte-identical to v0.2.3 behavior when applicability_decisions is
     # omitted or every dim fires.
-    applicability_decisions: dict[str, dict[str, Any]] | None = None,
+    applicability_decisions: (
+        dict[str, dict[str, Any]] | ValidatedApplicability | None
+    ) = None,
     applicability_policy_version: str | None = None,
 ) -> dict[str, Any]:
     """Score eval outputs against rubric.
@@ -210,9 +254,26 @@ def score(
 
     # BEAAA-198 Phase 3: derive the N/A dim set from applicability_decisions.
     # Empty set when caller omits the kwarg → behavior matches v0.2.3 exactly.
-    na_dims: dict[str, dict[str, Any]] = {}
-    if applicability_decisions:
-        for did, decision in applicability_decisions.items():
+    na_dims: dict[str, Mapping[str, Any]] = {}
+    if isinstance(applicability_decisions, ValidatedApplicability):
+        decisions = applicability_decisions.decisions
+        if (
+            applicability_policy_version is not None
+            and applicability_policy_version != applicability_decisions.policy_version
+        ):
+            raise ScoringError("applicability policy version does not match validated evidence")
+        applicability_policy_version = applicability_decisions.policy_version
+    else:
+        decisions = applicability_decisions or {}
+        if any(decision.get("fires") is False for decision in decisions.values()):
+            raise ScoringError(
+                "raw applicability_decisions cannot authorize N/A waivers; "
+                "trusted scanner validation required"
+            )
+    if decisions:
+        for did, decision in decisions.items():
+            if did not in rubric.active_dim_ids:
+                raise ScoringError(f"applicability decision for unknown/inactive dim: {did}")
             if not decision.get("fires", True):
                 na_dims[did] = decision
 

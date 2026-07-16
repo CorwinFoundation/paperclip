@@ -31,6 +31,7 @@ from harness.cli_runner import (  # noqa: E402
     run_scan,
 )
 from harness.contract_envelope import _validate_scored_evidence_refs  # noqa: E402
+from harness.applicability import load_policy, validate_for_scoring  # noqa: E402
 
 CLI = REPO / "bin" / "are-scan"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -290,8 +291,13 @@ class RunScanTests(unittest.TestCase):
             scanner_version=result["scanner_version"],
             corpus_version="0.1.1",
             seed=42,
-            applicability_decisions=_app["applicability_decisions"],
-            applicability_policy_version=_app.get("policy_version"),
+            applicability_decisions=validate_for_scoring(
+                load_policy(),
+                _app["architecture_flags"],
+                _app["applicability_decisions"],
+                _rub.active_dim_ids,
+            ),
+            applicability_policy_version=load_policy().version,
         )
         self.assertEqual(result["are_total"], _direct["are_total"])
         for pid in ("OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"):
