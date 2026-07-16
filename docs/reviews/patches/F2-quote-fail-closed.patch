@@ -5,7 +5,7 @@ index 0a6b468..e98ddb5 100644
 @@ -621,6 +621,21 @@ def quote(
                  breakdown={"admittance": decision_dict, "evidence": evidence, "rates_version": rates.version},
              )
- 
+
 +        # BEAAA-review fail-closed default (code-review F2): every admittance
 +        # class must be one of the four recognized values. REFUSE / REFER_TO_UW
 +        # are handled above; only CONSTRAINED_BIND / AUTO_BIND may proceed to the
@@ -30,8 +30,8 @@ index e0835f3..695aa71 100644
 +++ b/tests/test_pricing_admittance.py
 @@ -475,5 +475,51 @@ class FCaveatCalibrationGuardTests(unittest.TestCase):
          self.assertAlmostEqual(_f_caveat(5), 1.25)
- 
- 
+
+
 +class UnrecognizedAdmittanceClassFailsClosed(unittest.TestCase):
 +    """Code-review F2 — quote() must fail closed on any admittance_class it does
 +    not recognize, instead of falling through to the full rated (AUTO_BIND-
