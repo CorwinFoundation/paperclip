@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,7 +12,10 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from rubric.scoring import Rubric, score  # noqa: E402
+os.environ.setdefault("ARE_ALLOW_DEV_SIGNING_KEY", "true")
+
+from api.bundle import _signing_key  # noqa: E402
+from rubric.scoring import Rubric, ValidatedApplicability, score  # noqa: E402
 from scanners import CONTRACT_VERSION, SCANNER_VERSION  # noqa: E402
 
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -33,7 +37,12 @@ def _score_fixture(rubric: Rubric, fixture_id: str) -> dict[str, Any]:
     applicability_decisions = None
     app_path = root / "applicability.json"
     if app_path.exists():
-        applicability_decisions = _load_json(app_path).get("applicability_decisions")
+        applicability = _load_json(app_path)
+        applicability_decisions = ValidatedApplicability._signed_from_policy_validation(
+            applicability["applicability_decisions"],
+            applicability["policy_version"],
+            _signing_key(),
+        )
     return score(
         rubric,
         eval_outputs,
@@ -44,7 +53,10 @@ def _score_fixture(rubric: Rubric, fixture_id: str) -> dict[str, Any]:
         seed=expected.get("seed"),
         model_versions=expected.get("model_versions"),
         applicability_decisions=applicability_decisions,
-        applicability_policy_version=expected.get("applicability_policy_version"),
+        applicability_policy_version=(
+            applicability_decisions.policy_version
+            if applicability_decisions is not None else None
+        ),
     )
 
 
