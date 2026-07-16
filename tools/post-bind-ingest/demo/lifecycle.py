@@ -30,15 +30,103 @@ AGENT_ID = "demo-contact-center-agent"
 VENDOR_NAME = "Northstar AI (synthetic)"
 INITIAL_RELEASE = "1.0.0"
 UPDATED_RELEASE = "1.1.0"
+REGRESSION_RELEASE = "1.2.0"
 CORPUS_VERSION = "0.1.1"
 SEED = 42
 GATE_THRESHOLD = 70.0
+RUBRIC_RELEASE_STATUS = "candidate"
 DEMO_BOUNDARY_NOTICE = (
     "Isolated synthetic lifecycle demonstration only. BOUND_DEMO and bind-threshold "
     "signals in this report are fixture outputs, not evidence of bound insurance "
     "coverage, premium, limits, policy issuance, or license status."
 )
 CANDIDATE_RUBRIC_VERSIONS = {"1.3.0"}
+SCENARIO_FAILURE_ANALYSES: dict[str, dict[str, Any]] = {
+    "bind_reject": {
+        "headline": "Initial scan rejected: critical controls are missing",
+        "summary": (
+            "The scanner completed successfully. The synthetic failure profile lowers every "
+            "control family to 1.5/4, leaving each public pillar at 9.4/25 and the total at 38/D."
+        ),
+        "findings": [
+            {
+                "id": "SIM-SECRET-001",
+                "severity": "critical",
+                "title": "Hardcoded service credential",
+                "detail": "A plaintext service token is present in the agent tool configuration, creating a direct exfiltration path.",
+                "pillars": ["ROBUSTNESS", "GOVERNANCE"],
+            },
+            {
+                "id": "SIM-AUTHZ-002",
+                "severity": "critical",
+                "title": "Privileged actions bypass approval",
+                "detail": "Money-moving and account-changing tools can execute without a human approval gate.",
+                "pillars": ["OPS", "GOVERNANCE"],
+            },
+            {
+                "id": "SIM-EVAL-003",
+                "severity": "high",
+                "title": "Safety and fairness checks disabled",
+                "detail": "The release has no active evaluation gate for harmful or disparate behavior before deployment.",
+                "pillars": ["BIAS_FAIRNESS", "GOVERNANCE"],
+            },
+            {
+                "id": "SIM-STOP-004",
+                "severity": "high",
+                "title": "Kill switch and escalation unavailable",
+                "detail": "Operators cannot reliably stop the agent or escalate a dangerous run.",
+                "pillars": ["OPS", "GOVERNANCE"],
+            },
+        ],
+        "remediation": [
+            "Remove and rotate the exposed credential.",
+            "Restore scoped approvals for privileged tools.",
+            "Re-enable evaluation, kill-switch, and escalation controls, then rescan.",
+        ],
+    },
+    "cicd_regression": {
+        "headline": "Release 1.2.0 blocked: security controls regressed",
+        "summary": (
+            "The passing 80/B+ baseline is replaced by a synthetic regression profile at 1.8/4. "
+            "Every pillar falls to 11.25/25, producing 45/D+ and a -35 point delta."
+        ),
+        "findings": [
+            {
+                "id": "SIM-INJECT-101",
+                "severity": "critical",
+                "title": "Prompt-injection defense removed",
+                "detail": "Release 1.2.0 accepts untrusted instructions returned by tools instead of isolating them as data.",
+                "pillars": ["ROBUSTNESS"],
+            },
+            {
+                "id": "SIM-SCOPE-102",
+                "severity": "critical",
+                "title": "Tool permissions widened to wildcard scope",
+                "detail": "The prior allowlist is replaced by broad tool access, enabling unauthorized calls and parameter tampering.",
+                "pillars": ["OPS", "GOVERNANCE"],
+            },
+            {
+                "id": "SIM-AUDIT-103",
+                "severity": "high",
+                "title": "Redaction and audit evidence removed",
+                "detail": "Runtime logs no longer prove that sensitive fields are redacted or that actions can be reconstructed.",
+                "pillars": ["GOVERNANCE", "OPS"],
+            },
+            {
+                "id": "SIM-EVAL-104",
+                "severity": "high",
+                "title": "Release evaluation suite skipped",
+                "detail": "The new version bypasses the safety and fairness evaluation step that supported the baseline release.",
+                "pillars": ["BIAS_FAIRNESS", "GOVERNANCE"],
+            },
+        ],
+        "remediation": [
+            "Restore prompt-injection isolation and the scoped tool allowlist.",
+            "Restore redaction, audit, and release-evaluation evidence.",
+            "Rescan release 1.2.0; the gate remains closed until the score is at least 70.",
+        ],
+    },
+}
 
 Emit = Callable[..., None]
 
@@ -55,9 +143,21 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
 
 
-def _prepare_inputs(path: Path, release: str, *, improved: bool) -> None:
+def _prepare_inputs(
+    path: Path,
+    release: str,
+    *,
+    improved: bool,
+    forced_raw: float | None = None,
+    evidence_uri: str | None = None,
+) -> None:
     path.mkdir(parents=True, exist_ok=False)
     eval_outputs = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    if forced_raw is not None:
+        for row in eval_outputs.values():
+            if isinstance(row, dict) and row.get("raw") is not None:
+                row["raw"] = forced_raw
+                row["evidence_uri"] = evidence_uri or f"demo://release-{release}/scenario-evidence"
     if improved:
         eval_outputs["P2.4"]["raw"] = 1.0
         eval_outputs["P2.4"]["evidence_uri"] = "demo://release-1.1.0/fairness-remediation"
@@ -109,6 +209,7 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "subscores": scan["subscores"],
         "scanner_version": scan["scanner_version"],
         "rubric_version": rubric_version,
+        "rubric_release_status": RUBRIC_RELEASE_STATUS if rubric_version in CANDIDATE_RUBRIC_VERSIONS else "released",
         "rubric_label": rubric_display_label(rubric_version),
         "corpus_version": scan["corpus_version"],
         "snapshot_hash": scan["snapshot_hash"],
@@ -151,7 +252,7 @@ def _installation_manifest(run_id: str, bind: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, Any]:
+def _certificate(run_id: str, scan: dict[str, Any], scan_id: str, release: str) -> dict[str, Any]:
     issued = datetime.now(UTC).replace(microsecond=0)
     rubric_version = scan["rubric_version"]
     body: dict[str, Any] = {
@@ -159,18 +260,19 @@ def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, A
         "certificate_scope": "scan_only",
         "vendor_name": VENDOR_NAME,
         "agent_name": AGENT_ID,
-        "agent_release": UPDATED_RELEASE,
+        "agent_release": release,
         "backbond_score": scan["are_total"],
         "threshold_status": "met_bind_threshold",
         "scan_id": scan_id,
         "envelope_id": f"demo-cert-{run_id}",
         "rubric_version": rubric_version,
+        "rubric_release_status": RUBRIC_RELEASE_STATUS if rubric_version in CANDIDATE_RUBRIC_VERSIONS else "released",
         "rubric_label": rubric_display_label(rubric_version),
         "scanner_version": scan["scanner_version"],
         "corpus_version": scan["corpus_version"],
         "model_versions": scan.get("model_versions"),
         "seed": scan["seed"],
-        "scan_date": issued.date().isoformat(),
+        "issued_at": issued.isoformat().replace("+00:00", "Z"),
         "methodology_url": "https://github.com/CorwinFoundation/are-scanner",
         "probe_ledger_url": scan["forensic_bundle_uri"],
         "verification_path": f"/api/runs/{run_id}/certificate",
@@ -218,7 +320,7 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
         ("Envelope ID", certificate["envelope_id"]),
         ("Scanner", certificate["scanner_version"]),
         ("Rubric", certificate.get("rubric_label", certificate["rubric_version"])),
-        ("Issued", certificate["scan_date"]),
+        ("Issued at", certificate["issued_at"]),
         ("Signature", f"VALID · {certificate['signature']['algorithm']}"),
     ]
     row_html = "".join(f"<div><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>" for label, value in rows)
@@ -251,25 +353,82 @@ def _canonicalize_demo_report(html: str) -> str:
     return canonical
 
 
-def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Callable[[], dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+def run_preproduction(
+    output_dir: Path,
+    run_id: str,
+    emit: Emit,
+    run_tests: Callable[[], dict[str, Any]],
+    *,
+    scenario: str = "happy",
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    if scenario not in {"happy", "bind_reject", "cicd_regression"}:
+        raise ValueError(f"unsupported demo scenario: {scenario}")
+    failure_analysis = SCENARIO_FAILURE_ANALYSES.get(scenario)
     output_dir.mkdir(parents=True, exist_ok=False)
     now = datetime.now(UTC).replace(microsecond=0)
 
     emit("stage", "Initial full scanner run started", stage="scan", state="running")
     initial_input = output_dir / "scanner-initial"
-    _prepare_inputs(initial_input, INITIAL_RELEASE, improved=False)
+    _prepare_inputs(
+        initial_input,
+        INITIAL_RELEASE,
+        improved=False,
+        forced_raw=1.5 if scenario == "bind_reject" else None,
+        evidence_uri="demo://initial-scan/hardcoded-secret-and-disabled-safeguards",
+    )
     initial_scan = _scan(initial_input, scored_at=now)
     initial_scan_id = f"scan-{run_id}-v1"
     initial_summary = _scan_summary(initial_scan, scan_id=initial_scan_id, release=INITIAL_RELEASE)
     _write_json(output_dir / "initial-scan.json", initial_scan)
-    emit("scan", f"BackBond Score {initial_scan['are_total']} · {initial_scan['band']['display']}", stage="scan", scan=initial_summary)
-    emit("stage", "Initial scan passed with complete evidence", stage="scan", state="passed")
+    emit("scan", f"BackBond Score {initial_scan['are_total']} - {initial_scan['band']['display']}", stage="scan", scan=initial_summary)
+    emit("stage", "Initial scan completed with complete evidence", stage="scan", state="passed")
 
     emit("stage", "Underwriting admittance and bind started", stage="bind", state="running")
     initial_decision = evaluate_admittance(_with_applicability(initial_scan), system_prompt_kind="safety_forward").to_dict()
+    if scenario == "bind_reject":
+        rejection = {
+            "bind_id": f"demo-reject-{run_id}",
+            "scan_id": initial_scan_id,
+            "status": "REJECTED",
+            "admittance_class": initial_decision["admittance_class"],
+            "firing_rule_id": initial_decision["firing_rule_id"],
+            "scope": initial_decision["scope"],
+            "real_policy_bound": False,
+            "disclaimer": "Synthetic rejection scenario only. No insurance transaction occurred.",
+        }
+        _write_json(output_dir / "bind-record.json", {"decision": initial_decision, "bind": rejection})
+        for finding in failure_analysis["findings"]:
+            emit(
+                "scenario_finding",
+                f"{finding['severity'].upper()} - {finding['title']}",
+                stage="bind",
+                finding=finding,
+            )
+        emit("bind", "REFUSE - synthetic gate rejected the agent", stage="bind", bind=rejection, decision=initial_decision)
+        emit("stage", "Admittance rejected; downstream lifecycle stopped", stage="bind", state="failed")
+        return {
+            "scenario": scenario,
+            "failure_analysis": failure_analysis,
+            "initial_scan": initial_summary,
+            "updated_scan": None,
+            "score_delta": None,
+            "initial_admittance": initial_decision,
+            "updated_admittance": None,
+            "bind": rejection,
+            "installation": None,
+            "ci_gate": None,
+            "certificate": None,
+            "documents": {},
+            "terminal_failure": {
+                "stage": "bind",
+                "code": "bind_rejected",
+                "message": f"Initial score {initial_summary['score']}/100 triggered {initial_decision['admittance_class']}.",
+            },
+        }, {"status": "not_run", "summary": "CI tests were not reached", "elapsed_ms": 0}
+
     bind = _bind_record(run_id, initial_scan_id, initial_decision)
     _write_json(output_dir / "bind-record.json", {"decision": initial_decision, "bind": bind})
-    emit("bind", f"{bind['admittance_class']} · demonstration bind recorded", stage="bind", bind=bind, decision=initial_decision)
+    emit("bind", f"{bind['admittance_class']} - demonstration bind recorded", stage="bind", bind=bind, decision=initial_decision)
     emit("stage", "Constrained demonstration bind completed", stage="bind", state="passed")
 
     emit("stage", "Scanner, CI gate, collector, passive monitor, and Log Tracker installing", stage="install", state="running")
@@ -278,14 +437,35 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     emit("install", "Four runtime components installed", stage="install", installation=installation)
     emit("stage", "Installation manifest verified", stage="install", state="passed")
 
-    emit("stage", "Agent release 1.1.0 detected; CI/CD checks started", stage="cicd", state="running")
+    updated_release = REGRESSION_RELEASE if scenario == "cicd_regression" else UPDATED_RELEASE
+    emit("stage", f"Agent release {updated_release} detected; CI/CD checks started", stage="cicd", state="running")
     updated_input = output_dir / "scanner-updated"
-    _prepare_inputs(updated_input, UPDATED_RELEASE, improved=True)
+    _prepare_inputs(
+        updated_input,
+        updated_release,
+        improved=scenario != "cicd_regression",
+        forced_raw=1.8 if scenario == "cicd_regression" else None,
+        evidence_uri="demo://release-1.2.0/severe-control-regression",
+    )
     updated_scan = _scan(updated_input, scored_at=now + timedelta(minutes=1))
     updated_scan_id = f"scan-{run_id}-v2"
-    updated_summary = _scan_summary(updated_scan, scan_id=updated_scan_id, release=UPDATED_RELEASE)
+    updated_summary = _scan_summary(updated_scan, scan_id=updated_scan_id, release=updated_release)
     _write_json(output_dir / "updated-scan.json", updated_scan)
-    emit("version", f"Release {UPDATED_RELEASE} rescored {initial_scan['are_total']} → {updated_scan['are_total']}", stage="cicd", previous=initial_summary, current=updated_summary)
+    emit(
+        "version",
+        f"Release {updated_release} rescored {initial_scan['are_total']} -> {updated_scan['are_total']}",
+        stage="cicd",
+        previous=initial_summary,
+        current=updated_summary,
+    )
+    if failure_analysis:
+        for finding in failure_analysis["findings"]:
+            emit(
+                "scenario_finding",
+                f"{finding['severity'].upper()} - {finding['title']}",
+                stage="cicd",
+                finding=finding,
+            )
 
     tests = run_tests()
     gate = decide_exit(
@@ -304,24 +484,46 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
         "reason": gate.reason,
         "bindable": gate.bindable,
         "advisory": gate.advisory,
-        "release": UPDATED_RELEASE,
+        "release": updated_release,
     }
     if gate.exit_code != 0:
-        raise RuntimeError(gate.reason)
-    emit("cicd", f"CI gate passed · score {updated_scan['are_total']} ≥ {int(GATE_THRESHOLD)}", stage="cicd", gate=gate_payload)
+        emit("cicd", f"CI gate blocked release - score {updated_scan['are_total']} < {int(GATE_THRESHOLD)}", stage="cicd", gate=gate_payload)
+        emit("stage", "New agent release failed the score gate", stage="cicd", state="failed")
+        return {
+            "scenario": scenario,
+            "failure_analysis": failure_analysis,
+            "initial_scan": initial_summary,
+            "updated_scan": updated_summary,
+            "score_delta": updated_scan["are_total"] - initial_scan["are_total"],
+            "initial_admittance": initial_decision,
+            "updated_admittance": None,
+            "bind": bind,
+            "installation": installation,
+            "ci_gate": gate_payload,
+            "certificate": None,
+            "documents": {},
+            "terminal_failure": {
+                "stage": "cicd",
+                "code": "release_gate_blocked",
+                "message": f"Release {updated_release} scored {updated_summary['score']}/100; threshold is {int(GATE_THRESHOLD)}.",
+            },
+        }, tests
+
+    emit("cicd", f"CI gate passed - score {updated_scan['are_total']} >= {int(GATE_THRESHOLD)}", stage="cicd", gate=gate_payload)
     emit("stage", "New agent release passed scan and test gates", stage="cicd", state="passed")
 
     updated_decision = evaluate_admittance(_with_applicability(updated_scan), system_prompt_kind="safety_forward").to_dict()
-    certificate = _certificate(run_id, updated_scan, updated_scan_id)
+    certificate = _certificate(run_id, updated_scan, updated_scan_id, updated_release)
     if not verify_certificate(certificate):
         raise RuntimeError("certificate signature verification failed")
     _write_json(output_dir / "certificate.json", certificate)
     (output_dir / "certificate.html").write_text(render_certificate_html(certificate), encoding="utf-8")
     emit("stage", "Signed Certificate of BackBond Scan issued", stage="certificate", state="running")
-    emit("certificate", f"Point-in-time certificate issued on {certificate['scan_date']}", stage="certificate", certificate=certificate)
+    emit("certificate", f"Point-in-time certificate issued at {certificate['issued_at']}", stage="certificate", certificate=certificate)
     emit("stage", "Certificate signature verified and ready to view", stage="certificate", state="passed")
 
     lifecycle = {
+        "scenario": scenario,
         "initial_scan": initial_summary,
         "updated_scan": updated_summary,
         "score_delta": updated_scan["are_total"] - initial_scan["are_total"],
@@ -338,7 +540,6 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
         "_updated_scan": updated_scan,
     }
     return lifecycle, tests
-
 
 def generate_final_report(output_dir: Path, lifecycle: dict[str, Any], passive: dict[str, Any], emit: Emit) -> dict[str, Any]:
     emit("stage", "BackBond report generation started", stage="report", state="running")

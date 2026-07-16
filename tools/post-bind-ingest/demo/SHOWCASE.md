@@ -21,7 +21,15 @@ From the repository root on the configured Windows workstation:
 .\tools\post-bind-ingest\demo\start-showcase.ps1
 ```
 
-Open `http://127.0.0.1:8765` and choose **Run full lifecycle**.
+Open `http://127.0.0.1:8765`, choose a scenario, and select **Run scenario**.
+
+The scenario selector provides three deterministic proof paths:
+
+- **Happy path** completes the signed certificate, production logs, passive analysis, and report.
+- **Fail: initial scan rejected** produces a `38/D` scan and stops at the synthetic admittance gate.
+- **Fail: CI/CD regression** binds the initial `80/B+` release, then drops release `1.2.0` to `45/D+` and blocks it with exit code `1` before certificate issuance.
+
+The Scans view includes score rings and pillar radar charts. The CI/CD view includes a release-delta bar with the pass threshold marked explicitly.
 
 For a portable Python environment, install the focused runtime dependencies and packages:
 
@@ -31,11 +39,27 @@ python -m pip install -e tools/post-bind-ingest -e tools/log-tracker
 python tools/post-bind-ingest/demo/app.py --runs-dir .passive-demo-runs
 ```
 
+Local development defaults to `DEMO_ENVIRONMENT=local`, so no access token is
+required. Any public deployment must set `DEMO_ENVIRONMENT=public-demo` and a
+`DEMO_ACCESS_TOKEN` of at least 32 characters. The browser then presents a
+partner-token login and stores an HttpOnly, SameSite=Strict, Secure session
+cookie. API clients use the same token as a Bearer credential.
+
 ## Verify the public contract
 
 ```bash
 python tools/post-bind-ingest/demo/smoke_test.py \
   --url http://127.0.0.1:8765 \
+  --timeout 180
+```
+
+For a public or otherwise authenticated deployment, pass the token explicitly
+or through the `DEMO_ACCESS_TOKEN` environment variable:
+
+```bash
+python tools/post-bind-ingest/demo/smoke_test.py \
+  --url https://demo.example.com \
+  --token "$DEMO_ACCESS_TOKEN" \
   --timeout 180
 ```
 
@@ -67,6 +91,7 @@ Automated VM deployment is disabled unless `PASSIVE_DEMO_CD_ENABLED=true`. Enabl
 - `PASSIVE_DEMO_HOST`
 - `PASSIVE_DEMO_USER`
 - `PASSIVE_DEMO_SSH_KEY`
+- `PASSIVE_DEMO_ACCESS_TOKEN` (32 or more characters)
 
 Do not upload the Paperclip VM root key. Optional repository variable `PASSIVE_DEMO_URL` enables a post-deploy proof through the public HTTPS endpoint. Until a dedicated identity exists, promote the immutable artifact manually with the locally held key.
 
