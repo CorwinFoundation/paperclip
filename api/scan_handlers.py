@@ -72,8 +72,23 @@ from api.sla import (
     evaluate_degradation,
     pillars_from_dim_results,
 )
-from harness import egress
 from harness.runner import RunnerError
+from api.scan_request_validation import (
+    enforce_no_residential_proxy_for_live_probe as _enforce_no_residential_proxy_for_live_probe,
+    require as _require,
+    validate_agent_endpoint as _validate_agent_endpoint,
+    validate_corpus_snapshot_hash as _validate_corpus_snapshot_hash,
+    validate_credential_ref as _validate_credential_ref,
+    validate_k_replicates as _validate_k_replicates,
+    validate_scan_mode as _validate_scan_mode,
+    verify_live_egress_fail_closed as _verify_live_egress_fail_closed,
+)
+from api.scan_response_envelopes import (
+    customer_payload as _customer_payload,
+    scan_result_to_dict as _scan_result_to_dict,
+    uw_payload as _uw_payload,
+)
+from api.scan_side_effects import fire_webhook as _fire_webhook
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
     CorpusProvenanceMismatchError,
@@ -87,11 +102,6 @@ from scanners.live_probe_orchestrator import (
 )
 
 
-_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
-_HOSTNAME_RE = re.compile(
-    r"^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$"
-)
-_CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
@@ -912,157 +922,10 @@ class ScanRuntime:
 # ---------------------------------------------------------------------------
 
 
-def _require(body: Mapping[str, Any], field_name: str) -> Any:
-    value = body.get(field_name)
-    if value is None or value == "":
-        raise HandlerError(422, f"{field_name}_required")
-    return value
-
-
-def _validate_scan_mode(scan_mode: str) -> None:
-    if scan_mode != "live_probe":
-        # offline_replay must route through POST /score (existing endpoint).
-        raise HandlerError(422, "scan_mode_invalid")
-
-
-def _enforce_no_residential_proxy_for_live_probe() -> None:
-    """Fail closed when a live customer probe would run with resi proxy config.
-
-    BEAAA-7910 removes residential-proxy transit from the live-bind path. The
-    generic egress adapter still supports the env var for non-bind callers, but
-    this shared `/scan` + `/rescans` entrypoint refuses before runtime kickoff.
-    """
-    if egress.is_enabled():
-        raise HandlerError(422, "residential_proxy_forbidden_for_live_probe")
-
-
-def _verify_live_egress_fail_closed(
-    *,
-    scanner_version: str,
-    corpus_version: str,
-    seed: int,
-) -> None:
-    """Prove live-probe egress is default-deny before runtime kickoff."""
-    try:
-        egress.verify_live_egress_fail_closed(
-            scanner_version=str(scanner_version),
-            corpus_version=str(corpus_version),
-            seed=seed,
-            execution_environment=ApiConfig.from_env().execution_environment,
-        )
-    except egress.LiveEgressPostureError as exc:
-        raise HandlerError(422, "live_egress_default_deny_unverified") from exc
-
-
-def _validate_k_replicates(k: Any) -> int:
-    if k is None:
-        return DEFAULT_K_REPLICATES
-    if isinstance(k, bool) or not isinstance(k, int):
-        raise HandlerError(422, "k_replicates_invalid")
-    if k not in ALLOWED_K_REPLICATES:
-        raise HandlerError(422, "k_replicates_invalid")
-    return k
-
-
-def _validate_credential_ref(credential_ref: Any) -> str:
-    if not isinstance(credential_ref, str) or not _CRED_REF_SHAPE_RE.match(credential_ref):
-        raise HandlerError(422, "credential_ref_invalid")
-    return credential_ref
-
-
-def _validate_corpus_snapshot_hash(value: Any) -> str:
-    if not isinstance(value, str) or not _SHA256_RE.match(value):
-        raise HandlerError(422, "corpus_snapshot_hash_invalid")
-    return value
-
-
-def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, str]:
-    """Validate ``agent_endpoint`` shape: requires ``host`` (string,
-    syntactically-valid hostname). Optional ``transport`` field passes through.
-    """
-    if not isinstance(agent_endpoint, dict):
-        raise HandlerError(422, "agent_endpoint_invalid")
-    host = agent_endpoint.get("host")
-    if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
-        raise HandlerError(422, "agent_endpoint_host_invalid")
-    return {
-        "host": host,
-        "transport": str(agent_endpoint.get("transport", "rest")),
-    }
-
-
 # ---------------------------------------------------------------------------
 # Audience-specific response payloads — Δ4 incorporation.
 # ---------------------------------------------------------------------------
 
-
-def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
-    """Project the orchestrator's ScanResult to a JSON-serialisable dict.
-
-    Includes every field by default. Audience-specific adapters then strip
-    per Δ4.
-    """
-    return {
-        "scan_id": result.scan_id,
-        "status": result.status,
-        "scanner_version": result.scanner_version,
-        "corpus_version": result.corpus_version,
-        "rows_emitted": result.rows_emitted,
-        "k_replicates": result.k_replicates,
-        "live_probe_variance_band": result.live_probe_variance_band,
-        "spread_per_dim": dict(result.spread_per_dim),
-        "pillar_spread": dict(result.pillar_spread),
-        "total_spread": result.total_spread,
-        "incomplete": result.incomplete,
-        "incomplete_reason": result.incomplete_reason,
-        "full_suite_manifest": result.full_suite_manifest,
-        "anti_gaming": result.anti_gaming.to_dict(),
-        "dim_results": [
-            {
-                "dim_id": d.dim_id,
-                "raw": d.raw,
-                "spread": d.spread,
-                "replicates": list(d.replicates),
-            }
-            for d in result.dim_results
-        ],
-    }
-
-
-def _uw_payload(result: ScanResult) -> dict[str, Any]:
-    """UW-facing response — retains ``live_probe_variance_band``."""
-    return _scan_result_to_dict(result)
-
-
-def _customer_payload(result: ScanResult) -> dict[str, Any]:
-    """Customer-facing fallback response with only public score-envelope keys.
-
-    Async full-registry scans can be polled before a score row exists. In that
-    path, never fall back to the internal ``ScanResult`` projection, which
-    carries executor details such as ``rows_emitted``, ``dim_results``, and
-    ``full_suite_manifest``.
-    """
-    payload: dict[str, Any] = {
-        "scan_id": result.scan_id,
-        "status": result.status,
-        "scanner_version": result.scanner_version,
-        "corpus_version": result.corpus_version,
-        "are_total": "_phase1_pending",
-        "band": "_phase1_pending",
-        "confidence": None,
-        "confidence_below_adjudication_threshold": bool(result.incomplete),
-        "evidence_refs": [],
-        "partial_completion": bool(result.incomplete),
-        "prior_scan_refs": [],
-        "purpose": None,
-        "rubric_version": "_phase1_pending",
-        "subscores": "_phase1_pending",
-        "uncovered_dimensions": [],
-        "incomplete": result.incomplete,
-    }
-    if result.incomplete_reason is not None:
-        payload["incomplete_reason"] = result.incomplete_reason
-    return payload
 
 _EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
     "are_total",
