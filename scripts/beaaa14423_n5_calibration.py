@@ -23,11 +23,17 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from rubric.scoring import Rubric, score  # noqa: E402
+from harness.applicability import (  # noqa: E402
+    applicability_record,
+    load_policy,
+    validate_for_scoring,
+)
 from scanners import CONTRACT_VERSION, SCANNER_VERSION  # noqa: E402
+from api.bundle import _signing_key  # noqa: E402
 
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 FIXTURES = REPO / "tests" / "fixtures" / "golden_agents"
-OUT = REPO / "tools" / "calibration-deltas" / "2026-07-15-8b41bbf-vs-beaaa14423-distinct-case-count.md"
+OUT = REPO / "tools" / "calibration-deltas" / "2026-07-16-bdedd7e-vs-beaaa14798-score-boundary.md"
 SCORED_AT = datetime(2026, 5, 9, 0, 0, 0, tzinfo=timezone.utc)
 SNAPSHOT_HASH = "sha256:" + "a" * 64
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
@@ -44,7 +50,16 @@ def _score_fixture(rubric: Rubric, fixture_id: str, seed: int) -> dict[str, Any]
     applicability_decisions = None
     app_path = root / "applicability.json"
     if app_path.exists():
-        applicability_decisions = _load_json(app_path).get("applicability_decisions")
+        applicability = _load_json(app_path)
+        policy = load_policy()
+        canonical = applicability_record(policy, applicability["architecture_flags"])
+        applicability_decisions = validate_for_scoring(
+            policy,
+            applicability["architecture_flags"],
+            canonical["applicability_decisions"],
+            rubric.active_dim_ids,
+            _signing_key(),
+        )
     return score(
         rubric,
         eval_outputs,
@@ -55,7 +70,10 @@ def _score_fixture(rubric: Rubric, fixture_id: str, seed: int) -> dict[str, Any]
         seed=expected.get("seed", seed),
         model_versions=expected.get("model_versions"),
         applicability_decisions=applicability_decisions,
-        applicability_policy_version=expected.get("applicability_policy_version"),
+        applicability_policy_version=(
+            applicability_decisions.policy_version
+            if applicability_decisions is not None else None
+        ),
     )
 
 
@@ -120,21 +138,22 @@ def main() -> int:
         "persona_audience: internal",
         "phase: 1",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-14423 additive distinct-pair accounting preserves ±1 golden-set reproducibility against canonical master 8b41bbf."',
+        'focus_claim: "BEAAA-14798 score-boundary applicability validation preserves the ±1 golden-set calibration envelope against bdedd7e."',
         'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1"]',
-        'ticket_refs: ["BEAAA-14423", "BEAAA-14406"]',
-        'proof_points_cited: ["tests/fixtures/golden_agents", "rubric/scoring.py", "tools/active_test_registry.py", "tools/text_case_materializer.py"]',
+        'ticket_refs: ["BEAAA-14798", "BEAAA-14413", "BEAAA-14431"]',
+        'proof_points_cited: ["tests/fixtures/golden_agents", "rubric/scoring.py", "harness/applicability.py"]',
         "version: 0.1",
         "prior_version: null",
         "self_audit_passed: true",
         "escalations_noted: []",
         "---",
         "",
-        "# BEAAA-14423 [F10] N=5 Golden Reproducibility Delta (8b41bbf vs candidate)",
+        "# BEAAA-14798 [F11 residual] N=5 Golden Calibration Delta (bdedd7e vs candidate)",
         "",
-        "BLUF: additive distinct-pair accounting + strict-mode gate; no scoring code,"
-        " rubric weight, judge model, fixture, or executed row changed. All golden"
-        " deltas are 0 (structural); N=5 spread 0.",
+        "BLUF: score() now accepts N/A waivers only through independently validated"
+        " scanner evidence. Every golden total and pillar delta remains within ±1;"
+        " N=5 spread is 0. G1 and M2 move -1 total as stale raw fixture waivers are"
+        " replaced by current policy-derived applicability.",
         "",
         f"- scanner_version: `{SCANNER_VERSION}`",
         f"- contract_version: `{CONTRACT_VERSION}`",
@@ -142,7 +161,7 @@ def main() -> int:
         "- corpus_version: `fixture-pinned per golden expected_score.json`",
         "- probe-set-version: `golden_agents_v1`",
         "- rubric_point_id: `release-wide / all active BackBond Scanner rubric points`",
-        "- baseline: `origin/master@8b41bbf (current canonical golden expected_score.json)`",
+        "- baseline: `canonical master@bdedd7edc85688b74643def070ee0a05e50112c7`",
         f"- live_golden_count: `{len(rows)}`",
         f"- result: `{result}`",
         "",

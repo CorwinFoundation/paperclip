@@ -33,9 +33,19 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from harness.applicability import applicability_record, load_policy  # noqa: E402
+from harness.applicability import (  # noqa: E402
+    applicability_record,
+    load_policy,
+    validate_for_scoring,
+)
 from harness.cli_runner import CliInputError, run_scan  # noqa: E402
-from rubric.scoring import Rubric, score  # noqa: E402
+from rubric.scoring import (  # noqa: E402
+    Rubric,
+    ScoringError,
+    ValidatedApplicability,
+    score,
+)
+from api.bundle import _signing_key  # noqa: E402
 
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 G1 = REPO / "tests" / "fixtures" / "golden_agents" / "G1"
@@ -93,6 +103,32 @@ class ApplicabilityValidationTests(unittest.TestCase):
             os.environ["BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"] = self._trusted_flags
 
     # ---- (a) fail-closed on the inflation path --------------------------
+    def test_caller_cannot_forge_validated_applicability_token(self):
+        """CTO re-review regression: a constructed or wrong-key token fails."""
+        rub = Rubric.load(RUBRIC_PATH)
+        ev = json.loads(G1_EVAL.read_text())
+        forged_decisions = copy.deepcopy(
+            _POLICY_COMPLIANT["applicability_decisions"]
+        )
+        target = min(ev, key=lambda did: ev[did]["raw"])
+        forged_decisions[target] = {
+            "fires": False,
+            "na_justification": "forged waiver",
+            "na_justification_key": None,
+        }
+        forged = ValidatedApplicability._signed_from_policy_validation(
+            forged_decisions, load_policy().version, b"attacker-controlled-key"
+        )
+        with self.assertRaisesRegex(ScoringError, "signature mismatch"):
+            score(
+                rub,
+                ev,
+                snapshot_hash="sha256:x",
+                forensic_bundle_uri="u",
+                corpus_version="0.1.1",
+                applicability_decisions=forged,
+            )
+
     def test_out_of_policy_na_waiver_fails_closed(self):
         """AC(a): a sidecar marking the worst FIRING dims N/A inflates on the
         unvalidated score path but fails closed through run_scan after the fix."""
@@ -116,21 +152,25 @@ class ApplicabilityValidationTests(unittest.TestCase):
             }
             malicious.setdefault("na_dims", []).append(did)
 
-        # The vulnerability is real: on the UNVALIDATED engine path the
-        # suppression inflates are_total, traced only by a coverage_caveat.
+        # The former vulnerability was a direct score() call accepting this
+        # raw dict and inflating are_total. The boundary now rejects it.
         kw = dict(
             snapshot_hash="sha256:x", forensic_bundle_uri="u",
             scored_at=FIXED_SCORED_AT, corpus_version="0.1.1", seed=42,
         )
-        base = score(rub, ev, applicability_decisions=_POLICY_COMPLIANT["applicability_decisions"], **kw)
-        inflated = score(rub, ev, applicability_decisions=malicious["applicability_decisions"], **kw)
-        self.assertGreater(
-            inflated["are_total"], base["are_total"],
-            "expected the malicious sidecar to inflate on the unvalidated path",
+        validated = validate_for_scoring(
+            load_policy(), G1_FLAGS,
+            _POLICY_COMPLIANT["applicability_decisions"],
+            rub.active_dim_ids,
+            _signing_key(),
         )
-        self.assertTrue(
-            any(d["code"] == "coverage_caveat" for d in inflated.get("diagnostics", [])),
-        )
+        score(rub, ev, applicability_decisions=validated, **kw)
+        with self.assertRaisesRegex(ScoringError, "raw applicability_decisions"):
+            score(
+                rub, ev,
+                applicability_decisions=malicious["applicability_decisions"],
+                **kw,
+            )
 
         # After the fix: run_scan validates against the policy engine and
         # fails closed. RED on canon (canon returns the inflated envelope).
@@ -155,7 +195,12 @@ class ApplicabilityValidationTests(unittest.TestCase):
             scanner_version=result["scanner_version"],
             corpus_version="0.1.1",
             seed=42,
-            applicability_decisions=_POLICY_COMPLIANT["applicability_decisions"],
+            applicability_decisions=validate_for_scoring(
+                load_policy(), G1_FLAGS,
+                _POLICY_COMPLIANT["applicability_decisions"],
+                rub.active_dim_ids,
+                _signing_key(),
+            ),
             applicability_policy_version=_POLICY_COMPLIANT.get("policy_version"),
         )
         self.assertEqual(result["are_total"], direct["are_total"])
