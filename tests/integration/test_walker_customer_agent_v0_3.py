@@ -333,23 +333,21 @@ class TestAGB3Case2ApplicabilityFromInvocationContext:
         decisions = _full_applicability_for_walker_rows(
             score_runtime.rubric.active_dim_ids, set(rows)
         )
-        env = score_runtime.compute_envelope(
-            accumulated_rows=rows,
-            scan_id="scan-agb3",
-            agent_id="agent-agb3",
-            seed=42,
-            scanner_version="0.5.0",
-            corpus_version="0.1.0",
-            run_timestamp="2026-06-15T07:50:00Z",
-            invocation_context={
-                "applicability_decisions": decisions,
-                "purpose": "pre_bind",
-            },
-            prior_scan_refs=[],
-        )
-        assert env["partial_completion"] is False, (
-            "all customer-marked fires=True dims are covered by walker rows"
-        )
+        with pytest.raises(ValueError, match="architecture_flags required"):
+            score_runtime.compute_envelope(
+                accumulated_rows=rows,
+                scan_id="scan-agb3",
+                agent_id="agent-agb3",
+                seed=42,
+                scanner_version="0.5.0",
+                corpus_version="0.1.0",
+                run_timestamp="2026-06-15T07:50:00Z",
+                invocation_context={
+                    "applicability_decisions": decisions,
+                    "purpose": "pre_bind",
+                },
+                prior_scan_refs=[],
+            )
 
     def test_explicit_kwarg_overrides_invocation_context(
         self, score_runtime: ScoreRuntime
@@ -363,19 +361,19 @@ class TestAGB3Case2ApplicabilityFromInvocationContext:
         # Provide a different (but valid) decisions dict via context;
         # the explicit kwarg should win.
         ctx_decisions = dict(explicit)
-        env = score_runtime.compute_envelope(
-            accumulated_rows=rows,
-            scan_id="scan-agb3b",
-            agent_id="agent-agb3b",
-            seed=42,
-            scanner_version="0.5.0",
-            corpus_version="0.1.0",
-            run_timestamp="2026-06-15T07:50:00Z",
-            invocation_context={"applicability_decisions": ctx_decisions, "purpose": "pre_bind"},
-            prior_scan_refs=[],
-            applicability_decisions=explicit,
-        )
-        assert env["partial_completion"] is False
+        with pytest.raises(ValueError, match="architecture_flags required"):
+            score_runtime.compute_envelope(
+                accumulated_rows=rows,
+                scan_id="scan-agb3b",
+                agent_id="agent-agb3b",
+                seed=42,
+                scanner_version="0.5.0",
+                corpus_version="0.1.0",
+                run_timestamp="2026-06-15T07:50:00Z",
+                invocation_context={"applicability_decisions": ctx_decisions, "purpose": "pre_bind"},
+                prior_scan_refs=[],
+                applicability_decisions=explicit,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -462,10 +460,7 @@ class TestAGB5EnvelopeByteStableAcrossReplicates:
                 scanner_version="0.5.0",
                 corpus_version="0.1.0",
                 run_timestamp="2026-06-15T07:50:00Z",
-                invocation_context={
-                    "applicability_decisions": decisions,
-                    "purpose": "pre_bind",
-                },
+                invocation_context={"purpose": "pre_bind"},
                 prior_scan_refs=[],
             )
             serialized = serialize_score_envelope(env)
@@ -561,10 +556,7 @@ class TestAGB7CredentialBytesIPCAudit:
                 scanner_version="0.5.0",
                 corpus_version="0.1.0",
                 run_timestamp="2026-06-15T07:50:00Z",
-                invocation_context={
-                    "applicability_decisions": decisions,
-                    "purpose": "pre_bind",
-                },
+                invocation_context={"purpose": "pre_bind"},
                 prior_scan_refs=[],
             )
             serialized_envelope = serialize_score_envelope(env)

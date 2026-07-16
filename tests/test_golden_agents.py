@@ -28,7 +28,8 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from rubric.scoring import Rubric, score
+from rubric.scoring import Rubric, ValidatedApplicability, score
+from api.bundle import _signing_key
 
 REPO = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -98,7 +99,16 @@ class GoldenAgentScoringRegressionTests(unittest.TestCase):
         app_path = FIXTURES / fid / "applicability.json"
         applicability_decisions = None
         if app_path.exists():
-            applicability_decisions = json.loads(app_path.read_text()).get("applicability_decisions")
+            applicability = json.loads(app_path.read_text())
+            # Frozen golden replay consumes the repository-controlled sidecar
+            # under the exact policy version recorded at freeze time. Convert
+            # it to the same authenticated capability score() requires; never
+            # pass the raw fixture dict across the scoring boundary.
+            applicability_decisions = ValidatedApplicability._signed_from_policy_validation(
+                applicability["applicability_decisions"],
+                applicability["policy_version"],
+                _signing_key(),
+            )
         return score(
             self.rubric, eo,
             snapshot_hash=SNAPSHOT_HASH,
@@ -108,7 +118,10 @@ class GoldenAgentScoringRegressionTests(unittest.TestCase):
             seed=expected.get("seed"),
             model_versions=expected.get("model_versions"),
             applicability_decisions=applicability_decisions,
-            applicability_policy_version=expected.get("applicability_policy_version"),
+            applicability_policy_version=(
+                applicability_decisions.policy_version
+                if applicability_decisions is not None else None
+            ),
         )
 
     def test_live_fixtures_reproduce_expected_score(self):

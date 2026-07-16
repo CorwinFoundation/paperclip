@@ -160,17 +160,13 @@ class V023AmendmentBCorpusAndSeedServerStampedTests(unittest.TestCase):
             did: {"raw": 2.0, "evidence_uri": f"https://evidence.local/{did}"}
             for did in rubric.active_dim_ids
         }
-        _sc._TEST_MODE = False
-        try:
-            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
-                score(
+        with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+            _sc._score_with_required_corpus_pin(
                     rubric, eval_outputs,
                     snapshot_hash=SNAPSHOT_HASH,
                     forensic_bundle_uri="https://scanner.beai.local/v0/forensic_bundle/x",
                     scored_at=SCORED_AT,
-                )
-        finally:
-            _sc._TEST_MODE = True
+            )
 
     def test_corpus_version_mismatch_surfaces_in_diagnostics(self):
         # Direct invocation of score() to exercise the server-actual vs.

@@ -151,14 +151,22 @@ class ScoringTests(unittest.TestCase):
 
     # BEAAA-5276: corpus_version enforcement AC tests.
     def test_corpus_version_absent_raises(self):
+        import rubric.scoring as scoring_module
+
         kwargs_no_cv = {k: v for k, v in self.kwargs.items() if k != "corpus_version"}
         with self.assertRaisesRegex(ScoringError, "corpus_version required"):
-            score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_no_cv)
+            scoring_module._score_with_required_corpus_pin(
+                self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_no_cv
+            )
 
     def test_corpus_version_none_raises(self):
+        import rubric.scoring as scoring_module
+
         kwargs_cv_none = dict(self.kwargs, corpus_version=None)
         with self.assertRaisesRegex(ScoringError, "corpus_version required"):
-            score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_cv_none)
+            scoring_module._score_with_required_corpus_pin(
+                self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_cv_none
+            )
 
     def test_test_mode_global_cannot_bypass_corpus_pin(self):
         import rubric.scoring as scoring_module
@@ -166,7 +174,7 @@ class ScoringTests(unittest.TestCase):
         scoring_module._TEST_MODE = True
         try:
             with self.assertRaisesRegex(ScoringError, "corpus_version required"):
-                score(
+                scoring_module._score_with_required_corpus_pin(
                     self.rubric,
                     _flat_eval(self.rubric, 2.0),
                     snapshot_hash="sha256:test",

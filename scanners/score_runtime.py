@@ -49,7 +49,9 @@ from pathlib import Path
 from typing import Any
 
 from harness.contract_envelope import to_contract_output
-from rubric.scoring import Rubric, score
+from harness.applicability import load_policy, validate_for_scoring
+from rubric.scoring import Rubric, ValidatedApplicability, score
+from api.bundle import _signing_key
 
 
 #: BEAAA-2175 — synthetic applicability justification used when the v0
@@ -366,16 +368,34 @@ class ScoreRuntime:
             if isinstance(ctx_decisions, dict):
                 applicability_decisions = ctx_decisions
         if applicability_decisions is not None:
-            # Caller supplied explicit applicability (golden-roster path,
-            # customer-agent path once Track B lands). Use as-is; the score()
-            # callee merges these with rubric.applicability per BEAAA-198 §3.
-            synth_applicability = applicability_decisions
+            trusted_flags = (
+                invocation_context.get("architecture_flags")
+                if invocation_context is not None else None
+            )
+            if not isinstance(trusted_flags, dict):
+                raise ValueError(
+                    "architecture_flags required to validate applicability decisions"
+                )
+            synth_applicability = validate_for_scoring(
+                load_policy(),
+                trusted_flags,
+                applicability_decisions,
+                self.rubric.active_dim_ids,
+                _signing_key(),
+            )
+            applicability_for_envelope = dict(synth_applicability.decisions)
         else:
             # Synthetic-walker path — auto-mark active dims absent from
-            # eval_outputs as N/A with the byte-stable v0 justification.
-            synth_applicability = _build_synthetic_applicability(
+            # eval_outputs as N/A with the byte-stable v0 justification. This
+            # is scorer-owned compatibility policy, never caller authority;
+            # authenticate the derived capability before score() consumes it.
+            derived = _build_synthetic_applicability(
                 self.rubric, set(eval_outputs)
             )
+            synth_applicability = ValidatedApplicability._signed_from_policy_validation(
+                derived, "synthetic-v0@1", _signing_key()
+            )
+            applicability_for_envelope = derived
         snapshot_hash_stub = (
             "sha256:"
             + hashlib.sha256(
@@ -394,13 +414,13 @@ class ScoreRuntime:
             scanner_version=scanner_version,
             corpus_version=corpus_version,
             seed=seed,
-            applicability_decisions=synth_applicability or None,
+            applicability_decisions=synth_applicability,
         )
 
         rescan_inputs = _build_rescan_inputs(
             agent_id=agent_id,
             invocation_context=invocation_context,
-            applicability_decisions=synth_applicability or None,
+            applicability_decisions=applicability_for_envelope,
         )
         cli_projection = to_contract_output(
             inputs=rescan_inputs,
@@ -432,7 +452,7 @@ class ScoreRuntime:
         # uncovered active dims with ``fires=False``, so this is False
         # on the synthetic_v0 path — byte-stability preserved.
         if walker_partial_completion or _has_uncovered_fires_true(
-            synth_applicability, set(eval_outputs)
+            applicability_for_envelope, set(eval_outputs)
         ):
             envelope["partial_completion"] = True
 
