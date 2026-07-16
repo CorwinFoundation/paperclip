@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
+
+import pytest
 
 from scripts import release_gate_n5
 
@@ -281,3 +284,51 @@ def test_v1_gate_excludes_b2_but_keeps_full_roster_reference():
     assert "B2" not in release_gate_n5.ROSTER
     assert set(release_gate_n5.ROSTER) == {"G1", "G2", "G3", "M1", "M2", "M3", "B1", "B3"}
     assert release_gate_n5.EXCLUDED_FIXTURES["B2"].startswith("BEAAA-10199")
+
+
+def test_run_cli_passes_trusted_architecture_flags_env(monkeypatch, tmp_path):
+    input_dir = tmp_path / "inputs" / "G1"
+    input_dir.mkdir(parents=True)
+    (input_dir / "applicability.json").write_text(
+        json.dumps(
+            {
+                "architecture_flags": {
+                    "has_rag_retrieval": False,
+                    "has_tool_calling": True,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured["env"] = kwargs["env"]
+        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(release_gate_n5.subprocess, "run", fake_run)
+
+    code, stdout, stderr = release_gate_n5._run_cli(
+        "G1",
+        0,
+        input_dir,
+        tmp_path / "outputs" / "G1" / "seed-0.json",
+    )
+
+    assert (code, stdout, stderr) == (0, "ok", "")
+    assert captured["env"][release_gate_n5.TRUSTED_ARCHITECTURE_FLAGS_ENV] == (
+        '{"has_rag_retrieval":false,"has_tool_calling":true}'
+    )
+
+
+def test_trusted_architecture_flags_env_rejects_non_bool_values(tmp_path):
+    input_dir = tmp_path / "inputs" / "G1"
+    input_dir.mkdir(parents=True)
+    (input_dir / "applicability.json").write_text(
+        json.dumps({"architecture_flags": {"has_tool_calling": "yes"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="string keys to bool values"):
+        release_gate_n5._trusted_architecture_flags_json(input_dir)

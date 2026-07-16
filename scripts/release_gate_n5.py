@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import statistics
 import subprocess
@@ -53,6 +54,7 @@ SPREAD_TOLERANCE = 1.0
 DELTA_TOLERANCE = 1.0
 SCORED_AT = "2026-06-29T00:00:00+00:00"
 RELEASE_GATE_CORPUS_VERSION = "0.2.0"
+TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
 MOVEMENT_ACCOUNTING_DECISION_REF = "BEAAA-14949#decision@f7aacc18"
 BEAAA_13412_DELTAS = {
     # BEAAA-13412 / BEAAA-13382 / BEAAA-13383: co-signed P3.5 + P3.6
@@ -256,6 +258,30 @@ def _prepare_input_dir(agent_id: str, tmp_root: Path) -> Path:
     return target
 
 
+def _trusted_architecture_flags_json(input_dir: Path) -> str | None:
+    applicability_path = input_dir / "applicability.json"
+    if not applicability_path.exists():
+        return None
+
+    payload = _load_json(applicability_path)
+    flags = payload.get("architecture_flags")
+    if flags is None:
+        return None
+    if not isinstance(flags, dict):
+        raise ValueError("applicability.json architecture_flags must be an object")
+    invalid = [
+        key
+        for key, value in flags.items()
+        if not isinstance(key, str) or not isinstance(value, bool)
+    ]
+    if invalid:
+        raise ValueError(
+            "applicability.json architecture_flags must map string keys to bool values: "
+            + ", ".join(sorted(str(key) for key in invalid))
+        )
+    return json.dumps(flags, sort_keys=True, separators=(",", ":"))
+
+
 def _run_cli(agent_id: str, seed: int, input_dir: Path, output_path: Path) -> tuple[int, str, str]:
     cmd = [
         sys.executable,
@@ -273,7 +299,18 @@ def _run_cli(agent_id: str, seed: int, input_dir: Path, output_path: Path) -> tu
         "--out",
         str(output_path),
     ]
-    completed = subprocess.run(cmd, cwd=REPO, text=True, capture_output=True, check=False)
+    env = os.environ.copy()
+    trusted_architecture_flags = _trusted_architecture_flags_json(input_dir)
+    if trusted_architecture_flags is not None:
+        env[TRUSTED_ARCHITECTURE_FLAGS_ENV] = trusted_architecture_flags
+    completed = subprocess.run(
+        cmd,
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+    )
     return completed.returncode, completed.stdout, completed.stderr
 
 
