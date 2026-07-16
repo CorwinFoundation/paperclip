@@ -873,3 +873,74 @@ def test_scan_runtime_drops_local_secret_after_kickoff(corpus_hash):
     # ScanResult fields do not include the secret.
     for value in result.__dict__.values() if hasattr(result, "__dict__") else []:
         assert secret_observed["value"] not in repr(value)
+
+
+# ---------------------------------------------------------------------------
+# BEAAA-14426 [F8] — background full-scan worker logs on failure at ERROR
+# level, but never leaks the credential / upstream response body. Parent:
+# BEAAA-14409 [Code Review F8]. This test FAILS on canon (no log emitted) and
+# PASSES after the fix (one ERROR line carrying scan_id + error type only).
+# ---------------------------------------------------------------------------
+
+
+def _background_scan_request(corpus_hash: str) -> ScanRequest:
+    return ScanRequest(
+        scan_id="scan-bg-f8",
+        tenant_id="tenant-001",
+        agent_endpoint="agent.customer.example.com",
+        credential_ref="phase1-probe.v1",
+        corpus_snapshot_hash=corpus_hash,
+        scanner_version="0.3.0",
+        corpus_version="0.1.0",
+        seed=42,
+        k_replicates=5,
+    )
+
+
+def test_full_scan_background_worker_error_logs_at_error_no_cred_leak(
+    corpus_hash, caplog
+):
+    import logging
+
+    # A sentinel exception whose *message* carries a fake credential / upstream
+    # response body. The fix must log the exception TYPE only — never str(exc).
+    fake_secret = "sk-live-DEADBEEF-super-secret-token"
+
+    class _SentinelWorkerError(RuntimeError):
+        pass
+
+    def _boom(*args, **kwargs):
+        raise _SentinelWorkerError(f"upstream response body leaked {fake_secret}")
+
+    runtime = ScanRuntime(run_scan_fn=lambda req, secret: _synthetic_result(req.scan_id))
+    # Monkeypatch the inner guard (invoked inside the guarded body) to raise.
+    runtime._apply_registry_dispatch_guard = _boom  # type: ignore[assignment]
+
+    scan_request = _background_scan_request(corpus_hash)
+
+    with caplog.at_level(logging.ERROR, logger="api.scan_handlers"):
+        runtime._run_full_scan_background(
+            scan_request=scan_request,
+            secret=fake_secret,
+            agent_id=None,
+        )
+
+    # (2) Exactly one ERROR record, and it names the scan_id + error type.
+    error_records = [
+        r for r in caplog.records if r.levelno == logging.ERROR
+    ]
+    assert len(error_records) == 1
+    assert scan_request.scan_id in caplog.text
+    assert "_SentinelWorkerError" in caplog.text  # type name is the only detail
+
+    # (3) Credential non-leak: neither the fake secret nor any str(exc) content
+    #     may appear anywhere in the captured log output.
+    assert fake_secret not in caplog.text
+    assert "upstream response body leaked" not in caplog.text
+
+    # (4) Existing behavior preserved: result still recorded failed / incomplete.
+    result = runtime.fetch(scan_request.scan_id)
+    assert result is not None
+    assert result.status == "failed"
+    assert result.incomplete is True
+    assert result.incomplete_reason == "full_scan_worker_error:_SentinelWorkerError"

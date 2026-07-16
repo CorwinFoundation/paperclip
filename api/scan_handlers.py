@@ -32,6 +32,7 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import threading
 import time
@@ -80,6 +81,7 @@ from api.scan_request_validation import (
     validate_corpus_snapshot_hash as _validate_corpus_snapshot_hash,
     validate_credential_ref as _validate_credential_ref,
     validate_k_replicates as _validate_k_replicates,
+    validate_https_url_or_host_safety as _validate_https_url_or_host_safety,
     validate_scan_mode as _validate_scan_mode,
     verify_live_egress_fail_closed as _verify_live_egress_fail_closed,
 )
@@ -102,6 +104,7 @@ from scanners.live_probe_orchestrator import (
 )
 
 
+LOGGER = logging.getLogger(__name__)
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
@@ -598,6 +601,15 @@ class ScanRuntime:
                     agent_id=agent_id,
                 )
         except Exception as exc:  # never expose credential or response bodies
+            # Observability only. Discipline mirrors ``incomplete_reason`` below:
+            # log the exception *type name* alone — NEVER ``str(exc)`` / ``repr``
+            # / ``exc_info`` / args, any of which can carry an upstream response
+            # body or credential. See BEAAA-14426 / BEAAA-14409 [F8].
+            LOGGER.error(
+                "full-scan background worker failed: scan_id=%s error_type=%s",
+                scan_request.scan_id,
+                type(exc).__name__,
+            )
             failed = ScanResult(
                 scan_id=scan_request.scan_id,
                 status="failed",
