@@ -1,6 +1,6 @@
 # Version-control source of truth and parallel-work protocol
 
-Last reconciled: 2026-07-13 UTC.
+Last reconciled: 2026-07-16 UTC.
 
 This runbook defines where Scanner code is authoritative and how Codex and
 Paperclip agents work in parallel without overwriting each other. The short
@@ -31,10 +31,10 @@ This table is a dated recovery snapshot, not a permanent test-count claim.
 
 | Lane | Location and state | Disposition |
 | --- | --- | --- |
-| Canonical production baseline | `origin/master@10400821d03d718e2a00f6c33eef775d57b2718f`; PRs #66 and #67 merged; authenticated 90-case execution proven | Starting point for every new worktree. |
-| Company Appendix A reconciliation | `beaaa-13802-clean-reconcile@35f7f43600c053364058a7cf01fab14cd24c1998`; one commit directly on `1040082` | **Canonical company lane for BEAAA-13802.** Open/merge its PR before downstream registry work. |
-| Duplicate company reconciliation branch | `beaaa-13802-master-reconcile@3ea64b1fe7d39983df97793c5d3cc4a28983b3f5`; identical tree and parent to the canonical company lane | Frozen. Do not add commits. Remove after the canonical PR merges. |
-| Codex text-case activation draft | Windows branch `feat/activate-text-workers` at `1040082` with five local modified/untracked files | Paused and not authoritative. Reconcile only after BEAAA-13802 merges. |
+| Canonical production baseline | `origin/master@b1656c900e8ec6e1c0d3f5c70d0871fa8b5273c3`; PRs #109 and #113 merged after the original `1040082` baseline | Starting point for every new worktree. |
+| Company Appendix A reconciliation | `beaaa-13802-clean-reconcile@35f7f43600c053364058a7cf01fab14cd24c1998`; one commit directly on `1040082` | **Canonical company lane for BEAAA-13802.** Refresh from current `origin/master`, resolve conflicts, and merge before text-case activation. |
+| Duplicate company reconciliation branch | `beaaa-13802-master-reconcile@3ea64b1fe7d39983df97793c5d3cc4a28983b3f5`; same reconciliation family as the canonical company lane | Frozen. Do not add commits. Remove after the canonical PR merges. |
+| Codex text-case activation draft | Historical alias `are-scanner-execution-pr` / `feat/activate-text-workers` was not recoverable as a live checkout in the 2026-07-16 C1 sweep; substance maps to GitHub `feat/real-scan-execution-layer` and `beaaa-13761-execution-evidence` | Reconstruct only after BEAAA-13802 / PR #69 merges. |
 | Paperclip shared checkout | VM branch `beaaa-12093-master-candidate@34687b5`; at audit time its cached `origin/master` was `ad1b172`, with 121 modified/untracked paths and no `tools/registered_case_executor.py` | Quarantined as a recovery source. Do not commit, merge, reset, or push this mixed checkout. |
 
 The VM shared checkout contains work from unrelated tickets. Preserve it until
@@ -102,11 +102,11 @@ review the resulting diff.
 
 The integration order for the current execution-layer work is:
 
-1. BEAAA-13802 Appendix A reconciliation;
-2. canonical registry and five dispatcher-gap repairs;
-3. company loop-stability, hallusquatting, and Jade Puffer ports;
-4. Codex text-compatible case activation;
-5. authenticated full-suite execution and deployment.
+1. version-control protocol and Scanner review evidence docs;
+2. BEAAA-13802 Appendix A reconciliation;
+3. Codex text-compatible case activation reconstructed from the GitHub
+   execution-evidence branches;
+4. authenticated full-suite execution and deployment.
 
 Each downstream branch refreshes from the newly merged `origin/master` before
 it is opened or updated. An advertised executable-test count changes only
@@ -145,7 +145,7 @@ on canonical master.
 | Scope | Owner | Active lane | Do not touch |
 | --- | --- | --- | --- |
 | Appendix A row-level reconciliation | Company/CTO via BEAAA-13802 | `beaaa-13802-clean-reconcile` | Duplicate `beaaa-13802-master-reconcile` |
-| 113 text-compatible case draft | Codex | local `feat/activate-text-workers` (paused) | Do not push or rebase until BEAAA-13802 merges |
+| Text-compatible case activation | Company/Paperclip via BEAAA-14951 | reconstruct from `feat/real-scan-execution-layer` and `beaaa-13761-execution-evidence` after Appendix A merges | Do not port before PR #69 / Appendix A reconciliation lands |
 | Version-control protocol | Codex | `agent/version-control-source-of-truth` | No production code |
 | Mixed historic VM changes | Individual ticket owners | quarantined shared checkout | No bulk commit, reset, merge, or push |
 
