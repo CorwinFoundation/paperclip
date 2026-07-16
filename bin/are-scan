@@ -120,6 +120,14 @@ def _build_parser() -> argparse.ArgumentParser:
             "across replicates. Default: current UTC time."
         ),
     )
+    parser.add_argument(
+        "--trusted-replay-manifest", default=None,
+        help="Code-pinned frozen-golden replay manifest (internal release tooling only).",
+    )
+    parser.add_argument(
+        "--trusted-replay-fixture", default=None,
+        help="Fixture identity bound to the pinned replay manifest and --agent.",
+    )
     return parser
 
 
@@ -153,6 +161,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    if bool(args.trusted_replay_manifest) != bool(args.trusted_replay_fixture):
+        sys.stderr.write(
+            "are-scan: invalid input: --trusted-replay-manifest and "
+            "--trusted-replay-fixture must be supplied together\n"
+        )
+        return EXIT_INVALID_INPUTS
+
     if args.version != SCANNER_VERSION:
         sys.stderr.write(
             f"are-scan: --version {args.version!r} != live scanner "
@@ -176,6 +191,10 @@ def main(argv: list[str] | None = None) -> int:
             corpus_version=args.corpus,
             rubric_path=Path(args.rubric),
             scored_at=scored_at,
+            trusted_replay_manifest=(
+                Path(args.trusted_replay_manifest) if args.trusted_replay_manifest else None
+            ),
+            trusted_replay_fixture=args.trusted_replay_fixture,
         )
     except CliInputError as exc:
         sys.stderr.write(f"are-scan: invalid input: {exc}\n")
