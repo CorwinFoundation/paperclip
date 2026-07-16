@@ -118,6 +118,13 @@ def test_agent_result_isolates_approved_rule_change_delta():
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
         "contract": "are-scanner-api-v1@v1.0",
+        "scanner_version": "0.6.0",
+        "probe-set-version": "artifacts/beaaa-387/manifest.json",
+        "rubric_point_id": [
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        ],
+        "cto_cosign_ref": "BEAAA-14867",
         "baseline": "0.4.0",
         "candidate": "0.4.1",
         "claim": "8/9 baselined",
@@ -210,6 +217,7 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     monkeypatch.setattr(release_gate_n5, "BASELINES", baseline_root)
     monkeypatch.setattr(release_gate_n5, "ROSTER", ("G1",))
     monkeypatch.setattr(release_gate_n5, "SEEDS", (0,))
+    monkeypatch.setattr(release_gate_n5, "APPROVED_MOVEMENT_SOURCES", ())
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "run_behavioral_gate", lambda: {"passed": True})
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "render_markdown_section", lambda _report: ["behavioral"])
 
