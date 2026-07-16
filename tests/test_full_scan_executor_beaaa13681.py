@@ -58,7 +58,7 @@ def _row(
     incomplete_reason: str | None = None,
 ) -> EvidenceAttemptRow:
     return EvidenceAttemptRow(
-        probe_id=f"{rubric_point_id}.probe",
+        probe_id=rubric_point_id,
         rubric_point_id=rubric_point_id,
         status=status,
         framework="promptfoo",
