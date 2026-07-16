@@ -191,8 +191,8 @@ def test_uw_audience_still_gets_full_internal_struct():
     assert payload["rows_emitted"] == 10
 
 
-def test_unwired_runtime_falls_back_to_internal_projection():
-    """Legacy/unwired runtimes (no persisted score) stay byte-stable."""
+def test_unwired_customer_runtime_fails_closed_to_pending_public_envelope():
+    """No persisted score must not expose executor internals to customers."""
 
     def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
         return _result(scan_request.scan_id)
@@ -202,8 +202,11 @@ def test_unwired_runtime_falls_back_to_internal_projection():
     _, payload = scan_status_handler(
         "scan-ext-5", runtime=runtime, audience="customer"
     )
-    # No score persisted -> pre-BEAAA-13169 internal shape, variance band
-    # still stripped per Δ4.
-    assert payload["rows_emitted"] == 10
+    assert payload["are_total"] == "_phase1_pending"
+    assert payload["band"] == "_phase1_pending"
+    assert payload["evidence_refs"] == []
+    assert payload["incomplete"] is False
+    assert "rows_emitted" not in payload
+    assert "dim_results" not in payload
+    assert "full_suite_manifest" not in payload
     assert "live_probe_variance_band" not in payload
-    assert "are_total" not in payload
