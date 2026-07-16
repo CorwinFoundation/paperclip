@@ -1,0 +1,82 @@
+diff --git a/pricing/quote.py b/pricing/quote.py
+index 0a6b468..e98ddb5 100644
+--- a/pricing/quote.py
++++ b/pricing/quote.py
+@@ -621,6 +621,21 @@ def quote(
+                 breakdown={"admittance": decision_dict, "evidence": evidence, "rates_version": rates.version},
+             )
+ 
++        # BEAAA-review fail-closed default (code-review F2): every admittance
++        # class must be one of the four recognized values. REFUSE / REFER_TO_UW
++        # are handled above; only CONSTRAINED_BIND / AUTO_BIND may proceed to the
++        # rated path. Any other value — None, a case-variant ("refuse"), a typo,
++        # or a corrupted serialized intake record — must NOT fall through and be
++        # priced as a normal full-limit bind. Fail closed to manual UW review so
++        # a declined/unknown decision can never be auto-quoted.
++        if klass not in {"CONSTRAINED_BIND", "AUTO_BIND"}:
++            raise ManualReferral(
++                f"admittance class {klass!r} is not a recognized bind class "
++                f"(rule {rule_id}); refusing to price on an unrecognized or "
++                f"corrupted admittance decision — fail-closed (ADR-0007 §1.3).",
++                breakdown={"admittance": decision_dict, "rates_version": rates.version},
++            )
++
+     # v0.1.1 additive (BEAAA-70): round-trip scan_evidence_age_days and
+     # pillar_floors through the quote breakdown so pricing engine and
+     # report card share one canonical source for these values. Pricing
+diff --git a/tests/test_pricing_admittance.py b/tests/test_pricing_admittance.py
+index e0835f3..695aa71 100644
+--- a/tests/test_pricing_admittance.py
++++ b/tests/test_pricing_admittance.py
+@@ -475,5 +475,51 @@ class FCaveatCalibrationGuardTests(unittest.TestCase):
+         self.assertAlmostEqual(_f_caveat(5), 1.25)
+ 
+ 
++class UnrecognizedAdmittanceClassFailsClosed(unittest.TestCase):
++    """Code-review F2 — quote() must fail closed on any admittance_class it does
++    not recognize, instead of falling through to the full rated (AUTO_BIND-
++    equivalent) path with f_caveat=1.0. A corrupted or case-variant decision
++    (e.g. a persisted REFUSE re-serialized as lowercase 'refuse') must never be
++    auto-priced as a normal bind.
++    """
++
++    def setUp(self):
++        self.rates = Rates.load(RATES_PATH)
++
++    def _decision(self, klass):
++        return {
++            "admittance_class": klass,
++            "firing_rule_id": "ADM.RX",
++            "are_total": 90,
++        }
++
++    def test_lowercase_refuse_is_not_priced(self):
++        # Regression for the exact scenario in the review: a REFUSE decision
++        # persisted with a lowercase class field must not price normally.
++        with self.assertRaises(ManualReferral) as ctx:
++            quote(_score(90), STD_CUSTOMER, rates=self.rates,
++                  admittance_decision=self._decision("refuse"))
++        self.assertNotIn("annual_premium_usd", ctx.exception.breakdown)
++        self.assertEqual(ctx.exception.breakdown["admittance"]["admittance_class"], "refuse")
++
++    def test_unknown_class_string_is_not_priced(self):
++        with self.assertRaises(ManualReferral):
++            quote(_score(90), STD_CUSTOMER, rates=self.rates,
++                  admittance_decision=self._decision("BIND_EVERYTHING"))
++
++    def test_none_class_is_not_priced(self):
++        with self.assertRaises(ManualReferral):
++            quote(_score(90), STD_CUSTOMER, rates=self.rates,
++                  admittance_decision=self._decision(None))
++
++    def test_recognized_classes_still_price(self):
++        # Guard against over-firing: AUTO_BIND and CONSTRAINED_BIND must still
++        # produce a quote (a premium), not a referral.
++        q = quote(_score(90, na_dims=[], measured_dims=["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1"]),
++                  STD_CUSTOMER, rates=self.rates,
++                  admittance_decision=self._decision("AUTO_BIND"))
++        self.assertIn("annual_premium_usd", q)
++
++
+ if __name__ == "__main__":
+     unittest.main()

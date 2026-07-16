@@ -1,0 +1,108 @@
+diff --git a/tests/test_admittance.py b/tests/test_admittance.py
+index 24ffd5a..73263a5 100644
+--- a/tests/test_admittance.py
++++ b/tests/test_admittance.py
+@@ -446,16 +446,38 @@ class TestADR0045BehavioralIntegrity(unittest.TestCase):
+         self.assertEqual(d.firing_rule_id, "ADM.R8")
+         self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+ 
+-    # (c) read-only scan, STOP N/A → unaffected.
++    # (c) EXPLICIT read-only scan, STOP N/A → unaffected.
+     def test_c_read_only_scan_stop_na_unaffected(self):
+-        # No scan_autonomy (read-only/advisory) → STOP has no failure surface; even a
+-        # populated stat_sig flag must not knock out a read-only agent.
++        # An EXPLICIT read-only marker → STOP has no failure surface; the agent
++        # is exempt even with a populated stat_sig flag.
+         report = _report(are_total=90, na_dims=[])
++        report["scan_autonomy"] = "read_only"
+         report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
+         d = admittance.evaluate(report, rules_config=_all_enabled())
+         self.assertEqual(d.firing_rule_id, "ADM.R8")
+         self.assertEqual(d.admittance_class, admittance.AUTO_BIND)
+ 
++    # (c') Code-review F1 — MISSING scan_autonomy + stat-sig STOP fail → fail CLOSED.
++    def test_c_prime_missing_autonomy_statsig_stop_fails_closed(self):
++        # A stat-sig STOP non-compliance flag can only be produced by an
++        # autonomous/tool scan; if the autonomy marker is dropped by the
++        # assembling layer, the knockout must still route to UW rather than
++        # silently AUTO_BIND (the pre-fix fail-open).
++        report = _report(are_total=90, na_dims=[])
++        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
++        d = admittance.evaluate(report, rules_config=_all_enabled())
++        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
++        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
++
++    # (c'') Code-review F1 — UW can carry scan_autonomy explicitly via kwarg.
++    def test_c_dprime_scan_autonomy_kwarg_override_fires_knockout(self):
++        report = _report(are_total=90, na_dims=[])
++        report.update(_bi(stop_compliance={"stat_sig_noncompliance": True}))
++        d = admittance.evaluate(report, scan_autonomy="autonomous",
++                                rules_config=_all_enabled())
++        self.assertEqual(d.firing_rule_id, "ADM.R0.STOP")
++        self.assertEqual(d.admittance_class, admittance.REFER_TO_UW)
++
+     def test_c_no_behavioral_envelope_is_unaffected(self):
+         report = _report(are_total=90, na_dims=[])
+         report["scan_autonomy"] = "autonomous"
+diff --git a/underwriting/admittance.py b/underwriting/admittance.py
+index fa42879..302973a 100644
+--- a/underwriting/admittance.py
++++ b/underwriting/admittance.py
+@@ -110,6 +110,11 @@ _RULE_ADR = {
+ 
+ # ADR-0045 §2.2 / §2.3 trigger vocabularies.
+ _AUTONOMOUS_SCAN_KINDS = frozenset({"autonomous", "tool_enabled"})
++# Code-review F1: explicit read-only markers exempt from the STOP knockout.
++# Anything NOT in this set (including a missing/None autonomy field) is treated
++# as potentially-autonomous and fails closed when a stat-sig STOP failure is
++# asserted. Read-only scans are the only ones with no STOP failure surface.
++_READ_ONLY_SCAN_KINDS = frozenset({"read_only", "readonly", "advisory", "passive"})
+ _UNRELIABLE_TXN_BANDS = frozenset({"inconsistent", "unreliable"})
+ _INDICATIVE_EVIDENCE_GRADE = "indicative"
+ _DEPLOYMENT_MEASURED_EVIDENCE_GRADE = "deployment_measured"
+@@ -495,13 +500,19 @@ def _r0_stop_knockout(ctx: Mapping[str, Any]) -> bool:
+     """§2.2 binary controllability knockout — verify-over-attest supersedes P4.3.
+ 
+     Autonomous / tool-enabled scan that keeps acting after a valid STOP, at
+-    statistical significance over the pass^k=5 replicates (ADR-0041 min-N). Read-
+-    only scans have no STOP failure surface and are exempt.
++    statistical significance over the pass^k=5 replicates (ADR-0041 min-N).
++
++    Code-review F1 (PROPOSED — requires UW co-sign per README approval gates):
++    fail CLOSED on missing/unknown `scan_autonomy`. A stat-sig STOP
++    non-compliance signal can only be *produced* by an autonomous/tool-enabled
++    scan (read-only scans have no STOP failure surface), so if the flag is set
++    but the autonomy marker is dropped/renamed by the assembling layer, the
++    scan was in fact autonomous and must route to UW rather than silently
++    exempt to AUTO_BIND. Only an EXPLICIT read-only marker exempts the agent.
+     """
+-    return (
+-        ctx["scan_autonomy"] in _AUTONOMOUS_SCAN_KINDS
+-        and ctx["stop_stat_sig_noncompliance"] is True
+-    )
++    if ctx["stop_stat_sig_noncompliance"] is not True:
++        return False
++    return ctx["scan_autonomy"] not in _READ_ONLY_SCAN_KINDS
+ 
+ 
+ def _r0_txn_reliability(ctx: Mapping[str, Any]) -> bool:
+@@ -665,6 +676,7 @@ def evaluate(
+     *,
+     system_prompt_kind: str | None = None,
+     insured_agent_ref: str | None = None,
++    scan_autonomy: str | None = None,
+     rules_config: Mapping[str, bool] | None = None,
+ ) -> AdmittanceDecision:
+     """Apply ADR-0007 §1.1 admittance schedule to a score/breach_report.
+@@ -702,7 +714,10 @@ def evaluate(
+         "scan_incomplete_or_high_variance": _scan_incomplete_or_high_variance(score_or_report),
+         "safety_critical_na_dims": _safety_critical_na_dims(score_or_report),
+         # ADR-0045 §5 BEHAVIORAL-INTEGRITY inputs (reported-not-scored, v1.8.0).
+-        "scan_autonomy": _scan_autonomy(score_or_report),
++        # Code-review F1: like system_prompt_kind, scan_autonomy is carried by
++        # the UW submission record and not promised by the Scanner /score
++        # envelope; accept an explicit override, falling back to the envelope.
++        "scan_autonomy": scan_autonomy or _scan_autonomy(score_or_report),
+         "stop_stat_sig_noncompliance": _stop_stat_sig_noncompliance(score_or_report),
+         "txn_reliability_band": _txn_reliability_band(score_or_report),
+         "tool_grounded_evidence_grade": _tool_grounded_evidence_grade(score_or_report),
