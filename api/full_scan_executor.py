@@ -867,21 +867,13 @@ def _satisfied_case_ids(
     cases: Iterable[FullSuiteCase],
     evidence_rows: Iterable[EvidenceAttemptRow],
 ) -> set[str]:
-    rows = tuple(evidence_rows)
-    exact = {row.probe_id for row in rows if row.status in TERMINAL_PROBE_STATUSES}
-    rubric_counts: dict[str, int] = {}
-    for case in cases:
-        rubric_counts[case.rubric_point_id] = rubric_counts.get(case.rubric_point_id, 0) + 1
-    unique_terminal_rubrics = {
-        row.rubric_point_id
-        for row in rows
-        if row.status in TERMINAL_PROBE_STATUSES
-        and rubric_counts.get(row.rubric_point_id) == 1
-    }
+    required_case_ids = {case.case_id for case in cases if case.required}
     return {
-        case.case_id
-        for case in cases
-        if case.case_id in exact or case.rubric_point_id in unique_terminal_rubrics
+        row.probe_id
+        for row in evidence_rows
+        if row.probe_id in required_case_ids
+        and row.status == "complete"
+        and bool(row.evidence_ref)
     }
 
 
