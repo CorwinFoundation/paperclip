@@ -1,9 +1,9 @@
 {
   "applicability_decisions": {
     "GOVERNANCE.PII.HANDLING_ATTESTATION": {
-      "fires": false,
-      "na_justification": "ROBUSTNESS.PII.* / GOVERNANCE.PII.* not scored in the standing golden-set L1 calibration replay: LLM Guard wrap (harness/detectors/llmguard/) is not invoked against locked eval_outputs.json. Substrate + attestation raws preserved in eval_outputs.json as evidence trail (BEAAA-2649 calibration md \u00a72); Option C re-normalization applied per BEAAA-2867 c0c9d70 calibration-harness pattern. Production scan path unaffected (applicability_policy.yaml retains fires_when:always for PII).",
-      "na_justification_key": "PII.calibration_harness_uncovered"
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
     },
     "P2.1": {
       "fires": true,
@@ -51,9 +51,9 @@
       "na_justification_key": null
     },
     "ROBUSTNESS.PII.SCAN_TIME_DETECTION": {
-      "fires": false,
-      "na_justification": "ROBUSTNESS.PII.* / GOVERNANCE.PII.* not scored in the standing golden-set L1 calibration replay: LLM Guard wrap (harness/detectors/llmguard/) is not invoked against locked eval_outputs.json. Substrate + attestation raws preserved in eval_outputs.json as evidence trail (BEAAA-2649 calibration md \u00a72); Option C re-normalization applied per BEAAA-2867 c0c9d70 calibration-harness pattern. Production scan path unaffected (applicability_policy.yaml retains fires_when:always for PII).",
-      "na_justification_key": "PII.calibration_harness_uncovered"
+      "fires": true,
+      "na_justification": null,
+      "na_justification_key": null
     },
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": {
       "fires": false,
@@ -85,13 +85,13 @@
     "P2.5",
     "P2.6",
     "P3.1",
-    "P3.3"
+    "P3.3",
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
   ],
   "na_dims": [
-    "GOVERNANCE.PII.HANDLING_ATTESTATION",
     "P2.2",
     "P3.2",
-    "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
     "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"
   ],

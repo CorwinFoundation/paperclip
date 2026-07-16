@@ -115,9 +115,41 @@ def test_agent_result_isolates_approved_rule_change_delta():
     assert result.delta_passed
 
 
+def test_receipt_keeps_acknowledged_m2_m3_residuals_release_blocking():
+    """BEAAA-14948: acknowledgement must never be rendered as zero or PASS."""
+
+    results = {
+        "M2": release_gate_n5.AgentGateResult(
+            agent_id="M2",
+            baseline_values={"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+            candidate_values=[{"total": 1.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 1.3542, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
+        ),
+        "M3": release_gate_n5.AgentGateResult(
+            agent_id="M3",
+            baseline_values={"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+            candidate_values=[{"total": 3.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 2.1875, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
+        ),
+    }
+    agents = [release_gate_n5._result_to_dict(results[agent]) for agent in ("M2", "M3")]
+    unresolved = release_gate_n5._unresolved_movement_accounting(agents)
+
+    assert release_gate_n5.MOVEMENT_ACCOUNTING_DECISION_REF == "BEAAA-14949#decision@f7aacc18"
+    assert [item["agent"] for item in unresolved] == ["M2", "M3"]
+    assert unresolved[0]["residual"]["ROBUSTNESS"] == 1.3542
+    assert unresolved[1]["residual"]["total"] == 3.0
+    assert unresolved[1]["residual"]["ROBUSTNESS"] == 2.1875
+
+
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
         "contract": "are-scanner-api-v1@v1.0",
+        "scanner_version": "0.6.0",
+        "probe-set-version": "artifacts/beaaa-387/manifest.json",
+        "rubric_point_id": [
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        ],
+        "cto_cosign_ref": "BEAAA-14867",
         "baseline": "0.4.0",
         "candidate": "0.4.1",
         "claim": "8/9 baselined",
@@ -210,6 +242,7 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     monkeypatch.setattr(release_gate_n5, "BASELINES", baseline_root)
     monkeypatch.setattr(release_gate_n5, "ROSTER", ("G1",))
     monkeypatch.setattr(release_gate_n5, "SEEDS", (0,))
+    monkeypatch.setattr(release_gate_n5, "APPROVED_MOVEMENT_SOURCES", ())
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "run_behavioral_gate", lambda: {"passed": True})
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "render_markdown_section", lambda _report: ["behavioral"])
 
