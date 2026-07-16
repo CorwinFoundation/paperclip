@@ -150,27 +150,30 @@ class ScoringTests(unittest.TestCase):
             score(self.rubric, eo, **self.kwargs)
 
     # BEAAA-5276: corpus_version enforcement AC tests.
-    # These tests temporarily set _TEST_MODE=False to exercise the hard
-    # contract boundary that conftest.py disables globally for legacy tests.
     def test_corpus_version_absent_raises(self):
-        import rubric.scoring as _sc
-        _sc._TEST_MODE = False
-        try:
-            kwargs_no_cv = {k: v for k, v in self.kwargs.items() if k != "corpus_version"}
-            with self.assertRaisesRegex(ScoringError, "corpus_version required"):
-                score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_no_cv)
-        finally:
-            _sc._TEST_MODE = True
+        kwargs_no_cv = {k: v for k, v in self.kwargs.items() if k != "corpus_version"}
+        with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+            score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_no_cv)
 
     def test_corpus_version_none_raises(self):
-        import rubric.scoring as _sc
-        _sc._TEST_MODE = False
+        kwargs_cv_none = dict(self.kwargs, corpus_version=None)
+        with self.assertRaisesRegex(ScoringError, "corpus_version required"):
+            score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_cv_none)
+
+    def test_test_mode_global_cannot_bypass_corpus_pin(self):
+        import rubric.scoring as scoring_module
+
+        scoring_module._TEST_MODE = True
         try:
-            kwargs_cv_none = dict(self.kwargs, corpus_version=None)
             with self.assertRaisesRegex(ScoringError, "corpus_version required"):
-                score(self.rubric, _flat_eval(self.rubric, 2.0), **kwargs_cv_none)
+                score(
+                    self.rubric,
+                    _flat_eval(self.rubric, 2.0),
+                    snapshot_hash="sha256:test",
+                    forensic_bundle_uri="https://bundles.local/test",
+                )
         finally:
-            _sc._TEST_MODE = True
+            del scoring_module._TEST_MODE
 
     def test_corpus_version_round_trips_byte_identical(self):
         cv = "halueval-qa@1.0+jbb@1.0+advbench@1.0"

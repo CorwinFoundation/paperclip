@@ -95,12 +95,6 @@ class ValidatedApplicability:
         return self._decisions
 
 
-# Set to True by tests/conftest.py so legacy tests that pre-date corpus_version
-# enforcement can run without updating every call site. Production code must
-# never set this — the flag exists only to allow gradual test migration.
-_TEST_MODE: bool = False
-
-
 _DEFAULT_DIM_THRESHOLD = {
     "min_raw": 0.0,
     "kind": "advisory",
@@ -270,9 +264,9 @@ def score(
     # Silent '' default masked missing pins and broke 90-day evidence-age
     # trip-wire downstream. Hard reject at the score() boundary — if caller
     # omits, they intended to omit, and that is a contract breach.
-    # _TEST_MODE bypasses the raise for pre-existing tests; production always
-    # has _TEST_MODE=False.
-    if corpus_version is None and not _TEST_MODE:
+    # This invariant is unconditional: test configuration must never create a
+    # scoring path that accepts an unpinned corpus.
+    if corpus_version is None:
         raise ScoringError("corpus_version required (Supreme Law pin)")
 
     # BEAAA-198 Phase 3: derive the N/A dim set from applicability_decisions.
