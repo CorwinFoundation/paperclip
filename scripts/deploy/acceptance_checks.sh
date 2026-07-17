@@ -22,7 +22,7 @@
 # --health-only runs check 1 alone (used to confirm a rollback restored health).
 set -euo pipefail
 
-BASE_URL=""; STAGING_TENANT=""; STAGING_AGENT=""; SCAN_LOG_DB=""; ADMIN_TOKEN=""
+BASE_URL=""; STAGING_TENANT=""; STAGING_AGENT=""; SCAN_LOG_DB=""; ADMIN_TOKEN=""; ADMIN_TOKEN_FILE=""
 OUT="/dev/stdout"; HEALTH_ONLY=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -31,11 +31,13 @@ while [ $# -gt 0 ]; do
     --staging-agent) STAGING_AGENT="$2"; shift 2;;
     --scan-log-db) SCAN_LOG_DB="$2"; shift 2;;
     --admin-token) ADMIN_TOKEN="$2"; shift 2;;
+    --admin-token-file) ADMIN_TOKEN_FILE="$2"; shift 2;;
     --out) OUT="$2"; shift 2;;
     --health-only) HEALTH_ONLY=1; shift;;
     *) echo "unknown arg: $1" >&2; exit 64;;
   esac
 done
+[ -z "${ADMIN_TOKEN_FILE}" ] || { [ -r "${ADMIN_TOKEN_FILE}" ] || { echo "admin token file unreadable" >&2; exit 64; }; ADMIN_TOKEN="$(sed -n '1p' "${ADMIN_TOKEN_FILE}")"; }
 [ -n "${BASE_URL}" ] || { echo "--base-url required" >&2; exit 64; }
 
 # Loopback on the box; the app self-signs behind nginx, so -k is intentional
@@ -121,14 +123,14 @@ except Exception: print("")' 2>/dev/null || true)"
     # agent. Use Python's stdlib sqlite3 (always present) — not the sqlite3 CLI,
     # which the box is not guaranteed to have.
     if [ -n "${SCAN_LOG_DB}" ] && [ -f "${SCAN_LOG_DB}" ]; then
-      pins="$(SCAN_LOG_DB="${SCAN_LOG_DB}" STAGING_AGENT="${STAGING_AGENT}" python3 - <<'PY' 2>/dev/null || echo err
+      pins="$(SCAN_LOG_DB="${SCAN_LOG_DB}" STAGING_AGENT="${STAGING_AGENT}" SCAN_ID="${SCAN_ID}" python3 - <<'PY' 2>/dev/null || echo err
 import os, sqlite3
-db, agent = os.environ["SCAN_LOG_DB"], os.environ["STAGING_AGENT"]
+db, agent, scan_id = os.environ["SCAN_LOG_DB"], os.environ["STAGING_AGENT"], os.environ["SCAN_ID"]
 con = sqlite3.connect(db)
 row = con.execute(
     "SELECT forensic_bundle_uri, snapshot_hash, probe_set_hash "
-    "FROM scan_log WHERE agent_id=? ORDER BY run_timestamp DESC LIMIT 1",
-    (agent,),
+    "FROM scan_log WHERE scan_id=? AND agent_id=? LIMIT 1",
+    (scan_id, agent),
 ).fetchone()
 print("norow" if row is None else "|".join("1" if v is not None else "0" for v in row))
 PY

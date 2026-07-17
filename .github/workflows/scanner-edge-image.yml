@@ -163,10 +163,11 @@ jobs:
         run: |
           set -euo pipefail
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          SIGNED_REF="${IMAGE_REF%:*}@${DIGEST}"
           jq -n \
             --arg sourceIssueId "$SOURCE_ISSUE_ID" \
             --arg commitSha "$GITHUB_SHA" \
-            --arg imageDigest "$DIGEST" \
+            --arg imageDigest "$SIGNED_REF" \
             --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.sigstore.json" \
             --arg signatureBundleSha256 "$SIGNATURE_BUNDLE_HASH" \
             --arg provenanceRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-provenance-ref.txt" \

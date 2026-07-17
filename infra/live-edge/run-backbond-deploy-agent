@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+umask 077
+test -n "${CREDENTIALS_DIRECTORY:-}"
+test -r "$CREDENTIALS_DIRECTORY/deploy-token"
+test -r "$CREDENTIALS_DIRECTORY/paperclip-api-key"
+test -r "$CREDENTIALS_DIRECTORY/deploy-authorization-id"
+exec /usr/bin/python3 /opt/backbond/are-scanner/scripts/backbond_deploy_agent.py \
+  --deploy-token-credential "$CREDENTIALS_DIRECTORY/deploy-token" \
+  --paperclip-api-key-credential "$CREDENTIALS_DIRECTORY/paperclip-api-key" \
+  --deploy-authorization-id-credential "$CREDENTIALS_DIRECTORY/deploy-authorization-id" \
+  --state-dir /var/lib/backbond-deploy-agent
