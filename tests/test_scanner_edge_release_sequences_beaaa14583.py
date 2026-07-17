@@ -37,6 +37,7 @@ def test_release_candidate_contains_verified_sigstore_bundle_hash() -> None:
     assert install["with"]["cosign-release"] == "v3.1.1"
     assert sign["id"] == "signed_candidate"
     assert "--new-bundle-format=true --bundle" in sign["run"]
+    assert sign["run"].count('--bundle "$bundle_path"') == 1
     assert "cosign verify" in sign["run"]
     assert "--certificate-identity" in sign["run"]
     assert "signature_bundle_hash=" in sign["run"]
