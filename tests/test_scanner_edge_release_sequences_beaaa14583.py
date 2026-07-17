@@ -33,6 +33,7 @@ def test_release_candidate_contains_verified_sigstore_bundle_hash() -> None:
     sign = steps["Sign image digest and attest provenance"]
     payload = steps["Write release candidate payload"]
 
+    assert install["uses"] == "sigstore/cosign-installer@v4.1.2"
     assert install["with"]["cosign-release"] == "v3.1.1"
     assert sign["id"] == "signed_candidate"
     assert "--new-bundle-format=true --bundle" in sign["run"]
