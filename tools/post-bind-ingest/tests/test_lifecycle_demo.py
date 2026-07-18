@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import inspect
+import subprocess
 import sys
 import tempfile
 
@@ -85,6 +86,13 @@ def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> Non
     assert '"quota_scope": "visitor"' in source
     assert "Please contact your BackBond partner manager to continue." in source
     assert "HTTPStatus.TOO_MANY_REQUESTS" in source
+
+
+def test_completed_quota_restore_reveals_all_executable_rows_as_clean() -> None:
+    subprocess.run(
+        ["node", str(Path(__file__).with_name("quota_restore_state.cjs")), str(DESIGN_PATH)],
+        check=True,
+    )
 
 
 def test_demo_image_includes_truthful_registry_runtime_dependency() -> None:

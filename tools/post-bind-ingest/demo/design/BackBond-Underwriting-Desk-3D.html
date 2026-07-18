@@ -28979,6 +28979,20 @@ three/build/three.module.js:
           }
           $("#webglNote").hidden = !!liveEngine;
           renderPanels(scan);
+          for (const panel of scan.panels) {
+            if (panel.availability !== "executable") continue;
+            const row = document.querySelector(
+              `.probe[data-panel="${panel.index}"]`,
+            );
+            if (row) {
+              row.classList.remove("pending");
+              row.classList.add("on");
+            }
+            const chip = document.querySelector(
+              `.dim[data-panel="${panel.index}"]`,
+            );
+            if (chip && panel.result === "exposure") chip.classList.add("hit");
+          }
           if (liveEngine) {
             for (const panel of scan.panels) {
               if (panel.availability === "executable" && panel.result)
