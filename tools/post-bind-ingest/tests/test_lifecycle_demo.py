@@ -48,10 +48,14 @@ def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -
     assert "probes across all live areas" in html
     assert "available tests" not in html.lower()
     assert "LIVE TEST" not in html
-    assert "The latest completed assessment remains available below." in html
+    assert "Please contact your BackBond partner manager to continue." in html
+    assert 'id="submitFeedback" role="status" aria-live="polite"' in html
+    assert '$("#submitFeedback").textContent = error.message' in html
     assert "Please wait a moment before starting another scan." in html
     assert "showLatestCompleted" in html
     assert "Run limit reached · showing the latest completed assessment" in html
+    assert "mention this notice to Eric" not in html
+    assert "continue as a text-only assessment" in html
     for forbidden in (
         "application/x-backbond-reference",
         "1,184 probes",
@@ -79,7 +83,7 @@ def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> Non
     source = inspect.getsource(sys.modules["app"])
     assert 'os.environ.get("DEMO_RUN_QUOTA", "100")' in source
     assert '"quota_scope": "visitor"' in source
-    assert "The latest completed assessment remains available." in source
+    assert "Please contact your BackBond partner manager to continue." in source
     assert "HTTPStatus.TOO_MANY_REQUESTS" in source
 
 

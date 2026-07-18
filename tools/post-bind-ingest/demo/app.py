@@ -505,7 +505,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                         "error": "run_quota_exceeded",
                         "quota": DEMO_RUN_QUOTA,
                         "quota_scope": "visitor",
-                        "message": "This demo has reached its visitor run limit. The latest completed assessment remains available.",
+                        "message": "This demo has reached its visitor run limit. Please contact your BackBond partner manager to continue.",
                     },
                     HTTPStatus.TOO_MANY_REQUESTS,
                 )

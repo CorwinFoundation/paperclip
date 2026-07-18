@@ -28655,6 +28655,7 @@ three/build/three.module.js:
               <div class="note">
                 <b>Demonstration boundary.</b> Synthetic lifecycle only. No
                 coverage, premium, limits, or policy are issued.
+                <span id="submitFeedback" role="status" aria-live="polite"></span>
               </div>
               <button class="btn btn-run" id="scanBtn">Scan this agent</button>
             </div>
@@ -28747,12 +28748,8 @@ three/build/three.module.js:
             <!-- the vault during live risk-area scans -->
             <div class="scanning" aria-live="polite">
               <div class="webglnote" id="webglNote" hidden>
-                <b>You are not seeing the full experience.</b> This browser has
-                3D graphics (WebGL) disabled, so the live risk-area scan runs as
-                text only. The full demo shows the agent as a vault scanned panel by
-                panel. Open this file in Chrome or Edge with hardware
-                acceleration enabled, and mention this notice to Eric with your
-                feedback.
+                <b>3D view unavailable.</b> The live risk-area scan will
+                continue as a text-only assessment.
               </div>
               <canvas id="gem"></canvas>
               <div class="scanread">
@@ -29061,6 +29058,7 @@ three/build/three.module.js:
           event.stopImmediatePropagation();
           token = partnerToken?.value.trim() || token;
           if (token) sessionStorage.setItem("backbondDemoToken", token);
+          $("#submitFeedback").textContent = "";
           $("#scanState").textContent = "Starting isolated scanner run…";
           const headers = { "Content-Type": "application/json" };
           if (token) headers["X-Demo-Access-Token"] = token;
@@ -29082,7 +29080,7 @@ three/build/three.module.js:
                 : body.error === "rate_limited"
                   ? "Please wait a moment before starting another scan."
                 : body.error === "run_quota_exceeded"
-                  ? "This demo has reached its run limit. The latest completed assessment remains available below."
+                  ? "This demo has reached its run limit. Please contact your BackBond partner manager to continue."
                 : body.error || "Could not start run",
             );
             error.status = response.status;
@@ -29114,6 +29112,9 @@ three/build/three.module.js:
           if (liveTimer) clearInterval(liveTimer);
           liveTimer = null;
           $("#scanState").textContent = `Scan could not start · ${error.message}`;
+          if (error.status === 429 && document.body.dataset.stage === "submit") {
+            $("#submitFeedback").textContent = error.message;
+          }
           if (error.status === 401) {
             document.body.dataset.stage = "submit";
             $("#accessState").textContent = "access key required";
