@@ -41,8 +41,6 @@ DEMO_BOUNDARY_NOTICE = (
     "coverage, premium, limits, policy issuance, or license status."
 )
 CANDIDATE_RUBRIC_VERSIONS = {"1.3.0"}
-RATING_NOT_AVAILABLE_REASON = "only 4 of 27 risk areas tested; no rating can be issued."
-
 Emit = Callable[..., None]
 
 
@@ -101,6 +99,16 @@ def _with_applicability(scan: dict[str, Any]) -> dict[str, Any]:
     return envelope
 
 
+def _rating_projection(score: int | float, measured_count: int, dimension_count: int) -> dict[str, Any]:
+    if measured_count < dimension_count:
+        return {
+            "backbond_score": None,
+            "rating_status": "not_available",
+            "rating_reason": f"only {measured_count} of {dimension_count} risk areas tested; no rating can be issued.",
+        }
+    return {"backbond_score": score, "rating_status": "available", "rating_reason": None}
+
+
 def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[str, Any]:
     rubric_version = scan["rubric_version"]
     rubric = Rubric.load(RUBRIC_PATH)
@@ -136,13 +144,13 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
                     "na_justification": dimension.get("na_justification"),
                 }
             )
+    measured_count = sum(panel["result"] is not None for panel in panels)
+    dimension_count = len(panels)
     return {
         "scan_id": scan_id,
         "agent_id": AGENT_ID,
         "agent_release": release,
-        "backbond_score": None,
-        "rating_status": "not_available",
-        "rating_reason": RATING_NOT_AVAILABLE_REASON,
+        **_rating_projection(scan["are_total"], measured_count, dimension_count),
         "scanner_version": scan["scanner_version"],
         "rubric_version": rubric_version,
         "rubric_label": rubric_display_label(rubric_version),
@@ -152,8 +160,8 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "scored_at": scan["scored_at"],
         "panels": panels,
         "registry": {
-            "dimension_count": len(panels),
-            "measured_dimension_count": sum(panel["result"] is not None for panel in panels),
+            "dimension_count": dimension_count,
+            "measured_dimension_count": measured_count,
             "unique_executable_count": registry["unique_executable_count"],
             "claimed_1180_disposition": registry["claimed_1180_disposition"],
         },
@@ -215,10 +223,10 @@ def _certificate(run_id: str, scan: dict[str, Any], summary: dict[str, Any], sca
         "vendor_name": VENDOR_NAME,
         "agent_name": AGENT_ID,
         "agent_release": UPDATED_RELEASE,
-        "backbond_score": None,
-        "rating_status": "not_available",
-        "rating_reason": RATING_NOT_AVAILABLE_REASON,
-        "rating_issued": False,
+        "backbond_score": summary["backbond_score"],
+        "rating_status": summary["rating_status"],
+        "rating_reason": summary["rating_reason"],
+        "rating_issued": summary["rating_status"] == "available",
         "tested_area_count": summary["registry"]["measured_dimension_count"],
         "risk_area_count": summary["registry"]["dimension_count"],
         "not_tested_area_count": summary["registry"]["dimension_count"] - summary["registry"]["measured_dimension_count"],
@@ -313,6 +321,28 @@ def _demo_boundary_block() -> str:
     )
 
 
+def _render_not_available_report(summary: dict[str, Any]) -> str:
+    reason = summary["rating_reason"]
+    return f"""<!doctype html>
+<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
+<title>BackBond Scanner Report - N/A</title>
+<style>body{{margin:0;background:#f4f0e9;color:#0b1b31;font-family:Inter,system-ui,sans-serif}}main{{width:min(900px,calc(100% - 32px));margin:32px auto;background:white;border:1px solid #d7c7b1;padding:42px}}h1{{font-family:Archivo,Inter,sans-serif}}.rating{{border-left:3px solid #a6602b;padding:18px;margin:24px 0}}.label{{font-weight:800}}p{{line-height:1.55}}</style>
+</head><body><main><div class=\"report-brand\">BackBond Scanner</div><h1>BackBond Scanner Report</h1>
+{_demo_boundary_block()}
+<div class=\"rating\"><div class=\"label\">BackBond Score N/A - Not available</div><p>{escape(reason)}</p></div>
+<p>This report does not issue a band, pillar rating, or scenario estimate because measured coverage is incomplete.</p>
+</main></body></html>"""
+
+
+def _public_admittance_projection(decision: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "admittance_class": decision["admittance_class"],
+        "firing_rule_id": decision["firing_rule_id"],
+        "scope": decision["scope"],
+        "rationale": "Internal synthetic gate completed; no customer rating was issued.",
+    }
+
+
 def _canonicalize_demo_report(html: str) -> str:
     canonical = html
     replacements = {
@@ -348,7 +378,8 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     initial_decision = evaluate_admittance(_with_applicability(initial_scan), system_prompt_kind="safety_forward").to_dict()
     bind = _bind_record(run_id, initial_scan_id, initial_decision)
     _write_json(output_dir / "bind-record.json", {"decision": initial_decision, "bind": bind})
-    emit("bind", f"{bind['admittance_class']} · demonstration bind recorded", stage="bind", bind=bind, decision=initial_decision)
+    public_initial_decision = _public_admittance_projection(initial_decision)
+    emit("bind", f"{bind['admittance_class']} · demonstration bind recorded", stage="bind", bind=bind, decision=public_initial_decision)
     emit("stage", "Constrained demonstration bind completed", stage="bind", state="passed")
 
     emit("stage", "Scanner, CI gate, collector, passive monitor, and Log Tracker installing", stage="install", state="running")
@@ -393,6 +424,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     emit("stage", "New agent release passed scan and test gates", stage="cicd", state="passed")
 
     updated_decision = evaluate_admittance(_with_applicability(updated_scan), system_prompt_kind="safety_forward").to_dict()
+    public_updated_decision = _public_admittance_projection(updated_decision)
     certificate = _certificate(run_id, updated_scan, updated_summary, updated_scan_id)
     if not verify_certificate(certificate):
         raise RuntimeError("certificate signature verification failed")
@@ -405,8 +437,8 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     lifecycle = {
         "initial_scan": initial_summary,
         "updated_scan": updated_summary,
-        "initial_admittance": initial_decision,
-        "updated_admittance": updated_decision,
+        "initial_admittance": public_initial_decision,
+        "updated_admittance": public_updated_decision,
         "bind": bind,
         "installation": installation,
         "ci_gate": {"status": gate_payload["status"], "release": UPDATED_RELEASE},
@@ -417,29 +449,29 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
         },
         "_updated_scan": updated_scan,
     }
-    _write_json(output_dir / "internal-diagnostics.json", {"synthetic_ci_gate": gate_payload, "initial_score": initial_scan["are_total"], "updated_score": updated_scan["are_total"], "score_delta": updated_scan["are_total"] - initial_scan["are_total"]})
+    _write_json(output_dir / "internal-diagnostics.json", {"synthetic_ci_gate": gate_payload})
     return lifecycle, tests
 
 
 def generate_final_report(output_dir: Path, lifecycle: dict[str, Any], passive: dict[str, Any], emit: Emit) -> dict[str, Any]:
     emit("stage", "BackBond report generation started", stage="report", state="running")
-    score = lifecycle["_updated_scan"]
-    rubric = Rubric.load(RUBRIC_PATH)
-    html = render_report_card(
-        score,
-        rubric,
-        provenance="measured — isolated synthetic lifecycle demonstration",
-        admittance_decision=lifecycle["updated_admittance"],
+    summary = lifecycle["updated_scan"]
+    html = _render_not_available_report(summary) if summary["rating_status"] == "not_available" else _canonicalize_demo_report(
+        render_report_card(
+            lifecycle["_updated_scan"],
+            Rubric.load(RUBRIC_PATH),
+            provenance="measured — isolated synthetic lifecycle demonstration",
+            admittance_decision=lifecycle["updated_admittance"],
+        )
     )
-    html = _canonicalize_demo_report(html)
     (output_dir / "backbond-report.html").write_text(html, encoding="utf-8")
     report = {
         "report_id": f"report-{lifecycle['certificate']['envelope_id']}",
         "generated_at": _utc_now(),
         "agent_release": lifecycle["updated_scan"]["agent_release"],
-        "backbond_score": None,
-        "rating_status": "not_available",
-        "rating_reason": RATING_NOT_AVAILABLE_REASON,
+        "backbond_score": summary["backbond_score"],
+        "rating_status": summary["rating_status"],
+        "rating_reason": summary["rating_reason"],
         "bind_status": lifecycle["bind"]["status"],
         "ci_status": lifecycle["ci_gate"]["status"],
         "certificate_status": lifecycle["certificate"]["signature_status"],

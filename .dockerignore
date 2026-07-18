@@ -1,9 +1,15 @@
 .git
 .github
 .pytest_cache
+.worktrees/
 .venv
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.coverage
+.mypy_cache/
+.ruff_cache/
 .env
 .secrets/
 artifacts/

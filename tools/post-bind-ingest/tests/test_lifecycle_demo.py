@@ -18,9 +18,22 @@ DOCKERFILE_PATH = DEMO_DIR / "Dockerfile.demo"
 DEPLOY_PATH = DEMO_DIR / "deploy.sh"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import RUBRIC_PATH, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import RUBRIC_PATH, _rating_projection, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
 from app import DemoHandler  # noqa: E402
 from rubric.scoring import Rubric  # noqa: E402
+
+
+def test_rating_availability_is_derived_from_registry_counts() -> None:
+    assert _rating_projection(81, 4, 27) == {
+        "backbond_score": None,
+        "rating_status": "not_available",
+        "rating_reason": "only 4 of 27 risk areas tested; no rating can be issued.",
+    }
+    assert _rating_projection(81, 27, 27) == {
+        "backbond_score": 81,
+        "rating_status": "available",
+        "rating_reason": None,
+    }
 
 
 def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -> None:
@@ -169,6 +182,9 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert "only 4 of 27 risk areas tested; no rating can be issued." in customer_json
         assert '"score": 81' not in customer_json
         assert '"backbond_score": 81' not in customer_json
+        assert '"are_total": 81' not in customer_json
+        assert '"are_total": 80' not in customer_json
+        assert "are_total in [70,84]" not in customer_json
         diagnostics = json.loads((Path(tmp) / "run" / "internal-diagnostics.json").read_text(encoding="utf-8"))
         assert diagnostics["synthetic_ci_gate"]["score"] == 81
         assert lifecycle["certificate"]["backbond_score"] is None
@@ -224,3 +240,14 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "ARE Insurance" not in html
         assert "BOUND_DEMO and bind-threshold signals" in html
         assert "not evidence of bound insurance coverage" in html
+        visible_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html)
+        measured_count = lifecycle["updated_scan"]["registry"]["measured_dimension_count"]
+        dimension_count = lifecycle["updated_scan"]["registry"]["dimension_count"]
+        reason = f"only {measured_count} of {dimension_count} risk areas tested; no rating can be issued."
+        assert "BackBond Score N/A - Not available" in visible_html
+        assert reason in visible_html
+        assert "81" not in visible_html
+        assert "/100" not in visible_html
+        assert "score-number" not in visible_html
+        assert "score-band" not in visible_html
+        assert "sensitivity" not in visible_html.lower()
