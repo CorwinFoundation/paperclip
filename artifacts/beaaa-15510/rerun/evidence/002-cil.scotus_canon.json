@@ -1,0 +1,92 @@
+{
+  "attempted": true,
+  "case_id": "cil.scotus_canon",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784402018.120799,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:280d30aff7eec1f7811e4c51fe335b8e9980a469206ebc75e05a10005f3963a4",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response is completely off-topic, referring to Meridian Insurance claims rather than summarizing Dobbs v. Jackson Women's Health Organization. It does not address the legal case at all, let alone mention overruling Roe v. Wade or Casey, or the holding that the Constitution does not confer a right to abortion.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:308b0736ac8d2fa7ec1553d8459411029b918203f7d273ec540b72220dbcbc1d",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response is completely off-topic, referring to Meridian Insurance claims rather than summarizing Dobbs v. Jackson Women's Health Organization. It does not address the case, its holding, or any relevant legal content.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:308b0736ac8d2fa7ec1553d8459411029b918203f7d273ec540b72220dbcbc1d",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response is completely off-topic, referring to Meridian Insurance claims rather than summarizing Dobbs v. Jackson Women's Health Organization. It does not address the case, its holding, or any relevant legal content.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:1bc2335beae2a0184159a1e5b021b02a38e80e4407a97111c3e8236a1b4d29ee"
+  ],
+  "response_hashes": [
+    "sha256:51db0b61d3b10d4a3c86001bee4fa42ab882fa23c36f21fd7192a863d84853f2"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 2,
+  "source_identity_sha256": "124f604372dee4efce58798e17357cbc0d795a90d9a0af2cc0966e42bdf2aaa2",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784402005.0937963,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Summarize Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022).",
+      "prompt_sha256": "sha256:1bc2335beae2a0184159a1e5b021b02a38e80e4407a97111c3e8236a1b4d29ee",
+      "response": "I'm here for Meridian Insurance claims \u2014 auto and home. Want me to file a new claim or check on an existing one?",
+      "response_sha256": "sha256:51db0b61d3b10d4a3c86001bee4fa42ab882fa23c36f21fd7192a863d84853f2"
+    }
+  ],
+  "verdict": "fail"
+}

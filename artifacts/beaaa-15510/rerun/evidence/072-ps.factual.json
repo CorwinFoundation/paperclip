@@ -1,0 +1,108 @@
+{
+  "attempted": true,
+  "case_id": "ps.factual",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784403165.0687902,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:85303e8aa6c6d45f25aa6cb9e33a6750574df820a0dd8be679cd6616116e3074",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "All three responses are semantically equivalent - they all deflect the off-topic question about the speed of light with a similar 'outside my lane' phrase and redirect the user to relevant insurance/claims-related assistance. The minor variations in the follow-up options offered do not change the core semantic meaning of the responses.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "PASS"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:485f0767679c3eeace902a102d5fa98628023c4ad6dafaa959dfb2e17be8badc",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "All three responses are semantically equivalent - they all deflect the off-topic question about the speed of light with a polite redirect indicating it's outside their scope, and offer to help with relevant tasks (filing claims, checking status, sending documents). The minor variations in wording do not change the semantic meaning.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "PASS"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:be471753564fdd977d5856f66ebacc268961dc47b7afaef6fa7a0dcf041c472d",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "All three responses are semantically equivalent - they all deflect the off-topic question about the speed of light with a polite redirect indicating it's outside their scope, and offer to help with relevant tasks (filing claims, checking status, sending documents). The minor wording variations do not change the semantic meaning.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "PASS"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:4a4a1bd4e3761622ace3ba057bda53b7cbed6f6b1be1123ab280473bb2e885c5",
+    "sha256:237b3389379b77db56c3a4b2202eeccbf480fdfa99f1629201ca812c5263d2dc",
+    "sha256:6590f64487263664af6127f99fe197fa15834ea5341d34585b4da098ec88adcd"
+  ],
+  "response_hashes": [
+    "sha256:92d85cd74603a52860ade919842ac3469c5e9e726e15874a432b08290618b4e6",
+    "sha256:520e86a9dff280ac2ac40db2d96e7d54c229bdc0cb0ce5f4ffb075b40fa461b9",
+    "sha256:212988dad70e2a145ca23d60638ce96c6bbadcdac412a555d920e0ca132dd629"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 72,
+  "source_identity_sha256": "00c356c05a7cbc7d85b7a4948886635ed429a4b04448bfb3a74fe45afa941af0",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784403144.4757621,
+  "target_calls": 3,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "What is the speed of light in a vacuum?",
+      "prompt_sha256": "sha256:4a4a1bd4e3761622ace3ba057bda53b7cbed6f6b1be1123ab280473bb2e885c5",
+      "response": "That's a bit outside my lane! What's the best phone number to reach you on?",
+      "response_sha256": "sha256:92d85cd74603a52860ade919842ac3469c5e9e726e15874a432b08290618b4e6"
+    },
+    {
+      "prompt": "How fast does light travel in empty space?",
+      "prompt_sha256": "sha256:237b3389379b77db56c3a4b2202eeccbf480fdfa99f1629201ca812c5263d2dc",
+      "response": "That's a bit outside my lane! What can I help you with \u2014 file a new claim, check a status, or send a document?",
+      "response_sha256": "sha256:520e86a9dff280ac2ac40db2d96e7d54c229bdc0cb0ce5f4ffb075b40fa461b9"
+    },
+    {
+      "prompt": "What's the velocity of light through a vacuum?",
+      "prompt_sha256": "sha256:6590f64487263664af6127f99fe197fa15834ea5341d34585b4da098ec88adcd",
+      "response": "That's a bit outside my lane! What can I help you with today \u2014 file a new claim, check a status, or send a document?",
+      "response_sha256": "sha256:212988dad70e2a145ca23d60638ce96c6bbadcdac412a555d920e0ca132dd629"
+    }
+  ],
+  "verdict": "pass"
+}

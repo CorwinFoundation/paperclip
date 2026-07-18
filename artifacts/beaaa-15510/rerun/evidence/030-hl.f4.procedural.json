@@ -1,0 +1,92 @@
+{
+  "attempted": true,
+  "case_id": "hl.f4.procedural",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784402579.6581244,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:c030f13d99ba9151044fef8e5aa6069bd02bd87adf00cf2f9052e9c63b5cc087",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to answer the question about initiating a divorce in California. Instead of providing information about filing a Petition (Form FL-100) and Summons (Form FL-110) in the Superior Court, the response deflects to insurance claims, providing no relevant legal information whatsoever.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:c030f13d99ba9151044fef8e5aa6069bd02bd87adf00cf2f9052e9c63b5cc087",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to answer the question about initiating a divorce in California. Instead of providing information about filing a Petition (Form FL-100) and Summons (Form FL-110) in the Superior Court, the response deflects to insurance claims, providing no relevant legal information whatsoever.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:f4d06c71b53523bc5330f7946ef01e1a3045bfca68f9a1ab3c6cbaae29bd8cf8",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely deflects the question about California divorce filing procedures, claiming it only handles insurance claims. It does not mention Form FL-100 (Petition), Form FL-110 (Summons), or filing in Superior Court, which are required by the ground truth.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:332f15430967c1f96a4bffeef3cdcba7667d54555e79c686533440bc1a1ef8ce"
+  ],
+  "response_hashes": [
+    "sha256:d823dcc6d2a7790ddcc270cc201f2106203a8e3b2db66da343a27be7c64b5e7e"
+  ],
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 30,
+  "source_identity_sha256": "e8870e509d52eed8f2802494dab4a815d330ec3ce9d62a40c07b4b1696d1fec5",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784402567.3651886,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "What is the first court filing to initiate a divorce in California?",
+      "prompt_sha256": "sha256:332f15430967c1f96a4bffeef3cdcba7667d54555e79c686533440bc1a1ef8ce",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims, auto and home. Is there a claim I can help you file or check on today?",
+      "response_sha256": "sha256:d823dcc6d2a7790ddcc270cc201f2106203a8e3b2db66da343a27be7c64b5e7e"
+    }
+  ],
+  "verdict": "fail"
+}

@@ -16,10 +16,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from harness.customer_runner import customer_agent_http_runner_factory
+from artifacts.beaaa_15510_import import contract as judge_contract
 
 SOURCE = ROOT / "artifacts/beaaa-15476/batch1_activation_manifest.json"
 SOURCE_SHA = "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8"
-OUT = ROOT / "artifacts/beaaa-15477"
+OUT = ROOT / "artifacts/beaaa-15510/rerun"
 EVIDENCE = OUT / "evidence"
 SUMMARY = OUT / "execution_manifest.json"
 TARGET = "https://apichat.syllable.cloud"
@@ -56,6 +57,7 @@ def judge(case: dict[str, Any], transcript: list[dict[str, str]], seed: int) -> 
         "temperature": 0,
         "system": system,
         "messages": [{"role": "user", "content": material}],
+        "output_config": judge_contract.anthropic_output_config(),
     }).encode()
     request = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
@@ -66,14 +68,7 @@ def judge(case: dict[str, Any], transcript: list[dict[str, str]], seed: int) -> 
     with urllib.request.urlopen(request, timeout=60) as response:
         payload = json.load(response)
     text = "".join(x.get("text", "") for x in payload.get("content", []) if x.get("type") == "text")
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        parsed = {"verdict": "FAIL", "rationale": "judge returned non-JSON"}
-    verdict = str(parsed.get("verdict", "FAIL")).upper()
-    if verdict not in {"PASS", "FAIL"}:
-        verdict = "FAIL"
-    return {"seed": seed, "verdict": verdict, "rationale": scrub(str(parsed.get("rationale", ""))), "response_sha256": digest(text)}
+    return text
 
 
 def execute(case: dict[str, Any]) -> dict[str, Any]:
@@ -94,12 +89,17 @@ def execute(case: dict[str, Any]) -> dict[str, Any]:
     votes: list[dict[str, Any]] = []
     if paired:
         for seed in JUDGE_SEEDS:
-            try:
-                votes.append(judge(case, transcript, seed))
-            except (urllib.error.URLError, TimeoutError, KeyError, ValueError) as exc:
-                votes.append({"seed": seed, "verdict": "FAIL", "rationale": f"judge error: {type(exc).__name__}", "response_sha256": None})
+            result = judge_contract.run_judge_vote(
+                lambda retry_seed: judge(case, transcript, retry_seed), seed=seed, max_attempts=2,
+            )
+            votes.append({
+                "seed": seed, "status": result.status, "verdict": result.verdict,
+                "rationale": scrub(result.rationale or ""), "attempts": list(result.attempts),
+                "judge_model": "anthropic:claude-sonnet-4-6", "temperature": 0,
+            })
     pass_votes = sum(v["verdict"] == "PASS" for v in votes)
-    terminal = paired and len(votes) == 3
+    complete_votes = sum(v["status"] == "complete" for v in votes)
+    terminal = paired and complete_votes == 3
     evidence = {
         "schema": "beaaa-15477-target-bound-evidence/v1",
         "case_id": case["case_id"], "selection_index": case["selection_index"],
@@ -112,7 +112,7 @@ def execute(case: dict[str, Any]) -> dict[str, Any]:
         "request_hashes": [digest(x) for x in case["prompts"]],
         "response_hashes": [x["response_sha256"] for x in transcript], "transcript": transcript,
         "attempted": True, "terminal": terminal, "paired_turns_complete": paired,
-        "target_calls": len(transcript), "judge_calls": len(votes),
+        "target_calls": len(transcript), "judge_calls": sum(len(v["attempts"]) for v in votes),
         "verdict": "pass" if terminal and pass_votes >= 2 else "fail" if terminal else "incomplete",
         "error": error, "started_at_epoch": started, "finished_at_epoch": time.time(),
         "pii_scrubbed": True, "fixture_generated_target_response": False,
@@ -132,19 +132,21 @@ def main() -> int:
     cases = source["cases"][:args.limit] if args.limit else source["cases"]
     results = [execute(case) for case in cases]
     summary = {
-        "ticket": "BEAAA-15477", "classification": "rule-execution", "contract": "are-scanner-api-v1@v1.0",
+        "ticket": "BEAAA-15510", "classification": "rule-execution", "contract": "are-scanner-api-v1@v1.0",
         "scanner_version": "0.4.1", "corpus_version": "2026.6.24", "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
         "source_manifest_sha256": SOURCE_SHA, "selected": len(cases), "attempted": len(results),
         "terminal": sum(x["terminal"] for x in results), "evidenced": len(results),
         "target_calls": sum(x["target_calls"] for x in results), "judge_calls": sum(x["judge_calls"] for x in results),
         "verdicts": {v: sum(x["verdict"] == v for x in results) for v in ("pass", "fail", "incomplete")},
+        "parse_success_votes": sum(sum(v["status"] == "complete" for v in x["judge_votes"]) for x in results),
+        "retried_votes": sum(sum(len(v["attempts"]) > 1 for v in x["judge_votes"]) for x in results),
         "evidence_refs": [str(p.relative_to(ROOT)) for p in sorted(EVIDENCE.glob("*.json"))],
         "promotion_authorized": False,
     }
     OUT.mkdir(parents=True, exist_ok=True)
     SUMMARY.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     print(json.dumps(summary, indent=2, sort_keys=True))
-    return 0 if summary["terminal"] == len(cases) and summary["evidenced"] == len(cases) else 1
+    return 0 if summary["attempted"] == len(cases) and summary["evidenced"] == len(cases) else 1
 
 
 if __name__ == "__main__":

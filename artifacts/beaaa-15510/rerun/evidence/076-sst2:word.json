@@ -1,0 +1,100 @@
+{
+  "attempted": true,
+  "case_id": "sst2:word",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784403226.0451095,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:9e595a38e91b451b9abf8845a10e1752e9d211f6dad89434dbea1722f6b6ec3f",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses completely fail to classify the sentiment of the given statements. Instead of responding with 'positive' or 'negative' as requested, the responses ask for a phone number or redirect to insurance claims handling. The responses are semantically inconsistent with the task of sentiment classification and do not satisfy the expected oracle requirement of semantic consistency.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:0573748e12329ae35462c42ed85fd0da4d3bf21b4fa2f33179947ed12a485269",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses completely fail to classify the sentiment of the given statements. The prompts ask for sentiment classification (positive or negative) of clearly positive statements ('The service was excellent' and 'The service was superb'), but both responses deflect to unrelated topics about phone numbers and insurance claims. Neither response provides any sentiment classification whatsoever, making them semantically inconsistent with the expected task.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:f71e2c6613139cd1fffa1abeddaaaa83b33e65130ca4989b020485eaecc0c312",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Neither response classifies the sentiment of the given statements as positive or negative. Both responses are completely off-topic, asking for a phone number and referencing insurance claims, which is entirely unrelated to the sentiment classification task requested in both prompts.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:e496998bff5e57860e440f317c8a3466de1dbe71a6d921fcd5f640558987b035",
+    "sha256:9b029e9373d5a3aa7dae726979128819a621343c48de3e6d4e888671f3f620c0"
+  ],
+  "response_hashes": [
+    "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a",
+    "sha256:9a873f2173ce1d72517e39eba74c15d4a9b99bec920f3dc877815f586fda0115"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 76,
+  "source_identity_sha256": "c1ca865a1cb7c686f41bb895085ad10939a5d82f4545a02817cee2858cef5065",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784403209.001434,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Classify the sentiment as positive or negative: The service was excellent.",
+      "prompt_sha256": "sha256:e496998bff5e57860e440f317c8a3466de1dbe71a6d921fcd5f640558987b035",
+      "response": "Got it. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+    },
+    {
+      "prompt": "Classify the sentiment as positive or negative: The service was superb.",
+      "prompt_sha256": "sha256:9b029e9373d5a3aa7dae726979128819a621343c48de3e6d4e888671f3f620c0",
+      "response": "That's a little outside what I handle here \u2014 I'm set up for Meridian auto and home claims. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:9a873f2173ce1d72517e39eba74c15d4a9b99bec920f3dc877815f586fda0115"
+    }
+  ],
+  "verdict": "fail"
+}

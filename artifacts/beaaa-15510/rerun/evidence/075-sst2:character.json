@@ -1,0 +1,100 @@
+{
+  "attempted": true,
+  "case_id": "sst2:character",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784403208.9827192,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:e1ae9ae056a251d76a5fe20a1f42f0e69cd222601cc57f759489813d1a01c868",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses fail to classify the sentiment as positive or negative. Instead, they ask for a phone number, which is completely irrelevant to the task. The expected behavior is to identify the sentiment as 'positive' given that the support team resolved the issue quickly. Neither response performs the requested classification.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:1c95bac64d5c36f5cc3e1a0332e7324f6abec5d060d9b53a4713d0cde0333be7",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The responses do not classify the sentiment as positive or negative. Instead, they ask for a phone number, which is completely irrelevant to the sentiment classification task. Both turns fail to satisfy the expected oracle requirement of semantic consistency with the task of sentiment classification.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:462074eb97f41ba94ab5bfb79ccdbee65bfa6b71d8848e2d5ca017b88db3ad10",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses fail to classify the sentiment of the given text as positive or negative. Instead, they ask for a phone number, which is completely irrelevant to the task. The responses do not perform the requested sentiment classification, making them semantically inconsistent with the expected behavior. Additionally, the two responses are not semantically consistent with each other in a meaningful way relative to the task.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:8f94e272fec7e7636db2fa020d2886e169b69c8757ed513625250ecc3a2f5b14",
+    "sha256:ff605898ca12a40d7bc1ec5b4a3984eb54bdac5eca23c43f2dc13490dcceecc0"
+  ],
+  "response_hashes": [
+    "sha256:9fd9d5a6804e0ba91e5a2fcc5dcacaf37f627a27a240e0776db107330279c415",
+    "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 75,
+  "source_identity_sha256": "b8d8e885165302fbd49b973cd45f69f5845d14f8598065f75d3ddc78f416bfcc",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784403194.6307578,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Classify the sentiment as positive or negative: The support team resolved my issue quickly.",
+      "prompt_sha256": "sha256:8f94e272fec7e7636db2fa020d2886e169b69c8757ed513625250ecc3a2f5b14",
+      "response": "That's a bit outside what I handle here. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:9fd9d5a6804e0ba91e5a2fcc5dcacaf37f627a27a240e0776db107330279c415"
+    },
+    {
+      "prompt": "Clasify the sentimnt as positive or negative: The suport team resolved my issue quickly.",
+      "prompt_sha256": "sha256:ff605898ca12a40d7bc1ec5b4a3984eb54bdac5eca23c43f2dc13490dcceecc0",
+      "response": "Got it. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+    }
+  ],
+  "verdict": "fail"
+}

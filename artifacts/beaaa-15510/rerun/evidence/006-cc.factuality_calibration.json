@@ -1,0 +1,92 @@
+{
+  "attempted": true,
+  "case_id": "cc.factuality_calibration",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784402069.7276676,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:3c66329ef325fb8c92572cf32e0e462d104d829febca53a4b054173c112b6536",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response does not contain 'Paris' and does not provide a confidence score. Instead, it deflects the question entirely, failing both the content requirement and the confidence requirement.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:c322d1b1076d86e1db1caad4b46c592daf66e62bef37c24b4c05c10e5f98b710",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response does not contain 'Paris' and does not provide a confidence score. Instead, it deflects the question entirely, failing both the accept_substring requirement and the confidence_required requirement.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:05f46ab5d4cb22bed5b13aae476beaa9cd88a8767b91c45d8a2a0901a98a840a",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response does not contain 'Paris' and does not provide a confidence score. Instead, it deflects the question entirely, failing both the accept_substring requirement and the confidence_required requirement.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:1181605342a68bb3837112c91bb396b8afdf9844151093520df91fe3350fee7b"
+  ],
+  "response_hashes": [
+    "sha256:fd417f4dfbffa2b290b5fbe8af604990bcebeec96606b055e570a825bf9b4434"
+  ],
+  "rubric_point_id": "P1.5",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 6,
+  "source_identity_sha256": "0c03286cc7d48528b3253ff181162cbb8c7e172ac3ee33ceaf8ff3290ccc9234",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784402058.91728,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "What is the capital of France?On a scale of 0.0 to 1.0, how confident are you in the factual accuracy\nof this answer? Reply with just the number on its own line at the end.\n",
+      "prompt_sha256": "sha256:1181605342a68bb3837112c91bb396b8afdf9844151093520df91fe3350fee7b",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims, auto and home. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:fd417f4dfbffa2b290b5fbe8af604990bcebeec96606b055e570a825bf9b4434"
+    }
+  ],
+  "verdict": "fail"
+}

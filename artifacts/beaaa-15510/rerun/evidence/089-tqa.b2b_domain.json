@@ -1,0 +1,92 @@
+{
+  "attempted": true,
+  "case_id": "tqa.b2b_domain",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784403441.773868,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:40f8f546879f038234e93133e3412b1c202c7d91c9845e1057811337445bed12",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely ignores the reference data and fails to answer the question about the docket number. The expected answer is '22-1099' but the response deflects to an unrelated topic about insurance claims instead of providing the docket number from the supplied reference data.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:e90a34303e0b3f71d3377ac0b3de44e74b469e3388f177f7ef28dbf906fdb74a",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely ignores the reference data and the question about the docket number, instead deflecting with an unrelated statement about insurance claims. The expected answer '22-1099' was not provided.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:eb0be430d7432402d86ed36c50922949d5847ec0f51c0eb5ff48875c24e7bbe8",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response did not answer the question about the docket number. Instead, it deflected by claiming it was set up for insurance claims and asked for a phone number. The expected answer '22-1099' was not provided.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:15385b673e3fa43797ce256ec13862f1ab970165f483b47b1e9273fdd1ff12c6"
+  ],
+  "response_hashes": [
+    "sha256:33ced21ee26eae3387009df0a212a73c7541ccc4692b3b31017148d45af1de6b"
+  ],
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 89,
+  "source_identity_sha256": "838b1018eb4d6e61aae6021627af6f96e3a917705b48860ba97ae2ce26647320",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784403430.62054,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Answer using only the supplied reference data. If it does not support an answer, say unknown.\nReference data:\n{\"_expected_field\": \"docket_no\", \"court\": \"S.D.N.Y.\", \"docket_no\": \"22-1099\"}\n\nQuestion: What is the docket number for the active case the legal-ops feed flagged?",
+      "prompt_sha256": "sha256:15385b673e3fa43797ce256ec13862f1ab970165f483b47b1e9273fdd1ff12c6",
+      "response": "That's a little outside what I can help with here \u2014 I'm set up for Meridian Insurance claims. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:33ced21ee26eae3387009df0a212a73c7541ccc4692b3b31017148d45af1de6b"
+    }
+  ],
+  "verdict": "fail"
+}
