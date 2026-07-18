@@ -18,7 +18,7 @@ DOCKERFILE_PATH = DEMO_DIR / "Dockerfile.demo"
 DEPLOY_PATH = DEMO_DIR / "deploy.sh"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import RUBRIC_PATH, _rating_projection, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import RUBRIC_PATH, _evidence_digest, _rating_projection, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
 from app import DemoHandler  # noqa: E402
 from rubric.scoring import Rubric  # noqa: E402
 
@@ -97,6 +97,52 @@ def test_rating_projection_is_derived_from_measured_registry_counts() -> None:
     assert complete == {"backbond_score": 81, "rating_status": "available", "rating_reason": None}
 
 
+def test_renderer_requires_registry_live_and_digest_valid_real_evidence() -> None:
+    record = {
+        "case_id": "real-case-1",
+        "rubric_point_id": "P1.1",
+        "target_response": "A real target response",
+        "verdict": "pass",
+        "evidence_uri": "evidence://real-run/case-1",
+        "judge_oracle_id": "exact-match-oracle",
+        "judge_oracle_version": "1.0.0",
+        "scanner_version": "0.5.0",
+        "corpus_version": "0.1.1",
+        "model_versions": {"target": "agent-release-1"},
+        "seed": 42,
+        "terminal_at": "2026-07-18T18:00:00Z",
+    }
+    record["content_digest"] = _evidence_digest(record)
+    with tempfile.TemporaryDirectory(prefix="demo-evidence-") as tmp:
+        evidence_path = Path(tmp) / "records.json"
+        evidence_path.write_text(json.dumps([record]), encoding="utf-8")
+        lifecycle, _ = run_preproduction(
+            Path(tmp) / "run",
+            "evidence-run",
+            lambda *_args, **_kwargs: None,
+            lambda: {"status": "passed"},
+            evidence_store_path=evidence_path,
+        )
+        panels = {row["dimension_id"]: row for row in lifecycle["updated_scan"]["panels"]}
+        assert panels["P1.1"]["result"] == "held"
+        assert panels["P1.1"]["probe_count"] == 1
+        assert panels["P1.2"]["result"] is None
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 1
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 1
+        assert lifecycle["updated_scan"]["backbond_score"] is None
+
+        record["content_digest"] = "sha256:" + "0" * 64
+        evidence_path.write_text(json.dumps([record]), encoding="utf-8")
+        lifecycle, _ = run_preproduction(
+            Path(tmp) / "invalid-run",
+            "invalid-evidence-run",
+            lambda *_args, **_kwargs: None,
+            lambda: {"status": "passed"},
+            evidence_store_path=evidence_path,
+        )
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+
+
 def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> None:
     source = inspect.getsource(sys.modules["app"])
     assert 'os.environ.get("DEMO_RUN_QUOTA", "100")' in source
@@ -144,7 +190,7 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         )
         assert lifecycle["initial_scan"]["backbond_score"] is None
         assert lifecycle["updated_scan"]["backbond_score"] is None
-        assert lifecycle["bind"]["admittance_class"] == "CONSTRAINED_BIND"
+        assert lifecycle["bind"]["status"] == "NOT_AVAILABLE"
         assert lifecycle["bind"]["real_policy_bound"] is False
         assert lifecycle["installation"]["status"] == "INSTALLED"
         assert len(lifecycle["installation"]["components"]) == 4
@@ -167,17 +213,17 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         }
         assert {panel["result"] for panel in lifecycle["updated_scan"]["panels"]} <= {"held", "exposure", None}
         assert lifecycle["updated_scan"]["registry"]["dimension_count"] == 27
-        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 4
-        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 90
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 0
         dimension_events = [event for event in events if event["kind"] == "dimension"]
         assert len(dimension_events) == registry_dimension_count * 2
-        assert all(event["panel"]["evidence_id"] or not event["panel"]["applicable"] for event in dimension_events)
+        assert all(not event["panel"]["applicable"] for event in dimension_events)
         assert verify_certificate(lifecycle["certificate"])
         customer_projection = {key: value for key, value in lifecycle.items() if not key.startswith("_")}
         customer_json = json.dumps(customer_projection, sort_keys=True)
         assert '"backbond_score": null' in customer_json
         assert '"rating_status": "not_available"' in customer_json
-        assert "only 4 of 27 risk areas tested; no rating can be issued." in customer_json
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in customer_json
         assert '"score": 81' not in customer_json
         assert '"backbond_score": 81' not in customer_json
         assert '"are_total": 81' not in customer_json
@@ -186,20 +232,19 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert '"are_total": 81' not in customer_events
         assert '"are_total": 80' not in customer_events
         diagnostics = json.loads((Path(tmp) / "run" / "internal-diagnostics.json").read_text(encoding="utf-8"))
-        assert diagnostics["synthetic_ci_gate"]["score"] == 81
+        assert diagnostics["renderer_gate"]["score"] is None
         assert lifecycle["certificate"]["backbond_score"] is None
         assert lifecycle["certificate"]["rating_status"] == "not_available"
-        assert lifecycle["certificate"]["tested_area_count"] == 4
+        assert lifecycle["certificate"]["tested_area_count"] == 0
         assert lifecycle["certificate"]["risk_area_count"] == 27
-        assert len(lifecycle["certificate"]["tested_areas"]) == 4
-        assert {row["result"] for row in lifecycle["certificate"]["tested_areas"]} == {"clean"}
-        assert lifecycle["certificate"]["not_tested_area_count"] == 23
+        assert len(lifecycle["certificate"]["tested_areas"]) == 0
+        assert lifecycle["certificate"]["not_tested_area_count"] == 27
         assert lifecycle["certificate"]["rating_issued"] is False
         certificate_html = (Path(tmp) / "run" / "certificate.html").read_text(encoding="utf-8")
         assert "N/A - Not available" in certificate_html
-        assert "only 4 of 27 risk areas tested; no rating can be issued." in certificate_html
-        assert certificate_html.count(">CLEAN<") == 4
-        assert certificate_html.count("N/A - not tested yet") == 23
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in certificate_html
+        assert certificate_html.count(">CLEAN<") == 0
+        assert certificate_html.count("N/A - not tested yet") == 27
         visible_certificate_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", certificate_html)
         assert ">81<" not in visible_certificate_html
         assert "AGENT RISK RATINGS &amp; INSURANCE" in certificate_html
@@ -241,13 +286,13 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "BOUND_DEMO and bind-threshold signals" in html
         assert "not evidence of bound insurance coverage" in html
         assert "N/A - Not available" in html
-        assert "only 4 of 27 risk areas tested; no rating can be issued." in html
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in html
         assert "81/100" not in html
         assert ">81<" not in html
         assert "score-number" not in html
         visible_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html)
         assert "BackBond Score N/A - Not available" in visible_html
-        assert "only 4 of 27 risk areas tested; no rating can be issued." in visible_html
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in visible_html
         assert "81" not in visible_html
         assert "/100" not in visible_html
         assert "sample estimate" not in visible_html.lower()

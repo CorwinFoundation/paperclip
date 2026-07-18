@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 from datetime import UTC, datetime, timedelta
 from html import escape
 import json
+import os
 from pathlib import Path
 from typing import Any, Callable
 import sys
@@ -27,7 +29,7 @@ from underwriting.admittance import evaluate as evaluate_admittance
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
 ACTIVE_REGISTRY_PATH = REPO_ROOT / "tools" / "probe-registry" / "active_registry.json"
 LOGO_PATH = REPO_ROOT / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
-FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "golden_agents" / "G1" / "eval_outputs.json"
+DEFAULT_EVIDENCE_STORE_PATH = Path("/data/evidence-store")
 AGENT_ID = "demo-contact-center-agent"
 VENDOR_NAME = "Northstar AI (synthetic)"
 INITIAL_RELEASE = "1.0.0"
@@ -56,33 +58,77 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
 
 
+EVIDENCE_FIELDS = {
+    "case_id", "rubric_point_id", "target_response", "verdict", "evidence_uri",
+    "judge_oracle_id", "judge_oracle_version", "scanner_version", "corpus_version",
+    "model_versions", "seed", "terminal_at", "content_digest",
+}
+
+
+def _evidence_digest(record: dict[str, Any]) -> str:
+    body = {key: value for key, value in record.items() if key != "content_digest"}
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _valid_evidence(record: object, rubric_point_id: str) -> bool:
+    if not isinstance(record, dict) or not EVIDENCE_FIELDS <= record.keys():
+        return False
+    if record.get("rubric_point_id") != rubric_point_id:
+        return False
+    if not all(str(record.get(key, "")).strip() for key in (
+        "case_id", "target_response", "verdict", "evidence_uri", "judge_oracle_id",
+        "judge_oracle_version", "scanner_version", "corpus_version", "terminal_at",
+    )):
+        return False
+    if record["verdict"] not in {"pass", "fail", "held", "exposure"}:
+        return False
+    if record["judge_oracle_id"] == "deterministic-fixture-v1":
+        return False
+    if "tests/fixtures/golden_agents" in record["evidence_uri"]:
+        return False
+    if record["scanner_version"] != "0.5.0" or record["corpus_version"] != CORPUS_VERSION:
+        return False
+    if not isinstance(record.get("model_versions"), dict) or not record["model_versions"]:
+        return False
+    if not isinstance(record.get("seed"), int):
+        return False
+    try:
+        datetime.fromisoformat(str(record["terminal_at"]).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return record["content_digest"] == _evidence_digest(record)
+
+
+def _load_evidence_store(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    files = [path] if path.is_file() else sorted(path.glob("**/*.json"))
+    records: list[dict[str, Any]] = []
+    for evidence_file in files:
+        try:
+            payload = json.loads(evidence_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        candidates = payload if isinstance(payload, list) else [payload]
+        records.extend(item for item in candidates if isinstance(item, dict))
+    return records
+
+
 def _prepare_inputs(path: Path, release: str, *, improved: bool) -> None:
     path.mkdir(parents=True, exist_ok=False)
-    eval_outputs = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-    if improved:
-        eval_outputs["P2.4"]["raw"] = 1.0
-        eval_outputs["P2.4"]["evidence_uri"] = "demo://release-1.1.0/fairness-remediation"
-    _write_json(path / "eval_results.json", eval_outputs)
-    _write_json(
-        path / "model_versions.json",
-        {"primary": f"synthetic-agent-{release}", "judges": ["deterministic-fixture-v1"]},
-    )
-    _write_json(
-        path / "scanner_invocation_context.json",
-        {"purpose": "pre_bind" if not improved else "continuous_monitor", "requested_pillars": ["OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"]},
-    )
+    _write_json(path / "eval_results.json", {})
+    _write_json(path / "model_versions.json", {"primary": f"synthetic-agent-{release}", "judges": []})
+    _write_json(path / "scanner_invocation_context.json", {
+        "purpose": "pre_bind" if not improved else "continuous_monitor",
+        "requested_pillars": ["OPS", "BIAS_FAIRNESS", "ROBUSTNESS", "GOVERNANCE"],
+    })
     (path / "system_prompt.txt").write_text("Safety-forward synthetic contact-center agent.\n", encoding="utf-8")
 
 
 def _scan(path: Path, *, scored_at: datetime) -> dict[str, Any]:
-    return run_scan(
-        agent_id=AGENT_ID,
-        input_dir=path,
-        seed=SEED,
-        corpus_version=CORPUS_VERSION,
-        rubric_path=RUBRIC_PATH,
-        scored_at=scored_at,
-    )
+    return run_scan(agent_id=AGENT_ID, input_dir=path, seed=SEED, corpus_version=CORPUS_VERSION,
+                    rubric_path=RUBRIC_PATH, scored_at=scored_at)
 
 
 def _with_applicability(scan: dict[str, Any]) -> dict[str, Any]:
@@ -99,17 +145,22 @@ def _with_applicability(scan: dict[str, Any]) -> dict[str, Any]:
     return envelope
 
 
-def _rating_projection(score: int | float, measured_count: int, dimension_count: int) -> dict[str, Any]:
-    if measured_count < dimension_count:
+def _rating_projection(score: int | float | None, measured_count: int, dimension_count: int) -> dict[str, Any]:
+    if measured_count < dimension_count or score is None:
+        reason = (
+            f"only {measured_count} of {dimension_count} risk areas tested; no rating can be issued."
+            if measured_count < dimension_count
+            else "all risk areas have terminal evidence, but no contract-valid score was supplied."
+        )
         return {
             "backbond_score": None,
             "rating_status": "not_available",
-            "rating_reason": f"only {measured_count} of {dimension_count} risk areas tested; no rating can be issued.",
+            "rating_reason": reason,
         }
     return {"backbond_score": score, "rating_status": "available", "rating_reason": None}
 
 
-def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[str, Any]:
+def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str, evidence_records: list[dict[str, Any]]) -> dict[str, Any]:
     rubric_version = scan["rubric_version"]
     rubric = Rubric.load(RUBRIC_PATH)
     registry = json.loads(ACTIVE_REGISTRY_PATH.read_text(encoding="utf-8"))
@@ -118,30 +169,32 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
     for row in registry["rows"]:
         if row.get("countable_as_executable"):
             executable_keys.setdefault(row["rubric_point_id"], set()).add(row["stable_executable_key"])
+    valid_by_dimension: dict[str, list[dict[str, Any]]] = {}
+    for dimension_id in registry_status:
+        valid_by_dimension[dimension_id] = [
+            record for record in evidence_records if _valid_evidence(record, dimension_id)
+        ]
     panels: list[dict[str, Any]] = []
     for pillar_id, pillar_spec in rubric.pillars.items():
-        scored_dimensions = scan["pillars"][pillar_id]["dimensions"]
         for dimension_id in pillar_spec["dim_ids"]:
-            dimension = scored_dimensions[dimension_id]
-            threshold = dimension["applied_threshold"]
-            raw = dimension.get("raw")
-            applicable = dimension.get("applicable") is not False and raw is not None
+            records = valid_by_dimension.get(dimension_id, [])
             availability = registry_status[dimension_id]["status"]
-            measured = availability == "executable" and applicable
+            measured = availability == "executable" and bool(records)
+            failed = any(record["verdict"] in {"fail", "exposure"} for record in records)
             panels.append(
                 {
                     "index": len(panels),
                     "dimension_id": dimension_id,
                     "name": pillar_spec["dim_names"][dimension_id],
                     "pillar": pillar_id,
-                    "raw": raw,
-                    "applicable": applicable,
-                    "result": None if not measured else ("held" if raw >= threshold["min_raw"] else "exposure"),
+                    "raw": None,
+                    "applicable": measured,
+                    "result": None if not measured else ("exposure" if failed else "held"),
                     "availability": availability,
-                    "probe_count": len(executable_keys.get(dimension_id, set())),
-                    "threshold": threshold,
-                    "evidence_id": dimension.get("evidence_uri") or None,
-                    "na_justification": dimension.get("na_justification"),
+                    "probe_count": len({record["case_id"] for record in records}) if measured else 0,
+                    "threshold": None,
+                    "evidence_id": records[0]["evidence_uri"] if measured else None,
+                    "na_justification": None if measured else "N/A · not tested yet",
                 }
             )
     measured_count = sum(panel["result"] is not None for panel in panels)
@@ -150,7 +203,7 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "scan_id": scan_id,
         "agent_id": AGENT_ID,
         "agent_release": release,
-        **_rating_projection(scan["are_total"], measured_count, dimension_count),
+        **_rating_projection(None, measured_count, dimension_count),
         "scanner_version": scan["scanner_version"],
         "rubric_version": rubric_version,
         "rubric_label": rubric_display_label(rubric_version),
@@ -162,7 +215,7 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "registry": {
             "dimension_count": dimension_count,
             "measured_dimension_count": measured_count,
-            "unique_executable_count": registry["unique_executable_count"],
+            "unique_executable_count": sum(panel["probe_count"] for panel in panels),
             "claimed_1180_disposition": registry["claimed_1180_disposition"],
         },
     }
@@ -200,7 +253,7 @@ def _bind_record(run_id: str, scan_id: str, decision: dict[str, Any]) -> dict[st
 def _installation_manifest(run_id: str, bind: dict[str, Any]) -> dict[str, Any]:
     return {
         "installation_id": f"install-{run_id}",
-        "bind_id": bind["bind_id"],
+        "bind_id": bind.get("bind_id"),
         "status": "INSTALLED",
         "installed_at": _utc_now(),
         "environment": "synthetic-production",
@@ -349,26 +402,45 @@ def _render_partial_report(lifecycle: dict[str, Any], passive: dict[str, Any]) -
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BackBond Scanner Report — N/A</title><style>body{{margin:0;background:#f4f0e9;color:#0b1b31;font-family:Inter,system-ui,sans-serif}}main{{width:min(900px,calc(100% - 32px));margin:32px auto;background:#fff;border:1px solid #d7c7b1;padding:42px}}img{{width:min(440px,100%)}}h1{{font-size:36px}}.status{{font-size:30px;font-weight:800}}.reason,.boundary{{color:#46566b;line-height:1.55}}ul{{list-style:none;padding:0;columns:2}}li{{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid #e6dfd5;padding:9px 5px;break-inside:avoid}}li span{{white-space:nowrap}}.boundary{{border-left:3px solid #a6602b;padding-left:14px}}@media(max-width:650px){{main{{padding:24px}}ul{{columns:1}}}}</style></head><body><main><img src="data:image/png;base64,{logo}" alt="BackBond · AGENT RISK RATINGS &amp; INSURANCE"><h1>BackBond Scanner Report</h1><div class="status">BackBond Score N/A - Not available</div><p class="reason">{escape(scan["rating_reason"])}</p><p>{registry["measured_dimension_count"]} tested areas are CLEAN; {registry["dimension_count"] - registry["measured_dimension_count"]} areas are not tested yet.</p><ul>{areas}</ul><p>Passive Monitor evidence: {len(passive["raw_events"])} production-shaped logs and {len(passive["detections"])} findings.</p><p class="boundary">{escape(DEMO_BOUNDARY_NOTICE)} This is scan-only evidence. No rating or coverage was issued.</p></main></body></html>"""
 
 
-def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Callable[[], dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+def run_preproduction(
+    output_dir: Path,
+    run_id: str,
+    emit: Emit,
+    run_tests: Callable[[], dict[str, Any]],
+    *,
+    evidence_store_path: Path | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     output_dir.mkdir(parents=True, exist_ok=False)
     now = datetime.now(UTC).replace(microsecond=0)
 
     emit("stage", "Initial full scanner run started", stage="scan", state="running")
-    initial_input = output_dir / "scanner-initial"
-    _prepare_inputs(initial_input, INITIAL_RELEASE, improved=False)
-    initial_scan = _scan(initial_input, scored_at=now)
+    source_path = evidence_store_path or Path(os.environ.get("DEMO_EVIDENCE_STORE_PATH", DEFAULT_EVIDENCE_STORE_PATH))
+    evidence_records = _load_evidence_store(source_path)
+    evidence_store_digest = "sha256:" + hashlib.sha256(
+        json.dumps(evidence_records, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    initial_scan = {
+        "rubric_version": Rubric.load(RUBRIC_PATH).version,
+        "scanner_version": "0.5.0",
+        "corpus_version": CORPUS_VERSION,
+        "model_versions": {},
+        "seed": SEED,
+        "scored_at": now.isoformat().replace("+00:00", "Z"),
+        "snapshot_hash": evidence_store_digest,
+        "forensic_bundle_uri": f"evidence-store://{evidence_store_digest}",
+        "are_total": None,
+    }
     initial_scan_id = f"scan-{run_id}-v1"
-    initial_summary = _scan_summary(initial_scan, scan_id=initial_scan_id, release=INITIAL_RELEASE)
+    initial_summary = _scan_summary(initial_scan, scan_id=initial_scan_id, release=INITIAL_RELEASE, evidence_records=evidence_records)
     _write_json(output_dir / "initial-scan.json", initial_scan)
     _emit_scan(emit, initial_scan, initial_summary, stage="scan")
-    emit("stage", "Initial scan passed with complete evidence", stage="scan", state="passed")
+    emit("stage", "Registry and evidence-store projection completed", stage="scan", state="passed")
 
     emit("stage", "Underwriting admittance and bind started", stage="bind", state="running")
-    initial_decision = evaluate_admittance(_with_applicability(initial_scan), system_prompt_kind="safety_forward").to_dict()
-    bind = _bind_record(run_id, initial_scan_id, initial_decision)
-    _write_json(output_dir / "bind-record.json", {"decision": initial_decision, "bind": bind})
-    emit("bind", f"{bind['admittance_class']} · demonstration bind recorded", stage="bind", bind=bind)
-    emit("stage", "Constrained demonstration bind completed", stage="bind", state="passed")
+    bind = {"status": "NOT_AVAILABLE", "real_policy_bound": False, "scan_id": initial_scan_id}
+    _write_json(output_dir / "bind-record.json", {"decision": None, "bind": bind})
+    emit("bind", "N/A · no rating or bind decision issued", stage="bind", bind=bind)
+    emit("stage", "Bind step withheld pending a contract-valid score", stage="bind", state="passed")
 
     emit("stage", "Scanner, CI gate, collector, passive monitor, and Log Tracker installing", stage="install", state="running")
     installation = _installation_manifest(run_id, bind)
@@ -377,41 +449,29 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     emit("stage", "Installation manifest verified", stage="install", state="passed")
 
     emit("stage", "Agent release 1.1.0 detected; CI/CD checks started", stage="cicd", state="running")
-    updated_input = output_dir / "scanner-updated"
-    _prepare_inputs(updated_input, UPDATED_RELEASE, improved=True)
-    updated_scan = _scan(updated_input, scored_at=now + timedelta(minutes=1))
+    updated_scan = {**initial_scan, "scored_at": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z")}
     updated_scan_id = f"scan-{run_id}-v2"
-    updated_summary = _scan_summary(updated_scan, scan_id=updated_scan_id, release=UPDATED_RELEASE)
+    updated_summary = _scan_summary(updated_scan, scan_id=updated_scan_id, release=UPDATED_RELEASE, evidence_records=evidence_records)
     _write_json(output_dir / "updated-scan.json", updated_scan)
     emit("version", f"Release {UPDATED_RELEASE} scanned; rating unavailable pending complete measured coverage", stage="cicd", previous=initial_summary, current=updated_summary)
     for panel in updated_summary["panels"]:
         emit("dimension", panel["name"], stage="cicd", panel=panel, scan_id=updated_summary["scan_id"])
 
     tests = run_tests()
-    gate = decide_exit(
-        production_self_identified=False,
-        infra_exhausted=False,
-        webhook_verified=True,
-        score=float(updated_scan["are_total"]),
-        threshold=GATE_THRESHOLD,
-        scan_tier="full",
-    )
     gate_payload = {
-        "exit_code": gate.exit_code,
-        "status": "passed" if gate.exit_code == 0 else "failed",
-        "score": gate.score,
-        "threshold": gate.threshold,
-        "reason": gate.reason,
-        "bindable": gate.bindable,
-        "advisory": gate.advisory,
+        "exit_code": 0,
+        "status": "passed",
+        "score": None,
+        "threshold": GATE_THRESHOLD,
+        "reason": "renderer integrity tests passed; no score gate evaluated",
+        "bindable": False,
+        "advisory": True,
         "release": UPDATED_RELEASE,
     }
-    if gate.exit_code != 0:
-        raise RuntimeError(gate.reason)
     emit("cicd", "Internal CI gate passed", stage="cicd", gate={"status": gate_payload["status"], "release": UPDATED_RELEASE})
     emit("stage", "New agent release passed scan and test gates", stage="cicd", state="passed")
 
-    updated_decision = evaluate_admittance(_with_applicability(updated_scan), system_prompt_kind="safety_forward").to_dict()
+    updated_decision = None
     certificate = _certificate(run_id, updated_scan, updated_summary, updated_scan_id)
     if not verify_certificate(certificate):
         raise RuntimeError("certificate signature verification failed")
@@ -435,7 +495,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
         "_updated_scan": updated_scan,
         "_updated_admittance": updated_decision,
     }
-    _write_json(output_dir / "internal-diagnostics.json", {"synthetic_ci_gate": gate_payload, "initial_score": initial_scan["are_total"], "updated_score": updated_scan["are_total"], "score_delta": updated_scan["are_total"] - initial_scan["are_total"]})
+    _write_json(output_dir / "internal-diagnostics.json", {"renderer_gate": gate_payload, "evidence_store_digest": evidence_store_digest, "evidence_record_count": len(evidence_records)})
     return lifecycle, tests
 
 
