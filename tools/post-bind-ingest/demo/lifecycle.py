@@ -6,7 +6,6 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from html import escape
 import json
-import os
 from pathlib import Path
 from typing import Any, Callable
 import sys
@@ -29,7 +28,6 @@ from underwriting.admittance import evaluate as evaluate_admittance
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
 ACTIVE_REGISTRY_PATH = REPO_ROOT / "tools" / "probe-registry" / "active_registry.json"
 LOGO_PATH = REPO_ROOT / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
-DEFAULT_EVIDENCE_STORE_PATH = Path("/data/evidence-store")
 AGENT_ID = "demo-contact-center-agent"
 VENDOR_NAME = "Northstar AI (synthetic)"
 INITIAL_RELEASE = "1.0.0"
@@ -414,8 +412,15 @@ def run_preproduction(
     now = datetime.now(UTC).replace(microsecond=0)
 
     emit("stage", "Initial full scanner run started", stage="scan", state="running")
-    source_path = evidence_store_path or Path(os.environ.get("DEMO_EVIDENCE_STORE_PATH", DEFAULT_EVIDENCE_STORE_PATH))
-    evidence_records = _load_evidence_store(source_path)
+    # Evidence is a property of this scan, never of the deployment process.
+    # Callers that do not bind a store to the scan get an empty evidence set;
+    # an environment variable or a populated conventional mount must not leak
+    # evidence across scan lifecycles.
+    evidence_records = (
+        _load_evidence_store(evidence_store_path)
+        if evidence_store_path is not None
+        else []
+    )
     evidence_store_digest = "sha256:" + hashlib.sha256(
         json.dumps(evidence_records, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()

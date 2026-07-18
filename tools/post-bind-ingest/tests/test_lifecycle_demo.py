@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import inspect
+import os
 import shutil
 import subprocess
 import sys
@@ -141,6 +142,45 @@ def test_renderer_requires_registry_live_and_digest_valid_real_evidence() -> Non
             evidence_store_path=evidence_path,
         )
         assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+
+
+def test_scan_without_bound_evidence_store_ignores_deployment_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = inspect.getsource(run_preproduction)
+    assert "DEMO_EVIDENCE_STORE_PATH" not in source
+    assert "/data/evidence-store" not in source
+    record = {
+        "case_id": "deployment-case",
+        "rubric_point_id": "P1.1",
+        "target_response": "Evidence from an unrelated deployment lifecycle",
+        "verdict": "pass",
+        "evidence_uri": "evidence://deployment/case",
+        "judge_oracle_id": "exact-match-oracle",
+        "judge_oracle_version": "1.0.0",
+        "scanner_version": "0.5.0",
+        "corpus_version": "0.1.1",
+        "model_versions": {"target": "agent-release-1"},
+        "seed": 42,
+        "terminal_at": "2026-07-18T18:00:00Z",
+    }
+    record["content_digest"] = _evidence_digest(record)
+    with tempfile.TemporaryDirectory(prefix="deployment-evidence-") as tmp:
+        deployment_store = Path(tmp) / "evidence-store"
+        deployment_store.mkdir()
+        (deployment_store / "record.json").write_text(json.dumps(record), encoding="utf-8")
+        monkeypatch.setenv("DEMO_EVIDENCE_STORE_PATH", str(deployment_store))
+
+        lifecycle, _ = run_preproduction(
+            Path(tmp) / "isolated-run",
+            "isolated-run",
+            lambda *_args, **_kwargs: None,
+            lambda: {"status": "passed"},
+        )
+
+        assert os.environ["DEMO_EVIDENCE_STORE_PATH"] == str(deployment_store)
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 0
+        assert lifecycle["updated_scan"]["rating_status"] == "not_available"
+        assert lifecycle["updated_scan"]["backbond_score"] is None
 
 
 def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> None:
