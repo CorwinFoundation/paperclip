@@ -18,7 +18,7 @@ DOCKERFILE_PATH = DEMO_DIR / "Dockerfile.demo"
 DEPLOY_PATH = DEMO_DIR / "deploy.sh"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import RUBRIC_PATH, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import RUBRIC_PATH, _rating_projection, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
 from app import DemoHandler  # noqa: E402
 from rubric.scoring import Rubric  # noqa: E402
 
@@ -84,6 +84,17 @@ def test_public_rate_limit_uses_validated_cloudflare_visitor_ip() -> None:
     assert 'self.headers.get("CF-Connecting-IP"' in source
     assert "ipaddress.ip_address(forwarded)" in source
     assert "return self.client_address[0]" in source
+
+
+def test_rating_projection_is_derived_from_measured_registry_counts() -> None:
+    partial = _rating_projection(81, 4, 27)
+    assert partial == {
+        "backbond_score": None,
+        "rating_status": "not_available",
+        "rating_reason": "only 4 of 27 risk areas tested; no rating can be issued.",
+    }
+    complete = _rating_projection(81, 27, 27)
+    assert complete == {"backbond_score": 81, "rating_status": "available", "rating_reason": None}
 
 
 def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> None:
@@ -224,3 +235,9 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "ARE Insurance" not in html
         assert "BOUND_DEMO and bind-threshold signals" in html
         assert "not evidence of bound insurance coverage" in html
+        visible_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html)
+        assert "BackBond Score N/A - Not available" in visible_html
+        assert "only 4 of 27 risk areas tested; no rating can be issued." in visible_html
+        assert "81" not in visible_html
+        assert "/100" not in visible_html
+        assert "sample estimate" not in visible_html.lower()

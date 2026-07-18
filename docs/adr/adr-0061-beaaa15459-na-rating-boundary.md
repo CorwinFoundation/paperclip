@@ -8,8 +8,8 @@ focus_claim: "This boundary prevents incomplete measured coverage from becoming 
 contracts_referenced: ["are-scanner-api-v1@v1.0"]
 ticket_refs: ["BEAAA-15459", "BEAAA-15456", "BEAAA-15436"]
 proof_points_cited: []
-version: 0.1
-prior_version: null
+version: 0.2
+prior_version: "adr-0061-beaaa15459-na-rating-boundary.md@0.1"
 self_audit_passed: true
 escalations_noted: ["No rubric, corpus, scoring logic, pricing, customer-data, or Ed25519 verification-semantic change; no escalation gate triggered."]
 ---
@@ -49,6 +49,10 @@ The focused regression first failed on the leaked numeric customer score, then p
 ## Rollback
 
 Revert the candidate commit and discard its immutable image. Production remains v9 and is not modified by this candidate.
+
+## QA remediation
+
+QA rejected the first candidate because the served final report still rendered the internal fixture score, the image had been built from a dirty worktree, and the N/A projection was hardcoded. Version 0.2 renders a dedicated N/A report for incomplete coverage, derives the projection and reason from registry counts, tests both 4/27 and 27/27 behavior, and requires the replacement image to be built from a clean detached worktree at the exact remediation commit.
 
 ## Pre-submission self-audit
 
