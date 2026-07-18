@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 import inspect
+import shutil
 import subprocess
 import sys
 import tempfile
+
+import pytest
 
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
 DESIGN_PATH = DEMO_DIR / "design" / "BackBond-Underwriting-Desk-3D.html"
@@ -89,6 +92,8 @@ def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> Non
 
 
 def test_completed_quota_restore_reveals_all_executable_rows_as_clean() -> None:
+    if shutil.which("node") is None or shutil.which("google-chrome") is None:
+        pytest.skip("host-only browser regression requires Node and Google Chrome")
     subprocess.run(
         ["node", str(Path(__file__).with_name("quota_restore_state.cjs")), str(DESIGN_PATH)],
         check=True,
