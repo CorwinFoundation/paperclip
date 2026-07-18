@@ -71,7 +71,9 @@ Post-activation acceptance failure triggers rollback to the previous version and
 
 The deploy agent snapshots the current version, writes an `activation_pending` spool entry durably, and only then mutates Docker/systemd state. A crash that leaves `activation_pending` is never reported as terminal evidence and blocks later candidates. An operator must reconcile the live service/image against the pending record, replace it with a correctly bound terminal record, and rerun the service; never delete or relabel pending evidence without that inspection.
 
-The archive is verified before `docker load`: its single tag and revision label must match the candidate commit, its config hash and every uncompressed layer hash must match the archive manifest, and Docker must report the same immutable image ID after loading. That image ID is written atomically to `/etc/backbond/scanner-edge.env`, the exact `EnvironmentFile` consumed by `backbond-scanner-live.service`. Existing comments and unrelated settings are preserved. Acceptance reads `/var/lib/are-scanner/scan_log.sqlite3` and binds pins to the exact scan id created by that acceptance run.
+The archive is verified before `docker load`: its single tag and revision label must match the candidate commit, and its config hash and every uncompressed layer hash must match the archive manifest. Docker may normalize the OCI config while loading, so the agent compares the loaded platform, rootfs layers, every archive runtime field, and revision label before atomically pinning Docker's loaded image ID in `/etc/backbond/scanner-edge.env`. Existing comments and unrelated settings are preserved. Cosign v3 verifies the bundle as a blob attestation against the pinned GitHub Actions identity, issuer, predicate type, image digest, and `/etc/backbond/sigstore-trusted-root.json`. Acceptance reads `/var/lib/are-scanner/scan_log.sqlite3` and binds pins to the exact scan id created by that acceptance run.
+
+The host owns nftables and Docker bridge repair. `backbond-docker-networking.service` restores only the required Docker chains, bridge masquerade, and scoped loopback-to-bridge masquerade before either release unit starts. The read-only container receives `ARE_DIRECT_EGRESS_NFT=0`; application-level scoped egress validation remains enabled.
 
 ## Deploy Record
 
@@ -82,18 +84,38 @@ For the first terminal post, the client sends the authorization id and one-time 
 Install the unit and provision its one-shot token as an encrypted systemd credential. The launcher reads it from `$CREDENTIALS_DIRECTORY/deploy-token`; systemd materializes that file under `/run` with restricted access.
 
 ```bash
+sudo install -m 0755 infra/live-edge/backbond-ensure-docker-networking /usr/local/sbin/
+sudo install -m 0644 infra/live-edge/backbond-docker-networking.service /etc/systemd/system/
+sudo install -m 0644 infra/live-edge/backbond-scanner-live.service /etc/systemd/system/
 sudo install -m 0644 infra/live-edge/backbond-deploy-agent.service /etc/systemd/system/
 sudo install -m 0755 infra/live-edge/run-backbond-deploy-agent /opt/backbond/are-scanner/infra/live-edge/
 sudo systemd-creds encrypt --name=deploy-token - /etc/credstore.encrypted/backbond-deploy-token
 sudo systemd-creds encrypt --name=paperclip-api-key - /etc/credstore.encrypted/backbond-paperclip-api-key
 sudo systemd-creds encrypt --name=acceptance-admin-token - /etc/credstore.encrypted/backbond-acceptance-admin-token
 sudo install -d -m 0755 /etc/backbond
+sudo install -m 0644 /path/to/verified-sigstore-trusted-root.json /etc/backbond/sigstore-trusted-root.json
 sudo install -d -m 0700 /var/lib/backbond-deploy-agent
 sudo touch /etc/backbond/scanner-edge.env
 sudo chmod 0600 /etc/backbond/scanner-edge.env
-sudo install -m 0600 /dev/stdin /etc/backbond/deploy-agent.conf # contains only PAPERCLIP_API_URL=<approved URL>
+sudo install -m 0600 /path/to/root-owned-deploy-agent.conf /etc/backbond/deploy-agent.conf
 sudo install -d -m 0700 /run/backbond-deploy-agent
 sudo install -m 0600 /dev/stdin /run/backbond-deploy-agent/authorization-id
 sudo systemctl daemon-reload
+sudo systemctl enable --now backbond-docker-networking.service
 sudo systemctl start backbond-deploy-agent.service
+```
+
+
+The root-owned `deploy-agent.conf` is metadata only and must define every acceptance binding (secrets remain systemd credentials):
+
+```dotenv
+PAPERCLIP_API_URL=https://paperclip.example
+BACKBOND_ACCEPTANCE_TENANT=<dedicated-non-vapi-tenant-uuid>
+BACKBOND_ACCEPTANCE_AGENT=<acceptance-agent-id>
+BACKBOND_ACCEPTANCE_ENDPOINT=<synthetic-acceptance-endpoint>
+BACKBOND_ACCEPTANCE_SCANNER_VERSION=<expected-scanner-version>
+BACKBOND_ACCEPTANCE_CORPUS_VERSION=<expected-corpus-version>
+BACKBOND_ACCEPTANCE_CORPUS_SNAPSHOT_HASH=sha256:<64-lowercase-hex>
+BACKBOND_ACCEPTANCE_SEED=<deterministic-integer-seed>
+BACKBOND_ACCEPTANCE_CREDENTIAL_REF=deploy-acceptance.v1
 ```

@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore BackBond Docker bridge networking invariants
+After=docker.service
+Requires=docker.service
+Before=backbond-scanner-live.service backbond-deploy-agent.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backbond-ensure-docker-networking
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -22,13 +22,21 @@
 # --health-only runs check 1 alone (used to confirm a rollback restored health).
 set -euo pipefail
 
-BASE_URL=""; STAGING_TENANT=""; STAGING_AGENT=""; SCAN_LOG_DB=""; ADMIN_TOKEN=""; ADMIN_TOKEN_FILE=""
+BASE_URL=""; STAGING_TENANT=""; STAGING_AGENT=""; STAGING_ENDPOINT=""
+STAGING_CREDENTIAL_REF="deploy-acceptance.v1"; SCANNER_VERSION=""; CORPUS_VERSION=""
+CORPUS_SNAPSHOT_HASH=""; SEED="42"; SCAN_LOG_DB=""; ADMIN_TOKEN=""; ADMIN_TOKEN_FILE=""
 OUT="/dev/stdout"; HEALTH_ONLY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --base-url) BASE_URL="$2"; shift 2;;
     --staging-tenant) STAGING_TENANT="$2"; shift 2;;
     --staging-agent) STAGING_AGENT="$2"; shift 2;;
+    --staging-endpoint) STAGING_ENDPOINT="$2"; shift 2;;
+    --staging-credential-ref) STAGING_CREDENTIAL_REF="$2"; shift 2;;
+    --scanner-version) SCANNER_VERSION="$2"; shift 2;;
+    --corpus-version) CORPUS_VERSION="$2"; shift 2;;
+    --corpus-snapshot-hash) CORPUS_SNAPSHOT_HASH="$2"; shift 2;;
+    --seed) SEED="$2"; shift 2;;
     --scan-log-db) SCAN_LOG_DB="$2"; shift 2;;
     --admin-token) ADMIN_TOKEN="$2"; shift 2;;
     --admin-token-file) ADMIN_TOKEN_FILE="$2"; shift 2;;
@@ -65,6 +73,16 @@ if [ "${HEALTH_ONLY}" -eq 0 ]; then
     vapi|*vapi*) echo "::error::refuse: staging tenant resolves to vapi (blackout BEAAA-13170)" >&2; exit 2;;
     "") echo "--staging-tenant required unless --health-only" >&2; exit 64;;
   esac
+  case "$(printf '%s' "${STAGING_ENDPOINT}" | tr '[:upper:]' '[:lower:]')" in
+    *vapi*) echo "::error::refuse: staging endpoint resolves to vapi (blackout BEAAA-13170)" >&2; exit 2;;
+    "") echo "--staging-endpoint required unless --health-only" >&2; exit 64;;
+  esac
+  [ -n "${STAGING_AGENT}" ] || { echo "--staging-agent required unless --health-only" >&2; exit 64; }
+  [ -n "${SCANNER_VERSION}" ] || { echo "--scanner-version required unless --health-only" >&2; exit 64; }
+  [ -n "${CORPUS_VERSION}" ] || { echo "--corpus-version required unless --health-only" >&2; exit 64; }
+  [[ "${CORPUS_SNAPSHOT_HASH}" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || { echo "--corpus-snapshot-hash must be sha256:<64-hex>" >&2; exit 64; }
+  [[ "${SEED}" =~ ^-?[0-9]+$ ]] || { echo "--seed must be an integer" >&2; exit 64; }
+  [ -n "${ADMIN_TOKEN}" ] || { echo "--admin-token or --admin-token-file required" >&2; exit 64; }
 fi
 
 # ---- 1. health ---------------------------------------------------------------
@@ -90,11 +108,58 @@ code="$(http_code POST "${BASE_URL}/scanner/v1/scans" \
 
 # ---- 4. staging self-scan -> fresh scan_log row w/ the three non-null pins ---
 SCAN_ID=""
+REQUEST_DIR="${TMPDIR:-/tmp}"
+REQUEST_JSON="$(mktemp "${REQUEST_DIR}/backbond-acceptance-request.XXXXXX.json")"
+cleanup_request() {
+  [ -f "${REQUEST_JSON}" ] || return 0
+  if command -v shred >/dev/null 2>&1; then
+    shred -u "${REQUEST_JSON}"
+  else
+    rm -f "${REQUEST_JSON}"
+  fi
+}
+trap cleanup_request EXIT HUP INT TERM
+ACCEPTANCE_AGENT_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+STAGING_TENANT="${STAGING_TENANT}" \
+STAGING_AGENT="${STAGING_AGENT}" \
+STAGING_ENDPOINT="${STAGING_ENDPOINT}" \
+STAGING_CREDENTIAL_REF="${STAGING_CREDENTIAL_REF}" \
+SCANNER_VERSION="${SCANNER_VERSION}" \
+CORPUS_VERSION="${CORPUS_VERSION}" \
+CORPUS_SNAPSHOT_HASH="${CORPUS_SNAPSHOT_HASH}" \
+SEED="${SEED}" \
+ACCEPTANCE_AGENT_SECRET="${ACCEPTANCE_AGENT_SECRET}" \
+python3 - "${REQUEST_JSON}" <<'PY'
+import json
+import os
+import sys
+
+payload = {
+    "tenant_id": os.environ["STAGING_TENANT"],
+    "agent_id": os.environ["STAGING_AGENT"],
+    "agent_endpoint": {
+        "host": os.environ["STAGING_ENDPOINT"],
+        "transport": "rest",
+    },
+    "credential_ref": os.environ["STAGING_CREDENTIAL_REF"],
+    "credential_secret": os.environ["ACCEPTANCE_AGENT_SECRET"],
+    "corpus_snapshot_hash": os.environ["CORPUS_SNAPSHOT_HASH"],
+    "scanner_version": os.environ["SCANNER_VERSION"],
+    "corpus_version": os.environ["CORPUS_VERSION"],
+    "seed": int(os.environ["SEED"]),
+    "scan_tier": "smoke",
+    "scanner_invocation_context": {"purpose": "deploy_acceptance_smoke"},
+}
+with open(sys.argv[1], "w", encoding="utf-8") as output:
+    json.dump(payload, output, separators=(",", ":"))
+PY
+unset ACCEPTANCE_AGENT_SECRET
 resp="$("${CURL[@]}" -X POST "${BASE_URL}/scanner/v1/scans" \
         -H 'Content-Type: application/json' \
         -H "Authorization: Bearer ${ADMIN_TOKEN}" \
         -H "X-Tenant-Id: ${STAGING_TENANT}" \
-        --data "$(printf '{"agent_id":"%s","scanner_invocation_context":{"purpose":"deploy_acceptance_smoke"}}' "${STAGING_AGENT}")" || true)"
+        --data-binary "@${REQUEST_JSON}" || true)"
+cleanup_request
 SCAN_ID="$(printf '%s' "${resp}" | python3 -c 'import sys,json;
 try:
     d=json.load(sys.stdin); print(d.get("scan_id") or d.get("scanId") or "")
@@ -119,9 +184,7 @@ except Exception: print("")' 2>/dev/null || true)"
   else
     record smoke_scan PASS "scan_id=${SCAN_ID} status=${status}"
 
-    # The three write-once pins must be non-null on the freshest row for this
-    # agent. Use Python's stdlib sqlite3 (always present) — not the sqlite3 CLI,
-    # which the box is not guaranteed to have.
+    # The three write-once pins must be non-null on this acceptance scan's row.
     if [ -n "${SCAN_LOG_DB}" ] && [ -f "${SCAN_LOG_DB}" ]; then
       pins="$(SCAN_LOG_DB="${SCAN_LOG_DB}" STAGING_AGENT="${STAGING_AGENT}" SCAN_ID="${SCAN_ID}" python3 - <<'PY' 2>/dev/null || echo err
 import os, sqlite3

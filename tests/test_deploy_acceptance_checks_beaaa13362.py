@@ -68,6 +68,16 @@ def test_acceptance_checks_fail_when_smoke_scan_never_reaches_terminal_status(tm
             "deploy-staging",
             "--staging-agent",
             "deploy-agent",
+            "--staging-endpoint",
+            "scanner.local",
+            "--scanner-version",
+            "0.5.0",
+            "--corpus-version",
+            "0.1.0",
+            "--corpus-snapshot-hash",
+            "sha256:" + "a" * 64,
+            "--seed",
+            "42",
             "--scan-log-db",
             str(tmp_path / "missing.sqlite3"),
             "--admin-token",
@@ -98,12 +108,27 @@ def test_stale_pinned_row_cannot_satisfy_new_acceptance_scan(tmp_path: Path) -> 
     _write_executable(bin_dir / "curl", """
         #!/usr/bin/env python3
         import json, sys
+        from pathlib import Path
         args = sys.argv[1:]
         url = next((arg for arg in args if arg.startswith("http")), args[-1])
         joined = " ".join(args)
         if url.endswith("/scanner/v1/sla"): print("200", end="")
         elif url.endswith("/scanner/v1/scans"):
-            print(json.dumps({"scan_id":"scan-new"}) if "Bearer staged-admin" in joined else "401", end="")
+            request_arg = next((arg for arg in args if arg.startswith("@")), "")
+            payload = json.loads(Path(request_arg[1:]).read_text()) if request_arg else {}
+            valid = (
+                payload.get("tenant_id") == "deploy-staging"
+                and payload.get("agent_id") == "deploy-agent"
+                and payload.get("agent_endpoint") == {"host": "scanner.local", "transport": "rest"}
+                and payload.get("credential_ref") == "deploy-acceptance.v1"
+                and bool(payload.get("credential_secret"))
+                and payload.get("corpus_snapshot_hash") == "sha256:" + "a" * 64
+                and payload.get("scanner_version") == "0.5.0"
+                and payload.get("corpus_version") == "0.1.0"
+                and payload.get("seed") == 42
+                and payload.get("scan_tier") == "smoke"
+            )
+            print(json.dumps({"scan_id":"scan-new"}) if "Bearer staged-admin" in joined and valid else "401", end="")
         elif "/scan/scan-new" in url:
             print(json.dumps({"scan_id":"scan-new","status":"complete","scanner_version":"1.2.0","corpus_version":"v1","are_total":80,"subscores":{},"band":"B","confidence":1,"evidence_refs":[],"uncovered_dimensions":[]}), end="")
         else: print("500", end="")
@@ -111,7 +136,7 @@ def test_stale_pinned_row_cannot_satisfy_new_acceptance_scan(tmp_path: Path) -> 
     env = os.environ.copy()
     env["PATH"] = f"{bin_dir}:{env['PATH']}"
     out = tmp_path / "acceptance.json"
-    result = subprocess.run(["bash", str(SCRIPT), "--base-url", "https://scanner.local", "--staging-tenant", "deploy-staging", "--staging-agent", "deploy-agent", "--scan-log-db", str(db), "--admin-token", "staged-admin", "--out", str(out)], env=env, text=True, capture_output=True, timeout=10)
+    result = subprocess.run(["bash", str(SCRIPT), "--base-url", "https://scanner.local", "--staging-tenant", "deploy-staging", "--staging-agent", "deploy-agent", "--staging-endpoint", "scanner.local", "--scanner-version", "0.5.0", "--corpus-version", "0.1.0", "--corpus-snapshot-hash", "sha256:" + "a" * 64, "--seed", "42", "--scan-log-db", str(db), "--admin-token", "staged-admin", "--out", str(out)], env=env, text=True, capture_output=True, timeout=10)
     assert result.returncode == 1
     assert "scan_log_pins FAILED" in result.stderr
     assert "norow" in result.stderr

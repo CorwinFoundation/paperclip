@@ -84,6 +84,16 @@ def _write_docker_archive(tmp_path: Path, *, commit_sha: str = COMMIT_SHA, layer
     return archive_path, f"sha256:{config_digest}"
 
 
+def _loaded_image(*, image_id: str, commit_sha: str = COMMIT_SHA, layer: bytes = b"layer") -> dict:
+    return {
+        "Id": image_id,
+        "Os": "linux",
+        "Architecture": "amd64",
+        "RootFS": {"Layers": [f"sha256:{hashlib.sha256(layer).hexdigest()}"]},
+        "Config": {"Labels": {"org.opencontainers.image.revision": commit_sha}},
+    }
+
+
 def _acceptance_result(*, passed: bool = True, terminal_status: str = "complete") -> dict:
     return {
         "passed": passed,
@@ -532,15 +542,29 @@ def test_staged_download_is_same_origin_and_header_authenticated(monkeypatch, tm
         raise AssertionError("expected cross-origin rejection")
 
 
-def test_cosign_pins_exact_workflow_identity_and_issuer(monkeypatch, tmp_path: Path) -> None:
+def test_cosign_pins_exact_workflow_identity_issuer_and_digest(monkeypatch, tmp_path: Path) -> None:
     seen = []
+    trusted_root = tmp_path / "trusted-root.json"
+    trusted_root.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(agent, "TRUSTED_ROOT_PATH", trusted_root)
     monkeypatch.setattr(agent.subprocess, "run", lambda argv, **kwargs: seen.append(argv) or subprocess.CompletedProcess(argv, 0))
     candidate = _candidate(tmp_path)
     assert agent.cosign_verify(candidate, tmp_path / "candidate.tar", tmp_path / "signature.bundle") is True
     argv = seen[0]
+    assert argv[1] == "verify-blob-attestation"
+    assert argv[argv.index("--trusted-root") + 1] == str(trusted_root)
     assert argv[argv.index("--certificate-identity") + 1] == agent.EXPECTED_SIGNER_IDENTITY
     assert argv[argv.index("--certificate-oidc-issuer") + 1] == "https://token.actions.githubusercontent.com"
+    assert argv[argv.index("--type") + 1] == "https://sigstore.dev/cosign/sign/v1"
+    assert argv[argv.index("--digest") + 1] == "a" * 64
+    assert argv[argv.index("--digestAlg") + 1] == "sha256"
     assert ".*" not in " ".join(argv)
+
+
+def test_cosign_fails_closed_without_trusted_root(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(agent, "TRUSTED_ROOT_PATH", tmp_path / "missing.json")
+    monkeypatch.setattr(agent.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not execute cosign")))
+    assert agent.cosign_verify(_candidate(tmp_path), tmp_path / "candidate.tar", tmp_path / "signature.bundle") is False
 
 
 def test_rollback_failure_is_explicit_and_record_is_spooled(tmp_path: Path) -> None:
@@ -586,20 +610,39 @@ def test_live_env_path_is_activated_and_restored(monkeypatch, tmp_path: Path) ->
     config = _config(tmp_path)
     config.service_env_path.write_text("# retained\nOTHER_SETTING=keep-me\nSCANNER_EDGE_IMAGE=repo/old@sha256:" + "b" * 64 + "\n")
     (tmp_path / "current_version").write_text("old-sha")
-    archive, image_id = _write_docker_archive(tmp_path)
-    monkeypatch.setattr(agent.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout=image_id + "\n"))
+    archive, archive_image_id = _write_docker_archive(tmp_path)
+    loaded_image_id = "sha256:" + "f" * 64
+
+    def fake_run(argv, **_kwargs):
+        stdout = json.dumps([_loaded_image(image_id=loaded_image_id)]) if argv[:3] == ["docker", "image", "inspect"] else ""
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout)
+
+    monkeypatch.setattr(agent.subprocess, "run", fake_run)
     activator = agent.SystemdDockerActivator(config)
     previous = activator.snapshot_current()
     activator.activate_tarball(archive, _candidate(tmp_path))
+    assert archive_image_id != loaded_image_id
     assert COMMIT_SHA in (tmp_path / "current_version").read_text()
     activated_env = config.service_env_path.read_text()
-    assert f"SCANNER_EDGE_IMAGE={image_id}" in activated_env
+    assert f"SCANNER_EDGE_IMAGE={loaded_image_id}" in activated_env
     assert "repo/old" not in activated_env
     assert "# retained" in activated_env
     assert "OTHER_SETTING=keep-me" in activated_env
     activator.rollback(previous)
     assert "repo/old" in config.service_env_path.read_text()
     assert (tmp_path / "current_version").read_text() == "old-sha"
+
+
+def test_loaded_image_runtime_mismatch_is_rejected(tmp_path: Path) -> None:
+    archive, _archive_image_id = _write_docker_archive(tmp_path)
+    loaded = _loaded_image(image_id="sha256:" + "f" * 64)
+    loaded["Config"]["Labels"]["org.opencontainers.image.revision"] = "b" * 40
+    try:
+        agent.verify_loaded_image_matches_archive(archive, _candidate(tmp_path), loaded)
+    except agent.DeployRejected as exc:
+        assert "runtime field Labels" in str(exc)
+    else:
+        raise AssertionError("expected loaded image runtime mismatch rejection")
 
 
 def test_authenticated_redirects_are_rejected_for_api_and_artifacts(tmp_path: Path) -> None:

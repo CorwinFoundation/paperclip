@@ -1,14 +1,17 @@
 [Unit]
 Description=BackBond Scanner live edge container
-After=docker.service
+After=docker.service backbond-docker-networking.service
 Requires=docker.service
+Requires=backbond-docker-networking.service
 
 [Service]
+ExecStartPre=/usr/local/sbin/backbond-ensure-docker-networking
 Type=simple
 Environment=SCANNER_EDGE_PORT=8077
 EnvironmentFile=/etc/backbond/scanner-edge.env
 ExecStart=/usr/bin/docker run --rm --name backbond-scanner-live-edge \
   --env-file /etc/backbond/scanner-edge.env \
+  --env ARE_DIRECT_EGRESS_NFT=0 \
   --publish 127.0.0.1:${SCANNER_EDGE_PORT}:8077 \
   --volume /var/lib/are-scanner:/var/lib/are-scanner \
   --volume /etc/backbond/secrets.conf:/run/secrets/secrets.conf:ro \

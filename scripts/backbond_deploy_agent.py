@@ -29,6 +29,8 @@ DEFAULT_APPROVED_LEASE_PATH_TEMPLATE = (
 DEFAULT_DEPLOY_RECORD_PATH = "/api/release-candidates/deploy-records"
 EXPECTED_SIGNER_IDENTITY = "https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master"
 EXPECTED_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+EXPECTED_SIGNATURE_PREDICATE_TYPE = "https://sigstore.dev/cosign/sign/v1"
+TRUSTED_ROOT_PATH = Path("/etc/backbond/sigstore-trusted-root.json")
 
 
 class DeployRejected(RuntimeError):
@@ -158,25 +160,30 @@ class SystemdDockerActivator:
     def activate_tarball(self, tarball_path: Path, candidate: Candidate) -> str:
         if not re.fullmatch(r"[^\s/@]+(?:/[^\s/@]+)+@sha256:[0-9a-f]{64}", candidate.image_digest):
             raise DeployRejected("candidate image_digest must be a repository@sha256 reference")
-        local_tag, expected_image_id = verify_docker_archive_identity(tarball_path, candidate)
         images_dir = self.config.state_dir / "images"
         images_dir.mkdir(parents=True, exist_ok=True)
         target = images_dir / f"{candidate.commit_sha}.tar"
         _atomic_copy_file(tarball_path, target)
+        local_tag, _archive_image_id = verify_docker_archive_identity(target, candidate)
         subprocess.run(["docker", "load", "--input", str(target)], check=True)
         inspected = subprocess.run(
-            ["docker", "image", "inspect", local_tag, "--format", "{{.Id}}"],
+            ["docker", "image", "inspect", local_tag],
             check=True,
             text=True,
             capture_output=True,
         )
-        if inspected.stdout.strip() != expected_image_id:
-            raise DeployRejected("loaded Docker image ID does not match the verified offline archive")
+        try:
+            loaded_images = json.loads(inspected.stdout)
+        except json.JSONDecodeError as exc:
+            raise DeployRejected("loaded Docker image inspect returned invalid JSON") from exc
+        if not isinstance(loaded_images, list) or len(loaded_images) != 1 or not isinstance(loaded_images[0], dict):
+            raise DeployRejected("loaded Docker image inspect returned an unexpected result")
+        loaded_image_id = verify_loaded_image_matches_archive(target, candidate, loaded_images[0])
         env_file = self.config.service_env_path
         current_env = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
         _atomic_write_text(
             env_file,
-            _replace_env_assignment(current_env, "SCANNER_EDGE_IMAGE", expected_image_id),
+            _replace_env_assignment(current_env, "SCANNER_EDGE_IMAGE", loaded_image_id),
             default_mode=0o600,
         )
         subprocess.run(["systemctl", "restart", self.config.service_name], check=True)
@@ -576,6 +583,39 @@ def verify_docker_archive_identity(tarball_path: Path, candidate: Candidate) -> 
         return expected_tag, f"sha256:{config_match.group(1)}"
 
 
+def verify_loaded_image_matches_archive(
+    tarball_path: Path,
+    candidate: Candidate,
+    loaded: dict[str, Any],
+) -> str:
+    try:
+        archive = tarfile.open(tarball_path, mode="r:*")
+    except (tarfile.TarError, OSError) as exc:
+        raise DeployRejected("candidate artifact is not a readable Docker archive") from exc
+    with archive:
+        manifest = _read_archive_json(archive, "manifest.json", max_bytes=1024 * 1024)
+        image = manifest[0]
+        config = _read_archive_json(archive, str(image["Config"]), max_bytes=4 * 1024 * 1024)
+
+    loaded_id = str(loaded.get("Id", ""))
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", loaded_id):
+        raise DeployRejected("loaded Docker image ID is invalid")
+    if loaded.get("Os") != config.get("os") or loaded.get("Architecture") != config.get("architecture"):
+        raise DeployRejected("loaded Docker image platform does not match the verified archive")
+    if loaded.get("RootFS", {}).get("Layers") != config.get("rootfs", {}).get("diff_ids"):
+        raise DeployRejected("loaded Docker image rootfs does not match the verified archive")
+    archive_runtime = config.get("config")
+    loaded_runtime = loaded.get("Config")
+    if not isinstance(archive_runtime, dict) or not isinstance(loaded_runtime, dict):
+        raise DeployRejected("loaded Docker image runtime config is invalid")
+    for key, value in archive_runtime.items():
+        if loaded_runtime.get(key) != value:
+            raise DeployRejected(f"loaded Docker image runtime field {key} does not match the verified archive")
+    if loaded_runtime.get("Labels", {}).get("org.opencontainers.image.revision") != candidate.commit_sha:
+        raise DeployRejected("loaded Docker image revision label does not match candidate commit")
+    return loaded_id
+
+
 def download_tarball(url: str, dest: Path, opener: Callable[[str, Path], None] | None = None) -> Path:
     if opener:
         opener(url, dest)
@@ -854,11 +894,17 @@ def cosign_verify(candidate: Candidate, tarball_path: Path, bundle: Path) -> boo
     del tarball_path
     if not re.fullmatch(r"[^\s/@]+(?:/[^\s/@]+)+@sha256:[0-9a-f]{64}", candidate.image_digest):
         return False
+    if not TRUSTED_ROOT_PATH.is_file():
+        return False
+    image_sha256 = candidate.image_digest.rsplit("@sha256:", 1)[1]
     completed = subprocess.run([
-        "cosign", "verify", "--offline", "--bundle", str(bundle),
+        "cosign", "verify-blob-attestation", "--bundle", str(bundle),
+        "--trusted-root", str(TRUSTED_ROOT_PATH),
         "--certificate-identity", EXPECTED_SIGNER_IDENTITY,
         "--certificate-oidc-issuer", EXPECTED_OIDC_ISSUER,
-        candidate.image_digest,
+        "--type", EXPECTED_SIGNATURE_PREDICATE_TYPE,
+        "--digest", image_sha256,
+        "--digestAlg", "sha256",
     ], check=False, text=True, capture_output=True)
     return completed.returncode == 0
 

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+IPTABLES="${IPTABLES:-/usr/sbin/iptables}"
+IP="${IP:-/usr/sbin/ip}"
+SYSCTL="${SYSCTL:-/usr/sbin/sysctl}"
+
+if (( EUID != 0 )); then
+  echo "backbond Docker networking repair must run as root" >&2
+  exit 1
+fi
+
+for command_path in "$IPTABLES" "$IP" "$SYSCTL"; do
+  if [[ ! -x "$command_path" ]]; then
+    echo "required command is not executable: $command_path" >&2
+    exit 1
+  fi
+done
+
+if ! "$IP" link show docker0 >/dev/null 2>&1; then
+  echo "required Docker bridge docker0 is missing" >&2
+  exit 1
+fi
+
+ensure_chain() {
+  local table="$1"
+  local chain="$2"
+  if ! "$IPTABLES" -w -t "$table" -S "$chain" >/dev/null 2>&1; then
+    "$IPTABLES" -w -t "$table" -N "$chain"
+  fi
+}
+
+ensure_rule() {
+  local table="$1"
+  local chain="$2"
+  shift 2
+  if ! "$IPTABLES" -w -t "$table" -C "$chain" "$@" >/dev/null 2>&1; then
+    "$IPTABLES" -w -t "$table" -A "$chain" "$@"
+  fi
+}
+
+ensure_chain filter DOCKER
+ensure_chain nat DOCKER
+ensure_rule nat PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+ensure_rule nat OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+ensure_rule nat POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+ensure_rule nat POSTROUTING -s 127.0.0.0/8 -d 172.17.0.0/16 -j MASQUERADE
+ensure_rule nat DOCKER -i docker0 -j RETURN
+
+"$SYSCTL" -q -w net.ipv4.conf.docker0.route_localnet=1
+
+# Fail closed if any required rule was lost between creation and verification.
+"$IPTABLES" -w -t filter -S DOCKER >/dev/null
+"$IPTABLES" -w -t nat -S DOCKER >/dev/null
+"$IPTABLES" -w -t nat -C PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+"$IPTABLES" -w -t nat -C OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+"$IPTABLES" -w -t nat -C POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+"$IPTABLES" -w -t nat -C POSTROUTING -s 127.0.0.0/8 -d 172.17.0.0/16 -j MASQUERADE
+"$IPTABLES" -w -t nat -C DOCKER -i docker0 -j RETURN
+
+echo "backbond Docker networking is ready"

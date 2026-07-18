@@ -1,10 +1,12 @@
 [Unit]
 Description=BackBond approved release deploy agent
-After=network-online.target docker.service
+After=network-online.target docker.service backbond-docker-networking.service
 Wants=network-online.target
 Requires=docker.service
+Requires=backbond-docker-networking.service
 
 [Service]
+ExecStartPre=/usr/local/sbin/backbond-ensure-docker-networking
 Type=oneshot
 User=root
 UMask=0077

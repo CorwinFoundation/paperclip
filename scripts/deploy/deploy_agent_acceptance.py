@@ -10,18 +10,39 @@ import tempfile
 from pathlib import Path
 
 
+def _required_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise RuntimeError(f"{name} is required")
+    return value
+
+
 def main() -> int:
     repo = Path(__file__).resolve().parents[2]
     credentials = Path(os.environ["CREDENTIALS_DIRECTORY"])
     db = Path(os.environ.get("BACKBOND_SCAN_LOG_DB", "/var/lib/are-scanner/scan_log.sqlite3"))
-    tenant = os.environ.get("BACKBOND_ACCEPTANCE_TENANT", "backbond-staging")
-    agent = os.environ.get("BACKBOND_ACCEPTANCE_AGENT", "deploy-acceptance-agent")
+    tenant = _required_env("BACKBOND_ACCEPTANCE_TENANT")
+    agent = _required_env("BACKBOND_ACCEPTANCE_AGENT")
+    endpoint = _required_env("BACKBOND_ACCEPTANCE_ENDPOINT")
+    scanner_version = _required_env("BACKBOND_ACCEPTANCE_SCANNER_VERSION")
+    corpus_version = _required_env("BACKBOND_ACCEPTANCE_CORPUS_VERSION")
+    corpus_snapshot_hash = _required_env("BACKBOND_ACCEPTANCE_CORPUS_SNAPSHOT_HASH")
+    seed = _required_env("BACKBOND_ACCEPTANCE_SEED")
+    credential_ref = os.environ.get(
+        "BACKBOND_ACCEPTANCE_CREDENTIAL_REF", "deploy-acceptance.v1"
+    )
     base_url = os.environ.get("BACKBOND_ACCEPTANCE_BASE_URL", "https://127.0.0.1")
     with tempfile.TemporaryDirectory(prefix="backbond-acceptance-") as tmp:
         out = Path(tmp) / "acceptance.json"
         command = [
             str(repo / "scripts/deploy/acceptance_checks.sh"), "--base-url", base_url,
             "--staging-tenant", tenant, "--staging-agent", agent,
+            "--staging-endpoint", endpoint,
+            "--staging-credential-ref", credential_ref,
+            "--scanner-version", scanner_version,
+            "--corpus-version", corpus_version,
+            "--corpus-snapshot-hash", corpus_snapshot_hash,
+            "--seed", seed,
             "--scan-log-db", str(db), "--admin-token-file", str(credentials / "acceptance-admin-token"),
             "--out", str(out),
         ]

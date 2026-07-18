@@ -62,6 +62,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
           python -m pip install -e tools/post-bind-ingest -e tools/log-tracker
+          npm install --no-save --ignore-scripts playwright@1.61.1
       - name: Run passive monitor and demo tests
         run: |
           python -m pytest -q \
