@@ -129,7 +129,7 @@ def test_demo_image_includes_truthful_registry_runtime_dependency() -> None:
 def test_deploy_reuses_an_active_token_gated_tunnel_without_privileged_restart() -> None:
     deploy = DEPLOY_PATH.read_text(encoding="utf-8")
     assert "systemctl is-active --quiet backbond-passive-demo-tunnel.service" in deploy
-    assert 'DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-100}' in deploy
+    assert "DEMO_RUN_QUOTA" not in deploy
 
 
 def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
@@ -324,7 +324,7 @@ def test_cicd_regression_scenario_blocks_release_with_negative_delta() -> None:
         lifecycle, tests = run_preproduction(Path(tmp) / "run", "cicd-regression", emit, lambda: {"status": "passed"}, scenario="cicd_regression")
 
     assert lifecycle["updated_scan"]["backbond_score"] is None
-    assert lifecycle["score_delta"] == -35
+    assert lifecycle["score_delta"] is None
     assert lifecycle["ci_gate"]["status"] == "failed"
     assert lifecycle["certificate"] is None
     assert lifecycle["terminal_failure"]["stage"] == "cicd"

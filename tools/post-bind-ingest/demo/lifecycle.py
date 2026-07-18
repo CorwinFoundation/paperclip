@@ -47,8 +47,8 @@ SCENARIO_FAILURE_ANALYSES: dict[str, dict[str, Any]] = {
     "bind_reject": {
         "headline": "Initial scan rejected: critical controls are missing",
         "summary": (
-            "The scanner completed successfully. The synthetic failure profile lowers every "
-            "control family to 1.5/4, leaving each public pillar at 9.4/25 and the total at 38/D."
+            "The scanner completed successfully, but the synthetic failure profile shows "
+            "critical control gaps that prevent admittance."
         ),
         "findings": [
             {
@@ -89,8 +89,8 @@ SCENARIO_FAILURE_ANALYSES: dict[str, dict[str, Any]] = {
     "cicd_regression": {
         "headline": "Release 1.2.0 blocked: security controls regressed",
         "summary": (
-            "The passing 80/B+ baseline is replaced by a synthetic regression profile at 1.8/4. "
-            "Every pillar falls to 11.25/25, producing 45/D+ and a -35 point delta."
+            "The previously admitted baseline is replaced by a synthetic regression profile "
+            "with critical control gaps, so the release gate remains closed."
         ),
         "findings": [
             {
@@ -495,6 +495,7 @@ def run_preproduction(
     emit("stage", "Underwriting admittance and bind started", stage="bind", state="running")
     initial_decision = evaluate_admittance(_with_applicability(initial_scan), system_prompt_kind="safety_forward").to_dict()
     if scenario == "bind_reject":
+        public_initial_decision = _public_admittance_projection(initial_decision)
         rejection = {
             "bind_id": f"demo-reject-{run_id}",
             "scan_id": initial_scan_id,
@@ -513,7 +514,7 @@ def run_preproduction(
                 stage="bind",
                 finding=finding,
             )
-        emit("bind", "REFUSE - synthetic gate rejected the agent", stage="bind", bind=rejection, decision=initial_decision)
+        emit("bind", "Synthetic gate rejected the agent", stage="bind", bind=rejection, decision=public_initial_decision)
         emit("stage", "Admittance rejected; downstream lifecycle stopped", stage="bind", state="failed")
         return {
             "scenario": scenario,
@@ -521,7 +522,7 @@ def run_preproduction(
             "initial_scan": initial_summary,
             "updated_scan": None,
             "score_delta": None,
-            "initial_admittance": initial_decision,
+            "initial_admittance": public_initial_decision,
             "updated_admittance": None,
             "bind": rejection,
             "installation": None,
@@ -599,19 +600,20 @@ def run_preproduction(
         "release": updated_release,
     }
     if gate.exit_code != 0:
-        emit("cicd", f"CI gate blocked release - score {updated_scan['are_total']} < {int(GATE_THRESHOLD)}", stage="cicd", gate=gate_payload)
+        public_gate = {"status": "failed", "release": updated_release}
+        emit("cicd", "CI gate blocked the release after a control regression", stage="cicd", gate=public_gate)
         emit("stage", "New agent release failed the score gate", stage="cicd", state="failed")
         return {
             "scenario": scenario,
             "failure_analysis": failure_analysis,
             "initial_scan": initial_summary,
             "updated_scan": updated_summary,
-            "score_delta": updated_scan["are_total"] - initial_scan["are_total"],
-            "initial_admittance": initial_decision,
+            "score_delta": None,
+            "initial_admittance": public_initial_decision,
             "updated_admittance": None,
             "bind": bind,
             "installation": installation,
-            "ci_gate": gate_payload,
+            "ci_gate": public_gate,
             "certificate": None,
             "documents": {},
             "terminal_failure": {

@@ -670,7 +670,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "invalid_run_request", "detail": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
         if self.run_quota is not None:
-            client = self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip() or self.client_address[0]
+            client = self._client_key()
             allowed, retry_after = self.run_quota.allow(client)
             if not allowed:
                 self._send_json({"error": "run_quota_exceeded", "retry_after_seconds": retry_after}, HTTPStatus.TOO_MANY_REQUESTS)

@@ -41,7 +41,7 @@ container_args() {
     -e "DEMO_GITHUB_RUN_ID=${DEMO_GITHUB_RUN_ID:-manual}" \
     -e "DEMO_GITHUB_RUN_URL=${DEMO_GITHUB_RUN_URL:-}" \
     -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}" \
-    -e "DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-100}"
+    -e "DEMO_RUN_WINDOW_SECONDS=${DEMO_RUN_WINDOW_SECONDS:-3600}"
 }
 
 wait_for_health() {
