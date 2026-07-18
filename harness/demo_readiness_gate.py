@@ -43,6 +43,14 @@ class RegistryCase:
             return False
         return self.status in {"live", "executable", "required", "ready_candidate"}
 
+    @property
+    def readiness_intended(self) -> bool:
+        return self.status in {"live", "executable", "required", "ready_candidate"}
+
+    @property
+    def live_registry(self) -> bool:
+        return self.required and self.status in {"live", "executable"}
+
 
 @dataclass
 class CaseAssessment:
@@ -53,6 +61,14 @@ class CaseAssessment:
     @property
     def ready(self) -> bool:
         return self.case.required and not self.reasons
+
+    @property
+    def readiness_blocking(self) -> bool:
+        if not self.reasons:
+            return False
+        if self.case.required:
+            return True
+        return any(reason in {"duplicate_registry_case_id", "inapplicable_required"} for reason in self.reasons)
 
 
 def load_json(path: Path) -> Any:
@@ -169,33 +185,36 @@ def evaluate_readiness(
         assessment = CaseAssessment(case=case)
         if case.case_id in duplicate_case_ids:
             assessment.reasons.append("duplicate_registry_case_id")
+        if case.readiness_intended and not case.applicable:
+            assessment.reasons.append("inapplicable_required")
         if not case.required:
             assessment.reasons.append("not_required_by_registry")
         records = evidence.get(case.case_id, {})
-        _assess_seed_set(assessment, records)
-        for seed in REQUIRED_SEEDS:
-            record = records.get(seed)
-            if record is None:
-                continue
-            assessment.reasons.extend(_record_reasons(
-                record,
-                case=case,
-                repo_root=repo_root,
-                scanner_version=scanner_version,
-                corpus_version=corpus_version,
-                contract_version=contract_version,
-            ))
-        assessment.n5 = _n5_table(case, records)
-        if assessment.n5.get("total_spread") is None:
-            assessment.reasons.append("missing_n5_total_scores")
-        elif assessment.n5["total_spread"] > MAX_SPREAD:
-            assessment.reasons.append("n5_total_spread_exceeds_1")
-        bad_pillars = [
-            pillar for pillar, spread in assessment.n5.get("pillar_spreads", {}).items()
-            if spread > MAX_SPREAD
-        ]
-        if bad_pillars:
-            assessment.reasons.append("n5_pillar_spread_exceeds_1:" + ",".join(sorted(bad_pillars)))
+        if case.required:
+            _assess_seed_set(assessment, records)
+            for seed in REQUIRED_SEEDS:
+                record = records.get(seed)
+                if record is None:
+                    continue
+                assessment.reasons.extend(_record_reasons(
+                    record,
+                    case=case,
+                    repo_root=repo_root,
+                    scanner_version=scanner_version,
+                    corpus_version=corpus_version,
+                    contract_version=contract_version,
+                ))
+            assessment.n5 = _n5_table(case, records)
+            if assessment.n5.get("total_spread") is None:
+                assessment.reasons.append("missing_n5_total_scores")
+            elif assessment.n5["total_spread"] > MAX_SPREAD:
+                assessment.reasons.append("n5_total_spread_exceeds_1")
+            bad_pillars = [
+                pillar for pillar, spread in assessment.n5.get("pillar_spreads", {}).items()
+                if spread > MAX_SPREAD
+            ]
+            if bad_pillars:
+                assessment.reasons.append("n5_pillar_spread_exceeds_1:" + ",".join(sorted(bad_pillars)))
         assessments.append(assessment)
 
     golden = _assess_golden_regression(calibration_path)
@@ -204,7 +223,9 @@ def evaluate_readiness(
             if assessment.case.required:
                 assessment.reasons.append("golden_set_regression_not_clean")
 
-    ready_cases = [a.case.case_id for a in assessments if a.ready]
+    ready_assessments = [a for a in assessments if a.ready]
+    ready_cases = [a.case.case_id for a in ready_assessments]
+    blocking_rejected = [a for a in assessments if a.readiness_blocking]
     rejected = [
         {
             "case_id": a.case.case_id,
@@ -225,6 +246,7 @@ def evaluate_readiness(
         for a in assessments
         if a.case.required
     ]
+    ready_set_delta = _ready_set_vs_live_registry_delta(ready_assessments, evidence)
     output = {
         "schema_version": SCHEMA_VERSION,
         "plan_revision_id": PLAN_REVISION_ID,
@@ -236,19 +258,21 @@ def evaluate_readiness(
         "rubric_point_id": sorted({c.rubric_point_id for c in registry_cases}),
         "generated_at": generated_at,
         "registry": {
-            "path": str(registry_path),
+            "path": _logical_path(registry_path, repo_root=repo_root),
             "sha256": registry_digest,
             "case_count": len(registry_cases),
             "required_case_count": sum(1 for c in registry_cases if c.required),
+            "non_countable_reporting_count": sum(1 for c in registry_cases if not c.required),
         },
         "evidence_store": {
             "sha256": evidence_digest,
             "case_count": len(evidence),
-            "errors": sorted(evidence_errors),
+            "errors": sorted(_logical_error(error, repo_root=repo_root) for error in evidence_errors),
         },
-        "golden_set_regression": golden,
-        "ready": bool(ready_cases) and not rejected and not evidence_errors,
+        "golden_set_regression": _logical_golden(golden, repo_root=repo_root),
+        "ready": bool(ready_cases) and not blocking_rejected and not evidence_errors,
         "ready_set": ready_cases,
+        "ready_set_vs_live_registry_delta": ready_set_delta,
         "rejected_cases": sorted(rejected, key=lambda r: (r["rubric_point_id"], r["case_id"])),
         "n5_delta_table": sorted(n5_delta_table, key=lambda r: (r["rubric_point_id"], r["case_id"])),
     }
@@ -327,6 +351,56 @@ def _evidence_digest(evidence: dict[str, dict[int, dict[str, Any]]]) -> str:
                 "source_sha256": record.get("_source_sha256"),
             })
     return hashlib.sha256(canonicalize(rows)).hexdigest()
+
+
+def _logical_path(path: Path | str, *, repo_root: Path) -> str:
+    raw = Path(path)
+    try:
+        return raw.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return raw.name
+
+
+def _logical_error(error: str, *, repo_root: Path) -> str:
+    parts = error.split(":")
+    if len(parts) >= 2:
+        candidate = Path(parts[1])
+        if candidate.is_absolute():
+            parts[1] = _logical_path(candidate, repo_root=repo_root)
+            return ":".join(parts)
+    return error
+
+
+def _logical_golden(golden: dict[str, Any], *, repo_root: Path) -> dict[str, Any]:
+    out = dict(golden)
+    if out.get("path"):
+        out["path"] = _logical_path(str(out["path"]), repo_root=repo_root)
+    return out
+
+
+def _ready_set_vs_live_registry_delta(
+    ready_assessments: list[CaseAssessment],
+    evidence: dict[str, dict[int, dict[str, Any]]],
+) -> dict[str, Any]:
+    rows = []
+    for assessment in ready_assessments:
+        if assessment.case.live_registry:
+            continue
+        rows.append({
+            "case_id": assessment.case.case_id,
+            "rubric_point_id": assessment.case.rubric_point_id,
+            "pillar": assessment.case.pillar,
+            "registry_status": assessment.case.status,
+            "evidence_links": sorted(
+                _evidence_uri(record) for record in evidence.get(assessment.case.case_id, {}).values()
+                if _evidence_uri(record)
+            ),
+        })
+    return {
+        "status": "quiet" if not rows else "newly_stable_not_live",
+        "newly_stable_not_live_count": len(rows),
+        "newly_stable_not_live": sorted(rows, key=lambda r: (r["rubric_point_id"], r["case_id"])),
+    }
 
 
 def _assess_seed_set(assessment: CaseAssessment, records: dict[int, dict[str, Any]]) -> None:
