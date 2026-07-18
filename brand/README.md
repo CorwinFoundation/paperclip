@@ -14,7 +14,7 @@ The gate bundle (`brand/` + `scripts/verify-brand-backbone.sh`) exists in two ch
 Rules so both agents resolve the same path:
 
 1. **"The project root" = the root of whichever checkout you are in.** `scripts/verify-brand-backbone.sh` self-resolves its own root (`dirname/..`), so `bash scripts/verify-brand-backbone.sh` is correct from either root. Do not hard-code an absolute path.
-2. **Both copies MUST hash to the pinned SHA** (`8aa5421c3b6629af…`). The verifier passing in one checkout does not vouch for the other - run it in the checkout you are shipping from.
+2. **Both copies MUST hash to the pinned SHA** (`a2ffc4f919b0f71a…`). The verifier passing in one checkout does not vouch for the other - run it in the checkout you are shipping from.
 3. **On divergence, the Scanner-repo copy wins** and the `_default` mirror is re-synced from it (copy the PDF, `.sha256`, and `scripts/verify-brand-backbone.sh` across; never hand-edit either to "fix" a mismatch).
 4. **The PDF lives in `brand/` only** — never at the bare workspace/repo root, never duplicated elsewhere in a checkout.
 
@@ -26,12 +26,12 @@ Rules so both agents resolve the same path:
 |---|---|
 | Document | `BackBond-Brand-Backbone-v1.6.pdf` |
 | Version | v1.6 |
-| SHA-256 | `8aa5421c3b6629afa9ea27c5f6026441e3ce2a26ae3c0dea42a2ceba7a084e7b` |
+| SHA-256 | `a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090` |
 | Pinned at | 2026-07-18 |
-| Source issue | [BEAAA-15377](/BEAAA/issues/BEAAA-15377) / [BEAAA-15379](/BEAAA/issues/BEAAA-15379) |
-| Pin authority | Founder-authorized count correction governed by CEO change-control. Changes count figure only: "25 risk dimensions" -> "27 risk dimensions"; corpus probe figure remains `1,180+`. |
+| Source issue | [BEAAA-15431](/BEAAA/issues/BEAAA-15431) (metadata correction) / [BEAAA-15377](/BEAAA/issues/BEAAA-15377) / [BEAAA-15379](/BEAAA/issues/BEAAA-15379) (count correction) |
+| Pin authority | Founder-attached, board-locked pin move ([BEAAA-15431](/BEAAA/issues/BEAAA-15431)). Corrects the internal DocInfo `/Title` + XMP `dc:title` from v1.4 to v1.6; rendered content byte-identical to the prior v1.6 (27 risk dimensions, `1,180+` probes). |
 
-> **Re-pinned 2026-07-18 ([BEAAA-15379](/BEAAA/issues/BEAAA-15379)).** v1.6 is a surgical count correction authorized by the Founder via [BEAAA-15377](/BEAAA/issues/BEAAA-15377): the measured scope line now reads `1,180+ probes across 27 risk dimensions`. No palette, type, logo, voice, score-band, warranty, insurance, carrier, or proof-point change is included. v1.5 remains retained as the historical artifact `BackBond-Brand-Backbone-v1.5.pdf`.
+> **Re-pinned 2026-07-18 ([BEAAA-15431](/BEAAA/issues/BEAAA-15431)).** The pin now points at the Founder-approved metadata-corrected v1.6 build (SHA `a2ffc4f9…`, supersedes `8aa5421c…`). **Only the internal DocInfo `/Title` and XMP `dc:title` were corrected** (v1.4 → v1.6); the visible/rendered content is byte-identical to the prior v1.6 — same ratified 27-dimension content, cover `VERSION 1.6`, `1,180+ probes across 27 risk dimensions`, CHANGELOG intact (verified via empty `pdftotext` diff). The underlying count correction (25 → 27 risk dimensions, [BEAAA-15377](/BEAAA/issues/BEAAA-15377) / [BEAAA-15379](/BEAAA/issues/BEAAA-15379)) is unchanged and carried forward. No palette, type, logo, voice, score-band, warranty, insurance, carrier, or proof-point change. v1.5 remains retained as the historical artifact `BackBond-Brand-Backbone-v1.5.pdf`.
 
 The SHA-pinned filename and hash in `BackBond-Brand-Backbone-v1.6.sha256` are the contract. If the PDF on disk does not hash to that value, the local copy is stale or tampered - re-pull from Paperclip and re-verify before shipping anything external.
 
@@ -66,7 +66,7 @@ When any item below the Backbone disagrees with it, the Backbone wins and the lo
 
 Every external-bound artifact MUST satisfy all four before shipping:
 
-1. **Pinned-version cite.** The artifact's metadata carries `brand_backbone_version: "v1.6"` and `brand_backbone_sha256: "8aa5421c…"`.
+1. **Pinned-version cite.** The artifact's metadata carries `brand_backbone_version: "v1.6"` and `brand_backbone_sha256: "a2ffc4f9…"`.
 2. **Visual compliance.** Colours (Ink Navy `#0B1A38` + Copper `#D58E5C` dark / `#BD6A34` white), type (Archivo / Inter / IBM Plex Mono), Copper Law (copper marks bond/capital/payout only — never decoration, never traffic-light bands), and **logo** — the asset carries one of the two canonical files from `brand/assets/LOGO-CANON.md` (`BackBond_Logo_light.png` / `BackBond_Logo_dark.png`), not a retired mark, concept lockup, or typeset CSS wordmark. The nightly Auditor / brand gate reads `LOGO-CANON.md` for the current logo of record.
 3. **Voice + canon compliance.** No anti-patterns from `voice-and-anti-patterns.md`; no banned vocab; "per agent, per run" is verbatim when used; bands are words-first (Preferred·A / Standard·B / Constrained·C / Decline·D).
 4. **Local hash matches the pin.** Run `scripts/verify-brand-backbone.sh` - exits 0 if the on-disk PDF matches `BackBond-Brand-Backbone-v1.6.sha256`, non-zero if not.

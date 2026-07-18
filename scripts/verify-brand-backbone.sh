@@ -29,7 +29,7 @@ fi
 
 cd "${BRAND_DIR}"
 if sha256sum -c "$(basename "${PIN_FILE}")" >/dev/null 2>&1; then
-  echo "OK: Brand Backbone v1.6 SHA matches pin (8aa5421c...)"
+  echo "OK: Brand Backbone v1.6 SHA matches pin (a2ffc4f9...)"
   exit 0
 fi
 
