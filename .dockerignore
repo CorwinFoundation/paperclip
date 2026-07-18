@@ -1,9 +1,15 @@
 .git
 .github
 .pytest_cache
+.worktrees/
 .venv
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.coverage
+.mypy_cache/
+.ruff_cache/
 .env
 .secrets/
 artifacts/*
@@ -12,6 +18,8 @@ artifacts/beaaa-152/*
 !artifacts/beaaa-152/datasets/
 artifacts/beaaa-152/datasets/*
 !artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
+!artifacts/beaaa-15436/
+!artifacts/beaaa-15436/BackBond-logo-on-white.png
 tmp/
 *.sqlite3
 *.db

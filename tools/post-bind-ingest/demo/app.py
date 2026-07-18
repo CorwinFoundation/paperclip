@@ -7,6 +7,7 @@ certificate, report-card, and passive-monitor paths in a synthetic environment.
 
 from __future__ import annotations
 
+import ipaddress
 import argparse
 from collections import deque
 from datetime import UTC, datetime, timedelta
@@ -34,7 +35,8 @@ from lifecycle import generate_final_report, run_preproduction
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 RUNNER = DEMO_DIR.parent / "scripts" / "run_passive_log_reader_e2e.py"
-INDEX = DEMO_DIR / "index_v2.html"
+INDEX = DEMO_DIR / "design" / "BackBond-Underwriting-Desk-3D.html"
+LOGO = REPO_ROOT / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
 TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py",
     "tools/post-bind-ingest/tests/test_lifecycle_demo.py",
@@ -49,7 +51,11 @@ ALLOWED_SCENARIOS = {"happy", "bind_reject", "cicd_regression"}
 def _load_demo_env_file(path: Path = DEMO_ENV_FILE) -> None:
     if not path.is_file():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except PermissionError:
+        return
+    for line in lines:
         clean = line.strip()
         if not clean or clean.startswith("#") or "=" not in clean:
             continue
@@ -468,7 +474,11 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline'; connect-src 'self'",
+        )
 
     def _send_json(self, payload: object, status: int = HTTPStatus.OK) -> None:
         data = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
@@ -504,6 +514,17 @@ class DemoHandler(BaseHTTPRequestHandler):
         if not self.access_token:
             return None
         return hashlib.sha256(self.access_token.encode("utf-8")).hexdigest()
+
+    def _send_png_file(self, path: Path) -> None:
+        data = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(data)
+
 
     def _is_authorized(self) -> bool:
         if not self.access_token:
@@ -563,6 +584,15 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
+    def _client_key(self) -> str:
+        forwarded = self.headers.get("CF-Connecting-IP", "").strip()
+        if forwarded:
+            try:
+                return str(ipaddress.ip_address(forwarded))
+            except ValueError:
+                pass
+        return self.client_address[0]
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
@@ -573,6 +603,9 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         if path == "/":
             self._send_index()
+            return
+        if path == "/assets/backbond-logo-on-white.png":
+            self._send_png_file(LOGO)
             return
         if path == "/api/deployment":
             self._send_json(_deployment_metadata())
