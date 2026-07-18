@@ -17,6 +17,7 @@ COPY scripts /app/scripts
 COPY underwriting /app/underwriting
 COPY tools/portal_v1/verify_v0_2.py /app/tools/portal_v1/verify_v0_2.py
 COPY tools/probe-registry/active_registry.json /app/tools/probe-registry/active_registry.json
+COPY artifacts/beaaa-15436/BackBond-logo-on-white.png /app/artifacts/beaaa-15436/BackBond-logo-on-white.png
 COPY tests/fixtures/golden_agents/G1/eval_outputs.json /app/tests/fixtures/golden_agents/G1/eval_outputs.json
 COPY tools/post-bind-ingest /app/tools/post-bind-ingest
 COPY tools/log-tracker /app/tools/log-tracker

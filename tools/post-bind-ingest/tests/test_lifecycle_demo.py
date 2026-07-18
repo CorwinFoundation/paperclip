@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import json
+import re
 import inspect
 import shutil
 import subprocess
@@ -31,8 +34,8 @@ def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -
     assert "const TEST_REVEAL_MS = 2500" in html
     assert "await wait(TEST_REVEAL_MS)" in html
     assert 'event.panel.availability === "executable"' in html
-    assert "No rating issued — assessment incomplete." in html
-    assert "Sample estimate · illustration only" in html
+    assert "No rating issued." in html
+    assert "N/A - Not available" in html
     assert "measured exposures" not in html
     assert "overflow-wrap: anywhere" in html
     assert "grid-template-columns: minmax(190px, 1fr) 90px 126px auto" in html
@@ -103,6 +106,10 @@ def test_completed_quota_restore_reveals_all_executable_rows_as_clean() -> None:
 def test_demo_image_includes_truthful_registry_runtime_dependency() -> None:
     dockerfile = DOCKERFILE_PATH.read_text(encoding="utf-8")
     assert "COPY tools/probe-registry/active_registry.json /app/tools/probe-registry/active_registry.json" in dockerfile
+    assert "COPY artifacts/beaaa-15436/BackBond-logo-on-white.png /app/artifacts/beaaa-15436/BackBond-logo-on-white.png" in dockerfile
+    logo = Path(__file__).resolve().parents[3] / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
+    assert hashlib.sha256(logo.read_bytes()).hexdigest() == "f32f505a7cb3317003de42e4509a69ea9b758f08a3bb0f41b87a637d8c4a128f"
+    assert 'approvedLogo.src = "/assets/backbond-logo-on-white.png"' in DESIGN_PATH.read_text(encoding="utf-8")
 
 
 def test_deploy_reuses_an_active_token_gated_tunnel_without_privileged_restart() -> None:
@@ -124,14 +131,13 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
             emit,
             lambda: {"status": "passed", "summary": "test callback passed", "elapsed_ms": 1},
         )
-        assert lifecycle["initial_scan"]["score"] == 80
-        assert lifecycle["updated_scan"]["score"] == 81
-        assert lifecycle["score_delta"] == 1
+        assert lifecycle["initial_scan"]["backbond_score"] is None
+        assert lifecycle["updated_scan"]["backbond_score"] is None
         assert lifecycle["bind"]["admittance_class"] == "CONSTRAINED_BIND"
         assert lifecycle["bind"]["real_policy_bound"] is False
         assert lifecycle["installation"]["status"] == "INSTALLED"
         assert len(lifecycle["installation"]["components"]) == 4
-        assert lifecycle["ci_gate"]["exit_code"] == 0
+        assert lifecycle["ci_gate"]["status"] == "passed"
         assert tests["status"] == "passed"
         assert lifecycle["certificate"]["certificate_scope"] == "scan_only"
         assert "valid_through" not in lifecycle["certificate"]
@@ -156,10 +162,32 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert len(dimension_events) == registry_dimension_count * 2
         assert all(event["panel"]["evidence_id"] or not event["panel"]["applicable"] for event in dimension_events)
         assert verify_certificate(lifecycle["certificate"])
+        customer_projection = {key: value for key, value in lifecycle.items() if not key.startswith("_")}
+        customer_json = json.dumps(customer_projection, sort_keys=True)
+        assert '"backbond_score": null' in customer_json
+        assert '"rating_status": "not_available"' in customer_json
+        assert "only 4 of 27 risk areas tested; no rating can be issued." in customer_json
+        assert '"score": 81' not in customer_json
+        assert '"backbond_score": 81' not in customer_json
+        diagnostics = json.loads((Path(tmp) / "run" / "internal-diagnostics.json").read_text(encoding="utf-8"))
+        assert diagnostics["synthetic_ci_gate"]["score"] == 81
+        assert lifecycle["certificate"]["backbond_score"] is None
+        assert lifecycle["certificate"]["rating_status"] == "not_available"
+        assert lifecycle["certificate"]["tested_area_count"] == 4
+        assert lifecycle["certificate"]["risk_area_count"] == 27
+        assert len(lifecycle["certificate"]["tested_areas"]) == 4
+        assert {row["result"] for row in lifecycle["certificate"]["tested_areas"]} == {"clean"}
+        assert lifecycle["certificate"]["not_tested_area_count"] == 23
+        assert lifecycle["certificate"]["rating_issued"] is False
         certificate_html = (Path(tmp) / "run" / "certificate.html").read_text(encoding="utf-8")
-        assert "Sample estimate (illustration only)" in certificate_html
-        assert "BackBond Score" not in certificate_html
-        tampered = {**lifecycle["certificate"], "backbond_score": 0}
+        assert "N/A - Not available" in certificate_html
+        assert "only 4 of 27 risk areas tested; no rating can be issued." in certificate_html
+        assert certificate_html.count(">CLEAN<") == 4
+        assert certificate_html.count("N/A - not tested yet") == 23
+        visible_certificate_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", certificate_html)
+        assert ">81<" not in visible_certificate_html
+        assert "AGENT RISK RATINGS &amp; INSURANCE" in certificate_html
+        tampered = {**lifecycle["certificate"], "tested_area_count": 5}
         assert not verify_certificate(tampered)
         assert (Path(tmp) / "run" / "certificate.html").is_file()
         assert {event["kind"] for event in events} >= {"scan", "bind", "install", "version", "cicd", "certificate"}

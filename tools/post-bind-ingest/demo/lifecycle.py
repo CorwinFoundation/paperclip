@@ -26,6 +26,7 @@ from underwriting.admittance import evaluate as evaluate_admittance
 
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
 ACTIVE_REGISTRY_PATH = REPO_ROOT / "tools" / "probe-registry" / "active_registry.json"
+LOGO_PATH = REPO_ROOT / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "golden_agents" / "G1" / "eval_outputs.json"
 AGENT_ID = "demo-contact-center-agent"
 VENDOR_NAME = "Northstar AI (synthetic)"
@@ -40,6 +41,7 @@ DEMO_BOUNDARY_NOTICE = (
     "coverage, premium, limits, policy issuance, or license status."
 )
 CANDIDATE_RUBRIC_VERSIONS = {"1.3.0"}
+RATING_NOT_AVAILABLE_REASON = "only 4 of 27 risk areas tested; no rating can be issued."
 
 Emit = Callable[..., None]
 
@@ -138,9 +140,9 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "scan_id": scan_id,
         "agent_id": AGENT_ID,
         "agent_release": release,
-        "score": scan["are_total"],
-        "band": scan["band"],
-        "subscores": scan["subscores"],
+        "backbond_score": None,
+        "rating_status": "not_available",
+        "rating_reason": RATING_NOT_AVAILABLE_REASON,
         "scanner_version": scan["scanner_version"],
         "rubric_version": rubric_version,
         "rubric_label": rubric_display_label(rubric_version),
@@ -159,7 +161,7 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
 
 
 def _emit_scan(job_emit: Emit, scan: dict[str, Any], summary: dict[str, Any], *, stage: str) -> None:
-    job_emit("scan", f"Sample estimate {scan['are_total']}/100 · illustration only", stage=stage, scan=summary)
+    job_emit("scan", "N/A - Not available", stage=stage, scan=summary)
     for panel in summary["panels"]:
         job_emit(
             "dimension",
@@ -204,7 +206,7 @@ def _installation_manifest(run_id: str, bind: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, Any]:
+def _certificate(run_id: str, scan: dict[str, Any], summary: dict[str, Any], scan_id: str) -> dict[str, Any]:
     issued = datetime.now(UTC).replace(microsecond=0)
     rubric_version = scan["rubric_version"]
     body: dict[str, Any] = {
@@ -213,8 +215,23 @@ def _certificate(run_id: str, scan: dict[str, Any], scan_id: str) -> dict[str, A
         "vendor_name": VENDOR_NAME,
         "agent_name": AGENT_ID,
         "agent_release": UPDATED_RELEASE,
-        "backbond_score": scan["are_total"],
-        "threshold_status": "met_bind_threshold",
+        "backbond_score": None,
+        "rating_status": "not_available",
+        "rating_reason": RATING_NOT_AVAILABLE_REASON,
+        "rating_issued": False,
+        "tested_area_count": summary["registry"]["measured_dimension_count"],
+        "risk_area_count": summary["registry"]["dimension_count"],
+        "not_tested_area_count": summary["registry"]["dimension_count"] - summary["registry"]["measured_dimension_count"],
+        "tested_areas": [
+            {"dimension_id": panel["dimension_id"], "name": panel["name"], "result": "clean"}
+            for panel in summary["panels"]
+            if panel["result"] == "held"
+        ],
+        "not_tested_areas": [
+            {"dimension_id": panel["dimension_id"], "name": panel["name"], "result": "not_tested"}
+            for panel in summary["panels"]
+            if panel["result"] is None
+        ],
         "scan_id": scan_id,
         "envelope_id": f"demo-cert-{run_id}",
         "rubric_version": rubric_version,
@@ -261,16 +278,13 @@ def verify_certificate(certificate: dict[str, Any]) -> bool:
 
 
 def render_certificate_html(certificate: dict[str, Any]) -> str:
-    display_lead = (
-        "This signed record contains a sample estimate for illustration only. "
-        "It is not an official BackBond rating."
-    )
+    display_lead = "Point-in-time scan record only. No rating or coverage was issued."
     rows = [
         ("Vendor", certificate["vendor_name"]),
         ("Agent", certificate["agent_name"]),
         ("Agent release", certificate["agent_release"]),
-        ("Sample estimate (illustration only)", f"{certificate['backbond_score']}/100"),
-        ("Threshold", certificate["threshold_status"]),
+        ("BackBond rating", "N/A - Not available"),
+        ("Reason", certificate["rating_reason"]),
         ("Scan ID", certificate["scan_id"]),
         ("Envelope ID", certificate["envelope_id"]),
         ("Scanner", certificate["scanner_version"]),
@@ -279,7 +293,15 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
         ("Signature", f"VALID · {certificate['signature']['algorithm']}"),
     ]
     row_html = "".join(f"<div><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>" for label, value in rows)
-    return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{escape(certificate['certificate_title'])}</title><style>body{{margin:0;background:#0a0f17;color:#edf3fb;font-family:Inter,system-ui,sans-serif}}main{{width:min(820px,calc(100% - 32px));margin:40px auto;background:#121b28;border:1px solid #314259;border-radius:18px;padding:42px;box-shadow:0 24px 80px #0008}}.eyebrow{{color:#e7a96b;text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:800}}h1{{font-size:38px;margin:10px 0}}p{{color:#aab6c8;line-height:1.65}}section{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:28px 0}}section div{{padding:13px;border:1px solid #29374c;border-radius:10px;background:#0c131e}}span{{display:block;color:#8998ad;font-size:11px;text-transform:uppercase;letter-spacing:.08em}}strong{{display:block;margin-top:6px;overflow-wrap:anywhere}}.seal{{color:#57d49a;font-weight:800}}.notice{{border-left:3px solid #ffd16f;padding-left:14px;color:#d9c28e}}@media(max-width:650px){{main{{padding:24px}}section{{grid-template-columns:1fr}}}}</style></head><body><main><div class=\"eyebrow\">Signed verification envelope</div><h1>{escape(certificate['certificate_title'])}</h1><p>{escape(display_lead)}</p><p class=\"seal\">✓ Signature verified</p><section>{row_html}</section><p class=\"notice\">{escape(certificate['disclaimer'])}</p></main></body></html>"""
+    area_html = "".join(
+        f'<tr><td>{escape(area["name"])}</td><td class="clean">CLEAN</td></tr>'
+        for area in certificate["tested_areas"]
+    ) + "".join(
+        f'<tr><td>{escape(area["name"])}</td><td>N/A - not tested yet</td></tr>'
+        for area in certificate["not_tested_areas"]
+    )
+    logo = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{escape(certificate['certificate_title'])}</title><style>body{{margin:0;background:#f4f0e9;color:#0b1b31;font-family:Inter,system-ui,sans-serif}}main{{width:min(900px,calc(100% - 32px));margin:32px auto;background:white;border:1px solid #d7c7b1;padding:42px;box-shadow:0 18px 55px #14243a22}}.wordmark{{width:min(440px,100%);height:auto}}.eyebrow{{color:#a6602b;text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:800}}h1{{font-family:Archivo,Inter,sans-serif;font-size:38px;margin:18px 0 8px}}p{{color:#46566b;line-height:1.55}}section{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:24px 0}}section div{{padding:12px;border:1px solid #ded7cd}}span{{display:block;color:#687587;font-size:11px;text-transform:uppercase;letter-spacing:.08em}}strong{{display:block;margin-top:5px;overflow-wrap:anywhere}}.seal,.clean{{color:#187153;font-weight:800}}table{{border-collapse:collapse;width:100%;margin:22px 0}}td{{border-bottom:1px solid #e6dfd5;padding:9px 6px}}td:last-child{{text-align:right}}.notice{{border-left:3px solid #a6602b;padding-left:14px}}@media(max-width:650px){{main{{padding:24px}}section{{grid-template-columns:1fr}}}}</style></head><body><main><img class=\"wordmark\" src=\"data:image/png;base64,{logo}\" alt=\"BACKBOND / AGENT RISK RATINGS &amp; INSURANCE\"><div class=\"eyebrow\">Signed verification envelope</div><h1>{escape(certificate['certificate_title'])}</h1><p>{escape(display_lead)}</p><p class=\"seal\">✓ Signature verified</p><section>{row_html}</section><table>{area_html}</table><p class=\"notice\">{escape(certificate['disclaimer'])}</p></main></body></html>"""
 
 
 def _demo_boundary_block() -> str:
@@ -342,7 +364,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     updated_scan_id = f"scan-{run_id}-v2"
     updated_summary = _scan_summary(updated_scan, scan_id=updated_scan_id, release=UPDATED_RELEASE)
     _write_json(output_dir / "updated-scan.json", updated_scan)
-    emit("version", f"Release {UPDATED_RELEASE} rescored {initial_scan['are_total']} → {updated_scan['are_total']}", stage="cicd", previous=initial_summary, current=updated_summary)
+    emit("version", f"Release {UPDATED_RELEASE} scanned; rating unavailable pending complete measured coverage", stage="cicd", previous=initial_summary, current=updated_summary)
     for panel in updated_summary["panels"]:
         emit("dimension", panel["name"], stage="cicd", panel=panel, scan_id=updated_summary["scan_id"])
 
@@ -367,11 +389,11 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     }
     if gate.exit_code != 0:
         raise RuntimeError(gate.reason)
-    emit("cicd", f"CI gate passed · score {updated_scan['are_total']} ≥ {int(GATE_THRESHOLD)}", stage="cicd", gate=gate_payload)
+    emit("cicd", "Internal CI gate passed", stage="cicd", gate={"status": gate_payload["status"], "release": UPDATED_RELEASE})
     emit("stage", "New agent release passed scan and test gates", stage="cicd", state="passed")
 
     updated_decision = evaluate_admittance(_with_applicability(updated_scan), system_prompt_kind="safety_forward").to_dict()
-    certificate = _certificate(run_id, updated_scan, updated_scan_id)
+    certificate = _certificate(run_id, updated_scan, updated_summary, updated_scan_id)
     if not verify_certificate(certificate):
         raise RuntimeError("certificate signature verification failed")
     _write_json(output_dir / "certificate.json", certificate)
@@ -383,12 +405,11 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     lifecycle = {
         "initial_scan": initial_summary,
         "updated_scan": updated_summary,
-        "score_delta": updated_scan["are_total"] - initial_scan["are_total"],
         "initial_admittance": initial_decision,
         "updated_admittance": updated_decision,
         "bind": bind,
         "installation": installation,
-        "ci_gate": gate_payload,
+        "ci_gate": {"status": gate_payload["status"], "release": UPDATED_RELEASE},
         "certificate": certificate,
         "documents": {
             "certificate_url": f"/api/runs/{run_id}/certificate",
@@ -396,6 +417,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
         },
         "_updated_scan": updated_scan,
     }
+    _write_json(output_dir / "internal-diagnostics.json", {"synthetic_ci_gate": gate_payload, "initial_score": initial_scan["are_total"], "updated_score": updated_scan["are_total"], "score_delta": updated_scan["are_total"] - initial_scan["are_total"]})
     return lifecycle, tests
 
 
@@ -415,9 +437,9 @@ def generate_final_report(output_dir: Path, lifecycle: dict[str, Any], passive: 
         "report_id": f"report-{lifecycle['certificate']['envelope_id']}",
         "generated_at": _utc_now(),
         "agent_release": lifecycle["updated_scan"]["agent_release"],
-        "score": lifecycle["updated_scan"]["score"],
-        "band": lifecycle["updated_scan"]["band"],
-        "score_delta": lifecycle["score_delta"],
+        "backbond_score": None,
+        "rating_status": "not_available",
+        "rating_reason": RATING_NOT_AVAILABLE_REASON,
         "bind_status": lifecycle["bind"]["status"],
         "ci_status": lifecycle["ci_gate"]["status"],
         "certificate_status": lifecycle["certificate"]["signature_status"],

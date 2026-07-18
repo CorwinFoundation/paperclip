@@ -33,6 +33,7 @@ DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 RUNNER = DEMO_DIR.parent / "scripts" / "run_passive_log_reader_e2e.py"
 INDEX = DEMO_DIR / "design" / "BackBond-Underwriting-Desk-3D.html"
+LOGO = REPO_ROOT / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
 TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py",
     "tools/post-bind-ingest/tests/test_lifecycle_demo.py",
@@ -406,6 +407,16 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_png_file(self, path: Path) -> None:
+        data = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(data)
+
     def _request_token(self, parsed) -> str:
         auth = self.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
@@ -435,6 +446,9 @@ class DemoHandler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/") or "/"
         if path == "/":
             self._send_index()
+            return
+        if path == "/assets/backbond-logo-on-white.png":
+            self._send_png_file(LOGO)
             return
         if path == "/api/health":
             self._send_json({"status": "ok", "mode": "synthetic-lifecycle", "production_contacted": False, "vapi_used": False, "deployment": _deployment_metadata()})

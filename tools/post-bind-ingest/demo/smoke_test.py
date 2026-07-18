@@ -53,11 +53,13 @@ def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dic
                 raise RuntimeError("deployed test or persistence gate failed")
             lifecycle = result["lifecycle"]
             deployment = result["deployment"]
-            if lifecycle["initial_scan"]["score"] != 80 or lifecycle["updated_scan"]["score"] != 81:
-                raise RuntimeError("scanner lifecycle scores did not match the release proof")
+            if lifecycle["initial_scan"]["backbond_score"] is not None or lifecycle["updated_scan"]["backbond_score"] is not None:
+                raise RuntimeError("incomplete measured coverage exposed a customer rating")
+            if lifecycle["updated_scan"]["rating_status"] != "not_available":
+                raise RuntimeError("incomplete measured coverage did not report N/A")
             if lifecycle["bind"]["admittance_class"] != "CONSTRAINED_BIND" or lifecycle["bind"]["real_policy_bound"] is not False:
                 raise RuntimeError("demonstration bind boundary failed")
-            if lifecycle["installation"]["status"] != "INSTALLED" or lifecycle["ci_gate"]["exit_code"] != 0:
+            if lifecycle["installation"]["status"] != "INSTALLED" or lifecycle["ci_gate"]["status"] != "passed":
                 raise RuntimeError("install or CI gate did not pass")
             if lifecycle["certificate"]["signature_status"] != "valid":
                 raise RuntimeError("certificate signature was not valid")
@@ -82,8 +84,8 @@ def run(base_url: str, timeout_seconds: int, *, token: str | None = None) -> dic
                 "status": "PASS",
                 "events": snapshot["event_count"],
                 "elapsed_ms": result["elapsed_ms"],
-                "initial_score": lifecycle["initial_scan"]["score"],
-                "updated_score": lifecycle["updated_scan"]["score"],
+                "backbond_score": lifecycle["updated_scan"]["backbond_score"],
+                "rating_status": lifecycle["updated_scan"]["rating_status"],
                 "production_logs": len(result["raw_events"]),
                 "passive_findings": len(result["detections"]),
             }
