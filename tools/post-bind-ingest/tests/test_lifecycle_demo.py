@@ -251,3 +251,39 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "score-number" not in visible_html
         assert "score-band" not in visible_html
         assert "sensitivity" not in visible_html.lower()
+
+
+def test_customer_documents_do_not_overflow_390px_viewport() -> None:
+    events: list[dict] = []
+
+    def emit(kind: str, message: str, **details) -> None:
+        events.append({"kind": kind, "message": message, **details})
+
+    passive = {
+        "raw_events": [{} for _ in range(9)],
+        "detections": [{} for _ in range(7)],
+        "tracker_rows": [{} for _ in range(7)],
+        "report": {
+            "perils_detected": ["P1", "P2", "P3", "P4", "P5", "P6"],
+            "continuity": {"continuity_status": "healthy"},
+        },
+    }
+    with tempfile.TemporaryDirectory(prefix="scanner-lifecycle-mobile-") as tmp:
+        output_dir = Path(tmp) / "run"
+        lifecycle, _tests = run_preproduction(
+            output_dir,
+            "mobile-overflow-test",
+            emit,
+            lambda: {"status": "passed", "summary": "test callback passed", "elapsed_ms": 1},
+        )
+        generate_final_report(output_dir, lifecycle, passive, emit)
+        subprocess.run(
+            [
+                "node",
+                str(Path(__file__).with_name("document_mobile_overflow.cjs")),
+                str((output_dir / "backbond-report.html").resolve()),
+                str((output_dir / "certificate.html").resolve()),
+            ],
+            check=True,
+            cwd=Path(__file__).resolve().parents[3],
+        )
