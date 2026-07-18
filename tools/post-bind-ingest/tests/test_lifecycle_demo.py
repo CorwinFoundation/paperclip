@@ -254,6 +254,9 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
 
 
 def test_customer_documents_do_not_overflow_390px_viewport() -> None:
+    if shutil.which("node") is None or shutil.which("google-chrome") is None:
+        pytest.skip("host-only browser regression requires Node and Google Chrome")
+
     events: list[dict] = []
 
     def emit(kind: str, message: str, **details) -> None:
