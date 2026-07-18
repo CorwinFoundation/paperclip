@@ -9,7 +9,7 @@ RUN_VOLUME="backbond-passive-demo-runs"
 PROD_PORT="8765"
 CANDIDATE_PORT="18765"
 PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
-ENV_FILE="/etc/backbond/passive-demo.env"
+ENV_FILE="${DEMO_ENV_FILE:-/etc/backbond/passive-demo.env}"
 
 if [[ -f "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090
@@ -41,7 +41,7 @@ container_args() {
     -e "DEMO_GITHUB_RUN_URL=${DEMO_GITHUB_RUN_URL:-}" \
     -e "DEMO_DEPLOYED_AT=${DEMO_DEPLOYED_AT:-unknown}" \
     -e "DEMO_ACCESS_TOKEN=${DEMO_ACCESS_TOKEN:-}" \
-    -e "DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-5}"
+    -e "DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-100}"
 }
 
 wait_for_health() {
@@ -117,7 +117,7 @@ WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
     systemctl enable --now backbond-passive-demo-tunnel.service
-  else
+  elif ! systemctl is-active --quiet backbond-passive-demo-tunnel.service; then
     systemctl start backbond-passive-demo-tunnel.service
   fi
 fi

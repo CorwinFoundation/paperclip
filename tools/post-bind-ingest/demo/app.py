@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hmac
+import ipaddress
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
@@ -31,7 +32,7 @@ from lifecycle import generate_final_report, run_preproduction
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 RUNNER = DEMO_DIR.parent / "scripts" / "run_passive_log_reader_e2e.py"
-INDEX = DEMO_DIR / "index_v2.html"
+INDEX = DEMO_DIR / "design" / "BackBond-Underwriting-Desk-3D.html"
 TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py",
     "tools/post-bind-ingest/tests/test_lifecycle_demo.py",
@@ -40,13 +41,17 @@ TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_detector_input.py",
 )
 DEMO_ENV_FILE = Path("/etc/backbond/passive-demo.env")
-DEMO_RUN_QUOTA = int(os.environ.get("DEMO_RUN_QUOTA", "5"))
+DEMO_RUN_QUOTA = int(os.environ.get("DEMO_RUN_QUOTA", "100"))
 
 
 def _load_demo_env_file(path: Path = DEMO_ENV_FILE) -> None:
     if not path.is_file():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except PermissionError:
+        return
+    for line in lines:
         clean = line.strip()
         if not clean or clean.startswith("#") or "=" not in clean:
             continue
@@ -365,7 +370,11 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline'; connect-src 'self'",
+        )
 
     def _send_json(self, payload: object, status: int = HTTPStatus.OK) -> None:
         data = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
@@ -411,6 +420,15 @@ class DemoHandler(BaseHTTPRequestHandler):
         if not token:
             return True
         return hmac.compare_digest(self._request_token(parsed), token)
+
+    def _client_key(self) -> str:
+        forwarded = self.headers.get("CF-Connecting-IP", "").strip()
+        if forwarded:
+            try:
+                return str(ipaddress.ip_address(forwarded))
+            except ValueError:
+                pass
+        return self.client_address[0]
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -472,7 +490,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         if content_length:
             self.rfile.read(content_length)
-        client = self.client_address[0]
+        client = self._client_key()
         now = time.monotonic()
         with self.rate_lock:
             previous = self.rate_limit.get(client, 0.0)
@@ -482,7 +500,15 @@ class DemoHandler(BaseHTTPRequestHandler):
             self.rate_limit[client] = now
             count = self.run_quota.get(client, 0)
             if count >= DEMO_RUN_QUOTA:
-                self._send_json({"error": "run_quota_exceeded", "quota": DEMO_RUN_QUOTA}, HTTPStatus.TOO_MANY_REQUESTS)
+                self._send_json(
+                    {
+                        "error": "run_quota_exceeded",
+                        "quota": DEMO_RUN_QUOTA,
+                        "quota_scope": "visitor",
+                        "message": "This demo has reached its visitor run limit. The latest completed assessment remains available.",
+                    },
+                    HTTPStatus.TOO_MANY_REQUESTS,
+                )
                 return
             self.run_quota[client] = count + 1
         job = self.manager.start()

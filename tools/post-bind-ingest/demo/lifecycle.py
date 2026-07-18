@@ -25,6 +25,7 @@ from tools.portal_v1 import verify_v0_2 as certificate_copy
 from underwriting.admittance import evaluate as evaluate_admittance
 
 RUBRIC_PATH = REPO_ROOT / "rubric" / "rubric.yaml"
+ACTIVE_REGISTRY_PATH = REPO_ROOT / "tools" / "probe-registry" / "active_registry.json"
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "golden_agents" / "G1" / "eval_outputs.json"
 AGENT_ID = "demo-contact-center-agent"
 VENDOR_NAME = "Northstar AI (synthetic)"
@@ -100,6 +101,39 @@ def _with_applicability(scan: dict[str, Any]) -> dict[str, Any]:
 
 def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[str, Any]:
     rubric_version = scan["rubric_version"]
+    rubric = Rubric.load(RUBRIC_PATH)
+    registry = json.loads(ACTIVE_REGISTRY_PATH.read_text(encoding="utf-8"))
+    registry_status = {item["rubric_point_id"]: item for item in registry["active_rubric_points"]}
+    executable_keys: dict[str, set[str]] = {}
+    for row in registry["rows"]:
+        if row.get("countable_as_executable"):
+            executable_keys.setdefault(row["rubric_point_id"], set()).add(row["stable_executable_key"])
+    panels: list[dict[str, Any]] = []
+    for pillar_id, pillar_spec in rubric.pillars.items():
+        scored_dimensions = scan["pillars"][pillar_id]["dimensions"]
+        for dimension_id in pillar_spec["dim_ids"]:
+            dimension = scored_dimensions[dimension_id]
+            threshold = dimension["applied_threshold"]
+            raw = dimension.get("raw")
+            applicable = dimension.get("applicable") is not False and raw is not None
+            availability = registry_status[dimension_id]["status"]
+            measured = availability == "executable" and applicable
+            panels.append(
+                {
+                    "index": len(panels),
+                    "dimension_id": dimension_id,
+                    "name": pillar_spec["dim_names"][dimension_id],
+                    "pillar": pillar_id,
+                    "raw": raw,
+                    "applicable": applicable,
+                    "result": None if not measured else ("held" if raw >= threshold["min_raw"] else "exposure"),
+                    "availability": availability,
+                    "probe_count": len(executable_keys.get(dimension_id, set())),
+                    "threshold": threshold,
+                    "evidence_id": dimension.get("evidence_uri") or None,
+                    "na_justification": dimension.get("na_justification"),
+                }
+            )
     return {
         "scan_id": scan_id,
         "agent_id": AGENT_ID,
@@ -114,7 +148,26 @@ def _scan_summary(scan: dict[str, Any], *, scan_id: str, release: str) -> dict[s
         "snapshot_hash": scan["snapshot_hash"],
         "forensic_bundle_uri": scan["forensic_bundle_uri"],
         "scored_at": scan["scored_at"],
+        "panels": panels,
+        "registry": {
+            "dimension_count": len(panels),
+            "measured_dimension_count": sum(panel["result"] is not None for panel in panels),
+            "unique_executable_count": registry["unique_executable_count"],
+            "claimed_1180_disposition": registry["claimed_1180_disposition"],
+        },
     }
+
+
+def _emit_scan(job_emit: Emit, scan: dict[str, Any], summary: dict[str, Any], *, stage: str) -> None:
+    job_emit("scan", f"Sample estimate {scan['are_total']}/100 · illustration only", stage=stage, scan=summary)
+    for panel in summary["panels"]:
+        job_emit(
+            "dimension",
+            panel["name"],
+            stage=stage,
+            panel=panel,
+            scan_id=summary["scan_id"],
+        )
 
 
 def _bind_record(run_id: str, scan_id: str, decision: dict[str, Any]) -> dict[str, Any]:
@@ -208,11 +261,15 @@ def verify_certificate(certificate: dict[str, Any]) -> bool:
 
 
 def render_certificate_html(certificate: dict[str, Any]) -> str:
+    display_lead = (
+        "This signed record contains a sample estimate for illustration only. "
+        "It is not an official BackBond rating."
+    )
     rows = [
         ("Vendor", certificate["vendor_name"]),
         ("Agent", certificate["agent_name"]),
         ("Agent release", certificate["agent_release"]),
-        ("BackBond Score", f"{certificate['backbond_score']}/100"),
+        ("Sample estimate (illustration only)", f"{certificate['backbond_score']}/100"),
         ("Threshold", certificate["threshold_status"]),
         ("Scan ID", certificate["scan_id"]),
         ("Envelope ID", certificate["envelope_id"]),
@@ -222,7 +279,7 @@ def render_certificate_html(certificate: dict[str, Any]) -> str:
         ("Signature", f"VALID · {certificate['signature']['algorithm']}"),
     ]
     row_html = "".join(f"<div><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>" for label, value in rows)
-    return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{escape(certificate['certificate_title'])}</title><style>body{{margin:0;background:#0a0f17;color:#edf3fb;font-family:Inter,system-ui,sans-serif}}main{{width:min(820px,calc(100% - 32px));margin:40px auto;background:#121b28;border:1px solid #314259;border-radius:18px;padding:42px;box-shadow:0 24px 80px #0008}}.eyebrow{{color:#e7a96b;text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:800}}h1{{font-size:38px;margin:10px 0}}p{{color:#aab6c8;line-height:1.65}}section{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:28px 0}}section div{{padding:13px;border:1px solid #29374c;border-radius:10px;background:#0c131e}}span{{display:block;color:#8998ad;font-size:11px;text-transform:uppercase;letter-spacing:.08em}}strong{{display:block;margin-top:6px;overflow-wrap:anywhere}}.seal{{color:#57d49a;font-weight:800}}.notice{{border-left:3px solid #ffd16f;padding-left:14px;color:#d9c28e}}@media(max-width:650px){{main{{padding:24px}}section{{grid-template-columns:1fr}}}}</style></head><body><main><div class=\"eyebrow\">Signed verification envelope</div><h1>{escape(certificate['certificate_title'])}</h1><p>{escape(certificate['lead'])}</p><p class=\"seal\">✓ Signature verified</p><section>{row_html}</section><p class=\"notice\">{escape(certificate['disclaimer'])}</p></main></body></html>"""
+    return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{escape(certificate['certificate_title'])}</title><style>body{{margin:0;background:#0a0f17;color:#edf3fb;font-family:Inter,system-ui,sans-serif}}main{{width:min(820px,calc(100% - 32px));margin:40px auto;background:#121b28;border:1px solid #314259;border-radius:18px;padding:42px;box-shadow:0 24px 80px #0008}}.eyebrow{{color:#e7a96b;text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:800}}h1{{font-size:38px;margin:10px 0}}p{{color:#aab6c8;line-height:1.65}}section{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:28px 0}}section div{{padding:13px;border:1px solid #29374c;border-radius:10px;background:#0c131e}}span{{display:block;color:#8998ad;font-size:11px;text-transform:uppercase;letter-spacing:.08em}}strong{{display:block;margin-top:6px;overflow-wrap:anywhere}}.seal{{color:#57d49a;font-weight:800}}.notice{{border-left:3px solid #ffd16f;padding-left:14px;color:#d9c28e}}@media(max-width:650px){{main{{padding:24px}}section{{grid-template-columns:1fr}}}}</style></head><body><main><div class=\"eyebrow\">Signed verification envelope</div><h1>{escape(certificate['certificate_title'])}</h1><p>{escape(display_lead)}</p><p class=\"seal\">✓ Signature verified</p><section>{row_html}</section><p class=\"notice\">{escape(certificate['disclaimer'])}</p></main></body></html>"""
 
 
 def _demo_boundary_block() -> str:
@@ -262,7 +319,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     initial_scan_id = f"scan-{run_id}-v1"
     initial_summary = _scan_summary(initial_scan, scan_id=initial_scan_id, release=INITIAL_RELEASE)
     _write_json(output_dir / "initial-scan.json", initial_scan)
-    emit("scan", f"BackBond Score {initial_scan['are_total']} · {initial_scan['band']['display']}", stage="scan", scan=initial_summary)
+    _emit_scan(emit, initial_scan, initial_summary, stage="scan")
     emit("stage", "Initial scan passed with complete evidence", stage="scan", state="passed")
 
     emit("stage", "Underwriting admittance and bind started", stage="bind", state="running")
@@ -286,6 +343,8 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     updated_summary = _scan_summary(updated_scan, scan_id=updated_scan_id, release=UPDATED_RELEASE)
     _write_json(output_dir / "updated-scan.json", updated_scan)
     emit("version", f"Release {UPDATED_RELEASE} rescored {initial_scan['are_total']} → {updated_scan['are_total']}", stage="cicd", previous=initial_summary, current=updated_summary)
+    for panel in updated_summary["panels"]:
+        emit("dimension", panel["name"], stage="cicd", panel=panel, scan_id=updated_summary["scan_id"])
 
     tests = run_tests()
     gate = decide_exit(

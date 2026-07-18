@@ -1,13 +1,97 @@
 from __future__ import annotations
 
 from pathlib import Path
+import inspect
 import sys
 import tempfile
 
 DEMO_DIR = Path(__file__).resolve().parents[1] / "demo"
+DESIGN_PATH = DEMO_DIR / "design" / "BackBond-Underwriting-Desk-3D.html"
+DOCKERFILE_PATH = DEMO_DIR / "Dockerfile.demo"
+DEPLOY_PATH = DEMO_DIR / "deploy.sh"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import RUBRIC_PATH, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
+from app import DemoHandler  # noqa: E402
+from rubric.scoring import Rubric  # noqa: E402
+
+
+def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -> None:
+    html = DESIGN_PATH.read_text(encoding="utf-8")
+    assert "24 side panels plus three individually examinable top panels" in html
+    assert "for (let N = 0; N < 3; N++)" in html
+    assert "-f + (N + 0.5) * ((2 * f) / 3)" in html
+    assert "(-2 * f) / 3 + (N + 0.5) * ((2 * f) / 3)" not in html
+    assert "registry.dimension_count" in html
+    assert "liveEngine.examine(panel.index)" in html
+    assert "const TEST_REVEAL_MS = 2500" in html
+    assert "await wait(TEST_REVEAL_MS)" in html
+    assert 'event.panel.availability === "executable"' in html
+    assert "No rating issued — assessment incomplete." in html
+    assert "Sample estimate · illustration only" in html
+    assert "measured exposures" not in html
+    assert "overflow-wrap: anywhere" in html
+    assert "grid-template-columns: minmax(190px, 1fr) 90px 126px auto" in html
+    assert "white-space: normal" in html
+    assert "width: max-content" in html
+    assert 'panel.result === "held"' in html
+    assert '? "clean"' in html
+    assert "resolve to held" not in html
+    assert "window.scrollTo(0, 0)" in html
+    assert "height: max(320px, 70vw)" in html
+    assert 'sessionStorage.getItem("backbondDemoToken")' in html
+    assert 'history.replaceState(null, "", location.pathname)' in html
+    assert "Partner access key required" in html
+    assert "liveEngine.setUnavailable(panel.index)" in html
+    assert "SCANNING RISK AREA ${testedIndex + 1} OF ${testedTotal}" in html
+    assert "probes in this area · ${panelState(panel)}" in html
+    assert "probes across all live areas" in html
+    assert "available tests" not in html.lower()
+    assert "LIVE TEST" not in html
+    assert "The latest completed assessment remains available below." in html
+    assert "Please wait a moment before starting another scan." in html
+    assert "showLatestCompleted" in html
+    assert "Run limit reached · showing the latest completed assessment" in html
+    for forbidden in (
+        "application/x-backbond-reference",
+        "1,184 probes",
+        "Bondable today",
+        "path to Preferred",
+        "three disparate-treatment findings",
+        "fail-closed",
+        "fixture envelope",
+        "synthetic envelope",
+        "live-executable",
+        "customer bind score",
+        "customer verdict",
+    ):
+        assert forbidden.lower() not in html.lower()
+
+
+def test_public_rate_limit_uses_validated_cloudflare_visitor_ip() -> None:
+    source = inspect.getsource(DemoHandler._client_key)
+    assert 'self.headers.get("CF-Connecting-IP"' in source
+    assert "ipaddress.ip_address(forwarded)" in source
+    assert "return self.client_address[0]" in source
+
+
+def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> None:
+    source = inspect.getsource(sys.modules["app"])
+    assert 'os.environ.get("DEMO_RUN_QUOTA", "100")' in source
+    assert '"quota_scope": "visitor"' in source
+    assert "The latest completed assessment remains available." in source
+    assert "HTTPStatus.TOO_MANY_REQUESTS" in source
+
+
+def test_demo_image_includes_truthful_registry_runtime_dependency() -> None:
+    dockerfile = DOCKERFILE_PATH.read_text(encoding="utf-8")
+    assert "COPY tools/probe-registry/active_registry.json /app/tools/probe-registry/active_registry.json" in dockerfile
+
+
+def test_deploy_reuses_an_active_token_gated_tunnel_without_privileged_restart() -> None:
+    deploy = DEPLOY_PATH.read_text(encoding="utf-8")
+    assert "systemctl is-active --quiet backbond-passive-demo-tunnel.service" in deploy
+    assert 'DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-100}' in deploy
 
 
 def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
@@ -36,7 +120,28 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert "valid_through" not in lifecycle["certificate"]
         assert lifecycle["certificate"]["rubric_label"] == rubric_display_label(lifecycle["certificate"]["rubric_version"])
         assert lifecycle["updated_scan"]["rubric_label"] == rubric_display_label(lifecycle["updated_scan"]["rubric_version"])
+        registry_dimension_count = len(Rubric.load(RUBRIC_PATH).active_dim_ids)
+        assert len(lifecycle["initial_scan"]["panels"]) == registry_dimension_count
+        assert len(lifecycle["updated_scan"]["panels"]) == registry_dimension_count
+        assert [panel["index"] for panel in lifecycle["updated_scan"]["panels"]] == list(range(registry_dimension_count))
+        assert all(panel["name"][:1].isupper() for panel in lifecycle["updated_scan"]["panels"])
+        assert {panel["pillar"] for panel in lifecycle["updated_scan"]["panels"]} == {
+            "GOVERNANCE",
+            "ROBUSTNESS",
+            "BIAS_FAIRNESS",
+            "OPS",
+        }
+        assert {panel["result"] for panel in lifecycle["updated_scan"]["panels"]} <= {"held", "exposure", None}
+        assert lifecycle["updated_scan"]["registry"]["dimension_count"] == 27
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 4
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 90
+        dimension_events = [event for event in events if event["kind"] == "dimension"]
+        assert len(dimension_events) == registry_dimension_count * 2
+        assert all(event["panel"]["evidence_id"] or not event["panel"]["applicable"] for event in dimension_events)
         assert verify_certificate(lifecycle["certificate"])
+        certificate_html = (Path(tmp) / "run" / "certificate.html").read_text(encoding="utf-8")
+        assert "Sample estimate (illustration only)" in certificate_html
+        assert "BackBond Score" not in certificate_html
         tampered = {**lifecycle["certificate"], "backbond_score": 0}
         assert not verify_certificate(tampered)
         assert (Path(tmp) / "run" / "certificate.html").is_file()
