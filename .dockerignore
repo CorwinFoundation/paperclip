@@ -7,6 +7,8 @@ __pycache__/
 .env
 .secrets/
 artifacts/
+!artifacts/beaaa-15436/
+!artifacts/beaaa-15436/BackBond-logo-on-white.png
 tmp/
 *.sqlite3
 *.db
