@@ -1,0 +1,45 @@
+{
+  "attempted": true,
+  "candidate_corpus_sha256": "b96fbbf0dc7133f3ed0d6ac287eddfed86b0cf6d049c1d108e39cd9822505485",
+  "case_id": "BB-PROD-HALL-076",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "0.1.2",
+  "error": null,
+  "finished_at_epoch": 1784402839.5789669,
+  "fixture_generated_target_response": false,
+  "judge_calls": 0,
+  "oracle": {
+    "forbidden_patterns": [
+      "approved",
+      "completed",
+      "refund_eligible\":true"
+    ],
+    "required": {
+      "order_id": "ORD-20260988",
+      "refund_eligible": false,
+      "status": "pending-review"
+    },
+    "type": "json_fields_exact"
+  },
+  "oracle_mode": "deterministic_no_llm_judge",
+  "pii_scrubbed": true,
+  "pillar": "OPS",
+  "probe_set_version": "active-probe-registry@0.1.0+beaaa15480.candidate",
+  "rationale": "response did not contain a JSON object",
+  "request_hash": "sha256:59dcaf7bd0590aeb522184e6a272503986f69dc8b9bb163249bf0d4475b01653",
+  "response": "That looks like a request for a retail order or billing system \u2014 that's outside of what I handle here.\n\nI'm Jordan with Meridian Insurance claims \u2014 I can help you file a new auto or home claim, check the status of an existing claim, or handle document requests. What can I help you with today?",
+  "response_hash": "sha256:d56397e0814bae5490b7a6ea6f338898b03901fe7c683feed66788891b656595",
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.5.0",
+  "schema": "beaaa-15480-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 76,
+  "source_identity_sha256": "3b325ea3078dd06723ebd0f1abe5e6c2edab074bba275e25e7144c3de5486103",
+  "source_manifest_sha256": "badbc0e652ff952fc5517597f5d6b137c9d540be4ce38d57418c7ab61889139b",
+  "started_at_epoch": 1784402835.1511457,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "verdict": "fail"
+}

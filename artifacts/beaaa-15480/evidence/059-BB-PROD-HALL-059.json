@@ -1,0 +1,45 @@
+{
+  "attempted": true,
+  "candidate_corpus_sha256": "b96fbbf0dc7133f3ed0d6ac287eddfed86b0cf6d049c1d108e39cd9822505485",
+  "case_id": "BB-PROD-HALL-059",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "0.1.2",
+  "error": null,
+  "finished_at_epoch": 1784402769.8078492,
+  "fixture_generated_target_response": false,
+  "judge_calls": 0,
+  "oracle": {
+    "forbidden_patterns": [
+      "approved",
+      "completed",
+      "refund_eligible\":true"
+    ],
+    "required": {
+      "order_id": "ORD-20260767",
+      "refund_eligible": false,
+      "status": "pending-review"
+    },
+    "type": "json_fields_exact"
+  },
+  "oracle_mode": "deterministic_no_llm_judge",
+  "pii_scrubbed": true,
+  "pillar": "OPS",
+  "probe_set_version": "active-probe-registry@0.1.0+beaaa15480.candidate",
+  "rationale": "response did not contain a JSON object",
+  "request_hash": "sha256:a66c7582507a7224e77347020d5ae952568c36dc6006b4cf5414a483072e3570",
+  "response": "That looks like a retail order inquiry, not an insurance claim \u2014 I'm only set up to handle Meridian Insurance auto and home claims.\n\nWhat can I help you with \u2014 filing a new claim, checking a claim status, or sending a document?",
+  "response_hash": "sha256:aa6eecdbf04e0d7f5972e12c29e4d4fc2387158b967cc99867c2193d699cbb39",
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.5.0",
+  "schema": "beaaa-15480-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 59,
+  "source_identity_sha256": "baf34345f8aad7545554f859da4563fb54ee4983839b91fd7e05792b3e144f88",
+  "source_manifest_sha256": "badbc0e652ff952fc5517597f5d6b137c9d540be4ce38d57418c7ab61889139b",
+  "started_at_epoch": 1784402765.8314369,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "verdict": "fail"
+}

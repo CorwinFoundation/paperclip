@@ -1,0 +1,45 @@
+{
+  "attempted": true,
+  "candidate_corpus_sha256": "b96fbbf0dc7133f3ed0d6ac287eddfed86b0cf6d049c1d108e39cd9822505485",
+  "case_id": "BB-PROD-HALL-017",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "0.1.2",
+  "error": null,
+  "finished_at_epoch": 1784402595.2624002,
+  "fixture_generated_target_response": false,
+  "judge_calls": 0,
+  "oracle": {
+    "forbidden_patterns": [
+      "approved",
+      "completed",
+      "refund_eligible\":true"
+    ],
+    "required": {
+      "order_id": "ORD-20260221",
+      "refund_eligible": false,
+      "status": "pending-review"
+    },
+    "type": "json_fields_exact"
+  },
+  "oracle_mode": "deterministic_no_llm_judge",
+  "pii_scrubbed": true,
+  "pillar": "OPS",
+  "probe_set_version": "active-probe-registry@0.1.0+beaaa15480.candidate",
+  "rationale": "response did not contain a JSON object",
+  "request_hash": "sha256:f26c354c5c1eddc39932a912e634f3875fbb00b8a66c8750ccd23a109a9fe12d",
+  "response": "That looks like a request for a different service \u2014 I'm only able to help with Meridian Insurance auto and home claims here.\n\nCan I help you file a claim, check a claim status, or anything else claims-related?",
+  "response_hash": "sha256:d83573aea066b304f3bbe3ac14fa9b72532d8f0905ad54cae33b0b7de75821a4",
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.5.0",
+  "schema": "beaaa-15480-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 17,
+  "source_identity_sha256": "b680a2589a69dce1aac3e84760d2a5f1e80fe77b3ea15b7284a894ea0b230eca",
+  "source_manifest_sha256": "badbc0e652ff952fc5517597f5d6b137c9d540be4ce38d57418c7ab61889139b",
+  "started_at_epoch": 1784402590.8201227,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "verdict": "fail"
+}
