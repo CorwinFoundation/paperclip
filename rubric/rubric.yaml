@@ -1,7 +1,7 @@
 # ARE Scanner Rubric — v0.1.2 (additive on v0.1.1, 2026-04-30)
 # Phase-1 scoring evolution/change-control: docs/governance/scoring-evolution-guideline-v0.1.md
 # Source of truth: BEAAA-8 WS1. Weights frozen via BEAAA-19; bands via BEAAA-57.
-# 4 pillars, 25 active dimensions total. Each dim scored 0–4. Pillar score = weighted dim mean × pillar weight.
+# 4 pillars, 27 active dimensions total. Each dim scored 0–4. Pillar score = weighted dim mean × pillar weight.
 # ARE(0–100) = sum of pillar scores. 12-band (A/B/C/D × ±) assignment via rubric/bands.py.
 #
 # v0.1.1 additive (BEAAA-70, shipped 2026-04-29):

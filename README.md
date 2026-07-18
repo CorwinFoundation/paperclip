@@ -23,8 +23,8 @@ display surface for the score and the report card.
   integrity classes at v1.8.0 (ADR-0045), `rubric_locked_through` at
   v1.10.0 (BEAAA-11930) — bump on activation per the supervision
   contract).
-- Scoring sheet: 4 pillars × 25 active dimensions
-  (OPS=6, BIAS_FAIRNESS=6, ROBUSTNESS=6, GOVERNANCE=7).
+- Scoring sheet: 4 pillars x 27 active dimensions
+  (OPS=6, BIAS_FAIRNESS=6, ROBUSTNESS=8, GOVERNANCE=7).
 
 ## BEHAVIORAL-INTEGRITY signals (reported, not scored)
 
