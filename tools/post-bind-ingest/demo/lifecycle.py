@@ -367,7 +367,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     initial_decision = evaluate_admittance(_with_applicability(initial_scan), system_prompt_kind="safety_forward").to_dict()
     bind = _bind_record(run_id, initial_scan_id, initial_decision)
     _write_json(output_dir / "bind-record.json", {"decision": initial_decision, "bind": bind})
-    emit("bind", f"{bind['admittance_class']} · demonstration bind recorded", stage="bind", bind=bind, decision=initial_decision)
+    emit("bind", f"{bind['admittance_class']} · demonstration bind recorded", stage="bind", bind=bind)
     emit("stage", "Constrained demonstration bind completed", stage="bind", state="passed")
 
     emit("stage", "Scanner, CI gate, collector, passive monitor, and Log Tracker installing", stage="install", state="running")
@@ -424,8 +424,6 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
     lifecycle = {
         "initial_scan": initial_summary,
         "updated_scan": updated_summary,
-        "initial_admittance": initial_decision,
-        "updated_admittance": updated_decision,
         "bind": bind,
         "installation": installation,
         "ci_gate": {"status": gate_payload["status"], "release": UPDATED_RELEASE},
@@ -435,6 +433,7 @@ def run_preproduction(output_dir: Path, run_id: str, emit: Emit, run_tests: Call
             "report_url": f"/api/runs/{run_id}/report",
         },
         "_updated_scan": updated_scan,
+        "_updated_admittance": updated_decision,
     }
     _write_json(output_dir / "internal-diagnostics.json", {"synthetic_ci_gate": gate_payload, "initial_score": initial_scan["are_total"], "updated_score": updated_scan["are_total"], "score_delta": updated_scan["are_total"] - initial_scan["are_total"]})
     return lifecycle, tests
@@ -451,7 +450,7 @@ def generate_final_report(output_dir: Path, lifecycle: dict[str, Any], passive: 
             score,
             rubric,
             provenance="measured — isolated synthetic lifecycle demonstration",
-            admittance_decision=lifecycle["updated_admittance"],
+            admittance_decision=lifecycle["_updated_admittance"],
         ))
     (output_dir / "backbond-report.html").write_text(html, encoding="utf-8")
     report = {
@@ -475,4 +474,5 @@ def generate_final_report(output_dir: Path, lifecycle: dict[str, Any], passive: 
     emit("report", "Lifecycle report and full BackBond Report generated", stage="report", report=report)
     emit("stage", "Final report ready to view", stage="report", state="passed")
     lifecycle.pop("_updated_scan", None)
+    lifecycle.pop("_updated_admittance", None)
     return report

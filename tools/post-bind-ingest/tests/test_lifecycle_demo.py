@@ -180,6 +180,11 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         assert "only 4 of 27 risk areas tested; no rating can be issued." in customer_json
         assert '"score": 81' not in customer_json
         assert '"backbond_score": 81' not in customer_json
+        assert '"are_total": 81' not in customer_json
+        assert '"are_total": 80' not in customer_json
+        customer_events = json.dumps(events, sort_keys=True)
+        assert '"are_total": 81' not in customer_events
+        assert '"are_total": 80' not in customer_events
         diagnostics = json.loads((Path(tmp) / "run" / "internal-diagnostics.json").read_text(encoding="utf-8"))
         assert diagnostics["synthetic_ci_gate"]["score"] == 81
         assert lifecycle["certificate"]["backbond_score"] is None
@@ -235,6 +240,11 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "ARE Insurance" not in html
         assert "BOUND_DEMO and bind-threshold signals" in html
         assert "not evidence of bound insurance coverage" in html
+        assert "N/A - Not available" in html
+        assert "only 4 of 27 risk areas tested; no rating can be issued." in html
+        assert "81/100" not in html
+        assert ">81<" not in html
+        assert "score-number" not in html
         visible_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html)
         assert "BackBond Score N/A - Not available" in visible_html
         assert "only 4 of 27 risk areas tested; no rating can be issued." in visible_html
