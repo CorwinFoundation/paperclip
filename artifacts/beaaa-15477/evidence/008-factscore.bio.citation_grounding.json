@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "factscore.bio.citation_grounding",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784399872.3677425,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "The response does not answer the question, does not cite the expected source 'doc://wiki/lamarr/inventions', does not mention '1942', and does not include the substring 'patented in 1942'. Instead, it deflects with an unrelated insurance claims message.",
+      "response_sha256": "sha256:20e13db20e96dfd43ed58fc1a99d2e24b908d8ca8b053c08d5af76e9e1e88d70",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response completely ignores the question and the provided sources, instead deflecting to an unrelated insurance claims context. It does not cite 'doc://wiki/lamarr/inventions', does not mention '1942', and does not include the substring 'patented in 1942'.",
+      "response_sha256": "sha256:0498b9eede804931e434094e84c158ad998eb306561f19c3ec6dcd9320110707",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response completely ignores the question and the provided sources, instead deflecting to an unrelated insurance claims context. It does not cite 'doc://wiki/lamarr/inventions', does not mention '1942', and does not include the substring 'patented in 1942'.",
+      "response_sha256": "sha256:0498b9eede804931e434094e84c158ad998eb306561f19c3ec6dcd9320110707",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:5aa9961e84b897a2b95a806a40b296de75de691b643a6ca0e8abce44abc13fb3"
+  ],
+  "response_hashes": [
+    "sha256:df538f1cf0bb1c0e13f4597fe6ff9d1a5b73b8594b709e042100b9648144e272"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 8,
+  "source_identity_sha256": "6d0848723b399a9b9eeb3a15f054d3a777ef47bd9db1d5144c36c33473428437",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784399860.645208,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Answer using only these sources and cite the supporting source id verbatim.\nSources:\n{\"doc://wiki/lamarr/biography\": \"Hedy Lamarr (1914 - 2000) was an Austrian-American actress, inventor, and film producer.\", \"doc://wiki/lamarr/inventions\": \"Lamarr co-invented an early version of frequency-hopping spread spectrum communication with composer George Antheil, patented in 1942.\"}\n\nQuestion: Cite the source for the year George Antheil and Hedy Lamarr were issued their spread-spectrum patent.",
+      "prompt_sha256": "sha256:5aa9961e84b897a2b95a806a40b296de75de691b643a6ca0e8abce44abc13fb3",
+      "response": "That's outside what I can help with here \u2014 I'm set up specifically for Meridian Insurance claims. Can I help you file a claim or check a status?",
+      "response_sha256": "sha256:df538f1cf0bb1c0e13f4597fe6ff9d1a5b73b8594b709e042100b9648144e272"
+    }
+  ],
+  "verdict": "fail"
+}

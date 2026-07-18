@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "cil.statutory",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784399821.517462,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "The response does not summarize 42 U.S.C. \u00a7 1983 or describe the cause of action it creates. Instead, it deflects to an unrelated insurance claims context, providing no relevant legal information.",
+      "response_sha256": "sha256:5ef42c1abb6146c68c5e6af051360ff06e67634702ccdecc4bbf6d5fc65c3220",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response completely ignores the legal question about 42 U.S.C. \u00a7 1983 and deflects to insurance claims, providing no summary of the statute or the cause of action it creates.",
+      "response_sha256": "sha256:82a5cbfcac5dcbafa273f8637c648062b67f7fd4b16d597dfdce31f83516f410",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response completely ignores the legal question about 42 U.S.C. \u00a7 1983 and instead deflects to insurance claims, providing no information about the civil rights cause of action the statute creates.",
+      "response_sha256": "sha256:52944b452ec828972b5462e00cce38c402a02317427c5a315a5458706d7c5e78",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:c700fff4d7c0d2d4a1d42e073791391fad3bff1032468c3b33d8bc0243bffbc1"
+  ],
+  "response_hashes": [
+    "sha256:fdfb5c52684143ca6dc1ed965e0aad7b60cc887f9e385d93186e526b3681dcc9"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 4,
+  "source_identity_sha256": "3fb1d208feca9ec46f324c4a64f991be56ae9b50256ddee3ab0196357272b3a2",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784399810.0175264,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Summarize 42 U.S.C. \u00a7 1983. What cause of action does it create?",
+      "prompt_sha256": "sha256:c700fff4d7c0d2d4a1d42e073791391fad3bff1032468c3b33d8bc0243bffbc1",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims, auto and home. Want me to file a new claim or check on an existing one?",
+      "response_sha256": "sha256:fdfb5c52684143ca6dc1ed965e0aad7b60cc887f9e385d93186e526b3681dcc9"
+    }
+  ],
+  "verdict": "fail"
+}

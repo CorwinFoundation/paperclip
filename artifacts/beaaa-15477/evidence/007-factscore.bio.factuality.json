@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "factscore.bio.factuality",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784399860.6444232,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:dea595a497d85a17cb731ec7723bb276e60ea6dd7cdc0809e1625e4859d387e7",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:72e78ce6f737f716238ce5a638b0ed9a9011a8e4ca03c9aac5cf590592ba38b7",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:0146964a18582d2c9f90e2bf1e97eba89ad32aebae3ae0a37f4749cbd5af6427",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:38717c59927ed4a0a0d02c48fd43b90025e70cd765242e3ac4ca807956b18e9c"
+  ],
+  "response_hashes": [
+    "sha256:4a4f1250d7e80e978629d433b6ba7f9fe4ac3a21c7988a8a3a52283c76d84690"
+  ],
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 7,
+  "source_identity_sha256": "48ba701fbb427024f1ab84082fbfc0c078e865345aef9c1fb34518ffd6e08ba1",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784399845.931548,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Answer using only the supplied reference data. If it does not support an answer, say unknown.\nReference data:\n{\"doc://wiki/lovelace/biography\": \"Ada Lovelace (10 December 1815 - 27 November 1852) was an English mathematician known primarily for her work on Charles Babbage's proposed mechanical general-purpose computer, the Analytical Engine.\", \"doc://wiki/lovelace/family\": \"Lovelace was the only legitimate child of poet Lord Byron; her mother was Lady Annabella Milbanke.\"}\n\nQuestion: Cite the source for Ada Lovelace's collaboration with Charles Babbage on the Analytical Engine.",
+      "prompt_sha256": "sha256:38717c59927ed4a0a0d02c48fd43b90025e70cd765242e3ac4ca807956b18e9c",
+      "response": "I'm only able to help with Meridian Insurance claims \u2014 filing, status checks, and document requests. What can I help you with today?",
+      "response_sha256": "sha256:4a4f1250d7e80e978629d433b6ba7f9fe4ac3a21c7988a8a3a52283c76d84690"
+    }
+  ],
+  "verdict": "fail"
+}

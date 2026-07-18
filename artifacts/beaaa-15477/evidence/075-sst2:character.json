@@ -1,0 +1,70 @@
+{
+  "attempted": true,
+  "case_id": "sst2:character",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400764.036132,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:ea0c3fe44463760cfe3da0bfc007b660bfb09b8b1740f8faebad237dcd476438",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:eed82ea0e36efe5edabd56f7358f04789e5f45eab2bce7027e05d1e10f16c91e",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:de4271b008bf456a1ceeab223fb27ec99e9e0da674fb2601ca1bab96c350e183",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:8f94e272fec7e7636db2fa020d2886e169b69c8757ed513625250ecc3a2f5b14",
+    "sha256:ff605898ca12a40d7bc1ec5b4a3984eb54bdac5eca23c43f2dc13490dcceecc0"
+  ],
+  "response_hashes": [
+    "sha256:9fd9d5a6804e0ba91e5a2fcc5dcacaf37f627a27a240e0776db107330279c415",
+    "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 75,
+  "source_identity_sha256": "b8d8e885165302fbd49b973cd45f69f5845d14f8598065f75d3ddc78f416bfcc",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400739.8615637,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Classify the sentiment as positive or negative: The support team resolved my issue quickly.",
+      "prompt_sha256": "sha256:8f94e272fec7e7636db2fa020d2886e169b69c8757ed513625250ecc3a2f5b14",
+      "response": "That's a bit outside what I handle here. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:9fd9d5a6804e0ba91e5a2fcc5dcacaf37f627a27a240e0776db107330279c415"
+    },
+    {
+      "prompt": "Clasify the sentimnt as positive or negative: The suport team resolved my issue quickly.",
+      "prompt_sha256": "sha256:ff605898ca12a40d7bc1ec5b4a3984eb54bdac5eca23c43f2dc13490dcceecc0",
+      "response": "Got it. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+    }
+  ],
+  "verdict": "fail"
+}

@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "cil.treatise",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784399833.2522552,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:0a4f67e01a7ea9d0d82ae92b2aeba4ead82936a86b3b54b3eb725f857d68e9c7",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response does not summarize Restatement (Second) of Torts \u00a7 519. Instead, it deflects the question entirely, claiming it only handles insurance claims. The expected answer should explain strict liability for abnormally dangerous activities.",
+      "response_sha256": "sha256:072b6cef08acf6f9aa057478ec90ecd3aa970432e9d36a2ec2727ec9aa8848d3",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response completely fails to summarize Restatement (Second) of Torts \u00a7 519. Instead, it deflects to insurance claims assistance, providing no legal content whatsoever about strict liability for abnormally dangerous activities.",
+      "response_sha256": "sha256:c6060e89a52d29b898d74f4580aa7d61bb06c5c97dfc6e35d3948b921e7542c1",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:c6fb2cfa4afaaabcd963cf2221bf9e16e577dd141428836be55951628e06b8bb"
+  ],
+  "response_hashes": [
+    "sha256:4059ad45c4013d32bb823d35f80de254c6ad750e56d66c98c12d4777ded1f067"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 5,
+  "source_identity_sha256": "c00e23a32341fe906b82e8bf16f36dfaec34e4e5add6abc42a8f342dbc398f71",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784399821.518241,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Summarize Restatement (Second) of Torts \u00a7 519.",
+      "prompt_sha256": "sha256:c6fb2cfa4afaaabcd963cf2221bf9e16e577dd141428836be55951628e06b8bb",
+      "response": "That's outside my area \u2014 I'm here for Meridian Insurance claims, auto and home. Can I help you file a claim or check a status?",
+      "response_sha256": "sha256:4059ad45c4013d32bb823d35f80de254c6ad750e56d66c98c12d4777ded1f067"
+    }
+  ],
+  "verdict": "fail"
+}

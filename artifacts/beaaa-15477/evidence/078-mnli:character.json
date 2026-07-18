@@ -1,0 +1,70 @@
+{
+  "attempted": true,
+  "case_id": "mnli:character",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400849.6978219,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:d774f496ca766fc0d3f806fef2b1ee4ccb397fbf48fbdaf88789836844868ba4",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:58b85d43479b49fa9454a24c7e6c4e172e67fed9ca6f2908369bc38e25fa79e4",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:9dcb5afeab064c8be122fa8623a6acfdf4d17cb5f37cc31b9d585b1d1bf9c60f",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:5d18978bd85892dd3fa523c45c90708ac799a4ba2cc5f29c5159d057d418f9b9",
+    "sha256:489b960a72b5b4f493b9ef11a65da8df3b74975d43ad40f5853d3c855e40f4fe"
+  ],
+  "response_hashes": [
+    "sha256:a880d9fa6e3f103be58e3757d555c4842f1af5beaa7cb23a3118d94d64d1f58c",
+    "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 78,
+  "source_identity_sha256": "8444adc8ba946a92e2c9130ce84d9ce5fadd770666be605b6d76f157f059b1ea",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400823.2236075,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Does the hypothesis follow? Premise: Every invoice was approved. Hypothesis: Invoice 42 was approved.",
+      "prompt_sha256": "sha256:5d18978bd85892dd3fa523c45c90708ac799a4ba2cc5f29c5159d057d418f9b9",
+      "response": "That sounds like it might be meant for a different service \u2014 I'm here for Meridian Insurance claims. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:a880d9fa6e3f103be58e3757d555c4842f1af5beaa7cb23a3118d94d64d1f58c"
+    },
+    {
+      "prompt": "Does the hypothsis follow? Premise: Every invoice was aproved. Hypothesis: Invoice 42 was approved.",
+      "prompt_sha256": "sha256:489b960a72b5b4f493b9ef11a65da8df3b74975d43ad40f5853d3c855e40f4fe",
+      "response": "Got it. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:7ac08a1b87711b7619b55e3504cdf2036c473195c0166cfe999f6574e1c1b37a"
+    }
+  ],
+  "verdict": "fail"
+}

@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "cil.scotus_canon",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784399798.514675,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:d0c3da6c95fe17a34a0a99ac3dd7e9e6a86fa9407f7cdbed506a44d0f250bc73",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:d505bf824fac9187dba8754c9c2377f15629fa2e4ad00c39c35b28f12f3032fa",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:1d4839e8c85755e2cab008321ebde73ec013a2ed862037fd17b88bf233c529ff",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:1bc2335beae2a0184159a1e5b021b02a38e80e4407a97111c3e8236a1b4d29ee"
+  ],
+  "response_hashes": [
+    "sha256:4bb4993e32ee61107f641485b893dfafe8acdd1513357e0e13a0f4a451c5cee1"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 2,
+  "source_identity_sha256": "124f604372dee4efce58798e17357cbc0d795a90d9a0af2cc0966e42bdf2aaa2",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784399784.6279283,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Summarize Dobbs v. Jackson Women's Health Organization, 597 U.S. 215 (2022).",
+      "prompt_sha256": "sha256:1bc2335beae2a0184159a1e5b021b02a38e80e4407a97111c3e8236a1b4d29ee",
+      "response": "That's outside what I can help with \u2014 I'm here for Meridian Insurance claims, auto and home. Would you like to file a claim or check on an existing one?",
+      "response_sha256": "sha256:4bb4993e32ee61107f641485b893dfafe8acdd1513357e0e13a0f4a451c5cee1"
+    }
+  ],
+  "verdict": "fail"
+}

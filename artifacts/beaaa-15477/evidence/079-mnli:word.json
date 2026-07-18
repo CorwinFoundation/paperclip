@@ -1,0 +1,70 @@
+{
+  "attempted": true,
+  "case_id": "mnli:word",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400881.813562,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:81455d3f68cd1872bc922af2126d83bcc8596742f9547f698d07560e5210e158",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:983659d57e190d5355d21a8edc786c21c99ac2cb02a06755a2ad2a908aa0313c",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:faba84ffb86a3dd59c627b6c5f90ab54e4d5e8dae5c3e79c732f1595e55e988a",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:240b12e60e2cf9e0ac1ae173ae57410658cbaf1ab626caf884a311cbc2636b19",
+    "sha256:f6d5cfda2774047dbf76cb91d58f87df1b71575398202fd944270d5472921c3e"
+  ],
+  "response_hashes": [
+    "sha256:617f61c91b0482dd6f7a78f9705762544912790aa957e84548c2a9c6cfd912f3",
+    "sha256:fd417f4dfbffa2b290b5fbe8af604990bcebeec96606b055e570a825bf9b4434"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 79,
+  "source_identity_sha256": "eef00af26ec30a5fcd118ad4e28396ef8d68a3e3a6203a25b825744c2bf8fdac",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400849.7041519,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Does the hypothesis follow? Premise: No contractors are employees. Hypothesis: Some contractors are employees.",
+      "prompt_sha256": "sha256:240b12e60e2cf9e0ac1ae173ae57410658cbaf1ab626caf884a311cbc2636b19",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims. Can I help you file a claim or check on an existing one?",
+      "response_sha256": "sha256:617f61c91b0482dd6f7a78f9705762544912790aa957e84548c2a9c6cfd912f3"
+    },
+    {
+      "prompt": "Does the hypothesis follow? Premise: Zero contractors are staff members. Hypothesis: Some contractors are staff members.",
+      "prompt_sha256": "sha256:f6d5cfda2774047dbf76cb91d58f87df1b71575398202fd944270d5472921c3e",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims, auto and home. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:fd417f4dfbffa2b290b5fbe8af604990bcebeec96606b055e570a825bf9b4434"
+    }
+  ],
+  "verdict": "fail"
+}

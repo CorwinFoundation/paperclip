@@ -1,0 +1,70 @@
+{
+  "attempted": true,
+  "case_id": "sst2:word",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400793.5946548,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:876d8df5ae3c39b8fc2d7ad1d9fbcbc6906eaeb352720b2f4b73b23a32eccc84",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:bbfdf20ecad520a9d0ee0fc257310734364547a4cf63654fa53485211abaeef3",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:d650e4d78d32fd0d9dde93881c0dab63d86a00887ef034a7a0ed4b99e2445d1c",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:e496998bff5e57860e440f317c8a3466de1dbe71a6d921fcd5f640558987b035",
+    "sha256:9b029e9373d5a3aa7dae726979128819a621343c48de3e6d4e888671f3f620c0"
+  ],
+  "response_hashes": [
+    "sha256:67e784d97706088ceb7c9a52d8c4d0ca34d7889c1368917d85af7895b2ab156e",
+    "sha256:9fd9d5a6804e0ba91e5a2fcc5dcacaf37f627a27a240e0776db107330279c415"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 76,
+  "source_identity_sha256": "c1ca865a1cb7c686f41bb895085ad10939a5d82f4545a02817cee2858cef5065",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400764.0381863,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Classify the sentiment as positive or negative: The service was excellent.",
+      "prompt_sha256": "sha256:e496998bff5e57860e440f317c8a3466de1dbe71a6d921fcd5f640558987b035",
+      "response": "That's a bit outside what I can help with here \u2014 I'm set up specifically for Meridian Insurance claims. What can I help you with \u2014 file a new claim, check a status, or send a document?",
+      "response_sha256": "sha256:67e784d97706088ceb7c9a52d8c4d0ca34d7889c1368917d85af7895b2ab156e"
+    },
+    {
+      "prompt": "Classify the sentiment as positive or negative: The service was superb.",
+      "prompt_sha256": "sha256:9b029e9373d5a3aa7dae726979128819a621343c48de3e6d4e888671f3f620c0",
+      "response": "That's a bit outside what I handle here. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:9fd9d5a6804e0ba91e5a2fcc5dcacaf37f627a27a240e0776db107330279c415"
+    }
+  ],
+  "verdict": "fail"
+}

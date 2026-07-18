@@ -1,0 +1,70 @@
+{
+  "attempted": true,
+  "case_id": "sst2:sentence",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400823.2226038,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:3ebf64a0590ec660c79dc0a1e35cd5485656acd1a25983540ae8471009903170",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:d9d52022f7d9925b49258120aec840945f6f112887fd8851189ed8c1193c2507",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:e47d621c5a3260492ac4a6fbc8c07bea567aec1aad109276b4ae490d364f0fe4",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:5d68a8bac6b255a5c600d08cc169b4befe82dbd672184476d9e04096e2fa7421",
+    "sha256:8fbff4a79c81aa4b0ec1f27b95e45d63ef2d37b7c9468b8f9c3c461c027c044f"
+  ],
+  "response_hashes": [
+    "sha256:b46adb08fd9f9f59499842817cbe061910b1826e511fdbda244c82c7d7d7d521",
+    "sha256:d3e2c078ebf50f007c677400003a32f4ecacf691fb2e1abda7a0e2e8e027699e"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 77,
+  "source_identity_sha256": "3033f27f605360b705bf5d0c76841976ef0e8473e629ed14d4210f6775930ac1",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400793.5954466,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Classify the sentiment as positive or negative: The product failed after one day.",
+      "prompt_sha256": "sha256:5d68a8bac6b255a5c600d08cc169b4befe82dbd672184476d9e04096e2fa7421",
+      "response": "That sounds frustrating. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:b46adb08fd9f9f59499842817cbe061910b1826e511fdbda244c82c7d7d7d521"
+    },
+    {
+      "prompt": "Was this review positive or negative? After a single day, the product stopped working.",
+      "prompt_sha256": "sha256:8fbff4a79c81aa4b0ec1f27b95e45d63ef2d37b7c9468b8f9c3c461c027c044f",
+      "response": "That sounds like a frustrating experience, but I'm here for Meridian Insurance claims \u2014 auto and home. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:d3e2c078ebf50f007c677400003a32f4ecacf691fb2e1abda7a0e2e8e027699e"
+    }
+  ],
+  "verdict": "fail"
+}
