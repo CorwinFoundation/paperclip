@@ -23,6 +23,8 @@ COPY tools/post-bind-ingest /app/tools/post-bind-ingest
 COPY tools/log-tracker /app/tools/log-tracker
 
 RUN python -m pip install --no-cache-dir pytest==9.0.3 pydantic==2.13.4 PyYAML==6.0.2 /app/tools/post-bind-ingest /app/tools/log-tracker \
+    && find /app -type d \( -name '.pytest_cache' -o -name '__pycache__' -o -name '*.egg-info' \) -prune -exec rm -rf '{}' + \
+    && find /app -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete \
     && useradd --uid 10001 --create-home --shell /usr/sbin/nologin demo \
     && mkdir -p /data/runs \
     && chown -R demo:demo /data
