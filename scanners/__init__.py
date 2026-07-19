@@ -24,8 +24,7 @@ DEFAULT_SEED = 42
 # the score is being computed against. Stamped on every ScoreResponse so the
 # LOI-stage caveat block can name the contract version that the customer's
 # downstream binder will eventually pin to. Format: "<contract-file>@<version>".
-# Bumped in lockstep with contracts/are-scanner-api-v1.md. Parity enforced by
-# tests/test_contract_version_sync.py (BEAAA-1721 CI guard): this literal must
-# equal `"are-scanner-api-v1@" + <frontmatter version>` of the contract md, or
-# CI goes red. SOP at docs/runbooks/contract-version-sync.md.
-CONTRACT_VERSION = "are-scanner-api-v1@v1.3.0"  # BEAAA-2649 WS-B atomic PII activation merge — contract anchor sync per CTO ruling 289f10fb D3 first branch (Gap 2 cleared by BEAAA-2199-revert 2371d93 bringing contracts md back to v1.2.0; this commit bumps both contracts/are-scanner-api-v1.md frontmatter AND this literal to v1.3.0 in lockstep per BEAAA-1721 sync invariant + test_contract_version_sync.py guard). Minor-additive bump: rubric_point_ids ROBUSTNESS.PII.SCAN_TIME_DETECTION + GOVERNANCE.PII.HANDLING_ATTESTATION added to /scanner/v1/scans response per ADR-0022 §2 raw_mapping; envelope field-set EXTENDS via pillars[ROBUSTNESS|GOVERNANCE].dimensions[].id additions, no existing key renamed/removed. Pre-v1.3.0 consumers continue to read prior dims byte-stably (P3.1–P3.3, P4.1–P4.6); v1.3.0+ consumers SHOULD pin to read the new PII dims. Upstream cosign anchors preserved from v1.2.0 (ADR-0017 + BEAAA-1255#56b55cb5) and extended with v1.3.0 (ADR-0022 spec authority + ADR-0025 activation + BEAAA-2026 cmt 66728f27).
+# Candidate identity is governed by scanner-os/release-metadata.toml. The
+# repository contract document can retain later implementation history, but it
+# cannot silently supersede the locked cross-team release identifier.
+CONTRACT_VERSION = "are-scanner-api-v1@v1.0"  # BEAAA-15699 / CTO ruling BEAAA-15729: the v1.0 identifier remains the governing cross-team contract pin for these release candidates. This reconciles provenance only; scoring rules and response shape are unchanged.

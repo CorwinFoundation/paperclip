@@ -1,5 +1,5 @@
 [scanner]
-scanner_version = "0.4.1"
+scanner_version = "0.5.0"
 corpus_version = "2026.6.24"
 probe_set_version = "retell-consolidated-probe-set@2026-06-24"
 rubric_version = "1.2.0"

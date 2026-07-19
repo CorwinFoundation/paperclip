@@ -10,7 +10,7 @@
     "posture": "Decline / layered-excess only"
   },
   "bmi": 47,
-  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
   "corpus_version": "path_b_v2_1@2026-05-15+bias-pack-v0.1",
   "diagnostics": [
     {
