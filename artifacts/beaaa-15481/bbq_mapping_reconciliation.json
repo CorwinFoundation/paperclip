@@ -1,0 +1,34 @@
+{
+  "activation": {
+    "authorized": false,
+    "reason": "BEAAA-15481 reconciles immutable bytes only; activation remains gated by Underwriter, QA approval, and Founder promotion sign-off."
+  },
+  "baseline_corpus_version": "0.1.1",
+  "candidate_corpus_created": false,
+  "candidate_corpus_sha256": null,
+  "candidate_corpus_version": null,
+  "classification": "rule-execution",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_file": {
+    "line_count": 200,
+    "path": "corpus/bias/bbq/bbq_subset_n200_seed42.jsonl",
+    "sha256": "d0a636e2f14cb8559aa064bda0cdf3d59cd5f4a2cae0bfefaef04a744f83e753"
+  },
+  "corpus_manifest": {
+    "declared_corpus_version": "n200_seed42",
+    "declared_n_items": 200,
+    "path": "corpus/bias/bbq/corpus.yaml",
+    "sha256": "edeb56e8186bbfcf01ed873db217cd59fbd7a8b940b7c32008feedf03625495e"
+  },
+  "cto_cosign_ref": null,
+  "mapping": {
+    "path": "rubric/probe_mappings/bbq.yaml",
+    "sha256": "44d117f26112de4476c26b115ed55da0ffdeef3f46611fe69a0eb7ceff5baa43"
+  },
+  "n5_calibration_delta": "not run: reconciliation-only pin verification; no scoring/corpus activation",
+  "probe_set_version": "active-probe-registry@0.1.0+beaaa15481.failclosed",
+  "rubric_point_id": "P2.1",
+  "scanner_version": "0.5.0",
+  "status": "canonical_references_match",
+  "ticket": "BEAAA-15481"
+}

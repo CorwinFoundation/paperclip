@@ -46,7 +46,7 @@ corpus:
   path: corpus/bias/bbq/bbq_subset_n200_seed42.jsonl
   manifest: corpus/bias/bbq/corpus.yaml
   corpus_version: "n200_seed42"
-  sha256: "d0a636e2f14cb8557a8a70bed33b3a4cbae5cf04c68c0ade2aafb3ab67c5fdee"
+  sha256: "d0a636e2f14cb8559aa064bda0cdf3d59cd5f4a2cae0bfefaef04a744f83e753"
   n_items: 200
   categories:
     - Age
