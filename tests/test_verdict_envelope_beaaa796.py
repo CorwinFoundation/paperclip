@@ -54,11 +54,10 @@ class VersionBumpTests(unittest.TestCase):
         # post-BEAAA-2199 (hygiene spill).
         self.assertGreaterEqual(Version(SCANNER_VERSION), Version("0.3.2"))
 
-    def test_contract_version_pinned_v1_3_0(self):
-        # BEAAA-5269 rebaseline: contract evolved v1.0.3 → v1.3.0 with the
-        # additive PII/TOOL_MISUSE dims; the original v0.3.2-era pin was
-        # stale.
-        self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.3.0")
+    def test_contract_version_pinned_to_governing_release_contract(self):
+        # BEAAA-15699 / BEAAA-15729: release candidates retain the locked
+        # cross-team v1.0 identifier. This stamp does not alter envelope shape.
+        self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.0")
 
 
 class VerdictEnvelopeShapeTests(unittest.TestCase):

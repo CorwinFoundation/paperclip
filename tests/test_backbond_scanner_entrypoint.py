@@ -49,7 +49,7 @@ def test_backbond_scanner_entrypoint_writes_v1_contract_shape(tmp_path: Path) ->
     assert score["are_total"] == 59.0
     assert score["band"] == "C"
     assert set(score["subscores"]) == {"GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS"}
-    assert score["scanner_version"] == "0.4.1"
+    assert score["scanner_version"] == "0.5.0"
     assert score["corpus_version"] == "2026.6.24"
     assert score["model_versions"]["primary"]
     assert isinstance(score["model_versions"]["judges"], list)
@@ -77,7 +77,7 @@ def test_backbond_scanner_version_command_reports_release_pins() -> None:
     )
     assert completed.returncode == 0, completed.stderr
     pins = json.loads(completed.stdout)
-    assert pins["scanner_version"] == "0.4.1"
+    assert pins["scanner_version"] == "0.5.0"
     assert pins["corpus_version"] == "2026.6.24"
     assert pins["contract_version"] == "are-scanner-api-v1@v1.0"
 

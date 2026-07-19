@@ -1,0 +1,52 @@
+"""Fail-closed release/runtime identity parity for BEAAA-15699 candidates."""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+from scanners import CONTRACT_VERSION, SCANNER_VERSION
+
+
+ROOT = Path(__file__).resolve().parents[1]
+RELEASE_METADATA = ROOT / "scanner-os" / "release-metadata.toml"
+ENTRYPOINT = ROOT / "tools" / "backbond-scanner"
+FIXTURE = ROOT / "tools" / "backbond-scanner-fixtures" / "sample_agent_fixture.json"
+GOLDEN_ROOT = ROOT / "tests" / "fixtures" / "golden_agents"
+
+
+def _manifest() -> dict:
+    return tomllib.loads(RELEASE_METADATA.read_text(encoding="utf-8"))["scanner"]
+
+
+def test_runtime_constants_match_immutable_release_manifest() -> None:
+    manifest = _manifest()
+    assert SCANNER_VERSION == manifest["scanner_version"]
+    assert CONTRACT_VERSION == manifest["contract"]
+
+
+def test_fixture_runtime_emits_immutable_release_manifest_identity(tmp_path: Path) -> None:
+    output = tmp_path / "score.json"
+    completed = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "--fixture", str(FIXTURE), "--out", str(output), "--seed", "0", "--freeze-timestamp"],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    score = json.loads(output.read_text(encoding="utf-8"))
+    manifest = _manifest()
+    assert score["scanner_version"] == manifest["scanner_version"]
+    assert score["contract_version"] == manifest["contract"]
+
+
+def test_golden_provenance_matches_immutable_release_manifest() -> None:
+    manifest = _manifest()
+    paths = sorted(GOLDEN_ROOT.glob("*/expected_score.json"))
+    assert paths
+    for path in paths:
+        score = json.loads(path.read_text(encoding="utf-8"))
+        assert score["scanner_version"] == manifest["scanner_version"], path
+        assert score["contract_version"] == manifest["contract"], path
