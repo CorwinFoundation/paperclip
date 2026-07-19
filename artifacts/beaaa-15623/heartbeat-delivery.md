@@ -24,3 +24,11 @@ approval_state: qa_approval_required
 - Paperclip control-plane update was attempted twice on 2026-07-19 but the
   local API at `127.0.0.1:3100` timed out with zero response bytes. Intended
   disposition is `in_review`, with QA as the next owner for independent test.
+
+## QA correction
+
+QA rejected candidate `34128e735e307d4fefd9a63836d921729750efdb`
+because restore scratch was created inside read-only backup media. The corrected
+implementation uses the restore service's private system temporary directory,
+retains the archive as read-only, and adds regression coverage for that sandbox
+plus an active WAL on a read-only source directory. Focused result: `4 passed`.

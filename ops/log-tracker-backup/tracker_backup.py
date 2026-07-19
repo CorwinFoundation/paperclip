@@ -104,7 +104,9 @@ def restore_test(root: Path) -> int:
             expected = record.get("sha256")
     actual = digest(snapshot)
     try:
-        with tempfile.TemporaryDirectory(prefix="tracker-restore-test-", dir=root) as work:
+        # Backup media is intentionally read-only in the scheduled unit. Use
+        # its PrivateTmp namespace for scratch restore material.
+        with tempfile.TemporaryDirectory(prefix="tracker-restore-test-") as work:
             raw = Path(work) / "restored.sqlite3"
             with gzip.open(snapshot, "rb") as src, raw.open("wb") as dst:
                 shutil.copyfileobj(src, dst)

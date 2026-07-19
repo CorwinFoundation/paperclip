@@ -7,6 +7,10 @@ manifest. A weekly timer decompresses the newest snapshot into scratch space
 and verifies checksum plus `PRAGMA integrity_check`; it never touches the live
 database.
 
+The restore service keeps backup media read-only and uses `PrivateTmp=true`
+for scratch decompression. Tests also exercise backup of a live WAL database
+from a read-only source directory.
+
 Install the script under `/opt/are-scanner/ops/log-tracker-backup`, create
 `/var/lib/are-scanner/backups/log-tracker` mode 0700 owned by `are-scanner`,
 install the four units, then enable both timers. Prime and prove the path with:

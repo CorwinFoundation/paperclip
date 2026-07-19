@@ -9,5 +9,6 @@ ExecStart=/usr/bin/python3 /opt/are-scanner/ops/log-tracker-backup/tracker_backu
 PrivateNetwork=true
 IPAddressDeny=any
 NoNewPrivileges=true
+PrivateTmp=true
 ProtectSystem=strict
 ReadOnlyPaths=/var/lib/are-scanner/backups/log-tracker
