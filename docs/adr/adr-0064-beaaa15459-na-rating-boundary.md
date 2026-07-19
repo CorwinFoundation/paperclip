@@ -14,7 +14,7 @@ self_audit_passed: true
 escalations_noted: ["No rubric, corpus, scoring logic, pricing, customer-data, or Ed25519 verification-semantic change; no escalation gate triggered."]
 ---
 
-# ADR-0061: Suppress ratings until registry-backed measured coverage is complete
+# ADR-0064: Suppress ratings until registry-backed measured coverage is complete
 
 ## Decision
 
