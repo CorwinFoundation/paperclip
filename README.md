@@ -143,10 +143,14 @@ regression on the golden roster runs at the merge gate per
 `agents/scanner-implementation-supervision-v1.md`; outputs land under
 `tools/calibration-deltas/`.
 
-Production container delivery uses the zero-egress, Founder-gated flow in
-[`docs/deploy/cd-pipeline.md`](docs/deploy/cd-pipeline.md). The reversible
-systemd-to-container migration is in [`first-container-cutover.md`](docs/deploy/first-container-cutover.md),
-with staging proof in [`dry-run-acceptance.md`](docs/deploy/dry-run-acceptance.md).
+Production container delivery uses the single signed-candidate, Paperclip
+approval, and on-box deploy-lease flow in
+[`docs/deploy/cd-pipeline.md`](docs/deploy/cd-pipeline.md). Ordinary releases
+dispatch `scanner-edge-image.yml`; the one-shot `backbond-deploy-agent.service`
+performs verification, activation, acceptance, rollback, and receipt posting.
+The reversible systemd-to-container migration is in
+[`first-container-cutover.md`](docs/deploy/first-container-cutover.md), with
+staging proof in [`dry-run-acceptance.md`](docs/deploy/dry-run-acceptance.md).
 
 ## Live scan-to-production proof
 

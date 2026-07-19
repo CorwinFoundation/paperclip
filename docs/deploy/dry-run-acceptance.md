@@ -1,4 +1,4 @@
-# CD dry-run acceptance procedure
+# Deploy-agent staging and rollback acceptance procedure
 
 Run this procedure on an isolated staging host or a production-faithful mirror
 using a copy of scanner state. Never use the live `vapi` tenant and never inject
@@ -6,27 +6,31 @@ an intentional failure into live production.
 
 ## Preconditions
 
-- The branch containing the deployment changes has passed Linux CI, including
-  Bash syntax and archive-verification tests.
-- Repository Issues are enabled and the approval issue is assigned to
-  `CorwinFoundation`.
-- `CD_MANIFEST_SIGNING_KEY_PEM` is configured in GitHub; its matching public key
-  is preinstalled at `/etc/are-scanner/cd-manifest-signing-pubkey.pem`.
-- `box_deploy`, `operator_push.sh`, acceptance checks, deploy-record helper, and
-  root-owned deployment configuration are provisioned on the staging host.
-- `STAGING_TENANT_ID` identifies a non-`vapi` tenant and the state directory is a
-  staging copy.
+- The candidate commit has passed the required `tests`, `scanner-regression`,
+  and `ci-plugin` checks.
+- The `scanner-edge-image` workflow can post signed candidates to the staging
+  Paperclip environment.
+- The mirror has the deploy agent, Docker networking unit, scanner service,
+  trusted Sigstore root, encrypted systemd credentials, and root-owned
+  deployment configuration installed.
+- The acceptance tenant and agent are dedicated staging identities and are not
+  `vapi`.
+- The candidate uses a new positive sequence and targets the mirror's declared
+  host and environment.
 
 ## Happy-path proof
 
-1. Trigger the workflow for the current `master` commit.
-2. Confirm the image build produces `image-payload-<sha>` and that the approval
-   issue names the same SHA, registry digest, and archive SHA-256.
-3. Approve the issue from `CorwinFoundation`.
-4. Confirm `release-manifest-<sha>` is created and its signed fields match the
-   image artifact and Actions run.
-5. Transfer the archive, manifest, and signature to the staging host. Run the
-   operator command using the preinstalled public-key trust anchor.
+1. Dispatch `scanner-edge-image.yml` from the candidate commit with the staging
+   sequence.
+2. Confirm the workflow succeeds and Paperclip records the same commit SHA,
+   immutable image digest, SBOM hash, signature-bundle hash, workflow URL,
+   target host, environment, and sequence.
+3. Complete the Founder approval interaction in Paperclip.
+4. Create a one-time authorization and confirm the approved lease binds the
+   candidate, approval interaction, target host, environment, sequence, expiry,
+   receipt path, staged archive hash, and staged signature-bundle hash.
+5. Install the authorization id through the mirror's systemd credential path
+   and start `backbond-deploy-agent.service`.
 6. Confirm acceptance reports:
    - `GET /scanner/v1/sla` returns 200.
    - Unauthenticated and forged-key scan requests return 401.
@@ -34,24 +38,28 @@ an intentional failure into live production.
    - Forensic bundle URI, snapshot hash, and probe-set hash are pinned.
    - The customer envelope contains only the six external fields and no runtime
      fields.
-7. Confirm the deploy record contains SHA, digest, checks, approver, timestamp,
-   and the Actions run URL.
+7. Confirm the terminal receipt binds the authorization, candidate, SHA, image
+   digest, signature verification, on-box verification, acceptance result,
+   rollback status, activated version, and operator/run identity.
+8. Confirm `current_version` and `last_activated_sequence` match the receipt.
 
 ## Forced-failure rollback proof
 
 On the isolated staging host only, make one acceptance input deterministically
-invalid—for example, point the candidate base URL at a local 503 listener or use
-an invalid staging-agent identifier. Do not use `vapi` as the failure mechanism.
+invalid - for example, point the candidate base URL at a local 503 listener or
+use an invalid staging-agent identifier. Do not use `vapi` as the failure
+mechanism.
 
-1. Deliver another approved candidate through the same signed-artifact path.
-2. Confirm acceptance fails and activation does not become the final serving
+1. Deliver another approved candidate through the same Paperclip lease path.
+2. Confirm acceptance fails and the candidate does not remain the final serving
    state.
-3. For a first-cutover mirror, confirm Nginx still serves or is restored to the
-   legacy port and the legacy service remains active.
-4. For a container-to-container update, confirm the previous local image is
-   restarted.
-5. Confirm rollback health passes and the deploy record reports failure and
-   rollback evidence.
+3. Confirm the previous local image is restarted and the SLA health check passes.
+4. Confirm the terminal receipt reports the failure reason and successful
+   rollback.
+5. Confirm a crash or interruption after service mutation leaves
+   `activation_pending` evidence and blocks the next sequence until an operator
+   reconciles it.
 
-Attach both Actions run URLs, the two deploy records, and the rollback health
-evidence to the change record before authorizing the real production cutover.
+Attach both workflow URLs, the Paperclip candidate and authorization identifiers,
+the two terminal receipts, and rollback health evidence to the change record
+before authorizing the real production release.

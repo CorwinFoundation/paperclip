@@ -10,7 +10,6 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 BOX_DEPLOY = REPO / "scripts" / "deploy" / "box_deploy.sh"
 OPERATOR_PUSH = REPO / "scripts" / "deploy" / "operator_push.sh"
-CD_WORKFLOW = REPO / ".github" / "workflows" / "cd.yml"
 
 
 def _write_executable(path: Path, body: str) -> None:
@@ -121,24 +120,3 @@ def test_first_cutover_keeps_legacy_service_as_rollback() -> None:
     assert "keeping candidate container running" in operator
     assert "candidate left running because Nginx may still route to it" in operator
     assert "legacy service remains active for immediate rollback" in operator
-
-
-def test_cd_binds_manual_approval_to_exact_offline_payload() -> None:
-    workflow = CD_WORKFLOW.read_text()
-
-    assert "issues: write" in workflow
-    assert (
-        "trstringer/manual-approval@fa642940caf8412403569b28b2db4a1df08a83a3"
-        in workflow
-    )
-    assert "tar_sha256: ${{ steps.payload.outputs.tar_sha256 }}" in workflow
-    assert '"tar_sha256": os.environ["TAR_SHA256"]' in workflow
-    assert "docker save" in workflow
-    assert "image-payload-${SHA}" in workflow
-    assert "GIT_SHA=${{ steps.meta.outputs.sha }}" in workflow
-    assert "github.event.inputs.image_sha" not in workflow
-    assert "if: success()" in workflow
-    assert "if: always()" not in workflow
-    assert '"approver": os.environ["APPROVER"]' in workflow
-    assert "APPROVER: CorwinFoundation" in workflow
-    assert "GH_ACTOR" not in workflow
