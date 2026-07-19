@@ -1,0 +1,14 @@
+[Unit]
+Description=BackBond Log Tracker integrity-checked backup
+
+[Service]
+Type=oneshot
+User=are-scanner
+Group=are-scanner
+ExecStart=/usr/bin/python3 /opt/are-scanner/ops/log-tracker-backup/tracker_backup.py backup
+PrivateNetwork=true
+IPAddressDeny=any
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/lib/are-scanner/log-tracker.sqlite3
+ReadWritePaths=/var/lib/are-scanner/backups/log-tracker
