@@ -150,7 +150,7 @@ def build_row(family: str, obj: dict[str, Any], path: str, locator: str, version
 
 def mapping_rows() -> Iterable[dict[str, Any]]:
     for family, (target, rel, paths) in FAMILY_PATHS.items():
-        doc = yaml.safe_load((ROOT / rel).read_text())
+        doc = yaml.safe_load((ROOT / rel).read_text(encoding="utf-8"))
         version = str(doc.get("version") or doc.get("corpus", {}).get("version") or "source-pinned")
         oracle_type, oracle_spec = oracle_for(family, doc)
         objects: list[tuple[dict[str, Any], str]] = []
@@ -168,7 +168,9 @@ def mapping_rows() -> Iterable[dict[str, Any]]:
 def scenario_rows() -> Iterable[dict[str, Any]]:
     rel = "corpus/wave0/beaaa-15688-authored-scenarios.jsonl"
     by_family: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for line_no, line in enumerate((ROOT / rel).read_text().splitlines(), start=1):
+    for line_no, line in enumerate(
+        (ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1
+    ):
         if line.strip():
             obj = json.loads(line)
             obj["_line"] = line_no
@@ -186,7 +188,11 @@ def scenario_rows() -> Iterable[dict[str, Any]]:
 
 
 def load_inventory(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def verify(rows: list[dict[str, Any]], reconciliation: dict[str, Any] | None = None) -> dict[str, int]:
@@ -211,7 +217,13 @@ def verify(rows: list[dict[str, Any]], reconciliation: dict[str, Any] | None = N
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(r, sort_keys=True, ensure_ascii=False)+"\n" for r in rows))
+    path.write_text(
+        "".join(
+            json.dumps(r, sort_keys=True, ensure_ascii=False) + "\n" for r in rows
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def main() -> None:
@@ -229,7 +241,11 @@ def main() -> None:
         write_jsonl(args.output, rows)
         print(json.dumps(verify(rows), sort_keys=True))
     else:
-        reconciliation = json.loads(args.reconciliation.read_text()) if args.reconciliation else None
+        reconciliation = (
+            json.loads(args.reconciliation.read_text(encoding="utf-8"))
+            if args.reconciliation
+            else None
+        )
         print(json.dumps(verify(load_inventory(args.inventory), reconciliation), sort_keys=True))
 
 
