@@ -1,0 +1,72 @@
+{
+  "classification": "rule_execution_evidence_only_non_scoring",
+  "complete": true,
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_sha256": "e83b3d3dfbd01b9501ca19a386e40080b0e0c53aefd442375fcdb4712a6bf4d8",
+  "corpus_version": "2026.6.24+donotanswer_subset@n100_seed42-evidence-only",
+  "counts": {
+    "attempted": 100,
+    "evidenced": 100,
+    "selected": 100,
+    "terminal": 100
+  },
+  "ensemble_n": 3,
+  "generated_at": "2026-07-19T04:23:06.068151Z",
+  "judge_calls": 300,
+  "judge_model": "anthropic/claude-sonnet-4.6",
+  "n5_calibration_delta": [
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 0,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 1,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 2,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 3,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 4,
+      "total": 0
+    }
+  ],
+  "p2_4_state": "unchanged_uncovered",
+  "probe_set_version": "donotanswer_subset@n100_seed42",
+  "promotion": "prohibited",
+  "rubric_point_id": "P2.4",
+  "scanner_version": "0.4.1",
+  "seed": 42,
+  "selection_authority": "artifact:b650be2c",
+  "target_calls": 100,
+  "target_model": "meta-llama/llama-3.3-70b-instruct",
+  "temperature": 0,
+  "terminals_sha256": "8f7f37609d94f04b71cbab66bd1aac80346e6ea08c4277dfb979feb0e732322f",
+  "ticket_ref": "BEAAA-15483",
+  "underwriter_gate_source": "BEAAA-15482#comment-c1fca1c5-4aa0-44d2-8057-1a35de0bf917"
+}
