@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
@@ -170,15 +171,14 @@ class ScanLog:
 
     def __init__(self, path: str | Path = ":memory:") -> None:
         self._path = str(path)
+        self._write_lock = threading.RLock()
         # ``check_same_thread=False`` enables the BEAAA-1273 (WS3) API-edge
         # wiring where FastAPI's threadpool may dispatch a request handler
         # on a worker thread distinct from the connection-creating one.
-        # The append-only + ``BEGIN IMMEDIATE`` transaction model in
-        # ``finalize_pins`` / ``append_scan`` already serializes writers,
-        # and sqlite3's per-connection GIL coverage makes single-connection
-        # cross-thread usage safe under that posture (per Python sqlite3
-        # docs §"Multithreading"). The DB-layer write-once invariants
-        # (ADR-0009 §4.1 / §4.2) hold unchanged.
+        # The application-level RLock serializes every access to this shared
+        # connection; sqlite transaction state belongs to the connection, not
+        # the calling thread. DB-layer write-once invariants remain defense in
+        # depth (ADR-0009 §4.1 / §4.2).
         self._conn = sqlite3.connect(
             self._path, isolation_level=None, check_same_thread=False
         )
@@ -228,23 +228,25 @@ class ScanLog:
     # ------------------------------------------------------------------
 
     def get(self, agent_id: str, run_timestamp: str) -> dict[str, Any] | None:
-        cur = self._conn.execute(
-            "SELECT * FROM scan_log WHERE agent_id = ? AND run_timestamp = ?",
-            (agent_id, run_timestamp),
-        )
-        row = cur.fetchone()
-        return _row_to_dict(row) if row is not None else None
+        with self._write_lock:
+            cur = self._conn.execute(
+                "SELECT * FROM scan_log WHERE agent_id = ? AND run_timestamp = ?",
+                (agent_id, run_timestamp),
+            )
+            row = cur.fetchone()
+            return _row_to_dict(row) if row is not None else None
 
     def list_for_agent(self, agent_id: str) -> list[dict[str, Any]]:
         """Return all scan_log rows for ``agent_id`` ordered by run_timestamp ASC.
 
         Used by WS3 chain reconstruction to build ``prior_scan_refs[]``.
         """
-        cur = self._conn.execute(
-            "SELECT * FROM scan_log WHERE agent_id = ? ORDER BY run_timestamp ASC",
-            (agent_id,),
-        )
-        return [_row_to_dict(r) for r in cur.fetchall()]
+        with self._write_lock:
+            cur = self._conn.execute(
+                "SELECT * FROM scan_log WHERE agent_id = ? ORDER BY run_timestamp ASC",
+                (agent_id,),
+            )
+            return [_row_to_dict(r) for r in cur.fetchall()]
 
     # ------------------------------------------------------------------
     # Write path
@@ -271,21 +273,22 @@ class ScanLog:
         ``probe_set_hash`` (BEAAA-11726 item 4) identifies the exact probe
         subset that ran — write-once like ``snapshot_hash``.
         """
-        self._conn.execute(
-            "INSERT INTO scan_log "
-            "(agent_id, run_timestamp, scan_id, scanner_version, corpus_version, "
-            "score_json, probe_set_hash) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                agent_id,
-                run_timestamp,
-                scan_id,
-                scanner_version,
-                corpus_version,
-                canonicalize(score_json).decode(),
-                probe_set_hash,
-            ),
-        )
+        with self._write_lock:
+            self._conn.execute(
+                "INSERT INTO scan_log "
+                "(agent_id, run_timestamp, scan_id, scanner_version, corpus_version, "
+                "score_json, probe_set_hash) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    agent_id,
+                    run_timestamp,
+                    scan_id,
+                    scanner_version,
+                    corpus_version,
+                    canonicalize(score_json).decode(),
+                    probe_set_hash,
+                ),
+            )
 
     def finalize_pins(
         self,
@@ -309,38 +312,39 @@ class ScanLog:
 
         Returns the persisted ``snapshot_hash`` for the caller's audit log.
         """
-        row = self.get(agent_id, run_timestamp)
-        if row is None:
-            raise ScanRowNotFound(
-                f"scan_log row ({agent_id!r}, {run_timestamp!r}) does not exist"
-            )
-        # Forensic-bundle URI is the primary write-once pin per ADR-0009
-        # §4.1; surface its violation eagerly so the API edge can return the
-        # single canonical reason code ``forensic_bundle_uri_write_once``.
-        # The DB-layer trigger below still backs this as defense-in-depth.
-        if row["forensic_bundle_uri"] is not None:
-            raise ForensicBundleWriteOnce(
-                "forensic_bundle_uri is write-once per ADR-0009 §4.1"
-            )
-        # `row["score_json"]` was deserialized by ``_row_to_dict``; re-
-        # canonicalizing it reproduces the exact stored bytes (ADR-0009 §4.2).
-        snapshot_hash = compute_snapshot_hash(row["score_json"])
-        try:
-            with _transaction(self._conn):
-                self._conn.execute(
-                    "UPDATE scan_log SET forensic_bundle_uri = ?, snapshot_hash = ? "
-                    "WHERE agent_id = ? AND run_timestamp = ?",
-                    (
-                        forensic_bundle_uri,
-                        snapshot_hash,
-                        agent_id,
-                        run_timestamp,
-                    ),
+        with self._write_lock:
+            row = self.get(agent_id, run_timestamp)
+            if row is None:
+                raise ScanRowNotFound(
+                    f"scan_log row ({agent_id!r}, {run_timestamp!r}) does not exist"
                 )
-        except sqlite3.IntegrityError as exc:
-            _raise_for_trigger(exc)
-            raise
-        return snapshot_hash
+            # Forensic-bundle URI is the primary write-once pin per ADR-0009
+            # §4.1; surface its violation eagerly so the API edge can return the
+            # single canonical reason code ``forensic_bundle_uri_write_once``.
+            # The DB-layer trigger below still backs this as defense-in-depth.
+            if row["forensic_bundle_uri"] is not None:
+                raise ForensicBundleWriteOnce(
+                    "forensic_bundle_uri is write-once per ADR-0009 §4.1"
+                )
+            # `row["score_json"]` was deserialized by ``_row_to_dict``; re-
+            # canonicalizing it reproduces the exact stored bytes (ADR-0009 §4.2).
+            snapshot_hash = compute_snapshot_hash(row["score_json"])
+            try:
+                with _transaction(self._conn):
+                    self._conn.execute(
+                        "UPDATE scan_log SET forensic_bundle_uri = ?, snapshot_hash = ? "
+                        "WHERE agent_id = ? AND run_timestamp = ?",
+                        (
+                            forensic_bundle_uri,
+                            snapshot_hash,
+                            agent_id,
+                            run_timestamp,
+                        ),
+                    )
+            except sqlite3.IntegrityError as exc:
+                _raise_for_trigger(exc)
+                raise
+            return snapshot_hash
 
     def append_scan(
         self,
@@ -368,39 +372,41 @@ class ScanLog:
         # same canonical write-once reason the UPDATE path uses — even
         # though the underlying sqlite error here would be a UNIQUE PK
         # violation, the contract-facing semantics are identical.
-        existing = self.get(agent_id, run_timestamp)
-        if existing is not None and existing["forensic_bundle_uri"] is not None:
-            raise ForensicBundleWriteOnce(
-                "forensic_bundle_uri is write-once per ADR-0009 §4.1"
-            )
-        snapshot_hash = compute_snapshot_hash(score_json)
-        try:
-            with _transaction(self._conn):
-                self._conn.execute(
-                    "INSERT INTO scan_log "
-                    "(agent_id, run_timestamp, scan_id, scanner_version, "
-                    "corpus_version, score_json, forensic_bundle_uri, "
-                    "snapshot_hash, probe_set_hash) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        agent_id,
-                        run_timestamp,
-                        scan_id,
-                        scanner_version,
-                        corpus_version,
-                        canonicalize(score_json).decode(),
-                        forensic_bundle_uri,
-                        snapshot_hash,
-                        probe_set_hash,
-                    ),
+        with self._write_lock:
+            existing = self.get(agent_id, run_timestamp)
+            if existing is not None and existing["forensic_bundle_uri"] is not None:
+                raise ForensicBundleWriteOnce(
+                    "forensic_bundle_uri is write-once per ADR-0009 §4.1"
                 )
-        except sqlite3.IntegrityError as exc:
-            _raise_for_trigger(exc)
-            raise
-        return snapshot_hash
+            snapshot_hash = compute_snapshot_hash(score_json)
+            try:
+                with _transaction(self._conn):
+                    self._conn.execute(
+                        "INSERT INTO scan_log "
+                        "(agent_id, run_timestamp, scan_id, scanner_version, "
+                        "corpus_version, score_json, forensic_bundle_uri, "
+                        "snapshot_hash, probe_set_hash) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            agent_id,
+                            run_timestamp,
+                            scan_id,
+                            scanner_version,
+                            corpus_version,
+                            canonicalize(score_json).decode(),
+                            forensic_bundle_uri,
+                            snapshot_hash,
+                            probe_set_hash,
+                        ),
+                    )
+            except sqlite3.IntegrityError as exc:
+                _raise_for_trigger(exc)
+                raise
+            return snapshot_hash
 
     def close(self) -> None:
-        self._conn.close()
+        with self._write_lock:
+            self._conn.close()
 
     # Context-manager sugar so callers can ``with ScanLog(path) as log:``.
     def __enter__(self) -> "ScanLog":
