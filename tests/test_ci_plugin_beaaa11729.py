@@ -226,11 +226,12 @@ def test_secrets_never_logged():
     assert "SECRET" not in joined  # our test secrets all carry this marker
 
 
-def test_un_gateable_scan_is_advisory_not_a_pass():
-    # No override and no policy floor → cannot gate → advisory, never a pass.
+def test_un_gateable_scan_is_config_error_not_a_pass():
+    # No override and no policy floor → invalid gate config, never a pass.
     scanner = MockScanner(score=90.0, band="A")  # no policy_band_floor
     d = _run(scanner, _inputs())
-    assert d.exit_code == EXIT_INFRA_ADVISORY
+    assert d.exit_code == 78  # EX_CONFIG; distinct from infra advisory 75
+    assert d.advisory is False
     assert d.exit_code != EXIT_PASS
 
 

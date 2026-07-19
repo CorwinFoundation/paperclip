@@ -89,6 +89,17 @@ class ScanClient:
         # Scanner-side auth. The value is a secret and is never logged.
         return {"Authorization": f"Bearer {self._api_key}"}
 
+    @staticmethod
+    def _decode_json(response: Response, operation: str) -> Any:
+        """Decode a success response or classify malformed data as infra."""
+        try:
+            return response.json()
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ScanTransportError(
+                "unreachable",
+                f"{operation} returned malformed JSON",
+            ) from exc
+
     # -- §6 preflight ------------------------------------------------------
     def endpoint_self_identifies_production(
         self, agent_endpoint: str, auth_token: str | None
@@ -112,7 +123,7 @@ class ScanClient:
                 "http_5xx" if resp.status >= 500 else "http_4xx",
                 f"preflight returned {resp.status}",
             )
-        meta = resp.json() or {}
+        meta = self._decode_json(resp, "preflight") or {}
         env = str(meta.get("environment", "")).strip().lower()
         return env in ("production", "prod", "live")
 
@@ -140,7 +151,7 @@ class ScanClient:
                 "http_5xx" if resp.status >= 500 else "http_4xx",
                 f"submit returned {resp.status}",
             )
-        data = resp.json() or {}
+        data = self._decode_json(resp, "submit") or {}
         if "scan_id" not in data:
             raise ScanTransportError("unreachable", "submit returned no scan_id")
         return data
@@ -171,7 +182,7 @@ class ScanClient:
             if resp.status >= 500:
                 raise ScanTransportError("http_5xx", f"poll {resp.status}")
             if resp.status == 200:
-                data = resp.json() or {}
+                data = self._decode_json(resp, "poll") or {}
                 if data.get("are_total") is not None:
                     return data
             elif resp.status >= 400 and resp.status != 404:

@@ -19,7 +19,8 @@
 # The plugin reads BACKBOND_<INPUT> env vars (the same values the GitHub
 # Action exposes as INPUT_<INPUT>), so one entrypoint serves both surfaces.
 # Exit codes: 0 pass · 1 gate-fail (break build) · 3 production refusal ·
-# 4 webhook HMAC mismatch · 75 infra advisory (does NOT red the build).
+# 4 webhook HMAC mismatch · 75 infra advisory (does NOT red the build) ·
+# 78 configuration error (breaks build).
 .backbond_scan:
   image: "$BACKBOND_ACTION_IMAGE"        # internal registry image of ci_plugin/Dockerfile
   variables:

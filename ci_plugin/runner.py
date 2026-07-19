@@ -23,7 +23,12 @@ from ci_plugin.client import (
     Transport,
     UrllibTransport,
 )
-from ci_plugin.gate import GateDecision, decide_exit, resolve_threshold
+from ci_plugin.gate import (
+    EXIT_INFRA_ADVISORY,
+    GateDecision,
+    decide_exit,
+    resolve_threshold,
+)
 
 Logger = Callable[[str], None]
 
@@ -250,6 +255,19 @@ def inputs_from_env(env: Mapping[str, str]) -> Inputs:
     )
 
 
+def _surface_exit_code(
+    decision: GateDecision,
+    env: Mapping[str, str],
+) -> int:
+    """Adapt canonical exit 75 to each CI surface without mutating output."""
+    on_github = env.get("GITHUB_ACTIONS", "").strip().lower() == "true"
+    if on_github and decision.exit_code == EXIT_INFRA_ADVISORY:
+        reason = decision.reason.replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::warning::{reason}")
+        return 0
+    return decision.exit_code
+
+
 def main(argv: list[str] | None = None) -> int:
     """Container entrypoint. Returns the process exit code."""
     inputs = inputs_from_env(os.environ)
@@ -269,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
         with open(gh_out, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     print(line)
-    return decision.exit_code
+    return _surface_exit_code(decision, os.environ)
 
 
 __all__ = ["Inputs", "run", "inputs_from_env", "main"]

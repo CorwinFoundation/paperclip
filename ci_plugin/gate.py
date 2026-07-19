@@ -16,6 +16,7 @@ score <  threshold                          1   yes
 endpoint self-identifies production (§6)    3   yes (refuse)
 webhook HMAC mismatch / tamper              4   yes (fail-closed)
 infra-taxonomy error, retries exhausted    75   **no** (advisory)
+gate threshold is not configured           78   yes (configuration error)
 smoke tier below threshold                  1   yes, but NON-bindable
 ========================================  ====  ============
 
@@ -45,6 +46,9 @@ EXIT_HMAC_MISMATCH: int = 4
 #: (``EX_TEMPFAIL``). MUST NOT red the build; a BackBond outage is not a
 #: risk signal.
 EXIT_INFRA_ADVISORY: int = 75
+#: Neither the vendor policy floor nor a stricter override was configured —
+#: fail the job as ``EX_CONFIG`` instead of disguising the gap as an outage.
+EXIT_CONFIG_ERROR: int = 78
 
 
 @dataclass(frozen=True)
@@ -111,7 +115,9 @@ def decide_exit(
        all retries is advisory (``75``), never a red gate.
     3. **HMAC fail-closed** — if a webhook was delivered and its signature
        did not verify, we do not trust the score at all → distinct exit 4.
-    4. **Score gate** — score < threshold breaks the build (exit 1); at or
+    4. **Configuration** — a missing threshold is ``EX_CONFIG`` (exit 78),
+       never an infra advisory.
+    5. **Score gate** — score < threshold breaks the build (exit 1); at or
        above passes (exit 0). A ``smoke`` scan is always NON-bindable.
 
     ``webhook_verified`` is ``None`` when no webhook was configured (polling
@@ -154,13 +160,24 @@ def decide_exit(
             bindable=False,
         )
 
-    # 4. Score gate. If we somehow have no score/threshold here, treat as
-    #    not-yet-measured → advisory (mirrors the shipped infra_retry
-    #    invariant: never fabricate a pass).
-    if score is None or threshold is None:
+    # 4. A missing threshold is a configuration defect, not an outage. Red
+    #    both CI surfaces with EX_CONFIG so operators fix the gate setup.
+    if threshold is None:
+        return GateDecision(
+            exit_code=EXIT_CONFIG_ERROR,
+            reason=(
+                "no gate threshold configured; set a vendor policy floor "
+                "or fail_below_score"
+            ),
+            bindable=False,
+        )
+
+    # 5. No measured score after successful transport is still an infra-like
+    #    inability to measure. Never fabricate a pass.
+    if score is None:
         return GateDecision(
             exit_code=EXIT_INFRA_ADVISORY,
-            reason="scan produced no gateable score; advisory, not a pass",
+            reason="scan produced no score; advisory, not a pass",
             bindable=False,
             advisory=True,
         )
@@ -199,6 +216,7 @@ __all__ = [
     "EXIT_PRODUCTION_REFUSED",
     "EXIT_HMAC_MISMATCH",
     "EXIT_INFRA_ADVISORY",
+    "EXIT_CONFIG_ERROR",
     "GateDecision",
     "resolve_threshold",
     "decide_exit",

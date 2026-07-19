@@ -25,6 +25,7 @@ release gate + Founder confirmation on BEAAA-11710. This package never
 publishes itself.
 """
 from ci_plugin.gate import (
+    EXIT_CONFIG_ERROR,
     EXIT_GATE_FAIL,
     EXIT_HMAC_MISMATCH,
     EXIT_INFRA_ADVISORY,
@@ -36,6 +37,7 @@ from ci_plugin.gate import (
 )
 
 __all__ = [
+    "EXIT_CONFIG_ERROR",
     "EXIT_PASS",
     "EXIT_GATE_FAIL",
     "EXIT_PRODUCTION_REFUSED",

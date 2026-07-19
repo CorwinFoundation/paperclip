@@ -60,12 +60,17 @@ backbond_scan:
 | endpoint self-identifies production (§6) | `3` | yes (refuse) |
 | webhook HMAC mismatch / tamper | `4` | yes (fail-closed) |
 | infra error, retries exhausted | `75` | **no** — neutral advisory |
+| gate threshold is not configured | `78` | **yes** — configuration error |
 | smoke tier below threshold | `1` | yes, but **NON-bindable** |
 
 - **Infra vs. score.** Transport/availability failures are retried with
   backoff; on exhaustion the plugin returns the neutral advisory `75`
-  (`EX_TEMPFAIL`) and does **not** red your build. A BackBond outage is not
-  a risk signal.
+  (`EX_TEMPFAIL`). GitLab allows only that exit code to fail neutrally;
+  GitHub emits a workflow warning and returns process success while keeping
+  canonical `exit_code: 75` and `advisory: true` in the action output. A
+  BackBond outage is not a risk signal.
+- **Configuration gaps** return `78` (`EX_CONFIG`) and break both surfaces.
+  Missing policy is actionable setup failure, not an infrastructure outage.
 - **Smoke tier** is a fast, deterministic partial. It is **advisory only,
   never bindable**, and never feeds Underwriter pricing.
 
