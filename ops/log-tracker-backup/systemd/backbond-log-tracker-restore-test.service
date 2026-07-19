@@ -1,0 +1,14 @@
+[Unit]
+Description=BackBond Log Tracker non-destructive restore test
+
+[Service]
+Type=oneshot
+User=are-scanner
+Group=are-scanner
+ExecStart=/usr/bin/python3 /opt/are-scanner/ops/log-tracker-backup/tracker_backup.py restore-test
+PrivateNetwork=true
+IPAddressDeny=any
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/lib/are-scanner/backups/log-tracker

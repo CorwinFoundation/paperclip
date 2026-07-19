@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly BackBond Log Tracker backup
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=5m
+Unit=backbond-log-tracker-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly BackBond Log Tracker restore test
+
+[Timer]
+OnCalendar=Mon *-*-* 04:37:00 UTC
+Persistent=true
+Unit=backbond-log-tracker-restore-test.service
+
+[Install]
+WantedBy=timers.target
