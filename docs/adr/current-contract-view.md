@@ -7,9 +7,9 @@ canonical_terms_only: true
 focus_claim: "This is the assembled entry point for current BackBond Scanner architecture decisions; the binding API contract remains authoritative."
 contracts_referenced: ["are-scanner-api-v1@v1.0"]
 ticket_refs: ["BEAAA-15620", "BEAAA-15604"]
-proof_points_cited: ["docs/adr/README.md", "docs/adr/adr-0061-beaaa14835-release-reproducibility-gate.md", "docs/adr/adr-0064-beaaa15459-na-rating-boundary.md"]
-version: 1.0
-prior_version: null
+proof_points_cited: ["docs/adr/README.md", "docs/adr/adr-0061-beaaa14835-release-reproducibility-gate.md", "docs/adr/adr-0064-beaaa15459-na-rating-boundary.md", "docs/adr/adr-0065-beaaa15617-scale-out-assumptions.md"]
+version: 1.1
+prior_version: 1.0
 self_audit_passed: true
 escalations_noted: ["No contract synthesis overrides the signed contract; conflicts escalate to CTO and the contract owner."]
 ---
@@ -20,6 +20,8 @@ escalations_noted: ["No contract synthesis overrides the signed contract; confli
 
 This view is an index and synthesis, not a new contract. `contracts/are-scanner-api-v1.md@v1.0` remains binding. Company canon governs company facts and terminology. Accepted ADRs govern implementation decisions within that boundary. If they conflict, stop and escalate to the CTO and contract owner; do not hand-merge an interpretation.
 
+Promotion hold: the repository also contains later artifacts labeled `are-scanner-api-v1@v1.3.0`. This record does not resolve that pre-existing version-authority discrepancy. No implementation or promotion may rely on a presumed contract pin until the CTO and contract owner reconcile it through the normal contract gate.
+
 ## Current invariants
 
 - Every released score carries pinned scanner, corpus, model, and seed provenance.
@@ -27,6 +29,7 @@ This view is an index and synthesis, not a new contract. `contracts/are-scanner-
 - Customer projections suppress the numeric BackBond Score when registry-backed measured coverage is incomplete; internal fixture diagnostics do not authorize an external rating.
 - Scan evidence is append-only and write-once where the scan-log ADRs specify; shared SQLite connection access is serialized.
 - Additive API and rescan behavior remains subordinate to the binding versioned contract; ADRs cannot silently change rubric, corpus, scoring, bands, or the contract surface.
+- Horizontal scale-out is not authorized while the five state surfaces inventoried by ADR-0065 remain process-local or node-local; one active application writer/node is the current deployment constraint.
 - No code, build, or configuration is promoted without `APPROVED` from QA for the exact candidate SHA; public or production promotion additionally requires Founder sign-off.
 
 ## Active decision map
@@ -41,6 +44,7 @@ This view is an index and synthesis, not a new contract. `contracts/are-scanner-
 | Lineage, dependencies, deployment, backups | ADR-0055 through ADR-0058 |
 | Release reproducibility gate | ADR-0061 |
 | Incomplete-measurement rating boundary | ADR-0064 |
+| Single-node assumptions and scale-out gate | ADR-0065 |
 
 ## Maintenance
 

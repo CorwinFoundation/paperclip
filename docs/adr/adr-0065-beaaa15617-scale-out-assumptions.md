@@ -8,8 +8,8 @@ focus_claim: "BackBond Scanner scale-out becomes an explicit, evidence-gated dec
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.0"]
 ticket_refs: ["BEAAA-15617", "BEAAA-15604", "BEAAA-15629"]
 proof_points_cited: ["api/scan_log.py", "api/scan_handlers.py", "api/edge_gateway.py", "api/sla.py", "api/full_scan_executor.py", "api/scan_runtime_factory.py"]
-version: 1.0
-prior_version: null
+version: 1.1
+prior_version: 1.0
 self_audit_passed: true
 escalations_noted: ["Implementation is deferred. Any output-shape, scoring, rubric, corpus, band, judge, probe, or contract change requires its normal gate."]
 ---
@@ -18,7 +18,7 @@ escalations_noted: ["Implementation is deferred. Any output-shape, scoring, rubr
 
 BLUF: The BackBond Scanner remains a single active application node until all five state surfaces below have durable, shared replacements and the listed verification gates pass. This ADR makes the current constraints explicit; it changes no runtime, score, rubric, corpus, band, or contract surface.
 
-- Status: candidate, pending CTO record acceptance and QA approval of the exact candidate commit
+- Status: accepted; exact candidate commit `9d4af845da06293d8907d96b5f9ad0923cb2af1d` approved by QA on BEAAA-15730 and accepted into the CTO record on BEAAA-15629
 - Classification: rule execution - documentation of existing architecture; no behavior or rule changes
 - Contract: `contracts/are-scanner-api-v1.md@v1.0`
 - Governing input: Founder directive [BEAAA-15604](/BEAAA/issues/BEAAA-15604), document revision `aecee8cb-a23c-4ed2-8ff3-585628140f93`, P4.1
@@ -78,5 +78,4 @@ If the inventory is wrong, revert this ADR and replace it with a corrected CTO-a
 - probe-set-version: unchanged
 - rubric_point_id: none (architecture inventory only)
 - N=5 calibration delta: `0.0000` by construction
-- cto_cosign_ref: pending CTO record acceptance on BEAAA-15617
-
+- cto_cosign_ref: BEAAA-15629 freshness and coherence review; exact-SHA QA evidence on BEAAA-15730

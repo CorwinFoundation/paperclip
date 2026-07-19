@@ -8,8 +8,8 @@ focus_claim: "The CTO owns one collision-free BackBond Scanner ADR record and it
 contracts_referenced: ["are-scanner-api-v1@v1.0"]
 ticket_refs: ["BEAAA-15620", "BEAAA-15604"]
 proof_points_cited: ["docs/adr/current-contract-view.md"]
-version: 1.0
-prior_version: null
+version: 1.1
+prior_version: 1.0
 self_audit_passed: true
 escalations_noted: ["No scoring, rubric, corpus, band, contract, or production change; knowledge-record repair only."]
 ---
@@ -35,7 +35,8 @@ Snapshots, worktrees, issue attachments, and recovery archives are evidence sour
 
 - `ADR-0061` remains assigned to the earlier accepted release-reproducibility gate from 2026-07-16.
 - The later N/A-rating boundary formerly numbered `ADR-0061` is reassigned to `ADR-0064`; its content and prior-version lineage are unchanged.
-- Next allocation after this repair: `ADR-0065`, subject to rechecking canonical `origin/master` immediately before reservation.
+- `ADR-0065` is assigned to the accepted scale-out assumptions decision from BEAAA-15617; exact candidate commit `9d4af845da06293d8907d96b5f9ad0923cb2af1d` was QA-approved on BEAAA-15730.
+- Next allocation after this acceptance: `ADR-0066`, subject to rechecking canonical `origin/master` immediately before reservation.
 
 ## Consumption rule
 
