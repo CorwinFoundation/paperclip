@@ -24,6 +24,7 @@ OUT = REPO / "tools" / "calibration-deltas" / "2026-06-22-beaaa6190-v05-rc-n5.md
 SCORED_AT = datetime(2026, 5, 9, 0, 0, 0, tzinfo=timezone.utc)
 SNAPSHOT_HASH = "sha256:" + "a" * 64
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
+CONTRACT_REFERENCES = (CONTRACT_VERSION, "scanner-implementation-supervision-v1@v1.1")
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -120,7 +121,7 @@ def main() -> int:
         "phase: 2",
         "canonical_terms_only: true",
         'focus_claim: "This RC calibration gate preserves BackBond Scanner release discipline by proving live golden reproducibility before the v0.5 cut."',
-        'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
+        f"contracts_referenced: {json.dumps(CONTRACT_REFERENCES)}",
         'ticket_refs: ["BEAAA-6190", "BEAAA-6184", "BEAAA-6188", "BEAAA-6187", "BEAAA-7321"]',
         'proof_points_cited: ["tests/fixtures/golden_agents", "rubric/scoring.py", "scanners/__init__.py"]',
         "version: 0.1",
