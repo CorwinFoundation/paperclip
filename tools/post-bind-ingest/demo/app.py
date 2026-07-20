@@ -33,6 +33,8 @@ DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 RUNNER = DEMO_DIR.parent / "scripts" / "run_passive_log_reader_e2e.py"
 INDEX = DEMO_DIR / "design" / "BackBond-Underwriting-Desk-3D.html"
+LIFECYCLE_INDEX = DEMO_DIR / "index_v2.html"
+DETAILED_LIFECYCLE_ROUTE = "/lifecycle"
 LOGO = REPO_ROOT / "artifacts" / "beaaa-15436" / "BackBond-logo-on-white.png"
 TEST_PATHS = (
     "tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py",
@@ -397,6 +399,16 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_lifecycle_index(self) -> None:
+        data = LIFECYCLE_INDEX.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self._security_headers()
+        self.end_headers()
+        self.wfile.write(data)
+
     def _send_html_file(self, path: Path) -> None:
         data = path.read_bytes()
         self.send_response(HTTPStatus.OK)
@@ -446,6 +458,9 @@ class DemoHandler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/") or "/"
         if path == "/":
             self._send_index()
+            return
+        if path == DETAILED_LIFECYCLE_ROUTE:
+            self._send_lifecycle_index()
             return
         if path == "/assets/backbond-logo-on-white.png":
             self._send_png_file(LOGO)

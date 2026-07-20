@@ -64,6 +64,9 @@ def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -
     assert "Run limit reached · showing the latest completed assessment" in html
     assert "mention this notice to Eric" not in html
     assert "continue as a text-only assessment" in html
+    assert 'href="/lifecycle"' in html
+    assert "Detailed lifecycle views" in html
+    assert 'aria-label="Open detailed lifecycle views"' in html
     for forbidden in (
         "application/x-backbond-reference",
         "1,184 probes",
@@ -78,6 +81,29 @@ def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -
         "customer verdict",
     ):
         assert forbidden.lower() not in html.lower()
+
+
+def test_detailed_lifecycle_route_restores_nine_views_and_evidence_json_renderer() -> None:
+    html = (DEMO_DIR / "index_v2.html").read_text(encoding="utf-8")
+    expected_views = {
+        "timeline": "Live process",
+        "scan": "Scans + scores",
+        "bind": "Demo gate + install",
+        "cicd": "CI/CD",
+        "certificate": "Certificate",
+        "production": "Production logs",
+        "passive": "Passive + tracker",
+        "report": "Final report",
+        "evidence": "Evidence JSON",
+    }
+    for view, label in expected_views.items():
+        assert f'data-view="{view}"' in html
+        assert label in html
+    assert html.count('class="tab') == 9
+    assert "function renderEvidence()" in html
+    assert "state.result" in html
+    assert "evidence_id:state.result.evidence_id" in html
+    assert "/api/runs/${encodeURIComponent(state.runId)}" in html
 
 
 def test_public_rate_limit_uses_validated_cloudflare_visitor_ip() -> None:
