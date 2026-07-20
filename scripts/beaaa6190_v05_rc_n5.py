@@ -122,7 +122,7 @@ def main() -> int:
         "canonical_terms_only: true",
         'focus_claim: "This RC calibration gate preserves BackBond Scanner release discipline by proving live golden reproducibility before the v0.5 cut."',
         f"contracts_referenced: {json.dumps(CONTRACT_REFERENCES)}",
-        'ticket_refs: ["BEAAA-6190", "BEAAA-6184", "BEAAA-6188", "BEAAA-6187", "BEAAA-7321"]',
+        'ticket_refs: ["BEAAA-15699", "BEAAA-6190", "BEAAA-6184", "BEAAA-6188", "BEAAA-6187", "BEAAA-7321"]',
         'proof_points_cited: ["tests/fixtures/golden_agents", "rubric/scoring.py", "scanners/__init__.py"]',
         "version: 0.1",
         "prior_version: null",
