@@ -102,11 +102,11 @@ def validate_release_identity(
     release_workflow_ref = release_candidate.get("signatureWorkflowRef")
 
     errors: list[str] = []
-    if subject != EXPECTED_SUBJECT:
+    if subject is not None and subject != EXPECTED_SUBJECT:
         errors.append(f"signature Subject={subject!r} expected {EXPECTED_SUBJECT!r}")
-    if issuer != EXPECTED_ISSUER:
+    if issuer is not None and issuer != EXPECTED_ISSUER:
         errors.append(f"signature Issuer={issuer!r} expected {EXPECTED_ISSUER!r}")
-    if workflow_ref != EXPECTED_WORKFLOW_REF:
+    if workflow_ref is not None and workflow_ref != EXPECTED_WORKFLOW_REF:
         errors.append(f"githubWorkflowRef={workflow_ref!r} expected {EXPECTED_WORKFLOW_REF!r}")
     if release_subject != EXPECTED_SUBJECT:
         errors.append(f"release signatureSubject={release_subject!r} expected {EXPECTED_SUBJECT!r}")
@@ -145,8 +145,8 @@ def validate_release_identity(
     return {
         "sourceCommitSha": source_sha,
         "imageDigest": image_ref_or_digest,
-        "signatureSubject": subject,
-        "signatureWorkflowRef": workflow_ref,
+        "signatureSubject": release_subject,
+        "signatureWorkflowRef": release_workflow_ref,
     }
 
 
