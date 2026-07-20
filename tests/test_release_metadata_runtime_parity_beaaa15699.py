@@ -8,6 +8,7 @@ import tomllib
 from pathlib import Path
 
 from scanners import CONTRACT_VERSION, SCANNER_VERSION
+from scripts.beaaa6190_v05_rc_n5 import CONTRACT_REFERENCES
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,7 @@ RELEASE_METADATA = ROOT / "scanner-os" / "release-metadata.toml"
 ENTRYPOINT = ROOT / "tools" / "backbond-scanner"
 FIXTURE = ROOT / "tools" / "backbond-scanner-fixtures" / "sample_agent_fixture.json"
 GOLDEN_ROOT = ROOT / "tests" / "fixtures" / "golden_agents"
+N5_REPORT = ROOT / "tools" / "calibration-deltas" / "2026-06-22-beaaa6190-v05-rc-n5.md"
 
 
 def _manifest() -> dict:
@@ -50,3 +52,13 @@ def test_golden_provenance_matches_immutable_release_manifest() -> None:
         score = json.loads(path.read_text(encoding="utf-8"))
         assert score["scanner_version"] == manifest["scanner_version"], path
         assert score["contract_version"] == manifest["contract"], path
+
+
+def test_n5_contract_references_match_immutable_release_manifest() -> None:
+    manifest_contract = _manifest()["contract"]
+    assert CONTRACT_REFERENCES[0] == manifest_contract
+
+    report = N5_REPORT.read_text(encoding="utf-8")
+    frontmatter = report.split("---", 2)[1]
+    assert f'contracts_referenced: ["{manifest_contract}",' in frontmatter
+    assert f"- contract_version: `{manifest_contract}`" in report
