@@ -212,6 +212,7 @@ jobs:
           WORKFLOW_SHA: ${{ steps.source.outputs.workflow_sha }}
           WORKFLOW_REF: ${{ steps.source.outputs.workflow_ref }}
           ORIGIN_MASTER_TIP: ${{ steps.source.outputs.origin_master_tip }}
+          IMAGE_REF: ${{ steps.source.outputs.image_ref }}
         run: |
           set -euo pipefail
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
