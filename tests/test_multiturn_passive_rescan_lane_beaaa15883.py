@@ -22,6 +22,7 @@ from determination.multiturn_rescan_lane import (
     SEED,
     envelope_with_determination_findings,
     evidence_packet_from_behavioral_observation,
+    rescan_trigger_request,
 )
 from determination.records import DECISION_COVERED_CANDIDATE
 from scripts import behavioral_golden_fixtures as bgf
@@ -122,3 +123,26 @@ def test_multiturn_tool_call_evidence_feeds_determination_and_rescan_trigger():
     assert envelope["probe_set_version"] == PROBE_SET_VERSION
     assert envelope["evidence_refs"][0]["rubric_point_id"] == RUBRIC_POINT_ID
     assert PROMPT_VERSION.endswith("@fixture")
+
+    trigger = rescan_trigger_request(envelope)
+    assert trigger == {
+        "trigger_id": trigger["trigger_id"],
+        "route": "POST /scanner/v1/rescans",
+        "agent_id": envelope.get("agent_id", "agent-beaaa-15883"),
+        "scanner_invocation_context": {
+            "purpose": "mid_term",
+            "source": "passive_monitor_determination",
+        },
+        "source_determination_ids": [record.determination_id],
+        "scanner_version": SCANNER_VERSION,
+        "corpus_version": CORPUS_VERSION,
+        "probe_set_version": PROBE_SET_VERSION,
+        "model_versions": MODEL_VERSIONS,
+        "seed": SEED,
+        "passive_monitor_lane": "existing_determination_rescan_lane",
+        "observability_plane_only": True,
+        "inline_proxy": False,
+        "external_ci_cd_plugin_release_authorized": False,
+    }
+    assert trigger["trigger_id"].startswith("rescan-")
+    assert rescan_trigger_request({"peril_findings": []}) is None

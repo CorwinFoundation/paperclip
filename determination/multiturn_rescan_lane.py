@@ -159,6 +159,53 @@ def envelope_with_determination_findings(
     return envelope
 
 
+def rescan_trigger_request(envelope: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Project active determination findings into the existing rescan route.
+
+    This is a local request envelope for ``POST /scanner/v1/rescans``. It does
+    not add a new API field or a new Passive Monitor product surface; it proves
+    the existing determination/rescan lane has enough deterministic information
+    to request a mid-term rescan.
+    """
+    findings = [
+        finding
+        for finding in envelope.get("peril_findings", [])
+        if isinstance(finding, Mapping)
+        and finding.get("status") == "active"
+        and finding.get("determination_id")
+    ]
+    if not findings:
+        return None
+    source_ids = sorted(str(finding["determination_id"]) for finding in findings)
+    request_preimage = {
+        "agent_id": envelope.get("agent_id", "agent-beaaa-15883"),
+        "corpus_version": envelope.get("corpus_version"),
+        "determination_ids": source_ids,
+        "probe_set_version": envelope.get("probe_set_version"),
+        "scanner_version": envelope.get("scanner_version"),
+        "seed": envelope.get("seed"),
+    }
+    return {
+        "trigger_id": f"rescan-{sha256_json(request_preimage)[:16]}",
+        "route": "POST /scanner/v1/rescans",
+        "agent_id": request_preimage["agent_id"],
+        "scanner_invocation_context": {
+            "purpose": "mid_term",
+            "source": "passive_monitor_determination",
+        },
+        "source_determination_ids": source_ids,
+        "scanner_version": envelope.get("scanner_version"),
+        "corpus_version": envelope.get("corpus_version"),
+        "probe_set_version": envelope.get("probe_set_version"),
+        "model_versions": envelope.get("model_versions"),
+        "seed": envelope.get("seed"),
+        "passive_monitor_lane": "existing_determination_rescan_lane",
+        "observability_plane_only": True,
+        "inline_proxy": False,
+        "external_ci_cd_plugin_release_authorized": False,
+    }
+
+
 def normalize_behavioral_evidence_ref(ref: Mapping[str, Any]) -> dict[str, Any]:
     """Return the evidence-ref fields required by the decision engine."""
     return {
@@ -183,5 +230,6 @@ __all__ = [
     "envelope_with_determination_findings",
     "evidence_packet_from_behavioral_observation",
     "normalize_behavioral_evidence_ref",
+    "rescan_trigger_request",
     "sha256_json",
 ]
