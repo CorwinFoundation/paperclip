@@ -3,8 +3,15 @@
 Closes gap 1 of the Founder Stage Gate FAIL (attachment d05e00d8): the deployed
 external edge is nginx and returned NO ``X-Request-ID`` on ordinary responses,
 so no id existed to correlate a customer/forensic response to an access-log
-line. This test stands up the committed nginx edge template
-(``infra/edge/nginx/backbond-scanner-edge.conf.template``) in front of an
+line.
+
+Topology (BEAAA-16331): the deployable edge surface is no longer a standalone
+``server {}`` block — that shape would create a parallel TLS listener against the
+live ``scanner.backbond.ai`` vhost. It is now two fragments:
+``backbond-scanner-edge.http.conf`` (http-scope ``log_format``) and
+``backbond-scanner-edge.server.conf.template`` (server-scope include). This test
+composes both the way the runbook does — the http fragment at http scope plus a
+synthesized ``server { listen … include <server fragment>; }`` — in front of an
 auth-aware fake upstream and proves:
 
   (1) ORDINARY 401 — ``POST /scanner/v1/scans`` with no auth carries a non-empty
@@ -31,6 +38,7 @@ import re
 import shutil
 import socket
 import subprocess
+import tempfile
 import time
 
 import pytest
@@ -38,9 +46,9 @@ import pytest
 NGINX_IMAGE = "nginx:1.27-alpine"
 PY_IMAGE = "python:3.12-alpine"
 HERE = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE = os.path.abspath(
-    os.path.join(HERE, "..", "..", "infra", "edge", "nginx", "backbond-scanner-edge.conf.template")
-)
+_NGINX_DIR = os.path.abspath(os.path.join(HERE, "..", "..", "infra", "edge", "nginx"))
+HTTP_FRAGMENT = os.path.join(_NGINX_DIR, "backbond-scanner-edge.http.conf")
+SERVER_FRAGMENT = os.path.join(_NGINX_DIR, "backbond-scanner-edge.server.conf.template")
 UPSTREAM_PY = os.path.join(HERE, "_edge_fake_upstream_auth.py")
 
 LEAK_HOST = "10.0.0.5"
@@ -52,23 +60,26 @@ REQUEST_ID_RE = re.compile(r"^[0-9a-f]{16,}$")
 
 
 # --------------------------------------------------------------------------- #
-# (0) static lint — always runs, proves the config carries the gap-1 fix
+# (0) static lint — always runs, proves the two fragments carry the gap-1 fix
 # --------------------------------------------------------------------------- #
-def test_template_declares_request_id_and_log_correlation():
-    with open(TEMPLATE) as f:
-        conf = f.read()
+def test_fragments_declare_request_id_and_log_correlation():
+    with open(SERVER_FRAGMENT) as f:
+        server = f.read()
+    with open(HTTP_FRAGMENT) as f:
+        http = f.read()
     # X-Request-ID emitted on EVERY response, incl. ordinary 4xx/5xx (`always`).
-    assert re.search(r"add_header\s+X-Request-ID\s+\$request_id\s+always\s*;", conf), \
+    assert re.search(r"add_header\s+X-Request-ID\s+\$request_id\s+always\s*;", server), \
         "edge must add X-Request-ID with the `always` flag so 401/404/5xx carry it"
-    # The same opaque id must be written into the access log for correlation.
-    assert "log_format" in conf and "$request_id" in conf
-    assert re.search(r"access_log\s+\S+\s+edge_json", conf)
+    # The same opaque id must be written into the access log for correlation. The
+    # log_format lives in the http fragment; the access_log using it in the server.
+    assert "log_format" in http and "$request_id" in http
+    assert re.search(r"access_log\s+\S+\s+edge_json", server)
     # Topology hiding preserved.
-    assert "server_tokens off" in conf
+    assert "server_tokens off" in server
     for h in ("Server", "Via", "X-Powered-By", "Location", "X-Runtime"):
-        assert re.search(r"proxy_hide_header\s+%s\s*;" % h, conf), f"must hide {h}"
+        assert re.search(r"proxy_hide_header\s+%s\s*;" % h, server), f"must hide {h}"
     # Error normalization preserved.
-    assert "upstream_error" in conf and "not_found" in conf
+    assert "upstream_error" in server and "not_found" in server
 
 
 def _free_port() -> int:
@@ -117,6 +128,7 @@ class _Stack:
         self.edge_name = "beaaa16230edge%s" % tag
         self.up_pub = _free_port()
         self.edge_pub = _free_port()
+        self.workdir = tempfile.mkdtemp(prefix="beaaa16331edge")
         try:
             self._run(["docker", "network", "create", self.net])
             self._run([
@@ -126,17 +138,46 @@ class _Stack:
                 "-v", "%s:/upstream.py:ro" % UPSTREAM_PY,
                 PY_IMAGE, "python3", "/upstream.py",
             ])
-            # Mount the template; the stock nginx entrypoint renders it via
-            # envsubst. NGINX_ENVSUBST_FILTER=EDGE keeps nginx runtime vars
-            # ($request_id, $status, ...) literal — only EDGE_* are substituted.
+            # Compose the deployable fragments exactly the way the runbook does:
+            #  - the http fragment (log_format) at http scope, in conf.d;
+            #  - the server fragment INCLUDED inside a synthesized `server {}` that
+            #    supplies the listener (in production this is the live
+            #    scanner.backbond.ai vhost — here a minimal stand-in). The server
+            #    fragment itself carries NO listen/server_name, proving it can only
+            #    live inside an existing vhost.
+            confd = os.path.join(self.workdir, "conf.d")
+            edge = os.path.join(self.workdir, "edge")
+            os.makedirs(confd)
+            os.makedirs(edge)
+            with open(HTTP_FRAGMENT) as f:
+                http_frag = f.read()
+            with open(SERVER_FRAGMENT) as f:
+                server_frag = f.read()
+            # only EDGE_UPSTREAM is templated; keep $request_id etc. literal. Send
+            # the access log to stdout so `docker logs` captures it for correlation.
+            server_rendered = server_frag.replace("${EDGE_UPSTREAM}", "%s:9000" % self.up_name)
+            server_rendered = re.sub(
+                r"access_log\s+\S+\s+edge_json;",
+                "access_log /dev/stdout edge_json;",
+                server_rendered,
+            )
+            with open(os.path.join(confd, "00-edge-http.conf"), "w") as f:
+                f.write(http_frag)
+            with open(os.path.join(confd, "10-edge-server.conf"), "w") as f:
+                f.write(
+                    "server {\n"
+                    "    listen 8080 default_server;\n"
+                    "    server_name _;\n"
+                    "    include /etc/nginx/edge/server-include.conf;\n"
+                    "}\n"
+                )
+            with open(os.path.join(edge, "server-include.conf"), "w") as f:
+                f.write(server_rendered)
             self._run([
                 "docker", "run", "-d", "--name", self.edge_name, "--network", self.net,
                 "-p", "127.0.0.1:%d:8080" % self.edge_pub,
-                "-e", "EDGE_LISTEN=8080",
-                "-e", "EDGE_UPSTREAM=%s:9000" % self.up_name,
-                "-e", "NGINX_ENVSUBST_FILTER=EDGE",
-                "-e", "NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d",
-                "-v", "%s:/etc/nginx/templates/default.conf.template:ro" % TEMPLATE,
+                "-v", "%s:/etc/nginx/conf.d:ro" % confd,
+                "-v", "%s:/etc/nginx/edge:ro" % edge,
                 NGINX_IMAGE,
             ])
             self._wait_upstream()
@@ -190,6 +231,8 @@ class _Stack:
         for name in (self.edge_name, self.up_name):
             subprocess.run(["docker", "rm", "-f", name], capture_output=True)
         subprocess.run(["docker", "network", "rm", self.net], capture_output=True)
+        if getattr(self, "workdir", None):
+            shutil.rmtree(self.workdir, ignore_errors=True)
 
 
 @pytest.fixture(scope="module")
