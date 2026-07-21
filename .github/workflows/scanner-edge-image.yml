@@ -95,10 +95,12 @@ jobs:
           fi
           git fetch --no-tags origin master:refs/remotes/origin/master
           origin_master_tip="$(git rev-parse --verify origin/master)"
-          git merge-base --is-ancestor "$source_sha" origin/master || {
-            echo "::error::source revision ${source_sha} is not reachable from origin/master"
-            exit 1
-          }
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            git merge-base --is-ancestor "$source_sha" origin/master || {
+              echo "::error::source revision ${source_sha} is not reachable from origin/master"
+              exit 1
+            }
+          fi
           image_ref="ghcr.io/corwinfoundation/are-scanner:${source_sha}-${GITHUB_RUN_ID}"
           local_image_tag="backbond-scanner-live:${source_sha}"
           {
