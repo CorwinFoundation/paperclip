@@ -34,7 +34,7 @@ governed separately — see gates below.)
 
 | Field | Value |
 | --- | --- |
-| Implementation commit SHA | `__COMMIT_SHA__` |
+| Implementation commit SHA | `21de7e28cfd0410440203264321ea80f893a65a9` |
 | Increment manifest digest | `623b039fbac3db67d633ece682babb26a4a59dd3a0a7cb53f42e4a529c6ada52` |
 | Predecessor (genesis) manifest digest | `762d0aca3ce7b4c707096949a45a195b0e4cd9f4d2799805221d0a5158f8b497` |
 | Manifest path | `cadence/cycle_001/increment_manifest.json` |
@@ -94,7 +94,7 @@ and `test_scoring_surfaces_unchanged`. All evidence retained.
 
 ```bash
 # 1. Check out the exact candidate SHA
-git checkout __COMMIT_SHA__
+git checkout 21de7e28cfd0410440203264321ea80f893a65a9
 
 # 2. Targeted acceptance suite (12 cases, split, hashes, zero collision,
 #    materialization/oracle recompute, pins, candidate flags, fail-closed,
@@ -111,7 +111,7 @@ python3 -c "from cadence import increment_cycle1 as ic; print(ic.load_predecesso
 #   -> 762d0aca3ce7b4c707096949a45a195b0e4cd9f4d2799805221d0a5158f8b497
 
 # 5. Confirm additive-only, no scoring path
-git show --stat __COMMIT_SHA__ | grep -E 'rubric|scoring|api/|contracts/' || echo "none"
+git show --stat 21de7e28cfd0410440203264321ea80f893a65a9 | grep -E 'rubric|scoring|api/|contracts/' || echo "none"
 grep -rn "rubric.scoring" cadence/ || echo "no scoring-path import"
 
 # 6. Stream B independent proof still green (source harness)
