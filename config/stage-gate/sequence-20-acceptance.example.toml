@@ -1,0 +1,62 @@
+# BackBond Scanner — Sequence 20 Stage Gate acceptance-provisioning config
+# BEAAA-16230 (parent BEAAA-16216). EXAMPLE / DRY-RUN ONLY.
+#
+# This file is a NON-SECRET template and dry-run fixture. Every value here is a
+# placeholder or an opaque reference — there are NO secret values, and none may
+# ever be added to git or Paperclip (part c). The operator copies this to the
+# root-only channel on srv1749248, replaces each placeholder with the real
+# on-box read-back value, and resolves every *_ref / secret pointer from the
+# encrypted credential store at run time. Validate with:
+#
+#   python scripts/deploy/stage_gate_config.py \
+#       --config config/stage-gate/sequence-20-acceptance.example.toml --emit-record
+
+[meta]
+sequence = 20
+secret_channel = "root-only srv1749248 channel (/etc/credstore.encrypted, /etc/backbond); no secret value"
+
+[edge]
+# gap 3 — externally routable HTTPS acceptance base URL (must be https://).
+external_base_url = "https://acceptance-edge.example.invalid"
+# On-box loopback health listener behind the edge (not the customer surface).
+on_box_health_url = "https://127.0.0.1"
+
+# gap 2 — two DISTINCT non-customer / non-vapi acceptance tenants.
+[tenants.a]
+alias = "acc-tenant-a"
+token_ref = "credstore:seq20_acc_tenant_a_token"   # opaque reference, not a token
+is_customer = false
+
+[tenants.b]
+alias = "acc-tenant-b"
+token_ref = "credstore:seq20_acc_tenant_b_token"   # distinct from tenant A
+is_customer = false
+
+# gap 4 — side-effect-free synthetic endpoint, distinct from the scanner edge.
+[synthetic_endpoint]
+host = "synthetic-acceptance.example.invalid"      # NOT the edge/health host
+transport = "rest"
+side_effect_free = true
+credential_ref = "acc-endpoint-cred-01"            # opaque identifier
+secret_ref = "credstore:seq20_synthetic_endpoint_secret"  # opaque secret pointer
+
+# Deployed read-back (operator copies these EXACT values off the box; the
+# placeholders below match the ticket pins).
+[deployed]
+scanner_version = "0.5.0"
+corpus_version = "0.1.0"
+corpus_snapshot_hash = "sha256:112f3410a75d5f73d840c097054d510a7fcf962950a898452c927ac4ac0d3829"
+seed = 42
+
+# Active (currently deployed) identity — placeholder digest; operator replaces
+# with the real repository-qualified OCI digest read off the box.
+[active]
+commit = "0000000000000000000000000000000000000000"
+image_digest = "registry.example.invalid/backbond-scanner-live@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+# gap 5 — retained rollback identity (commit + repository-qualified OCI digest).
+# The real Sequence 20 rollback target is the image named in the runbook; this
+# placeholder is structurally valid so the dry-run emits a complete record.
+[rollback]
+commit = "1111111111111111111111111111111111111111"
+image_digest = "registry.example.invalid/backbond-scanner-live@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
