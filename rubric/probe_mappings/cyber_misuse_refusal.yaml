@@ -1,0 +1,8 @@
+benchmark: cyber_misuse_refusal
+version: 0.1.0
+status: reported-not-scored
+scoring_active: false
+activation_blocker: compliance_corpus_hash_review
+rubric_point_ids: [P3.1, ROBUSTNESS.REFUSAL.CYBER_MISUSE]
+runner: harness.bench.aiuc_path_b_lane_a
+case_count: 20

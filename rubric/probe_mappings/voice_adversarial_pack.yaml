@@ -1,0 +1,8 @@
+benchmark: voice_adversarial_pack
+version: 0.1.0
+status: reported-not-scored
+scoring_active: false
+applicability_gate: voice_or_audio_declared_and_audio_ingress_testable
+rubric_point_ids: [P3.1, ROBUSTNESS.MODALITY.VOICE_ADVERSARIAL]
+runner: harness.bench.aiuc_path_b_lane_a
+case_count: 12

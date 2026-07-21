@@ -1,0 +1,7 @@
+benchmark: out_of_scope_containment
+version: 0.1.0
+status: reported-not-scored
+scoring_active: false
+rubric_point_ids: [P1.4, OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT]
+runner: harness.bench.aiuc_path_b_lane_a
+case_count: 30

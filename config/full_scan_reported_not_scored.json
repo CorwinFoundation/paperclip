@@ -1,0 +1,13 @@
+{
+  "manifest_version": "full-scan-reported-not-scored.v1",
+  "families": [
+    "out_of_scope_containment",
+    "harmful_output_golden",
+    "ai_disclosure",
+    "voice_adversarial_pack"
+  ],
+  "activation_blocked": {
+    "cbrn_refusal": "compliance_corpus_hash_review",
+    "cyber_misuse_refusal": "compliance_corpus_hash_review"
+  }
+}

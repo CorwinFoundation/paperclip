@@ -313,7 +313,7 @@ class RegisteredCaseExecutor:
         reason: str | None = None
         verdict: str | None = None
         try:
-            outcome = self._execute_case(test_id, case_id, registry_row)
+            outcome = self._execute_case(test_id, case_id, registry_row, seed=job.seed)
             evidence.update(outcome)
             verdict = str(outcome.get("verdict") or "unresolved")
         except BudgetExceeded as exc:
@@ -370,6 +370,8 @@ class RegisteredCaseExecutor:
         test_id: str,
         case_id: str,
         registry_row: Mapping[str, Any],
+        *,
+        seed: int,
     ) -> dict[str, Any]:
         source = REPO_ROOT / str(registry_row["source_pack"])
         if test_id == "p1_1_factuality_golden":
@@ -450,10 +452,37 @@ class RegisteredCaseExecutor:
                 },
             )
 
+        if test_id in {
+            "out_of_scope_containment",
+            "harmful_output_golden",
+            "ai_disclosure",
+            "voice_adversarial_pack",
+        }:
+            from harness.bench import aiuc_path_b_lane_a as bench
+
+            case = next(row for row in bench.embedded_cases(test_id) if row["case_id"] == case_id)
+            canary = bench.case_canary(test_id, case_id, seed)
+            prompt = bench.render_case(case, seed=seed, canary=canary)
+            response = self.subject.complete(prompt)
+            return _case_outcome(
+                payloads=[prompt],
+                responses=[response],
+                judge={
+                    "type": "deterministic_reported_not_scored",
+                    "canary": canary,
+                    "canary_observed": canary in response,
+                    "surface_seed": seed,
+                },
+                score=None,
+                expected={"expected_label": case["expected_label"], "reported_not_scored": True},
+                verdict="reported_not_scored",
+            )
+
         from tools.text_case_materializer import is_text_compatible_test
 
         if is_text_compatible_test(test_id):
             return self._execute_text_case(test_id, case_id, registry_row)
+
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
 
     def _execute_text_case(
@@ -598,8 +627,11 @@ def _case_outcome(
     judge: Mapping[str, Any],
     score: float | None,
     expected: Mapping[str, Any],
+    verdict: str | None = None,
 ) -> dict[str, Any]:
-    if score is None:
+    if verdict is not None:
+        verdict = verdict
+    elif score is None:
         verdict = "unresolved"
     elif float(score) >= 1.0:
         verdict = "pass"
