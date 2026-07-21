@@ -260,6 +260,12 @@ def create_app(
     config = ApiConfig.from_env()
     config.require_production_signing_key()
     app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
+
+    @app.get("/version", include_in_schema=False)
+    def deployed_version() -> dict[str, str]:
+        """Return the immutable source revision baked into this image."""
+        return {"git_sha": os.environ.get("BACKBOND_BUILD_SHA", "unknown")}
+
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.runtime_profile = runtime_profile
     app.state.bundles = bundles or bundle_store_from_env()

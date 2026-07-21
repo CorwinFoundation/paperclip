@@ -26,6 +26,7 @@ ARG GIT_SHA=unknown
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    BACKBOND_BUILD_SHA="${GIT_SHA}" \
     ARE_SCAN_LOG_PATH=/var/lib/are-scanner/scan_log.sqlite3
 
 LABEL org.opencontainers.image.title="BackBond Scanner live edge" \
