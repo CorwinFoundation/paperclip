@@ -74,8 +74,8 @@
     "scanner-edge-sbom.sha256": "cf01e01a1dad969146bd168e61995ea523f71fbbafb71993fe99c7d8d3ab8dda",
     "scanner-release-candidate.json": "7bb63cb7ebacb4e6da9dc0c3b9f9cf4376075cc7b10df0bc0bc92ef28c98c5e8"
   },
-  "production_runbook_version": "1.5",
-  "production_runbook_sha256": "7a2699ed286637e6ccddcec40fdb4221e115a72c7794ee4d57fe790775331b5a",
+  "production_runbook_version": "1.6",
+  "production_runbook_sha256": "851b20f0b8d1a14d97ff120f3511d8b1c2da1cd648ec5698644b5d51b7f8019c",
   "nginx_template_sha256": "78c342c2ce35b2fc6fe95b5f2a9214f11f8751d0c266da151535e19150b865c1",
   "stage_gate_config_sha256": "c0bf3989a1a1304f5ebc91a1bdf245c528b6ea9ac528e4e55215dec315aac321",
   "acceptance_toml_sha256": "8b5f468f379c41e383424a1941bb769c7d797240678e18451a98f3856d0c9a3e",

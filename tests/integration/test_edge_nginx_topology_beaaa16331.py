@@ -35,6 +35,10 @@ NGINX_DIR = os.path.abspath(os.path.join(HERE, "..", "..", "infra", "edge", "ngi
 HTTP_FRAGMENT = os.path.join(NGINX_DIR, "backbond-scanner-edge.http.conf")
 SERVER_FRAGMENT = os.path.join(NGINX_DIR, "backbond-scanner-edge.server.conf.template")
 LEGACY_STANDALONE = os.path.join(NGINX_DIR, "backbond-scanner-edge.conf.template")
+RUNBOOK = os.path.abspath(
+    os.path.join(HERE, "..", "..", "docs", "deploy",
+                 "sequence-20-production-deployment-runbook.md")
+)
 
 # nginx directives that only ever appear at (or open) server/http scope and would
 # therefore create or duplicate a listener/vhost if present in the deployable
@@ -202,3 +206,86 @@ def test_fragments_syntax_check_inside_a_synthesized_vhost(tmp_path):
         "server fragment must NOT be valid at http/top scope; if it is, it could "
         "be installed standalone and reintroduce the listener defect"
     )
+
+
+# --------------------------------------------------------------------------- #
+# (5) Step-2 live-vhost mutation must be deterministic/automation-runnable — no
+#     interactive $EDITOR (BEAAA-16331 operator STOP 911fcd68, item 5).
+# --------------------------------------------------------------------------- #
+def test_runbook_vhost_mutation_is_automation_runnable_no_editor():
+    rb = _read(RUNBOOK)
+    # The interactive editor must be gone from the deployable mutation. Prose may
+    # still reference `$EDITOR` when explaining the fix, but no shell command line
+    # may invoke it (command lines in the heredocs start at column 0).
+    assert not re.search(r"(?m)^\s*\$EDITOR\b", rb), (
+        "Step 2 must not shell out to $EDITOR: the live-vhost mutation has to be "
+        "deterministic and automation-runnable (operator STOP 911fcd68 item 5)."
+    )
+    # A hash guard binds the transform to the reviewed pre-image (fail-closed).
+    assert "LIVE_VHOST_SHA256" in rb, "Step 2 must hash-guard the live vhost pre-image"
+    assert re.search(r'\[ "\$PRE" = "\$LIVE_VHOST_SHA256" \]', rb), \
+        "the transform must refuse unless the staged copy matches the recorded hash"
+    # The include is inserted exactly once and the diff is captured.
+    assert "include /etc/nginx/backbond-scanner-edge.server.conf;" in rb
+    assert "vhost-include.diff" in rb, "the exact unified diff must go to the receipt"
+    # v1.6 identity (unique — not the spent v1.4/v1.5), item 6.
+    assert re.search(r"(?m)^version:\s*1\.6\b", rb), "runbook must carry the unique v1.6 identity"
+
+
+def _extract_runbook_transform() -> str:
+    """Pull the exact python3 transform heredoc out of the runbook Step 2."""
+    rb = _read(RUNBOOK)
+    m = re.search(r"python3 - \"\$STAGE\" \"\$EDGE_UPSTREAM\" <<'PY'\n(.*?)\nPY\n",
+                  rb, re.DOTALL)
+    assert m, "Step 2 must embed a python3 transform heredoc"
+    return m.group(1)
+
+
+def test_runbook_transform_removes_scanner_locations_and_is_idempotent(tmp_path):
+    """The runbook's OWN transform, run against a realistic vhost, must delete the
+    scanner proxy locations, insert exactly one include, keep one server/listener,
+    and be idempotent on a second pass."""
+    import subprocess
+    import sys
+
+    transform = _extract_runbook_transform()
+    script = tmp_path / "transform.py"
+    script.write_text(transform)
+
+    vhost = tmp_path / "scanner.backbond.ai"
+    vhost.write_text(
+        "server {\n"
+        "    listen 443 ssl;\n"
+        "    server_name scanner.backbond.ai;\n"
+        "    ssl_certificate     /etc/letsencrypt/live/scanner.backbond.ai/fullchain.pem;\n"
+        "    ssl_certificate_key /etc/letsencrypt/live/scanner.backbond.ai/privkey.pem;\n"
+        "\n"
+        "    location /scanner/v1/ {\n"
+        "        proxy_pass http://127.0.0.1:8080;\n"
+        "        proxy_set_header Host $host;\n"
+        "    }\n"
+        "    location ~ ^/scan/ {\n"
+        "        proxy_pass http://127.0.0.1:8080;\n"
+        "    }\n"
+        "    location / {\n"
+        "        proxy_pass http://127.0.0.1:8080;\n"
+        "    }\n"
+        "}\n"
+    )
+
+    def run():
+        r = subprocess.run([sys.executable, str(script), str(vhost), "127.0.0.1:8080"],
+                           capture_output=True, text=True)
+        assert r.returncode == 0, f"transform failed: {r.stderr}"
+
+    run()
+    out1 = vhost.read_text()
+    include = "include /etc/nginx/backbond-scanner-edge.server.conf;"
+    assert out1.count(include) == 1, "include must be inserted exactly once"
+    assert len(re.findall(r"(?m)^\s*server\s*\{", out1)) == 1, "still exactly one server block"
+    assert len(re.findall(r"(?m)^\s*listen\s", out1)) == 1, "no new listener introduced"
+    assert not re.search(r"(?m)^\s*location\s+/scanner/", out1), "scanner proxy location removed"
+    assert "proxy_pass" not in out1, "all app-tier proxy locations replaced by the include"
+
+    run()  # idempotency: a second application must not change the file
+    assert vhost.read_text() == out1, "transform must be idempotent"

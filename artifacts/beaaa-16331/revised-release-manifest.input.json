@@ -8,7 +8,15 @@
   "signed": false,
   "focus_claim": "UNSIGNED manifest INPUT. It records the topology-correct Sequence 20 edge deployable surface (two nginx fragments) and the unchanged scanner image so a signer can bind them. It does NOT itself carry or claim a signature.",
   "why_a_new_manifest_is_required": "The signed manifest artifacts/beaaa-16257/sequence-20-release-manifest.json binds nginx_template_sha256 = 49994c977a238f07c37b6f7c2049d4ae070a25e341e7265bd4b0535d130f24cf and reviewed_file_sha256['infra/edge/nginx/backbond-scanner-edge.conf.template'] for the SINGLE-server-block template. BEAAA-16331 REPLACES that standalone template (deleted) with two fragments, so the deployable nginx surface no longer matches the signed manifest. Promotion must wait for a fresh signed manifest binding the fragment hashes below and this runbook commit.",
-  "ticket_refs": ["BEAAA-16331", "BEAAA-16330", "BEAAA-16232", "BEAAA-16257", "BEAAA-16308", "BEAAA-15400", "BEAAA-15373"],
+  "ticket_refs": [
+    "BEAAA-16331",
+    "BEAAA-16330",
+    "BEAAA-16232",
+    "BEAAA-16257",
+    "BEAAA-16308",
+    "BEAAA-15400",
+    "BEAAA-15373"
+  ],
   "sequence": 20,
   "commit_sha": "TO_BE_SET_TO_PUSHED_BEAAA-16331_COMMIT_SHA",
   "source_ref": "refs/heads/beaaa-16297-lanec-failopen-fix",
@@ -22,16 +30,29 @@
     "edge_http_fragment_sha256": "840c63d9e84b9818ae7ecc63d86cb6d9951b890186ba186da95148f6b4806814",
     "server_fragment_path": "infra/edge/nginx/backbond-scanner-edge.server.conf.template",
     "edge_server_fragment_sha256": "78c342c2ce35b2fc6fe95b5f2a9214f11f8751d0c266da151535e19150b865c1",
-    "retired_standalone_template": "infra/edge/nginx/backbond-scanner-edge.conf.template (DELETED — parallel-listener defect)"
+    "retired_standalone_template": "infra/edge/nginx/backbond-scanner-edge.conf.template (DELETED \u2014 parallel-listener defect)"
   },
-  "production_runbook_version": "1.4",
+  "production_runbook_version": "1.6",
   "production_runbook_path": "docs/deploy/sequence-20-production-deployment-runbook.md",
-  "production_runbook_sha256": "b3c491c84d73a59cf99f9b07ad69ef1dfee571608d2c76af943993ac8f090bdf",
+  "production_runbook_sha256": "851b20f0b8d1a14d97ff120f3511d8b1c2da1cd648ec5698644b5d51b7f8019c",
   "rollback_image": "backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121",
   "manifest_signature": {
     "scheme": "openssl-sha256-rsa-detached",
     "status": "NOT_PRODUCED",
-    "note": "No private key is available in this seat and no fresh signing CI run has been executed. A signer (manifest owner) must sign a finalized manifest that fills commit_sha + source_bundle_sha256 from the pushed BEAAA-16331 commit and binds the two edge fragment SHA-256 values above. Do NOT claim a signature that has not been produced."
+    "note": "No private key in this seat. A signer (manifest owner / CTO / Founder) must sign a finalized manifest that fills commit_sha + source_bundle_sha256 from the pushed BEAAA-16331 commit and binds: production_runbook_sha256 (v1.6, above), both edge fragment SHA-256, candidate_offline_archive.scanner_tarball_sha256 + local tag/revision, and rollback_identity. Do NOT claim a signature that has not been produced."
   },
-  "promotion_authorized": false
+  "promotion_authorized": false,
+  "production_runbook_note": "v1.6 removes the interactive $EDITOR from the Step-2 live-vhost mutation (operator STOP 911fcd68 item 5); the include is applied by a deterministic, idempotent, hash-guarded transform. Unique identity vs the spent v1.4/v1.5 (item 6).",
+  "candidate_offline_archive": {
+    "note": "The signed scanner image ships to srv1749248 as an OFFLINE docker archive (default-deny egress); docker load does NOT restore the GHCR RepoDigest, so identity is verified by tar sha256 + local RepoTag + org.opencontainers.image.revision.",
+    "scanner_tarball_sha256": "d9f7203b79d42a77e17bfa292781250c7575d31f011ee03d79f9accbfbaf29ac",
+    "scanner_local_tag": "backbond-scanner-live:b1c577c74a127c1342617230689eb6f0ef9be6d2",
+    "scanner_oci_revision": "b1c577c74a127c1342617230689eb6f0ef9be6d2",
+    "ghcr_provenance_recorded_only": "ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65"
+  },
+  "rollback_identity": {
+    "image_id": "sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121",
+    "oci_revision": "37192e2b0e9f50416170da77dcbc189c00761ecc",
+    "read_back_from": "running container backbond-scanner-live-edge on srv1749248 (BEAAA-16331)"
+  }
 }

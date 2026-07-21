@@ -15,19 +15,42 @@ proof_points_cited:
   - "Deployable edge fragments: infra/edge/nginx/backbond-scanner-edge.http.conf + backbond-scanner-edge.server.conf.template"
   - "Live vhost integrated in place: /etc/nginx/sites-available/scanner.backbond.ai (sites-enabled symlink)"
   - "Live service/container/env contract: service backbond-scanner-live.service, container backbond-scanner-live-edge, env-file /etc/backbond/scanner-edge.env (NOT are-scanner-edge / /etc/are-scanner/secrets.env)"
-version: 1.5
-prior_version: "1.4 (docs/deploy/sequence-20-production-deployment-runbook.md@f2de72e — topology-correct vhost integration, but image/credential/rollback identity not reconciled to the operator read-back)"
+version: 1.6
+prior_version: "1.5 (docs/deploy/sequence-20-production-deployment-runbook.md@727447c — image/credential/rollback identity reconciled, but the live-vhost mutation was still an interactive `$EDITOR` step: non-deterministic and not automation-runnable)"
 self_audit_passed: true
 escalations_noted:
   - "v1.3 assumed a standalone /etc/nginx/conf.d/backbond-scanner-edge.conf server block. The live topology is ONE TLS vhost at /etc/nginx/sites-available/scanner.backbond.ai; installing a second server block would create a conflicting listener. The Sequence 20 operator stop (BEAAA-16232 962f9417) caught this. v1.4 integrates into the live vhost."
   - "v1.5 reconciles image/credential/rollback identity to the operator's fail-closed read-back (BEAAA-16331 local-board comments 2026-07-21): (a) /usr/local/sbin/box_deploy is ABSENT and its GHCR-RepoDigest re-verify cannot run after an offline `docker load` (Docker archives do not preserve the GHCR RepoDigest), so image identity is verified by tar sha256 + loaded local RepoTag + org.opencontainers.image.revision, with the GHCR digest retained as provenance only; (b) the live service/container/env names are backbond-scanner-live.service / backbond-scanner-live-edge / /etc/backbond/scanner-edge.env, not the older are-scanner defaults; (c) rollback identity is the read-back image ID sha256:7c4ff251… (revision 37192e2b…), not a remembered tag; (d) two DISTINCT active non-customer/non-vapi Tenant A/B scoped credentials are NOT staged in /var/lib/are-scanner/edge/keys.json and must be provisioned fail-closed at mode 0600 before the tenant preflight can pass."
-  - "The deployable nginx surface changed (standalone template -> two fragments) AND this runbook is now v1.5, so the release manifest (artifacts/beaaa-16257/sequence-20-release-manifest.json) MUST be re-input to bind the two fragment SHA-256 values + this runbook's v1.5 SHA-256, then RE-SIGNED. The current manifest is unsigned, still binds the deleted standalone template hash, and carries a placeholder runbook hash. Re-signing is a CTO/Founder action; this task does NOT claim a signature it cannot produce. promotion_authorized stays false."
+  - "The deployable nginx surface changed (standalone template -> two fragments) AND this runbook is now v1.6, so the release manifest (artifacts/beaaa-16257/sequence-20-release-manifest.json) MUST bind the two fragment SHA-256 values + this runbook's v1.6 SHA-256, then be RE-SIGNED. The re-input manifest now records the two fragment hashes and the v1.6 runbook SHA-256 (artifacts/beaaa-16331/revised-release-manifest.input.json also binds the offline archive tar sha256 + local tag/revision + rollback identity), but it is UNSIGNED (manifest_signature.status=NOT_PRODUCED) — re-signing is a CTO/Founder action; this task does NOT claim a signature it cannot produce. promotion_authorized stays false."
+  - "v1.6 removes the interactive `$EDITOR` from the live-vhost mutation (BEAAA-16331 local-board 911fcd68 item 5): the vhost include is now applied by a deterministic, idempotent, hash-guarded transform (Step 2) that fail-closes unless the staged copy matches the operator-recorded pre-image hash LIVE_VHOST_SHA256, removes the scanner proxy location blocks, inserts exactly one include, emits the exact unified diff to the receipt, and records vhost_pre/vhost_post SHA-256. Re-running the transform logic is a no-op. This makes the mutation fully automation-runnable and reviewable before execution."
   - "Production/public promotion requires exact-build QA APPROVED naming this runbook commit SHA and separate Founder sign-off under BEAAA-15373. v4 Founder confirmation authorized the prior identity only and does NOT carry to this changed deployable surface. No production mutation is performed by this task."
 ---
 
-# Sequence 20 production deployment runbook (v1.5 — topology- and identity-correct)
+# Sequence 20 production deployment runbook (v1.6 — topology-, identity-, and automation-correct)
 
-## Why v1.5 supersedes v1.4
+## Why v1.6 supersedes v1.5
+
+v1.5 reconciled the image, credential, and rollback identity to the operator
+read-back, but the live-vhost mutation (Step 2) was still an interactive
+`$EDITOR "$STAGE"` step. The operator's independent review (BEAAA-16331
+local-board `911fcd68`, item 5, **no mutation**) flagged that as
+**non-deterministic and not automation-runnable**. v1.6 replaces it with a
+deterministic, idempotent, **hash-guarded** transform that:
+
+- refuses to run unless the staged copy's SHA-256 equals the operator-recorded
+  pre-image `LIVE_VHOST_SHA256` (fail-closed on any vhost drift), cross-checked
+  against the Step-1 backup copy;
+- removes the vhost's scanner proxy `location` blocks and inserts **exactly one**
+  `include /etc/nginx/backbond-scanner-edge.server.conf;` after the
+  `listen`/`server_name`/`ssl_certificate` set — re-applying the transform logic
+  to already-transformed content is a no-op;
+- emits the exact unified diff (config only, no secrets) and records
+  `vhost_pre`/`vhost_post` SHA-256 into the receipt.
+
+Nothing else changes from v1.5. The nginx topology fix (v1.4) and the
+image/credential/rollback reconciliation (v1.5) are carried forward verbatim.
+
+## Why v1.5 superseded v1.4
 
 v1.4 fixed the nginx topology but described the image, credential, and rollback
 identity from remembered values. The operator's fail-closed read-back on
@@ -141,6 +164,9 @@ RELEASE_MANIFEST_SIG=/var/tmp/sequence-20-release-manifest.json.sig
 RELEASE_MANIFEST_PUBKEY=/var/tmp/sequence-20-release-manifest.pub.pem
 LIVE_VHOST=/etc/nginx/sites-available/scanner.backbond.ai
 LIVE_VHOST_LINK=/etc/nginx/sites-enabled/scanner.backbond.ai
+# Pre-image hash of the live vhost, recorded from the operator read-back inventory.
+# The Step-2 transform fail-closes unless the staged copy matches this exactly.
+LIVE_VHOST_SHA256=<sha256 of /etc/nginx/sites-available/scanner.backbond.ai at read-back>
 EDGE_UPSTREAM=<the app-tier host:port THIS vhost already proxies to>
 EDGE_ACCESS_LOG=/var/log/nginx/scanner-backbond-edge.access.log
 BACKBOND_ACCEPTANCE_BASE_URL=https://scanner.backbond.ai
@@ -169,7 +195,7 @@ SYNTH_ENDPOINT_SECRET_REF=file:/etc/credstore.encrypted#<synthetic-endpoint-secr
 (step 1) and must match what the vhost proxies to today (the change preserves the
 existing upstream). `PROVENANCE_GHCR_IMAGE`, `SCANNER_TARBALL_SHA256`, and
 `SOURCE_BUNDLE_SHA256` must come verbatim from the signed manifest. The manifest
-must be **re-signed** to bind this v1.5 runbook SHA-256 and both edge-fragment
+must be **re-signed** to bind this v1.6 runbook SHA-256 and both edge-fragment
 SHA-256 values before promotion; the manifest under `artifacts/beaaa-16257/` is a
 re-input (unsigned) until the CTO/Founder signing step runs — do **not** deploy
 against it while `promotion_authorized` is `false` or the signature is absent.
@@ -181,7 +207,7 @@ openssl dgst -sha256 \
   -verify artifacts/beaaa-16257/sequence-20-release-manifest.pub.pem \
   -signature artifacts/beaaa-16257/sequence-20-release-manifest.json.sig \
   artifacts/beaaa-16257/sequence-20-release-manifest.json
-# manifest must bind THIS v1.5 runbook SHA-256 and both edge-fragment SHA-256
+# manifest must bind THIS v1.6 runbook SHA-256 and both edge-fragment SHA-256
 # values; if it does not (or is unsigned / promotion_authorized=false), stop —
 # the manifest predates the topology+identity fix.
 ```
@@ -217,6 +243,8 @@ printf '%s  %s\n' "$SOURCE_BUNDLE_SHA256" "$SOURCE_BUNDLE" | sha256sum -c -
 [ -n "$TEST_TENANT_ID_B" ] && [ "$TEST_TENANT_ID_B" != vapi ] && [ "$TEST_TENANT_ID_B" != "$TEST_TENANT_ID" ]
 test -L "$LIVE_VHOST_LINK"
 test -f "$LIVE_VHOST"
+# The live-vhost pre-image hash must be a well-formed sha256 (Step-2 hash guard).
+printf '%s\n' "$LIVE_VHOST_SHA256" | grep -Eq '^[0-9a-f]{64}$'
 SH
 ```
 
@@ -380,41 +408,103 @@ chmod 0644 /etc/nginx/backbond-scanner-edge.server.conf
 SH
 ```
 
-Now edit the live vhost **in place** to pull in the include, replacing the
-existing scanner proxy location(s). Do this on a staged copy, prove it is a
-single-listener edit, then atomically move it into place:
+Now integrate the include **into** the one live vhost with a deterministic,
+idempotent, **hash-guarded** transform — never an interactive editor. The
+transform refuses to run unless the staged copy matches the operator-recorded
+pre-image `LIVE_VHOST_SHA256` (fail-closed on any drift), removes the vhost's
+scanner proxy `location` blocks, inserts the include exactly once, writes the
+exact unified diff to the receipt, and records the pre/post SHA-256. Re-applying
+the transform logic to already-transformed content is a no-op.
 
 ```sh
 sudo sh -eu <<'SH'
 . /etc/backbond/sequence-20-production.env
+BACKUP="$(cat /etc/backbond/sequence-20-active-backup)"
 STAGE="$(mktemp /etc/nginx/.scanner-vhost.XXXXXX)"
 cp -aL "$LIVE_VHOST" "$STAGE"
 
-# Replace the vhost's scanner proxy location block(s) with the single include.
-# The operator makes this edit deliberately: delete the existing
-#   location /scanner/v1/ { ... }  and any  location ~ ^/scan/  and  location /
-# blocks that proxy to the app tier, and insert exactly one line INSIDE the
-# server block, after the ssl_certificate/server_name directives:
-#     include /etc/nginx/backbond-scanner-edge.server.conf;
-$EDITOR "$STAGE"   # or an idempotent, reviewed sed/patch; commit the diff to the receipt
+# (bound by hash) refuse unless the live vhost is the exact reviewed pre-image,
+# cross-checked against the Step-1 backup copy. Any drift stops the run.
+PRE="$(sha256sum < "$STAGE" | cut -d' ' -f1)"
+[ "$PRE" = "$LIVE_VHOST_SHA256" ]
+[ "$PRE" = "$(sha256sum < "$BACKUP/scanner.backbond.ai" | cut -d' ' -f1)" ]
+
+# Deterministic, idempotent transform: delete the scanner proxy location blocks,
+# insert exactly one include after the listen/server_name/ssl_certificate set.
+# No interactive editor; the same input always yields the same output.
+python3 - "$STAGE" "$EDGE_UPSTREAM" <<'PY'
+import re, sys
+path, upstream = sys.argv[1], sys.argv[2]
+src = open(path).read()
+INCLUDE = 'include /etc/nginx/backbond-scanner-edge.server.conf;'
+if len(re.findall(r'(?m)^\s*server\s*\{', src)) != 1:
+    sys.exit('FAIL: expected exactly one server block')
+
+def blocks(text, header):
+    out = []
+    for m in re.finditer(header, text):
+        i = text.index('{', m.start()); depth = 0; j = i
+        while j < len(text):
+            if text[j] == '{': depth += 1
+            elif text[j] == '}':
+                depth -= 1
+                if depth == 0: break
+            j += 1
+        out.append((m.start(), j + 1))
+    return out
+
+# Remove location blocks that proxy the scanner API to the app tier.
+spans = []
+for s, e in blocks(src, r'(?m)^[ \t]*location\b[^\{]*\{'):
+    body = src[s:e]
+    if 'proxy_pass' in body and (upstream in body or '/scanner/' in body
+                                 or '/scan' in body or re.search(r'location\s+/\s*\{', body)):
+        spans.append((s, e))
+for s, e in sorted(spans, reverse=True):
+    ls = src.rfind('\n', 0, s) + 1          # swallow leading indent
+    en = e
+    while en < len(src) and src[en] in ' \t': en += 1
+    if en < len(src) and src[en] == '\n': en += 1   # and the trailing newline
+    src = src[:ls] + src[en:]
+
+# Insert the include exactly once (idempotent: skip if already present).
+if INCLUDE not in src:
+    anchor = None
+    for m in re.finditer(r'(?m)^[ \t]*(ssl_certificate_key|ssl_certificate|server_name|listen)\b[^\n]*\n', src):
+        anchor = m.end()
+    if anchor is None:
+        sys.exit('FAIL: no listen/server_name/ssl_certificate anchor directive')
+    src = src[:anchor] + '    ' + INCLUDE + '\n' + src[anchor:]
+
+open(path, 'w').write(src)
+PY
+
+# Exact unified diff to the receipt (config only, no secrets).
+diff -u "$BACKUP/scanner.backbond.ai" "$STAGE" > "$BACKUP/vhost-include.diff" || true
 
 # Fail-closed structural checks on the staged vhost:
 #  - still exactly ONE server block and ONE listen directive set (no new listener);
-#  - the include line is present; no duplicate default-deny locations remain.
+#  - the include appears exactly once; no scanner proxy location remains.
 [ "$(grep -Ec '^[[:space:]]*server[[:space:]]*\{' "$STAGE")" = 1 ]
-grep -Fq 'include /etc/nginx/backbond-scanner-edge.server.conf;' "$STAGE"
+[ "$(grep -Fc 'include /etc/nginx/backbond-scanner-edge.server.conf;' "$STAGE")" = 1 ]
+! grep -Eq '^[[:space:]]*location[[:space:]]+/scanner/' "$STAGE"
 
 install -o root -g root -m 0644 "$STAGE" "$LIVE_VHOST"
+POST="$(sha256sum < "$LIVE_VHOST" | cut -d' ' -f1)"
+printf 'vhost_pre=%s vhost_post=%s\n' "$PRE" "$POST" > "$BACKUP/vhost-transform-hashes.txt"
 rm -f "$STAGE"
 # sites-enabled symlink is unchanged and still points at the same target.
 test -L "$LIVE_VHOST_LINK"
-[ "$(readlink "$LIVE_VHOST_LINK")" = "$(cat "$(cat /etc/backbond/sequence-20-active-backup)/sites-enabled-target.txt")" ]
+[ "$(readlink "$LIVE_VHOST_LINK")" = "$(cat "$BACKUP/sites-enabled-target.txt")" ]
 SH
 ```
 
-Pass: the staged vhost has exactly one server block and one listener set, carries
-the include line, installs cleanly, and the sites-enabled symlink target is
-unchanged. Any deviation stops the run before `nginx -t`.
+Pass: the staged vhost matched the recorded pre-image hash, the transform removed
+the scanner proxy locations and inserted exactly one include, the staged vhost
+has exactly one server block and one listener set, the unified diff and pre/post
+hashes are captured in the backup, it installs cleanly, and the sites-enabled
+symlink target is unchanged. Any deviation — hash mismatch, missing anchor, more
+than one server block — stops the run before `nginx -t`.
 
 ## 3. Validate and zero-downtime reload nginx
 
@@ -564,7 +654,7 @@ request to the loopback so the preflight never depends on external DNS.
 | Integration on-path | real `scanner.backbond.ai` default-deny 404 body `request_id` equals response `X-Request-ID` | rollback |
 | Redaction | `Server` absent or bare `nginx`; no version/upstream topology header | rollback |
 | Request ID | header present; exactly one edge access-log line carries the identical id | rollback |
-| Manifest binding | manifest re-signed, binds this v1.5 runbook SHA-256 + both fragment SHA-256, `promotion_authorized=true` | do not promote |
+| Manifest binding | manifest re-signed, binds this v1.6 runbook SHA-256 + both fragment SHA-256, `promotion_authorized=true` | do not promote |
 | Rollback proof | backup holds a non-symlink copy of the prior vhost + recorded symlink target + retained image ID + revision label | do not start |
 
 No scan, customer mutation, credential rotation, or tenant creation is authorized
