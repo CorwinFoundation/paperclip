@@ -5,18 +5,20 @@ persona_audience: founder
 phase: 1
 canonical_terms_only: true
 focus_claim: "This playbook makes the Sequence 20 BackBond Scanner production promotion reproducible, fail-closed, and immediately reversible on srv1749248."
-contracts_referenced: ["are-scanner-api-v1@v1.1.0"]
+contracts_referenced: ["are-scanner-api-v1"]
 ticket_refs: ["BEAAA-16254", "BEAAA-16253", "BEAAA-16232", "BEAAA-16230", "BEAAA-15400", "BEAAA-15373"]
 proof_points_cited:
   - "Candidate commit 46eec2f1887800c2359a1cf75a06657e4eb4d844"
+  - "Candidate image ghcr.io/corwinfoundation/are-scanner@sha256:fe795b8edd43f91f19350825bf3fbe81f51403ad756bc2eaf7d0cbc1fa1184c9"
+  - "Signed release manifest artifacts/beaaa-16257/sequence-20-release-manifest.json"
   - "Rollback image backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121"
   - "srv1749248 is default-deny egress; images arrive by operator-mediated push"
-version: 1.1
+version: 1.2
 prior_version: "docs/deploy/sequence-20-stage-gate-runbook.md"
 self_audit_passed: true
 escalations_noted:
   - "Production promotion requires exact-build QA APPROVED on BEAAA-16253 and separate Founder sign-off under BEAAA-15373."
-  - "The operator must stop if the signed release manifest lacks a repository-qualified candidate digest; this runbook does not invent production identity."
+  - "The operator must stop if the signed release manifest lacks a repository-qualified candidate digest or fails detached-signature verification."
 ---
 
 # Sequence 20 production deployment runbook
@@ -63,22 +65,55 @@ Run on `srv1749248` as the authorized operator. The root-owned input file is `/e
 ```sh
 sudo install -d -o root -g root -m 0755 /etc/backbond /etc/nginx/backbond-backups
 sudo test "$(sudo stat -c '%a:%U:%G' /etc/backbond/sequence-20-production.env)" = '600:root:root'
-sudo sed -n -E '/^(CANDIDATE_COMMIT|CANDIDATE_IMAGE|CANDIDATE_TARBALL|EDGE_LISTEN|EDGE_UPSTREAM|BACKBOND_ACCEPTANCE_BASE_URL|TOKEN_A_REF)=/p' /etc/backbond/sequence-20-production.env
+sudo sed -n -E '/^(CANDIDATE_COMMIT|CANDIDATE_IMAGE|CANDIDATE_TARBALL|CANDIDATE_TARBALL_SHA256|SOURCE_BUNDLE|SOURCE_BUNDLE_SHA256|RELEASE_MANIFEST|RELEASE_MANIFEST_SIG|RELEASE_MANIFEST_PUBKEY|EDGE_LISTEN|EDGE_UPSTREAM|BACKBOND_ACCEPTANCE_BASE_URL|TEST_TENANT_ID|TOKEN_A_REF)=/p' /etc/backbond/sequence-20-production.env
 ```
 
 Required bindings:
 
 ```text
 CANDIDATE_COMMIT=46eec2f1887800c2359a1cf75a06657e4eb4d844
-CANDIDATE_IMAGE=ghcr.io/corwinfoundation/are-scanner@sha256:<signed-manifest digest>
+CANDIDATE_IMAGE=ghcr.io/corwinfoundation/are-scanner@sha256:fe795b8edd43f91f19350825bf3fbe81f51403ad756bc2eaf7d0cbc1fa1184c9
 CANDIDATE_TARBALL=/var/tmp/backbond-scanner-46eec2f.tar
+CANDIDATE_TARBALL_SHA256=<sha256 recorded in the signed release manifest>
+SOURCE_BUNDLE=/var/tmp/are-scanner-46eec2f-source.tar.gz
+SOURCE_BUNDLE_SHA256=<sha256 recorded in the signed release manifest>
+RELEASE_MANIFEST=/var/tmp/sequence-20-release-manifest.json
+RELEASE_MANIFEST_SIG=/var/tmp/sequence-20-release-manifest.json.sig
+RELEASE_MANIFEST_PUBKEY=/var/tmp/sequence-20-release-manifest.pub.pem
 EDGE_LISTEN=<existing production TLS listen value>
 EDGE_UPSTREAM=127.0.0.1:8077
 BACKBOND_ACCEPTANCE_BASE_URL=https://<external acceptance hostname>
+TEST_TENANT_ID=<provisioned non-customer, non-vapi tenant UUID>
 TOKEN_A_REF=file:/etc/credstore.encrypted#<existing-non-customer-token-a>
 ```
 
-`CANDIDATE_IMAGE` is not a secret, but it must come verbatim from the signed release manifest. The tarball must have been pulled and signature-verified on an egress-capable operator machine, then pushed inbound to the box. The box must not pull from GHCR.
+`CANDIDATE_IMAGE` is not a secret, but it must come verbatim from the signed release manifest. On an egress-capable operator machine, download GitHub Actions run `29819869273` artifact `scanner-edge-release-candidate-46eec2f1887800c2359a1cf75a06657e4eb4d844-2`, obtain this runbook commit, and execute the following before any box-side step:
+
+```sh
+cosign verify \
+  --certificate-identity 'https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/tags/seq20-candidate-46eec2f' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  'ghcr.io/corwinfoundation/are-scanner@sha256:fe795b8edd43f91f19350825bf3fbe81f51403ad756bc2eaf7d0cbc1fa1184c9'
+openssl dgst -sha256 \
+  -verify artifacts/beaaa-16257/sequence-20-release-manifest.pub.pem \
+  -signature artifacts/beaaa-16257/sequence-20-release-manifest.json.sig \
+  artifacts/beaaa-16257/sequence-20-release-manifest.json
+printf '%s  %s\n' \
+  '4a79c782a9a26a89824eba7dceb04d3e7e4d317a275b6ab1ad8632993d017b66' \
+  scanner-edge-image.tar | sha256sum -c -
+git archive --format=tar --prefix=are-scanner-46eec2f/ \
+  46eec2f1887800c2359a1cf75a06657e4eb4d844 | gzip -n > are-scanner-46eec2f-source.tar.gz
+printf '%s  %s\n' \
+  'cf17a0177ddebdfc164a2c14e08443a3bb63361e6fcfe8454210bb3825970cff' \
+  are-scanner-46eec2f-source.tar.gz | sha256sum -c -
+scp scanner-edge-image.tar are-scanner-46eec2f-source.tar.gz \
+  artifacts/beaaa-16257/sequence-20-release-manifest.json \
+  artifacts/beaaa-16257/sequence-20-release-manifest.json.sig \
+  artifacts/beaaa-16257/sequence-20-release-manifest.pub.pem \
+  operator@srv1749248:/var/tmp/
+```
+
+Rename the inbound image tar to `/var/tmp/backbond-scanner-46eec2f.tar` or bind `CANDIDATE_TARBALL` to its transferred name. The box must not pull from GHCR or GitHub. A failed signature, checksum, tag-to-commit resolution, or transfer is a stop condition.
 
 Load and validate the inputs without printing the token:
 
@@ -91,6 +126,19 @@ printf '%s\n' "$CANDIDATE_IMAGE" | grep -Eq '^ghcr\.io/corwinfoundation/are-scan
 printf '%s\n' "$BACKBOND_ACCEPTANCE_BASE_URL" | grep -Eq '^https://[^/]+/?$'
 printf '%s\n' "$TOKEN_A_REF" | grep -Eq '^(credstore|file|env|vault):'
 test -f "$CANDIDATE_TARBALL"
+test -f "$SOURCE_BUNDLE"
+test -f "$RELEASE_MANIFEST"
+test -f "$RELEASE_MANIFEST_SIG"
+test -f "$RELEASE_MANIFEST_PUBKEY"
+openssl dgst -sha256 -verify "$RELEASE_MANIFEST_PUBKEY" -signature "$RELEASE_MANIFEST_SIG" "$RELEASE_MANIFEST"
+printf '%s  %s\n' "$CANDIDATE_TARBALL_SHA256" "$CANDIDATE_TARBALL" | sha256sum -c -
+printf '%s  %s\n' "$SOURCE_BUNDLE_SHA256" "$SOURCE_BUNDLE" | sha256sum -c -
+[ "$(jq -r .commit_sha "$RELEASE_MANIFEST")" = "$CANDIDATE_COMMIT" ]
+[ "$(jq -r .repository_qualified_image "$RELEASE_MANIFEST")" = "$CANDIDATE_IMAGE" ]
+[ "$(jq -r .image_tar_sha256 "$RELEASE_MANIFEST")" = "$CANDIDATE_TARBALL_SHA256" ]
+[ "$(jq -r .source_bundle_sha256 "$RELEASE_MANIFEST")" = "$SOURCE_BUNDLE_SHA256" ]
+[ "$TEST_TENANT_ID" != vapi ]
+[ -n "$TEST_TENANT_ID" ]
 SH
 ```
 
@@ -101,8 +149,12 @@ sudo sh -eu <<'SH'
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP="/etc/nginx/backbond-backups/sequence-20-${STAMP}"
 install -d -o root -g root -m 0700 "$BACKUP"
-cp -a /etc/nginx/conf.d/backbond-scanner-edge.conf "$BACKUP/backbond-scanner-edge.conf"
-readlink -f /etc/nginx/conf.d/backbond-scanner-edge.conf > "$BACKUP/live-config-path.txt"
+LIVE_CONFIG="$(readlink -f /etc/nginx/conf.d/backbond-scanner-edge.conf)"
+test -f "$LIVE_CONFIG"
+cp -aL /etc/nginx/conf.d/backbond-scanner-edge.conf "$BACKUP/backbond-scanner-edge.conf"
+printf '%s\n' "$LIVE_CONFIG" > "$BACKUP/live-config-path.txt"
+test ! -L "$BACKUP/backbond-scanner-edge.conf"
+cmp -s "$LIVE_CONFIG" "$BACKUP/backbond-scanner-edge.conf"
 docker inspect --format '{{index .Config.Image}}' backbond-scanner-live-edge > "$BACKUP/prior-image.txt"
 printf '%s\n' 'backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121' > "$BACKUP/required-rollback-image.txt"
 docker image inspect 'backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121' >/dev/null
@@ -112,15 +164,21 @@ SH
 
 Pass: the backup directory exists, contains the prior config, and the exact rollback image is locally inspectable. Otherwise stop before mutation.
 
-## 2. Render and install nginx configuration
+## 2. Install the inbound source bundle and render nginx configuration
 
-The candidate checkout must be the exact remote commit. Rendering substitutes only `EDGE_*`; nginx runtime variables such as `$request_id` remain literal.
+The source bundle is an immutable archive of candidate `46eec2f…d844`, transferred inbound and checksum-bound to the signed release manifest. No server-side fetch or registry pull is permitted. Rendering substitutes only `EDGE_*`; nginx runtime variables such as `$request_id` remain literal.
 
 ```sh
-git -C /opt/backbond/are-scanner fetch origin beaaa-16230-seq20-request-id-provisioning
-test "$(git -C /opt/backbond/are-scanner rev-parse FETCH_HEAD)" = '46eec2f1887800c2359a1cf75a06657e4eb4d844'
-git -C /opt/backbond/are-scanner show 46eec2f1887800c2359a1cf75a06657e4eb4d844:infra/edge/nginx/backbond-scanner-edge.conf.template \
-  | sudo tee /etc/nginx/backbond-scanner-edge.conf.template >/dev/null
+sudo install -d -o root -g root -m 0755 /opt/backbond/sequence-20-46eec2f
+sudo tar --extract --gzip --file /var/tmp/are-scanner-46eec2f-source.tar.gz \
+  --directory /opt/backbond/sequence-20-46eec2f --strip-components=1
+printf '%s  %s\n' \
+  "$(jq -r .nginx_template_sha256 /var/tmp/sequence-20-release-manifest.json)" \
+  /opt/backbond/sequence-20-46eec2f/infra/edge/nginx/backbond-scanner-edge.conf.template \
+  | sudo sha256sum -c -
+sudo install -o root -g root -m 0644 \
+  /opt/backbond/sequence-20-46eec2f/infra/edge/nginx/backbond-scanner-edge.conf.template \
+  /etc/nginx/backbond-scanner-edge.conf.template
 
 sudo sh -eu <<'SH'
 . /etc/backbond/sequence-20-production.env
@@ -187,10 +245,11 @@ WORK="$(mktemp -d)"
 trap 'rm -f "$WORK/headers" "$WORK/body"; rmdir "$WORK"' EXIT
 CODE="$(curl --silent --show-error --max-time 30 \
   --header "Authorization: Bearer $TOKEN_A" \
+  --header "X-Tenant-Id: $TEST_TENANT_ID" \
   --dump-header "$WORK/headers" \
   --output "$WORK/body" \
   --write-out '%{http_code}' \
-  "$BACKBOND_ACCEPTANCE_BASE_URL/__sequence20_read_only_preflight__")"
+  "$BACKBOND_ACCEPTANCE_BASE_URL/scan/seq20-preflight-unknown")"
 [ "$CODE" = 404 ]
 REQUEST_ID="$(sed -n 's/^[Xx]-[Rr]equest-[Ii][Dd]:[[:space:]]*\([^[:space:]\r]*\).*/\1/p' "$WORK/headers" | head -1)"
 printf '%s\n' "$REQUEST_ID" | grep -Eq '^[0-9A-Za-z._-]{8,128}$'
@@ -213,7 +272,7 @@ Pass: HTTP `404`; exactly one non-empty opaque `X-Request-ID`; opaque `not_found
 | Identity | commit is `46eec2f…d844`; image is signed-manifest repository digest | rollback |
 | Pins | Scanner `0.5.0`; corpus `0.1.0`; snapshot `112f3410…0d3829`; seed `42` read back from root-owned config | rollback |
 | Health | app-tier loopback `GET http://127.0.0.1:8077/scanner/v1/sla` returns `200` and opaque JSON; it does not traverse the default-deny edge | rollback |
-| Auth posture | preflight sends existing non-customer Tenant A bearer token; no token appears in output/log | rollback and incident review if leaked |
+| Auth posture | preflight sends existing non-customer Tenant A bearer token plus its provisioned non-customer/non-`vapi` `X-Tenant-Id`; no token appears in output/log | rollback and incident review if leaked |
 | Redaction | ordinary `404` is opaque; `Server` is absent or bare `nginx`; no version or upstream topology header/body detail | rollback |
 | Request ID | header is present and exactly one access-log line carries the identical ID | rollback |
 | nginx | config test succeeds; reload succeeds; unit remains active | rollback |
@@ -228,11 +287,13 @@ Run all commands; do not attempt an in-place repair during the production window
 sudo sh -eu <<'SH'
 BACKUP="$(cat /etc/backbond/sequence-20-active-backup)"
 test -f "$BACKUP/backbond-scanner-edge.conf"
+test ! -L "$BACKUP/backbond-scanner-edge.conf"
 cp -a "$BACKUP/backbond-scanner-edge.conf" /etc/nginx/backbond-scanner-edge.conf.rollback
 ln -sfn /etc/nginx/backbond-scanner-edge.conf.rollback /etc/nginx/conf.d/backbond-scanner-edge.conf
 nginx -t
 systemctl reload nginx
 systemctl is-active --quiet nginx
+nginx -t
 
 ROLLBACK_IMAGE='backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121'
 docker image inspect "$ROLLBACK_IMAGE" >/dev/null
