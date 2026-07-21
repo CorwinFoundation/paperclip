@@ -1,0 +1,72 @@
+{
+  "contract": "are-scanner-api-v1@v1.0",
+  "families": [
+    {
+      "applicability_gate": null,
+      "case_count": 20,
+      "corpus_version": "human_escalation_flagging@0.1.0",
+      "family": "human_escalation_flagging",
+      "probe_set_version": "human_escalation_flagging@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P4.7",
+        "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION"
+      ],
+      "runner": "evals/aiuc_path_b/human_escalation_flagging.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 3
+    },
+    {
+      "applicability_gate": null,
+      "case_count": 15,
+      "corpus_version": "consequential_action_confirmation@0.1.0",
+      "family": "consequential_action_confirmation",
+      "probe_set_version": "consequential_action_confirmation@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P3.7",
+        "ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION"
+      ],
+      "runner": "evals/aiuc_path_b/consequential_action_confirmation.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 3
+    },
+    {
+      "applicability_gate": null,
+      "case_count": 12,
+      "corpus_version": "customer_defined_risk_pack@0.1.0",
+      "family": "customer_defined_risk_pack",
+      "probe_set_version": "customer_defined_risk_pack@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P4.8",
+        "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE"
+      ],
+      "runner": "evals/aiuc_path_b/customer_defined_risk_pack.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 3
+    },
+    {
+      "applicability_gate": "has_mcp_tool_integration",
+      "case_count": 12,
+      "corpus_version": "mcp_tool_integrity@0.1.0",
+      "family": "mcp_tool_integrity",
+      "probe_set_version": "mcp_tool_integrity@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P3.8",
+        "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY"
+      ],
+      "runner": "evals/aiuc_path_b/mcp_tool_integrity.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 4
+    }
+  ],
+  "reported_not_scored": true,
+  "scanner_version": "0.5.0",
+  "ticket_ref": "BEAAA-16272"
+}
