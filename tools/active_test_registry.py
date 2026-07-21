@@ -12,7 +12,7 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import yaml
 
@@ -99,6 +99,12 @@ class RegistryRow:
     target_bound: bool
     execution_evidenced: bool
     execution_evidence_status: str
+    scoring_active: bool
+    reporting_status: str
+    k_replicates: int
+    surface_seed_rotation_enabled: bool
+    canary_registration: str
+    applicability_gate: dict[str, Any]
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -160,12 +166,41 @@ def _execution_evidence_status(probe: dict[str, Any], mapping: dict[str, Any]) -
     return True, True, "target_bound_and_evidenced"
 
 
+def _scoring_active(data: Mapping[str, Any]) -> bool:
+    binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
+    if binding.get("scoring_active") is False:
+        return False
+    if data.get("scoring_active") is False:
+        return False
+    if data.get("scoring") == "reported_not_scored":
+        return False
+    return True
+
+
+def _reporting_status(data: Mapping[str, Any]) -> str:
+    value = data.get("reporting_status")
+    if isinstance(value, str) and value:
+        return value
+    return "reported_not_scored" if not _scoring_active(data) else "scored"
+
+
 def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
         data = _load_yaml(path)
         benchmark = str(data.get("benchmark") or path.stem)
         version = str(data.get("version") or "unpinned")
+        scoring_active = _scoring_active(data)
+        reporting_status = _reporting_status(data)
+        reproducibility = data.get("reproducibility") if isinstance(data.get("reproducibility"), dict) else {}
+        k_replicates = int(reproducibility.get("n_runs") or 1)
+        surface_seed_rotation_enabled = bool(data.get("surface_seed_rotation_enabled", False))
+        canary_registration = str(data.get("canary_registration") or "")
+        applicability_gate = (
+            dict(data.get("applicability_gate"))
+            if isinstance(data.get("applicability_gate"), dict)
+            else {}
+        )
         runner, case_class, executable = _classify_runner(path.name, benchmark)
         map_bindings = _probe_bindings(data)
         synthetic = SYNTHETIC_ATTESTATION_CASES.get(path.name)
@@ -192,6 +227,12 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     target_bound=True,
                     execution_evidenced=True,
                     execution_evidence_status="attestation_evidence_pack_bound",
+                    scoring_active=scoring_active,
+                    reporting_status=reporting_status,
+                    k_replicates=k_replicates,
+                    surface_seed_rotation_enabled=surface_seed_rotation_enabled,
+                    canary_registration=canary_registration,
+                    applicability_gate=applicability_gate,
                 )
             )
         for probe in data.get("probes") or []:
@@ -242,6 +283,12 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         target_bound=target_bound,
                         execution_evidenced=execution_evidenced,
                         execution_evidence_status=evidence_status,
+                        scoring_active=scoring_active,
+                        reporting_status=reporting_status,
+                        k_replicates=k_replicates,
+                        surface_seed_rotation_enabled=surface_seed_rotation_enabled,
+                        canary_registration=canary_registration,
+                        applicability_gate=applicability_gate,
                     )
                 )
     return [asdict(row) for row in rows]

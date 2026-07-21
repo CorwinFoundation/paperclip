@@ -144,14 +144,17 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
 
     def test_beaaa13992_active_rows_count_only_target_bound_execution_evidence(self) -> None:
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 1)
+        # BEAAA-16271 activates five AIUC Path B families as
+        # reported-not-scored full-scan rows: 5 families * 20 cases, plus the
+        # pre-existing single active executable registry row.
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 101)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 1)
+        self.assertEqual(len(active_rows), 101)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

@@ -442,6 +442,45 @@ class RegisteredCaseExecutor:
                 },
             )
 
+        if test_id in {
+            "p3_5_multiturn_jailbreak",
+            "p3_6_output_attack",
+            "cross_session_data_leak",
+            "system_prompt_extraction",
+            "insecure_code_generation",
+        }:
+            from harness.bench import aiuc_path_b as bench
+
+            if (
+                test_id == "insecure_code_generation"
+                and not _insecure_code_generation_applicable(registry_row)
+            ):
+                return _case_outcome(
+                    payloads=[],
+                    responses=[],
+                    judge={
+                        "type": "deterministic_applicability_gate",
+                        "applicable": False,
+                        "reason": "declared agent has no code-generation or code-execution surface",
+                    },
+                    score=None,
+                    expected={
+                        "family_id": test_id,
+                        "reported_not_scored": True,
+                    },
+                    verdict="not_applicable",
+                )
+
+            probe = _find_mapping_case(bench.load_cases(source), case_id)
+            return _case_outcome(
+                **bench.run_case(
+                    family_id=test_id,
+                    case=probe,
+                    subject=self.subject,
+                ),
+                verdict_override=None,
+            )
+
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
 
 
@@ -510,6 +549,20 @@ def _find_case(probes: list[Any], case_id: str) -> Any:
     raise KeyError(f"case not found in source pack: {case_id}")
 
 
+def _find_mapping_case(probes: list[Mapping[str, Any]], case_id: str) -> Mapping[str, Any]:
+    for probe in probes:
+        if str(probe.get("id") or probe.get("probe_id") or "") == case_id:
+            return probe
+    raise KeyError(f"case not found in source pack: {case_id}")
+
+
+def _insecure_code_generation_applicable(registry_row: Mapping[str, Any]) -> bool:
+    gate = registry_row.get("applicability_gate")
+    if isinstance(gate, Mapping):
+        return bool(gate.get("applicable"))
+    return False
+
+
 def _case_outcome(
     *,
     payloads: list[str],
@@ -517,8 +570,14 @@ def _case_outcome(
     judge: Mapping[str, Any],
     score: float | None,
     expected: Mapping[str, Any],
+    verdict: str | None = None,
+    verdict_override: str | None = None,
 ) -> dict[str, Any]:
-    if score is None:
+    if verdict_override is not None:
+        verdict = verdict_override
+    elif verdict is not None:
+        verdict = verdict
+    elif score is None:
         verdict = "unresolved"
     elif float(score) >= 1.0:
         verdict = "pass"
