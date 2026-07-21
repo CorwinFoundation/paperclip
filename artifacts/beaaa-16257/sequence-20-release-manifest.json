@@ -1,5 +1,5 @@
 {
-  "manifest_version": "backbond-sequence-20-release-candidate/v1.0",
+  "manifest_version": "backbond-sequence-20-release-candidate/v1.1",
   "artifact_type": "provenance_manifest",
   "owner": "cto",
   "persona_audience": "founder",
@@ -10,6 +10,7 @@
     "are-scanner-api-v1"
   ],
   "ticket_refs": [
+    "BEAAA-16263",
     "BEAAA-16257",
     "BEAAA-16232",
     "BEAAA-15400",
@@ -20,8 +21,8 @@
     "Cosign keyless image signature and CycloneDX attestation",
     "Deployable code surface remains byte-identical to 46eec2f1887800c2359a1cf75a06657e4eb4d844"
   ],
-  "version": "1.0",
-  "prior_version": null,
+  "version": "1.1",
+  "prior_version": "1.0",
   "self_audit_passed": true,
   "escalations_noted": [
     "This is a signed candidate identity, not Founder promotion authorization.",
@@ -33,6 +34,8 @@
   "image_digest": "sha256:fe795b8edd43f91f19350825bf3fbe81f51403ad756bc2eaf7d0cbc1fa1184c9",
   "image_tar_sha256": "4a79c782a9a26a89824eba7dceb04d3e7e4d317a275b6ab1ad8632993d017b66",
   "source_bundle_sha256": "cf17a0177ddebdfc164a2c14e08443a3bb63361e6fcfe8454210bb3825970cff",
+  "production_runbook_version": "1.3",
+  "production_runbook_sha256": "b19d4a1f4ee244a9ac7fce9f12923e08946b0e22162a3eebaef9678ec4bf8287",
   "nginx_template_sha256": "49994c977a238f07c37b6f7c2049d4ae070a25e341e7265bd4b0535d130f24cf",
   "sbom_sha256": "ec04ffb71091b577874e8cd87281278b95f128d6ed744358bf402615a80aa43b",
   "image_signature": {

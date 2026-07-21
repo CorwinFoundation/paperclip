@@ -6,13 +6,13 @@ phase: 1
 canonical_terms_only: true
 focus_claim: "This pack provides the signed, repository-qualified Sequence 20 candidate identity requested on BEAAA-16257."
 contracts_referenced: ["are-scanner-api-v1"]
-ticket_refs: ["BEAAA-16257", "BEAAA-16232", "BEAAA-15400", "BEAAA-15373"]
+ticket_refs: ["BEAAA-16263", "BEAAA-16257", "BEAAA-16232", "BEAAA-15400", "BEAAA-15373"]
 proof_points_cited:
   - "Candidate source is exactly 46eec2f1887800c2359a1cf75a06657e4eb4d844."
   - "Candidate OCI digest is sha256:fe795b8edd43f91f19350825bf3fbe81f51403ad756bc2eaf7d0cbc1fa1184c9."
   - "The image was keyless-signed and attested in GitHub Actions run 29819869273."
-version: 1.0
-prior_version: null
+version: 1.1
+prior_version: "1.0"
 self_audit_passed: true
 escalations_noted:
   - "Fresh QA APPROVED and Founder promotion sign-off are still required."
@@ -20,7 +20,7 @@ escalations_noted:
 
 # BEAAA-16257 Sequence 20 release-candidate evidence
 
-`sequence-20-release-manifest.json` binds candidate source commit `46eec2f…d844` to the repository-qualified OCI image, the checksummed inbound image/source archives, the SBOM, and the GitHub OIDC image signature and provenance attestation. Its detached signature verifies with the committed public key:
+`sequence-20-release-manifest.json` binds candidate source commit `46eec2f…d844` to the repository-qualified OCI image, the checksummed inbound image/source archives, the SBOM, the v1.3 production runbook hash, and the GitHub OIDC image signature and provenance attestation. Its regenerated detached signature verifies with the committed public key:
 
 ```sh
 openssl dgst -sha256 \

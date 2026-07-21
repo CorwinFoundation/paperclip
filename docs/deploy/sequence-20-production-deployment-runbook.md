@@ -13,7 +13,7 @@ proof_points_cited:
   - "Signed release manifest artifacts/beaaa-16257/sequence-20-release-manifest.json"
   - "Rollback image backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121"
   - "srv1749248 is default-deny egress; images arrive by operator-mediated push"
-version: 1.2
+version: 1.3
 prior_version: "docs/deploy/sequence-20-stage-gate-runbook.md"
 self_audit_passed: true
 escalations_noted:
@@ -232,7 +232,7 @@ curl --silent --show-error --max-time 30 \
 
 Pass: the loaded digest matches the signed-manifest digest; the service is active on that exact repository-qualified image; the app-tier health endpoint on loopback returns `200` with an opaque JSON body. The health probe intentionally bypasses nginx because the approved edge allowlist default-denies `/scanner/v1/sla`. Delete `/tmp/sequence-20-health.body` after recording only its redacted shape.
 
-## 5. Read-only v0.2 preflight: ordinary 404 and exact log correlation
+## 5. Read-only v1.3 preflight: ordinary 404 and exact log correlation
 
 Resolve `TOKEN_A_REF` inside the approved root-only channel into the environment variable `TOKEN_A` without echoing it. Then:
 
