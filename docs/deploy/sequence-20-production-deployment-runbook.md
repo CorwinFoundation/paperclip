@@ -10,21 +10,54 @@ ticket_refs: ["BEAAA-16331", "BEAAA-16330", "BEAAA-16232", "BEAAA-16257", "BEAAA
 proof_points_cited:
   - "Consolidated candidate identity: signed release manifest artifacts/beaaa-16257/sequence-20-release-manifest.json"
   - "Scanner image (unchanged, signed): ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65"
-  - "Retained rollback image: backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121"
+  - "Retained rollback image (read back from the running container, BEAAA-16331): image ID sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121, org.opencontainers.image.revision=37192e2b0e9f50416170da77dcbc189c00761ecc, env SCANNER_EDGE_IMAGE=sha256:7c4ff251…"
+  - "Signed image provenance (offline archive, NOT re-pulled): tar sha256 d9f7203b79d42a77e17bfa292781250c7575d31f011ee03d79f9accbfbaf29ac, local RepoTag backbond-scanner-live:b1c577c74a127c1342617230689eb6f0ef9be6d2, org.opencontainers.image.revision=b1c577c…; GHCR provenance ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda… (recorded, not inspected offline)"
   - "Deployable edge fragments: infra/edge/nginx/backbond-scanner-edge.http.conf + backbond-scanner-edge.server.conf.template"
   - "Live vhost integrated in place: /etc/nginx/sites-available/scanner.backbond.ai (sites-enabled symlink)"
-version: 1.4
-prior_version: "1.3 (docs/deploy/sequence-20-production-deployment-runbook.md@744c6ad — standalone conf.d server block; topology-incorrect)"
+  - "Live service/container/env contract: service backbond-scanner-live.service, container backbond-scanner-live-edge, env-file /etc/backbond/scanner-edge.env (NOT are-scanner-edge / /etc/are-scanner/secrets.env)"
+version: 1.5
+prior_version: "1.4 (docs/deploy/sequence-20-production-deployment-runbook.md@f2de72e — topology-correct vhost integration, but image/credential/rollback identity not reconciled to the operator read-back)"
 self_audit_passed: true
 escalations_noted:
   - "v1.3 assumed a standalone /etc/nginx/conf.d/backbond-scanner-edge.conf server block. The live topology is ONE TLS vhost at /etc/nginx/sites-available/scanner.backbond.ai; installing a second server block would create a conflicting listener. The Sequence 20 operator stop (BEAAA-16232 962f9417) caught this. v1.4 integrates into the live vhost."
-  - "The deployable nginx surface changed, so the release manifest must be re-signed to bind these fragment hashes and this runbook commit before promotion. Do not deploy against a manifest that predates the fragments."
-  - "Production/public promotion requires exact-build QA APPROVED naming this runbook commit SHA and separate Founder sign-off under BEAAA-15373. v4 Founder confirmation authorized the prior identity only and does NOT carry to this changed deployable surface."
+  - "v1.5 reconciles image/credential/rollback identity to the operator's fail-closed read-back (BEAAA-16331 local-board comments 2026-07-21): (a) /usr/local/sbin/box_deploy is ABSENT and its GHCR-RepoDigest re-verify cannot run after an offline `docker load` (Docker archives do not preserve the GHCR RepoDigest), so image identity is verified by tar sha256 + loaded local RepoTag + org.opencontainers.image.revision, with the GHCR digest retained as provenance only; (b) the live service/container/env names are backbond-scanner-live.service / backbond-scanner-live-edge / /etc/backbond/scanner-edge.env, not the older are-scanner defaults; (c) rollback identity is the read-back image ID sha256:7c4ff251… (revision 37192e2b…), not a remembered tag; (d) two DISTINCT active non-customer/non-vapi Tenant A/B scoped credentials are NOT staged in /var/lib/are-scanner/edge/keys.json and must be provisioned fail-closed at mode 0600 before the tenant preflight can pass."
+  - "The deployable nginx surface changed (standalone template -> two fragments) AND this runbook is now v1.5, so the release manifest (artifacts/beaaa-16257/sequence-20-release-manifest.json) MUST be re-input to bind the two fragment SHA-256 values + this runbook's v1.5 SHA-256, then RE-SIGNED. The current manifest is unsigned, still binds the deleted standalone template hash, and carries a placeholder runbook hash. Re-signing is a CTO/Founder action; this task does NOT claim a signature it cannot produce. promotion_authorized stays false."
+  - "Production/public promotion requires exact-build QA APPROVED naming this runbook commit SHA and separate Founder sign-off under BEAAA-15373. v4 Founder confirmation authorized the prior identity only and does NOT carry to this changed deployable surface. No production mutation is performed by this task."
 ---
 
-# Sequence 20 production deployment runbook (v1.4 — topology-correct)
+# Sequence 20 production deployment runbook (v1.5 — topology- and identity-correct)
 
-## Why v1.4 supersedes v1.3
+## Why v1.5 supersedes v1.4
+
+v1.4 fixed the nginx topology but described the image, credential, and rollback
+identity from remembered values. The operator's fail-closed read-back on
+`srv1749248` (BEAAA-16331 local-board, 2026-07-21, **no mutation**) proved four
+things v1.4 could not execute against:
+
+1. **No `box_deploy`, no GHCR-digest re-verify offline.** `/usr/local/sbin/box_deploy`
+   is **absent**; the only installed helpers are `backbond-ensure-docker-networking`,
+   `backbond-scanner-live-wait`, and firewall/bind helpers. The signed image
+   arrives as an **offline Docker archive** — and `docker load` does **not** restore
+   the GHCR `RepoDigest`, so `docker image inspect ghcr.io/…@sha256:0b565dda…`
+   fails after load. Image identity must be verified by **tar sha256 + loaded
+   local RepoTag + `org.opencontainers.image.revision`**, with the GHCR digest kept
+   as provenance only (Step 4).
+2. **Live service/container/env names.** service `backbond-scanner-live.service`,
+   container `backbond-scanner-live-edge`, env-file `/etc/backbond/scanner-edge.env`
+   — the older `are-scanner-edge` / `/etc/are-scanner/secrets.env` defaults are wrong.
+3. **Rollback identity is a read-back, not a tag.** The running container is image
+   ID `sha256:7c4ff251…` (revision `37192e2b…`); `/etc/backbond/scanner-edge.env`
+   binds `SCANNER_EDGE_IMAGE=sha256:7c4ff251…`; the container `Config.Image` is that
+   image ID. Rollback validates against the image ID + revision label (Step 7).
+4. **Tenant A/B credentials are not staged.** `/var/lib/are-scanner/edge/keys.json`
+   holds 5 records / 4 tenants but only **1** active and **2** bound to `vapi`; the
+   two DISTINCT active non-customer/non-vapi Tenant A/B scoped tokens the preflight
+   needs are **not present**, and the store is world-readable (`0644`). Step 0
+   provisions them fail-closed at `0600` before the preflight can pass.
+
+The nginx topology fix from v1.4 is unchanged and carried forward verbatim.
+
+## Why v1.4 superseded v1.3
 
 v1.3 installed the edge as a standalone `server {}` block into
 `/etc/nginx/conf.d/backbond-scanner-edge.conf`. The operator's fail-closed
@@ -98,7 +131,9 @@ Run on `srv1749248` as the authorized operator. Root-owned input file
 
 ```text
 CANDIDATE_COMMIT=<this runbook's pushed commit SHA, from the signed manifest>
-CANDIDATE_IMAGE=ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65
+# GHCR provenance of the signed image — RECORDED, never `docker image inspect`ed
+# after an offline load (the RepoDigest is not restored by `docker load`).
+PROVENANCE_GHCR_IMAGE=ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65
 SOURCE_BUNDLE=/var/tmp/are-scanner-<commit>-source.tar.gz
 SOURCE_BUNDLE_SHA256=<sha256 recorded in the signed release manifest>
 RELEASE_MANIFEST=/var/tmp/sequence-20-release-manifest.json
@@ -109,23 +144,46 @@ LIVE_VHOST_LINK=/etc/nginx/sites-enabled/scanner.backbond.ai
 EDGE_UPSTREAM=<the app-tier host:port THIS vhost already proxies to>
 EDGE_ACCESS_LOG=/var/log/nginx/scanner-backbond-edge.access.log
 BACKBOND_ACCEPTANCE_BASE_URL=https://scanner.backbond.ai
-TEST_TENANT_ID=<provisioned non-customer, non-vapi tenant UUID>
-TOKEN_A_REF=file:/etc/credstore.encrypted#<existing-non-customer-token-a>
+# Live service/container/env contract (read back from the box) — NOT are-scanner-*.
+SCANNER_SERVICE=backbond-scanner-live.service
+SCANNER_CONTAINER=backbond-scanner-live-edge
+SCANNER_EDGE_ENV=/etc/backbond/scanner-edge.env
+# Signed image as an OFFLINE archive (no registry pull; box has default-deny egress).
+SCANNER_TARBALL=/var/tmp/backbond-scanner-live-b1c577c.tar
+SCANNER_TARBALL_SHA256=d9f7203b79d42a77e17bfa292781250c7575d31f011ee03d79f9accbfbaf29ac
+SCANNER_LOCAL_TAG=backbond-scanner-live:b1c577c74a127c1342617230689eb6f0ef9be6d2
+SCANNER_OCI_REVISION=b1c577c74a127c1342617230689eb6f0ef9be6d2
+# Rollback identity — read back from the RUNNING container, not remembered.
+ROLLBACK_IMAGE_ID=sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121
+ROLLBACK_OCI_REVISION=37192e2b0e9f50416170da77dcbc189c00761ecc
+# Tenant preflight credentials — file-backed key-store + root-only cleartext custody.
+KEY_STORE=/var/lib/are-scanner/edge/keys.json
+TEST_TENANT_ID=<Tenant A: provisioned non-customer, non-vapi tenant UUID>
+TEST_TENANT_ID_B=<Tenant B: a SECOND distinct non-customer, non-vapi tenant UUID>
+TOKEN_A_REF=file:/etc/credstore.encrypted#<tenant-a-scoped-token>
+TOKEN_B_REF=file:/etc/credstore.encrypted#<tenant-b-scoped-token>
+SYNTH_ENDPOINT_SECRET_REF=file:/etc/credstore.encrypted#<synthetic-endpoint-secret>
 ```
 
 `EDGE_UPSTREAM` is **not** invented: it is read from the live vhost during backup
 (step 1) and must match what the vhost proxies to today (the change preserves the
-existing upstream). `CANDIDATE_IMAGE` and `SOURCE_BUNDLE_SHA256` must come
-verbatim from the signed manifest. Verify the manifest and source bundle on an
-egress-capable operator machine before any box-side step:
+existing upstream). `PROVENANCE_GHCR_IMAGE`, `SCANNER_TARBALL_SHA256`, and
+`SOURCE_BUNDLE_SHA256` must come verbatim from the signed manifest. The manifest
+must be **re-signed** to bind this v1.5 runbook SHA-256 and both edge-fragment
+SHA-256 values before promotion; the manifest under `artifacts/beaaa-16257/` is a
+re-input (unsigned) until the CTO/Founder signing step runs — do **not** deploy
+against it while `promotion_authorized` is `false` or the signature is absent.
+Verify the manifest and source bundle on an egress-capable operator machine
+before any box-side step:
 
 ```sh
 openssl dgst -sha256 \
   -verify artifacts/beaaa-16257/sequence-20-release-manifest.pub.pem \
   -signature artifacts/beaaa-16257/sequence-20-release-manifest.json.sig \
   artifacts/beaaa-16257/sequence-20-release-manifest.json
-# manifest must bind THIS runbook commit and both edge-fragment SHA-256 values;
-# if it does not, stop — the manifest predates the topology fix.
+# manifest must bind THIS v1.5 runbook SHA-256 and both edge-fragment SHA-256
+# values; if it does not (or is unsigned / promotion_authorized=false), stop —
+# the manifest predates the topology+identity fix.
 ```
 
 Load and validate inputs without printing the token:
@@ -133,21 +191,119 @@ Load and validate inputs without printing the token:
 ```sh
 sudo sh -eu <<'SH'
 . /etc/backbond/sequence-20-production.env
-printf '%s\n' "$CANDIDATE_IMAGE" | grep -Eq '^ghcr\.io/corwinfoundation/are-scanner@sha256:[0-9a-f]{64}$'
-[ "${CANDIDATE_IMAGE##*@}" = 'sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65' ]
+# GHCR provenance is a well-formed reference — recorded, never inspected offline.
+printf '%s\n' "$PROVENANCE_GHCR_IMAGE" | grep -Eq '^ghcr\.io/corwinfoundation/are-scanner@sha256:[0-9a-f]{64}$'
+[ "${PROVENANCE_GHCR_IMAGE##*@}" = 'sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65' ]
 printf '%s\n' "$BACKBOND_ACCEPTANCE_BASE_URL" | grep -Eq '^https://scanner\.backbond\.ai/?$'
+# Both tenant tokens are credential references; two DISTINCT non-vapi tenants.
 printf '%s\n' "$TOKEN_A_REF" | grep -Eq '^(credstore|file|env|vault):'
+printf '%s\n' "$TOKEN_B_REF" | grep -Eq '^(credstore|file|env|vault):'
+[ "$TOKEN_A_REF" != "$TOKEN_B_REF" ]
+# Offline archive + rollback identity are well-formed.
+printf '%s\n' "$SCANNER_TARBALL_SHA256"  | grep -Eq '^[0-9a-f]{64}$'
+printf '%s\n' "$SCANNER_OCI_REVISION"    | grep -Eq '^[0-9a-f]{40}$'
+printf '%s\n' "$ROLLBACK_IMAGE_ID"       | grep -Eq '^sha256:[0-9a-f]{64}$'
+printf '%s\n' "$ROLLBACK_OCI_REVISION"   | grep -Eq '^[0-9a-f]{40}$'
+[ "$SCANNER_OCI_REVISION" != "$ROLLBACK_OCI_REVISION" ]   # deploy != rollback build
 test -f "$SOURCE_BUNDLE" -a -f "$RELEASE_MANIFEST" -a -f "$RELEASE_MANIFEST_SIG" -a -f "$RELEASE_MANIFEST_PUBKEY"
 openssl dgst -sha256 -verify "$RELEASE_MANIFEST_PUBKEY" -signature "$RELEASE_MANIFEST_SIG" "$RELEASE_MANIFEST"
 printf '%s  %s\n' "$SOURCE_BUNDLE_SHA256" "$SOURCE_BUNDLE" | sha256sum -c -
 [ "$(jq -r .commit_sha "$RELEASE_MANIFEST")" = "$CANDIDATE_COMMIT" ]
-[ "$(jq -r .repository_qualified_image "$RELEASE_MANIFEST")" = "$CANDIDATE_IMAGE" ]
+[ "$(jq -r .image_digest "$RELEASE_MANIFEST")" = "${PROVENANCE_GHCR_IMAGE##*@}" ]
 [ "$(jq -r .source_bundle_sha256 "$RELEASE_MANIFEST")" = "$SOURCE_BUNDLE_SHA256" ]
-[ -n "$TEST_TENANT_ID" ] && [ "$TEST_TENANT_ID" != vapi ]
+# The manifest must be re-signed and promotion-authorized before any deploy.
+[ "$(jq -r .promotion_authorized "$RELEASE_MANIFEST")" = 'true' ]
+[ -n "$TEST_TENANT_ID" ]   && [ "$TEST_TENANT_ID"   != vapi ]
+[ -n "$TEST_TENANT_ID_B" ] && [ "$TEST_TENANT_ID_B" != vapi ] && [ "$TEST_TENANT_ID_B" != "$TEST_TENANT_ID" ]
 test -L "$LIVE_VHOST_LINK"
 test -f "$LIVE_VHOST"
 SH
 ```
+
+## 0. Provision two Tenant A/B scoped credentials (fail-closed, non-echoing)
+
+The operator read-back proved the live file-backed key-store
+`/var/lib/are-scanner/edge/keys.json` holds 5 records across 4 tenants but only
+**1** active and **2** bound to `vapi`; the two DISTINCT active non-customer,
+non-`vapi` Tenant A/B credentials the preflight (Step 5) requires are **not**
+staged, and the store is world-readable (`0644`, `are-scanner:are-scanner`) even
+though bearer tokens are JSON object keys. Provision them before anything else.
+
+Generate two cryptographically random scoped tokens, insert them **active** for
+`TEST_TENANT_ID` (A) and `TEST_TENANT_ID_B` (B), tighten the store to `0600`
+with ownership the container can still read, and place the cleartext only in
+root-only encrypted custody. **Never echo a token**; post only key IDs/aliases
+and aggregate counts to Paperclip.
+
+```sh
+sudo sh -eu <<'SH'
+. /etc/backbond/sequence-20-production.env
+umask 077
+[ -f "$KEY_STORE" ]
+# Mint two DISTINCT random tokens without ever printing them.
+TOK_A="$(openssl rand -hex 32)"; TOK_B="$(openssl rand -hex 32)"
+[ "$TOK_A" != "$TOK_B" ]
+# Stable, non-secret aliases for the receipt (hash prefix only — not the token).
+ALIAS_A="tenantA-$(printf '%s' "$TOK_A" | sha256sum | cut -c1-12)"
+ALIAS_B="tenantB-$(printf '%s' "$TOK_B" | sha256sum | cut -c1-12)"
+
+# Fail-closed edit of the JSON store: add two ACTIVE, tenant-scoped records whose
+# JSON KEY is the bearer token. Written to a 0600 temp then atomically installed;
+# jq --arg keeps the token out of argv history and process listings is avoided by
+# passing via env, not the command line.
+TMP="$(mktemp)"; chmod 0600 "$TMP"
+TOK_A="$TOK_A" TOK_B="$TOK_B" \
+ALIAS_A="$ALIAS_A" ALIAS_B="$ALIAS_B" \
+TID_A="$TEST_TENANT_ID" TID_B="$TEST_TENANT_ID_B" \
+jq -n --slurpfile cur "$KEY_STORE" '
+  ($cur[0] // {}) as $store
+  | $store
+  + { ($ENV.TOK_A): {tenant_id:$ENV.TID_A, alias:$ENV.ALIAS_A, active:true, scope:"scanner-edge", origin:"seq20-preflight"} }
+  + { ($ENV.TOK_B): {tenant_id:$ENV.TID_B, alias:$ENV.ALIAS_B, active:true, scope:"scanner-edge", origin:"seq20-preflight"} }
+' > "$TMP"
+# Structural fail-closed checks BEFORE swap: exactly the two new active records
+# for A and B, both non-vapi and distinct.
+[ "$(jq --arg a "$TEST_TENANT_ID" '[to_entries[]|select(.value.tenant_id==$a and .value.active==true)]|length' "$TMP")" -ge 1 ]
+[ "$(jq --arg b "$TEST_TENANT_ID_B" '[to_entries[]|select(.value.tenant_id==$b and .value.active==true)]|length' "$TMP")" -ge 1 ]
+[ "$(jq '[to_entries[]|select(.value.tenant_id=="vapi" and .value.active==true)]|length' "$TMP")" -eq "$(jq '[to_entries[]|select(.value.tenant_id=="vapi" and .value.active==true)]|length' "$KEY_STORE")" ]
+# Preserve container-readable ownership, tighten mode from 0644 -> 0600.
+OWNER="$(stat -c '%U:%G' "$KEY_STORE")"
+install -o "${OWNER%%:*}" -g "${OWNER##*:}" -m 0600 "$TMP" "$KEY_STORE"
+rm -f "$TMP"
+[ "$(stat -c '%a' "$KEY_STORE")" = 600 ]
+
+# Root-only encrypted custody of the cleartext tokens (for later resolution as
+# TOKEN_A/TOKEN_B); the synthetic endpoint secret is staged the same way.
+printf 'tenant_a %s %s\ntenant_b %s %s\n' "$ALIAS_A" "$TOK_A" "$ALIAS_B" "$TOK_B" \
+  | systemd-creds encrypt --name=seq20-tenant-tokens - /etc/credstore.encrypted/seq20-tenant-tokens
+unset TOK_A TOK_B
+printf 'PROVISIONED key_store_mode=0600 tenant_a_alias=%s tenant_b_alias=%s\n' "$ALIAS_A" "$ALIAS_B"
+SH
+```
+
+Confirm the app picks the new records up within the key-store cache TTL (read
+back as **5 s** by the operator) — poll, do not sleep-and-hope:
+
+```sh
+sudo sh -eu <<'SH'
+. /etc/backbond/sequence-20-production.env
+i=0; until [ "$i" -ge 8 ]; do
+  # health/SLA stays 200 (cache reload is non-disruptive); token validity is
+  # asserted in Step 5 over the real vhost so no token is placed on this line.
+  curl -fsS --max-time 5 --resolve scanner.backbond.ai:443:127.0.0.1 \
+    -o /dev/null -w '' https://scanner.backbond.ai/scanner/v1/sla && break
+  i=$((i+1)); sleep 1
+done
+[ "$i" -lt 8 ]
+SH
+```
+
+Pass: the key-store is mode `0600`, holds one active record for each of Tenant A
+and Tenant B (neither `vapi`), the `vapi`-active count is unchanged, the cleartext
+lives only in `/etc/credstore.encrypted`, and health stays `200` across the TTL
+window. The `SYNTH_ENDPOINT_SECRET_REF` synthetic endpoint secret must likewise be
+present in `/etc/credstore.encrypted`; stage it here if absent. No customer token
+is created, rotated, or logged.
 
 ## 1. Retain the exact rollback state (real site file + symlink, self-contained)
 
@@ -172,12 +328,15 @@ printf '%s\n' "$LIVE_VHOST_LINK" > "$BACKUP/sites-enabled-path.txt"
 grep -Eo 'proxy_pass[[:space:]]+https?://[^;]+' "$BACKUP/scanner.backbond.ai" \
   > "$BACKUP/observed-proxy-pass.txt" || true
 
-# Retained image identity for rollback.
-docker inspect --format '{{index .Config.Image}}' backbond-scanner-live-edge \
+# Retained image identity for rollback — read back from the running container,
+# validated by IMAGE ID + org.opencontainers.image.revision (NOT a GHCR digest;
+# the offline-loaded image carries no RepoDigest).
+docker inspect --format '{{index .Config.Image}}' "$SCANNER_CONTAINER" \
   > "$BACKUP/prior-image.txt" 2>/dev/null || true
-printf '%s\n' 'backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121' \
-  > "$BACKUP/required-rollback-image.txt"
-docker image inspect 'backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121' >/dev/null
+[ "$(cat "$BACKUP/prior-image.txt")" = "$ROLLBACK_IMAGE_ID" ]
+printf '%s\n' "$ROLLBACK_IMAGE_ID" > "$BACKUP/required-rollback-image.txt"
+docker image inspect "$ROLLBACK_IMAGE_ID" >/dev/null
+[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$ROLLBACK_IMAGE_ID")" = "$ROLLBACK_OCI_REVISION" ]
 
 printf '%s\n' "$BACKUP" > /etc/backbond/sequence-20-active-backup
 SH
@@ -271,35 +430,74 @@ listener or duplicate `location` would fail here); reload and `is-active` exit
 `0`; the journal shows no reload error. Any failure triggers the rollback below
 **before** proceeding.
 
-## 4. Confirm the scanner image identity (unchanged)
+## 4. Confirm the scanner image identity (offline, no registry, no `box_deploy`)
 
-The scanner app image is unchanged by this edge fix. Confirm the digest-pinned
-image already running matches the signed manifest; do not re-pull.
+The app container is **not swapped** by this edge fix; this step only *proves the
+running image identity* by read-back so rollback (Step 7) is anchored to a real
+value. The box runs default-deny egress, `/usr/local/sbin/box_deploy` is absent,
+and an offline `docker load` does **not** restore the GHCR `RepoDigest` — so
+identity is verified by **image ID + `org.opencontainers.image.revision`**, never
+`docker image inspect ghcr.io/…@sha256:0b565dda…` (that reference will not exist
+after an offline load). Do **not** re-pull.
 
 ```sh
 sudo sh -eu <<'SH'
 . /etc/backbond/sequence-20-production.env
-docker image inspect "$CANDIDATE_IMAGE" >/dev/null
-test "$(docker inspect --format '{{index .Config.Image}}' backbond-scanner-live-edge)" = "$CANDIDATE_IMAGE"
-systemctl is-active --quiet backbond-scanner-live.service
+# Running container identity by ID + revision label (NOT the GHCR ref).
+RUN_IMG="$(docker inspect --format '{{index .Config.Image}}' "$SCANNER_CONTAINER")"
+[ "$RUN_IMG" = "$ROLLBACK_IMAGE_ID" ]
+docker image inspect "$RUN_IMG" >/dev/null
+[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$RUN_IMG")" = "$ROLLBACK_OCI_REVISION" ]
+# Env-file binds the same image ID (not a remembered tag).
+grep -Fxq "SCANNER_EDGE_IMAGE=$ROLLBACK_IMAGE_ID" "$SCANNER_EDGE_ENV"
+systemctl is-active --quiet "$SCANNER_SERVICE"
 SH
 ```
 
-Pass: the running edge container is the exact repository-qualified image
-`@sha256:0b565dda…a65`. A mismatch is a stop condition (image identity is out of
-scope for this edge-only change).
+Pass: the running container `backbond-scanner-live-edge` is image ID
+`sha256:7c4ff251…` with revision `37192e2b…`, `/etc/backbond/scanner-edge.env`
+binds that same image ID, and `backbond-scanner-live.service` is active. A
+mismatch is a stop condition (the app image is out of scope for this edge change).
+
+> **If a signed-image activation is ever authorized (separate task, not this
+> one):** load the offline archive with a checksum-bound, reviewed loader — or the
+> inline equivalent below — and verify **tar sha256 → loaded local RepoTag →
+> revision label**, retaining the GHCR digest as provenance only. Never require a
+> GHCR `docker image inspect` after load.
+>
+> ```sh
+> printf '%s  %s\n' "$SCANNER_TARBALL_SHA256" "$SCANNER_TARBALL" | sha256sum -c -
+> docker load -i "$SCANNER_TARBALL"                 # -> "Loaded image: backbond-scanner-live:b1c577c…"
+> docker image inspect "$SCANNER_LOCAL_TAG" >/dev/null
+> [ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$SCANNER_LOCAL_TAG")" = "$SCANNER_OCI_REVISION" ]
+> # GHCR digest $PROVENANCE_GHCR_IMAGE is recorded as provenance; NOT inspected here.
+> # Activation would then set SCANNER_EDGE_IMAGE in $SCANNER_EDGE_ENV and restart
+> # $SCANNER_SERVICE — requiring its own QA + Founder sign-off.
+> ```
 
 ## 5. Preflight: real scanner.backbond.ai request selects the integration
 
 Prove the request-ID/redaction/default-deny configuration is actually on the path
-for real `scanner.backbond.ai` traffic — not a sibling server block. Resolve
-`TOKEN_A_REF` in the root-only channel into `TOKEN_A` without echoing it.
+for real `scanner.backbond.ai` traffic — not a sibling server block. Both tenant
+tokens are resolved **inside** the privileged subshell from the Step 0 root-only
+encrypted custody (`/etc/credstore.encrypted/seq20-tenant-tokens`); the quoted
+heredoc never inherits an ambient `TOKEN_*`, and no token is ever echoed.
 
 ```sh
 sudo sh -eu <<'SH'
 . /etc/backbond/sequence-20-production.env
-: "${TOKEN_A:?resolve TOKEN_A_REF in the root-only channel before running}"
 umask 077
+# Resolve both tokens from the Step 0 root-only encrypted custody INSIDE this
+# privileged subshell (the quoted heredoc never inherits an ambient TOKEN_*).
+# Fail closed if the credential is missing or unparseable — never echo a token.
+CREDS="$(systemd-creds decrypt /etc/credstore.encrypted/seq20-tenant-tokens - 2>/dev/null)" \
+  || { echo 'seq20-tenant-tokens not staged — run Step 0 first' >&2; exit 3; }
+TOKEN_A="$(printf '%s\n' "$CREDS" | awk '$1=="tenant_a"{print $3; exit}')"
+TOKEN_B="$(printf '%s\n' "$CREDS" | awk '$1=="tenant_b"{print $3; exit}')"
+unset CREDS
+: "${TOKEN_A:?tenant_a token absent in credstore — re-run Step 0}"
+: "${TOKEN_B:?tenant_b token absent in credstore — re-run Step 0}"
+[ "$TOKEN_A" != "$TOKEN_B" ]   # two DISTINCT tenants; fail closed if the store lied
 WORK="$(mktemp -d)"
 trap 'rm -f "$WORK/headers" "$WORK/body"; rmdir "$WORK"' EXIT
 
@@ -324,17 +522,26 @@ SERVER_HEADER="$(sed -n 's/^[Ss]erver:[[:space:]]*\([^[:space:]\r]*\).*/\1/p' "$
 MATCHES="$(grep -Fc -- "$REQUEST_ID" "$EDGE_ACCESS_LOG" || true)"
 [ "$MATCHES" -eq 1 ]
 
-# (b) tenant-scoped route reaches upstream (no body assertion — v3 fix retained).
-CODE2="$(curl --silent --show-error --max-time 30 \
+# (b) Tenant A scoped route reaches upstream (no body assertion — v3 fix retained).
+CODE_A="$(curl --silent --show-error --max-time 30 \
   --resolve scanner.backbond.ai:443:127.0.0.1 \
   --header "Authorization: Bearer $TOKEN_A" \
   --header "X-Tenant-Id: $TEST_TENANT_ID" \
   --output /dev/null --write-out '%{http_code}' \
   "https://scanner.backbond.ai/scan/seq20-preflight-unknown")"
-printf '%s\n' "$CODE2" | grep -Eq '^(200|404)$'
+printf '%s\n' "$CODE_A" | grep -Eq '^(200|404)$'
 
-printf 'PASS deny_status=404 request_id=%s edge_log_matches=1 tenant_route_status=%s\n' \
-  "$REQUEST_ID" "$CODE2"
+# (c) Tenant B parity — proves the SECOND distinct credential is active (Step 0).
+CODE_B="$(curl --silent --show-error --max-time 30 \
+  --resolve scanner.backbond.ai:443:127.0.0.1 \
+  --header "Authorization: Bearer $TOKEN_B" \
+  --header "X-Tenant-Id: $TEST_TENANT_ID_B" \
+  --output /dev/null --write-out '%{http_code}' \
+  "https://scanner.backbond.ai/scan/seq20-preflight-unknown")"
+printf '%s\n' "$CODE_B" | grep -Eq '^(200|404)$'
+
+printf 'PASS deny_status=404 request_id=%s edge_log_matches=1 tenant_a_status=%s tenant_b_status=%s\n' \
+  "$REQUEST_ID" "$CODE_A" "$CODE_B"
 SH
 ```
 
@@ -342,8 +549,9 @@ Pass: the default-deny path over real `scanner.backbond.ai` returns an opaque
 `404` whose body `request_id` equals the response `X-Request-ID` (only OUR
 `location /` emits that body, so the integration is provably on-path); `Server`
 is absent or bare `nginx`; no upstream topology header is present; exactly one
-edge access-log line carries the id; and the tenant-scoped route is proxied
-upstream (status asserted, body not). No scan is created. `--resolve` pins the
+edge access-log line carries the id; and **both** Tenant A and Tenant B scoped
+routes are proxied upstream (status asserted, body not — proving two distinct
+active credentials from Step 0). No scan is created. `--resolve` pins the
 request to the loopback so the preflight never depends on external DNS.
 
 ## 6. Promotion gates
@@ -351,14 +559,16 @@ request to the loopback so the preflight never depends on external DNS.
 | Gate | Pass criterion | Failure action |
 |---|---|---|
 | Single listener | `nginx -t` succeeds; the live vhost has exactly one server block / listener set; no second scanner server block exists | rollback |
-| Image identity | running edge image is `@sha256:0b565dda…a65` from the signed manifest | rollback |
+| Image identity | running container `backbond-scanner-live-edge` image ID = `sha256:7c4ff251…`, revision label `37192e2b…`, env binds that same ID (read-back, not a GHCR digest) | rollback |
+| Tenant credentials | key-store `0600`; one active non-`vapi` record each for Tenant A and Tenant B; both scoped routes reachable; no token logged | rollback / re-provision (Step 0) |
 | Integration on-path | real `scanner.backbond.ai` default-deny 404 body `request_id` equals response `X-Request-ID` | rollback |
 | Redaction | `Server` absent or bare `nginx`; no version/upstream topology header | rollback |
 | Request ID | header present; exactly one edge access-log line carries the identical id | rollback |
-| Tenant preflight | tenant-scoped route returns 200/404 via the vhost; body not asserted; token never logged | rollback / incident review if leaked |
-| Rollback proof | backup holds a non-symlink copy of the prior vhost + recorded symlink target + retained image | do not start |
+| Manifest binding | manifest re-signed, binds this v1.5 runbook SHA-256 + both fragment SHA-256, `promotion_authorized=true` | do not promote |
+| Rollback proof | backup holds a non-symlink copy of the prior vhost + recorded symlink target + retained image ID + revision label | do not start |
 
-No scan, customer mutation, credential rotation, or tenant creation is authorized.
+No scan, customer mutation, credential rotation, or tenant creation is authorized
+beyond the fail-closed Tenant A/B provisioning in Step 0.
 
 ## 7. Immediate rollback on any failed check
 
@@ -367,6 +577,7 @@ the retained image. Run all commands; do not attempt in-place repair.
 
 ```sh
 sudo sh -eu <<'SH'
+. /etc/backbond/sequence-20-production.env
 BACKUP="$(cat /etc/backbond/sequence-20-active-backup)"
 LIVE_VHOST="$(cat "$BACKUP/sites-available-path.txt")"
 LIVE_VHOST_LINK="$(cat "$BACKUP/sites-enabled-path.txt")"
@@ -391,12 +602,14 @@ nginx -t
 systemctl reload nginx
 systemctl is-active --quiet nginx
 
-ROLLBACK_IMAGE='backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121'
-docker image inspect "$ROLLBACK_IMAGE" >/dev/null
-sed -i "s#^SCANNER_EDGE_IMAGE=.*#SCANNER_EDGE_IMAGE=$ROLLBACK_IMAGE#" /etc/backbond/scanner-edge.env
-systemctl restart backbond-scanner-live.service
-systemctl is-active --quiet backbond-scanner-live.service
-test "$(docker inspect --format '{{index .Config.Image}}' backbond-scanner-live-edge)" = "$ROLLBACK_IMAGE"
+# Restore the retained app image by IMAGE ID + revision label (never a GHCR
+# digest or remembered tag — the offline-loaded image has no RepoDigest).
+docker image inspect "$ROLLBACK_IMAGE_ID" >/dev/null
+[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$ROLLBACK_IMAGE_ID")" = "$ROLLBACK_OCI_REVISION" ]
+sed -i "s#^SCANNER_EDGE_IMAGE=.*#SCANNER_EDGE_IMAGE=$ROLLBACK_IMAGE_ID#" "$SCANNER_EDGE_ENV"
+systemctl restart "$SCANNER_SERVICE"
+systemctl is-active --quiet "$SCANNER_SERVICE"
+[ "$(docker inspect --format '{{index .Config.Image}}' "$SCANNER_CONTAINER")" = "$ROLLBACK_IMAGE_ID" ]
 SH
 
 curl --silent --show-error --max-time 30 \
@@ -409,8 +622,9 @@ sudo systemctl is-active --quiet nginx backbond-scanner-live.service
 
 Rollback passes only when the prior vhost file `cmp`s equal to the live file, the
 sites-enabled symlink points at the recorded target, nginx validates and reloads,
-and the exact retained rollback image is running. If rollback itself fails, page
-the Founder/operator immediately and keep design-partner access closed.
+and the container is back on image ID `sha256:7c4ff251…` (revision `37192e2b…`)
+with `/etc/backbond/scanner-edge.env` binding that same ID. If rollback itself
+fails, page the Founder/operator immediately and keep design-partner access closed.
 
 ## Redacted completion receipt
 
