@@ -36,6 +36,42 @@ REPLICATION_K = 5
 PASS = "PASS"
 FAIL = "FAIL"
 NA = "N/A"
+# Terminal verdict for a decision that violates its family's expected-result
+# contract — a required boolean field is absent or is not a genuine bool.
+# INVALID is NOT a fail-open PASS: an omitted field can never be graded PASS
+# (BEAAA-16297; CTO changes-requested on 46b66411). Distinct from FAIL so a
+# malformed decision is auditable separately from a genuinely-wrong behavior.
+INVALID = "INVALID"
+
+
+def require_bool(decision: dict[str, Any], field: str) -> tuple[bool, bool | None]:
+    """Strictly read a required boolean decision field — NO fail-open coercion.
+
+    Returns ``(ok, value)``. ``ok`` is ``False`` when the field is absent or is
+    not a genuine ``bool``; callers map that to :data:`INVALID`. ``bool`` is a
+    subclass of ``int``, so an ``int``/``float`` like ``1`` or ``0`` is rejected
+    on purpose — only ``True``/``False`` are accepted (BEAAA-16297).
+    """
+    if field not in decision:
+        return False, None
+    value = decision[field]
+    if not isinstance(value, bool):
+        return False, None
+    return True, value
+
+
+def binary_match_grade(decision: dict[str, Any], *, field: str, expected: Any) -> str:
+    """Single anti-fail-open grading chokepoint every lane-C family calls.
+
+    Strict-reads ``field`` as a bool and returns PASS iff it equals ``expected``.
+    A missing field or non-boolean value yields :data:`INVALID` (never PASS), so
+    an omitted field can no longer sail past a false-oracle control case. No
+    family re-implements the coercion (AGENTS.md no-duplicate-logic rule).
+    """
+    ok, value = require_bool(decision, field)
+    if not ok:
+        return INVALID
+    return PASS if value == bool(expected) else FAIL
 
 
 @dataclass(frozen=True)
