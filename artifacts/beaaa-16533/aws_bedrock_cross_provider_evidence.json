@@ -1,0 +1,1065 @@
+{
+  "agent_id": "agent-synthetic-xprov-001",
+  "agent_version": "v3",
+  "all_scenarios_passed": true,
+  "builds_on": "BEAAA-16490",
+  "corpus_version": "0.1.0",
+  "engine_version": "determination-engine@1.0.0",
+  "issue": "BEAAA-16533",
+  "n5_delta_zero": true,
+  "n5_hash_table": [
+    {
+      "band": "ELEVATED",
+      "bundle_sha256": "0e1a2e6eea6129f0d01aabcbe45203eac3cbde187b254a82792f35f9de253ed0",
+      "decision": "review_covered_peril_candidate",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_otel_corroboration"
+    },
+    {
+      "band": "DIVERGENCE",
+      "bundle_sha256": "b181b610b3f6ec0362636525856c857c8d73c85ee80c21e6d206b4b876345ccd",
+      "decision": "divergence_hold",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_datadog_conflict_divergence"
+    },
+    {
+      "band": "DEGRADED",
+      "bundle_sha256": "c3ba4f7f055c6732f8d108598bb799cb3d8ca5b46376086cf73614c4ee55c747",
+      "decision": "degraded_insufficient_independent_corroboration",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_stale_degraded"
+    },
+    {
+      "band": "DEGRADED",
+      "bundle_sha256": "4fbca858fdf223b71d24c3930f02c2ebbc143152417b2c2cdca33915079b8bc3",
+      "decision": "degraded_insufficient_independent_corroboration",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_unauthenticated_degraded"
+    },
+    {
+      "band": "ELEVATED",
+      "bundle_sha256": "5de2c311e25b2b2e5c90fcd139a4dc30ebf2f35b0efeb949c10d55fbd1b73812",
+      "decision": "review_covered_peril_candidate",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_provider_verdict_cannot_override"
+    },
+    {
+      "band": "DEGRADED",
+      "bundle_sha256": "8a42285c3df36c7757c650bcc3509c5edd2ce75b550a575c1ef02c6f95daf7be",
+      "decision": "degraded_insufficient_independent_corroboration",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_shared_lineage_not_independent"
+    },
+    {
+      "band": "CONTINUE",
+      "bundle_sha256": "f887e5ff4681d318823c11ecdfea335cbb9ccf89cfa3588a2d062943a66ff8b8",
+      "decision": "continue_monitoring",
+      "distinct_hashes_across_runs": 1,
+      "identical_across_runs": true,
+      "scenario": "aws_otel_datadog_triple_corroboration"
+    }
+  ],
+  "n_runs": 5,
+  "normalizer_version": "provider-normalizer@1.0.0",
+  "policy_version": "continuity-policy@1.0.0",
+  "scanner_version": "v0.5.0",
+  "scenarios": [
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "ELEVATED",
+        "bundle_sha256": "0e1a2e6eea6129f0d01aabcbe45203eac3cbde187b254a82792f35f9de253ed0",
+        "decision": "review_covered_peril_candidate",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519",
+            "kid-C-kms-asym"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-c-aws-bedrock"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "otel-genai-collector"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "53a0e85cf4bd304ec27e65e0403a8c116b4c820af95abea80aac46683fe277b8"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "grp-otel-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-corr-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "d666eae88108f0bfcfed09273bd8b5ef0e20730f12207271c9c771f00b28c6bb",
+            "staleness_seconds": 600.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "7ab888045ad3fdb7ce0e007af9932b2a0aedcc25ee75ad3de54626b916779251"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-kms-asym",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": false,
+                "verdict": "guardrail_pass"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:07:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-corr-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "ddb46102e30176c103dc2a413de3ab7c42ffc4807deba8fa61b3b9e45c0369ad",
+            "staleness_seconds": 480.0
+          }
+        ]
+      },
+      "bundle_sha256": "0e1a2e6eea6129f0d01aabcbe45203eac3cbde187b254a82792f35f9de253ed0",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "ELEVATED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519",
+          "kid-C-kms-asym"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-c-aws-bedrock"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "otel-genai-collector"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": false,
+            "verdict": "guardrail_pass"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "verdict": "leak_suspected"
+          },
+          "source_provider_id": "provider-a-otel"
+        }
+      ],
+      "rationale": "2 independent authenticated sources corroborate a covered_peril_candidate; routed to human review lane",
+      "recompute_hash_matches": true,
+      "resolved_band": "ELEVATED",
+      "resolved_decision": "review_covered_peril_candidate",
+      "scenario": "aws_otel_corroboration"
+    },
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DIVERGENCE",
+        "bundle_sha256": "b181b610b3f6ec0362636525856c857c8d73c85ee80c21e6d206b4b876345ccd",
+        "decision": "divergence_hold",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-B-hmac",
+            "kid-C-kms-asym"
+          ],
+          "distinct_providers": [
+            "provider-b-datadog",
+            "provider-c-aws-bedrock"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "datadog-llm-obs"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "48d91a3ef172e50ae819bfcf654293a04d996f99c7405442b48681029665461c"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-B-hmac",
+              "attestation_type": "otel_feed",
+              "authentication_method": "mtls_hmac_feed",
+              "independence_group": "grp-datadog-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "benign"
+              },
+              "provider_stack": "datadog-llm-obs",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "b-conf-1"
+              ],
+              "source_provider_id": "provider-b-datadog"
+            },
+            "provenance_digest": "1ef4aaaecf2eb5fa11483bc0c434cf638498137bea4a594e25d266f8456e42b1",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "14b4637c0ec2923835e09f0594efaa43f907574ee63ab269a17d6279ff7566de"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-kms-asym",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": true,
+                "verdict": "guardrail_intervened"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:07:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-conf-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "c6eb74487a41f2614dfe854d6b1dd005824fcdb6cb1f7b3229b062b5835b9ad9",
+            "staleness_seconds": 480.0
+          }
+        ]
+      },
+      "bundle_sha256": "b181b610b3f6ec0362636525856c857c8d73c85ee80c21e6d206b4b876345ccd",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "DIVERGENCE",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-B-hmac",
+          "kid-C-kms-asym"
+        ],
+        "distinct_providers": [
+          "provider-b-datadog",
+          "provider-c-aws-bedrock"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "datadog-llm-obs"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": true,
+            "verdict": "guardrail_intervened"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "no_finding",
+          "provider_native_determination": {
+            "verdict": "benign"
+          },
+          "source_provider_id": "provider-b-datadog"
+        }
+      ],
+      "rationale": "independent authenticated sources conflict (covered_peril_candidate vs no_finding); divergence action emitted, no averaging, neither provider breaks the tie",
+      "recompute_hash_matches": true,
+      "resolved_band": "DIVERGENCE",
+      "resolved_decision": "divergence_hold",
+      "scenario": "aws_datadog_conflict_divergence"
+    },
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DEGRADED",
+        "bundle_sha256": "c3ba4f7f055c6732f8d108598bb799cb3d8ca5b46376086cf73614c4ee55c747",
+        "decision": "degraded_insufficient_independent_corroboration",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519"
+          ],
+          "distinct_providers": [
+            "provider-a-otel"
+          ],
+          "distinct_stacks": [
+            "otel-genai-collector"
+          ],
+          "independent": false,
+          "reason": "fewer_than_two_sources"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "07a4888fe05886028bf9820d7319db9c1490f701c8a86927217d27cee060f7c2"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "grp-otel-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-fresh-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "d70bc60d6c1210a80d6183c3f3932a21b79a71494186dfd235c4286a13fd3e7d",
+            "staleness_seconds": 600.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "5b7a085d5494d6373d7759a5b903e3cb121a559eea61848b4cefb993ca2f14c3"
+            ],
+            "eligible": false,
+            "fresh": false,
+            "provenance": {
+              "attestation_key_id": "kid-C-kms-asym",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": true,
+                "verdict": "guardrail_intervened"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T08:40:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-stale-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "d2de102f306ad9b357b35dd53fd5770ce694b4974d23c6ea273bad1fba4de65f",
+            "staleness_seconds": 12900.0
+          }
+        ]
+      },
+      "bundle_sha256": "c3ba4f7f055c6732f8d108598bb799cb3d8ca5b46376086cf73614c4ee55c747",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 1,
+      "expected_band": "DEGRADED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519"
+        ],
+        "distinct_providers": [
+          "provider-a-otel"
+        ],
+        "distinct_stacks": [
+          "otel-genai-collector"
+        ],
+        "independent": false,
+        "reason": "fewer_than_two_sources"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": true,
+            "verdict": "guardrail_intervened"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "verdict": "leak_suspected"
+          },
+          "source_provider_id": "provider-a-otel"
+        }
+      ],
+      "rationale": "1 eligible independent source(s); need 2 and independence=False (fewer_than_two_sources)",
+      "recompute_hash_matches": true,
+      "resolved_band": "DEGRADED",
+      "resolved_decision": "degraded_insufficient_independent_corroboration",
+      "scenario": "aws_stale_degraded"
+    },
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DEGRADED",
+        "bundle_sha256": "4fbca858fdf223b71d24c3930f02c2ebbc143152417b2c2cdca33915079b8bc3",
+        "decision": "degraded_insufficient_independent_corroboration",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-B-hmac"
+          ],
+          "distinct_providers": [
+            "provider-b-datadog"
+          ],
+          "distinct_stacks": [
+            "datadog-llm-obs"
+          ],
+          "independent": false,
+          "reason": "fewer_than_two_sources"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "a5c7f3e0d3e9135982d27504d7667110f098096db1736f1235c64bd9770e90ff"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-B-hmac",
+              "attestation_type": "otel_feed",
+              "authentication_method": "mtls_hmac_feed",
+              "independence_group": "grp-datadog-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "datadog-llm-obs",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "b-fresh-1"
+              ],
+              "source_provider_id": "provider-b-datadog"
+            },
+            "provenance_digest": "c0a2278e7664fdb61b5760147fbe86b2098751198c73f22cd64060d9891d1813",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": false,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "4ffa446413b7a1f3c8e5a54db3fa4f1706c88633ee97efa551af6f84c57c1f97"
+            ],
+            "eligible": false,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-kms-asym",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "failed",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": true,
+                "verdict": "guardrail_intervened"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:07:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-unauth-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "664a0a0dbcb17b9e3bf7f67f778f2bf4c462fd875b2485c131c2c1a68f0fb162",
+            "staleness_seconds": 480.0
+          }
+        ]
+      },
+      "bundle_sha256": "4fbca858fdf223b71d24c3930f02c2ebbc143152417b2c2cdca33915079b8bc3",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 1,
+      "expected_band": "DEGRADED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-B-hmac"
+        ],
+        "distinct_providers": [
+          "provider-b-datadog"
+        ],
+        "distinct_stacks": [
+          "datadog-llm-obs"
+        ],
+        "independent": false,
+        "reason": "fewer_than_two_sources"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": true,
+            "verdict": "guardrail_intervened"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "verdict": "leak_suspected"
+          },
+          "source_provider_id": "provider-b-datadog"
+        }
+      ],
+      "rationale": "1 eligible independent source(s); need 2 and independence=False (fewer_than_two_sources)",
+      "recompute_hash_matches": true,
+      "resolved_band": "DEGRADED",
+      "resolved_decision": "degraded_insufficient_independent_corroboration",
+      "scenario": "aws_unauthenticated_degraded"
+    },
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "ELEVATED",
+        "bundle_sha256": "5de2c311e25b2b2e5c90fcd139a4dc30ebf2f35b0efeb949c10d55fbd1b73812",
+        "decision": "review_covered_peril_candidate",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519",
+            "kid-C-kms-asym"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-c-aws-bedrock"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "otel-genai-collector"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "5d91c7707875a03a01cd65103ff497f9a469faa4fe7a1b9e302094efe176bbb1"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "grp-otel-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "override": true,
+                "verdict": "no_incident"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-override-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "d10419a8417a9b6a5818906a0968c61dfb357099209e9e5e811e0ab7a44d6dd0",
+            "staleness_seconds": 600.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "f7043c1f337801b335ac51f81a9dbbc34c47d1bd29fa73f08fe3743a07e336b2"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-kms-asym",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": false,
+                "override": true,
+                "verdict": "no_incident"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:07:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-override-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "0b7061bd03a891cd53c5c7be14da34ccd528bd9ecd54871b0bff19ad417f98b9",
+            "staleness_seconds": 480.0
+          }
+        ]
+      },
+      "bundle_sha256": "5de2c311e25b2b2e5c90fcd139a4dc30ebf2f35b0efeb949c10d55fbd1b73812",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "ELEVATED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519",
+          "kid-C-kms-asym"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-c-aws-bedrock"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "otel-genai-collector"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": false,
+            "override": true,
+            "verdict": "no_incident"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "override": true,
+            "verdict": "no_incident"
+          },
+          "source_provider_id": "provider-a-otel"
+        }
+      ],
+      "rationale": "2 independent authenticated sources corroborate a covered_peril_candidate; routed to human review lane",
+      "recompute_hash_matches": true,
+      "resolved_band": "ELEVATED",
+      "resolved_decision": "review_covered_peril_candidate",
+      "scenario": "aws_provider_verdict_cannot_override"
+    },
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DEGRADED",
+        "bundle_sha256": "8a42285c3df36c7757c650bcc3509c5edd2ce75b550a575c1ef02c6f95daf7be",
+        "decision": "degraded_insufficient_independent_corroboration",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-shared-lineage"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-c-aws-bedrock"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "otel-genai-collector"
+          ],
+          "independent": false,
+          "reason": "shared_attestation_key"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "5c2d4decb17b58461e78b1b99a3cbb86dc5b9e60ed56837a2ce8fbaaef1f1651"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-shared-lineage",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "grp-otel-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-shared-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "09ed90a99292006d024c243ba5beccd7841f1ec1d7b854edcf007e05ba995b45",
+            "staleness_seconds": 600.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "7959336d85572d56d18786580b579d5a228ad3a9748ea6ac08cbc9a412c0dbee"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-shared-lineage",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": true,
+                "verdict": "guardrail_intervened"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:07:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-shared-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "85213b7e4bef1a3c975c1a94bc74b595d9f052299494927140197dac57b23fe7",
+            "staleness_seconds": 480.0
+          }
+        ]
+      },
+      "bundle_sha256": "8a42285c3df36c7757c650bcc3509c5edd2ce75b550a575c1ef02c6f95daf7be",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "DEGRADED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-shared-lineage"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-c-aws-bedrock"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "otel-genai-collector"
+        ],
+        "independent": false,
+        "reason": "shared_attestation_key"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": true,
+            "verdict": "guardrail_intervened"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "covered_peril_candidate",
+          "provider_native_determination": {
+            "verdict": "leak_suspected"
+          },
+          "source_provider_id": "provider-a-otel"
+        }
+      ],
+      "rationale": "2 eligible independent source(s); need 2 and independence=False (shared_attestation_key)",
+      "recompute_hash_matches": true,
+      "resolved_band": "DEGRADED",
+      "resolved_decision": "degraded_insufficient_independent_corroboration",
+      "scenario": "aws_shared_lineage_not_independent"
+    },
+    {
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "CONTINUE",
+        "bundle_sha256": "f887e5ff4681d318823c11ecdfea335cbb9ccf89cfa3588a2d062943a66ff8b8",
+        "decision": "continue_monitoring",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519",
+            "kid-B-hmac",
+            "kid-C-kms-asym"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-b-datadog",
+            "provider-c-aws-bedrock"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "datadog-llm-obs",
+            "otel-genai-collector"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "622eb587b3cd67710ba3a31820dbd6ce10340d4aba6a345aab585f4927e50bf8"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "grp-otel-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "benign"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-clean-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "09f331a6fa5ca435cbb38015b314c77aeccb7c9dad2518e401f0874758a0a18b",
+            "staleness_seconds": 600.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "be3e85e56f610d436bc43111d059f6da6ba48a01c220362ff1e49e0f23a5152b"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-B-hmac",
+              "attestation_type": "otel_feed",
+              "authentication_method": "mtls_hmac_feed",
+              "independence_group": "grp-datadog-saas",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "benign"
+              },
+              "provider_stack": "datadog-llm-obs",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "b-clean-1"
+              ],
+              "source_provider_id": "provider-b-datadog"
+            },
+            "provenance_digest": "c6cd5c79eecb541ab11b6cf832a3b0396999e2a6b3bfaeba082569433c4ad1ac",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "ad488e1a6783911da23dfd7ce9ba5b01b42fa7b98068854bceae8b956f1ff460"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-kms-asym",
+              "attestation_type": "cloudwatch_kms_signed_log_delivery",
+              "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+              "independence_group": "grp-aws-account-4417",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "bedrock_guardrail_id": "bb-guardrail-v1",
+                "cloudwatch_anomaly": false,
+                "verdict": "guardrail_pass"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:07:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-clean-1"
+              ],
+              "source_provider_id": "provider-c-aws-bedrock"
+            },
+            "provenance_digest": "c0524ca12f8787c81c9324987929790a4842c1d6e8969bbfbdb2cc5d8d919ae6",
+            "staleness_seconds": 480.0
+          }
+        ]
+      },
+      "bundle_sha256": "f887e5ff4681d318823c11ecdfea335cbb9ccf89cfa3588a2d062943a66ff8b8",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 3,
+      "expected_band": "CONTINUE",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519",
+          "kid-B-hmac",
+          "kid-C-kms-asym"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-b-datadog",
+          "provider-c-aws-bedrock"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "datadog-llm-obs",
+          "otel-genai-collector"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "backbond_signal": "no_finding",
+          "provider_native_determination": {
+            "bedrock_guardrail_id": "bb-guardrail-v1",
+            "cloudwatch_anomaly": false,
+            "verdict": "guardrail_pass"
+          },
+          "source_provider_id": "provider-c-aws-bedrock"
+        },
+        {
+          "backbond_signal": "no_finding",
+          "provider_native_determination": {
+            "verdict": "benign"
+          },
+          "source_provider_id": "provider-a-otel"
+        },
+        {
+          "backbond_signal": "no_finding",
+          "provider_native_determination": {
+            "verdict": "benign"
+          },
+          "source_provider_id": "provider-b-datadog"
+        }
+      ],
+      "rationale": "3 independent authenticated sources corroborate no covered-peril finding; continuity holds",
+      "recompute_hash_matches": true,
+      "resolved_band": "CONTINUE",
+      "resolved_decision": "continue_monitoring",
+      "scenario": "aws_otel_datadog_triple_corroboration"
+    }
+  ],
+  "third_provider": {
+    "attestation_key_id": "kid-C-kms-asym",
+    "attestation_type": "cloudwatch_kms_signed_log_delivery",
+    "authentication_method": "aws_sigv4_kms_asymmetric_signature",
+    "independence_group": "grp-aws-account-4417",
+    "provider_stack": "aws-bedrock-cloudwatch",
+    "source_provider_id": "provider-c-aws-bedrock"
+  }
+}
