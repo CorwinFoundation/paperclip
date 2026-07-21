@@ -6,12 +6,12 @@ phase: 1
 canonical_terms_only: true
 focus_claim: "This playbook makes the Sequence 20 BackBond Scanner production promotion reproducible, fail-closed, and immediately reversible on srv1749248."
 contracts_referenced: ["are-scanner-api-v1@v1.1.0"]
-ticket_refs: ["BEAAA-16253", "BEAAA-16232", "BEAAA-16230", "BEAAA-15400", "BEAAA-15373"]
+ticket_refs: ["BEAAA-16254", "BEAAA-16253", "BEAAA-16232", "BEAAA-16230", "BEAAA-15400", "BEAAA-15373"]
 proof_points_cited:
   - "Candidate commit 46eec2f1887800c2359a1cf75a06657e4eb4d844"
   - "Rollback image backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121"
   - "srv1749248 is default-deny egress; images arrive by operator-mediated push"
-version: 1.0
+version: 1.1
 prior_version: "docs/deploy/sequence-20-stage-gate-runbook.md"
 self_audit_passed: true
 escalations_noted:
@@ -165,14 +165,14 @@ systemctl is-active --quiet backbond-scanner-live.service
 test "$(docker inspect --format '{{index .Config.Image}}' backbond-scanner-live-edge)" = "$CANDIDATE_IMAGE"
 SH
 
-curl --silent --show-error --insecure --max-time 30 \
+curl --silent --show-error --max-time 30 \
   --output /tmp/sequence-20-health.body \
   --write-out '%{http_code}\n' \
-  https://127.0.0.1/scanner/v1/sla \
+  http://127.0.0.1:8077/scanner/v1/sla \
   | grep -Fx '200'
 ```
 
-Pass: the loaded digest matches the signed-manifest digest; the service is active on that exact repository-qualified image; health returns `200` with an opaque JSON body. Delete `/tmp/sequence-20-health.body` after recording only its redacted shape.
+Pass: the loaded digest matches the signed-manifest digest; the service is active on that exact repository-qualified image; the app-tier health endpoint on loopback returns `200` with an opaque JSON body. The health probe intentionally bypasses nginx because the approved edge allowlist default-denies `/scanner/v1/sla`. Delete `/tmp/sequence-20-health.body` after recording only its redacted shape.
 
 ## 5. Read-only v0.2 preflight: ordinary 404 and exact log correlation
 
@@ -195,14 +195,16 @@ CODE="$(curl --silent --show-error --max-time 30 \
 REQUEST_ID="$(sed -n 's/^[Xx]-[Rr]equest-[Ii][Dd]:[[:space:]]*\([^[:space:]\r]*\).*/\1/p' "$WORK/headers" | head -1)"
 printf '%s\n' "$REQUEST_ID" | grep -Eq '^[0-9A-Za-z._-]{8,128}$'
 grep -Eq '^\{"error":"not_found","request_id":"[0-9A-Za-z._-]+"\}$' "$WORK/body"
-grep -F -- 'Server:' "$WORK/headers" && exit 1 || true
+SERVER_HEADER="$(sed -n 's/^[Ss]erver:[[:space:]]*\([^[:space:]\r]*\).*/\1/p' "$WORK/headers" | head -1)"
+[ -z "$SERVER_HEADER" ] || [ "$SERVER_HEADER" = nginx ]
+! grep -Eiq '^(Via|X-Powered-By|X-Runtime|X-AspNet-Version|Location):' "$WORK/headers"
 MATCHES="$(grep -Fc -- "$REQUEST_ID" /var/log/nginx/backbond-scanner-edge.access.log || true)"
 [ "$MATCHES" -eq 1 ]
 printf 'PASS status=404 request_id=%s edge_log_matches=1\n' "$REQUEST_ID"
 SH
 ```
 
-Pass: HTTP `404`; exactly one non-empty opaque `X-Request-ID`; opaque `not_found` body; no topology-bearing `Server` header; and exactly one edge access-log line contains that same ID verbatim. The command performs no scan.
+Pass: HTTP `404`; exactly one non-empty opaque `X-Request-ID`; opaque `not_found` body; `Server` is absent or exactly the unversioned value `nginx`; no upstream topology header (`Via`, `X-Powered-By`, `X-Runtime`, `X-AspNet-Version`, or `Location`) is present; and exactly one edge access-log line contains that same ID verbatim. The command performs no scan.
 
 ## 6. Promotion gates
 
@@ -210,9 +212,9 @@ Pass: HTTP `404`; exactly one non-empty opaque `X-Request-ID`; opaque `not_found
 |---|---|---|
 | Identity | commit is `46eec2f…d844`; image is signed-manifest repository digest | rollback |
 | Pins | Scanner `0.5.0`; corpus `0.1.0`; snapshot `112f3410…0d3829`; seed `42` read back from root-owned config | rollback |
-| Health | loopback `GET /scanner/v1/sla` returns `200` and opaque JSON | rollback |
+| Health | app-tier loopback `GET http://127.0.0.1:8077/scanner/v1/sla` returns `200` and opaque JSON; it does not traverse the default-deny edge | rollback |
 | Auth posture | preflight sends existing non-customer Tenant A bearer token; no token appears in output/log | rollback and incident review if leaked |
-| Redaction | ordinary `404` is opaque; no upstream topology/version header or body detail | rollback |
+| Redaction | ordinary `404` is opaque; `Server` is absent or bare `nginx`; no version or upstream topology header/body detail | rollback |
 | Request ID | header is present and exactly one access-log line carries the identical ID | rollback |
 | nginx | config test succeeds; reload succeeds; unit remains active | rollback |
 
@@ -240,16 +242,16 @@ systemctl is-active --quiet backbond-scanner-live.service
 test "$(docker inspect --format '{{index .Config.Image}}' backbond-scanner-live-edge)" = "$ROLLBACK_IMAGE"
 SH
 
-curl --silent --show-error --insecure --max-time 30 \
+curl --silent --show-error --max-time 30 \
   --output /tmp/sequence-20-rollback-health.body \
   --write-out '%{http_code}\n' \
-  https://127.0.0.1/scanner/v1/sla \
+  http://127.0.0.1:8077/scanner/v1/sla \
   | grep -Fx '200'
 sudo nginx -t
 sudo systemctl is-active --quiet nginx backbond-scanner-live.service
 ```
 
-Rollback passes only when the prior nginx config is live, nginx validates and reloads, the exact retained rollback image is running, and health returns `200`. If rollback itself fails, page the Founder/operator immediately and keep design-partner access closed.
+Rollback passes only when the prior nginx config is live, nginx validates and reloads, the exact retained rollback image is running, and its app-tier loopback health endpoint returns `200`. If rollback itself fails, page the Founder/operator immediately and keep design-partner access closed.
 
 ## Redacted completion receipt
 
