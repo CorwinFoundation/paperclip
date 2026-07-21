@@ -46,7 +46,7 @@ def test_release_candidate_contains_verified_sigstore_bundle_hash() -> None:
     assert "signatureBundleSha256: $signatureBundleSha256" in payload["run"]
 
 
-def test_only_manual_runs_create_candidate_and_open_approval() -> None:
+def test_only_manual_runs_publish_candidate_evidence_attachment() -> None:
     steps = _steps()
     payload = steps["Write release candidate payload"]
     upload = steps["Upload release candidate artifacts"]
@@ -55,8 +55,9 @@ def test_only_manual_runs_create_candidate_and_open_approval() -> None:
     assert payload["if"] == "github.event_name == 'workflow_dispatch'"
     assert upload["if"] == "github.event_name == 'workflow_dispatch'"
     assert post["if"] == "github.event_name == 'workflow_dispatch'"
-    assert 'candidate_response="$(mktemp)"' in post["run"]
+    assert 'upload_response="$(mktemp)"' in post["run"]
     assert "jq -er '.id | strings | select(length > 0)'" in post["run"]
-    assert "/api/release-candidates/${candidate_id}/approval-interaction" in post["run"]
-    assert "--data '{}'" in post["run"]
-    assert "--output /dev/null" in post["run"]
+    assert "/api/companies/${PAPERCLIP_COMPANY_ID}/issues/${SOURCE_ISSUE_ID}/attachments" in post["run"]
+    assert '-F "file=@${evidence_archive};type=application/gzip"' in post["run"]
+    assert "scanner-edge-image.tar" in post["run"]
+    assert "--write-out '%{http_code}'" in post["run"]

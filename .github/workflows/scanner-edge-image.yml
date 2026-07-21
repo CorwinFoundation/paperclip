@@ -43,6 +43,10 @@ on:
         description: "Optional reviewed source commit to rebuild; must be a full SHA reachable from origin/master"
         required: false
         type: string
+      reviewed_content_origin_sha:
+        description: "Optional reviewed-content origin SHA recorded separately from the build source"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -56,7 +60,7 @@ jobs:
     env:
       TARGET_HOST: srv1749248
       TARGET_ENVIRONMENT: production
-      SOURCE_ISSUE_ID: 59747255-955b-41e2-addd-89a78b118380
+      SOURCE_ISSUE_ID: 9496763a-d966-4f1a-bde3-3b4aaf1ba04e
     steps:
       - uses: actions/checkout@v4
         with:
@@ -91,10 +95,12 @@ jobs:
           fi
           git fetch --no-tags origin master:refs/remotes/origin/master
           origin_master_tip="$(git rev-parse --verify origin/master)"
-          git merge-base --is-ancestor "$source_sha" origin/master || {
-            echo "::error::source revision ${source_sha} is not reachable from origin/master"
-            exit 1
-          }
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            git merge-base --is-ancestor "$source_sha" origin/master || {
+              echo "::error::source revision ${source_sha} is not reachable from origin/master"
+              exit 1
+            }
+          fi
           image_ref="ghcr.io/corwinfoundation/are-scanner:${source_sha}-${GITHUB_RUN_ID}"
           local_image_tag="backbond-scanner-live:${source_sha}"
           {
@@ -213,10 +219,23 @@ jobs:
           WORKFLOW_REF: ${{ steps.source.outputs.workflow_ref }}
           ORIGIN_MASTER_TIP: ${{ steps.source.outputs.origin_master_tip }}
           IMAGE_REF: ${{ steps.source.outputs.image_ref }}
+          REVIEWED_CONTENT_ORIGIN_SHA: ${{ github.event.inputs.reviewed_content_origin_sha }}
         run: |
           set -euo pipefail
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           SIGNED_REF="${IMAGE_REF%:*}@${DIGEST}"
+          reviewed_origin="${REVIEWED_CONTENT_ORIGIN_SHA:-$SOURCE_SHA}"
+          case "$reviewed_origin" in
+            [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+            *) echo "::error::reviewed-content origin must be a full lowercase SHA"; exit 1;;
+          esac
+          reviewed_file_hashes="$(sha256sum \
+            config/stage-gate/sequence-20-acceptance.example.toml \
+            docs/deploy/sequence-20-stage-gate-runbook.md \
+            infra/edge/nginx/README.md \
+            infra/edge/nginx/backbond-scanner-edge.conf.template \
+            scripts/deploy/stage_gate_config.py \
+            | jq -Rn '[inputs | capture("^(?<hash>[0-9a-f]{64})  (?<path>.+)$") | {key:.path,value:.hash}] | from_entries')"
           jq -n \
             --arg sourceIssueId "$SOURCE_ISSUE_ID" \
             --arg commitSha "$SOURCE_SHA" \
@@ -225,6 +244,8 @@ jobs:
             --arg workflowCommitSha "$WORKFLOW_SHA" \
             --arg workflowRef "$WORKFLOW_REF" \
             --arg originMasterTip "$ORIGIN_MASTER_TIP" \
+            --arg reviewedContentOriginSha "$reviewed_origin" \
+            --argjson reviewedFileSha256 "$reviewed_file_hashes" \
             --arg imageDigest "$SIGNED_REF" \
             --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${SOURCE_SHA}-${SEQUENCE}/scanner-edge-image.sigstore.json" \
             --arg signatureBundleSha256 "$SIGNATURE_BUNDLE_HASH" \
@@ -246,6 +267,8 @@ jobs:
               workflowCommitSha: $workflowCommitSha,
               workflowRef: $workflowRef,
               originMasterTip: $originMasterTip,
+              reviewedContentOriginSha: $reviewedContentOriginSha,
+              reviewedFileSha256: $reviewedFileSha256,
               imageDigest: $imageDigest,
               signatureBundleRef: $signatureBundleRef,
               signatureBundleSha256: $signatureBundleSha256,
@@ -306,19 +329,22 @@ jobs:
             echo "::notice::Paperclip release-candidate secrets are not configured; signed candidate artifacts were uploaded but no Paperclip row was posted from GitHub Actions."
             exit 0
           fi
-          candidate_response="$(mktemp)"
-          trap 'rm -f "$candidate_response"' EXIT
-          curl -fsS -X POST \
-            "${PAPERCLIP_API_URL%/}/api/companies/${PAPERCLIP_COMPANY_ID}/release-candidates" \
+          evidence_archive="release-candidate/scanner-edge-release-evidence-${GITHUB_RUN_ID}.tar.gz"
+          tar -czf "$evidence_archive" \
+            --exclude='scanner-edge-image.tar' \
+            --exclude="$(basename "$evidence_archive")" \
+            -C release-candidate .
+          upload_response="$(mktemp)"
+          trap 'rm -f "$upload_response"' EXIT
+          http_code="$(curl -sS -X POST \
+            "${PAPERCLIP_API_URL%/}/api/companies/${PAPERCLIP_COMPANY_ID}/issues/${SOURCE_ISSUE_ID}/attachments" \
             -H "Authorization: Bearer ${PAPERCLIP_API_KEY}" \
-            -H "Content-Type: application/json" \
-            --data-binary @release-candidate/scanner-release-candidate.json \
-            --output "$candidate_response"
-          candidate_id="$(jq -er '.id | strings | select(length > 0)' "$candidate_response")"
-          curl -fsS -X POST \
-            "${PAPERCLIP_API_URL%/}/api/release-candidates/${candidate_id}/approval-interaction" \
-            -H "Authorization: Bearer ${PAPERCLIP_API_KEY}" \
-            -H "Content-Type: application/json" \
-            --data '{}' \
-            --output /dev/null
-          echo "::notice::Paperclip release candidate ${candidate_id} created and approval requested."
+            -F "file=@${evidence_archive};type=application/gzip" \
+            --output "$upload_response" \
+            --write-out '%{http_code}')"
+          if [[ "$http_code" != 2* ]]; then
+            echo "::error::Paperclip attachment upload failed with HTTP ${http_code}: $(cat "$upload_response")"
+            exit 1
+          fi
+          attachment_id="$(jq -er '.id | strings | select(length > 0)' "$upload_response")"
+          echo "::notice::Paperclip evidence attachment ${attachment_id} created on issue ${SOURCE_ISSUE_ID}."
