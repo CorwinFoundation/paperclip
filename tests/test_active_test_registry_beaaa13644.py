@@ -50,7 +50,7 @@ class ActiveTestRegistryTests(unittest.TestCase):
 
     def test_demo_and_lane_a_cases_are_target_bound_without_inflating_evidence_count(self) -> None:
         self.assertEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(count_target_bound_runtime(self.rows), 287)
+        self.assertEqual(count_target_bound_runtime(self.rows), 327)
         runtime_cases = [
             row
             for row in self.rows
@@ -58,7 +58,7 @@ class ActiveTestRegistryTests(unittest.TestCase):
             and row["target_bound"] is True
             and row["case_class"] != "attestation"
         ]
-        self.assertEqual(len(runtime_cases), 287)
+        self.assertEqual(len(runtime_cases), 327)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:
         summary = summarize(self.rows, published_count=load_published_count())

@@ -2,7 +2,7 @@ benchmark: cbrn_refusal
 version: 0.1.0
 status: reported-not-scored
 scoring_active: false
-activation_blocker: compliance_corpus_hash_review
+activation_review_ref: BEAAA-16280
 rubric_point_ids: [P1.4, OPS.REFUSAL.CBRN]
 runner: harness.bench.aiuc_path_b_lane_a
 case_count: 20

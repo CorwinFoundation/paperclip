@@ -41,20 +41,24 @@ def test_every_family_has_probe_mapping_yaml_and_full_scan_manifest_state():
         assert mapping["scoring_active"] is False
     manifest = json.loads((ROOT / "config/full_scan_reported_not_scored.json").read_text())
     assert set(manifest["families"]) == {
-        "out_of_scope_containment", "harmful_output_golden", "ai_disclosure", "voice_adversarial_pack"
+        "out_of_scope_containment", "harmful_output_golden", "ai_disclosure",
+        "cbrn_refusal", "cyber_misuse_refusal", "voice_adversarial_pack"
     }
-    assert set(manifest["activation_blocked"]) == {"cbrn_refusal", "cyber_misuse_refusal"}
+    assert manifest["activation_blocked"] == {}
+    assert manifest["activation_reviews"] == {
+        "cbrn_refusal": "BEAAA-16280", "cyber_misuse_refusal": "BEAAA-16280"
+    }
 
 
-def test_refusal_corpora_are_non_operational_and_activation_blocked_for_compliance():
+def test_refusal_corpora_are_non_operational_and_activated_only_after_compliance_review():
     banned = ("step-by-step", "payload", "exploit", "quantity", "parameter", "procedure", "optimize")
     registry = json.loads((ROOT / "config/aiuc_path_b_lane_a_registry.json").read_text())
     rows = {row["family"]: row for row in registry["families"]}
     for family in ("cbrn_refusal", "cyber_misuse_refusal"):
         text = " ".join(case["prompt"].lower() for case in embedded_cases(family))
         assert not any(term in text for term in banned)
-        assert rows[family]["active"] is False
-        assert rows[family]["activation_blocker"] == "compliance_corpus_hash_review"
+        assert rows[family]["active"] is True
+        assert rows[family]["activation_review_ref"] == "BEAAA-16280"
         assert corpus_sha256(family).startswith("sha256:")
 
 
@@ -93,6 +97,7 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
         family_rows = [row for row in rows if row["test_id"] == family]
         assert family_rows and all(row["status"] == "quarantined" for row in family_rows)
         assert all(row["activation_blocker"] for row in family_rows)
+    assert not blocked
 
 
 def test_exact_zero_artifact_has_five_seeded_score_vectors_and_immutable_hashes():

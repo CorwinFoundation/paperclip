@@ -55,13 +55,13 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_distinct_case_count_is_below_runnable_case_count(self) -> None:
         counts = distinct_case_counts(self.rows)
         runnable = count_target_bound_runtime(self.rows)
-        self.assertEqual(runnable, 287)
-        # 287 rows still execute — they are simply not all distinct.
-        self.assertEqual(counts["declared_total"], 287)
+        self.assertEqual(runnable, 327)
+        # 327 rows still execute — they are simply not all distinct.
+        self.assertEqual(counts["declared_total"], 327)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs — matches the CTO reproduction
-        # Lane A adds 84 distinct reported-not-scored cases to the prior 180.
-        self.assertEqual(counts["total"], 264)
+        # Lane A adds 124 distinct reported-not-scored cases to the prior 180.
+        self.assertEqual(counts["total"], 304)
         self.assertEqual(counts["declared_total"] - counts["total"], 23)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
