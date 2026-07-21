@@ -1,0 +1,102 @@
+# BackBond Scanner — Sequence 20 external edge (nginx server block)
+# BEAAA-16230 (parent BEAAA-16216 Stage Gate gap-closure; origin: Founder Stage
+# Gate FAIL attachment d05e00d8).
+#
+# WHY THIS EXISTS
+#   The deployed external edge is nginx (not the staging Caddyfile alongside it).
+#   The Founder Stage Gate found the deployed nginx returned NO X-Request-ID on
+#   ordinary responses, so a customer/forensic response could not be correlated
+#   to an access-log line. This config closes gap 1 while preserving the existing
+#   route allowlist, topology hiding, and error-redaction posture that mirrors
+#   infra/edge/Caddyfile (BEAAA-11866).
+#
+# WHAT IT GUARANTEES
+#   1. Route allowlist / default-deny: only POST /scanner/v1/scans and
+#      GET /scan/{scan_id} reach upstream; everything else -> opaque 404.
+#   2. Topology hiding: no version banner (server_tokens off); upstream
+#      Server/Via/X-Powered-By/Location/X-Runtime/X-AspNet-Version stripped.
+#   3. Error normalization: upstream 5xx -> opaque {"error":"upstream_error",...}.
+#   4. Observability (the gap-1 fix): an opaque per-request $request_id is added
+#      to EVERY response — including ordinary 401/404/5xx — via `always`, and the
+#      same id is written to the access log AND forwarded upstream, so a response
+#      correlates exactly to one edge log line and one app-tier log line.
+#
+# RENDERING
+#   Consumed by the stock nginx image entrypoint, which runs envsubst over
+#   /etc/nginx/templates/*.template. Set NGINX_ENVSUBST_FILTER=EDGE so ONLY the
+#   EDGE_* placeholders are substituted and nginx runtime vars ($request_id,
+#   $status, $time_iso8601, ...) are left literal.
+#     EDGE_LISTEN    - edge bind port/address (e.g. 8080; publish edge-only)
+#     EDGE_UPSTREAM  - scanner app-tier host:port (e.g. 127.0.0.1:8077)
+#
+# ROLLBACK
+#   This file is additive edge config. Rollback = restore the current nginx
+#   config and the Sequence 20 image
+#   backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121.
+#   No score / API contract / rubric / corpus behavior changes.
+
+# (4) One access-log line per request, keyed by the SAME opaque id echoed to the
+# client in X-Request-ID. escape=json keeps upstream-influenced fields safe.
+log_format edge_json escape=json
+    '{"ts":"$time_iso8601","request_id":"$request_id","method":"$request_method",'
+    '"uri":"$uri","status":$status,"bytes_sent":$bytes_sent}';
+
+server {
+    listen      ${EDGE_LISTEN};
+    server_name _;
+
+    # (2) no version banner; keep bodies opaque and small.
+    server_tokens off;
+    default_type application/json;
+
+    # (4) exact-correlation access log to stdout (container-friendly).
+    access_log /dev/stdout edge_json;
+
+    # (4) opaque per-request id on EVERY response (incl. ordinary 401/404/5xx).
+    # `always` is precisely what the deployed edge was missing.
+    add_header X-Request-ID $request_id always;
+
+    # (2) never let the app tier's identity/topology headers reach the client.
+    proxy_hide_header Server;
+    proxy_hide_header Via;
+    proxy_hide_header X-Powered-By;
+    proxy_hide_header X-AspNet-Version;
+    proxy_hide_header X-Runtime;
+    proxy_hide_header Location;
+
+    # (4) forensic id also travels to the app tier so its logs align with ours.
+    proxy_set_header X-Request-ID $request_id;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+
+    # (3) normalize any upstream 5xx to an opaque body; app 4xx pass through
+    # unchanged (they are already opaque per the API contract) but still gain the
+    # server-scope X-Request-ID header above.
+    proxy_intercept_errors on;
+    error_page 500 502 503 504 = @upstream_error;
+
+    # --- (1) allowlist route A: create scan (POST only) -------------------- #
+    location = /scanner/v1/scans {
+        if ($request_method != POST) { return 404 '{"error":"not_found","request_id":"$request_id"}'; }
+        proxy_pass http://${EDGE_UPSTREAM};
+    }
+
+    # --- (1) allowlist route B: read scan by id, exactly one segment ------- #
+    location ~ "^/scan/[^/]+$" {
+        if ($request_method != GET) { return 404 '{"error":"not_found","request_id":"$request_id"}'; }
+        proxy_pass http://${EDGE_UPSTREAM};
+    }
+
+    # --- (1) default-deny catch-all: opaque 404 for everything else -------- #
+    #   /score, /quote, /forensic_bundle/*, /scanner/v1/rescans,
+    #   /scanner/v1/sla, /admin, health-detail, two-segment /scan paths,
+    #   wrong-method hits, and any unknown path all land here.
+    location / {
+        return 404 '{"error":"not_found","request_id":"$request_id"}';
+    }
+
+    # (3) opaque upstream-error body; no internal detail survives.
+    location @upstream_error {
+        return 502 '{"error":"upstream_error","request_id":"$request_id"}';
+    }
+}
