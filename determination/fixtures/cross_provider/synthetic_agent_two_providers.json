@@ -1,0 +1,479 @@
+{
+  "_about": "BEAAA-16490 cross-provider Passive Monitor production-path fixture. One synthetic deployed agent (agent-synthetic-xprov-001/v3), two independent provider stacks (Provider A = otel-genai-collector, Ed25519-signed batch manifests, key kid-A-ed25519; Provider B = datadog-llm-obs, mTLS+HMAC feed, key kid-B-hmac). Each scenario resolves to exactly one continuity band + decision. provider_native_determination is INPUT ONLY and is never read by the resolver.",
+  "agent_id": "agent-synthetic-xprov-001",
+  "agent_version": "v3",
+  "scenarios": {
+    "corroboration_clean": {
+      "expected_band": "CONTINUE",
+      "expected_decision": "continue_monitoring",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "provider_native_determination": {"verdict": "benign"},
+          "packet": {
+            "evidence_batch_id": "batch-a-clean",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa1clean0000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-clean-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:a0clean0000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-clean",
+                "span_id": "span-a-clean",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "success"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-B-hmac",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "provider_native_determination": {"verdict": "benign"},
+          "packet": {
+            "evidence_batch_id": "batch-b-clean",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb1clean0000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-clean-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:b0clean0000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-b-clean",
+                "span_id": "span-b-clean",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "success"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "corroboration_candidate": {
+      "expected_band": "ELEVATED",
+      "expected_decision": "review_covered_peril_candidate",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-a-leak",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa2leak00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-leak-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:a0leak00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-leak",
+                "span_id": "span-a-leak",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii", "email"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-B-hmac",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-b-leak",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb2leak00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-leak-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:b0leak00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-b-leak",
+                "span_id": "span-b-leak",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii", "phi"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "conflict_divergence": {
+      "expected_band": "DIVERGENCE",
+      "expected_decision": "divergence_hold",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-a-conflict",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa3conf00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-conflict-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:a0conf00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-conflict",
+                "span_id": "span-a-conflict",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-B-hmac",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "provider_native_determination": {"verdict": "benign"},
+          "packet": {
+            "evidence_batch_id": "batch-b-conflict",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb3conf00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-conflict-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:b0conf00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-b-conflict",
+                "span_id": "span-b-conflict",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "success"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "missing_stale": {
+      "expected_band": "DEGRADED",
+      "expected_decision": "degraded_insufficient_independent_corroboration",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-a-fresh",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa4fresh0000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-fresh-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:a0fresh0000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-fresh",
+                "span_id": "span-a-fresh",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-B-hmac",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T09:00:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-b-stale",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb4stale0000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-stale-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T08:55:00Z",
+                "content_sha256": "sha256:b0stale0000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-b-stale",
+                "span_id": "span-b-stale",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "provider_verdict_cannot_override": {
+      "_negative_test": "Both providers emit BackBond covered-peril candidate evidence but assert provider_native_determination.verdict = no_incident. BackBond must STILL resolve ELEVATED; the provider verdict cannot flip the outcome to CONTINUE.",
+      "expected_band": "ELEVATED",
+      "expected_decision": "review_covered_peril_candidate",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "provider_native_determination": {"verdict": "no_incident", "benign": true, "override": true},
+          "packet": {
+            "evidence_batch_id": "batch-a-override",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa5over00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-override-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:a0over00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-override",
+                "span_id": "span-a-override",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii", "credential"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-B-hmac",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "provider_native_determination": {"verdict": "no_incident", "benign": true, "override": true},
+          "packet": {
+            "evidence_batch_id": "batch-b-override",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb5over00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-override-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:b0over00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-b-override",
+                "span_id": "span-b-override",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii", "secret"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "shared_lineage_not_independent": {
+      "_negative_test": "Both sources agree on a candidate but are signed by the SAME attestation key (kid-A-ed25519). Not independent -> DEGRADED, not ELEVATED.",
+      "expected_band": "DEGRADED",
+      "expected_decision": "degraded_insufficient_independent_corroboration",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-shared",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-a-shared",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa6shar00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-shared-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:a0shar00000000000000000000000000000000000000000000000000000000000",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-shared",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-b-shared",
+            "tenant_id_hash": "tenant-hash-xprov",
+            "agent_id": "agent-synthetic-xprov-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb6shar00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-shared-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:b0shar00000000000000000000000000000000000000000000000000000000000",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
