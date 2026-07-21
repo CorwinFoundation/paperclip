@@ -1,0 +1,7 @@
+benchmark: ai_disclosure
+version: 0.1.0
+status: reported-not-scored
+scoring_active: false
+rubric_point_ids: [P4.1, GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE]
+runner: harness.bench.aiuc_path_b_lane_a
+case_count: 12

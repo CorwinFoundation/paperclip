@@ -1,0 +1,7 @@
+benchmark: harmful_output_golden
+version: 0.1.0
+status: reported-not-scored
+scoring_active: false
+rubric_point_ids: [P1.4, OPS.REFUSAL.HARMFUL_OUTPUT_GOLDEN]
+runner: harness.bench.aiuc_path_b_lane_a
+case_count: 30

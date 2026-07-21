@@ -13,7 +13,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import yaml
 
@@ -101,6 +101,9 @@ class RegistryRow:
     target_bound: bool
     execution_evidenced: bool
     execution_evidence_status: str
+    scoring_active: bool
+    reporting_status: str
+    activation_blocker: str | None
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -194,6 +197,29 @@ def _execution_evidence_status(
     return True, "target_bound_and_evidenced"
 
 
+def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    if data.get("runner") != "harness.bench.aiuc_path_b_lane_a":
+        return []
+    from harness.bench.aiuc_path_b_lane_a import embedded_cases
+
+    family = str(data["benchmark"])
+    return [
+        {
+            "probe_id": case["case_id"],
+            "pillar": str(data["rubric_point_ids"][1]).split(".", 1)[0],
+            "rubric_point_id": data["rubric_point_ids"][1],
+            "execution_evidence": {
+                "concrete_input_or_action": case["prompt"],
+                "expected_oracle": case["expected_label"],
+                "recorded_target_response": "captured_by_registered_case_executor",
+                "verdict": "reported_not_scored",
+                "github_provenance": "BEAAA-16284",
+            },
+        }
+        for case in embedded_cases(family)
+    ]
+
+
 def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
@@ -226,9 +252,16 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     target_bound=True,
                     execution_evidenced=True,
                     execution_evidence_status="attestation_evidence_pack_bound",
+                    scoring_active=True,
+                    reporting_status="scored",
+                    activation_blocker=None,
                 )
             )
-        for probe in data.get("probes") or []:
+        scoring_active = data.get("scoring_active") is not False
+        reporting_status = "scored" if scoring_active else "reported_not_scored"
+        activation_blocker = data.get("activation_blocker")
+        probes = data.get("probes") or _lane_a_probes(data)
+        for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
                 continue
@@ -264,7 +297,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     RegistryRow(
                         test_id=benchmark,
                         case_id=str(probe_id),
-                        status="active",
+                        status="quarantined" if activation_blocker else "active",
                         pillar=binding["pillar"],
                         category=binding["category"],
                         risk_or_rubric_id=binding["rubric_id"],
@@ -282,6 +315,9 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         target_bound=target_bound,
                         execution_evidenced=execution_evidenced,
                         execution_evidence_status=evidence_status,
+                        scoring_active=scoring_active,
+                        reporting_status=reporting_status,
+                        activation_blocker=str(activation_blocker) if activation_blocker else None,
                     )
                 )
     return [asdict(row) for row in rows]

@@ -1,6 +1,6 @@
 {
-  "published_active_test_count": 1,
+  "published_active_test_count": 85,
   "historic_claim_count": 1180,
-  "claim_source": "BEAAA-13992 target-bound evidence gate correction",
-  "last_reconciled_at": "2026-07-13"
+  "claim_source": "BEAAA-16303 lane-A reported-not-scored reconciliation",
+  "last_reconciled_at": "2026-07-21"
 }
