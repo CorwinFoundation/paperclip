@@ -58,6 +58,7 @@ jobs:
       TARGET_HOST: srv1749248
       TARGET_ENVIRONMENT: production
       SOURCE_ISSUE_ID: 59747255-955b-41e2-addd-89a78b118380
+      RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -177,20 +178,77 @@ jobs:
           path: release-candidate/
           if-no-files-found: error
 
-      - name: Post release candidate to Paperclip
+      - name: Upload scoped release evidence to Paperclip
         if: github.event_name != 'pull_request'
         env:
           PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
-          PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_RELEASE_CANDIDATE_KEY }}
-          PAPERCLIP_COMPANY_ID: 59f8876e-e729-4dda-98f9-1317c2b50492
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+          SEQUENCE: ${{ github.event.inputs.sequence || '1' }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
         run: |
           set -euo pipefail
-          if [ -z "${PAPERCLIP_API_URL:-}" ] || [ -z "${PAPERCLIP_API_KEY:-}" ]; then
-            echo "::notice::Paperclip release-candidate secrets are not configured; signed candidate artifacts were uploaded but no Paperclip row was posted from GitHub Actions."
-            exit 0
-          fi
+          test -n "${PAPERCLIP_API_URL:-}"
+          test -n "${RELEASE_EVIDENCE_GRANT_ID:-}"
+          test -n "${SOURCE_ISSUE_ID:-}"
+          test -n "${DIGEST:-}"
+          test -n "${WORKFLOW_SHA:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+
+          bundle_path="${RUNNER_TEMP}/scanner-edge-release-evidence-${GITHUB_SHA}-${SEQUENCE}.tar.gz"
+          tar -C release-candidate -czf "$bundle_path" .
+          bundle_sha256="$(sha256sum "$bundle_path" | cut -d' ' -f1)"
+          bundle_bytes="$(wc -c < "$bundle_path" | tr -d '[:space:]')"
+          test -n "$bundle_sha256"
+          test "$bundle_bytes" -gt 0
+
+          oidc_response="$(
+            curl -fsS \
+              -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=paperclip-release-evidence"
+          )"
+          oidc_token="$(printf '%s' "$oidc_response" | jq -r '.value // empty')"
+          test -n "$oidc_token"
+
+          client_nonce="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA}"
+          exchange_response="$(
+            jq -n \
+              --arg grantId "$RELEASE_EVIDENCE_GRANT_ID" \
+              --arg issueId "$SOURCE_ISSUE_ID" \
+              --arg sourceSha "$GITHUB_SHA" \
+              --arg workflowSha "$WORKFLOW_SHA" \
+              --arg environment "$TARGET_ENVIRONMENT" \
+              --arg imageDigest "$IMAGE_REF@$DIGEST" \
+              --arg bundleSha256 "$bundle_sha256" \
+              --arg clientNonce "$client_nonce" \
+              --argjson sequence "$SEQUENCE" \
+              --argjson bundleBytes "$bundle_bytes" \
+              '{
+                grantId: $grantId,
+                issueId: $issueId,
+                sourceSha: $sourceSha,
+                workflowSha: $workflowSha,
+                sequence: $sequence,
+                environment: $environment,
+                imageDigest: $imageDigest,
+                bundleSha256: $bundleSha256,
+                bundleBytes: $bundleBytes,
+                clientNonce: $clientNonce
+              }' |
+            curl -fsS -X POST \
+              "${PAPERCLIP_API_URL%/}/api/release-evidence/v1/exchange" \
+              -H "Authorization: Bearer ${oidc_token}" \
+              -H "Content-Type: application/json" \
+              --data-binary @-
+          )"
+          session_id="$(printf '%s' "$exchange_response" | jq -r '.sessionId // empty')"
+          capability="$(printf '%s' "$exchange_response" | jq -r '.capability // empty')"
+          upload_url="$(printf '%s' "$exchange_response" | jq -r '.uploadUrl // empty')"
+          test -n "$session_id"
+          test -n "$capability"
+          test "$upload_url" = "/api/release-evidence/v1/sessions/${session_id}/attachment"
+
           curl -fsS -X POST \
-            "${PAPERCLIP_API_URL%/}/api/companies/${PAPERCLIP_COMPANY_ID}/release-candidates" \
-            -H "Authorization: Bearer ${PAPERCLIP_API_KEY}" \
-            -H "Content-Type: application/json" \
-            --data-binary @release-candidate/scanner-release-candidate.json
+            "${PAPERCLIP_API_URL%/}${upload_url}" \
+            -H "X-Paperclip-Release-Evidence-Capability: ${capability}" \
+            --form "file=@${bundle_path};type=application/gzip;filename=scanner-edge-release-evidence-${GITHUB_SHA}-${SEQUENCE}.tar.gz"
