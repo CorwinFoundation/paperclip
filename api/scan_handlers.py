@@ -62,6 +62,7 @@ from api.full_scan_executor import (
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
+from api.full_scan_worker import FullScanQueueWorker
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
 from api.scan_log import ScanLog
@@ -434,7 +435,7 @@ class ScanRuntime:
             if created_at < cutoff
             and (
                 self._results.get(scan_id) is None
-                or self._results[scan_id].status not in {"queued", "running"}
+                or self._results[scan_id].status not in {"accepted", "queued", "running"}
             )
         ]
         for scan_id in expired_scan_ids:
@@ -510,31 +511,57 @@ class ScanRuntime:
             self._webhook_cfgs[scan_request.scan_id] = dict(webhook_cfg)
 
         # A production full analysis is a durable registry job. The request
-        # thread only commits the job and returns after acceptance; a separate
-        # FullScanQueueWorker process owns lease/checkpoint/finalize.
+        # thread only commits the job. When an in-process worker factory is
+        # explicitly wired, a daemon consumes that durable job so the existing
+        # queued/terminal API, admission-lease, and webhook guarantees remain
+        # intact. Otherwise an external FullScanQueueWorker owns execution.
         if self._full_scan_registry_rows and scan_request.scan_tier not in {"smoke", "dev"}:
+            initial_status = (
+                "queued" if self._full_scan_workers_factory is not None else "accepted"
+            )
             accepted = ScanResult(
                 scan_id=scan_request.scan_id,
-                status="accepted",
+                status=initial_status,
                 scanner_version=str(scan_request.scanner_version),
                 corpus_version=str(scan_request.corpus_version),
                 rows_emitted=0,
                 k_replicates=scan_request.k_replicates,
             )
-            try:
-                result = self._apply_registry_dispatch_guard(
-                    scan_request,
-                    accepted,
-                    agent_id=agent_id,
-                    secret=secret,
-                )
-                with self._state_lock:
-                    self._results[scan_request.scan_id] = result
-                    self._scan_state_created_at[scan_request.scan_id] = self._now()
-                return result
-            finally:
+            result = self._apply_registry_dispatch_guard(
+                scan_request,
+                accepted,
+                agent_id=agent_id,
+                secret=secret,
+            )
+            with self._state_lock:
+                self._results[scan_request.scan_id] = result
+                self._scan_state_created_at[scan_request.scan_id] = self._now()
+
+            if self._full_scan_workers_factory is None:
                 if on_terminal is not None:
                     on_terminal()
+                return result
+
+            thread = threading.Thread(
+                target=self._run_full_scan_background,
+                kwargs={
+                    "scan_request": scan_request,
+                    "secret": secret,
+                    "agent_id": agent_id,
+                    "on_terminal": on_terminal,
+                },
+                name=f"backbond-full-scan-{scan_request.scan_id[:8]}",
+                daemon=True,
+            )
+            self._background_threads[scan_request.scan_id] = thread
+            try:
+                thread.start()
+            except BaseException:
+                self._background_threads.pop(scan_request.scan_id, None)
+                if on_terminal is not None:
+                    on_terminal()
+                raise
+            return result
 
         # Synchronous scoring path — the scan is terminal before ``kickoff``
         # returns, so release the admission lease inline (BEAAA-14399).
@@ -566,22 +593,41 @@ class ScanRuntime:
     ) -> None:
         try:
             with self._full_scan_semaphore:
-                base = ScanResult(
-                    scan_id=scan_request.scan_id,
-                    status="running",
-                    scanner_version=str(scan_request.scanner_version),
-                    corpus_version=str(scan_request.corpus_version),
-                    rows_emitted=0,
-                    k_replicates=scan_request.k_replicates,
+                # Preserve the direct-call safety harness used by the logging
+                # regression test. Normal durable full-scan dispatch only
+                # starts this method when a worker factory is configured.
+                if self._full_scan_workers_factory is None:
+                    base = ScanResult(
+                        scan_id=scan_request.scan_id,
+                        status="running",
+                        scanner_version=str(scan_request.scanner_version),
+                        corpus_version=str(scan_request.corpus_version),
+                        rows_emitted=0,
+                        k_replicates=scan_request.k_replicates,
+                    )
+                    self._apply_registry_dispatch_guard(
+                        scan_request,
+                        base,
+                        agent_id=agent_id,
+                        secret=secret,
+                    )
+                    return
+                workers = dict(
+                    self._full_scan_workers_factory(scan_request, secret)
                 )
-                with self._state_lock:
-                    self._results[scan_request.scan_id] = base
-                result = self._apply_registry_dispatch_guard(
-                    scan_request,
-                    base,
-                    agent_id=agent_id,
-                    secret=secret,
+                worker = FullScanQueueWorker(
+                    self._full_scan_job_store,
+                    registry_rows=self._full_scan_registry_rows,
+                    workers=workers,
                 )
+                worker_result = worker.run_once()
+                if worker_result.job_id != self._full_scan_job_ids.get(
+                    scan_request.scan_id
+                ):
+                    raise RuntimeError("full-scan worker leased an unexpected job")
+                result = self.fetch(scan_request.scan_id)
+                if result is None or not _scan_reached_terminal(result):
+                    raise RuntimeError("full-scan worker did not reach terminal state")
                 self._record_completed_result(
                     scan_request,
                     result,
@@ -784,7 +830,7 @@ class ScanRuntime:
             )
         return replace(
             result,
-            status="accepted",
+            status=("queued" if result.status == "queued" else "accepted"),
             rows_emitted=0,
             incomplete=False,
             incomplete_reason=None,
