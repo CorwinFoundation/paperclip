@@ -16,7 +16,7 @@ escalations_noted: ["No rule-change escalation: no BackBond Score math, pillar w
 
 # BEAAA-16647 N=5 Calibration Delta
 
-BLUF: total and pillar deltas are exactly zero by construction. The R2 remediation corrects the immutable 49-row roster to the actual d407401 source facts (51 headings, E007/E014 retired, 49 non-retired) while preserving the active-test registry count predicates from v0.1. It does not import AIUC Path-B families into `rubric.scoring`, `rubric.bands`, admittance, judge selection, or BackBond Score aggregation.
+BLUF: total and pillar deltas are exactly zero by construction. The R3 remediation corrects the immutable 49-row roster to the actual d407401 source facts (53 headings, E007/E014 retired, 51 non-retired, two non-retired headings tracked but excluded from the frozen 49 active contract) while preserving the active-test registry count predicates from v0.1. It does not import AIUC Path-B families into `rubric.scoring`, `rubric.bands`, admittance, judge selection, or BackBond Score aggregation.
 
 ```json
 {
@@ -25,11 +25,11 @@ BLUF: total and pillar deltas are exactly zero by construction. The R2 remediati
   "corpus_version": "family-corpora@0.1.0",
   "probe_set_version": "aiuc-path-b@0.1.0",
   "requirement_roster_version": "0.2",
-  "upstream_heading_count": 51,
+  "upstream_heading_count": 53,
   "upstream_retired_count": 2,
-  "upstream_non_retired_count": 49,
+  "upstream_non_retired_count": 51,
   "active_requirement_count": 49,
-  "additional_non_retired_exclusions": 0,
+  "additional_non_retired_exclusions": 2,
   "seeds": [0, 1, 2, 3, 4],
   "total_delta": 0,
   "pillar_deltas": {

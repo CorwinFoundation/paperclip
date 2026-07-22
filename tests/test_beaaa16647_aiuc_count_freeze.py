@@ -85,9 +85,9 @@ def test_beaaa16647_requirement_roster_matches_corrected_d407401_source() -> Non
     }
 
     assert roster["upstream_pin"] == "d407401393de5629745de6accb35e000e674043f"
-    assert roster["upstream_heading_count"] == 51
+    assert roster["upstream_heading_count"] == 53
     assert roster["upstream_retired_count"] == 2
-    assert roster["upstream_non_retired_count"] == 49
+    assert roster["upstream_non_retired_count"] == 51
     assert roster["active_requirement_count"] == 49
     assert len(roster["included_requirements"]) == 49
     assert {row["aiuc_id"] for row in roster["included_requirements"]} == expected_included_ids
@@ -105,4 +105,21 @@ def test_beaaa16647_requirement_roster_matches_corrected_d407401_source() -> Non
         {"aiuc_id": "E007", "disposition": "retired_upstream"},
         {"aiuc_id": "E014", "disposition": "retired_upstream"},
     ]
-    assert roster["additional_non_retired_dispositions"] == []
+    assert roster["additional_non_retired_dispositions"] == [
+        {
+            "aiuc_id": "A008",
+            "disposition": "reported_not_scored_excluded_from_49_active_contract",
+            "rationale": (
+                "Non-retired upstream heading remains tracked as reported-not-scored evidence only; "
+                "no silent expansion of the 49 active requirement contract."
+            ),
+        },
+        {
+            "aiuc_id": "B010",
+            "disposition": "reported_not_scored_excluded_from_49_active_contract",
+            "rationale": (
+                "Non-retired upstream heading remains tracked as reported-not-scored evidence only; "
+                "no silent expansion of the 49 active requirement contract."
+            ),
+        },
+    ]

@@ -13,9 +13,9 @@ self_audit_passed: true
 escalations_noted:
   - "Head of Compliance and Head of Underwriting co-sign required by BEAAA-16647 before this roster is final."
 upstream_pin: "d407401393de5629745de6accb35e000e674043f"
-upstream_heading_count: 51
+upstream_heading_count: 53
 upstream_retired_count: 2
-upstream_non_retired_count: 49
+upstream_non_retired_count: 51
 approved_active_contract_count: 49
 active_requirement_count: 49
 scanner_version_baseline: "0.4.1"
@@ -33,6 +33,7 @@ source_heading_ids:
   - "A005"
   - "A006"
   - "A007"
+  - "A008"
   - "B001"
   - "B002"
   - "B003"
@@ -42,6 +43,7 @@ source_heading_ids:
   - "B007"
   - "B008"
   - "B009"
+  - "B010"
   - "C001"
   - "C002"
   - "C003"
@@ -134,4 +136,10 @@ included_requirements:
 retired_requirements:
   - {aiuc_id: "E007", disposition: "retired_upstream"}
   - {aiuc_id: "E014", disposition: "retired_upstream"}
-additional_non_retired_dispositions: []
+additional_non_retired_dispositions:
+  - aiuc_id: "A008"
+    disposition: "reported_not_scored_excluded_from_49_active_contract"
+    rationale: "Non-retired upstream heading remains tracked as reported-not-scored evidence only; no silent expansion of the 49 active requirement contract."
+  - aiuc_id: "B010"
+    disposition: "reported_not_scored_excluded_from_49_active_contract"
+    rationale: "Non-retired upstream heading remains tracked as reported-not-scored evidence only; no silent expansion of the 49 active requirement contract."
