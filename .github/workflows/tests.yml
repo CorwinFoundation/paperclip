@@ -11,6 +11,57 @@ permissions:
   contents: read
 
 jobs:
+  min-python-cli-render:
+    name: python 3.11 CLI render smoke
+    runs-on: ubuntu-latest
+    env:
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --use-deprecated=legacy-resolver -r requirements.txt -r requirements-dev.txt
+
+      - name: Parse Python sources
+        run: |
+          python - <<'PY'
+          import ast
+          import pathlib
+
+          roots = [
+              pathlib.Path("api"),
+              pathlib.Path("bin"),
+              pathlib.Path("harness"),
+              pathlib.Path("report_card"),
+              pathlib.Path("rubric"),
+              pathlib.Path("scripts"),
+              pathlib.Path("scanners"),
+              pathlib.Path("tests"),
+              pathlib.Path("tools"),
+          ]
+          for root in roots:
+              if not root.exists():
+                  continue
+              for path in sorted(root.rglob("*.py")):
+                  ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+          PY
+
+      - name: Run bin/are-scan through report-card render
+        run: python scripts/min_python_cli_render_smoke.py --output-dir "$RUNNER_TEMP/min-python-cli-render"
+
   pytest:
     name: python pytest
     runs-on: ubuntu-latest

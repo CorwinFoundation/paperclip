@@ -44,6 +44,7 @@ from rubric.scoring import Rubric
 # (sha256:test, https://bundles.local/...). Catch-all guard, vendor-agnostic.
 _AUDIT_PLACEHOLDER_SNAPSHOT_TOKENS = ("not-a-real-snapshot",)
 _AUDIT_PLACEHOLDER_BUNDLE_TOKENS = ("no-bundle", "beaai.local")
+EM_DASH = "\u2014"
 
 
 class AuditPlaceholderError(ValueError):
@@ -1264,7 +1265,7 @@ def _probe_drilldown(
         )
         verdict_html = (
             f'<span class="probe-verdict {verdict_class}">'
-            f"{escape(verdict_raw.upper() or '\u2014')}</span>"
+            f"{escape(verdict_raw.upper() or EM_DASH)}</span>"
         )
         rows.append(
             f"          <tr>\n"
