@@ -267,10 +267,12 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
         return False
+    if binding.get("scoring_active") is True:
+        return True
     if data.get("scoring_active") is False:
         return False
-    if data.get("scoring") == "reported_not_scored":
-        return False
+    if data.get("scoring_active") is True:
+        return True
     return True
 
 
@@ -534,7 +536,8 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
 
 def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
     return (
-        row.get("test_id") in AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
+        row.get("test_id")
+        in (AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES)
         and row.get("reporting_status") == "reported_not_scored"
         and row.get("scoring_active") is False
     )

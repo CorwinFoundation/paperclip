@@ -321,9 +321,10 @@ def build_scoring_active_packet(*, commit_sha: str) -> dict[str, Any]:
         "rollback": {
             "procedure": (
                 "Restore both family mappings to reporting_status:reported_not_scored, "
-                "scoring:reported_not_scored, binding.scoring_active:false, and "
+                "binding.scoring_active:false, and "
                 "binding.underwriting_active:false; active counts return to the prior "
-                "reported-not-scored state without touching other registry rows."
+                "reported-not-scored state without touching other registry rows. "
+                "The scoring field stays reported_not_scored before and after rollback."
             ),
             "tested_by": "tests/test_beaaa16972_wave1a_scored_activation.py",
         },

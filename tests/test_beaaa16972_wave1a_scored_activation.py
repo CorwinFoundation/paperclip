@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shutil import copytree
 
 import yaml
 
@@ -13,6 +14,7 @@ from tools.active_test_registry import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+MAPPING_DIR = ROOT / "rubric" / "probe_mappings"
 
 
 def test_beaaa16972_activation_packet_is_exact_bounded_tranche() -> None:
@@ -49,21 +51,53 @@ def test_beaaa16972_registry_promotes_only_two_families() -> None:
     assert {row["reporting_status"] for row in promoted} == {"scoring_active"}
     assert {row["scoring_active"] for row in promoted} == {True}
     assert {row["activation_blocker"] for row in promoted} == {None}
-
-
-def test_beaaa16972_rollback_restores_prior_reported_not_scored_state() -> None:
     for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
-        path = ROOT / "rubric" / "probe_mappings" / f"{family}.yaml"
+        mapping = yaml.safe_load((MAPPING_DIR / f"{family}.yaml").read_text(encoding="utf-8"))
+        assert mapping["scoring"] == "reported_not_scored"
+
+
+def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_rows(tmp_path) -> None:
+    mapping_dir = tmp_path / "probe_mappings"
+    copytree(MAPPING_DIR, mapping_dir)
+
+    before_rows = build_registry(mapping_dir)
+    assert count_active_executable(before_rows) == 340
+
+    unrelated_before = {
+        (row["test_id"], row["case_id"], row["risk_or_rubric_id"]): row
+        for row in before_rows
+        if row["test_id"] not in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+        and row["status"] == "active"
+        and row["production_runner_executable"] is True
+    }
+
+    for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
+        path = mapping_dir / f"{family}.yaml"
         row = yaml.safe_load(path.read_text(encoding="utf-8"))
-        restored = dict(row)
-        restored["reporting_status"] = "reported_not_scored"
-        restored["scoring"] = "reported_not_scored"
-        binding = dict(restored.get("binding") or {})
+        row["reporting_status"] = "reported_not_scored"
+        row["scoring"] = "reported_not_scored"
+        binding = dict(row.get("binding") or {})
         binding["scoring_active"] = False
         binding["underwriting_active"] = False
-        restored["binding"] = binding
+        row["binding"] = binding
+        path.write_text(yaml.safe_dump(row, sort_keys=False), encoding="utf-8")
 
-        assert restored["reporting_status"] == "reported_not_scored"
-        assert restored["scoring"] == "reported_not_scored"
-        assert restored["binding"]["scoring_active"] is False
-        assert restored["binding"]["underwriting_active"] is False
+    after_rows = build_registry(mapping_dir)
+    assert count_active_executable(after_rows) == 305
+
+    for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
+        restored_rows = [row for row in after_rows if row["test_id"] == family]
+        assert {row["reporting_status"] for row in restored_rows} == {"reported_not_scored"}
+        assert {row["scoring_active"] for row in restored_rows} == {False}
+        assert count_active_executable(restored_rows) == 0
+        mapping = yaml.safe_load((mapping_dir / f"{family}.yaml").read_text(encoding="utf-8"))
+        assert mapping["binding"]["underwriting_active"] is False
+
+    unrelated_after = {
+        (row["test_id"], row["case_id"], row["risk_or_rubric_id"]): row
+        for row in after_rows
+        if row["test_id"] not in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+        and row["status"] == "active"
+        and row["production_runner_executable"] is True
+    }
+    assert unrelated_after == unrelated_before
