@@ -9,7 +9,10 @@ api.full_scan_executor.
 from __future__ import annotations
 
 import argparse
+import asyncio
+import importlib
 import importlib.metadata
+import inspect as py_inspect
 import json
 import shutil
 import subprocess
@@ -184,26 +187,49 @@ def _agentdojo_adapter_result(
             model_version=model_version,
         )
     try:
+        from agentdojo.agent_pipeline.base_pipeline_element import BasePipelineElement  # type: ignore
+        from agentdojo.functions_runtime import FunctionCall  # type: ignore
+        from agentdojo.types import text_content_block_from_string  # type: ignore
+
         suite = get_suite(benchmark_version, suite_name)
-        environment = suite.load_and_inject_default_environment({})
-        pre_environment = environment.model_copy(deep=True)
         if task_kind == "injection":
             task = suite.get_injection_task_by_id(task_id)
-            prompt = str(getattr(task, "GOAL", ""))
+            user_task = next(iter(suite.user_tasks.values()))
+            injection_task = task
         else:
             task = suite.get_user_task_by_id(task_id)
-            prompt = str(getattr(task, "PROMPT", ""))
-        if not prompt:
-            return _unsupported_interface(worker, model_version, "native_task_prompt_unavailable")
-        response = _complete_subject(subject, prompt)
-        tool_calls = subject.get("tool_calls", ())
-        apply_calls = getattr(suite, "apply_tool_calls", None)
-        if tool_calls and callable(apply_calls):
-            environment = apply_calls(environment, tool_calls)
-        if task_kind == "injection":
-            passed = bool(task.security(response, pre_environment, environment))
-        else:
-            passed = bool(task.utility(response, pre_environment, environment))
+            user_task = task
+            injection_task = None
+
+        class BackBondSubjectPipeline(BasePipelineElement):  # type: ignore[misc]
+            name = "backbond-worker-subject"
+
+            def query(self, query: str, runtime: Any, env: Any, messages: Any = (), extra_args: Any = None) -> Any:
+                response = _complete_subject(subject, query)
+                calls = [
+                    FunctionCall(
+                        function=str(call.get("function") or call.get("name") or ""),
+                        args=dict(call.get("args") or {}),
+                        id=str(call.get("id")) if call.get("id") is not None else None,
+                    )
+                    for call in subject.get("tool_calls", ())
+                    if isinstance(call, Mapping)
+                ]
+                for call in calls:
+                    _, error = runtime.run_function(env, call.function, call.args, raise_on_error=False)
+                    if error:
+                        raise ValueError(f"subject_tool_call_failed:{call.function}:{error}")
+                output = text_content_block_from_string(response)
+                assistant = {"role": "assistant", "content": [output], "tool_calls": calls or None}
+                return query, runtime, env, [*messages, assistant], dict(extra_args or {})
+
+        passed, security = suite.run_task_with_pipeline(
+            BackBondSubjectPipeline(),
+            user_task,
+            injection_task=injection_task,
+            injections={},
+        )
+        passed = bool(passed and security)
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         return _unsupported_interface(worker, model_version, f"native_suite_interface:{exc.__class__.__name__}")
     except Exception as exc:
@@ -238,6 +264,7 @@ def _garak_adapter_result(
         return _unsupported_interface(worker, model_version, "missing_probe_name")
     try:
         from garak import _config, _plugins  # type: ignore
+        from garak.evaluators.base import ThresholdEvaluator  # type: ignore
         from garak.generators.base import Generator  # type: ignore
     except ImportError as exc:
         return _result_dict(
@@ -247,6 +274,8 @@ def _garak_adapter_result(
         )
 
     class BackBondSubjectGenerator(Generator):  # type: ignore[misc]
+        """Garak generator backed by the scanner's controlled target adapter."""
+
         generator_family_name = "backbond-worker-subject"
         parallel_capable = False
 
@@ -255,11 +284,22 @@ def _garak_adapter_result(
 
     report = tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8")
     try:
+        _config.load_base_config()
         _config.transient.reportfile = report
         _config.run.generations = 1
+        _config.run.seed = int(job.get("seed") or 0)
         probe = _plugins.load_plugin(f"probes.{probe_name}")
         attempts = list(probe.probe(BackBondSubjectGenerator(model_version)))
-        responses = [str(output) for attempt in attempts for output in (getattr(attempt, "outputs", None) or [])]
+        detector_names = [probe.primary_detector] if getattr(probe, "primary_detector", None) else list(probe.recommended_detector)
+        if not detector_names:
+            return _unsupported_interface(worker, model_version, "native_detector_unavailable")
+        detector = _plugins.load_plugin(f"detectors.{detector_names[0]}")
+        evaluator = ThresholdEvaluator(float(_config.run.eval_threshold))
+        verdicts = [
+            evaluator.test(float(score))
+            for attempt in attempts
+            for score in detector.detect(attempt)
+        ]
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         return _unsupported_interface(worker, model_version, f"native_probe_interface:{exc.__class__.__name__}")
     except Exception as exc:
@@ -270,8 +310,7 @@ def _garak_adapter_result(
         )
     finally:
         report.close()
-    expected = _expected_for_case(registry_row)
-    passed = bool(responses) and (not expected or any(expected in response for response in responses))
+    passed = bool(verdicts) and all(verdicts)
     return _result_dict(
         status="complete" if passed else "incomplete",
         evidence_ref=_evidence_ref(registry_row, job),
@@ -355,11 +394,19 @@ def _inspect_adapter_result(
             incomplete_reason=f"worker_native_invocation_error:{worker.worker_id}:{exc.__class__.__name__}",
             model_version=model_version,
         )
-    status = "complete" if logs and getattr(logs[0], "status", None) == "success" else "incomplete"
+    passed = _inspect_terminal_passed(logs)
+    if passed is None:
+        status = "incomplete"
+        incomplete_reason = "inspect_terminal_score_unavailable"
+        if not logs or getattr(logs[0], "status", None) != "success":
+            incomplete_reason = "inspect_eval_not_success"
+    else:
+        status = "complete" if passed else "incomplete"
+        incomplete_reason = None if passed else "inspect_terminal_verdict_failed"
     return _result_dict(
         status=status,
-        evidence_ref=_evidence_ref(registry_row, job),
-        incomplete_reason=None if status == "complete" else "inspect_eval_not_success",
+        evidence_ref=_evidence_ref(registry_row, job) if status == "complete" else None,
+        incomplete_reason=incomplete_reason,
         model_version=model_version,
     )
 
@@ -389,6 +436,7 @@ def _pyrit_adapter_result(
     orchestrator_cls = _resolve_pyrit_orchestrator(pyrit)
     if orchestrator_cls is None:
         return _unsupported_interface(worker, model_version, "orchestrator_unavailable")
+    _initialize_pyrit_memory()
     target = _PyRITSubjectTarget(subject)
     orchestrator = _instantiate_pyrit_orchestrator(orchestrator_cls, target)
     if orchestrator is None:
@@ -417,15 +465,28 @@ def _pyrit_adapter_result(
 class _PyRITSubjectTarget:
     def __init__(self, subject: Mapping[str, Any]) -> None:
         self.subject = subject
+        self._max_requests_per_minute = None
+        self._verbose = False
 
     def complete(self, prompt: str) -> str:
         return _complete_subject(self.subject, prompt)
 
+    def _validate_request(self, *, prompt_request: Any) -> None:
+        return None
+
+    def get_identifier(self) -> dict[str, str]:
+        return {"__type__": "BackBondWorkerSubjectTarget", "__module__": __name__}
+
     def send_prompt(self, prompt: str) -> str:
         return self.complete(prompt)
 
-    async def send_prompt_async(self, prompt: str) -> str:
-        return self.complete(prompt)
+    async def send_prompt_async(self, prompt: str | None = None, **kwargs: Any) -> Any:
+        prompt_request = kwargs.get("prompt_request")
+        if prompt_request is not None:
+            request = _pyrit_prompt_request_text(prompt_request)
+            response = self.complete(request)
+            return _pyrit_response_request(prompt_request, response)
+        return self.complete(str(prompt or ""))
 
 
 def _adapter_result(
@@ -523,22 +584,95 @@ def _inspect_prompt_from_messages(messages: list[Any]) -> str:
     return ""
 
 
+def _inspect_terminal_passed(logs: Any) -> bool | None:
+    if not logs or getattr(logs[0], "status", None) != "success":
+        return None
+    samples = getattr(logs[0], "samples", None) or []
+    if not samples:
+        return None
+    scores = getattr(samples[0], "scores", None)
+    values: list[Any] = []
+    if isinstance(scores, Mapping):
+        values.extend(scores.values())
+    elif isinstance(scores, list):
+        values.extend(scores)
+    elif scores is not None:
+        values.append(scores)
+    for score in values:
+        value = getattr(score, "value", score)
+        if value is None:
+            continue
+        try:
+            return float(value) >= 1.0
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def _resolve_pyrit_orchestrator(pyrit_module: Any) -> Any | None:
-    candidates = [
-        ("PromptSendingOrchestrator",),
-        ("orchestrator", "PromptSendingOrchestrator"),
-        ("orchestrator", "prompt_sending_orchestrator", "PromptSendingOrchestrator"),
-        ("orchestrator", "single_turn", "PromptSendingOrchestrator"),
+    module_candidates = [
+        ("pyrit", "PromptSendingOrchestrator"),
+        ("pyrit.orchestrator", "PromptSendingOrchestrator"),
+        ("pyrit.orchestrator.prompt_sending_orchestrator", "PromptSendingOrchestrator"),
+        ("pyrit.orchestrator.single_turn", "PromptSendingOrchestrator"),
+        ("pyrit.orchestrator.single_turn.prompt_sending_orchestrator", "PromptSendingOrchestrator"),
     ]
-    for path in candidates:
-        current = pyrit_module
-        for part in path:
-            current = getattr(current, part, None)
-            if current is None:
-                break
+    for module_name, attr in module_candidates:
+        try:
+            module = pyrit_module if module_name == "pyrit" else importlib.import_module(module_name)
+        except ImportError:
+            continue
+        current = getattr(module, attr, None)
         if current is not None:
             return current
     return None
+
+
+def _pyrit_prompt_request_text(prompt_request: Any) -> str:
+    pieces = getattr(prompt_request, "request_pieces", None) or []
+    if pieces:
+        piece = pieces[-1]
+        for attr in ("converted_value", "original_value"):
+            value = getattr(piece, attr, None)
+            if value:
+                return str(value)
+    return str(prompt_request)
+
+
+def _pyrit_response_request(prompt_request: Any, response: str) -> Any:
+    pieces = getattr(prompt_request, "request_pieces", None) or []
+    if not pieces:
+        return response
+    piece = pieces[-1]
+    try:
+        from pyrit.models import PromptRequestPiece, PromptRequestResponse  # type: ignore
+    except ImportError:
+        return response
+    try:
+        response_piece = PromptRequestPiece(
+            role="assistant",
+            original_value=response,
+            conversation_id=getattr(piece, "conversation_id", None),
+            sequence=int(getattr(piece, "sequence", 0) or 0) + 1,
+            original_prompt_id=getattr(piece, "id", None),
+        )
+        return PromptRequestResponse(request_pieces=[response_piece])
+    except Exception:
+        return response
+
+
+def _initialize_pyrit_memory() -> None:
+    try:
+        from pyrit.memory import CentralMemory, DuckDBMemory  # type: ignore
+    except ImportError:
+        return
+    try:
+        CentralMemory.get_memory_instance()
+        return
+    except Exception:
+        pass
+    db_path = Path(tempfile.mkdtemp(prefix="backbond-pyrit-memory-")) / "memory.duckdb"
+    CentralMemory.set_memory_instance(DuckDBMemory(db_path=db_path))
 
 
 def _instantiate_pyrit_orchestrator(orchestrator_cls: Any, target: _PyRITSubjectTarget) -> Any | None:
@@ -557,13 +691,36 @@ def _instantiate_pyrit_orchestrator(orchestrator_cls: Any, target: _PyRITSubject
 
 
 def _run_pyrit_orchestrator(orchestrator: Any, prompt: str) -> str | None:
-    for method_name in ("run_attack", "send_prompt", "send_prompts", "run"):
+    for method_name in (
+        "send_prompts_async",
+        "send_prompt_async",
+        "run_attack",
+        "send_prompt",
+        "send_prompts",
+        "run",
+    ):
         method = getattr(orchestrator, method_name, None)
         if method is None:
             continue
-        result = method([prompt]) if method_name == "send_prompts" else method(prompt)
+        result = _invoke_pyrit_method(method, method_name, prompt)
+        if py_inspect.isawaitable(result):
+            result = asyncio.run(result)
         return _stringify_pyrit_result(result)
     return None
+
+
+def _invoke_pyrit_method(method: Any, method_name: str, prompt: str) -> Any:
+    if "prompts" not in method_name:
+        return method(prompt)
+    for kwargs in (
+        {"prompt_list": [prompt]},
+        {"prompts": [prompt]},
+    ):
+        try:
+            return method(**kwargs)
+        except TypeError:
+            continue
+    return method([prompt])
 
 
 def _stringify_pyrit_result(result: Any) -> str:

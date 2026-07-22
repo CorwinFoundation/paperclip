@@ -38,7 +38,7 @@ build_one() {
   "$PYTHON" -m venv "$vdir"
   "$vpy" -m pip install --upgrade pip >/dev/null
   "$vpy" -m pip install -r "$REPO_ROOT/$req"
-  got="$("$vpy" -c "import ${mod} as m; print(getattr(m,'__version__','unknown'))")"
+  got="$("$vpy" -c "import ${mod}; from importlib.metadata import version; print(version('${fw}'))")"
   if [[ "$got" != "$want" ]]; then
     echo "$fw version mismatch: got '$got', expected '$want'" >&2
     return 1
