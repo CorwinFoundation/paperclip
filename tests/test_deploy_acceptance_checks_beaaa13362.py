@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[1]
+# acceptance_checks.sh is a live shared utility (invoked by deploy_agent_acceptance.py);
+# it is NOT retired to history/ — it remains at the active path.
 SCRIPT = REPO / "scripts" / "deploy" / "acceptance_checks.sh"
 
 

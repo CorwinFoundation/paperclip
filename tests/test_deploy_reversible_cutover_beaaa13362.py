@@ -8,8 +8,9 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-BOX_DEPLOY = REPO / "scripts" / "deploy" / "box_deploy.sh"
-OPERATOR_PUSH = REPO / "scripts" / "deploy" / "operator_push.sh"
+# BEAAA-16598: ADR-0057 scripts moved to history/ as part of deploy-path retirement.
+BOX_DEPLOY = REPO / "scripts" / "deploy" / "history" / "box_deploy.sh"
+OPERATOR_PUSH = REPO / "scripts" / "deploy" / "history" / "operator_push.sh"
 
 
 def _write_executable(path: Path, body: str) -> None:
