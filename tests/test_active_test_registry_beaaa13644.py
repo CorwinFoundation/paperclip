@@ -9,6 +9,7 @@ from tools.active_test_registry import (
     REQUIRED_FIELDS,
     build_registry,
     count_active_executable,
+    count_target_bound_runtime,
     load_published_count,
     summarize,
     validate_registry,
@@ -47,10 +48,27 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertTrue(any("exceeds active executable registry count" in error for error in errors))
         self.assertFalse(validate_registry(self.rows, published_count=load_published_count()))
 
+    def test_demo_and_lane_a_cases_are_target_bound_without_inflating_evidence_count(self) -> None:
+        self.assertEqual(count_active_executable(self.rows), load_published_count())
+        self.assertEqual(count_active_executable(self.rows), 1)
+        self.assertEqual(count_target_bound_runtime(self.rows), 203)
+        runtime_cases = [
+            row
+            for row in self.rows
+            if row["status"] == "active"
+            and row["target_bound"] is True
+            and row["case_class"] != "attestation"
+            and row["reporting_status"] != "reported_not_scored"
+        ]
+        self.assertEqual(len(runtime_cases), 195)
+
     def test_summary_reports_count_delta_to_1180(self) -> None:
         summary = summarize(self.rows, published_count=load_published_count())
         self.assertEqual(summary["registry_rows"], len(self.rows))
         self.assertEqual(summary["active_executable_count"], count_active_executable(self.rows))
+        self.assertEqual(
+            summary["target_bound_runtime_count"], count_target_bound_runtime(self.rows)
+        )
         self.assertEqual(summary["delta_to_1180"], summary["active_executable_count"] - 1180)
         self.assertIn("by_pillar", summary)
         self.assertIn("by_category", summary)

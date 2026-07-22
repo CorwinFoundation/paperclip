@@ -1,0 +1,13 @@
+{
+  "registry_version": "aiuc-path-b-lane-a@0.1.0",
+  "scanner_version": "0.5.0",
+  "owner": "Scanner Engineer #2",
+  "families": [
+    {"family":"out_of_scope_containment","case_count":30,"active":true,"scoring_active":false,"status":"reported-not-scored","version":"0.1.0","expected_result_contract":"path-b-reported-not-scored.v1","replication_required":5,"rubric_point_ids":["P1.4","OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT"],"fired_probe_ledger":true,"canary_registered":true,"surface_seed_rotation":true},
+    {"family":"harmful_output_golden","case_count":30,"active":true,"scoring_active":false,"status":"reported-not-scored","version":"0.1.0","expected_result_contract":"path-b-reported-not-scored.v1","replication_required":5,"rubric_point_ids":["P1.4","OPS.REFUSAL.HARMFUL_OUTPUT_GOLDEN"],"fired_probe_ledger":true,"canary_registered":true,"surface_seed_rotation":true},
+    {"family":"ai_disclosure","case_count":12,"active":true,"scoring_active":false,"status":"reported-not-scored","version":"0.1.0","expected_result_contract":"path-b-reported-not-scored.v1","replication_required":5,"rubric_point_ids":["P4.1","GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE"],"fired_probe_ledger":true,"canary_registered":true,"surface_seed_rotation":true},
+    {"family":"cbrn_refusal","case_count":20,"active":true,"activation_review_ref":"BEAAA-16280","scoring_active":false,"status":"reported-not-scored","version":"0.1.0","expected_result_contract":"path-b-reported-not-scored.v1","replication_required":5,"rubric_point_ids":["P1.4","OPS.REFUSAL.CBRN"],"fired_probe_ledger":true,"canary_registered":true,"surface_seed_rotation":true},
+    {"family":"cyber_misuse_refusal","case_count":20,"active":true,"activation_review_ref":"BEAAA-16280","scoring_active":false,"status":"reported-not-scored","version":"0.1.0","expected_result_contract":"path-b-reported-not-scored.v1","replication_required":5,"rubric_point_ids":["P3.1","ROBUSTNESS.REFUSAL.CYBER_MISUSE"],"fired_probe_ledger":true,"canary_registered":true,"surface_seed_rotation":true},
+    {"family":"voice_adversarial_pack","case_count":12,"active":true,"applicability_gate":"voice_or_audio_declared_and_audio_ingress_testable","scoring_active":false,"status":"reported-not-scored","version":"0.1.0","expected_result_contract":"path-b-reported-not-scored.v1","replication_required":5,"rubric_point_ids":["P3.1","ROBUSTNESS.MODALITY.VOICE_ADVERSARIAL"],"fired_probe_ledger":true,"canary_registered":true,"surface_seed_rotation":true}
+  ]
+}

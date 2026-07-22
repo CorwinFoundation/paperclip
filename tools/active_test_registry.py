@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -48,6 +49,32 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
 }
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
+AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
+    {
+        "out_of_scope_containment",
+        "harmful_output_golden",
+        "ai_disclosure",
+        "cbrn_refusal",
+        "cyber_misuse_refusal",
+        "voice_adversarial_pack",
+        "p3_5_multiturn_jailbreak",
+        "p3_6_output_attack",
+        "cross_session_data_leak",
+        "system_prompt_extraction",
+        "insecure_code_generation",
+        "human_escalation_flagging",
+        "consequential_action_confirmation",
+        "customer_defined_risk_pack",
+        "mcp_tool_integrity",
+    }
+)
+LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
+    {
+        # Pre-AIUC candidate invariant: these eight candidate rows remain target
+        # bound for runtime planning, but they are not executable/published.
+        "cross_customer_data_exposure",
+    }
+)
 NON_EXECUTABLE_PACK_HINTS = (
     "attestation",
     "owner_matrix",
@@ -77,6 +104,7 @@ SYNTHETIC_ATTESTATION_CASES = {
 }
 
 
+
 @dataclass(frozen=True)
 class RegistryRow:
     test_id: str
@@ -101,6 +129,7 @@ class RegistryRow:
     execution_evidence_status: str
     scoring_active: bool
     reporting_status: str
+    activation_blocker: str | None
     k_replicates: int
     surface_seed_rotation_enabled: bool
     canary_registration: str
@@ -152,18 +181,73 @@ def _repo_relative(path: Path) -> str:
         return str(path)
 
 
-def _execution_evidence_status(probe: dict[str, Any], mapping: dict[str, Any]) -> tuple[bool, bool, str]:
+def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
+    """Return whether the standard runtime can materialize and send this case."""
+
+    case_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if not case_id:
+        return False
+    if benchmark == "p1_1_factuality_golden":
+        return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
+    if benchmark == "p1_3_consistency_golden":
+        return bool(probe.get("prompt_a") and probe.get("prompt_b"))
+    if benchmark == "p1_4_refusal_golden":
+        return bool(probe.get("prompt") and probe.get("expected_action"))
+    if benchmark == "p1_5_calibration_golden":
+        return bool(probe.get("prompt") and probe.get("gold_answer"))
+
+    from tools.text_case_materializer import (
+        is_text_compatible_test,
+        materialize_text_case,
+    )
+
+    if not is_text_compatible_test(benchmark):
+        return False
+    try:
+        materialize_text_case(benchmark, case_id, probe)
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
+def _execution_evidence_status(
+    probe: dict[str, Any],
+    mapping: dict[str, Any],
+) -> tuple[bool, str]:
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
     if not isinstance(evidence, dict):
-        return False, False, "execution_evidence_not_object"
+        return False, "execution_evidence_not_object"
     missing = sorted(
         field
         for field in EXECUTION_EVIDENCE_REQUIRED_FIELDS
         if evidence.get(field) in (None, "")
     )
     if missing:
-        return False, False, "missing_execution_evidence:" + ",".join(missing)
-    return True, True, "target_bound_and_evidenced"
+        return False, "missing_execution_evidence:" + ",".join(missing)
+    return True, "target_bound_and_evidenced"
+
+
+def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    if data.get("runner") != "harness.bench.aiuc_path_b_lane_a":
+        return []
+    from harness.bench.aiuc_path_b_lane_a import embedded_cases
+
+    family = str(data["benchmark"])
+    return [
+        {
+            "probe_id": case["case_id"],
+            "pillar": str(data["rubric_point_ids"][1]).split(".", 1)[0],
+            "rubric_point_id": data["rubric_point_ids"][1],
+            "execution_evidence": {
+                "concrete_input_or_action": case["prompt"],
+                "expected_oracle": case["expected_label"],
+                "recorded_target_response": "captured_by_registered_case_executor",
+                "verdict": "reported_not_scored",
+                "github_provenance": "BEAAA-16284",
+            },
+        }
+        for case in embedded_cases(family)
+    ]
 
 
 def _scoring_active(data: Mapping[str, Any]) -> bool:
@@ -229,17 +313,26 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     execution_evidence_status="attestation_evidence_pack_bound",
                     scoring_active=scoring_active,
                     reporting_status=reporting_status,
+                    activation_blocker=None,
                     k_replicates=k_replicates,
                     surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                     canary_registration=canary_registration,
                     applicability_gate=applicability_gate,
                 )
             )
-        for probe in data.get("probes") or []:
+        activation_blocker = data.get("activation_blocker")
+        probes = data.get("probes") or _lane_a_probes(data)
+        for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
                 continue
-            target_bound, execution_evidenced, evidence_status = _execution_evidence_status(probe, data)
+            execution_evidenced, evidence_status = _execution_evidence_status(
+                probe, data
+            )
+            materializable = executable and _case_has_bound_execution(benchmark, probe)
+            target_bound = execution_evidenced or materializable
+            if materializable and not execution_evidenced:
+                evidence_status = "target_bound_evidence_pending"
             executable_for_count = executable and target_bound and execution_evidenced
             direct_pillar = probe.get("pillar")
             direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
@@ -265,7 +358,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     RegistryRow(
                         test_id=benchmark,
                         case_id=str(probe_id),
-                        status="active",
+                        status="quarantined" if activation_blocker else "active",
                         pillar=binding["pillar"],
                         category=binding["category"],
                         risk_or_rubric_id=binding["rubric_id"],
@@ -285,6 +378,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         execution_evidence_status=evidence_status,
                         scoring_active=scoring_active,
                         reporting_status=reporting_status,
+                        activation_blocker=str(activation_blocker) if activation_blocker else None,
                         k_replicates=k_replicates,
                         surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                         canary_registration=canary_registration,
@@ -294,7 +388,21 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
     return [asdict(row) for row in rows]
 
 
-def validate_registry(rows: list[dict[str, Any]], published_count: int) -> list[str]:
+def validate_registry(
+    rows: list[dict[str, Any]],
+    published_count: int,
+    *,
+    strict: bool = False,
+) -> list[str]:
+    """Validate registry metadata and the published-count gate.
+
+    ``strict`` is the CI / fail-closed toggle (BEAAA-14423 / F10): when set, a
+    family that declares more runtime-runnable rows than distinct
+    ``(prompts, expected)`` pairs is a hard error, so the registry cannot
+    silently over-declare distinct coverage.  The default (scan path) leaves
+    collapse as a WARN — the rows still execute — so this stays additive.
+    """
+
     errors: list[str] = []
     seen: set[tuple[str, str]] = set()
     for index, row in enumerate(rows):
@@ -318,15 +426,181 @@ def validate_registry(rows: list[dict[str, Any]], published_count: int) -> list[
             "published_active_test_count "
             f"{published_count} exceeds active executable registry count {active_executable}"
         )
+    if strict:
+        for collapse in distinct_case_collapses(rows):
+            errors.append(
+                f"family {collapse['family']} over-declares distinct coverage: "
+                f"declared {collapse['declared']} > distinct {collapse['distinct']} "
+                f"(-{collapse['collapsed']} collapsed byte-identical cases)"
+            )
+        counts = distinct_case_counts(rows)
+        if counts["cross_family_collapsed"] > 0:
+            errors.append(
+                "registry over-declares distinct coverage across families: "
+                f"{counts['cross_family_collapsed']} byte-identical "
+                "(prompts, expected) pairs are shared between families "
+                f"(global distinct {counts['total']} < per-family distinct sum "
+                f"{sum(counts['by_family'].values())})"
+            )
     return errors
 
 
 def count_active_executable(rows: list[dict[str, Any]]) -> int:
+    """Count only rows that already satisfy the recorded-execution evidence gate."""
+
     return sum(
         1
         for row in rows
-        if row.get("status") == "active" and row.get("production_runner_executable") is True
+        if _is_countable_active_executable(row)
     )
+
+
+def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
+    return (
+        row.get("test_id") in AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
+        and row.get("reporting_status") == "reported_not_scored"
+        and row.get("scoring_active") is False
+    )
+
+
+def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
+    return (
+        not _is_aiuc_path_b_reported_not_scored(row)
+        and row.get("status") == "active"
+        and row.get("production_runner_executable") is True
+    )
+
+
+def _is_runtime_runnable(row: dict[str, Any]) -> bool:
+    """Active rows the standard runtime can execute to generate evidence."""
+
+    if _is_aiuc_path_b_reported_not_scored(row):
+        return False
+    return (
+        row.get("status") == "active"
+        and (
+            row.get("target_bound") is True
+            or row.get("test_id") in LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES
+        )
+        and row.get("case_class") != "attestation"
+    )
+
+
+def count_target_bound_runtime(rows: list[dict[str, Any]]) -> int:
+    """Count active rows the standard runtime can execute to generate evidence."""
+
+    return sum(1 for row in rows if _is_runtime_runnable(row))
+
+
+def runtime_case_identity(row: dict[str, Any]) -> str:
+    """Distinct-coverage identity for one runtime-runnable registry row.
+
+    Text-compatible rows are materialized and keyed on the normalized
+    ``(prompts, expected)`` payload so byte-identical cases produced by
+    ``_stable_select`` hash-collisions share an identity (BEAAA-14423 / F10).
+    The identity is *content-only and label-independent*: an identical prompt
+    scored against an identical oracle is the same, non-independent evidence
+    regardless of which family declares it or what judge label it carries.  This
+    matches the CTO reproduction on BEAAA-14406 (113 text-compatible rows -> 90
+    distinct pairs, 23 dupes) and the acceptance criterion's "unique normalized
+    ``(prompts, expected)`` pairs" — so a byte-identical pair shared across
+    families collapses too, not just within one family.
+
+    Non-text golden families (and any row that cannot be materialized) fall back
+    to ``test_id:case_id``: they are inherently distinct, so this never *inflates*
+    the collapse.  Content is never mutated here — this only reads what the
+    executor would send.
+    """
+
+    test_id = str(row.get("test_id") or "")
+    case_id = str(row.get("case_id") or "")
+    # Lazy import keeps the registry module import-cheap and avoids a cycle.
+    from tools.text_case_materializer import (
+        is_text_compatible_test,
+        materialize_text_case,
+        text_case_identity,
+    )
+
+    if is_text_compatible_test(test_id):
+        try:
+            spec = materialize_text_case(test_id, case_id, row)
+        except (KeyError, TypeError, ValueError):
+            return f"{test_id}:{case_id}"
+        return text_case_identity(spec)
+    return f"{test_id}:{case_id}"
+
+
+def distinct_case_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Distinct-pair accounting alongside the raw runtime-runnable row count.
+
+    ``declared_*`` are raw counts (the 203 rows that execute).  ``by_family``
+    counts unique ``runtime_case_identity`` values *within* each family;
+    ``total`` counts unique identities *globally* — the true "unique normalized
+    ``(prompts, expected)`` pairs" the acceptance criterion asks for, so a pair
+    shared across families is not double-counted.  ``cross_family_collapsed``
+    reconciles the two (``sum(by_family) - total``): the number of pairs a
+    family shares with another family.  A collision never increments distinct
+    coverage.
+    """
+
+    declared_by_family: Counter[str] = Counter()
+    distinct_by_family: dict[str, set[str]] = {}
+    distinct_global: set[str] = set()
+    for row in rows:
+        if not _is_runtime_runnable(row):
+            continue
+        family = str(row.get("test_id") or "")
+        identity = runtime_case_identity(row)
+        declared_by_family[family] += 1
+        distinct_by_family.setdefault(family, set()).add(identity)
+        distinct_global.add(identity)
+
+    by_family = {family: len(ids) for family, ids in distinct_by_family.items()}
+    total = len(distinct_global)
+    return {
+        "declared_total": sum(declared_by_family.values()),
+        "total": total,
+        "cross_family_collapsed": sum(by_family.values()) - total,
+        "declared_by_family": dict(sorted(declared_by_family.items())),
+        "by_family": dict(sorted(by_family.items())),
+    }
+
+
+def distinct_case_collapses(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Per-family collapse rows where declared/executed count > distinct pairs.
+
+    Each row: ``{family, declared, distinct, collapsed}`` with ``collapsed`` the
+    number of byte-identical duplicate cases.  Empty when coverage is honest.
+    """
+
+    counts = distinct_case_counts(rows)
+    collapses: list[dict[str, Any]] = []
+    for family, declared in counts["declared_by_family"].items():
+        distinct = counts["by_family"].get(family, 0)
+        if declared > distinct:
+            collapses.append(
+                {
+                    "family": family,
+                    "declared": declared,
+                    "distinct": distinct,
+                    "collapsed": declared - distinct,
+                }
+            )
+    collapses.sort(key=lambda item: (-item["collapsed"], item["family"]))
+    return collapses
+
+
+def format_collapse_table(collapses: list[dict[str, Any]]) -> str:
+    """Render the collapse rows as a fixed-width WARN evidence table."""
+
+    header = f"{'family':32s} {'declared':>8s} {'distinct':>8s} {'collapsed':>9s}"
+    lines = [header, "-" * len(header)]
+    for row in collapses:
+        lines.append(
+            f"{row['family']:32s} {row['declared']:8d} {row['distinct']:8d} "
+            f"{-row['collapsed']:9d}"
+        )
+    return "\n".join(lines)
 
 
 def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any]:
@@ -335,9 +609,16 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
     by_status = Counter(row["status"] for row in rows)
     by_case_class = Counter(row["case_class"] for row in rows)
     active_executable = count_active_executable(rows)
+    target_bound_runtime = count_target_bound_runtime(rows)
+    distinct = distinct_case_counts(rows)
     return {
         "registry_rows": len(rows),
         "active_executable_count": active_executable,
+        "target_bound_runtime_count": target_bound_runtime,
+        "distinct_runtime_case_count": distinct["total"],
+        "distinct_runtime_by_family": distinct["by_family"],
+        "cross_family_collapsed_count": distinct["cross_family_collapsed"],
+        "distinct_coverage_collapses": distinct_case_collapses(rows),
         "published_active_test_count": published_count,
         "historic_claim_count": HISTORIC_CLAIM_COUNT,
         "delta_to_1180": active_executable - HISTORIC_CLAIM_COUNT,
@@ -363,9 +644,20 @@ def main() -> int:
     rows = build_registry()
     published_count = load_published_count()
     summary = summarize(rows, published_count)
-    errors = validate_registry(rows, published_count)
+    # --check is the strict / CI fail-closed gate: an over-declared distinct
+    # coverage collapse is an error, not just a WARN.
+    errors = validate_registry(rows, published_count, strict=args.check)
     if errors:
         summary["errors"] = errors
+
+    collapses = summary.get("distinct_coverage_collapses") or []
+    if collapses:
+        print(
+            "WARN: distinct-pair coverage collapse — byte-identical materialized "
+            "cases counted as distinct evidence (BEAAA-14423 / F10):",
+            file=sys.stderr,
+        )
+        print(format_collapse_table(collapses), file=sys.stderr)
 
     if args.registry_out:
         args.registry_out.parent.mkdir(parents=True, exist_ok=True)

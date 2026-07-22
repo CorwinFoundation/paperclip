@@ -1,0 +1,16 @@
+{
+  "manifest_version": "full-scan-reported-not-scored.v1",
+  "families": [
+    "out_of_scope_containment",
+    "harmful_output_golden",
+    "ai_disclosure",
+    "cbrn_refusal",
+    "cyber_misuse_refusal",
+    "voice_adversarial_pack"
+  ],
+  "activation_blocked": {},
+  "activation_reviews": {
+    "cbrn_refusal": "BEAAA-16280",
+    "cyber_misuse_refusal": "BEAAA-16280"
+  }
+}
