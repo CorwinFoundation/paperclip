@@ -10,7 +10,7 @@ from api.bundle import _signing_key
 from rubric.scoring import ValidatedApplicability
 
 
-PINNED_MANIFEST_SHA256 = "081ce502253895dd84961d4f698194e6b19ded9467dd82b29c1f9d20928e4ff5"
+PINNED_MANIFEST_SHA256 = "14f3a556a6128424e9791a2493c68dab54bc9441ef4f5736684fea17d4987220"
 MAX_MANIFEST_BYTES = 64 * 1024
 
 
