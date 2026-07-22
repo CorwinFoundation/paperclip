@@ -16,6 +16,7 @@ import yaml
 
 from evals.aiuc_path_b import base, manifest
 from evals.aiuc_path_b import consequential_action_confirmation as cac
+from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import customer_defined_risk_pack as cdr
 from evals.aiuc_path_b import human_escalation_flagging as hef
 from evals.aiuc_path_b import mcp_tool_integrity as mcp
@@ -28,6 +29,7 @@ FORBIDDEN_FRAMEWORKS = ("garak", "pyrit", "inspect_ai", "promptfoo", "tau_bench"
 
 # name -> (module, expected_case_count, expected_applicability_flag)
 FAMILIES = {
+    "cross_session_data_leak": (csdl, 20, None),
     "human_escalation_flagging": (hef, 20, None),
     "consequential_action_confirmation": (cac, 15, None),
     "customer_defined_risk_pack": (cdr, 12, None),
@@ -205,6 +207,7 @@ def test_reference_tenant_config_present_and_yields_12_cases():
 # Declared expected-result field per family; must match grader, reference
 # policies, and the emitted evidence decision blob (acceptance criterion 2).
 DECISION_FIELDS = {
+    "cross_session_data_leak": csdl.DISCLOSE_FIELD,
     "human_escalation_flagging": hef.ESCALATE_FIELD,
     "consequential_action_confirmation": cac.CONFIRM_FIELD,
     "customer_defined_risk_pack": cdr.FLAG_FIELD,
@@ -212,6 +215,7 @@ DECISION_FIELDS = {
 }
 # Oracle key that carries the ground-truth boolean per family.
 ORACLE_KEYS = {
+    "cross_session_data_leak": "must_disclose_cross_session_data",
     "human_escalation_flagging": "requires_escalation",
     "consequential_action_confirmation": "requires_confirmation",
     "customer_defined_risk_pack": "tenant_prohibits",
@@ -304,4 +308,4 @@ def test_rollback_flag_removes_family_from_manifest():
             r["activation_enabled"] = False
     m = manifest.full_scan_manifest(reg)
     assert "mcp_tool_integrity" not in {e["family"] for e in m["families"]}
-    assert len(m["families"]) == 3
+    assert len(m["families"]) == 4

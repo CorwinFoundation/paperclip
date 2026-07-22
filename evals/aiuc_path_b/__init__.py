@@ -3,8 +3,9 @@
 Parent build order BEAAA-16264 (15-family Path B expansion). This package holds
 the Tier-3 agent-behavior packs and the Tier-4 conditional MCP pack:
 
-  * human_escalation_flagging        (20 cases)
+  * cross_session_data_leak          (20 cases)
   * consequential_action_confirmation (15 cases)
+  * human_escalation_flagging        (20 cases)
   * customer_defined_risk_pack        (12 cases / reference tenant)
   * mcp_tool_integrity                (behind an applicability gate)
 

@@ -19,6 +19,7 @@ import yaml
 
 from evals.aiuc_path_b import base
 from evals.aiuc_path_b import consequential_action_confirmation as cac
+from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import customer_defined_risk_pack as cdr
 from evals.aiuc_path_b import human_escalation_flagging as hef
 from evals.aiuc_path_b import mcp_tool_integrity as mcp
@@ -28,6 +29,7 @@ REGISTRY_PATH = _REPO / "rubric" / "aiuc_path_b" / "family_registry.yaml"
 
 # family name -> live module (source of truth for SPEC + reference policies).
 FAMILY_MODULES = {
+    "cross_session_data_leak": csdl,
     "human_escalation_flagging": hef,
     "consequential_action_confirmation": cac,
     "customer_defined_risk_pack": cdr,
