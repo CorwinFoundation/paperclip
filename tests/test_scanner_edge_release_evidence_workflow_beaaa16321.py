@@ -88,9 +88,12 @@ def test_negative_dispatch_fixture_cannot_redirect_issue_or_release_tuple() -> N
     for marker in redirectable_markers:
         assert marker not in WORKFLOW_TEXT
 
-    # Sequence is intentionally the only dispatch input and is constrained in
-    # the workflow to the approved production candidate choices.
-    assert 'options:\n          - "1"\n          - "2"' in WORKFLOW_TEXT
+    # Sequence is intentionally the only dispatch input and is validated as an
+    # unbounded positive integer so immutable replacement candidates do not
+    # require a workflow edit for each monotonic increment.
+    assert "type: string" in WORKFLOW_TEXT
+    assert "^[1-9][0-9]*$" in WORKFLOW_TEXT
+    assert "options:" not in WORKFLOW_TEXT
 
 
 def test_workflow_fails_closed_on_missing_exchange_or_upload_capability() -> None:

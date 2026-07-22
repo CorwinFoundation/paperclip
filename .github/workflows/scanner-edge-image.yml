@@ -38,10 +38,7 @@ on:
       sequence:
         description: "Release-candidate sequence for srv1749248 production"
         required: true
-        type: choice
-        options:
-          - "1"
-          - "2"
+        type: string
 
 permissions:
   contents: read
@@ -61,6 +58,17 @@ jobs:
       RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate release candidate sequence
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SEQUENCE: ${{ github.event.inputs.sequence }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SEQUENCE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Release-candidate sequence must be a positive integer."
+            exit 1
+          fi
 
       - uses: docker/setup-buildx-action@v3
 
@@ -119,38 +127,51 @@ jobs:
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.1
 
       - name: Sign image digest and attest provenance
         if: github.event_name != 'pull_request'
+        id: signed_candidate
         env:
           DIGEST: ${{ steps.push_image.outputs.digest }}
+          EXPECTED_SUBJECT: https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master
         run: |
           set -euo pipefail
           test -n "$DIGEST"
           signed_ref="${IMAGE_REF%@*}@$DIGEST"
-          cosign sign --yes "$signed_ref"
+          bundle_path="release-candidate/scanner-edge-image.sigstore.json"
+          cosign sign --yes --new-bundle-format=true --bundle "$bundle_path" "$signed_ref"
+          cosign verify \
+            --certificate-identity "$EXPECTED_SUBJECT" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$signed_ref" | tee release-candidate/scanner-edge-cosign-verify.json
           cosign attest --yes \
             --predicate release-candidate/scanner-edge-sbom.cdx.json \
             --type cyclonedx \
             "$signed_ref"
-          printf 'cosign-signature:%s\n' "$signed_ref" > release-candidate/scanner-edge-image.signature-ref.txt
           printf 'cosign-attestation:%s\n' "$signed_ref" > release-candidate/scanner-edge-provenance-ref.txt
+          sha256sum "$bundle_path" | tee release-candidate/scanner-edge-image.sigstore.sha256
+          echo "signature_bundle_hash=$(cut -d' ' -f1 release-candidate/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Write release candidate payload
         if: github.event_name != 'pull_request'
         env:
           DIGEST: ${{ steps.push_image.outputs.digest }}
           SBOM_HASH: ${{ steps.candidate_files.outputs.sbom_hash }}
+          SIGNATURE_BUNDLE_HASH: ${{ steps.signed_candidate.outputs.signature_bundle_hash }}
           SEQUENCE: ${{ github.event.inputs.sequence || '1' }}
         run: |
           set -euo pipefail
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          SIGNED_REF="${IMAGE_REF%:*}@${DIGEST}"
           jq -n \
             --arg sourceIssueId "$SOURCE_ISSUE_ID" \
             --arg commitSha "$GITHUB_SHA" \
-            --arg imageDigest "$DIGEST" \
-            --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.signature-ref.txt" \
+            --arg imageDigest "$SIGNED_REF" \
+            --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.sigstore.json" \
+            --arg signatureBundleSha256 "$SIGNATURE_BUNDLE_HASH" \
             --arg provenanceRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-provenance-ref.txt" \
             --arg sbomHash "$SBOM_HASH" \
             --arg workflowRunUrl "$RUN_URL" \
@@ -162,6 +183,7 @@ jobs:
               commitSha: $commitSha,
               imageDigest: $imageDigest,
               signatureBundleRef: $signatureBundleRef,
+              signatureBundleSha256: $signatureBundleSha256,
               provenanceRef: $provenanceRef,
               sbomHash: $sbomHash,
               workflowRunUrl: $workflowRunUrl,
