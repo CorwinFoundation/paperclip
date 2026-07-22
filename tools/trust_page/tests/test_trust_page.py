@@ -21,7 +21,13 @@ from tools.trust_page.verification_record import (  # noqa: E402
     MissingEnvelopeError, build_record, compute_stale_state, eligibility_effect,
 )
 from tools.trust_page.warranty_eligibility import evaluate_warranty_eligibility  # noqa: E402
-from tools.trust_page.render import render_html, _assert_no_prohibited, PROHIBITED_TERMS  # noqa: E402
+from tools.trust_page.render import (  # noqa: E402
+    BRAND_BACKBONE_SHA256,
+    BRAND_BACKBONE_VERSION,
+    PROHIBITED_TERMS,
+    _assert_no_prohibited,
+    render_html,
+)
 from tools.trust_page.warranty_eligibility import WarrantyEligibility  # noqa: E402
 
 UTC = timezone.utc
@@ -143,3 +149,11 @@ def test_render_contains_envelope_and_band():
     assert "seed 42" in doc             # seed stamped
     assert ">B<" in doc                 # band displayed
     assert "warranty remedy eligibility" in doc.lower()
+
+
+def test_render_carries_founder_approved_brand_backbone_pin():
+    doc = render_html(_record(), watermark="INTERNAL demo")
+    assert BRAND_BACKBONE_VERSION == "v1.6"
+    assert BRAND_BACKBONE_SHA256 == "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
+    assert f"brand_backbone_version: {BRAND_BACKBONE_VERSION}" in doc
+    assert f"sha256: {BRAND_BACKBONE_SHA256}" in doc
