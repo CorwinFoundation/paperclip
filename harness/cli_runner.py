@@ -35,6 +35,7 @@ from harness.applicability import (
     validate_for_scoring,
 )
 from api.bundle import _signing_key
+from harness.trusted_replay import TrustedReplayError, validate_trusted_replay
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -476,6 +477,8 @@ def run_scan(
     corpus_version: str | None,
     rubric_path: Path,
     scored_at: datetime | None = None,
+    trusted_replay_manifest: Path | None = None,
+    trusted_replay_fixture: str | None = None,
 ) -> dict[str, Any]:
     """Top-level entry point. Returns the contract-shaped output dict.
 
@@ -509,19 +512,31 @@ def run_scan(
         # the pillar mean, validate every caller-asserted N/A against the
         # authoritative policy engine. Out-of-policy waivers fail closed here.
         if applicability_decisions:
-            _validate_caller_applicability(
-                rubric, applicability_decisions, inputs.architecture_flags
-            )
-            trusted_flags = json.loads(
-                os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV]
-            )
-            applicability_decisions = validate_for_scoring(
-                load_policy(),
-                trusted_flags,
-                applicability_decisions,
-                rubric.active_dim_ids,
-                _signing_key(),
-            )
+            if trusted_replay_manifest is not None and trusted_replay_fixture is not None:
+                try:
+                    applicability_decisions = validate_trusted_replay(
+                        manifest_path=trusted_replay_manifest,
+                        fixture_id=trusted_replay_fixture,
+                        agent_id=inputs.agent_id,
+                        applicability_sha256=inputs.file_sha256s.get("applicability.json"),
+                        decisions=applicability_decisions,
+                    )
+                except (OSError, TrustedReplayError) as exc:
+                    raise ScoringError(str(exc)) from exc
+            else:
+                _validate_caller_applicability(
+                    rubric, applicability_decisions, inputs.architecture_flags
+                )
+                trusted_flags = json.loads(
+                    os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV]
+                )
+                applicability_decisions = validate_for_scoring(
+                    load_policy(),
+                    trusted_flags,
+                    applicability_decisions,
+                    rubric.active_dim_ids,
+                    _signing_key(),
+                )
             applicability_policy_version = applicability_decisions.policy_version
         score_result = score(
             rubric,

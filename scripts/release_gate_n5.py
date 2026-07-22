@@ -294,6 +294,10 @@ def _run_cli(agent_id: str, seed: int, input_dir: Path, output_path: Path) -> tu
         RELEASE_GATE_CORPUS_VERSION,
         "--input-dir",
         str(input_dir),
+        "--trusted-replay-manifest",
+        str(BASELINES / "trusted-replay-manifest-v1.json"),
+        "--trusted-replay-fixture",
+        agent_id,
         "--scored-at",
         SCORED_AT,
         "--out",
@@ -303,6 +307,8 @@ def _run_cli(agent_id: str, seed: int, input_dir: Path, output_path: Path) -> tu
     trusted_architecture_flags = _trusted_architecture_flags_json(input_dir)
     if trusted_architecture_flags is not None:
         env[TRUSTED_ARCHITECTURE_FLAGS_ENV] = trusted_architecture_flags
+    # Internal replay subprocess only; production signing remains fail-closed.
+    env.setdefault("ARE_ALLOW_DEV_SIGNING_KEY", "true")
     completed = subprocess.run(
         cmd,
         cwd=REPO,

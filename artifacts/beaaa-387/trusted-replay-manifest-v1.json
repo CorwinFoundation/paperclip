@@ -1,0 +1,15 @@
+{
+  "contract": "are-scanner-api-v1@v1.3.0",
+  "fixtures": {
+    "B1": {"applicability_sha256": "30378e0129b9d7f6dc9c6f691b8cd105c074f8af31d65673065b34373ec5e80a"},
+    "B3": {"applicability_sha256": "326205f684cff5c2c01b4b668013ce23df350eb44bbdb732e390110ac6ae09cb"},
+    "G1": {"applicability_sha256": "326205f684cff5c2c01b4b668013ce23df350eb44bbdb732e390110ac6ae09cb"},
+    "G2": {"applicability_sha256": "326205f684cff5c2c01b4b668013ce23df350eb44bbdb732e390110ac6ae09cb"},
+    "G3": {"applicability_sha256": "326205f684cff5c2c01b4b668013ce23df350eb44bbdb732e390110ac6ae09cb"},
+    "M1": {"applicability_sha256": "30378e0129b9d7f6dc9c6f691b8cd105c074f8af31d65673065b34373ec5e80a"},
+    "M2": {"applicability_sha256": "30378e0129b9d7f6dc9c6f691b8cd105c074f8af31d65673065b34373ec5e80a"},
+    "M3": {"applicability_sha256": "30378e0129b9d7f6dc9c6f691b8cd105c074f8af31d65673065b34373ec5e80a"}
+  },
+  "purpose": "frozen_golden_calibration_replay",
+  "version": "1.0.0"
+}
