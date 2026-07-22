@@ -62,7 +62,7 @@ def test_exchange_payload_binds_authorized_issue_release_and_bundle_fields() -> 
         "TARGET_ENVIRONMENT: production",
         'sourceSha "$GITHUB_SHA"',
         'workflowSha "$WORKFLOW_SHA"',
-        'imageDigest "$IMAGE_REF@$DIGEST"',
+        'imageDigest "${IMAGE_REF%:*}@$DIGEST"',
         'bundleSha256 "$bundle_sha256"',
         'bundleBytes "$bundle_bytes"',
     )
@@ -88,9 +88,10 @@ def test_negative_dispatch_fixture_cannot_redirect_issue_or_release_tuple() -> N
     for marker in redirectable_markers:
         assert marker not in WORKFLOW_TEXT
 
-    # Sequence is intentionally the only dispatch input and is constrained in
-    # the workflow to the approved production candidate choices.
-    assert 'options:\n          - "1"\n          - "2"' in WORKFLOW_TEXT
+    # Sequence is intentionally the only dispatch input and accepts any
+    # positive integer only after an explicit fail-closed shell validation.
+    assert "type: string" in WORKFLOW_TEXT
+    assert "^[1-9][0-9]*$" in WORKFLOW_TEXT
 
 
 def test_workflow_fails_closed_on_missing_exchange_or_upload_capability() -> None:
