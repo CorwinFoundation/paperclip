@@ -21,6 +21,7 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
     validate_full_scan_release_gate,
 )
+from api.full_scan_worker import FullScanQueueWorker
 from api.scan_handlers import ScanRuntime
 from api.full_suite_manifest import FullSuiteCase
 from rubric.scoring import Rubric
@@ -739,7 +740,20 @@ def test_scanner_v1_scan_dispatches_registry_rows_through_real_api_path(monkeypa
 
     assert response.status_code == 202
     scan_id = response.json()["scan_id"]
+    assert observed_cases == []
+    result = runtime.fetch(scan_id)
+    assert result is not None
+    assert result.status == "accepted"
+    assert result.full_suite_manifest is None
+
+    worker_result = FullScanQueueWorker(
+        runtime._full_scan_job_store,
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+    ).run_once()
+    assert worker_result.status == "finalized"
     assert observed_cases == ["promptinject.case_001", "promptinject.case_002"]
+
     result = runtime.fetch(scan_id)
     assert result is not None
     assert result.status == "complete"
@@ -812,8 +826,19 @@ def test_scanner_v1_scan_blocks_full_status_when_registry_worker_missing(monkeyp
 
     assert response.status_code == 202
     payload = response.json()
-    assert payload["status"] == "partial"
+    assert payload["status"] == "accepted"
     scan_id = payload["scan_id"]
+    result = runtime.fetch(scan_id)
+    assert result is not None
+    assert result.status == "accepted"
+
+    worker_result = FullScanQueueWorker(
+        runtime._full_scan_job_store,
+        registry_rows=registry_rows,
+        workers={},
+    ).run_once()
+    assert worker_result.status == "finalized"
+
     result = runtime.fetch(scan_id)
     assert result is not None
     assert result.status == "incomplete"

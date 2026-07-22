@@ -79,6 +79,29 @@ class FullScanJobPersistence:
                 (job_id, status, updated_at, json.dumps(record, sort_keys=True)),
             )
 
+    def save_accepted_job(
+        self,
+        *,
+        job_id: str,
+        status: str,
+        updated_at: str | None,
+        record: dict[str, Any],
+        idempotency_key: str | None = None,
+    ) -> None:
+        """Atomically persist a newly accepted job and optional idempotency key."""
+        with _transaction(self._conn):
+            self._conn.execute(
+                "INSERT OR REPLACE INTO full_scan_jobs "
+                "(job_id, status, updated_at, job_json) VALUES (?, ?, ?, ?)",
+                (job_id, status, updated_at, json.dumps(record, sort_keys=True)),
+            )
+            if idempotency_key:
+                self._conn.execute(
+                    "INSERT OR IGNORE INTO full_scan_idempotency "
+                    "(idempotency_key, job_id) VALUES (?, ?)",
+                    (idempotency_key, job_id),
+                )
+
     def save_idempotency(self, *, idempotency_key: str, job_id: str) -> None:
         """Record the idempotency-key → job_id mapping (write-once by key)."""
         with _transaction(self._conn):

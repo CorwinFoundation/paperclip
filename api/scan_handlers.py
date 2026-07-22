@@ -62,6 +62,7 @@ from api.full_scan_executor import (
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
+from api.full_scan_worker import FullScanQueueWorker
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
 from api.scan_log import ScanLog
@@ -131,6 +132,10 @@ RESCAN_PURPOSES: frozenset[str] = frozenset({"pre_bind", "mid_term", "claim_revi
 
 # Fields the orchestrator's ScanResult carries that are UW-only (Δ4).
 _UW_ONLY_FIELDS: frozenset[str] = frozenset({"live_probe_variance_band"})
+
+# The live-probe v0 request does not carry explicit model-version metadata.
+# Do not substitute the customer endpoint URL into forensic model fields.
+MODEL_VERSION_UNAVAILABLE: str = "model-version-unavailable"
 
 # BEAAA-1273 (WS3) — `prior_scan_refs[]` pagination cap per ADR-0017 §7 Q2
 # resolution. >100 returns the most-recent 100 (truncated from the head end,
@@ -430,7 +435,7 @@ class ScanRuntime:
             if created_at < cutoff
             and (
                 self._results.get(scan_id) is None
-                or self._results[scan_id].status not in {"queued", "running"}
+                or self._results[scan_id].status not in {"accepted", "queued", "running"}
             )
         ]
         for scan_id in expired_scan_ids:
@@ -505,49 +510,58 @@ class ScanRuntime:
         if webhook_cfg is not None:
             self._webhook_cfgs[scan_request.scan_id] = dict(webhook_cfg)
 
-        # A production full analysis is a registry job, not the historical
-        # four-prompt scoring walker. Return the scan id immediately and run
-        # the evidence-producing suite on a daemon worker.
-        if (
-            self._full_scan_registry_rows
-            and self._full_scan_workers_factory is not None
-            and scan_request.scan_tier not in {"smoke", "dev"}
-        ):
-            queued = ScanResult(
+        # A production full analysis is a durable registry job. The request
+        # thread only commits the job. When an in-process worker factory is
+        # explicitly wired, a daemon consumes that durable job so the existing
+        # queued/terminal API, admission-lease, and webhook guarantees remain
+        # intact. Otherwise an external FullScanQueueWorker owns execution.
+        if self._full_scan_registry_rows and scan_request.scan_tier not in {"smoke", "dev"}:
+            initial_status = (
+                "queued" if self._full_scan_workers_factory is not None else "accepted"
+            )
+            accepted = ScanResult(
                 scan_id=scan_request.scan_id,
-                status="queued",
+                status=initial_status,
                 scanner_version=str(scan_request.scanner_version),
                 corpus_version=str(scan_request.corpus_version),
                 rows_emitted=0,
                 k_replicates=scan_request.k_replicates,
             )
+            result = self._apply_registry_dispatch_guard(
+                scan_request,
+                accepted,
+                agent_id=agent_id,
+                secret=secret,
+            )
             with self._state_lock:
-                self._results[scan_request.scan_id] = queued
+                self._results[scan_request.scan_id] = result
+                self._scan_state_created_at[scan_request.scan_id] = self._now()
+
+            if self._full_scan_workers_factory is None:
+                if on_terminal is not None:
+                    on_terminal()
+                return result
+
             thread = threading.Thread(
                 target=self._run_full_scan_background,
                 kwargs={
                     "scan_request": scan_request,
                     "secret": secret,
                     "agent_id": agent_id,
-                    # BEAAA-14399 — hand admission-lease ownership to the
-                    # daemon worker; it releases on the terminal transition,
-                    # not when this handler returns the ``queued`` 202.
                     "on_terminal": on_terminal,
                 },
-                name=f"are-full-scan-{scan_request.scan_id[:8]}",
+                name=f"backbond-full-scan-{scan_request.scan_id[:8]}",
                 daemon=True,
             )
             self._background_threads[scan_request.scan_id] = thread
             try:
                 thread.start()
             except BaseException:
-                # Never leak the admission slot if the worker cannot start —
-                # the terminal transition that would release it will never run.
                 self._background_threads.pop(scan_request.scan_id, None)
                 if on_terminal is not None:
                     on_terminal()
                 raise
-            return queued
+            return result
 
         # Synchronous scoring path — the scan is terminal before ``kickoff``
         # returns, so release the admission lease inline (BEAAA-14399).
@@ -579,22 +593,41 @@ class ScanRuntime:
     ) -> None:
         try:
             with self._full_scan_semaphore:
-                base = ScanResult(
-                    scan_id=scan_request.scan_id,
-                    status="running",
-                    scanner_version=str(scan_request.scanner_version),
-                    corpus_version=str(scan_request.corpus_version),
-                    rows_emitted=0,
-                    k_replicates=scan_request.k_replicates,
+                # Preserve the direct-call safety harness used by the logging
+                # regression test. Normal durable full-scan dispatch only
+                # starts this method when a worker factory is configured.
+                if self._full_scan_workers_factory is None:
+                    base = ScanResult(
+                        scan_id=scan_request.scan_id,
+                        status="running",
+                        scanner_version=str(scan_request.scanner_version),
+                        corpus_version=str(scan_request.corpus_version),
+                        rows_emitted=0,
+                        k_replicates=scan_request.k_replicates,
+                    )
+                    self._apply_registry_dispatch_guard(
+                        scan_request,
+                        base,
+                        agent_id=agent_id,
+                        secret=secret,
+                    )
+                    return
+                workers = dict(
+                    self._full_scan_workers_factory(scan_request, secret)
                 )
-                with self._state_lock:
-                    self._results[scan_request.scan_id] = base
-                result = self._apply_registry_dispatch_guard(
-                    scan_request,
-                    base,
-                    agent_id=agent_id,
-                    secret=secret,
+                worker = FullScanQueueWorker(
+                    self._full_scan_job_store,
+                    registry_rows=self._full_scan_registry_rows,
+                    workers=workers,
                 )
+                worker_result = worker.run_once()
+                if worker_result.job_id != self._full_scan_job_ids.get(
+                    scan_request.scan_id
+                ):
+                    raise RuntimeError("full-scan worker leased an unexpected job")
+                result = self.fetch(scan_request.scan_id)
+                if result is None or not _scan_reached_terminal(result):
+                    raise RuntimeError("full-scan worker did not reach terminal state")
                 self._record_completed_result(
                     scan_request,
                     result,
@@ -727,88 +760,81 @@ class ScanRuntime:
         agent_id: str | None,
         secret: str = "",
     ) -> ScanResult:
-        """Dispatch active executable registry rows for full underwriting scans.
+        """Durably enqueue active executable registry rows for full scans.
 
         This is the BEAAA-13763 bridge from the standard API launch path to
-        the async full-scan attempt ledger. The legacy four-prompt walker may
-        still run first, but it cannot make a full-tier scan complete unless
-        the registry dispatcher also returns complete terminal evidence for
-        every active executable registry case.
+        the async full-scan attempt ledger. BEAAA-16617 moves registry case
+        execution out of the request thread: kickoff only commits the job to
+        the durable store and records the scan_id -> job_id linkage. The
+        separate queue worker owns lease/checkpoint/finalize.
         """
         if not self._full_scan_registry_rows:
             return result
         if scan_request.scan_tier in {"smoke", "dev"}:
             return result
 
-        workers = self._full_scan_workers
-        if self._full_scan_workers_factory is not None:
-            workers = dict(
-                self._full_scan_workers_factory(scan_request, secret)
-            )
-
-        first_worker = next(iter(workers.values()), None)
-        metadata_factory = getattr(first_worker, "manifest_metadata", None)
-        worker_metadata = (
-            dict(metadata_factory()) if callable(metadata_factory) else {}
-        )
-        model_versions: dict[str, Any] = {
-            "primary": str(
-                worker_metadata.get("target_model") or scan_request.agent_endpoint
-            ),
-            "judges": list(worker_metadata.get("judge_models") or []),
-        }
-        if worker_metadata.get("execution_budget"):
-            model_versions["execution_budget"] = worker_metadata["execution_budget"]
         registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
         job = self._full_scan_job_store.submit(
             agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
             scanner_version=str(scan_request.scanner_version),
             corpus_version=str(scan_request.corpus_version),
-            model_versions=model_versions,
+            model_versions={
+                "primary": MODEL_VERSION_UNAVAILABLE,
+                "judges": [],
+            },
             seed=scan_request.seed,
             registry_cases=registry_cases,
             idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
+            wall_clock_budget_seconds=14_400,
+            rate_limit_per_minute=120,
         )
         self._full_scan_job_ids[scan_request.scan_id] = job.job_id
-        lease = self._full_scan_job_store.lease(job.job_id)
-        attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
-        if not isinstance(attempt_id, str) or not attempt_id:
-            raise RuntimeError("full-scan lease did not return an attempt_id")
-        else:
-            dispatch_registry_attempt(
-                self._full_scan_job_store,
-                job.job_id,
-                attempt_id=attempt_id,
-                registry_rows=self._full_scan_registry_rows,
-                workers=workers,
-            )
-            finalized = self._full_scan_job_store.finalize(
-                job.job_id, attempt_id=attempt_id
-            )
+        return self._apply_full_scan_job_state(result, job)
 
-        manifest = finalized.final_manifest
-        if manifest is not None:
-            manifest_writer = getattr(first_worker, "write_manifest", None)
-            if callable(manifest_writer):
-                persisted_ref = manifest_writer(manifest)
-                if persisted_ref != manifest.get("manifest_evidence_ref"):
-                    raise RuntimeError(
-                        "persisted full-scan manifest reference mismatch"
-                    )
-        if finalized.status == "complete":
+    def _apply_full_scan_job_state(
+        self,
+        result: ScanResult,
+        job,
+    ) -> ScanResult:
+        """Project durable full-scan job state onto the scan read model."""
+        if job.status == "complete":
             return replace(
                 result,
                 status="complete",
-                rows_emitted=len(finalized.evidence_rows),
-                full_suite_manifest=manifest,
+                rows_emitted=len(job.evidence_rows),
+                incomplete=False,
+                incomplete_reason=None,
+                full_suite_manifest=job.final_manifest,
+            )
+        if job.status in {"incomplete", "failed", "cancelled"}:
+            return replace(
+                result,
+                status=job.status,
+                rows_emitted=len(job.evidence_rows),
+                incomplete=True,
+                incomplete_reason=(
+                    "full_scan_registry_incomplete"
+                    if job.status == "incomplete"
+                    else f"full_scan_registry_{job.status}"
+                ),
+                full_suite_manifest=job.final_manifest,
+            )
+        if job.status == "running":
+            return replace(
+                result,
+                status="running",
+                rows_emitted=len(job.evidence_rows),
+                incomplete=False,
+                incomplete_reason=None,
+                full_suite_manifest=None,
             )
         return replace(
             result,
-            status="incomplete",
-            rows_emitted=len(finalized.evidence_rows),
-            incomplete=True,
-            incomplete_reason="full_scan_registry_incomplete",
-            full_suite_manifest=manifest,
+            status=("queued" if result.status == "queued" else "accepted"),
+            rows_emitted=0,
+            incomplete=False,
+            incomplete_reason=None,
+            full_suite_manifest=None,
         )
 
     def _apply_full_suite_manifest_guard(
@@ -855,7 +881,22 @@ class ScanRuntime:
 
     def fetch(self, scan_id: str) -> ScanResult | None:
         self._purge_expired_in_memory_state()
-        return self._results.get(scan_id)
+        result = self._results.get(scan_id)
+        if result is None:
+            return None
+        job_id = self._full_scan_job_ids.get(scan_id)
+        if job_id is None:
+            return result
+        try:
+            job = self._full_scan_job_store.status(job_id)
+        except Exception:
+            return result
+        projected = self._apply_full_scan_job_state(result, job)
+        if projected != result:
+            with self._state_lock:
+                self._results[scan_id] = projected
+                self._scan_state_created_at[scan_id] = self._now()
+        return projected
 
     # ----- BEAAA-1265 (WS1) agent-scan-log shim -----
     def register_prior_scan(self, agent_id: str) -> None:
