@@ -8,7 +8,7 @@ three real Phase-1 data sources named in the Trust Page spec §1.
 
 | Page field | Real source | Module |
 |---|---|---|
-| BackBond Score **band** + verified-as-of + reproducibility envelope | `rubric.scoring.score()` on a **locked rubric** (1.2.0, `locked_through 2026-08-04` — WI-1 / [BEAAA-11915](/BEAAA/issues/BEAAA-11915)) → `are_total` → band via frozen bands v1.0 | `verification_record.py` |
+| BackBond Score **band** + verified-as-of + reproducibility envelope | `rubric.scoring.score()` on the repository's current **locked rubric** (WI-1 / [BEAAA-11915](/BEAAA/issues/BEAAA-11915)) → `are_total` → band via frozen bands v1.0 | `verification_record.py` |
 | Monitoring continuity (`healthy`/`grace`/`gap`/`stale_ineligible`) | `post_bind_ingest.continuity_gate` (WI-2 / [BEAAA-11916](/BEAAA/issues/BEAAA-11916)) | `verification_record.py` |
 | Warranty remedy eligibility (`pending` in v1) | WI-6 §2 Eligibility Rule ([BEAAA-11920](/BEAAA/issues/BEAAA-11920)) evaluated against current inputs | `warranty_eligibility.py` |
 | Visible stale state (`current`/`aging`/`due_soon`/`stale`/`expired`) | derived: `now − verified_as_of` vs next-required-verification (spec §2) | `verification_record.py` |
@@ -38,20 +38,29 @@ All rendered copy uses the Legal-Coordinator-approved wording from BEAAA-11927. 
 
 ## Run
 
+The committed examples are frozen historical records. Regenerate their HTML without
+rescoring against the current rubric:
+
 ```bash
 PYTHONPATH=.:tools/post-bind-ingest/src python3 -m tools.trust_page.build_sample \
-    --fixture G1 --now 2026-07-05T12:00:00+00:00 \
+    --frozen-record tools/trust_page/samples/sample_record-current.json \
+    --out-html tools/trust_page/samples/trust-page-v1-current.html \
+    --out-json tools/trust_page/samples/sample_record-current.json
+
+PYTHONPATH=.:tools/post-bind-ingest/src python3 -m tools.trust_page.build_sample \
+    --frozen-record tools/trust_page/samples/sample_record-stale.json \
     --out-html tools/trust_page/samples/trust-page-v1-stale.html \
     --out-json tools/trust_page/samples/sample_record-stale.json
 
 PYTHONPATH=.:tools/post-bind-ingest/src python3 -m pytest tools/trust_page/tests -q
 ```
 
-`samples/` holds two renders built from the **same real envelope** (golden fixture G1,
+`samples/` holds two frozen historical renders built from the **same recorded envelope** (golden fixture G1,
 `are_total=79`, band **B**), differing only in observation clock: `-current` (a representative
 in-window view) and `-stale` (real today, showing the decay feature). Per Trust Page spec
 Red Line 6 a golden calibration fixture is **not external production proof** — every render is
-watermarked internal.
+watermarked internal. The frozen-record path does not invoke the repository's current rubric;
+it preserves and labels the recorded scanner 0.4.0, rubric 1.2.0, corpus, and band provenance.
 
 ## Visual design (BEAAA-11928 locked design — applied)
 

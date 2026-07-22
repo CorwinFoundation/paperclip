@@ -3,11 +3,13 @@
   BackBond Trust Page — v1 (BEAAA-11926 wiring / BEAAA-11942 locked-visual harmonization, WI-3)
   persona_audience: internal. Rendered surface is external-facing and gated by
   Designer (60670b68) locked design [BEAAA-11928, applied here] + outside-counsel review before any partner send.
-  brand_backbone_version: v1.6  sha256: a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090  verified: true
+  brand_backbone_version: v1.6
+  brand_backbone_sha256: a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090
+  brand_backbone_verified: true
   Visual harmonized to the BEAAA-11928 locked design system (navy card, Copper Law, words-first
   band ladder, freshness lifecycle timeline). Data wiring and reproducibility envelope UNCHANGED.
-  Fields are LIVE-WIRED: band+envelope <- rubric.scoring.score() on locked rubric (WI-1);
-  monitoring continuity <- continuity_gate (WI-2); warranty eligibility <- WI-6 §2 rule.
+  Fields are rendered from the committed frozen historical record; they are not rescored by the current rubric.
+  Regenerate with build_sample --frozen-record to preserve the recorded scanner, corpus, rubric, and band.
   Reproducibility envelope (Supreme Law):
 {
   "bands_version": "1.0",
@@ -101,7 +103,7 @@ footer{color:var(--slate);font-size:11.5px;line-height:1.5;margin-top:36px;borde
 .meta{font-family:var(--f-data);font-size:10.5px;color:var(--slate);margin-top:8px}
 @media(max-width:600px){.grid,.means,.gallery{grid-template-columns:1fr}.stop .ef{display:none}}
 </style></head><body>
-<div class="watermark">INTERNAL — real scan on locked rubric 1.2.0 against golden calibration fixture G1. Not a partner production scan (Trust Page Red Line 6). Visual harmonized to the BEAAA-11928 locked design. Not for external send until a real partner intake scan on the locked rubric and outside-counsel sign-off complete (BEAAA-11917 lane).</div>
+<div class="watermark">INTERNAL — frozen historical sample record. Not rescored by the current rubric and not a partner production scan (Trust Page Red Line 6). Not for external send until a real partner intake scan on the locked rubric and outside-counsel sign-off complete (BEAAA-11917 lane).</div>
 <div class="wrap">
 
   <div class="mast">

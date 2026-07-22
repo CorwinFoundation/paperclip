@@ -126,8 +126,12 @@ def _assert_no_prohibited(doc: str) -> None:
         raise ValueError(f"prohibited red-line term(s) in rendered output: {hits}")
 
 
-def render_html(record: VerificationRecord, *, watermark: str) -> str:
+def render_html(
+    record: VerificationRecord, *, watermark: str, provenance_mode: str = "live"
+) -> str:
     """Render a VerificationRecord to warranty-safe single-file HTML."""
+    if provenance_mode not in {"live", "frozen_sample"}:
+        raise ValueError(f"unsupported provenance_mode: {provenance_mode}")
     env = record.envelope
     missing = [k for k in ("scanner_version", "corpus_version", "rubric_version",
                            "rubric_locked_through", "seed", "bands_version") if env.get(k) is None]
@@ -252,16 +256,26 @@ footer{color:var(--slate);font-size:11.5px;line-height:1.5;margin-top:36px;borde
 @media(max-width:600px){.grid,.means,.gallery{grid-template-columns:1fr}.stop .ef{display:none}}
 """
 
+    provenance_lines = (
+        "Fields are LIVE-WIRED: band+envelope <- rubric.scoring.score() on locked rubric (WI-1);\n"
+        "  monitoring continuity <- continuity_gate (WI-2); warranty eligibility <- WI-6 §2 rule."
+        if provenance_mode == "live"
+        else
+        "Fields are rendered from the committed frozen historical record; they are not rescored by the current rubric.\n"
+        "  Regenerate with build_sample --frozen-record to preserve the recorded scanner, corpus, rubric, and band."
+    )
+
     doc = f"""<!DOCTYPE html>
 <!--
   BackBond Trust Page — v1 (BEAAA-11926 wiring / BEAAA-11942 locked-visual harmonization, WI-3)
   persona_audience: internal. Rendered surface is external-facing and gated by
   Designer (60670b68) locked design [BEAAA-11928, applied here] + outside-counsel review before any partner send.
-  brand_backbone_version: {BRAND_BACKBONE_VERSION}  sha256: {BRAND_BACKBONE_SHA256}  verified: true
+  brand_backbone_version: {BRAND_BACKBONE_VERSION}
+  brand_backbone_sha256: {BRAND_BACKBONE_SHA256}
+  brand_backbone_verified: true
   Visual harmonized to the BEAAA-11928 locked design system (navy card, Copper Law, words-first
   band ladder, freshness lifecycle timeline). Data wiring and reproducibility envelope UNCHANGED.
-  Fields are LIVE-WIRED: band+envelope <- rubric.scoring.score() on locked rubric (WI-1);
-  monitoring continuity <- continuity_gate (WI-2); warranty eligibility <- WI-6 §2 rule.
+  {provenance_lines}
   Reproducibility envelope (Supreme Law):
 {envelope_comment}
 -->
