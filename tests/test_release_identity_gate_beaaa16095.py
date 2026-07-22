@@ -31,7 +31,7 @@ def _candidate(**overrides):
             "CorwinFoundation/are-scanner/.github/workflows/"
             "scanner-edge-image.yml@refs/heads/master"
         ),
-        "originMasterTip": WORKFLOW_SHA,
+        "originMasterTip": SOURCE_SHA,
         "imageDigest": IMAGE_REF,
         "signatureSubject": release_identity_gate.EXPECTED_SUBJECT,
         "signatureOidcIssuer": release_identity_gate.EXPECTED_ISSUER,
@@ -100,6 +100,17 @@ def test_release_identity_gate_rejects_missing_explicit_oci_revision_binding():
         )
 
     assert "ociRevision" in str(exc.value)
+    assert "sourceCommitSha" in str(exc.value)
+
+
+def test_release_identity_gate_rejects_origin_master_drift():
+    with pytest.raises(release_identity_gate.ReleaseIdentityError) as exc:
+        release_identity_gate.validate_release_identity(
+            _candidate(originMasterTip="0" * 40),
+            _cosign(),
+        )
+
+    assert "originMasterTip" in str(exc.value)
     assert "sourceCommitSha" in str(exc.value)
 
 

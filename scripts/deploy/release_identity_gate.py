@@ -97,6 +97,8 @@ def validate_release_identity(
     oci_revision = release_candidate.get("ociRevision")
     image_ref_or_digest = release_candidate.get("imageDigest")
     image_digest = _release_digest(image_ref_or_digest)
+    candidate_workflow_ref = release_candidate.get("workflowRef")
+    origin_master_tip = release_candidate.get("originMasterTip")
     release_subject = release_candidate.get("signatureSubject")
     release_issuer = release_candidate.get("signatureOidcIssuer")
     release_workflow_ref = release_candidate.get("signatureWorkflowRef")
@@ -108,6 +110,8 @@ def validate_release_identity(
         errors.append(f"signature Issuer={issuer!r} expected {EXPECTED_ISSUER!r}")
     if workflow_ref is not None and workflow_ref != EXPECTED_WORKFLOW_REF:
         errors.append(f"githubWorkflowRef={workflow_ref!r} expected {EXPECTED_WORKFLOW_REF!r}")
+    if candidate_workflow_ref != EXPECTED_WORKFLOW_REF:
+        errors.append(f"workflowRef={candidate_workflow_ref!r} expected {EXPECTED_WORKFLOW_REF!r}")
     if release_subject != EXPECTED_SUBJECT:
         errors.append(f"release signatureSubject={release_subject!r} expected {EXPECTED_SUBJECT!r}")
     if release_issuer != EXPECTED_ISSUER:
@@ -123,13 +127,17 @@ def validate_release_identity(
         errors.append(f"commitSha={commit_sha!r} does not match sourceCommitSha={source_sha!r}")
     if oci_revision != source_sha:
         errors.append(f"ociRevision={oci_revision!r} does not match sourceCommitSha={source_sha!r}")
+    if origin_master_tip != source_sha:
+        errors.append(f"originMasterTip={origin_master_tip!r} does not match sourceCommitSha={source_sha!r}")
     if expected_source_sha is not None and source_sha != expected_source_sha:
         errors.append(f"sourceCommitSha={source_sha!r} expected {expected_source_sha!r}")
 
     if not isinstance(image_digest, str) or not image_digest.startswith("sha256:"):
         errors.append("imageDigest must be an explicit sha256 digest or image ref pinned by sha256")
     if signed_digest is not None and signed_digest != image_digest:
-        errors.append(f"signed image digest={signed_digest!r} does not match release imageDigest={image_digest!r}")
+        errors.append(
+            f"signed image digest={signed_digest!r} does not match release imageDigest={image_digest!r}"
+        )
     if expected_image_digest is not None and image_ref_or_digest != expected_image_digest:
         errors.append(f"imageDigest={image_ref_or_digest!r} expected {expected_image_digest!r}")
 

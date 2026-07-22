@@ -7,7 +7,7 @@ WORKFLOW = Path(__file__).parents[1] / ".github/workflows/scanner-edge-image.yml
 
 
 def _workflow() -> dict:
-    return yaml.safe_load(WORKFLOW.read_text())
+    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
 
 def _steps() -> dict[str, dict]:

@@ -58,6 +58,8 @@ jobs:
       RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate release candidate sequence
         if: github.event_name == 'workflow_dispatch'
@@ -140,7 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$DIGEST"
-          signed_ref="${IMAGE_REF%@*}@$DIGEST"
+          signed_ref="${IMAGE_REF%:*}@$DIGEST"
           bundle_path="release-candidate/scanner-edge-image.sigstore.json"
           cosign sign --yes --new-bundle-format=true --bundle "$bundle_path" "$signed_ref"
           cosign verify \
@@ -162,16 +164,32 @@ jobs:
           SBOM_HASH: ${{ steps.candidate_files.outputs.sbom_hash }}
           SIGNATURE_BUNDLE_HASH: ${{ steps.signed_candidate.outputs.signature_bundle_hash }}
           SEQUENCE: ${{ github.event.inputs.sequence || '1' }}
+          EXPECTED_SUBJECT: https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master
+          EXPECTED_ISSUER: https://token.actions.githubusercontent.com
+          EXPECTED_WORKFLOW_REF: CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
         run: |
           set -euo pipefail
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           SIGNED_REF="${IMAGE_REF%:*}@${DIGEST}"
+          test -n "$SIGNATURE_BUNDLE_HASH"
+          git fetch --no-tags --depth=1 origin master:refs/remotes/origin/master
+          ORIGIN_MASTER_TIP="$(git rev-parse refs/remotes/origin/master)"
+          test "$ORIGIN_MASTER_TIP" = "$GITHUB_SHA"
           jq -n \
             --arg sourceIssueId "$SOURCE_ISSUE_ID" \
             --arg commitSha "$GITHUB_SHA" \
+            --arg sourceCommitSha "$GITHUB_SHA" \
+            --arg ociRevision "$GITHUB_SHA" \
+            --arg workflowCommitSha "$WORKFLOW_SHA" \
+            --arg workflowRef "$EXPECTED_WORKFLOW_REF" \
+            --arg originMasterTip "$ORIGIN_MASTER_TIP" \
             --arg imageDigest "$SIGNED_REF" \
             --arg signatureBundleRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-image.sigstore.json" \
             --arg signatureBundleSha256 "$SIGNATURE_BUNDLE_HASH" \
+            --arg signatureSubject "$EXPECTED_SUBJECT" \
+            --arg signatureOidcIssuer "$EXPECTED_ISSUER" \
+            --arg signatureWorkflowRef "$EXPECTED_WORKFLOW_REF" \
             --arg provenanceRef "$RUN_URL/artifacts/scanner-edge-release-candidate-${GITHUB_SHA}-${SEQUENCE}/scanner-edge-provenance-ref.txt" \
             --arg sbomHash "$SBOM_HASH" \
             --arg workflowRunUrl "$RUN_URL" \
@@ -181,9 +199,17 @@ jobs:
             '{
               sourceIssueId: $sourceIssueId,
               commitSha: $commitSha,
+              sourceCommitSha: $sourceCommitSha,
+              ociRevision: $ociRevision,
+              workflowCommitSha: $workflowCommitSha,
+              workflowRef: $workflowRef,
+              originMasterTip: $originMasterTip,
               imageDigest: $imageDigest,
               signatureBundleRef: $signatureBundleRef,
               signatureBundleSha256: $signatureBundleSha256,
+              signatureSubject: $signatureSubject,
+              signatureOidcIssuer: $signatureOidcIssuer,
+              signatureWorkflowRef: $signatureWorkflowRef,
               provenanceRef: $provenanceRef,
               sbomHash: $sbomHash,
               workflowRunUrl: $workflowRunUrl,
@@ -191,6 +217,18 @@ jobs:
               targetHost: $targetHost,
               sequence: $sequence
             }' | tee release-candidate/scanner-release-candidate.json
+
+      - name: Validate release identity gate
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          python scripts/deploy/release_identity_gate.py \
+            --release-candidate release-candidate/scanner-release-candidate.json \
+            --cosign-verify release-candidate/scanner-edge-cosign-verify.json \
+            --expected-source-sha "$GITHUB_SHA" \
+            --expected-image-digest "${IMAGE_REF%:*}@${DIGEST}"
 
       - name: Upload release candidate artifacts
         if: github.event_name != 'pull_request'
@@ -240,7 +278,7 @@ jobs:
               --arg sourceSha "$GITHUB_SHA" \
               --arg workflowSha "$WORKFLOW_SHA" \
               --arg environment "$TARGET_ENVIRONMENT" \
-              --arg imageDigest "$IMAGE_REF@$DIGEST" \
+              --arg imageDigest "${IMAGE_REF%:*}@$DIGEST" \
               --arg bundleSha256 "$bundle_sha256" \
               --arg clientNonce "$client_nonce" \
               --argjson sequence "$SEQUENCE" \

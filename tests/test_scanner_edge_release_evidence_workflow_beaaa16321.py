@@ -62,7 +62,7 @@ def test_exchange_payload_binds_authorized_issue_release_and_bundle_fields() -> 
         "TARGET_ENVIRONMENT: production",
         'sourceSha "$GITHUB_SHA"',
         'workflowSha "$WORKFLOW_SHA"',
-        'imageDigest "$IMAGE_REF@$DIGEST"',
+        'imageDigest "${IMAGE_REF%:*}@$DIGEST"',
         'bundleSha256 "$bundle_sha256"',
         'bundleBytes "$bundle_bytes"',
     )
