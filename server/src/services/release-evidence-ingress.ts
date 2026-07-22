@@ -439,12 +439,49 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
       throw forbiddenWithCode("Release evidence grant denied", "issue_company_mismatch");
     }
 
-    return db.transaction(async (tx) => {
-      const activeSameIssue = await tx
+    function isSameIssueGrant(row: typeof releaseEvidenceGrants.$inferSelect) {
+      return Array.isArray(row.allowedIssueIds) && row.allowedIssueIds.includes(input.issueId);
+    }
+
+    function isExactActiveGrant(row: typeof releaseEvidenceGrants.$inferSelect) {
+      return row.companyId === input.companyId
+        && row.status === "active"
+        && !row.revokedAt
+        && row.expiresAt > current
+        && isSameIssueGrant(row)
+        && row.repository === input.repository
+        && row.repositoryId === (input.repositoryId ?? null)
+        && row.workflowRef === input.workflowRef
+        && row.workflowSha === input.workflowSha
+        && row.jobWorkflowRef === (input.jobWorkflowRef ?? null)
+        && row.jobWorkflowSha === (input.jobWorkflowSha ?? null)
+        && row.triggerRef === input.triggerRef
+        && row.sourceSha === input.sourceSha
+        && row.sequence === input.sequence
+        && row.environment === input.environment
+        && row.maxUploadBytes === input.maxUploadBytes
+        && row.allowedEventName === (input.allowedEventName ?? "workflow_dispatch");
+    }
+
+    async function findActiveSameIssue(client: Pick<Db, "select">) {
+      return client
         .select()
         .from(releaseEvidenceGrants)
         .where(and(eq(releaseEvidenceGrants.companyId, input.companyId), eq(releaseEvidenceGrants.status, "active")))
-        .then((rows) => rows.filter((row) => Array.isArray(row.allowedIssueIds) && row.allowedIssueIds.includes(input.issueId)));
+        .then((rows) => rows.filter(isSameIssueGrant));
+    }
+
+    if (input.dryRun) {
+      const existing = (await findActiveSameIssue(db)).find(isExactActiveGrant) ?? null;
+      return { grantId: existing?.id ?? null, preflight: true };
+    }
+
+    return db.transaction(async (tx) => {
+      const activeSameIssue = await findActiveSameIssue(tx);
+      const existingActive = activeSameIssue.find(isExactActiveGrant) ?? null;
+      if (existingActive) {
+        return { grantId: existingActive.id, preflight: false };
+      }
       const grantsToRevoke = activeSameIssue.filter((row) => row.expiresAt <= current || row.sourceSha !== input.sourceSha || row.workflowSha !== input.workflowSha);
       if (grantsToRevoke.length) {
         await tx.update(releaseEvidenceGrants).set({
@@ -452,40 +489,6 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
           revokedAt: current,
           updatedAt: current,
         }).where(inArray(releaseEvidenceGrants.id, grantsToRevoke.map((row) => row.id)));
-      }
-
-      const existing = await tx.select().from(releaseEvidenceGrants).where(and(
-        eq(releaseEvidenceGrants.companyId, input.companyId),
-        eq(releaseEvidenceGrants.repository, input.repository),
-        eq(releaseEvidenceGrants.workflowRef, input.workflowRef),
-        eq(releaseEvidenceGrants.workflowSha, input.workflowSha),
-        eq(releaseEvidenceGrants.sourceSha, input.sourceSha),
-        eq(releaseEvidenceGrants.sequence, input.sequence),
-        eq(releaseEvidenceGrants.environment, input.environment),
-      )).then((rows) => rows[0] ?? null);
-
-      if (input.dryRun) {
-        await tx.insert(releaseEvidenceAuditEvents).values({
-          companyId: input.companyId,
-          issueId: input.issueId,
-          eventType: "release_evidence.grant_preflight",
-          result: "accepted",
-          details: {
-            existingGrant: Boolean(existing),
-            actor: input.actor,
-            repository: input.repository,
-            workflowRef: input.workflowRef,
-            workflowSha: input.workflowSha,
-            triggerRef: input.triggerRef,
-            sourceSha: input.sourceSha,
-            sequence: input.sequence,
-            environment: input.environment,
-            maxUploadBytes: input.maxUploadBytes,
-            expiresAt: input.expiresAt.toISOString(),
-          },
-          redacted: "true",
-        });
-        return { grantId: existing?.id ?? null, preflight: true };
       }
 
       const [grant] = await tx.insert(releaseEvidenceGrants).values({
@@ -506,7 +509,14 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
         status: "active",
         expiresAt: input.expiresAt,
         updatedAt: current,
-      }).returning();
+      }).onConflictDoNothing().returning();
+      if (!grant) {
+        const existing = (await findActiveSameIssue(tx)).find(isExactActiveGrant) ?? null;
+        if (existing) return { grantId: existing.id, preflight: false };
+        throw conflict("Active release evidence grant already exists for this issue scope", {
+          code: "release_evidence_active_grant_conflict",
+        });
+      }
       await tx.insert(releaseEvidenceAuditEvents).values({
         companyId: input.companyId,
         grantId: grant.id,

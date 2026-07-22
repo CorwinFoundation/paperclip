@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { assets } from "./assets.js";
 import { companies } from "./companies.js";
@@ -32,6 +33,9 @@ export const releaseEvidenceGrants = pgTable(
   (table) => ({
     companyStatusIdx: index("release_evidence_grants_company_status_idx").on(table.companyId, table.status),
     revisionUq: uniqueIndex("release_evidence_grants_revision_uq").on(table.id, table.revision),
+    activeIssueScopeUq: uniqueIndex("release_evidence_grants_active_issue_scope_uq")
+      .on(table.companyId, sql<string>`(${table.allowedIssueIds}->>0)`, table.sequence, table.environment)
+      .where(sql`${table.status} = 'active'`),
   }),
 );
 

@@ -160,6 +160,122 @@ describeEmbeddedPostgres("releaseEvidenceIngressService", () => {
     return { company: company!, issue: issue!, grant: grant! };
   }
 
+  function grantInput(seed: Awaited<ReturnType<typeof seedStandaloneGrant>>, overrides: Partial<Parameters<ReturnType<typeof releaseEvidenceIngressService>["provisionGrant"]>[0]> = {}) {
+    return {
+      companyId: seed.company.id,
+      repository: seed.grant.repository,
+      repositoryId: seed.grant.repositoryId,
+      workflowRef: seed.grant.workflowRef,
+      workflowSha: seed.grant.workflowSha,
+      jobWorkflowRef: seed.grant.jobWorkflowRef,
+      jobWorkflowSha: seed.grant.jobWorkflowSha,
+      triggerRef: seed.grant.triggerRef,
+      issueId: seed.issue.id,
+      sourceSha: seed.grant.sourceSha,
+      sequence: seed.grant.sequence,
+      environment: seed.grant.environment,
+      maxUploadBytes: seed.grant.maxUploadBytes,
+      allowedEventName: seed.grant.allowedEventName,
+      expiresAt: new Date(now.getTime() + 60_000),
+      actor: { type: "board", id: "board-user-1" },
+      ...overrides,
+    };
+  }
+
+  async function activeGrants() {
+    return db.select().from(releaseEvidenceGrants).then((rows) => rows.filter((row) => row.status === "active"));
+  }
+
+  it("reuses the same active grant for replayed provisioning requests", async () => {
+    const seed = await seedStandaloneGrant();
+    await db.delete(releaseEvidenceGrants);
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+    const input = grantInput(seed);
+
+    const first = await svc.provisionGrant(input);
+    const second = await svc.provisionGrant(input);
+
+    expect(first).toMatchObject({ preflight: false });
+    expect(second).toEqual(first);
+    expect(await activeGrants()).toHaveLength(1);
+    expect(await db.select().from(releaseEvidenceAuditEvents)).toHaveLength(1);
+  });
+
+  it("keeps dry-run provisioning strictly write-free", async () => {
+    const seed = await seedStandaloneGrant();
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+
+    const result = await svc.provisionGrant(grantInput(seed, {
+      sourceSha: "ffffffffffffffffffffffffffffffffffffffff",
+      dryRun: true,
+    }));
+
+    expect(result).toEqual({ grantId: null, preflight: true });
+    const grants = await db.select().from(releaseEvidenceGrants);
+    expect(grants).toHaveLength(1);
+    expect(grants[0]).toMatchObject({ id: seed.grant.id, status: "active", revokedAt: null });
+    expect(await db.select().from(releaseEvidenceAuditEvents)).toHaveLength(0);
+  });
+
+  it("revokes the prior same-issue grant and creates one active replacement when source SHA changes", async () => {
+    const seed = await seedStandaloneGrant();
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+
+    const result = await svc.provisionGrant(grantInput(seed, {
+      sourceSha: "ffffffffffffffffffffffffffffffffffffffff",
+    }));
+
+    expect(result.grantId).not.toBe(seed.grant.id);
+    const grants = await db.select().from(releaseEvidenceGrants);
+    expect(grants.filter((row) => row.status === "active")).toHaveLength(1);
+    expect(grants.find((row) => row.id === seed.grant.id)).toMatchObject({ status: "revoked", revokedAt: now });
+    expect(grants.find((row) => row.id === result.grantId)).toMatchObject({
+      status: "active",
+      sourceSha: "ffffffffffffffffffffffffffffffffffffffff",
+    });
+  });
+
+  it("revokes expired same-issue grants before creating a replacement", async () => {
+    const seed = await seedStandaloneGrant();
+    await db.update(releaseEvidenceGrants).set({ expiresAt: new Date(now.getTime() - 1_000) });
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+
+    const result = await svc.provisionGrant(grantInput(seed));
+
+    expect(result.grantId).not.toBe(seed.grant.id);
+    const grants = await db.select().from(releaseEvidenceGrants);
+    expect(grants.filter((row) => row.status === "active")).toHaveLength(1);
+    expect(grants.find((row) => row.id === seed.grant.id)).toMatchObject({ status: "revoked", revokedAt: now });
+  });
+
+  it("rejects invalid expiry and cross-company issue provisioning", async () => {
+    const seed = await seedStandaloneGrant();
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+
+    await expect(svc.provisionGrant(grantInput(seed, {
+      expiresAt: new Date(now.getTime() - 1_000),
+    }))).rejects.toMatchObject({ details: { code: "grant_expiry_invalid" } });
+
+    await expect(svc.provisionGrant(grantInput(seed, {
+      companyId: "99999999-9999-4999-8999-999999999999",
+    }))).rejects.toMatchObject({ details: { code: "issue_company_mismatch" } });
+  });
+
+  it("uses the active-grant unique index to collapse concurrent duplicate provisioning", async () => {
+    const seed = await seedStandaloneGrant();
+    await db.delete(releaseEvidenceGrants);
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+    const input = grantInput(seed);
+
+    const results = await Promise.all([
+      svc.provisionGrant(input),
+      svc.provisionGrant(input),
+    ]);
+
+    expect(new Set(results.map((result) => result.grantId)).size).toBe(1);
+    expect(await activeGrants()).toHaveLength(1);
+  });
+
   it("accepts standalone workflow OIDC claims with distinct trigger, workflow, and source identities", async () => {
     const { issue, grant } = await seedStandaloneGrant();
     const svc = releaseEvidenceIngressService(db, { now: () => now });
