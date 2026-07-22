@@ -128,11 +128,18 @@ def _movement_source(*, movement=4.0, decisions=None):
 
 
 def _approval_decisions(*roles):
+    identities = {
+        "CTO": ("agent", "88e68019-1cb6-4c4f-83e1-9fd340fb6821"),
+        "Underwriter": ("agent", "afa65747-4323-419c-9850-bdb77711648f"),
+        "Founder": ("user", "local-board"),
+    }
     return [
         {
             "role": role,
-            "approver_id": f"identity-{role.lower()}",
-            "decision_ref": f"comment-{role.lower()}-approved",
+            "approver_id": identities[role][1],
+            "decision_ref": f"BEAAA-16700#comment-{role.lower()}-approved",
+            "source_author": {"kind": identities[role][0], "id": identities[role][1]},
+            "decision_markers": [f"{role} approved"],
         }
         for role in roles
     ]
@@ -158,6 +165,33 @@ def test_approval_provenance_rejects_self_reference():
     assert any("self-referential" in error for error in errors)
 
 
+def test_approval_provenance_rejects_misattributed_founder_reference():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    decisions[2]["approver_id"] = "local-board"
+    decisions[2]["source_author"] = {
+        "kind": "agent",
+        "id": "bc8396d5-dee6-4ad8-ae3f-1a2280088cb4",
+    }
+    decisions[2]["decision_ref"] = "BEAAA-13412#comment-28cac28b-d5b7-4150-aa08-bc4aaf54e7aa"
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),)
+    )
+
+    assert any("Founder approver_id must match source_author.id" in error for error in errors)
+
+
+def test_approval_provenance_requires_content_markers():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    decisions[1]["decision_markers"] = []
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),)
+    )
+
+    assert any("Underwriter decision_markers are required" in error for error in errors)
+
+
 def test_approval_provenance_requires_founder_above_three():
     errors = release_gate_n5._validate_approved_movement_sources(
         (_movement_source(movement=4.0, decisions=_approval_decisions("CTO", "Underwriter")),)
@@ -177,6 +211,12 @@ def test_approval_provenance_accepts_distinct_role_complete_chain():
     )
 
     assert errors == []
+
+
+def test_display_path_accepts_absolute_out_dir(tmp_path):
+    external_report = tmp_path / "receipt.md"
+
+    assert release_gate_n5._display_path(external_report) == external_report.resolve()
 
 
 def test_receipt_keeps_acknowledged_m2_m3_residuals_release_blocking():
@@ -225,6 +265,8 @@ def test_render_markdown_uses_required_delta_table_columns():
         "delta_tolerance": 1.0,
         "single_turn_spread_passed": True,
         "single_turn_delta_passed": True,
+        "approval_provenance": {"passed": True, "failure_reason": None, "errors": []},
+        "release_reliance_authorized": True,
         "passed": True,
         "agents": [
             {
