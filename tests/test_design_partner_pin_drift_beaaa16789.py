@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -54,3 +56,26 @@ def test_all_design_partner_surfaces_match_scanner_constants() -> None:
 def test_guard_rejects_one_surface_mismatch() -> None:
     with pytest.raises(AssertionError, match="connection_pack pins"):
         _assert_pin_pair("connection_pack", (SCANNER_VERSION, "9.9.9"))
+
+
+def test_portal_module_identity_is_stable_after_direct_first_import() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "\n".join(
+                (
+                    "import sys",
+                    "sys.path.insert(0, 'tools/portal_v1')",
+                    "import portal",
+                    "from tools.portal_v1 import portal as package_portal",
+                    "assert portal is package_portal",
+                    "assert portal.PortalService is package_portal.PortalService",
+                )
+            ),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

@@ -2978,6 +2978,17 @@ def main() -> int:
     return 0
 
 
+# The portal predates package-style imports and its sibling modules intentionally
+# use direct-script-compatible absolute imports. When loaded through
+# ``tools.portal_v1``, expose this module under its historical name and make the
+# sibling directory importable so both entry modes share one PortalService class.
+sys.modules.setdefault("portal", sys.modules[__name__])
+sys.modules.setdefault("tools.portal_v1.portal", sys.modules[__name__])
+if __package__:
+    portal_dir = str(Path(__file__).resolve().parent)
+    if portal_dir not in sys.path:
+        sys.path.insert(0, portal_dir)
+
 # BEAAA-4937 / BEAAA-4908: bind v0.2 continuous-monitoring methods onto PortalService.
 # Kept as a module-level attach() to keep portal.py reviewable and avoid surface drift.
 from portal_v0_2 import attach as _attach_v0_2  # noqa: E402
