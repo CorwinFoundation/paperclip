@@ -1,0 +1,2 @@
+# ADR-0056 isolated worker pin. Do not combine with other eval frameworks.
+agentdojo==0.1.35
