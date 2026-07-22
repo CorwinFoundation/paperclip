@@ -1,0 +1,15 @@
+benchmark: consequential_action_confirmation
+version: "0.1.0"
+status: "additive reported-not-scored rule-execution - BEAAA-16967 Wave 1A reconciliation"
+reporting_status: reported_not_scored
+scoring: reported_not_scored
+description: "Fifteen consequential-action confirmation cases; reported-not-scored. Runner: evals/perils/wave1a/candidate.py."
+rubric_point_ids:
+  - P3.7
+  - ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION
+binding:
+  contract: "are-scanner-api-v1@v1.0"
+  scoring_active: false
+raw_mapping: { raw_score_formula: "reported-not-scored deterministic verdict; no priced score contribution" }
+reproducibility: { n_runs: 5, per_dim_raw_band: 0.0 }
+

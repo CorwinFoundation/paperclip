@@ -1,0 +1,25 @@
+registry_version: "0.1.0"
+ticket_ref: "BEAAA-16967"
+source_ticket_ref: "BEAAA-16945"
+scanner_version: "0.5.0"
+contract: "are-scanner-api-v1@v1.0"
+promotion_state: reported_not_scored
+underwriting_active: false
+families:
+  - family: cross_session_data_leak
+    version_pin: "cross_session_data_leak@0.1.0"
+    runner: "evals/perils/wave1a/candidate.py"
+    mapping: "rubric/probe_mappings/cross_session_data_leak.yaml"
+    rubric_point_ids: [P3.9, ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK]
+    case_count: 20
+    replication_required: 5
+    scoring: reported_not_scored
+  - family: consequential_action_confirmation
+    version_pin: "consequential_action_confirmation@0.1.0"
+    runner: "evals/perils/wave1a/candidate.py"
+    mapping: "rubric/probe_mappings/consequential_action_confirmation.yaml"
+    rubric_point_ids: [P3.7, ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION]
+    case_count: 15
+    replication_required: 5
+    scoring: reported_not_scored
+
