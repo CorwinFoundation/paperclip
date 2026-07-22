@@ -21,8 +21,9 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
     validate_full_scan_release_gate,
 )
+from api.full_scan_job_persistence import FullScanJobPersistence
 from api.full_scan_worker import FullScanQueueWorker
-from api.scan_handlers import ScanRuntime
+from api.scan_handlers import ScanRuntime, scan_handler
 from api.full_suite_manifest import FullSuiteCase
 from rubric.scoring import Rubric
 from scanners.live_probe_orchestrator import DimResult, ScanRequest, ScanResult
@@ -847,6 +848,191 @@ def test_scanner_v1_scan_blocks_full_status_when_registry_worker_missing(monkeyp
     row = result.full_suite_manifest["evidence_rows"][0]
     assert row["status"] == "incomplete"
     assert row["incomplete_reason"] == "worker_unavailable:pyrit"
+
+
+def test_terminal_webhook_missing_secret_remains_retryable_after_restart(monkeypatch, tmp_path):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-16914-test-key")
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "on")
+    monkeypatch.setattr(
+        "api.scan_handlers._verify_live_egress_fail_closed",
+        lambda **_kwargs: None,
+    )
+    db = tmp_path / "full_scan_jobs.sqlite3"
+    registry_rows = [
+        {
+            "test_id": "promptinject",
+            "case_id": "promptinject.case_001",
+            "status": "active",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "promptfoo_wrapper",
+        },
+    ]
+    deliveries = []
+    api_store = FullScanJobStore(persistence=FullScanJobPersistence(db))
+    runtime = ScanRuntime(
+        run_scan_fn=_four_prompt_walker_result,
+        full_scan_registry_rows=registry_rows,
+        full_scan_workers={},
+        full_scan_job_store=api_store,
+    )
+    body = _scan_body()
+    body["webhook"] = {
+        "url": "https://ci.vendor.example.com/backbond-hook",
+        "secret_ref": "ref-x",
+    }
+
+    status, payload = scan_handler(
+        body,
+        tenant_header="tenant-13763",
+        runtime=runtime,
+        scan_id_factory=lambda: "scan-terminal-missing-secret",
+    )
+
+    assert status == 202
+    assert payload["status"] == "accepted"
+    job_id = runtime._full_scan_job_ids["scan-terminal-missing-secret"]
+
+    def promptfoo_worker(row, job):
+        return WorkerAttemptResult(
+            status="complete",
+            evidence_ref=f"evidence://{job.job_id}/{row['case_id']}.json",
+            model_version="fixture-agent-v0",
+        )
+
+    first_worker = FullScanQueueWorker(
+        FullScanJobStore(persistence=FullScanJobPersistence(db)),
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+        webhook_secret_resolver=lambda _ref: None,
+        webhook_http_poster=lambda url, headers, body_bytes: deliveries.append(
+            (url, headers, body_bytes)
+        ),
+    )
+    first_result = first_worker.run_once()
+    assert first_result.status == "finalized"
+    assert deliveries == []
+    assert (
+        FullScanJobStore(persistence=FullScanJobPersistence(db))
+        .status(job_id)
+        .terminal_webhook_delivered_at
+        is None
+    )
+
+    retry_worker = FullScanQueueWorker(
+        FullScanJobStore(persistence=FullScanJobPersistence(db)),
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+        webhook_secret_resolver=lambda ref: "vendor-secret" if ref == "ref-x" else None,
+        webhook_http_poster=lambda url, headers, body_bytes: deliveries.append(
+            (url, headers, body_bytes)
+        ),
+    )
+    retry_result = retry_worker.run_once()
+    assert retry_result.status == "terminal_webhook_delivered"
+    assert len(deliveries) == 1
+    assert (
+        FullScanJobStore(persistence=FullScanJobPersistence(db))
+        .status(job_id)
+        .terminal_webhook_delivered_at
+        is not None
+    )
+
+    retry_worker.run_once()
+    assert len(deliveries) == 1
+
+
+def test_terminal_webhook_http_failure_remains_retryable_after_restart(monkeypatch, tmp_path):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-16914-test-key")
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "on")
+    monkeypatch.setattr(
+        "api.scan_handlers._verify_live_egress_fail_closed",
+        lambda **_kwargs: None,
+    )
+    db = tmp_path / "full_scan_jobs.sqlite3"
+    registry_rows = [
+        {
+            "test_id": "promptinject",
+            "case_id": "promptinject.case_001",
+            "status": "active",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "promptfoo_wrapper",
+        },
+    ]
+    deliveries = []
+    api_store = FullScanJobStore(persistence=FullScanJobPersistence(db))
+    runtime = ScanRuntime(
+        run_scan_fn=_four_prompt_walker_result,
+        full_scan_registry_rows=registry_rows,
+        full_scan_workers={},
+        full_scan_job_store=api_store,
+    )
+    body = _scan_body()
+    body["webhook"] = {
+        "url": "https://ci.vendor.example.com/backbond-hook",
+        "secret_ref": "ref-x",
+    }
+
+    status, payload = scan_handler(
+        body,
+        tenant_header="tenant-13763",
+        runtime=runtime,
+        scan_id_factory=lambda: "scan-terminal-http-failure",
+    )
+
+    assert status == 202
+    assert payload["status"] == "accepted"
+    job_id = runtime._full_scan_job_ids["scan-terminal-http-failure"]
+
+    def promptfoo_worker(row, job):
+        return WorkerAttemptResult(
+            status="complete",
+            evidence_ref=f"evidence://{job.job_id}/{row['case_id']}.json",
+            model_version="fixture-agent-v0",
+        )
+
+    def failing_poster(_url, _headers, _body_bytes):
+        raise RuntimeError("poster unavailable")
+
+    first_worker = FullScanQueueWorker(
+        FullScanJobStore(persistence=FullScanJobPersistence(db)),
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+        webhook_secret_resolver=lambda ref: "vendor-secret" if ref == "ref-x" else None,
+        webhook_http_poster=failing_poster,
+    )
+    first_result = first_worker.run_once()
+    assert first_result.status == "finalized"
+    assert deliveries == []
+    assert (
+        FullScanJobStore(persistence=FullScanJobPersistence(db))
+        .status(job_id)
+        .terminal_webhook_delivered_at
+        is None
+    )
+
+    retry_worker = FullScanQueueWorker(
+        FullScanJobStore(persistence=FullScanJobPersistence(db)),
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+        webhook_secret_resolver=lambda ref: "vendor-secret" if ref == "ref-x" else None,
+        webhook_http_poster=lambda url, headers, body_bytes: deliveries.append(
+            (url, headers, body_bytes)
+        ),
+    )
+    retry_result = retry_worker.run_once()
+    assert retry_result.status == "terminal_webhook_delivered"
+    assert len(deliveries) == 1
+    assert (
+        FullScanJobStore(persistence=FullScanJobPersistence(db))
+        .status(job_id)
+        .terminal_webhook_delivered_at
+        is not None
+    )
+
+    retry_worker.run_once()
+    assert len(deliveries) == 1
 
 
 def test_default_framework_workers_cover_registry_worker_ids():

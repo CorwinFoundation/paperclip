@@ -147,6 +147,8 @@ class FullScanJob:
     updated_at: datetime | None = None
     wall_clock_budget_seconds: int | None = None
     rate_limit_per_minute: int | None = None
+    terminal_webhook: Mapping[str, Any] | None = None
+    terminal_webhook_delivered_at: datetime | None = None
     # BEAAA-14401 — number of times a restart recovery sweep has re-queued this
     # job after clearing a stale (dead-worker) attempt. Bounded by
     # ``DEFAULT_MAX_RECOVERY_ATTEMPTS`` so an unresumable job reaches a terminal
@@ -213,6 +215,7 @@ class FullScanJobStore:
         approved_blocker_ref: str | None = None,
         wall_clock_budget_seconds: int | None = None,
         rate_limit_per_minute: int | None = None,
+        terminal_webhook: Mapping[str, Any] | None = None,
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
@@ -238,6 +241,9 @@ class FullScanJobStore:
                 updated_at=now,
                 wall_clock_budget_seconds=wall_clock_budget_seconds,
                 rate_limit_per_minute=rate_limit_per_minute,
+                terminal_webhook=(
+                    dict(terminal_webhook) if terminal_webhook is not None else None
+                ),
             )
             self._jobs[job.job_id] = job
             if self._persistence is not None:
@@ -325,6 +331,24 @@ class FullScanJobStore:
                 if lease.get("leased") is True:
                     return lease
             return None
+
+    def terminal_webhook_pending_jobs(self) -> list[FullScanJob]:
+        """Return terminal jobs whose configured webhook is not yet delivered."""
+        with self._lock:
+            pending = [
+                job
+                for job in self._jobs.values()
+                if job.status in TERMINAL_JOB_STATUSES
+                and job.terminal_webhook is not None
+                and job.terminal_webhook_delivered_at is None
+            ]
+            return sorted(
+                pending,
+                key=lambda job: (
+                    job.updated_at or datetime.min.replace(tzinfo=timezone.utc),
+                    job.job_id,
+                ),
+            )
 
     def checkpoint(
         self,
@@ -461,6 +485,26 @@ class FullScanJobStore:
             if job.status in TERMINAL_JOB_STATUSES:
                 return job
             return self._finalize_stranded(job, reason=reason)
+
+    def mark_terminal_webhook_delivered(self, job_id: str) -> FullScanJob:
+        """Persist the terminal webhook delivery marker.
+
+        The marker is intentionally separate from finalization so a failed
+        secret resolution or HTTP post leaves the terminal job retryable after
+        restart.
+        """
+        with self._lock:
+            job = self._get(job_id)
+            if job.terminal_webhook_delivered_at is not None:
+                return job
+            now = self._clock()
+            updated = replace(
+                job,
+                terminal_webhook_delivered_at=now,
+                updated_at=now,
+            )
+            self._persist(updated)
+            return updated
 
     def _finalize_stranded(self, job: FullScanJob, *, reason: str) -> FullScanJob:
         manifest = build_attempt_manifest(job, finished_at=self._clock())
@@ -1064,6 +1108,14 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "updated_at": _iso(job.updated_at) if job.updated_at else None,
         "wall_clock_budget_seconds": job.wall_clock_budget_seconds,
         "rate_limit_per_minute": job.rate_limit_per_minute,
+        "terminal_webhook": (
+            dict(job.terminal_webhook) if job.terminal_webhook is not None else None
+        ),
+        "terminal_webhook_delivered_at": (
+            _iso(job.terminal_webhook_delivered_at)
+            if job.terminal_webhook_delivered_at
+            else None
+        ),
         "recovery_count": job.recovery_count,
     }
 
@@ -1102,5 +1154,9 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         updated_at=_parse_iso(record.get("updated_at")),
         wall_clock_budget_seconds=record.get("wall_clock_budget_seconds"),
         rate_limit_per_minute=record.get("rate_limit_per_minute"),
+        terminal_webhook=record.get("terminal_webhook"),
+        terminal_webhook_delivered_at=_parse_iso(
+            record.get("terminal_webhook_delivered_at")
+        ),
         recovery_count=record.get("recovery_count", 0),
     )

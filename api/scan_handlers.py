@@ -774,6 +774,18 @@ class ScanRuntime:
             return result
 
         registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
+        webhook_cfg = self._webhook_cfgs.get(scan_request.scan_id)
+        terminal_webhook = None
+        if webhook_cfg is not None and scan_request.scan_tier == "full":
+            terminal_webhook = {
+                "webhook_cfg": dict(webhook_cfg),
+                "response_base": {
+                    "scan_id": scan_request.scan_id,
+                    "status": "accepted",
+                    "partial_completion": False,
+                    "confidence_below_adjudication_threshold": False,
+                },
+            }
         job = self._full_scan_job_store.submit(
             agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
             scanner_version=str(scan_request.scanner_version),
@@ -787,6 +799,7 @@ class ScanRuntime:
             idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
             wall_clock_budget_seconds=14_400,
             rate_limit_per_minute=120,
+            terminal_webhook=terminal_webhook,
         )
         self._full_scan_job_ids[scan_request.scan_id] = job.job_id
         return self._apply_full_scan_job_state(result, job)
