@@ -106,6 +106,89 @@ APPROVED_MOVEMENT_SOURCES = (
     },
 )
 
+FAIL_INVALID_APPROVAL = "invalid_approval_input"
+APPROVAL_KNOWN_ROLES = frozenset({"CTO", "Underwriter", "Founder"})
+
+
+def _required_roles_for_movement(movement: float) -> frozenset[str]:
+    roles: set[str] = set()
+    if abs(float(movement)) > DELTA_TOLERANCE:
+        roles.update({"CTO", "Underwriter"})
+    if abs(float(movement)) > 3.0:
+        roles.add("Founder")
+    return frozenset(roles)
+
+
+def _validate_approved_movement_sources(
+    sources: tuple[dict[str, Any], ...],
+) -> list[str]:
+    """Fail closed unless every movement has distinct, role-complete evidence.
+
+    BEAAA-16713: a ticket label or acknowledgement is not approval evidence.
+    Every source must name a distinct decision reference for each required role;
+    one identity/reference cannot satisfy multiple authority legs.
+    """
+    errors: list[str] = []
+    for index, source in enumerate(sources):
+        ticket = source.get("source_ticket")
+        decisions = source.get("approval_decisions")
+        if not isinstance(ticket, str) or not ticket.strip():
+            errors.append(f"source[{index}]: source_ticket is required")
+            continue
+        if not isinstance(decisions, list):
+            errors.append(f"{ticket}: approval_decisions must be an array")
+            continue
+
+        by_role: dict[str, tuple[str, str]] = {}
+        identities: set[str] = set()
+        refs: set[str] = set()
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                errors.append(f"{ticket}: approval decision must be an object")
+                continue
+            role = decision.get("role")
+            identity = decision.get("approver_id")
+            decision_ref = decision.get("decision_ref")
+            if role not in APPROVAL_KNOWN_ROLES:
+                errors.append(f"{ticket}: unrecognized approval role {role!r}")
+                continue
+            if not isinstance(identity, str) or not identity.strip():
+                errors.append(f"{ticket}: {role} approver identity is required")
+                continue
+            if not isinstance(decision_ref, str) or not decision_ref.strip():
+                errors.append(f"{ticket}: {role} decision_ref is required")
+                continue
+            identity = identity.strip()
+            decision_ref = decision_ref.strip()
+            if decision_ref in {ticket.strip(), identity}:
+                errors.append(f"{ticket}: {role} decision_ref is self-referential")
+                continue
+            if identity in identities or decision_ref in refs:
+                errors.append(f"{ticket}: approval identities and decision refs must be distinct")
+                continue
+            identities.add(identity)
+            refs.add(decision_ref)
+            by_role[role] = (identity, decision_ref)
+
+        required: set[str] = set()
+        deltas = source.get("deltas")
+        if not isinstance(deltas, dict):
+            errors.append(f"{ticket}: deltas must be an object")
+            continue
+        for metrics in deltas.values():
+            if not isinstance(metrics, dict):
+                errors.append(f"{ticket}: agent deltas must be objects")
+                continue
+            for movement in metrics.values():
+                if not isinstance(movement, (int, float)) or isinstance(movement, bool):
+                    errors.append(f"{ticket}: movement must be numeric")
+                    continue
+                required.update(_required_roles_for_movement(float(movement)))
+        missing = required - set(by_role)
+        if missing:
+            errors.append(f"{ticket}: missing required approval roles {sorted(missing)}")
+    return errors
+
 
 @dataclass
 class AgentGateResult:
@@ -331,6 +414,8 @@ def run_gate(
     manifest = _load_json(manifest_path)
     today = today or datetime.now(timezone.utc).date().isoformat()
     results: list[AgentGateResult] = []
+    approval_errors = _validate_approved_movement_sources(APPROVED_MOVEMENT_SOURCES)
+    validated_sources = () if approval_errors else APPROVED_MOVEMENT_SOURCES
 
     with tempfile.TemporaryDirectory(prefix="backbond-release-gate-n5-") as tmp:
         tmp_root = Path(tmp)
@@ -357,7 +442,7 @@ def run_gate(
                         if key != "deltas"
                     }
                     | {"delta": dict(source["deltas"].get(agent_id, {}))}
-                    for source in APPROVED_MOVEMENT_SOURCES
+                    for source in validated_sources
                 ]
                 result.approved_rule_change_deltas = {
                     key: sum(float(movement["delta"].get(key, 0.0)) for movement in result.approved_movements)
@@ -418,7 +503,13 @@ def run_gate(
         "single_turn_delta_passed": single_turn_delta_passed,
         "single_turn_passed": single_turn_passed,
         "behavioral": behavioral,
-        "passed": single_turn_passed and behavioral["passed"],
+        "approval_provenance": {
+            "passed": not approval_errors,
+            "failure_reason": FAIL_INVALID_APPROVAL if approval_errors else None,
+            "errors": approval_errors,
+        },
+        "failure_reasons": [FAIL_INVALID_APPROVAL] if approval_errors else [],
+        "passed": single_turn_passed and behavioral["passed"] and not approval_errors,
         "agents": [_result_to_dict(r) for r in results],
     }
     report["release_reliance_authorized"] = report["passed"]
