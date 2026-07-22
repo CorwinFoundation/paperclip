@@ -1,0 +1,241 @@
+name: scanner-edge-qa-evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      sequence:
+        description: "Single-use evidence sequence for BEAAA-16856"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  qa-evidence:
+    name: build scanner edge QA evidence
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_SHA: d2d53b9c65668ff44a2e3fc9c3dd3c23a978a76c
+      QA_REF: refs/heads/beaaa-16889-qa-evidence
+      IMAGE_REF: ghcr.io/corwinfoundation/are-scanner/scanner-edge-qa:d2d53b9c65668ff44a2e3fc9c3dd3c23a978a76c-${{ github.run_id }}
+      LOCAL_IMAGE_TAG: backbond-scanner-qa:d2d53b9c65668ff44a2e3fc9c3dd3c23a978a76c
+      TARGET_HOST: qa-controlled-real-agent
+      TARGET_ENVIRONMENT: qa-evidence
+      SOURCE_ISSUE_ID: 91d80911-e5e2-44b6-9f77-26685432a34b
+      RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}
+      EXPECTED_SUBJECT: https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-qa-evidence.yml@refs/heads/beaaa-16889-qa-evidence
+      EXPECTED_WORKFLOW_REF: CorwinFoundation/are-scanner/.github/workflows/scanner-edge-qa-evidence.yml@refs/heads/beaaa-16889-qa-evidence
+    steps:
+      - name: Validate immutable dispatch identity
+        env:
+          SEQUENCE: ${{ github.event.inputs.sequence }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = "$QA_REF"
+          test "$GITHUB_REPOSITORY" = CorwinFoundation/are-scanner
+          if [[ ! "$SEQUENCE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Evidence sequence must be a positive integer."
+            exit 1
+          fi
+
+      - name: Check out exact QA candidate
+        uses: actions/checkout@v4
+        with:
+          ref: d2d53b9c65668ff44a2e3fc9c3dd3c23a978a76c
+          fetch-depth: 1
+
+      - name: Verify exact candidate checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR for QA evidence image
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build exact candidate image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: |
+            ${{ env.LOCAL_IMAGE_TAG }}
+            ${{ env.IMAGE_REF }}
+          build-args: |
+            GIT_SHA=${{ env.CANDIDATE_SHA }}
+
+      - name: Verify image metadata and import closure
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect "$LOCAL_IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$CANDIDATE_SHA"
+          docker run --rm --entrypoint python "$LOCAL_IMAGE_TAG" scripts/verify_runtime_import_closure.py
+
+      - name: Push immutable QA image and capture digest
+        id: push_image
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE_REF"
+          digest="$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{ .Manifest.Digest }}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate bounded QA evidence inputs
+        id: candidate_files
+        run: |
+          set -euo pipefail
+          mkdir -p qa-evidence
+          syft "$LOCAL_IMAGE_TAG" -o cyclonedx-json=qa-evidence/scanner-edge-sbom.cdx.json
+          sha256sum qa-evidence/scanner-edge-sbom.cdx.json | tee qa-evidence/scanner-edge-sbom.sha256
+          echo "sbom_hash=$(cut -d' ' -f1 qa-evidence/scanner-edge-sbom.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.1
+
+      - name: Sign immutable digest and attest provenance
+        id: signed_candidate
+        env:
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          signed_ref="${IMAGE_REF%:*}@$DIGEST"
+          bundle_path=qa-evidence/scanner-edge-image.sigstore.json
+          cosign sign --yes --new-bundle-format=true --bundle "$bundle_path" "$signed_ref"
+          cosign verify \
+            --certificate-identity "$EXPECTED_SUBJECT" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$signed_ref" | tee qa-evidence/scanner-edge-cosign-verify.json
+          cosign attest --yes \
+            --predicate qa-evidence/scanner-edge-sbom.cdx.json \
+            --type cyclonedx \
+            "$signed_ref"
+          printf 'cosign-attestation:%s\n' "$signed_ref" > qa-evidence/scanner-edge-provenance-ref.txt
+          sha256sum "$bundle_path" | tee qa-evidence/scanner-edge-image.sigstore.sha256
+          echo "signature_bundle_hash=$(cut -d' ' -f1 qa-evidence/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Write immutable QA evidence manifest
+        env:
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+          SBOM_HASH: ${{ steps.candidate_files.outputs.sbom_hash }}
+          SIGNATURE_BUNDLE_HASH: ${{ steps.signed_candidate.outputs.signature_bundle_hash }}
+          SEQUENCE: ${{ github.event.inputs.sequence }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "$QA_REF"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          SIGNED_REF="${IMAGE_REF%:*}@${DIGEST}"
+          jq -n \
+            --arg sourceIssueId "$SOURCE_ISSUE_ID" \
+            --arg commitSha "$CANDIDATE_SHA" \
+            --arg sourceCommitSha "$CANDIDATE_SHA" \
+            --arg ociRevision "$CANDIDATE_SHA" \
+            --arg workflowCommitSha "$WORKFLOW_SHA" \
+            --arg workflowRef "$EXPECTED_WORKFLOW_REF" \
+            --arg qaRef "$QA_REF" \
+            --arg imageDigest "$SIGNED_REF" \
+            --arg signatureBundleSha256 "$SIGNATURE_BUNDLE_HASH" \
+            --arg signatureSubject "$EXPECTED_SUBJECT" \
+            --arg signatureOidcIssuer https://token.actions.githubusercontent.com \
+            --arg signatureWorkflowRef "$EXPECTED_WORKFLOW_REF" \
+            --arg provenanceRef "$RUN_URL" \
+            --arg sbomHash "$SBOM_HASH" \
+            --arg workflowRunUrl "$RUN_URL" \
+            --arg environment "$TARGET_ENVIRONMENT" \
+            --arg targetHost "$TARGET_HOST" \
+            --argjson sequence "$SEQUENCE" \
+            '{sourceIssueId: $sourceIssueId, commitSha: $commitSha,
+              sourceCommitSha: $sourceCommitSha, ociRevision: $ociRevision,
+              workflowCommitSha: $workflowCommitSha, workflowRef: $workflowRef,
+              qaRef: $qaRef, imageDigest: $imageDigest,
+              signatureBundleSha256: $signatureBundleSha256,
+              signatureSubject: $signatureSubject,
+              signatureOidcIssuer: $signatureOidcIssuer,
+              signatureWorkflowRef: $signatureWorkflowRef,
+              provenanceRef: $provenanceRef, sbomHash: $sbomHash,
+              workflowRunUrl: $workflowRunUrl, environment: $environment,
+              targetHost: $targetHost, sequence: $sequence}' \
+            | tee qa-evidence/scanner-qa-evidence-manifest.json
+
+      - name: Upload bounded QA evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-edge-qa-evidence-${{ env.CANDIDATE_SHA }}-${{ github.event.inputs.sequence }}
+          path: qa-evidence/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload scoped QA evidence to Paperclip
+        env:
+          PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
+          DIGEST: ${{ steps.push_image.outputs.digest }}
+          SEQUENCE: ${{ github.event.inputs.sequence }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          test -n "${PAPERCLIP_API_URL:-}"
+          test -n "${RELEASE_EVIDENCE_GRANT_ID:-}"
+          test -n "${DIGEST:-}"
+          test -n "${WORKFLOW_SHA:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+
+          bundle_path="${RUNNER_TEMP}/scanner-edge-qa-evidence-${CANDIDATE_SHA}-${SEQUENCE}.tar.gz"
+          tar -C qa-evidence -czf "$bundle_path" .
+          bundle_sha256="$(sha256sum "$bundle_path" | cut -d' ' -f1)"
+          bundle_bytes="$(wc -c < "$bundle_path" | tr -d '[:space:]')"
+          test "$bundle_bytes" -gt 0
+          test "$bundle_bytes" -le 268435456
+
+          oidc_response="$(curl -fsS \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=paperclip-release-evidence")"
+          oidc_token="$(printf '%s' "$oidc_response" | jq -r '.value // empty')"
+          test -n "$oidc_token"
+
+          client_nonce="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}"
+          exchange_response="$(jq -n \
+            --arg grantId "$RELEASE_EVIDENCE_GRANT_ID" \
+            --arg issueId "$SOURCE_ISSUE_ID" \
+            --arg sourceSha "$CANDIDATE_SHA" \
+            --arg workflowSha "$WORKFLOW_SHA" \
+            --arg environment "$TARGET_ENVIRONMENT" \
+            --arg imageDigest "${IMAGE_REF%:*}@$DIGEST" \
+            --arg bundleSha256 "$bundle_sha256" \
+            --arg clientNonce "$client_nonce" \
+            --argjson sequence "$SEQUENCE" \
+            --argjson bundleBytes "$bundle_bytes" \
+            '{grantId: $grantId, issueId: $issueId, sourceSha: $sourceSha,
+              workflowSha: $workflowSha, sequence: $sequence,
+              environment: $environment, imageDigest: $imageDigest,
+              bundleSha256: $bundleSha256, bundleBytes: $bundleBytes,
+              clientNonce: $clientNonce}' \
+            | curl -fsS -X POST \
+                "${PAPERCLIP_API_URL%/}/api/release-evidence/v1/exchange" \
+                -H "Authorization: Bearer ${oidc_token}" \
+                -H "Content-Type: application/json" --data-binary @-)"
+          session_id="$(printf '%s' "$exchange_response" | jq -r '.sessionId // empty')"
+          capability="$(printf '%s' "$exchange_response" | jq -r '.capability // empty')"
+          upload_url="$(printf '%s' "$exchange_response" | jq -r '.uploadUrl // empty')"
+          test -n "$session_id"
+          test -n "$capability"
+          test "$upload_url" = "/api/release-evidence/v1/sessions/${session_id}/attachment"
+
+          curl -fsS -X POST "${PAPERCLIP_API_URL%/}${upload_url}" \
+            -H "X-Paperclip-Release-Evidence-Capability: ${capability}" \
+            --form "file=@${bundle_path};type=application/gzip;filename=scanner-edge-qa-evidence-${CANDIDATE_SHA}-${SEQUENCE}.tar.gz"
