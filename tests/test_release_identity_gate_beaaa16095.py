@@ -13,6 +13,7 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts" / "deploy" / "release_identity_gate.py"
 SOURCE_SHA = "37192e2b0e9f50416170da77dcbc189c00761ecc"
 WORKFLOW_SHA = "f1c4905323586e3ff4c77fd295a5f3d13846c2d5"
+SOURCE_ISSUE_ID = "90ee9468-5480-4db8-a3c2-36654392ba7c"
 IMAGE_REF = "ghcr.io/corwinfoundation/are-scanner@" + "sha256:" + ("a" * 64)
 
 spec = importlib.util.spec_from_file_location("release_identity_gate", SCRIPT)
@@ -24,6 +25,7 @@ spec.loader.exec_module(release_identity_gate)
 def _candidate(**overrides):
     data = {
         "commitSha": SOURCE_SHA,
+        "sourceIssueId": SOURCE_ISSUE_ID,
         "sourceCommitSha": SOURCE_SHA,
         "ociRevision": SOURCE_SHA,
         "workflowCommitSha": WORKFLOW_SHA,
@@ -69,10 +71,12 @@ def test_release_identity_gate_accepts_master_workflow_with_bound_source_revisio
         _candidate(),
         _cosign(),
         expected_source_sha=SOURCE_SHA,
+        expected_source_issue_id=SOURCE_ISSUE_ID,
         expected_image_digest=IMAGE_REF,
     )
 
     assert report["sourceCommitSha"] == SOURCE_SHA
+    assert report["sourceIssueId"] == SOURCE_ISSUE_ID
     assert report["signatureSubject"] == release_identity_gate.EXPECTED_SUBJECT
 
 
@@ -114,6 +118,18 @@ def test_release_identity_gate_rejects_origin_master_drift():
     assert "sourceCommitSha" in str(exc.value)
 
 
+def test_release_identity_gate_rejects_source_issue_drift():
+    with pytest.raises(release_identity_gate.ReleaseIdentityError) as exc:
+        release_identity_gate.validate_release_identity(
+            _candidate(sourceIssueId="59747255-955b-41e2-addd-89a78b118380"),
+            _cosign(),
+            expected_source_issue_id=SOURCE_ISSUE_ID,
+        )
+
+    assert "sourceIssueId" in str(exc.value)
+    assert SOURCE_ISSUE_ID in str(exc.value)
+
+
 def test_release_identity_gate_accepts_cosign_v3_output_with_empty_optional_claims():
     cosign = _cosign()[0]
     cosign["optional"] = {}
@@ -131,6 +147,7 @@ def test_workflow_hard_codes_master_certificate_identity():
     assert release_identity_gate.EXPECTED_SUBJECT in workflow
     assert '--certificate-identity "$EXPECTED_SUBJECT"' in workflow
     assert ".github/workflows/scanner-edge-image.yml@${GITHUB_REF}" not in workflow
+    assert '--expected-source-issue-id "$SOURCE_ISSUE_ID"' in workflow
 
 
 def test_release_identity_gate_cli_exits_nonzero_for_source_revision_drift(tmp_path: Path):

@@ -17,6 +17,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO / ".github" / "workflows" / "scanner-edge-image.yml"
 WORKFLOW_TEXT = WORKFLOW.read_text(encoding="utf-8")
+ORIGINATING_ISSUE_ID = "90ee9468-5480-4db8-a3c2-36654392ba7c"
+SUPERSEDED_SOURCE_ISSUE_ID = "59747255-955b-41e2-addd-89a78b118380"
 
 
 def test_workflow_uses_github_oidc_scoped_release_evidence_ingress() -> None:
@@ -58,7 +60,7 @@ def test_exchange_payload_binds_authorized_issue_release_and_bundle_fields() -> 
 
     pinned_or_runtime_bound_values = (
         "RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}",
-        "SOURCE_ISSUE_ID: 59747255-955b-41e2-addd-89a78b118380",
+        f"SOURCE_ISSUE_ID: {ORIGINATING_ISSUE_ID}",
         "TARGET_ENVIRONMENT: production",
         'sourceSha "$GITHUB_SHA"',
         'workflowSha "$WORKFLOW_SHA"',
@@ -68,6 +70,7 @@ def test_exchange_payload_binds_authorized_issue_release_and_bundle_fields() -> 
     )
     for value in pinned_or_runtime_bound_values:
         assert value in WORKFLOW_TEXT
+    assert SUPERSEDED_SOURCE_ISSUE_ID not in WORKFLOW_TEXT
 
 
 def test_negative_dispatch_fixture_cannot_redirect_issue_or_release_tuple() -> None:
