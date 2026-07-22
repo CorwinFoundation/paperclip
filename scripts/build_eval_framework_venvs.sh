@@ -7,10 +7,10 @@ VENVS_DIR="${ARE_EVAL_VENVS_DIR:-/opt/are-scanner/eval-venvs}"
 PYTHON="${PYTHON:-python3}"
 
 declare -A FRAMEWORKS=(
-  [inspect]="requirements-eval-inspect.txt inspect_ai 0.3.220"
-  [pyrit]="requirements-eval-pyrit.txt pyrit 0.6.0"
-  [agentdojo]="requirements-eval-agentdojo.txt agentdojo 0.1.35"
-  [garak]="requirements-eval-garak.txt garak 0.10.0"
+  [inspect]="requirements-eval-inspect.txt inspect_ai inspect-ai 0.3.220"
+  [pyrit]="requirements-eval-pyrit.txt pyrit pyrit 0.6.0"
+  [agentdojo]="requirements-eval-agentdojo.txt agentdojo agentdojo 0.1.35"
+  [garak]="requirements-eval-garak.txt garak garak 0.10.0"
 )
 
 if [[ $# -gt 0 ]]; then
@@ -31,14 +31,14 @@ build_one() {
   fi
   # shellcheck disable=SC2206
   local parts=($spec)
-  local req="${parts[0]}" mod="${parts[1]}" want="${parts[2]}"
+  local req="${parts[0]}" mod="${parts[1]}" dist="${parts[2]}" want="${parts[3]}"
   local vdir="$VENVS_DIR/${fw}-venv"
   local vpy="$vdir/bin/python"
 
   "$PYTHON" -m venv "$vdir"
   "$vpy" -m pip install --upgrade pip >/dev/null
   "$vpy" -m pip install -r "$REPO_ROOT/$req"
-  got="$("$vpy" -c "import ${mod}; from importlib.metadata import version; print(version('${fw}'))")"
+  got="$("$vpy" -c "import ${mod}; from importlib.metadata import version; print(version('${dist}'))")"
   if [[ "$got" != "$want" ]]; then
     echo "$fw version mismatch: got '$got', expected '$want'" >&2
     return 1

@@ -46,18 +46,15 @@ def test_release_candidate_contains_verified_sigstore_bundle_hash() -> None:
     assert "signatureBundleSha256: $signatureBundleSha256" in payload["run"]
 
 
-def test_only_manual_runs_publish_candidate_evidence_attachment() -> None:
+def test_scoped_release_evidence_upload_remains_fail_closed() -> None:
     steps = _steps()
     payload = steps["Write release candidate payload"]
     upload = steps["Upload release candidate artifacts"]
-    post = steps["Post release candidate to Paperclip"]
+    post = steps["Upload scoped release evidence to Paperclip"]
 
-    assert payload["if"] == "github.event_name == 'workflow_dispatch'"
-    assert upload["if"] == "github.event_name == 'workflow_dispatch'"
-    assert post["if"] == "github.event_name == 'workflow_dispatch'"
-    assert 'upload_response="$(mktemp)"' in post["run"]
-    assert "jq -er '.id | strings | select(length > 0)'" in post["run"]
-    assert "/api/companies/${PAPERCLIP_COMPANY_ID}/issues/${SOURCE_ISSUE_ID}/attachments" in post["run"]
-    assert '-F "file=@${evidence_archive};type=application/gzip"' in post["run"]
-    assert "scanner-edge-image.tar" in post["run"]
-    assert "--write-out '%{http_code}'" in post["run"]
+    assert payload["if"] == "github.event_name != 'pull_request'"
+    assert upload["if"] == "github.event_name != 'pull_request'"
+    assert post["if"] == "github.event_name != 'pull_request'"
+    assert "audience=paperclip-release-evidence" in post["run"]
+    assert "/api/release-evidence/v1/exchange" in post["run"]
+    assert "X-Paperclip-Release-Evidence-Capability" in post["run"]
