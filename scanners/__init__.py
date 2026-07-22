@@ -14,6 +14,9 @@ BEAAA-106.
 # mode (repo-tag-vs-contract-version drift). Bump in lockstep with the API
 # contract minor version per api-contract-v0 §9.5.
 SCANNER_VERSION = "0.5.0"  # BEAAA-6190 v0.5 RC cut. Release-cut stamp only: rubric/rubric.yaml remains 1.2.0 because BEAAA-6188 codified the 40-point discrimination spread as a CI gate, not a rubric-side gate; CONTRACT_VERSION remains are-scanner-api-v1@v1.3.0 because BEAAA-6187 customer-VPC artifact URI projection is feature-flagged evidence custody with no default score-output field-shape change. N=5 all-golden RC gate recorded at tools/calibration-deltas/2026-06-22-beaaa6190-v05-rc-n5.md. CTO + Underwriter co-sign required before merge per BEAAA-6190.
+# Design-partner invocation pin. This is release metadata only; corpus bytes and
+# scoring behavior remain owned by their existing manifests.
+CORPUS_VERSION = "0.1.0"
 
 # v0.2.3 additive — default RNG seed when ScoreRequest.seed is omitted.
 # Stamped into ScoreResponse.seed so byte-identical replay works for any

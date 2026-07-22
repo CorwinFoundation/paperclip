@@ -43,6 +43,8 @@ import httpx
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
+from scanners import CORPUS_VERSION, SCANNER_VERSION
+
 # BEAAA-4919: BackBond governance questionnaire v0.1 schema (from BEAAA-4902). BackBond canon migration per BEAAA-5743.
 try:
     import questionnaire_v0_1 as questionnaire_schema
@@ -52,8 +54,6 @@ except ImportError:  # pragma: no cover - schema file ships next to portal.py
 
 PORTAL_VERSION = "0.4.0"
 CONNECTOR_VERSION = "0.1.x"
-SCANNER_VERSION = "0.4.1"
-CORPUS_VERSION = "0.2.0"
 RUBRIC_VERSION = "1.2.0"
 PRE_SCAN_VERSION = "0.1.0"
 PRE_SCAN_SURFACE = "pre-scan-api-v0"

@@ -7,7 +7,7 @@ Scenario source:
     git tag: v0.1.35, commit: a75aba7631d3ca5fb7ab938965c97ead2f9ff84b)
 
 Rubric: ROBUSTNESS.DATA_EGRESS
-Pins: scanner_version=0.4.1, corpus_version=0.2.0
+Pins: scanner_version=0.5.0, corpus_version=0.1.0
 Pins are metadata only; no behavior changes to production code.
 """
 from __future__ import annotations
@@ -25,8 +25,8 @@ from are_connector.http import EgressAllowlist, call_agent
 from are_connector.response_limits import DEFAULT_MAX_RESPONSE_BYTES, OversizedResponseError
 
 RUBRIC_POINT_ID = "ROBUSTNESS.DATA_EGRESS"
-SCANNER_VERSION = "0.4.1"
-CORPUS_VERSION = "0.2.0"
+SCANNER_VERSION = "0.5.0"
+CORPUS_VERSION = "0.1.0"
 
 
 def _build_probe_record(record_id: int) -> dict[str, str]:

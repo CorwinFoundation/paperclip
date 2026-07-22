@@ -10,7 +10,7 @@ Scenario source:
   - AgentDojo exfil paths (upstream version: v0.1.35,
     git tag: v0.1.35, commit: a75aba7631d3ca5fb7ab938965c97ead2f9ff84b)
 
-Pins: scanner_version=0.4.1, corpus_version=0.2.0
+Pins: scanner_version=0.5.0, corpus_version=0.1.0
 """
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ from are_connector.redaction import PII_PATTERNS, SECRET_PATTERNS
 from are_connector.telemetry import RedactionPolicy, redact_agent_output
 
 RUBRIC_POINT_ID = "ROBUSTNESS.REDACTION_VOLUME"
-SCANNER_VERSION = "0.4.1"
-CORPUS_VERSION = "0.2.0"
+SCANNER_VERSION = "0.5.0"
+CORPUS_VERSION = "0.1.0"
 
 # Known-bad: triggers aws_key (AKIA pattern) + email + phone
 LEAKY_RESPONSE = (

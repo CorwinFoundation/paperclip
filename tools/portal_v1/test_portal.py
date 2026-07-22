@@ -203,8 +203,8 @@ def test_are_scan_binary_path_is_used_and_validated(service, tmp_path, monkeypat
             "confidence": 0.91,
             "evidence_refs": [],
             "uncovered_dimensions": [],
-            "scanner_version": "0.4.1",
-            "corpus_version": "0.2.0",
+            "scanner_version": "0.5.0",
+            "corpus_version": "0.1.0",
             "model_versions": {},
             "seed": "fake-are-scan",
             "run_timestamp": "2026-06-12T00:00:00Z",
@@ -248,13 +248,13 @@ def test_vendor_scan_manifest_records_real_scanner_binary_pin_mismatch(service, 
         scanner_binary_path=str(fake_are_scan),
         fallback_mode="real_scanner_binary",
         scanner_reported_version="0.5.0",
-        scanner_reported_corpus_version=portal.CORPUS_VERSION,
+        scanner_reported_corpus_version="0.2.0",
     )
     assert manifest["pin_mismatches"] == [
         {
-            "field": "scanner_version",
-            "portal_pin": portal.SCANNER_VERSION,
-            "scanner_reported": "0.5.0",
+            "field": "corpus_version",
+            "portal_pin": portal.CORPUS_VERSION,
+            "scanner_reported": "0.2.0",
             "reason_code": "scanner_binary_pin_mismatch",
         }
     ]
@@ -293,8 +293,8 @@ def test_are_scan_invalid_rubric_perils_is_rejected(service, tmp_path, monkeypat
                 }
             ],
             "uncovered_dimensions": [],
-            "scanner_version": "0.4.1",
-            "corpus_version": "0.2.0",
+            "scanner_version": "0.5.0",
+            "corpus_version": "0.1.0",
             "model_versions": {},
             "seed": "fake-are-scan",
             "run_timestamp": "2026-06-12T00:00:00Z",
@@ -327,8 +327,8 @@ def test_are_scan_missing_perils_defaults_to_empty_list(service, tmp_path, monke
                 }
             ],
             "uncovered_dimensions": [],
-            "scanner_version": "0.4.1",
-            "corpus_version": "0.2.0",
+            "scanner_version": "0.5.0",
+            "corpus_version": "0.1.0",
             "model_versions": {},
             "seed": "fake-are-scan",
             "run_timestamp": "2026-06-12T00:00:00Z",
