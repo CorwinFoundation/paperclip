@@ -12,6 +12,7 @@ const mockReleaseEvidenceIngressService = vi.hoisted(() => ({
   exchange: vi.fn(),
   prepareUpload: vi.fn(),
   consumeUpload: vi.fn(),
+  provisionGrant: vi.fn(),
 }));
 
 vi.mock("../services/release-evidence-ingress.js", async () => {
@@ -40,13 +41,13 @@ const validClaims = {
   aud: "paperclip-release-evidence",
   repository: "CorwinFoundation/are-scanner",
   repository_id: "123456",
-  workflow_ref: `CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@${workflowSha}`,
-  job_workflow_ref: `CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@${workflowSha}`,
-  sha: sourceSha,
+  workflow_ref: "CorwinFoundation/are-scanner/.github/workflows/scanner-edge-qa-evidence.yml@refs/heads/beaaa-16889-qa-evidence",
+  workflow_sha: workflowSha,
+  sha: "dddddddddddddddddddddddddddddddddddddddd",
   run_id: "10001",
   run_attempt: "1",
   event_name: "workflow_dispatch",
-  ref: "refs/heads/master",
+  ref: "refs/heads/beaaa-16889-qa-evidence",
   actor_id: "98765",
 };
 
@@ -116,6 +117,7 @@ describe("release evidence routes", () => {
     mockReleaseEvidenceIngressService.exchange.mockReset();
     mockReleaseEvidenceIngressService.prepareUpload.mockReset();
     mockReleaseEvidenceIngressService.consumeUpload.mockReset();
+    mockReleaseEvidenceIngressService.provisionGrant.mockReset();
   });
 
   it("requires GitHub OIDC at exchange and rejects agent keys", async () => {
@@ -170,8 +172,8 @@ describe("release evidence routes", () => {
     const table = [
       ["repository", { ...validClaims, repository: "Other/repo" }, new HttpError(403, "Release evidence exchange denied", { code: "repository_mismatch" })],
       ["audience", { ...validClaims, aud: "api" }, new HttpError(403, "Release evidence exchange denied", { code: "audience_mismatch" })],
-      ["source sha", { ...validClaims, sha: "dddddddddddddddddddddddddddddddddddddddd" }, new HttpError(403, "Release evidence exchange denied", { code: "source_sha_claim_mismatch" })],
-      ["workflow", { ...validClaims, workflow_ref: `CorwinFoundation/are-scanner/.github/workflows/other.yml@${workflowSha}` }, new HttpError(403, "Release evidence exchange denied", { code: "workflow_ref_mismatch" })],
+      ["workflow sha", { ...validClaims, workflow_sha: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" }, new HttpError(403, "Release evidence exchange denied", { code: "workflow_sha_mismatch" })],
+      ["workflow", { ...validClaims, workflow_ref: "CorwinFoundation/are-scanner/.github/workflows/other.yml@refs/heads/beaaa-16889-qa-evidence" }, new HttpError(403, "Release evidence exchange denied", { code: "workflow_ref_mismatch" })],
     ] as const;
 
     for (const [, claims, err] of table) {
@@ -186,6 +188,43 @@ describe("release evidence routes", () => {
     expect(mockReleaseEvidenceIngressService.auditDenied).toHaveBeenCalledTimes(table.length);
     expect(mockReleaseEvidenceIngressService.prepareUpload).not.toHaveBeenCalled();
     expect(mockReleaseEvidenceIngressService.consumeUpload).not.toHaveBeenCalled();
+  });
+
+  it("provisions one active release evidence grant for board admins and returns only its opaque id", async () => {
+    mockReleaseEvidenceIngressService.provisionGrant.mockResolvedValue({
+      grantId,
+      preflight: false,
+    });
+
+    const body = {
+      companyId,
+      repository: "CorwinFoundation/are-scanner",
+      repositoryId: "123456",
+      workflowRef: validClaims.workflow_ref,
+      workflowSha,
+      triggerRef: validClaims.ref,
+      issueId,
+      sourceSha,
+      sequence: 20,
+      environment: "qa-evidence",
+      maxUploadBytes: 268435456,
+      allowedEventName: "workflow_dispatch",
+      expiresAt: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+    };
+
+    const res = await request(createApp({
+      actor: { type: "board", source: "session", userId: "local-board" },
+    }))
+      .post("/api/release-evidence/v1/grants")
+      .send(body);
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ grantId, preflight: false });
+    expect(mockReleaseEvidenceIngressService.provisionGrant).toHaveBeenCalledWith(expect.objectContaining({
+      ...body,
+      expiresAt: new Date(body.expiresAt),
+      actor: { type: "board", id: "local-board" },
+    }));
   });
 
   it("stores exactly one attachment for valid upload and returns existing attachment on replay", async () => {

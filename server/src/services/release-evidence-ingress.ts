@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   assets,
@@ -21,13 +21,35 @@ export type ReleaseEvidenceOidcClaims = {
   repository: string;
   repository_id: string;
   workflow_ref: string;
-  job_workflow_ref: string;
+  workflow_sha: string;
+  job_workflow_ref?: string;
+  job_workflow_sha?: string;
   sha: string;
   run_id: string;
   run_attempt: string;
   event_name: string;
   ref: string;
   actor_id: string;
+};
+
+export type ProvisionReleaseEvidenceGrantInput = {
+  companyId: string;
+  repository: string;
+  repositoryId?: string | null;
+  workflowRef: string;
+  workflowSha: string;
+  jobWorkflowRef?: string | null;
+  jobWorkflowSha?: string | null;
+  triggerRef: string;
+  issueId: string;
+  sourceSha: string;
+  sequence: number;
+  environment: string;
+  maxUploadBytes: number;
+  allowedEventName?: string;
+  expiresAt: Date;
+  dryRun?: boolean;
+  actor?: { type: string; id?: string | null };
 };
 
 export type ExchangeReleaseEvidenceInput = {
@@ -86,7 +108,9 @@ function sanitizedClaims(claims?: Partial<ReleaseEvidenceOidcClaims>) {
     repository: claims.repository,
     repository_id: claims.repository_id,
     workflow_ref: claims.workflow_ref,
+    workflow_sha: claims.workflow_sha,
     job_workflow_ref: claims.job_workflow_ref,
+    job_workflow_sha: claims.job_workflow_sha,
     sha: claims.sha,
     run_id: claims.run_id,
     run_attempt: claims.run_attempt,
@@ -185,8 +209,10 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
     assertEqual(claims.repository, grant.repository, "repository_mismatch");
     if (grant.repositoryId) assertEqual(claims.repository_id, grant.repositoryId, "repository_id_mismatch");
     assertEqual(claims.workflow_ref, grant.workflowRef, "workflow_ref_mismatch");
-    assertEqual(claims.job_workflow_ref, grant.jobWorkflowRef ?? grant.workflowRef, "job_workflow_ref_mismatch");
-    assertEqual(claims.sha, grant.sourceSha, "source_sha_claim_mismatch");
+    assertEqual(claims.workflow_sha, grant.workflowSha, "workflow_sha_mismatch");
+    if (grant.jobWorkflowRef) assertEqual(claims.job_workflow_ref, grant.jobWorkflowRef, "job_workflow_ref_mismatch");
+    if (grant.jobWorkflowSha) assertEqual(claims.job_workflow_sha, grant.jobWorkflowSha, "job_workflow_sha_mismatch");
+    assertEqual(claims.ref, grant.triggerRef, "trigger_ref_mismatch");
     assertEqual(claims.event_name, grant.allowedEventName, "event_mismatch");
     if (claims.event_name === "pull_request" || claims.event_name === "pull_request_target") {
       throw forbiddenWithCode("Release evidence exchange denied", "pull_request_event_denied");
@@ -194,9 +220,7 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
     assertEqual(input.sourceSha, grant.sourceSha, "source_sha_request_mismatch");
     assertEqual(input.sequence, grant.sequence, "sequence_mismatch");
     assertEqual(input.environment, grant.environment, "environment_mismatch");
-    if (!input.workflowSha || !grant.workflowRef.endsWith(`@${input.workflowSha}`)) {
-      throw forbiddenWithCode("Release evidence exchange denied", "workflow_sha_mismatch");
-    }
+    assertEqual(input.workflowSha, grant.workflowSha, "workflow_sha_request_mismatch");
     if (input.bundleBytes <= 0 || input.bundleBytes > grant.maxUploadBytes) {
       throw new HttpError(422, "Release evidence bundle size is outside the grant limit", { code: "bundle_size_mismatch" });
     }
@@ -243,7 +267,10 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
       repository: claims.repository,
       repositoryId: claims.repository_id,
       workflowRef: claims.workflow_ref,
-      jobWorkflowRef: claims.job_workflow_ref,
+      workflowSha: claims.workflow_sha,
+      jobWorkflowRef: claims.job_workflow_ref ?? null,
+      jobWorkflowSha: claims.job_workflow_sha ?? null,
+      triggerSha: claims.sha,
       sourceSha: input.sourceSha,
       runId: claims.run_id,
       runAttempt: claims.run_attempt,
@@ -376,7 +403,10 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
           grantRevision: session.grantRevision,
           repository: session.repository,
           workflowRef: session.workflowRef,
+          workflowSha: session.workflowSha,
           jobWorkflowRef: session.jobWorkflowRef,
+          jobWorkflowSha: session.jobWorkflowSha,
+          triggerSha: session.triggerSha,
           runId: session.runId,
           runAttempt: session.runAttempt,
           sourceSha: session.sourceSha,
@@ -398,5 +428,110 @@ export function releaseEvidenceIngressService(db: Db, opts: { now?: () => Date }
     });
   }
 
-  return { auditDenied, exchange, prepareUpload, consumeUpload };
+  async function provisionGrant(input: ProvisionReleaseEvidenceGrantInput) {
+    const current = now();
+    if (input.expiresAt <= current) throw new HttpError(422, "Release evidence grant expiry must be in the future", { code: "grant_expiry_invalid" });
+    if (input.expiresAt.getTime() - current.getTime() > 24 * 60 * 60 * 1000) {
+      throw new HttpError(422, "Release evidence grant expiry exceeds 24 hours", { code: "grant_expiry_too_long" });
+    }
+    const issue = await db.select().from(issues).where(eq(issues.id, input.issueId)).then((rows) => rows[0] ?? null);
+    if (!issue || issue.companyId !== input.companyId) {
+      throw forbiddenWithCode("Release evidence grant denied", "issue_company_mismatch");
+    }
+
+    return db.transaction(async (tx) => {
+      const activeSameIssue = await tx
+        .select()
+        .from(releaseEvidenceGrants)
+        .where(and(eq(releaseEvidenceGrants.companyId, input.companyId), eq(releaseEvidenceGrants.status, "active")))
+        .then((rows) => rows.filter((row) => Array.isArray(row.allowedIssueIds) && row.allowedIssueIds.includes(input.issueId)));
+      const grantsToRevoke = activeSameIssue.filter((row) => row.expiresAt <= current || row.sourceSha !== input.sourceSha || row.workflowSha !== input.workflowSha);
+      if (grantsToRevoke.length) {
+        await tx.update(releaseEvidenceGrants).set({
+          status: "revoked",
+          revokedAt: current,
+          updatedAt: current,
+        }).where(inArray(releaseEvidenceGrants.id, grantsToRevoke.map((row) => row.id)));
+      }
+
+      const existing = await tx.select().from(releaseEvidenceGrants).where(and(
+        eq(releaseEvidenceGrants.companyId, input.companyId),
+        eq(releaseEvidenceGrants.repository, input.repository),
+        eq(releaseEvidenceGrants.workflowRef, input.workflowRef),
+        eq(releaseEvidenceGrants.workflowSha, input.workflowSha),
+        eq(releaseEvidenceGrants.sourceSha, input.sourceSha),
+        eq(releaseEvidenceGrants.sequence, input.sequence),
+        eq(releaseEvidenceGrants.environment, input.environment),
+      )).then((rows) => rows[0] ?? null);
+
+      if (input.dryRun) {
+        await tx.insert(releaseEvidenceAuditEvents).values({
+          companyId: input.companyId,
+          issueId: input.issueId,
+          eventType: "release_evidence.grant_preflight",
+          result: "accepted",
+          details: {
+            existingGrant: Boolean(existing),
+            actor: input.actor,
+            repository: input.repository,
+            workflowRef: input.workflowRef,
+            workflowSha: input.workflowSha,
+            triggerRef: input.triggerRef,
+            sourceSha: input.sourceSha,
+            sequence: input.sequence,
+            environment: input.environment,
+            maxUploadBytes: input.maxUploadBytes,
+            expiresAt: input.expiresAt.toISOString(),
+          },
+          redacted: "true",
+        });
+        return { grantId: existing?.id ?? null, preflight: true };
+      }
+
+      const [grant] = await tx.insert(releaseEvidenceGrants).values({
+        companyId: input.companyId,
+        repository: input.repository,
+        repositoryId: input.repositoryId ?? null,
+        workflowRef: input.workflowRef,
+        workflowSha: input.workflowSha,
+        jobWorkflowRef: input.jobWorkflowRef ?? null,
+        jobWorkflowSha: input.jobWorkflowSha ?? null,
+        triggerRef: input.triggerRef,
+        allowedIssueIds: [input.issueId],
+        sourceSha: input.sourceSha,
+        sequence: input.sequence,
+        environment: input.environment,
+        maxUploadBytes: input.maxUploadBytes,
+        allowedEventName: input.allowedEventName ?? "workflow_dispatch",
+        status: "active",
+        expiresAt: input.expiresAt,
+        updatedAt: current,
+      }).returning();
+      await tx.insert(releaseEvidenceAuditEvents).values({
+        companyId: input.companyId,
+        grantId: grant.id,
+        issueId: input.issueId,
+        eventType: "release_evidence.grant_provisioned",
+        result: "accepted",
+        details: {
+          actor: input.actor,
+          repository: input.repository,
+          workflowRef: input.workflowRef,
+          workflowSha: input.workflowSha,
+          jobWorkflowRef: input.jobWorkflowRef ?? null,
+          jobWorkflowSha: input.jobWorkflowSha ?? null,
+          triggerRef: input.triggerRef,
+          sourceSha: input.sourceSha,
+          sequence: input.sequence,
+          environment: input.environment,
+          maxUploadBytes: input.maxUploadBytes,
+          expiresAt: input.expiresAt.toISOString(),
+        },
+        redacted: "true",
+      });
+      return { grantId: grant.id, preflight: false };
+    });
+  }
+
+  return { auditDenied, exchange, prepareUpload, consumeUpload, provisionGrant };
 }

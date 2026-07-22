@@ -76,7 +76,10 @@ describeEmbeddedPostgres("releaseEvidenceIngressService", () => {
         repository: "CorwinFoundation/are-scanner",
         repositoryId: "123456",
         workflowRef: "CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        workflowSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         jobWorkflowRef: "CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        jobWorkflowSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        triggerRef: "refs/heads/master",
         allowedIssueIds: [issue!.id],
         sourceSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         sequence: 20,
@@ -97,7 +100,10 @@ describeEmbeddedPostgres("releaseEvidenceIngressService", () => {
         repository: "CorwinFoundation/are-scanner",
         repositoryId: "123456",
         workflowRef: grant!.workflowRef,
+        workflowSha: grant!.workflowSha,
         jobWorkflowRef: grant!.jobWorkflowRef!,
+        jobWorkflowSha: grant!.jobWorkflowSha!,
+        triggerSha: grant!.sourceSha,
         sourceSha: grant!.sourceSha,
         runId: "10001",
         runAttempt: "1",
@@ -116,6 +122,118 @@ describeEmbeddedPostgres("releaseEvidenceIngressService", () => {
     return { company: company!, issue: issue!, session: session! };
   }
 
+  async function seedStandaloneGrant() {
+    const [company] = await db
+      .insert(companies)
+      .values({
+        name: `Standalone Release Evidence ${randomUUID()}`,
+        issuePrefix: `SR${randomUUID().slice(0, 6).toUpperCase()}`,
+      })
+      .returning();
+    const [issue] = await db
+      .insert(issues)
+      .values({
+        companyId: company!.id,
+        title: "Standalone release evidence target",
+        status: "todo",
+        priority: "critical",
+      })
+      .returning();
+    const [grant] = await db
+      .insert(releaseEvidenceGrants)
+      .values({
+        companyId: company!.id,
+        repository: "CorwinFoundation/are-scanner",
+        repositoryId: "123456",
+        workflowRef: "CorwinFoundation/are-scanner/.github/workflows/scanner-edge-qa-evidence.yml@refs/heads/beaaa-16889-qa-evidence",
+        workflowSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        triggerRef: "refs/heads/beaaa-16889-qa-evidence",
+        allowedIssueIds: [issue!.id],
+        sourceSha: "d2d53b9c65668ff44a2e3fc9c3dd3c23a978a76c",
+        sequence: 20,
+        environment: "qa-evidence",
+        maxUploadBytes: 268435456,
+        expiresAt: new Date(now.getTime() + 60_000),
+      })
+      .returning();
+
+    return { company: company!, issue: issue!, grant: grant! };
+  }
+
+  it("accepts standalone workflow OIDC claims with distinct trigger, workflow, and source identities", async () => {
+    const { issue, grant } = await seedStandaloneGrant();
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+
+    const result = await svc.exchange({
+      iss: "https://token.actions.githubusercontent.com",
+      aud: "paperclip-release-evidence",
+      repository: grant.repository,
+      repository_id: grant.repositoryId!,
+      workflow_ref: grant.workflowRef,
+      workflow_sha: grant.workflowSha,
+      sha: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      run_id: "10001",
+      run_attempt: "1",
+      event_name: "workflow_dispatch",
+      ref: grant.triggerRef,
+      actor_id: "98765",
+    }, {
+      grantId: grant.id,
+      issueId: issue.id,
+      sourceSha: grant.sourceSha,
+      workflowSha: grant.workflowSha,
+      sequence: grant.sequence,
+      environment: grant.environment,
+      imageDigest: "ghcr.io/corwinfoundation/are-scanner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      bundleSha256,
+      bundleBytes: bundle.length,
+      clientNonce: "nonce-123456789",
+    });
+
+    expect(result.sessionId).toBeTruthy();
+    const [session] = await db.select().from(releaseEvidenceSessions);
+    expect(session).toMatchObject({
+      issueId: issue.id,
+      workflowRef: grant.workflowRef,
+      workflowSha: grant.workflowSha,
+      jobWorkflowRef: null,
+      sourceSha: grant.sourceSha,
+      triggerSha: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      ref: grant.triggerRef,
+    });
+  });
+
+  it("rejects a mismatched workflow_sha without comparing workflow_ref to a SHA suffix", async () => {
+    const { issue, grant } = await seedStandaloneGrant();
+    const svc = releaseEvidenceIngressService(db, { now: () => now });
+
+    await expect(svc.exchange({
+      iss: "https://token.actions.githubusercontent.com",
+      aud: "paperclip-release-evidence",
+      repository: grant.repository,
+      repository_id: grant.repositoryId!,
+      workflow_ref: grant.workflowRef,
+      workflow_sha: "ffffffffffffffffffffffffffffffffffffffff",
+      sha: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      run_id: "10001",
+      run_attempt: "1",
+      event_name: "workflow_dispatch",
+      ref: grant.triggerRef,
+      actor_id: "98765",
+    }, {
+      grantId: grant.id,
+      issueId: issue.id,
+      sourceSha: grant.sourceSha,
+      workflowSha: "ffffffffffffffffffffffffffffffffffffffff",
+      sequence: grant.sequence,
+      environment: grant.environment,
+      imageDigest: "ghcr.io/corwinfoundation/are-scanner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      bundleSha256,
+      bundleBytes: bundle.length,
+      clientNonce: "nonce-123456789",
+    })).rejects.toMatchObject({ details: { code: "workflow_sha_mismatch" } });
+  });
+
   it("creates exactly one attachment when two consumers race the same issued session", async () => {
     const { company, session } = await seedSession();
     const svc = releaseEvidenceIngressService(db, { now: () => now });
@@ -126,7 +244,7 @@ describeEmbeddedPostgres("releaseEvidenceIngressService", () => {
       byteSize: bundle.length,
       sha256: bundleSha256,
       originalFilename: "bundle.tgz",
-    };
+    } as const;
 
     const results = await Promise.all([
       svc.consumeUpload(session.id, stored, { contentType: "application/gzip", originalFilename: "bundle.tgz" }),

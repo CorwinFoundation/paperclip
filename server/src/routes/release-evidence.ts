@@ -41,6 +41,25 @@ const exchangeSchema = z.object({
   clientNonce: z.string().trim().min(12).max(200),
 }).strict();
 
+const provisionGrantSchema = z.object({
+  companyId: z.string().uuid(),
+  repository: z.string().trim().min(1).max(240),
+  repositoryId: z.string().trim().min(1).max(80).optional(),
+  workflowRef: z.string().trim().min(1).max(500),
+  workflowSha: z.string().trim().regex(/^[a-f0-9]{40,64}$/i),
+  jobWorkflowRef: z.string().trim().min(1).max(500).optional(),
+  jobWorkflowSha: z.string().trim().regex(/^[a-f0-9]{40,64}$/i).optional(),
+  triggerRef: z.string().trim().min(1).max(300),
+  issueId: z.string().uuid(),
+  sourceSha: z.string().trim().regex(/^[a-f0-9]{40,64}$/i),
+  sequence: z.number().int().positive(),
+  environment: z.string().trim().min(1).max(120),
+  maxUploadBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES_FALLBACK),
+  allowedEventName: z.string().trim().min(1).max(80).optional(),
+  expiresAt: z.string().datetime(),
+  dryRun: z.boolean().optional(),
+}).strict();
+
 export type ReleaseEvidenceOidcVerifier = (token: string, now: Date) => Promise<ReleaseEvidenceOidcClaims>;
 
 function base64urlJson(value: string) {
@@ -110,7 +129,13 @@ export async function verifyGithubOidcToken(token: string, now: Date): Promise<R
     repository: asRequiredString(payload, "repository"),
     repository_id: asRequiredString(payload, "repository_id"),
     workflow_ref: asRequiredString(payload, "workflow_ref"),
-    job_workflow_ref: asRequiredString(payload, "job_workflow_ref"),
+    workflow_sha: asRequiredString(payload, "workflow_sha"),
+    job_workflow_ref: typeof payload.job_workflow_ref === "string" && payload.job_workflow_ref.trim()
+      ? payload.job_workflow_ref
+      : undefined,
+    job_workflow_sha: typeof payload.job_workflow_sha === "string" && payload.job_workflow_sha.trim()
+      ? payload.job_workflow_sha
+      : undefined,
     sha: asRequiredString(payload, "sha"),
     run_id: asRequiredString(payload, "run_id"),
     run_attempt: asRequiredString(payload, "run_attempt"),
@@ -164,6 +189,17 @@ export function releaseEvidenceRoutes(
   const svc = releaseEvidenceIngressService(db, { now: opts.now });
   const verifyOidc = opts.verifyOidcToken ?? verifyGithubOidcToken;
   const maxUploadBytes = opts.maxUploadBytes ?? MAX_UPLOAD_BYTES_FALLBACK;
+
+  router.post("/release-evidence/v1/grants", validate(provisionGrantSchema), async (req, res) => {
+    if (req.actor.type !== "board") throw unauthorized("release_evidence_grant_admin_required");
+    const body = req.body as z.infer<typeof provisionGrantSchema>;
+    const result = await svc.provisionGrant({
+      ...body,
+      expiresAt: new Date(body.expiresAt),
+      actor: { type: "board", id: req.actor.userId ?? null },
+    });
+    res.status(body.dryRun ? 200 : 201).json(result);
+  });
 
   router.post("/release-evidence/v1/exchange", validate(exchangeSchema), async (req, res) => {
     if (req.actor.type === "agent" || req.actor.type === "board") {
