@@ -1,14 +1,4 @@
-# Per-framework eval venv slice: garak (BEAAA-13331).
-#
-# Installed by scripts/build_eval_framework_venvs.sh into its OWN venv
-# (<ARE_EVAL_VENVS_DIR>/garak-venv), NOT into the harness interpreter — garak
-# pins datasets<2.17, which is mutually exclusive with pyrit's datasets>=3.0.0
-# (see requirements-eval-pyrit.txt). The exact pin below is the same value as
-# the release contract in requirements.txt; bumping it is a rule-change
-# requiring CTO co-sign + a fresh N=5 calibration delta per
-# contracts/scanner-implementation-supervision-v1.md.
-#
-# garak is driven out-of-process (via promptfoo / subprocess) so it never needs
-# to be importable inside the harness venv; this slice exists so an offline
-# calibration / CI box can materialize + version-stamp it in isolation.
+# ADR-0056 isolated worker pin. Do not combine with other eval frameworks.
 garak==0.10.0
+# Avoid unbounded resolver backtracking across rapidly moving LiteLLM releases.
+litellm==1.41.21
