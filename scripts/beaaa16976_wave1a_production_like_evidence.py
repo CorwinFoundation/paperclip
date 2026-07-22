@@ -72,6 +72,8 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
             "target_id": target.target_id,
             "authorization_ref": target.authorization_ref,
             "authorization_signature": target.authorization_signature,
+            "authorization_issued_at": target.authorization_issued_at,
+            "authorization_expires_at": target.authorization_expires_at,
             "tenant_boundary": target.tenant_boundary,
             "session_boundary": target.session_boundary,
             "declared_tool_inventory": list(target.declared_tool_inventory),
@@ -127,42 +129,40 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
             **{**target.__dict__, "authorization_signature": ""}
         ),
         "invalid_authorization_signature": wave.TargetAuthorization(
-            **{**target.__dict__, "authorization_signature": "sha256:invalid"}
-        ),
-        "missing_tool_inventory": wave.TargetAuthorization(
             **{
-                **wave.with_authorization_signature(
-                    wave.TargetAuthorization(**{**target.__dict__, "declared_tool_inventory": ()})
-                ).__dict__
+                **target.__dict__,
+                "authorization_signature": f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:invalid",
             }
         ),
-        "family_scope_conflict": wave.TargetAuthorization(
+        "unknown_authorization_signer": wave.TargetAuthorization(
             **{
-                **wave.with_authorization_signature(
-                    wave.TargetAuthorization(
-                        **{**target.__dict__, "allowed_family_ids": ("cross_session_data_leak",)}
-                    )
-                ).__dict__
+                **target.__dict__,
+                "authorization_signature": (
+                    "ed25519:attacker-key:"
+                    + target.authorization_signature.split(":", 2)[2]
+                ),
             }
         ),
-        "corpus_hash_mismatch": wave.TargetAuthorization(
+        "stale_authorization_signature": wave.TargetAuthorization(
+            **{**target.__dict__, "authorization_expires_at": "2026-07-21T23:59:59Z"}
+        ),
+        "post_signature_scope_tampering": wave.TargetAuthorization(
+            **{**target.__dict__, "use_case_scope": "attacker-expanded-scope"}
+        ),
+        "post_signature_tool_inventory_tampering": wave.TargetAuthorization(
+            **{**target.__dict__, "declared_tool_inventory": ()}
+        ),
+        "post_signature_family_scope_tampering": wave.TargetAuthorization(
+            **{**target.__dict__, "allowed_family_ids": ("cross_session_data_leak",)}
+        ),
+        "post_signature_corpus_hash_tampering": wave.TargetAuthorization(
             **{
-                **wave.with_authorization_signature(
-                    wave.TargetAuthorization(
-                        **{
-                            **target.__dict__,
-                            "corpus_sha256": {**target.corpus_sha256, "cross_session_data_leak": "bad"},
-                        }
-                    )
-                ).__dict__,
+                **target.__dict__,
+                "corpus_sha256": {**target.corpus_sha256, "cross_session_data_leak": "bad"},
             }
         ),
-        "mutable_evidence": wave.TargetAuthorization(
-            **{
-                **wave.with_authorization_signature(
-                    wave.TargetAuthorization(**{**target.__dict__, "evidence_immutable": False})
-                ).__dict__
-            }
+        "post_signature_evidence_immutability_tampering": wave.TargetAuthorization(
+            **{**target.__dict__, "evidence_immutable": False}
         ),
     }
     outputs = {

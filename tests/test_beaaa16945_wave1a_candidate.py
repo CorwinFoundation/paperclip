@@ -1,11 +1,30 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import replace
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from evals.aiuc_path_b import base
 from evals.aiuc_path_b import consequential_action_confirmation as cac
 from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import wave1a_candidate as wave
+
+TEST_AUTHORITY_PRIVATE_KEY_HEX = (
+    "9f4b38d6cbec99f6a531a5f1031bf193d0d4a83ca299f4dd8c1e4d770730ab21"
+)
+
+
+def _fixture_sign(target: wave.TargetAuthorization) -> wave.TargetAuthorization:
+    signer = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(TEST_AUTHORITY_PRIVATE_KEY_HEX))
+    signature = signer.sign(
+        wave._canonical(wave._authorization_signature_preimage(target)).encode("utf-8")
+    )
+    signature_b64url = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+    return replace(
+        target,
+        authorization_signature=f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:{signature_b64url}",
+    )
 
 
 def test_wave1a_candidate_counts_and_reported_not_scored_packet() -> None:
@@ -92,10 +111,56 @@ def test_wave1a_fail_closed_missing_authorization_signature() -> None:
 
 
 def test_wave1a_fail_closed_invalid_authorization_signature() -> None:
-    target = replace(wave.reference_authorization(), authorization_signature="sha256:invalid")
+    target = replace(
+        wave.reference_authorization(),
+        authorization_signature=f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:invalid",
+    )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "authorization_signature_invalid"
+
+
+def test_wave1a_fail_closed_unknown_authorization_signer() -> None:
+    signature = wave.reference_authorization().authorization_signature.split(":", 2)[2]
+    target = replace(
+        wave.reference_authorization(),
+        authorization_signature=f"ed25519:attacker-key:{signature}",
+    )
+    packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signer_unknown"
+
+
+def test_wave1a_fail_closed_stale_authorization_signature() -> None:
+    stale = replace(
+        wave.reference_authorization(),
+        authorization_signature="",
+        authorization_expires_at="2026-07-21T23:59:59Z",
+    )
+    packet = wave.build_candidate_packet(target=_fixture_sign(stale), commit_sha="candidate")
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signature_stale"
+
+
+def test_wave1a_fail_closed_post_signature_scope_tampering() -> None:
+    signed = _fixture_sign(
+        replace(
+            wave.reference_authorization(),
+            authorization_signature="",
+            use_case_scope="approved bounded scope",
+        )
+    )
+    tampered = replace(signed, use_case_scope="attacker-expanded-scope")
+
+    packet = wave.build_candidate_packet(target=tampered, commit_sha="candidate")
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signature_invalid"
+
+
+def test_wave1a_fixture_authorized_signature_succeeds() -> None:
+    target = _fixture_sign(replace(wave.reference_authorization(), authorization_signature=""))
+    packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
+    assert packet["fail_closed"] is False
 
 
 def test_wave1a_tampered_signed_manifest_fails_closed() -> None:
@@ -124,8 +189,8 @@ def test_wave1a_scoring_active_runtime_contract_separates_substrate_runs() -> No
 
 
 def test_wave1a_fail_closed_missing_tool_inventory() -> None:
-    target = wave.with_authorization_signature(
-        replace(wave.reference_authorization(), declared_tool_inventory=())
+    target = _fixture_sign(
+        replace(wave.reference_authorization(), authorization_signature="", declared_tool_inventory=())
     )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
@@ -133,8 +198,12 @@ def test_wave1a_fail_closed_missing_tool_inventory() -> None:
 
 
 def test_wave1a_fail_closed_scope_conflict() -> None:
-    target = wave.with_authorization_signature(
-        replace(wave.reference_authorization(), allowed_family_ids=("cross_session_data_leak",))
+    target = _fixture_sign(
+        replace(
+            wave.reference_authorization(),
+            authorization_signature="",
+            allowed_family_ids=("cross_session_data_leak",),
+        )
     )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
@@ -143,8 +212,12 @@ def test_wave1a_fail_closed_scope_conflict() -> None:
 
 def test_wave1a_fail_closed_hash_mismatch() -> None:
     target = wave.reference_authorization()
-    bad = wave.with_authorization_signature(
-        replace(target, corpus_sha256={**target.corpus_sha256, "cross_session_data_leak": "bad"})
+    bad = _fixture_sign(
+        replace(
+            target,
+            authorization_signature="",
+            corpus_sha256={**target.corpus_sha256, "cross_session_data_leak": "bad"},
+        )
     )
     packet = wave.build_candidate_packet(target=bad, commit_sha="candidate")
     assert packet["fail_closed"] is True
@@ -152,8 +225,8 @@ def test_wave1a_fail_closed_hash_mismatch() -> None:
 
 
 def test_wave1a_fail_closed_mutable_evidence() -> None:
-    target = wave.with_authorization_signature(
-        replace(wave.reference_authorization(), evidence_immutable=False)
+    target = _fixture_sign(
+        replace(wave.reference_authorization(), authorization_signature="", evidence_immutable=False)
     )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True

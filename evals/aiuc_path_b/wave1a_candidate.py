@@ -11,8 +11,12 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from evals.aiuc_path_b import base
 from evals.aiuc_path_b import consequential_action_confirmation as cac
@@ -28,8 +32,17 @@ UNDERWRITING_ACTIVE_STATE = "underwriting_active"
 UNDERWRITING_COSIGN_REF = "BEAAA-16971"
 WAVE1A_FAMILIES = (csdl.SPEC.name, cac.SPEC.name)
 DEFAULT_MODEL_VERSIONS: tuple[str, ...] = ()
-AUTHORIZATION_SIGNATURE_ALGORITHM = "sha256-wave1a-authorization-v0.1"
+AUTHORIZATION_SIGNATURE_ALGORITHM = "ed25519-wave1a-authorization-v0.2"
+AUTHORIZED_SIGNER_KEY_ID = "wave1a-test-authority-2026-07"
+AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "H5bDXvFTj9JPm92qZPVRHrOW6UMAQxd7wDFdw1rL2KM"
+REFERENCE_AUTHORIZATION_SIGNATURE = (
+    "ed25519:wave1a-test-authority-2026-07:"
+    "2DQ5B2Q1OOoeQ46sttZLpJChaobxuljVJYlfunhcUW_a8SBSE-n6BPBE1nQG1Umg_3DK6X9K_EY_RxfiqmzjDA"
+)
+REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-22T00:00:00Z"
+REFERENCE_AUTHORIZATION_EXPIRES_AT = "2026-12-31T23:59:59Z"
 SCORING_ACTIVE_RUNTIME_CONTRACT = "scoring_active_underwriting_eligibility_zero_weight"
+AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 22, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -37,6 +50,8 @@ class TargetAuthorization:
     target_id: str
     authorization_ref: str
     authorization_signature: str
+    authorization_issued_at: str
+    authorization_expires_at: str
     tenant_boundary: str
     session_boundary: str
     declared_tool_inventory: tuple[str, ...]
@@ -58,6 +73,19 @@ def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _b64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    import base64
+
+    return base64.urlsafe_b64decode(value + padding)
+
+
+def _parse_timestamp(value: str) -> datetime:
+    if not value.endswith("Z"):
+        raise ValueError("timestamp_must_be_utc_z")
+    return datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
+
+
 def _signature_preimage(manifest: dict[str, Any]) -> dict[str, Any]:
     preimage = dict(manifest)
     preimage.pop("candidate_commit_sha", None)
@@ -68,8 +96,11 @@ def _signature_preimage(manifest: dict[str, Any]) -> dict[str, Any]:
 def _authorization_signature_preimage(target: TargetAuthorization) -> dict[str, Any]:
     return {
         "algorithm": AUTHORIZATION_SIGNATURE_ALGORITHM,
+        "signer_key_id": AUTHORIZED_SIGNER_KEY_ID,
         "target_id": target.target_id,
         "authorization_ref": target.authorization_ref,
+        "authorization_issued_at": target.authorization_issued_at,
+        "authorization_expires_at": target.authorization_expires_at,
         "tenant_boundary": target.tenant_boundary,
         "session_boundary": target.session_boundary,
         "declared_tool_inventory": list(target.declared_tool_inventory),
@@ -81,20 +112,35 @@ def _authorization_signature_preimage(target: TargetAuthorization) -> dict[str, 
     }
 
 
-def authorization_signature_for(target: TargetAuthorization) -> str:
-    preimage = _authorization_signature_preimage(target)
-    digest = hashlib.sha256(_canonical(preimage).encode("utf-8")).hexdigest()
-    return f"sha256:{digest}"
-
-
 def verify_authorization_signature(target: TargetAuthorization) -> bool:
-    return target.authorization_signature == authorization_signature_for(target)
-
-
-def with_authorization_signature(target: TargetAuthorization) -> TargetAuthorization:
-    return TargetAuthorization(
-        **{**target.__dict__, "authorization_signature": authorization_signature_for(target)}
-    )
+    parts = target.authorization_signature.split(":")
+    if len(parts) != 3:
+        raise CandidateValidationError("authorization_signature_invalid")
+    algorithm, key_id, signature_b64url = parts
+    if algorithm != "ed25519":
+        raise CandidateValidationError("authorization_signature_algorithm_unsupported")
+    if key_id != AUTHORIZED_SIGNER_KEY_ID:
+        raise CandidateValidationError("authorization_signer_unknown")
+    try:
+        issued_at = _parse_timestamp(target.authorization_issued_at)
+        expires_at = _parse_timestamp(target.authorization_expires_at)
+    except ValueError as exc:
+        raise CandidateValidationError("authorization_timestamp_invalid") from exc
+    if issued_at > AUTHORIZATION_VERIFY_AT:
+        raise CandidateValidationError("authorization_not_yet_valid")
+    if expires_at <= AUTHORIZATION_VERIFY_AT:
+        raise CandidateValidationError("authorization_signature_stale")
+    try:
+        public_key = Ed25519PublicKey.from_public_bytes(
+            _b64url_decode(AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL)
+        )
+        public_key.verify(
+            _b64url_decode(signature_b64url),
+            _canonical(_authorization_signature_preimage(target)).encode("utf-8"),
+        )
+    except (InvalidSignature, ValueError) as exc:
+        raise CandidateValidationError("authorization_signature_invalid") from exc
+    return True
 
 
 def _sha256_file(path: Path) -> str:
@@ -121,7 +167,9 @@ def reference_authorization() -> TargetAuthorization:
     unsigned = TargetAuthorization(
         target_id="authorized-wave1a-reference-target",
         authorization_ref="BEAAA-16945#authorized-reference-target",
-        authorization_signature="",
+        authorization_signature=REFERENCE_AUTHORIZATION_SIGNATURE,
+        authorization_issued_at=REFERENCE_AUTHORIZATION_ISSUED_AT,
+        authorization_expires_at=REFERENCE_AUTHORIZATION_EXPIRES_AT,
         tenant_boundary="tenant_id and sibling_tenant_marker isolated per session",
         session_boundary="fresh session_id per case; no retained prior-session data may be disclosed",
         declared_tool_inventory=(
@@ -136,7 +184,7 @@ def reference_authorization() -> TargetAuthorization:
         corpus_sha256=pins["corpus_sha256"],
         config_sha256=pins["config_sha256"],
     )
-    return with_authorization_signature(unsigned)
+    return unsigned
 
 
 def _fail_closed(code: str, target: TargetAuthorization | None) -> dict[str, Any]:
@@ -155,6 +203,8 @@ def _validate_authorization(target: TargetAuthorization) -> None:
         "target_id": target.target_id,
         "authorization_ref": target.authorization_ref,
         "authorization_signature": target.authorization_signature,
+        "authorization_issued_at": target.authorization_issued_at,
+        "authorization_expires_at": target.authorization_expires_at,
         "tenant_boundary": target.tenant_boundary,
         "session_boundary": target.session_boundary,
         "use_case_scope": target.use_case_scope,
@@ -162,8 +212,7 @@ def _validate_authorization(target: TargetAuthorization) -> None:
     missing = [name for name, value in required.items() if not value]
     if missing:
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
-    if not verify_authorization_signature(target):
-        raise CandidateValidationError("authorization_signature_invalid")
+    verify_authorization_signature(target)
     if not target.declared_tool_inventory:
         raise CandidateValidationError("declared_tool_inventory_missing")
     if set(target.allowed_family_ids) != set(WAVE1A_FAMILIES):
@@ -272,6 +321,8 @@ def build_candidate_packet(
             "target_id": target.target_id,
             "authorization_ref": target.authorization_ref,
             "authorization_signature": target.authorization_signature,
+            "authorization_issued_at": target.authorization_issued_at,
+            "authorization_expires_at": target.authorization_expires_at,
             "tenant_boundary": target.tenant_boundary,
             "session_boundary": target.session_boundary,
             "declared_tool_inventory": list(target.declared_tool_inventory),
