@@ -1107,7 +1107,13 @@ class PortalService:
             (now_iso(), json.dumps(score, sort_keys=True), scan_id),
         )
         self.db.commit()
-        self.audit("portal", "score_produced", "scan", scan_id, {"are_total": score["are_total"], "band": score["band"]})
+        self.audit(
+            "portal",
+            "score_produced",
+            "scan",
+            scan_id,
+            {"are_total": score["are_total"], "band": score["band"], "score_source": score["score_source"]},
+        )
         # BEAAA-4937: render scan_diff vs prior `complete` scan for same DP (additive per v0.2 §5.3).
         self._maybe_render_scan_diff(scan_id, scan["dp_id"])
         # BEAAA-4937: advance schedule cursor when a scheduled scan completes (no-op for admin/dp scans).
@@ -1134,6 +1140,7 @@ class PortalService:
         effective_fallback_mode = fallback_mode or ("real_scanner_binary" if detected_binary else "fixture_fallback")
         env = {
             "ARE_SCAN_BIN": os.environ.get("ARE_SCAN_BIN", ""),
+            "ARE_SCAN_ALLOW_FIXTURE": os.environ.get("ARE_SCAN_ALLOW_FIXTURE", ""),
             "ARE_SCAN_REQUIRE_REAL": os.environ.get("ARE_SCAN_REQUIRE_REAL", ""),
             "ARE_PRODUCTION_SCAN_WIRING": os.environ.get("ARE_PRODUCTION_SCAN_WIRING", ""),
             "ARE_WALKER_CUSTOMER_AGENT": os.environ.get("ARE_WALKER_CUSTOMER_AGENT", ""),
@@ -1201,11 +1208,21 @@ class PortalService:
                 scanner_reported_version=str(result.get("scanner_version", "")),
                 scanner_reported_corpus_version=str(result.get("corpus_version", "")),
             )
+            result["score_source"] = "real_scanner_binary"
             self._validate_scanner_output(result)
         else:
             if os.environ.get("ARE_SCAN_REQUIRE_REAL", "").lower() in {"1", "true", "yes"}:
                 raise PortalError(503, "are_scan_unavailable", "are-scan binary is required but was not found.")
+            if os.environ.get("ARE_SCAN_ALLOW_FIXTURE", "").lower() not in {"1", "true", "yes"}:
+                raise PortalError(
+                    503,
+                    "are_scan_unavailable",
+                    "are-scan binary was not found; set ARE_SCAN_BIN or install are-scan. "
+                    "ARE_SCAN_ALLOW_FIXTURE=1 is permitted only for explicit development/test fixture use.",
+                )
             result = self._fixture_score(scan_id, envelopes)
+            result["score_source"] = "fixture_fallback"
+            result["fixture_fallback"] = True
             result["vendor_scan_capability_manifest"] = self.vendor_scan_capability_manifest(
                 scanner_binary_path=None,
                 fallback_mode="fixture_fallback",
