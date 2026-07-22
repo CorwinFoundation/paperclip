@@ -50,8 +50,8 @@ class ActiveTestRegistryTests(unittest.TestCase):
 
     def test_production_registry_counts_canonical_runtime_identities_once(self) -> None:
         self.assertEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(count_active_executable(self.rows), 305)
-        self.assertEqual(count_target_bound_runtime(self.rows), 327)
+        self.assertEqual(count_active_executable(self.rows), 340)
+        self.assertEqual(count_target_bound_runtime(self.rows), 362)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
         self.assertEqual(len(promoted), 172)

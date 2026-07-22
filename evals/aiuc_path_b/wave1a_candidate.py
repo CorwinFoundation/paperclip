@@ -23,6 +23,9 @@ BASELINE_COMMIT = "5c084879167956be6e31e507b1b94509ab586596"
 CONTRACT = "are-scanner-api-v1@v1.0"
 PROMOTION_STATE = "reported_not_scored"
 UNDERWRITING_STATE = "not_underwriting_active"
+SCORING_ACTIVE_PROMOTION_STATE = "scoring_active"
+UNDERWRITING_ACTIVE_STATE = "underwriting_active"
+UNDERWRITING_COSIGN_REF = "BEAAA-16971"
 WAVE1A_FAMILIES = (csdl.SPEC.name, cac.SPEC.name)
 DEFAULT_MODEL_VERSIONS: tuple[str, ...] = ()
 
@@ -262,3 +265,74 @@ def build_candidate_packet(
         "signature": f"sha256:{manifest_hash}",
     }
     return unsigned_manifest
+
+
+def build_scoring_active_packet(*, commit_sha: str) -> dict[str, Any]:
+    """Return the BEAAA-16972 activation packet for the exact Wave 1A tranche.
+
+    This is a registry-state activation over the immutable BEAAA-16945 evidence:
+    the families become scoring-active / underwriting-active eligibility gates
+    with zero BackBond Score, pillar, band, or pricing movement. It intentionally
+    does not import or edit rubric scoring math.
+    """
+
+    packet = build_candidate_packet(target=reference_authorization(), commit_sha=commit_sha)
+    if packet.get("fail_closed"):
+        return packet
+    counts = dict(packet["counts"])
+    counts["underwriting_active_count"] = counts["unique_scenario_count"]
+    counts["underwriting_active_count_by_family"] = dict(counts["unique_scenario_count_by_family"])
+    activated = {
+        **packet,
+        "ticket_ref": "BEAAA-16972",
+        "source_candidate_ref": "BEAAA-16945",
+        "underwriting_cosign_ref": UNDERWRITING_COSIGN_REF,
+        "promotion_state": SCORING_ACTIVE_PROMOTION_STATE,
+        "underwriting_state": UNDERWRITING_ACTIVE_STATE,
+        "counts": counts,
+        "score_impact": {
+            "are_total_delta": 0,
+            "pillar_deltas": {
+                "GOVERNANCE": 0,
+                "ROBUSTNESS": 0,
+                "BIAS_FAIRNESS": 0,
+                "OPS": 0,
+            },
+            "band_delta": 0,
+            "pricing_delta": 0,
+        },
+        "false_positive_budget": {
+            "known_false_positives_at_activation": 0,
+            "first_month_disputed_fp_tolerance_per_100_applicable_executions": 1,
+            "canary_regression_tolerance": 0,
+        },
+        "peril_mapping": {
+            csdl.SPEC.name: [
+                "data_leakage",
+                "privacy_exposure",
+                "tenant_session_boundary_failure",
+            ],
+            cac.SPEC.name: [
+                "unauthorized_consequential_action",
+                "authority_control_failure",
+                "agentic_action_error",
+            ],
+        },
+        "rollback": {
+            "procedure": (
+                "Restore both family mappings to reporting_status:reported_not_scored, "
+                "scoring:reported_not_scored, binding.scoring_active:false, and "
+                "binding.underwriting_active:false; active counts return to the prior "
+                "reported-not-scored state without touching other registry rows."
+            ),
+            "tested_by": "tests/test_beaaa16972_wave1a_scored_activation.py",
+        },
+    }
+    manifest_hash = hashlib.sha256(_canonical(_signature_preimage(activated)).encode("utf-8")).hexdigest()
+    activated["signed_manifest"] = {
+        "algorithm": "sha256-canonical-json-self-signature",
+        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
+        "sha256": manifest_hash,
+        "signature": f"sha256:{manifest_hash}",
+    }
+    return activated

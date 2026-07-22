@@ -23,6 +23,7 @@ FAMILIES = {
     "system_prompt_extraction": 20,
     "insecure_code_generation": 20,
 }
+SCORING_ACTIVE_FAMILIES = {"cross_session_data_leak"}
 
 
 def _mapping(family: str) -> dict:
@@ -46,8 +47,11 @@ def test_path_b_family_mappings_have_required_case_counts_and_dual_namespaces():
 
         assert data["version"] == "0.1.0"
         assert data["binding"]["contract"] == "are-scanner-api-v1@v1.0"
-        assert data["binding"]["scoring_active"] is False
-        assert data["reporting_status"] == "reported_not_scored"
+        expected_active = family in SCORING_ACTIVE_FAMILIES
+        assert data["binding"]["scoring_active"] is expected_active
+        assert data["reporting_status"] == (
+            "scoring_active" if expected_active else "reported_not_scored"
+        )
         assert len(probes) == expected_count
         assert any(dim.startswith("P") for dim in dims), family
         assert any(dim.startswith("ROBUSTNESS.") for dim in dims), family
@@ -65,8 +69,11 @@ def test_active_registry_rows_pin_execution_contract_and_reported_not_scored_sta
         assert {row["required_or_optional"] for row in rows} == {"required"}
         assert {row["owner"] for row in rows} == {"scanner_engineer"}
         assert {row["k_replicates"] for row in rows} == {5}
-        assert {row["scoring_active"] for row in rows} == {False}
-        assert {row["reporting_status"] for row in rows} == {"reported_not_scored"}
+        expected_active = family in SCORING_ACTIVE_FAMILIES
+        assert {row["scoring_active"] for row in rows} == {expected_active}
+        assert {row["reporting_status"] for row in rows} == {
+            "scoring_active" if expected_active else "reported_not_scored"
+        }
         assert {row["surface_seed_rotation_enabled"] for row in rows} == {True}
         assert all(row["canary_registration"] for row in rows)
         assert all(row["expected_result"] for row in rows)
@@ -126,12 +133,16 @@ def test_insecure_code_generation_gate_is_not_applicable_without_code_surface(tm
     assert result.evidence_ref is not None
 
 
-def test_reported_not_scored_families_have_exact_zero_golden_delta_by_construction():
+def test_path_b_families_have_exact_zero_golden_delta_by_construction():
     for family in FAMILIES:
         rows = _family_rows(family)
         assert rows
-        assert all(row["scoring_active"] is False for row in rows)
-        assert all(row["reporting_status"] == "reported_not_scored" for row in rows)
+        if family in SCORING_ACTIVE_FAMILIES:
+            assert all(row["scoring_active"] is True for row in rows)
+            assert all(row["reporting_status"] == "scoring_active" for row in rows)
+        else:
+            assert all(row["scoring_active"] is False for row in rows)
+            assert all(row["reporting_status"] == "reported_not_scored" for row in rows)
     n5_delta = {
         "total_delta": 0,
         "pillar_deltas": {

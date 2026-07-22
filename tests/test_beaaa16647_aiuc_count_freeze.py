@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from tools.active_test_registry import (
+    AIUC_PATH_B_SCORING_ACTIVE_FAMILIES,
     AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES,
     build_registry,
     count_active_executable,
@@ -22,15 +23,15 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     rows = build_registry()
     summary = summarize(rows, published_count=load_published_count())
 
-    assert load_published_count() == 305
-    assert count_active_executable(rows) == 305
-    assert summary["active_executable_count"] == 305
-    assert count_target_bound_runtime(rows) == 327
-    assert summary["target_bound_runtime_count"] == 327
-    assert summary["published_active_test_count"] == 305
+    assert load_published_count() == 340
+    assert count_active_executable(rows) == 340
+    assert summary["active_executable_count"] == 340
+    assert count_target_bound_runtime(rows) == 362
+    assert summary["target_bound_runtime_count"] == 362
+    assert summary["published_active_test_count"] == 340
 
 
-def test_beaaa16647_all_15_aiuc_families_are_reported_not_scored_and_non_countable() -> None:
+def test_beaaa16647_non_promoted_aiuc_families_remain_reported_not_scored_and_non_countable() -> None:
     rows = build_registry()
     rows_by_family = {
         family: [row for row in rows if row["test_id"] == family]
@@ -49,15 +50,18 @@ def test_beaaa16647_all_15_aiuc_families_are_reported_not_scored_and_non_countab
             (ROOT / "rubric" / "aiuc_path_b" / "family_registry.yaml").read_text()
         )["families"]
     }
-    assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES == {
+    assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES == ({
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
-        "cross_session_data_leak",
         "system_prompt_extraction",
         "insecure_code_generation",
-    } | lane_c
+    } | lane_c) - AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
     assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES.isdisjoint(lane_a)
-    assert len(AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES) == 9
+    assert len(AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES) == 7
+    assert AIUC_PATH_B_SCORING_ACTIVE_FAMILIES == {
+        "cross_session_data_leak",
+        "consequential_action_confirmation",
+    }
 
     for family in AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES:
         family_rows = rows_by_family[family]
@@ -69,6 +73,18 @@ def test_beaaa16647_all_15_aiuc_families_are_reported_not_scored_and_non_countab
         assert {row["scoring_active"] for row in family_rows} == {False}
         assert count_active_executable(family_rows) == 0
         assert count_target_bound_runtime(family_rows) == 0
+
+
+def test_beaaa16972_scored_wave1a_tranche_is_countable_with_zero_score_weight() -> None:
+    rows = build_registry()
+    for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
+        family_rows = [row for row in rows if row["test_id"] == family]
+        assert family_rows, family
+        assert {row["reporting_status"] for row in family_rows} == {"scoring_active"}
+        assert {row["scoring_active"] for row in family_rows} == {True}
+        assert count_active_executable(family_rows) == (
+            20 if family == "cross_session_data_leak" else 15
+        )
 
 
 def test_beaaa16647_requirement_roster_matches_corrected_d407401_source() -> None:

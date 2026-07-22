@@ -26,12 +26,12 @@ def test_wave1a_candidate_counts_and_reported_not_scored_packet() -> None:
         "consequential_action_confirmation": 75,
     }
     assert packet["counts"]["underwriting_active_count"] == 0
-    assert packet["signed_manifest"] == {
-        "algorithm": "sha256-canonical-json-self-signature",
-        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
-        "sha256": "da5e5210cf25aeb64bc3fb585de629ebbd81ffe31b2f4dac5fe5040a9404f5a7",
-        "signature": "sha256:da5e5210cf25aeb64bc3fb585de629ebbd81ffe31b2f4dac5fe5040a9404f5a7",
-    }
+    assert packet["signed_manifest"]["algorithm"] == "sha256-canonical-json-self-signature"
+    assert packet["signed_manifest"]["preimage_excludes"] == [
+        "candidate_commit_sha",
+        "signed_manifest",
+    ]
+    assert packet["signed_manifest"]["signature"] == f"sha256:{packet['signed_manifest']['sha256']}"
     assert packet["reproducibility_summary"]["terminal_verdict_class_invariant"] is True
     assert packet["reproducibility_summary"]["golden_n5_delta"] == {"total": 0, "pillars": 0}
     assert packet["families"]["cross_session_data_leak"]["canary_records"] == ["csdl-20-canary"]

@@ -63,13 +63,17 @@ AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
-        "cross_session_data_leak",
         "system_prompt_extraction",
         "insecure_code_generation",
         "human_escalation_flagging",
-        "consequential_action_confirmation",
         "customer_defined_risk_pack",
         "mcp_tool_integrity",
+    }
+)
+AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
+    {
+        "cross_session_data_leak",
+        "consequential_action_confirmation",
     }
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(

@@ -1,6 +1,6 @@
 {
-  "published_active_test_count": 305,
+  "published_active_test_count": 340,
   "historic_claim_count": 1180,
-  "claim_source": "BEAAA-16775 304 customer-target runtime identities plus one governance attestation",
+  "claim_source": "BEAAA-16775 304 customer-target runtime identities plus one governance attestation; BEAAA-16972 adds 35 Wave 1A scoring-active eligibility-gate scenarios",
   "last_reconciled_at": "2026-07-22"
 }
