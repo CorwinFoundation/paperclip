@@ -145,6 +145,8 @@ class FullScanJob:
     bind_eligibility: str = "blocked_base_suite_incomplete"
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    wall_clock_budget_seconds: int | None = None
+    rate_limit_per_minute: int | None = None
     # BEAAA-14401 — number of times a restart recovery sweep has re-queued this
     # job after clearing a stale (dead-worker) attempt. Bounded by
     # ``DEFAULT_MAX_RECOVERY_ATTEMPTS`` so an unresumable job reaches a terminal
@@ -209,11 +211,17 @@ class FullScanJobStore:
         registry_cases: Iterable[FullSuiteCase],
         idempotency_key: str | None = None,
         approved_blocker_ref: str | None = None,
+        wall_clock_budget_seconds: int | None = None,
+        rate_limit_per_minute: int | None = None,
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
             if not cases:
                 raise FullScanExecutorError("registry_cases must not be empty")
+            if wall_clock_budget_seconds is not None and wall_clock_budget_seconds <= 0:
+                raise FullScanExecutorError("wall_clock_budget_seconds must be positive")
+            if rate_limit_per_minute is not None and rate_limit_per_minute <= 0:
+                raise FullScanExecutorError("rate_limit_per_minute must be positive")
             if idempotency_key and idempotency_key in self._idempotency_index:
                 return self._jobs[self._idempotency_index[idempotency_key]]
             now = self._clock()
@@ -228,14 +236,20 @@ class FullScanJobStore:
                 approved_blocker_ref=approved_blocker_ref,
                 created_at=now,
                 updated_at=now,
+                wall_clock_budget_seconds=wall_clock_budget_seconds,
+                rate_limit_per_minute=rate_limit_per_minute,
             )
-            self._persist(job)
+            self._jobs[job.job_id] = job
+            if self._persistence is not None:
+                self._persistence.save_accepted_job(
+                    job_id=job.job_id,
+                    status=job.status,
+                    updated_at=_iso(job.updated_at) if job.updated_at else None,
+                    record=_job_to_record(job),
+                    idempotency_key=idempotency_key,
+                )
             if idempotency_key:
                 self._idempotency_index[idempotency_key] = job.job_id
-                if self._persistence is not None:
-                    self._persistence.save_idempotency(
-                        idempotency_key=idempotency_key, job_id=job.job_id
-                    )
             return job
 
     def status(self, job_id: str) -> FullScanJob:
@@ -274,6 +288,43 @@ class FullScanJobStore:
                 "attempt_id": attempt_id,
                 "lease_expires_at": _iso(lease_expires_at),
             }
+
+    def queued_job_ids(self) -> list[str]:
+        """Return resumable, non-terminal job ids in deterministic FIFO order."""
+        with self._lock:
+            now = self._clock()
+            candidates = [
+                job
+                for job in self._jobs.values()
+                if job.status not in TERMINAL_JOB_STATUSES
+                and (
+                    job.active_attempt_id is None
+                    or job.lease_expires_at is None
+                    or job.lease_expires_at <= now
+                )
+            ]
+            return [
+                job.job_id
+                for job in sorted(
+                    candidates,
+                    key=lambda job: (
+                        job.created_at or datetime.min.replace(tzinfo=timezone.utc),
+                        job.job_id,
+                    ),
+                )
+            ]
+
+    def lease_next(self, *, ttl_seconds: int = 300) -> dict[str, Any] | None:
+        """Lease the next resumable queued job, or ``None`` if no job is ready."""
+        with self._lock:
+            for job_id in self.queued_job_ids():
+                try:
+                    lease = self.lease(job_id, ttl_seconds=ttl_seconds)
+                except FullScanExecutorError:
+                    continue
+                if lease.get("leased") is True:
+                    return lease
+            return None
 
     def checkpoint(
         self,
@@ -525,6 +576,10 @@ def build_attempt_manifest(
         "incomplete": bool(incomplete_reasons),
         "incomplete_reasons": incomplete_reasons,
         "approved_blocker_ref": job.approved_blocker_ref,
+        "execution_budget": {
+            "wall_clock_budget_seconds": job.wall_clock_budget_seconds,
+            "rate_limit_per_minute": job.rate_limit_per_minute,
+        },
         "bind_eligibility": _bind_eligibility_from_missing(
             incomplete_reasons,
             approved_blocker_ref=job.approved_blocker_ref,
@@ -1007,6 +1062,8 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "bind_eligibility": job.bind_eligibility,
         "created_at": _iso(job.created_at) if job.created_at else None,
         "updated_at": _iso(job.updated_at) if job.updated_at else None,
+        "wall_clock_budget_seconds": job.wall_clock_budget_seconds,
+        "rate_limit_per_minute": job.rate_limit_per_minute,
         "recovery_count": job.recovery_count,
     }
 
@@ -1043,5 +1100,7 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         ),
         created_at=_parse_iso(record.get("created_at")),
         updated_at=_parse_iso(record.get("updated_at")),
+        wall_clock_budget_seconds=record.get("wall_clock_budget_seconds"),
+        rate_limit_per_minute=record.get("rate_limit_per_minute"),
         recovery_count=record.get("recovery_count", 0),
     )
