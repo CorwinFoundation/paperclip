@@ -143,7 +143,7 @@ def test_envelope_ingest_scores_reports_and_audit_chain(service):
     assert trigger_manifest["scanner_version"] == portal.SCANNER_VERSION
     assert trigger_manifest["corpus_version"] == portal.CORPUS_VERSION
     assert trigger_manifest["fixture_fallback_mode"] in {"fixture_fallback", "real_scanner_binary"}
-    assert {"ARE_SCAN_BIN", "ARE_SCAN_REQUIRE_REAL", "ARE_PRODUCTION_SCAN_WIRING", "ARE_WALKER_CUSTOMER_AGENT", "ARE_SCORER_REAL"} <= set(trigger_manifest["environment"])
+    assert {"ARE_SCAN_BIN", "ARE_SCAN_ALLOW_FIXTURE", "ARE_SCAN_REQUIRE_REAL", "ARE_PRODUCTION_SCAN_WIRING", "ARE_WALKER_CUSTOMER_AGENT", "ARE_SCORER_REAL"} <= set(trigger_manifest["environment"])
     while True:
         status, task = service.next_task(scan["scan_id"], enrollment["connector_id"])
         if status == 204:
@@ -172,6 +172,8 @@ def test_envelope_ingest_scores_reports_and_audit_chain(service):
     row = service.db.execute("SELECT * FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
     assert row["status"] == "complete"
     score = json.loads(row["score_json"])
+    assert score["score_source"] == "fixture_fallback"
+    assert score["fixture_fallback"] is True
     assert score["portal_version"] == portal.PORTAL_VERSION
     assert score["connector_version"] == "0.1.x"
     manifest = score["vendor_scan_capability_manifest"]
@@ -216,6 +218,8 @@ def test_are_scan_binary_path_is_used_and_validated(service, tmp_path, monkeypat
     submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
     row = service.db.execute("SELECT * FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
     score = json.loads(row["score_json"])
+    assert score["score_source"] == "real_scanner_binary"
+    assert "fixture_fallback" not in score
     assert score["are_total"] == 72
     assert score["seed"] == "fake-are-scan"
     assert score["portal_version"] == portal.PORTAL_VERSION
@@ -223,6 +227,24 @@ def test_are_scan_binary_path_is_used_and_validated(service, tmp_path, monkeypat
     assert manifest["scanner_binary_path"] == str(fake_are_scan)
     assert manifest["fixture_fallback_mode"] == "real_scanner_binary"
     assert manifest["pin_mismatches"] == []
+
+
+def test_missing_scanner_binary_fails_loudly_without_fixture_opt_in(service, monkeypatch):
+    monkeypatch.delenv("ARE_SCAN_BIN", raising=False)
+    monkeypatch.delenv("ARE_SCAN_ALLOW_FIXTURE", raising=False)
+    monkeypatch.delenv("ARE_SCAN_REQUIRE_REAL", raising=False)
+    monkeypatch.setattr(service, "_scanner_binary", lambda: None)
+    signing_key, dp, enrollment = enroll_ready_dp(service)
+    scan = service.trigger_scan(dp["dp_id"])
+
+    with pytest.raises(PortalError) as err:
+        submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+
+    assert err.value.status == 503
+    assert err.value.code == "are_scan_unavailable"
+    row = service.db.execute("SELECT status, score_json FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
+    assert row["status"] != "complete"
+    assert row["score_json"] is None
 
 
 def test_vendor_scan_manifest_records_real_scanner_binary_pin_mismatch(service, tmp_path, monkeypatch):
