@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# BEAAA-16377 — build/sign/stage on merge; emit (but never run) the box push.
+# BEAAA-16598 — build/sign/stage on merge; emit (but never run) the box push
+# that hands the tar to the systemd-owned on-box helper scanner-deploy.sh.
+#
+# Trust boundary (Founder-selected path-b): the agent/CI side has no SSH key,
+# never opens an SSH connection, and stops after printing a single command. The
+# operator runs that command. The box is egress-sealed and loads the image from
+# the SCP-delivered tar; the on-box helper owns image selection, the env
+# repoint, the systemd restart, bounded readiness, and automatic rollback.
 set -euo pipefail
 
 TARGET="${BACKBOND_DEPLOY_TARGET:-are-deploy@srv1749248}"
-BOX_DEPLOY="${BACKBOND_BOX_DEPLOY:-/usr/local/sbin/box_deploy}"
-LIVE_VERSION_URL="${BACKBOND_LIVE_VERSION_URL:-https://scanner.backbond.ai/version}"
+SCANNER_DEPLOY_BIN="${BACKBOND_SCANNER_DEPLOY_BIN:-/usr/local/sbin/scanner-deploy}"
 REMOTE_DIR="${BACKBOND_REMOTE_STAGING_DIR:-/var/tmp}"
 IMAGE_REPOSITORY="${BACKBOND_IMAGE_REPOSITORY:-ghcr.io/corwinfoundation/are-scanner}"
 STAGE_ROOT="${BACKBOND_DEPLOY_STAGE_ROOT:-artifacts/dev-deploy}"
@@ -13,7 +19,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
 SHA="$(git rev-parse HEAD)"
 BRANCH="$(git branch --show-current)"
-ORIGIN_MASTER="$(git rev-parse origin/master 2>/dev/null || true)"
+# The GHCR ref is provenance only (signed manifest). It is NEVER the live tag:
+# the box selects by revision label and retags to backbond-scanner-live:<sha>.
 REF="${IMAGE_REPOSITORY}:${SHA}"
 STAGE_DIR="${STAGE_ROOT}/${SHA}"
 ARCHIVE="${STAGE_DIR}/backbond-scanner-${SHA}.tar"
@@ -45,19 +52,19 @@ ARCHIVE_SHA="$(sha256sum "${ARCHIVE}" | awk '{print $1}')"
 printf '%s\n' "${IMMUTABLE_REF}" > "${STAGE_DIR}/image-ref.txt"
 printf '%s\n' "${ARCHIVE_SHA}" > "${STAGE_DIR}/archive.sha256"
 
-# This is intentionally data, not execution. The agent/CI side has no SSH key,
+# This is intentionally DATA, not execution. The agent/CI side has no SSH key,
 # never opens an SSH connection, and stops after printing this single command.
+# The emitted command SCPs the tar, then invokes the systemd-owned helper, which
+# selects by revision label, retags, backs up the env, restarts the unit, waits
+# on /openapi.json, and self-heals on failure.
 printf -v Q_ARCHIVE '%q' "${ARCHIVE}"
 printf -v Q_TARGET_ARCHIVE '%q' "${TARGET}:${REMOTE_ARCHIVE}"
 printf -v Q_TARGET '%q' "${TARGET}"
 printf -v Q_REMOTE_ARCHIVE '%q' "${REMOTE_ARCHIVE}"
-printf -v Q_ARCHIVE_SHA '%q' "${ARCHIVE_SHA}"
-printf -v Q_REF '%q' "${REF}"
 printf -v Q_SHA '%q' "${SHA}"
-printf -v Q_BOX_DEPLOY '%q' "${BOX_DEPLOY}"
-printf -v Q_URL '%q' "${LIVE_VERSION_URL}"
+printf -v Q_HELPER '%q' "${SCANNER_DEPLOY_BIN}"
 
-COMMAND="scp ${Q_ARCHIVE} ${Q_TARGET_ARCHIVE} && ssh ${Q_TARGET} 'set -euo pipefail; previous=\$(sudo ${Q_BOX_DEPLOY} current); cleanup() { rm -f ${Q_REMOTE_ARCHIVE}; }; trap cleanup EXIT; sudo ${Q_BOX_DEPLOY} load ${Q_REMOTE_ARCHIVE} ${Q_ARCHIVE_SHA} ${Q_REF} ${Q_SHA} >/dev/null; sudo ${Q_BOX_DEPLOY} activate ${Q_REF}; response=\$(curl -fsS ${Q_URL}) || { [ -z \"\$previous\" ] || sudo ${Q_BOX_DEPLOY} rollback \"\$previous\"; exit 1; }; printf \"%s\" \"\$response\" | grep -F ${Q_SHA} >/dev/null || { [ -z \"\$previous\" ] || sudo ${Q_BOX_DEPLOY} rollback \"\$previous\"; exit 1; }; printf \"%s\\n\" \"\$response\"'"
+COMMAND="scp ${Q_ARCHIVE} ${Q_TARGET_ARCHIVE} && ssh ${Q_TARGET} 'set -euo pipefail; cleanup() { rm -f ${Q_REMOTE_ARCHIVE}; }; trap cleanup EXIT; sudo ${Q_HELPER} ${Q_SHA} ${Q_REMOTE_ARCHIVE}'"
 
 echo "[dev_deploy] staged ${IMMUTABLE_REF} archive_sha256=${ARCHIVE_SHA}"
 echo "[dev_deploy] operator command (agent side stops here; no box credential required):"

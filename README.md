@@ -143,14 +143,17 @@ regression on the golden roster runs at the merge gate per
 `agents/scanner-implementation-supervision-v1.md`; outputs land under
 `tools/calibration-deltas/`.
 
-Production container delivery uses the single signed-candidate, Paperclip
-approval, and on-box deploy-lease flow in
-[`docs/deploy/cd-pipeline.md`](docs/deploy/cd-pipeline.md). Ordinary releases
-dispatch `scanner-edge-image.yml`; the one-shot `backbond-deploy-agent.service`
-performs verification, activation, acceptance, rollback, and receipt posting.
-The reversible systemd-to-container migration is in
-[`first-container-cutover.md`](docs/deploy/first-container-cutover.md), with
-staging proof in [`dry-run-acceptance.md`](docs/deploy/dry-run-acceptance.md).
+Live edge delivery uses the single systemd-owned deploy path in
+[`docs/deploy/scanner-deploy-runbook.md`](docs/deploy/scanner-deploy-runbook.md):
+`scripts/deploy/dev_deploy.sh` builds/signs/stages the image and emits (but never
+runs) one operator command that SCPs the tar and invokes the on-box helper
+`scripts/deploy/scanner-deploy.sh`, which selects the image by revision label,
+retags it locally, repoints `SCANNER_EDGE_IMAGE`, restarts
+`backbond-scanner-live.service`, waits on `/openapi.json`, and self-heals on
+failure. Retired CD-pipeline docs are preserved under
+[`docs/deploy/history/`](docs/deploy/history/). Retired ADR-0057 pre-promotion
+operator-push lane scripts (BEAAA-13362) are preserved under
+[`scripts/deploy/history/`](scripts/deploy/history/).
 
 ## Live scan-to-production proof
 

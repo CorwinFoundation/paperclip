@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# PRE-PROMOTION LEGACY — ADR-0057 operator-mediated push lane (BEAAA-13362).
+# This script remains live until Seq20 promotion completes (BEAAA-16214).
+# For the systemd-owned deploy path introduced in BEAAA-16598, use scanner-deploy.sh.
+#
 # BEAAA-13362 — on-box operator push orchestrator (operator-mediated PUSH,
 # ADR-0057 v2.0 / ADR BEAAA-13360, corrected by BEAAA-13387).
 #

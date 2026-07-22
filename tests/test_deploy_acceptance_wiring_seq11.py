@@ -96,8 +96,10 @@ def test_acceptance_wrapper_passes_complete_release_binding(
 
 
 def test_acceptance_request_uses_private_tmp_and_operator_wires_all_fields() -> None:
+    # acceptance_checks.sh is a live shared utility — active path, not history/.
+    # operator_push.sh is retired — read from history/.
     checks = (ROOT / "scripts" / "deploy" / "acceptance_checks.sh").read_text(encoding="utf-8")
-    operator = (ROOT / "scripts" / "deploy" / "operator_push.sh").read_text(encoding="utf-8")
+    operator = (ROOT / "scripts" / "deploy" / "history" / "operator_push.sh").read_text(encoding="utf-8")
 
     assert 'REQUEST_DIR="${TMPDIR:-/tmp}"' in checks
     assert "CREDENTIALS_DIRECTORY:-" not in checks
