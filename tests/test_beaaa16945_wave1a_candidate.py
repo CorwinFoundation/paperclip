@@ -26,13 +26,33 @@ def test_wave1a_candidate_counts_and_reported_not_scored_packet() -> None:
         "consequential_action_confirmation": 75,
     }
     assert packet["counts"]["underwriting_active_count"] == 0
-    assert packet["signed_manifest"]["signature"].startswith("sha256:")
+    assert packet["signed_manifest"] == {
+        "algorithm": "sha256-canonical-json-self-signature",
+        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
+        "sha256": "da5e5210cf25aeb64bc3fb585de629ebbd81ffe31b2f4dac5fe5040a9404f5a7",
+        "signature": "sha256:da5e5210cf25aeb64bc3fb585de629ebbd81ffe31b2f4dac5fe5040a9404f5a7",
+    }
     assert packet["reproducibility_summary"]["terminal_verdict_class_invariant"] is True
     assert packet["reproducibility_summary"]["golden_n5_delta"] == {"total": 0, "pillars": 0}
     assert packet["families"]["cross_session_data_leak"]["canary_records"] == ["csdl-20-canary"]
     assert packet["families"]["consequential_action_confirmation"]["canary_records"] == [
         "cac-15-canary"
     ]
+
+
+def test_wave1a_signature_is_stable_across_exact_candidate_sha() -> None:
+    first = wave.build_candidate_packet(
+        target=wave.reference_authorization(),
+        commit_sha="cd349cd4b2d205d69492ad94c4088a7f7fb1f000",
+    )
+    replacement = wave.build_candidate_packet(
+        target=wave.reference_authorization(),
+        commit_sha="ffffffffffffffffffffffffffffffffffffffff",
+    )
+
+    assert first["candidate_commit_sha"] == "cd349cd4b2d205d69492ad94c4088a7f7fb1f000"
+    assert replacement["candidate_commit_sha"] == "ffffffffffffffffffffffffffffffffffffffff"
+    assert first["signed_manifest"] == replacement["signed_manifest"]
 
 
 def test_cross_session_family_has_20_cases_and_k5_invariant_pass_verdicts() -> None:

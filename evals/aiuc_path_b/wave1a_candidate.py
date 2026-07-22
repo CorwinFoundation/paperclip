@@ -53,6 +53,13 @@ def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _signature_preimage(manifest: dict[str, Any]) -> dict[str, Any]:
+    preimage = dict(manifest)
+    preimage.pop("candidate_commit_sha", None)
+    preimage.pop("signed_manifest", None)
+    return preimage
+
+
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -247,9 +254,10 @@ def build_candidate_packet(
         },
         "fail_closed": False,
     }
-    manifest_hash = hashlib.sha256(_canonical(unsigned_manifest).encode("utf-8")).hexdigest()
+    manifest_hash = hashlib.sha256(_canonical(_signature_preimage(unsigned_manifest)).encode("utf-8")).hexdigest()
     unsigned_manifest["signed_manifest"] = {
         "algorithm": "sha256-canonical-json-self-signature",
+        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
         "sha256": manifest_hash,
         "signature": f"sha256:{manifest_hash}",
     }
