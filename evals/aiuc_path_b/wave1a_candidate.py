@@ -28,6 +28,8 @@ UNDERWRITING_ACTIVE_STATE = "underwriting_active"
 UNDERWRITING_COSIGN_REF = "BEAAA-16971"
 WAVE1A_FAMILIES = (csdl.SPEC.name, cac.SPEC.name)
 DEFAULT_MODEL_VERSIONS: tuple[str, ...] = ()
+AUTHORIZATION_SIGNATURE_ALGORITHM = "sha256-wave1a-authorization-v0.1"
+SCORING_ACTIVE_RUNTIME_CONTRACT = "scoring_active_underwriting_eligibility_zero_weight"
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,38 @@ def _signature_preimage(manifest: dict[str, Any]) -> dict[str, Any]:
     return preimage
 
 
+def _authorization_signature_preimage(target: TargetAuthorization) -> dict[str, Any]:
+    return {
+        "algorithm": AUTHORIZATION_SIGNATURE_ALGORITHM,
+        "target_id": target.target_id,
+        "authorization_ref": target.authorization_ref,
+        "tenant_boundary": target.tenant_boundary,
+        "session_boundary": target.session_boundary,
+        "declared_tool_inventory": list(target.declared_tool_inventory),
+        "use_case_scope": target.use_case_scope,
+        "allowed_family_ids": list(target.allowed_family_ids),
+        "corpus_sha256": target.corpus_sha256,
+        "config_sha256": target.config_sha256,
+        "evidence_immutable": target.evidence_immutable,
+    }
+
+
+def authorization_signature_for(target: TargetAuthorization) -> str:
+    preimage = _authorization_signature_preimage(target)
+    digest = hashlib.sha256(_canonical(preimage).encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
+def verify_authorization_signature(target: TargetAuthorization) -> bool:
+    return target.authorization_signature == authorization_signature_for(target)
+
+
+def with_authorization_signature(target: TargetAuthorization) -> TargetAuthorization:
+    return TargetAuthorization(
+        **{**target.__dict__, "authorization_signature": authorization_signature_for(target)}
+    )
+
+
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -84,10 +118,10 @@ def expected_wave1a_hashes() -> dict[str, dict[str, str]]:
 
 def reference_authorization() -> TargetAuthorization:
     pins = expected_wave1a_hashes()
-    return TargetAuthorization(
+    unsigned = TargetAuthorization(
         target_id="authorized-wave1a-reference-target",
         authorization_ref="BEAAA-16945#authorized-reference-target",
-        authorization_signature="sha256:beaaa16945-reference-authorization",
+        authorization_signature="",
         tenant_boundary="tenant_id and sibling_tenant_marker isolated per session",
         session_boundary="fresh session_id per case; no retained prior-session data may be disclosed",
         declared_tool_inventory=(
@@ -102,6 +136,7 @@ def reference_authorization() -> TargetAuthorization:
         corpus_sha256=pins["corpus_sha256"],
         config_sha256=pins["config_sha256"],
     )
+    return with_authorization_signature(unsigned)
 
 
 def _fail_closed(code: str, target: TargetAuthorization | None) -> dict[str, Any]:
@@ -127,6 +162,8 @@ def _validate_authorization(target: TargetAuthorization) -> None:
     missing = [name for name, value in required.items() if not value]
     if missing:
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
+    if not verify_authorization_signature(target):
+        raise CandidateValidationError("authorization_signature_invalid")
     if not target.declared_tool_inventory:
         raise CandidateValidationError("declared_tool_inventory_missing")
     if set(target.allowed_family_ids) != set(WAVE1A_FAMILIES):
@@ -265,6 +302,60 @@ def build_candidate_packet(
         "signature": f"sha256:{manifest_hash}",
     }
     return unsigned_manifest
+
+
+def verify_signed_manifest(packet: dict[str, Any]) -> bool:
+    signed_manifest = packet.get("signed_manifest")
+    if not isinstance(signed_manifest, dict):
+        return False
+    if signed_manifest.get("algorithm") != "sha256-canonical-json-self-signature":
+        return False
+    expected_hash = hashlib.sha256(_canonical(_signature_preimage(packet)).encode("utf-8")).hexdigest()
+    return (
+        signed_manifest.get("sha256") == expected_hash
+        and signed_manifest.get("signature") == f"sha256:{expected_hash}"
+    )
+
+
+def fail_closed_for_signed_manifest(packet: dict[str, Any]) -> dict[str, Any]:
+    if verify_signed_manifest(packet):
+        return {
+            "fail_closed": False,
+            "failure_code": None,
+            "verification": "signed_manifest_valid",
+        }
+    return {
+        "promotion_state": PROMOTION_STATE,
+        "underwriting_state": UNDERWRITING_STATE,
+        "underwriting_active_count": 0,
+        "fail_closed": True,
+        "failure_code": "signed_manifest_verification_failed",
+    }
+
+
+def scoring_active_runtime_contract(
+    family: str,
+    raw_runs: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    scored_runs = []
+    for run in raw_runs:
+        scored = {
+            **run,
+            "scored": True,
+            "scoring": "scoring_active",
+            "expected_result_contract": SCORING_ACTIVE_RUNTIME_CONTRACT,
+            "score_weight": 0.0,
+            "score_contribution": 0,
+            "underwriting_state": UNDERWRITING_ACTIVE_STATE,
+            "scoring_boundary": {
+                "source_substrate_scoring": run["scoring"],
+                "activation_layer": "rubric/probe_mappings binding.scoring_active=true",
+                "score_math_changed": False,
+            },
+        }
+        scored["sha256"] = hashlib.sha256(_canonical(scored).encode("utf-8")).hexdigest()
+        scored_runs.append(scored)
+    return scored_runs
 
 
 def build_scoring_active_packet(*, commit_sha: str) -> dict[str, Any]:

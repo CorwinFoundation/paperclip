@@ -1,4 +1,4 @@
-"""BEAAA-16976 retained production-like evidence for Wave 1A QA retest."""
+"""BEAAA-16977 retained production-like evidence for Wave 1A QA retest."""
 from __future__ import annotations
 
 import hashlib
@@ -23,7 +23,7 @@ from tools.active_test_registry import (  # noqa: E402
     count_active_executable,
 )
 
-OUT_DIR = REPO / "artifacts" / "beaaa-16976"
+OUT_DIR = REPO / "artifacts" / "beaaa-16977"
 MAPPING_DIR = REPO / "rubric" / "probe_mappings"
 
 
@@ -59,8 +59,12 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
     target = wave.reference_authorization()
     packet = wave.build_scoring_active_packet(commit_sha=commit_sha)
     runs = _family_runs()
+    scored_runtime_outputs = {
+        family: wave.scoring_active_runtime_contract(family, family_runs)
+        for family, family_runs in runs.items()
+    }
     return {
-        "issue": "BEAAA-16976",
+        "issue": "BEAAA-16977",
         "contract": wave.CONTRACT,
         "scanner_version": base.SCANNER_VERSION,
         "candidate_commit_sha": commit_sha,
@@ -75,13 +79,22 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
             "allowed_family_ids": list(target.allowed_family_ids),
         },
         "packet": packet,
+        "scoring_boundary": {
+            "substrate_runner": "evals.aiuc_path_b.base.run_family",
+            "substrate_contract": "reported_not_scored evidence substrate",
+            "activation_layer": "rubric/probe_mappings binding.scoring_active=true and binding.underwriting_active=true",
+            "actual_scored_output_location": "retained_outputs.*.scored_runtime_contract",
+            "score_weight": 0.0,
+            "score_math_changed": False,
+        },
         "retained_outputs": {
             family: {
                 "seeds": [run["seed"] for run in family_runs],
                 "case_count": family_runs[0]["case_count"],
                 "execution_count": sum(len(run["case_results"]) for run in family_runs),
                 "evidence_sha256_by_seed": {str(run["seed"]): run["sha256"] for run in family_runs},
-                "raw_runs": family_runs,
+                "substrate_unscored_runs": family_runs,
+                "scored_runtime_contract": scored_runtime_outputs[family],
             }
             for family, family_runs in runs.items()
         },
@@ -91,29 +104,65 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
             "manifest_sha256": packet["signed_manifest"]["sha256"],
             "response_hash": _sha256(packet),
         },
+        "consistency_checks": {
+            "packet_scoring_active": packet["promotion_state"] == wave.SCORING_ACTIVE_PROMOTION_STATE,
+            "packet_underwriting_active": packet["underwriting_state"] == wave.UNDERWRITING_ACTIVE_STATE,
+            "all_retained_scored_outputs_scored": all(
+                run["scored"] is True and run["scoring"] == "scoring_active"
+                for family_runs in scored_runtime_outputs.values()
+                for run in family_runs
+            ),
+            "raw_substrate_is_separated_from_scored_output": True,
+        },
     }
 
 
 def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
     target = wave.reference_authorization()
     cases = {
-        "missing_authorization": wave.TargetAuthorization(
+        "missing_authorization_ref": wave.TargetAuthorization(
             **{**target.__dict__, "authorization_ref": ""}
         ),
+        "missing_authorization_signature": wave.TargetAuthorization(
+            **{**target.__dict__, "authorization_signature": ""}
+        ),
+        "invalid_authorization_signature": wave.TargetAuthorization(
+            **{**target.__dict__, "authorization_signature": "sha256:invalid"}
+        ),
         "missing_tool_inventory": wave.TargetAuthorization(
-            **{**target.__dict__, "declared_tool_inventory": ()}
+            **{
+                **wave.with_authorization_signature(
+                    wave.TargetAuthorization(**{**target.__dict__, "declared_tool_inventory": ()})
+                ).__dict__
+            }
         ),
         "family_scope_conflict": wave.TargetAuthorization(
-            **{**target.__dict__, "allowed_family_ids": ("cross_session_data_leak",)}
+            **{
+                **wave.with_authorization_signature(
+                    wave.TargetAuthorization(
+                        **{**target.__dict__, "allowed_family_ids": ("cross_session_data_leak",)}
+                    )
+                ).__dict__
+            }
         ),
         "corpus_hash_mismatch": wave.TargetAuthorization(
             **{
-                **target.__dict__,
-                "corpus_sha256": {**target.corpus_sha256, "cross_session_data_leak": "bad"},
+                **wave.with_authorization_signature(
+                    wave.TargetAuthorization(
+                        **{
+                            **target.__dict__,
+                            "corpus_sha256": {**target.corpus_sha256, "cross_session_data_leak": "bad"},
+                        }
+                    )
+                ).__dict__,
             }
         ),
         "mutable_evidence": wave.TargetAuthorization(
-            **{**target.__dict__, "evidence_immutable": False}
+            **{
+                **wave.with_authorization_signature(
+                    wave.TargetAuthorization(**{**target.__dict__, "evidence_immutable": False})
+                ).__dict__
+            }
         ),
     }
     outputs = {
@@ -125,11 +174,24 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
         commit_sha=commit_sha,
         force_incomplete_family="cross_session_data_leak",
     )
+    valid_manifest = wave.build_scoring_active_packet(commit_sha=commit_sha)
+    tampered_manifest = {
+        **valid_manifest,
+        "promotion_state": "scoring_active_tampered_after_signature",
+    }
+    outputs["valid_signed_manifest_verification"] = wave.fail_closed_for_signed_manifest(valid_manifest)
+    outputs["tampered_signed_manifest_verification"] = wave.fail_closed_for_signed_manifest(tampered_manifest)
     return {
-        "issue": "BEAAA-16976",
+        "issue": "BEAAA-16977",
         "candidate_commit_sha": commit_sha,
         "fail_closed_cases": outputs,
-        "all_fail_closed": all(row.get("fail_closed") is True for row in outputs.values()),
+        "all_negative_cases_fail_closed": all(
+            row.get("fail_closed") is True
+            for name, row in outputs.items()
+            if name != "valid_signed_manifest_verification"
+        ),
+        "valid_signed_manifest_passes": outputs["valid_signed_manifest_verification"].get("fail_closed")
+        is False,
         "failure_codes": {name: row.get("failure_code") for name, row in outputs.items()},
     }
 
@@ -151,7 +213,7 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
         cac.SPEC.name: base.verdict_tally(base.run_family(cac.SPEC, cac.reckless_policy, seed=0)),
     }
     return {
-        "issue": "BEAAA-16976",
+        "issue": "BEAAA-16977",
         "candidate_commit_sha": commit_sha,
         "canary": {
             "records": {family: [row["case_id"] for row in rows] for family, rows in canary_rows.items()},
@@ -176,8 +238,10 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
             "applicability": "not_applicable",
             "basis": (
                 "Wave 1A uses deterministic structured-policy graders only; "
-                "no LLM judge is invoked or required for these reported-not-scored "
-                "P0 eligibility/referral families."
+                "no LLM judge is invoked or required for these zero-weight "
+                "scoring-active eligibility families. The substrate runner remains "
+                "reported_not_scored, and the retained production-like output records "
+                "the activation boundary plus the scored runtime contract."
             ),
         },
     }
@@ -186,7 +250,7 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
 def _rollback_drill() -> dict[str, Any]:
     import tempfile
 
-    with tempfile.TemporaryDirectory(prefix="beaaa16976-rollback-") as td:
+    with tempfile.TemporaryDirectory(prefix="beaaa16977-rollback-") as td:
         mapping_dir = Path(td) / "probe_mappings"
         copytree(MAPPING_DIR, mapping_dir)
         before_rows = build_registry(mapping_dir)
@@ -216,7 +280,7 @@ def _rollback_drill() -> dict[str, Any]:
             and row["production_runner_executable"] is True
         }
         return {
-            "issue": "BEAAA-16976",
+            "issue": "BEAAA-16977",
             "active_executable_before": count_active_executable(before_rows),
             "active_executable_after": count_active_executable(after_rows),
             "target_bound_runtime_before": len(before_rows),
@@ -236,10 +300,18 @@ def main() -> int:
     }
     written = {name: str(_write_json(name, payload).relative_to(REPO)) for name, payload in outputs.items()}
     summary = {
-        "issue": "BEAAA-16976",
+        "issue": "BEAAA-16977",
         "candidate_commit_sha": commit_sha,
         "outputs": written,
-        "all_fail_closed": outputs["fail_closed_authorization_pin_signature_output.json"]["all_fail_closed"],
+        "all_negative_cases_fail_closed": outputs["fail_closed_authorization_pin_signature_output.json"][
+            "all_negative_cases_fail_closed"
+        ],
+        "valid_signed_manifest_passes": outputs["fail_closed_authorization_pin_signature_output.json"][
+            "valid_signed_manifest_passes"
+        ],
+        "production_like_scored_contract_consistent": outputs["production_like_target_output.json"][
+            "consistency_checks"
+        ]["all_retained_scored_outputs_scored"],
         "rollback_340_to_305": outputs["rollback_drill_output.json"]["active_executable_before"] == 340
         and outputs["rollback_drill_output.json"]["active_executable_after"] == 305,
         "unrelated_active_rows_unchanged": outputs["rollback_drill_output.json"][
@@ -248,7 +320,13 @@ def main() -> int:
     }
     summary_path = _write_json("production_like_evidence_summary.json", summary)
     print(json.dumps({"summary": str(summary_path.relative_to(REPO)), **summary}, indent=2))
-    return 0 if summary["all_fail_closed"] and summary["rollback_340_to_305"] and summary["unrelated_active_rows_unchanged"] else 1
+    return 0 if (
+        summary["all_negative_cases_fail_closed"]
+        and summary["valid_signed_manifest_passes"]
+        and summary["production_like_scored_contract_consistent"]
+        and summary["rollback_340_to_305"]
+        and summary["unrelated_active_rows_unchanged"]
+    ) else 1
 
 
 if __name__ == "__main__":

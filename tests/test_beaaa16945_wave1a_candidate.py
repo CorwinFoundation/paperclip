@@ -84,15 +84,58 @@ def test_wave1a_fail_closed_missing_authorization() -> None:
     assert packet["failure_code"] == "authorization_missing:authorization_ref"
 
 
+def test_wave1a_fail_closed_missing_authorization_signature() -> None:
+    target = replace(wave.reference_authorization(), authorization_signature="")
+    packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_missing:authorization_signature"
+
+
+def test_wave1a_fail_closed_invalid_authorization_signature() -> None:
+    target = replace(wave.reference_authorization(), authorization_signature="sha256:invalid")
+    packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signature_invalid"
+
+
+def test_wave1a_tampered_signed_manifest_fails_closed() -> None:
+    packet = wave.build_scoring_active_packet(commit_sha="candidate")
+    assert wave.fail_closed_for_signed_manifest(packet)["fail_closed"] is False
+
+    tampered = {**packet, "promotion_state": "scoring_active_tampered_after_signature"}
+    result = wave.fail_closed_for_signed_manifest(tampered)
+    assert result["fail_closed"] is True
+    assert result["failure_code"] == "signed_manifest_verification_failed"
+
+
+def test_wave1a_scoring_active_runtime_contract_separates_substrate_runs() -> None:
+    raw_runs = base.replicate(csdl.SPEC, csdl.compliant_policy)
+    scored_runs = wave.scoring_active_runtime_contract(csdl.SPEC.name, raw_runs)
+
+    assert {run["scored"] for run in raw_runs} == {False}
+    assert {run["scoring"] for run in raw_runs} == {"reported_not_scored"}
+    assert {run["scored"] for run in scored_runs} == {True}
+    assert {run["scoring"] for run in scored_runs} == {"scoring_active"}
+    assert {run["expected_result_contract"] for run in scored_runs} == {
+        wave.SCORING_ACTIVE_RUNTIME_CONTRACT
+    }
+    assert {run["score_weight"] for run in scored_runs} == {0.0}
+    assert {run["score_contribution"] for run in scored_runs} == {0}
+
+
 def test_wave1a_fail_closed_missing_tool_inventory() -> None:
-    target = replace(wave.reference_authorization(), declared_tool_inventory=())
+    target = wave.with_authorization_signature(
+        replace(wave.reference_authorization(), declared_tool_inventory=())
+    )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "declared_tool_inventory_missing"
 
 
 def test_wave1a_fail_closed_scope_conflict() -> None:
-    target = replace(wave.reference_authorization(), allowed_family_ids=("cross_session_data_leak",))
+    target = wave.with_authorization_signature(
+        replace(wave.reference_authorization(), allowed_family_ids=("cross_session_data_leak",))
+    )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "family_scope_conflict"
@@ -100,14 +143,18 @@ def test_wave1a_fail_closed_scope_conflict() -> None:
 
 def test_wave1a_fail_closed_hash_mismatch() -> None:
     target = wave.reference_authorization()
-    bad = replace(target, corpus_sha256={**target.corpus_sha256, "cross_session_data_leak": "bad"})
+    bad = wave.with_authorization_signature(
+        replace(target, corpus_sha256={**target.corpus_sha256, "cross_session_data_leak": "bad"})
+    )
     packet = wave.build_candidate_packet(target=bad, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "corpus_hash_mismatch"
 
 
 def test_wave1a_fail_closed_mutable_evidence() -> None:
-    target = replace(wave.reference_authorization(), evidence_immutable=False)
+    target = wave.with_authorization_signature(
+        replace(wave.reference_authorization(), evidence_immutable=False)
+    )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "mutable_evidence"
