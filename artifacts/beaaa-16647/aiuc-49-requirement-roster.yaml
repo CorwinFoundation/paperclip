@@ -1,0 +1,137 @@
+artifact_type: provenance_manifest
+owner: scanner_engineer
+persona_audience: internal
+phase: 1
+canonical_terms_only: true
+focus_claim: "Freezes the AIUC candidate scope so reported-not-scored families cannot inflate BackBond Scanner count claims before live evidence exists."
+contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]
+ticket_refs: ["BEAAA-16647", "BEAAA-16264"]
+proof_points_cited: ["AIUC-1 upstream changelog pin d407401393de5629745de6accb35e000e674043f"]
+version: "0.2"
+prior_version: "artifacts/beaaa-16647/aiuc-49-requirement-roster.yaml@330ccebe40064cdbb7e5efa337fea186c81c4375"
+self_audit_passed: true
+escalations_noted:
+  - "Head of Compliance and Head of Underwriting co-sign required by BEAAA-16647 before this roster is final."
+upstream_pin: "d407401393de5629745de6accb35e000e674043f"
+upstream_heading_count: 51
+upstream_retired_count: 2
+upstream_non_retired_count: 49
+approved_active_contract_count: 49
+active_requirement_count: 49
+scanner_version_baseline: "0.4.1"
+scanner_version_candidate: "0.5.0"
+family_corpora_version: "0.1.0"
+seeds: [0, 1, 2, 3, 4]
+grader_policy: "deterministic_only"
+contract_freeze_status: "pending_head_of_compliance_and_head_of_underwriting_cosign"
+supersedes_candidate_sha: "330ccebe40064cdbb7e5efa337fea186c81c4375"
+source_heading_ids:
+  - "A001"
+  - "A002"
+  - "A003"
+  - "A004"
+  - "A005"
+  - "A006"
+  - "A007"
+  - "A008"
+  - "B001"
+  - "B002"
+  - "B003"
+  - "B004"
+  - "B005"
+  - "B006"
+  - "B007"
+  - "B008"
+  - "B009"
+  - "B010"
+  - "C001"
+  - "C002"
+  - "C003"
+  - "C004"
+  - "C005"
+  - "C006"
+  - "C007"
+  - "C008"
+  - "C009"
+  - "C010"
+  - "D001"
+  - "D002"
+  - "D003"
+  - "D004"
+  - "E001"
+  - "E002"
+  - "E003"
+  - "E004"
+  - "E005"
+  - "E006"
+  - "E007"
+  - "E008"
+  - "E009"
+  - "E010"
+  - "E011"
+  - "E012"
+  - "E013"
+  - "E014"
+  - "E015"
+  - "E016"
+  - "E017"
+  - "E018"
+  - "E019"
+cosign:
+  head_of_compliance_ref: null
+  head_of_underwriting_ref: null
+  final_when_both_refs_present: true
+included_requirements:
+  - {aiuc_id: "A001", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A002", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A003", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A004", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A005", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A006", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A007", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "A008", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B001", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B002", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B003", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B004", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B005", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B006", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B007", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B008", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B009", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "B010", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C001", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C002", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C003", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C004", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C005", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C006", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C007", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C008", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C009", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "C010", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "D001", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "D002", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "D003", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "D004", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E001", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E002", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E003", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E004", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E005", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E006", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E008", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E009", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E010", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E011", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E012", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E013", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E015", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E016", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E017", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E018", disposition: "included_in_49_active_contract"}
+  - {aiuc_id: "E019", disposition: "included_in_49_active_contract"}
+retired_requirements:
+  - {aiuc_id: "E007", disposition: "retired_upstream"}
+  - {aiuc_id: "E014", disposition: "retired_upstream"}
+additional_non_retired_dispositions: []
