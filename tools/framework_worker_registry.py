@@ -21,7 +21,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from tools.active_test_registry import REPO_ROOT, build_registry
+from tools.active_test_registry import (
+    REPO_ROOT,
+    _is_countable_active_executable,
+    build_registry,
+)
 
 
 FRAMEWORK_WORKER_MANIFEST_VERSION = "framework-worker-ownership/v0.1"
@@ -340,7 +344,7 @@ def build_worker_manifest(rows: list[dict[str, Any]] | None = None) -> dict[str,
     active_rows = [
         row
         for row in rows
-        if row.get("status") == "active" and row.get("production_runner_executable") is True
+        if _is_countable_active_executable(row)
     ]
     worker_usage = Counter(worker_id_for_registry_row(row) for row in active_rows)
     workers = []

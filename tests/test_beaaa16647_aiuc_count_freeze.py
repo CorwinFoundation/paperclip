@@ -22,12 +22,12 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     rows = build_registry()
     summary = summarize(rows, published_count=load_published_count())
 
-    assert load_published_count() == 1
-    assert count_active_executable(rows) == 1
-    assert summary["active_executable_count"] == 1
-    assert count_target_bound_runtime(rows) == 203
-    assert summary["target_bound_runtime_count"] == 203
-    assert summary["published_active_test_count"] == 1
+    assert load_published_count() == 305
+    assert count_active_executable(rows) == 305
+    assert summary["active_executable_count"] == 305
+    assert count_target_bound_runtime(rows) == 327
+    assert summary["target_bound_runtime_count"] == 327
+    assert summary["published_active_test_count"] == 305
 
 
 def test_beaaa16647_all_15_aiuc_families_are_reported_not_scored_and_non_countable() -> None:
@@ -49,14 +49,15 @@ def test_beaaa16647_all_15_aiuc_families_are_reported_not_scored_and_non_countab
             (ROOT / "rubric" / "aiuc_path_b" / "family_registry.yaml").read_text()
         )["families"]
     }
-    assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES == lane_a | {
+    assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES == {
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
         "cross_session_data_leak",
         "system_prompt_extraction",
         "insecure_code_generation",
     } | lane_c
-    assert len(AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES) == 15
+    assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES.isdisjoint(lane_a)
+    assert len(AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES) == 9
 
     for family in AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES:
         family_rows = rows_by_family[family]

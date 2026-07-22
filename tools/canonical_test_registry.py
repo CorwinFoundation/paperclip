@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from tools import probe_registry
-from tools.active_test_registry import build_registry as build_active_test_registry
+from tools.active_test_registry import (
+    build_registry as build_active_test_registry,
+    count_active_executable as count_active_test_executable,
+)
 
 
 REGISTRY_VERSION = "scanner-test-registry-baseline-2026-07-13/v0.1"
@@ -116,11 +119,7 @@ def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path 
             "appendix_promoted_embedded_case_count": _sum_int_field(rows, "promoted_embedded_case"),
             "appendix_disqualified_embedded_case_count": _sum_int_field(rows, "disqualified_embedded_case_count"),
             "active_test_registry_rows": len(active_test_rows),
-            "active_test_registry_active_executable_count": sum(
-                1
-                for row in active_test_rows
-                if row.get("status") == "active" and row.get("production_runner_executable") is True
-            ),
+            "active_test_registry_active_executable_count": count_active_test_executable(active_test_rows),
             "active_registry_point_count": len(active_registry.get("active_rubric_points", []))
             if isinstance(active_registry, dict)
             else 0,
@@ -253,9 +252,10 @@ def _rows_from_appendix_csv(path: Path, repo: Path) -> list[dict[str, Any]]:
 
 def _active_registry_rows(repo: Path) -> list[dict[str, Any]]:
     active_rows = build_active_test_registry(repo / "rubric" / "probe_mappings")
+    countable_row_ids = _countable_active_rows(active_rows)
     rows: list[dict[str, Any]] = []
     for row in active_rows:
-        is_countable = row.get("status") == "active" and row.get("production_runner_executable") is True
+        is_countable = id(row) in countable_row_ids
         if is_countable:
             disposition = COUNTABLE_DISPOSITION
         elif row.get("status") == "active":
@@ -283,6 +283,16 @@ def _active_registry_rows(repo: Path) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _countable_active_rows(rows: list[dict[str, Any]]) -> set[int]:
+    from tools.active_test_registry import _is_countable_active_executable
+
+    return {
+        id(row)
+        for row in rows
+        if _is_countable_active_executable(row)
+    }
 
 
 def _appendix_rows(index: int, row: Mapping[str, Any], path: Path, repo: Path) -> list[dict[str, Any]]:

@@ -541,10 +541,6 @@ class ScanRuntime:
             if (
                 self._scan_log is not None
                 and self._score_envelope_factory is not None
-                and not (
-                    result.full_suite_manifest is not None
-                    and not result.dim_results
-                )
             ):
                 run_timestamp = self._run_timestamp_factory()
                 forensic_bundle_uri = self._forensic_bundle_uri_factory(
@@ -555,9 +551,13 @@ class ScanRuntime:
                 )
                 # BEAAA-11726 item 4 — compute probe_set_hash from the
                 # dim_ids that ran and persist it write-once with the row.
-                _psh = compute_probe_set_hash(
-                    [d.dim_id for d in result.dim_results]
-                ) if result.dim_results else None
+                _psh = (
+                    compute_probe_set_hash([d.dim_id for d in result.dim_results])
+                    if result.dim_results
+                    else str(result.full_suite_manifest.get("manifest_hash"))
+                    if result.full_suite_manifest is not None
+                    else None
+                )
                 self._scan_log.append_scan(
                     agent_id=agent_id,
                     run_timestamp=run_timestamp,

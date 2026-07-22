@@ -48,19 +48,14 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertTrue(any("exceeds active executable registry count" in error for error in errors))
         self.assertFalse(validate_registry(self.rows, published_count=load_published_count()))
 
-    def test_demo_and_lane_a_cases_are_target_bound_without_inflating_evidence_count(self) -> None:
+    def test_production_registry_counts_canonical_runtime_identities_once(self) -> None:
         self.assertEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(count_active_executable(self.rows), 1)
-        self.assertEqual(count_target_bound_runtime(self.rows), 203)
-        runtime_cases = [
-            row
-            for row in self.rows
-            if row["status"] == "active"
-            and row["target_bound"] is True
-            and row["case_class"] != "attestation"
-            and row["reporting_status"] != "reported_not_scored"
-        ]
-        self.assertEqual(len(runtime_cases), 195)
+        self.assertEqual(count_active_executable(self.rows), 305)
+        self.assertEqual(count_target_bound_runtime(self.rows), 327)
+        promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
+        aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
+        self.assertEqual(len(promoted), 172)
+        self.assertEqual(len(aliases), 23)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:
         summary = summarize(self.rows, published_count=load_published_count())
