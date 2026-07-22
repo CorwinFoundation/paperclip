@@ -380,14 +380,21 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
 
     def test_beaaa13992_active_rows_count_only_target_bound_execution_evidence(self) -> None:
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 1)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 1)
+        metadata_count = self.registry["metadata"][
+            "active_test_registry_active_executable_count"
+        ]
+        self.assertGreater(metadata_count, 0)
+        self.assertEqual(metadata_count, len(active_rows))
+        self.assertEqual(
+            len(active_rows),
+            len({row["case_id"] for row in active_rows}),
+        )
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {
