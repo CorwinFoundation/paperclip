@@ -35,6 +35,18 @@ def test_all_design_partner_surfaces_match_scanner_constants() -> None:
     from tools.portal_v1 import portal
 
     _assert_pin_pair("portal", (portal.SCANNER_VERSION, portal.CORPUS_VERSION))
+    manifest = portal.PortalService.__new__(portal.PortalService).vendor_scan_capability_manifest(
+        scanner_binary_path="",
+        fallback_mode="fixture_fallback",
+    )
+    unavailable_families = {
+        item["family"] for item in manifest["developed_but_unavailable_capability_families"]
+    }
+    assert f"scanner_source_{SCANNER_VERSION.replace('.', '_')}" not in unavailable_families
+    assert all(
+        item["reason_code"] != "portal_pin_holdback"
+        for item in manifest["developed_but_unavailable_capability_families"]
+    )
     for surface, path in SURFACES.items():
         _assert_pin_pair(surface, _pins(path.read_text(encoding="utf-8")))
 

@@ -213,11 +213,6 @@ ROLLUP_BIAS_NOTE = (
 ROLLUP_BLOCK_HEADING = "Peril-aligned underwriting rollup"
 DEVELOPED_BUT_UNAVAILABLE_CAPABILITY_FAMILIES: tuple[dict[str, str], ...] = (
     {
-        "family": "scanner_source_0_5_0",
-        "reason_code": "portal_pin_holdback",
-        "reason": "Portal vendor scans run the effective portal scanner pin; exposing scanner 0.5.0 requires release plumbing and calibration gate.",
-    },
-    {
         "family": "tau_multi_turn_transaction_correctness",
         "reason_code": "reported_not_scored",
         "reason": "TAU / multi-turn work is developed as evidence-only and is not wired into the BackBond Score total.",
