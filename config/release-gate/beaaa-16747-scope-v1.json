@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "policy_id": "BEAAA-16747-release-gate-provenance-rebase",
+  "revision": 1,
+  "allowed_paths": [
+    "scripts/release_gate_n5.py",
+    "tests/test_release_gate_n5_beaaa10187.py",
+    "docs/adr/adr-0062-beaaa16747-approval-provenance-rebase.md",
+    "config/release-gate/beaaa-16747-scope-v1.json"
+  ]
+}

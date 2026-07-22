@@ -118,6 +118,67 @@ def test_agent_result_isolates_approved_rule_change_delta():
     assert result.delta_passed
 
 
+def _movement_source(*, movement=4.0, decisions=None):
+    return {
+        "source_ticket": "BEAAA-16700",
+        "commits": ["deadbee"],
+        "approval_decisions": decisions or [],
+        "deltas": {"G3": {"total": movement}},
+    }
+
+
+def _approval_decisions(*roles):
+    return [
+        {
+            "role": role,
+            "approver_id": f"identity-{role.lower()}",
+            "decision_ref": f"comment-{role.lower()}-approved",
+        }
+        for role in roles
+    ]
+
+
+def test_approval_provenance_rejects_ticket_label_without_decisions():
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0),)
+    )
+
+    assert errors
+    assert "missing required approval roles" in errors[0]
+
+
+def test_approval_provenance_rejects_self_reference():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    decisions[0]["decision_ref"] = "BEAAA-16700"
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),)
+    )
+
+    assert any("self-referential" in error for error in errors)
+
+
+def test_approval_provenance_requires_founder_above_three():
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=_approval_decisions("CTO", "Underwriter")),)
+    )
+
+    assert any("Founder" in error for error in errors)
+
+
+def test_approval_provenance_accepts_distinct_role_complete_chain():
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (
+            _movement_source(
+                movement=4.0,
+                decisions=_approval_decisions("CTO", "Underwriter", "Founder"),
+            ),
+        )
+    )
+
+    assert errors == []
+
+
 def test_receipt_keeps_acknowledged_m2_m3_residuals_release_blocking():
     """BEAAA-14948: acknowledgement must never be rendered as zero or PASS."""
 
