@@ -206,7 +206,7 @@ class PathAPiiHarnessUncoveredTests(unittest.TestCase):
         self.assertIn(PII_SUBSTRATE, self.rubric.active_dim_ids)
         self.assertIn(PII_ATTESTATION, self.rubric.active_dim_ids)
         # BEAAA-5269 rebaseline: rubric bumped 1.1.0 → 1.2.0 (3 R2 dims).
-        self.assertEqual(self.rubric.version, "1.2.0")
+        self.assertEqual(self.rubric.version, "1.3.0")
 
 
 if __name__ == "__main__":

@@ -35,6 +35,24 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-runtime.txt -r requirements-dev.txt -r requirements-eval-inspect.txt
+          python -m pip check
+
+      - name: Ruff critical scoring module
+        run: python -m ruff check rubric/scoring.py
+
+      - name: Type-check critical scoring module
+        run: python -m mypy --ignore-missing-imports rubric/scoring.py
+
+      - name: Report high-confidence dead code
+        run: python -m vulture rubric/scoring.py --min-confidence 90
+
+      - name: Enforce critical scoring coverage
+        run: |
+          python -m coverage run --source=rubric.scoring -m pytest -q \
+            tests/test_scoring.py \
+            tests/test_beaaa198_phase3_scoring.py \
+            tests/test_golden_agents.py
+          python -m coverage report --fail-under=80
 
       - name: Prove pytest discovers integration regressions
         run: |
@@ -100,6 +118,9 @@ jobs:
 
       - name: Build and verify pinned eval venv
         run: scripts/build_eval_framework_venvs.sh "$EVAL_FRAMEWORK"
+
+      - name: Verify isolated dependency graph
+        run: "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" -m pip check
 
       - name: Verify resolver sees pinned framework
         run: |

@@ -129,6 +129,8 @@ class Phase3NAScoringTests(unittest.TestCase):
         eo = {did: {"raw": 0.0, "evidence_uri": ""} for did in self.rubric.active_dim_ids}
         eo["P3.1"]["raw"] = 4.0
         eo["ROBUSTNESS.PII.SCAN_TIME_DETECTION"]["raw"] = 4.0
+        eo["P3.5"]["raw"] = 4.0
+        eo["P3.6"]["raw"] = 4.0
         eo.pop("P3.2")
         eo.pop("P3.3")
         resp = score(

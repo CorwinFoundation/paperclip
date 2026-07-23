@@ -30,6 +30,8 @@ _PASSING_RAWS = {
     "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": 3.0,
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": 3.0,
     "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 3.0,
+    "P3.5": 3.0,
+    "P3.6": 3.0,
     "P4.1": 3.5, "P4.2": 3.5, "P4.3": 3.0, "P4.4": 3.5, "P4.5": 3.5, "P4.6": 3.0,
     "GOVERNANCE.PII.HANDLING_ATTESTATION": 3.3333,
 }
@@ -44,6 +46,8 @@ _SYLLABLE_RAWS = {
     "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL": 1.8333,
     "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER": 1.8333,
     "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 1.8333,
+    "P3.5": 1.8333,
+    "P3.6": 1.8333,
     "P4.1": 1.5, "P4.2": 1.5, "P4.3": 1.5, "P4.4": 1.5, "P4.5": 1.5, "P4.6": 1.5,
     "GOVERNANCE.PII.HANDLING_ATTESTATION": 1.5,
 }
@@ -113,7 +117,7 @@ class DisplayPillarWeightsTest(unittest.TestCase):
         # BEAAA-5269 rebaseline: rubric_version stamp tracks current rubric
         # (now 1.2.0). The display-remap is still a no-op since rubric weights
         # == display weights under v1.2 (25/25/25/25 unchanged from v1.0).
-        self.assertIn("underlying rubric_version: 1.2.0", html)
+        self.assertIn("underlying rubric_version: 1.3.0", html)
 
     def test_audit_footer_no_display_weights_line_when_none(self):
         sr, rubric = _score_fixture(_PASSING_RAWS, "passing")
