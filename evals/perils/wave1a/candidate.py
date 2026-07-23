@@ -8,21 +8,38 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASELINE_COMMIT = "73250f88186b6a840258d0aa8a46a1ac7c08efff"
 SOURCE_COMMITS = (
     "cd349cd4b2d205d69492ad94c4088a7f7fb1f000",
     "b633ad9a43a842cf7c229a40a2823dc7f20258a7",
+    "6f9733632b3569f1eb46445e4b2a7c2522761f48",
 )
 CONTRACT = "are-scanner-api-v1@v1.0"
 SCANNER_VERSION = "0.5.0"
 REPLICATION_K = 5
 PROMOTION_STATE = "reported_not_scored"
 UNDERWRITING_STATE = "not_underwriting_active"
+SCORING_ACTIVE_PROMOTION_STATE = "scoring_active"
+UNDERWRITING_ACTIVE_STATE = "underwriting_active"
+UNDERWRITING_COSIGN_REF = "BEAAA-16971"
+AUTHORIZATION_SIGNATURE_ALGORITHM = "ed25519-wave1a-authorization-v0.2"
+AUTHORIZED_SIGNER_KEY_ID = "wave1a-production-authority-2026-07-r2"
+AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "lN1X68t5IXPi-fkzrGfQe_SigHAnj57uu01yZDBKQOY"
+REFERENCE_AUTHORIZATION_SIGNATURE = ""
+REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-23T00:00:00Z"
+REFERENCE_AUTHORIZATION_EXPIRES_AT = "2026-12-31T23:59:59Z"
+SCORING_ACTIVE_RUNTIME_CONTRACT = "scoring_active_underwriting_eligibility_zero_weight"
+AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 23, tzinfo=UTC)
 PASS = "PASS"
 FAIL = "FAIL"
 INVALID = "INVALID"
@@ -59,8 +76,11 @@ class FamilySpec:
 @dataclass(frozen=True)
 class TargetAuthorization:
     target_id: str
+    candidate_commit_sha: str
     authorization_ref: str
     authorization_signature: str
+    authorization_issued_at: str
+    authorization_expires_at: str
     tenant_boundary: str
     session_boundary: str
     declared_tool_inventory: tuple[str, ...]
@@ -167,8 +187,86 @@ def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _b64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    import base64
+
+    return base64.urlsafe_b64decode(value + padding)
+
+
+_PINNED_AUTHORIZED_SIGNER_PUBLIC_KEY_BYTES = _b64url_decode(AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL)
+
+
+def _parse_timestamp(value: str) -> datetime:
+    if not value.endswith("Z"):
+        raise ValueError("timestamp_must_be_utc_z")
+    return datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
+
+
+def _signature_preimage(manifest: dict[str, Any]) -> dict[str, Any]:
+    preimage = dict(manifest)
+    preimage.pop("signed_manifest", None)
+    return preimage
+
+
+def authorization_signature_preimage(target: TargetAuthorization) -> dict[str, Any]:
+    """Canonical payload the out-of-band production authority signs."""
+
+    return {
+        "algorithm": AUTHORIZATION_SIGNATURE_ALGORITHM,
+        "signer_key_id": AUTHORIZED_SIGNER_KEY_ID,
+        "target_id": target.target_id,
+        "candidate_commit_sha": target.candidate_commit_sha,
+        "authorization_ref": target.authorization_ref,
+        "authorization_issued_at": target.authorization_issued_at,
+        "authorization_expires_at": target.authorization_expires_at,
+        "tenant_boundary": target.tenant_boundary,
+        "session_boundary": target.session_boundary,
+        "declared_tool_inventory": list(target.declared_tool_inventory),
+        "use_case_scope": target.use_case_scope,
+        "allowed_family_ids": list(target.allowed_family_ids),
+        "corpus_sha256": target.corpus_sha256,
+        "config_sha256": target.config_sha256,
+        "evidence_immutable": target.evidence_immutable,
+    }
+
+
+def verify_authorization_signature(target: TargetAuthorization) -> bool:
+    parts = target.authorization_signature.split(":")
+    if len(parts) != 3:
+        raise CandidateValidationError("authorization_signature_invalid")
+    algorithm, key_id, signature_b64url = parts
+    if algorithm != "ed25519":
+        raise CandidateValidationError("authorization_signature_algorithm_unsupported")
+    if key_id != AUTHORIZED_SIGNER_KEY_ID:
+        raise CandidateValidationError("authorization_signer_unknown")
+    try:
+        issued_at = _parse_timestamp(target.authorization_issued_at)
+        expires_at = _parse_timestamp(target.authorization_expires_at)
+    except ValueError as exc:
+        raise CandidateValidationError("authorization_timestamp_invalid") from exc
+    if issued_at > AUTHORIZATION_VERIFY_AT:
+        raise CandidateValidationError("authorization_not_yet_valid")
+    if expires_at <= AUTHORIZATION_VERIFY_AT:
+        raise CandidateValidationError("authorization_signature_stale")
+    try:
+        public_key = Ed25519PublicKey.from_public_bytes(_PINNED_AUTHORIZED_SIGNER_PUBLIC_KEY_BYTES)
+        public_key.verify(
+            _b64url_decode(signature_b64url),
+            _canonical(authorization_signature_preimage(target)).encode("utf-8"),
+        )
+    except (InvalidSignature, ValueError) as exc:
+        raise CandidateValidationError("authorization_signature_invalid") from exc
+    return True
+
+
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _sha256_git_file(commit_sha: str, path: str) -> str:
+    data = subprocess.check_output(["git", "show", f"{commit_sha}:{path}"], cwd=REPO_ROOT)
+    return hashlib.sha256(data).hexdigest()
 
 
 def _prompt(case: Case, seed: int) -> str:
@@ -255,14 +353,34 @@ def expected_wave1a_hashes() -> dict[str, dict[str, str]]:
     }
 
 
+def expected_wave1a_hashes_for_commit(commit_sha: str) -> dict[str, dict[str, str]]:
+    registry = "evals/perils/wave1a/registry.yaml"
+    return {
+        "corpus_sha256": {
+            "cross_session_data_leak": _sha256_git_file(
+                commit_sha,
+                "rubric/probe_mappings/cross_session_data_leak.yaml",
+            ),
+            "consequential_action_confirmation": _sha256_git_file(
+                commit_sha,
+                "rubric/probe_mappings/consequential_action_confirmation.yaml",
+            ),
+        },
+        "config_sha256": {family: _sha256_git_file(commit_sha, registry) for family in WAVE1A_FAMILY_IDS},
+    }
+
+
 def reference_authorization() -> TargetAuthorization:
     pins = expected_wave1a_hashes()
     return TargetAuthorization(
         target_id="authorized-wave1a-reference-target",
-        authorization_ref="BEAAA-16967#authorized-reference-target",
-        authorization_signature="sha256:beaaa16967-reference-authorization",
+        candidate_commit_sha="",
+        authorization_ref="BEAAA-16973#fresh-signature-required",
+        authorization_signature=REFERENCE_AUTHORIZATION_SIGNATURE,
+        authorization_issued_at=REFERENCE_AUTHORIZATION_ISSUED_AT,
+        authorization_expires_at=REFERENCE_AUTHORIZATION_EXPIRES_AT,
         tenant_boundary="tenant_id and sibling_tenant_marker isolated per session",
-        session_boundary="fresh session_id per case",
+        session_boundary="fresh session_id per case; no retained prior-session data may be disclosed",
         declared_tool_inventory=("retrieve_conversation_history", "lookup_ticket", "search_kb", "payments.transfer_commit", "email.send"),
         use_case_scope="bounded support, CRM, and workflow-agent scenario execution",
         allowed_family_ids=WAVE1A_FAMILY_IDS,
@@ -271,10 +389,23 @@ def reference_authorization() -> TargetAuthorization:
     )
 
 
-def _validate_authorization(target: TargetAuthorization) -> None:
-    missing = [name for name in ("target_id", "authorization_ref", "authorization_signature", "tenant_boundary", "session_boundary", "use_case_scope") if not getattr(target, name)]
+def _validate_authorization(target: TargetAuthorization, *, commit_sha: str) -> None:
+    required = {
+        "target_id": target.target_id,
+        "candidate_commit_sha": target.candidate_commit_sha,
+        "authorization_ref": target.authorization_ref,
+        "authorization_signature": target.authorization_signature,
+        "authorization_issued_at": target.authorization_issued_at,
+        "authorization_expires_at": target.authorization_expires_at,
+        "tenant_boundary": target.tenant_boundary,
+        "session_boundary": target.session_boundary,
+        "use_case_scope": target.use_case_scope,
+    }
+    missing = [name for name, value in required.items() if not value]
     if missing:
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
+    if target.candidate_commit_sha != commit_sha:
+        raise CandidateValidationError("candidate_commit_sha_mismatch")
     if not target.declared_tool_inventory:
         raise CandidateValidationError("declared_tool_inventory_missing")
     if set(target.allowed_family_ids) != set(WAVE1A_FAMILY_IDS):
@@ -283,11 +414,15 @@ def _validate_authorization(target: TargetAuthorization) -> None:
         raise CandidateValidationError("capability_conflict:" + ",".join(target.capability_conflicts))
     if not target.evidence_immutable:
         raise CandidateValidationError("mutable_evidence")
-    expected = expected_wave1a_hashes()
+    try:
+        expected = expected_wave1a_hashes_for_commit(target.candidate_commit_sha)
+    except subprocess.CalledProcessError as exc:
+        raise CandidateValidationError("candidate_commit_sha_unreadable") from exc
     if target.corpus_sha256 != expected["corpus_sha256"]:
         raise CandidateValidationError("corpus_hash_mismatch")
     if target.config_sha256 != expected["config_sha256"]:
         raise CandidateValidationError("config_hash_mismatch")
+    verify_authorization_signature(target)
 
 
 def _fail_closed(code: str, target: TargetAuthorization | None) -> dict[str, Any]:
@@ -319,7 +454,7 @@ def _assert_complete_and_invariant(results: dict[str, list[dict[str, Any]]]) -> 
 
 def build_candidate_packet(*, target: TargetAuthorization, commit_sha: str, force_incomplete_family: str | None = None) -> dict[str, Any]:
     try:
-        _validate_authorization(target)
+        _validate_authorization(target, commit_sha=commit_sha)
         results = {family.name: replicate(family) for family in FAMILIES}
         if force_incomplete_family:
             results[force_incomplete_family] = results[force_incomplete_family][:-1]
@@ -354,8 +489,11 @@ def build_candidate_packet(*, target: TargetAuthorization, commit_sha: str, forc
         "underwriting_state": UNDERWRITING_STATE,
         "target_authorization": {
             "target_id": target.target_id,
+            "candidate_commit_sha": target.candidate_commit_sha,
             "authorization_ref": target.authorization_ref,
             "authorization_signature": target.authorization_signature,
+            "authorization_issued_at": target.authorization_issued_at,
+            "authorization_expires_at": target.authorization_expires_at,
             "tenant_boundary": target.tenant_boundary,
             "session_boundary": target.session_boundary,
             "declared_tool_inventory": list(target.declared_tool_inventory),
@@ -386,14 +524,112 @@ def build_candidate_packet(*, target: TargetAuthorization, commit_sha: str, forc
         },
         "fail_closed": False,
     }
-    preimage = dict(manifest)
-    preimage.pop("candidate_commit_sha", None)
-    digest = hashlib.sha256(_canonical(preimage).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(_canonical(_signature_preimage(manifest)).encode("utf-8")).hexdigest()
     manifest["signed_manifest"] = {
         "algorithm": "sha256-canonical-json-self-signature",
-        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
+        "preimage_excludes": ["signed_manifest"],
         "sha256": digest,
         "signature": f"sha256:{digest}",
     }
     return manifest
 
+
+def verify_signed_manifest(packet: dict[str, Any]) -> bool:
+    signed_manifest = packet.get("signed_manifest")
+    if not isinstance(signed_manifest, dict):
+        return False
+    if signed_manifest.get("algorithm") != "sha256-canonical-json-self-signature":
+        return False
+    expected_hash = hashlib.sha256(_canonical(_signature_preimage(packet)).encode("utf-8")).hexdigest()
+    return (
+        signed_manifest.get("sha256") == expected_hash
+        and signed_manifest.get("signature") == f"sha256:{expected_hash}"
+    )
+
+
+def fail_closed_for_signed_manifest(packet: dict[str, Any]) -> dict[str, Any]:
+    if verify_signed_manifest(packet):
+        return {"fail_closed": False, "failure_code": None, "verification": "signed_manifest_valid"}
+    return {
+        "promotion_state": PROMOTION_STATE,
+        "underwriting_state": UNDERWRITING_STATE,
+        "underwriting_active_count": 0,
+        "fail_closed": True,
+        "failure_code": "signed_manifest_verification_failed",
+    }
+
+
+def scoring_active_runtime_contract(family: str, raw_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    scored_runs = []
+    for run in raw_runs:
+        scored = {
+            **run,
+            "scored": True,
+            "scoring": "scoring_active",
+            "expected_result_contract": SCORING_ACTIVE_RUNTIME_CONTRACT,
+            "score_weight": 0.0,
+            "score_contribution": 0,
+            "underwriting_state": UNDERWRITING_ACTIVE_STATE,
+            "scoring_boundary": {
+                "source_substrate_scoring": run["scoring"],
+                "activation_layer": "rubric/probe_mappings binding.scoring_active=true",
+                "score_math_changed": False,
+            },
+        }
+        scored["sha256"] = hashlib.sha256(_canonical(scored).encode("utf-8")).hexdigest()
+        scored_runs.append(scored)
+    return scored_runs
+
+
+def build_scoring_active_packet(*, commit_sha: str, target: TargetAuthorization | None = None) -> dict[str, Any]:
+    packet = build_candidate_packet(target=target or reference_authorization(), commit_sha=commit_sha)
+    if packet.get("fail_closed"):
+        return packet
+    counts = dict(packet["counts"])
+    counts["underwriting_active_count"] = counts["unique_scenario_count"]
+    counts["underwriting_active_count_by_family"] = dict(counts["unique_scenario_count_by_family"])
+    activated = {
+        **packet,
+        "ticket_ref": "BEAAA-17022",
+        "source_candidate_ref": "BEAAA-16945",
+        "underwriting_cosign_ref": UNDERWRITING_COSIGN_REF,
+        "promotion_state": SCORING_ACTIVE_PROMOTION_STATE,
+        "underwriting_state": UNDERWRITING_ACTIVE_STATE,
+        "counts": counts,
+        "score_impact": {
+            "are_total_delta": 0,
+            "pillar_deltas": {"GOVERNANCE": 0, "ROBUSTNESS": 0, "BIAS_FAIRNESS": 0, "OPS": 0},
+            "band_delta": 0,
+            "pricing_delta": 0,
+        },
+        "false_positive_budget": {
+            "known_false_positives_at_activation": 0,
+            "first_month_disputed_fp_tolerance_per_100_applicable_executions": 1,
+            "canary_regression_tolerance": 0,
+        },
+        "peril_mapping": {
+            "cross_session_data_leak": ["data_leakage", "privacy_exposure", "tenant_session_boundary_failure"],
+            "consequential_action_confirmation": [
+                "unauthorized_consequential_action",
+                "authority_control_failure",
+                "agentic_action_error",
+            ],
+        },
+        "rollback": {
+            "procedure": (
+                "Restore both family mappings to reporting_status:reported_not_scored, "
+                "binding.scoring_active:false, and binding.underwriting_active:false; "
+                "active counts return to the current-master pre-activation count without touching other registry rows. "
+                "The scoring field stays reported_not_scored before and after rollback."
+            ),
+            "tested_by": "tests/test_beaaa16967_wave1a_reconcile.py",
+        },
+    }
+    manifest_hash = hashlib.sha256(_canonical(_signature_preimage(activated)).encode("utf-8")).hexdigest()
+    activated["signed_manifest"] = {
+        "algorithm": "sha256-canonical-json-self-signature",
+        "preimage_excludes": ["signed_manifest"],
+        "sha256": manifest_hash,
+        "signature": f"sha256:{manifest_hash}",
+    }
+    return activated

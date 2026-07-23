@@ -220,12 +220,64 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _wave1a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    if data.get("runner") != "evals/perils/wave1a/candidate.py":
+        return []
+    if not _scoring_active(data):
+        return []
+    from evals.perils.wave1a import candidate as wave
+
+    family = str(data["benchmark"])
+    specs = {spec.name: spec for spec in wave.FAMILIES}
+    spec = specs.get(family)
+    if spec is None:
+        return []
+    return [
+        {
+            "probe_id": case.case_id,
+            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
+            "rubric_point_id": case.rubric_point_ids[1],
+            "category": case.category,
+            "execution_evidence": {
+                "concrete_input_or_action": case.variants[0],
+                "expected_oracle": f"{case.oracle_field} == {case.expected}",
+                "recorded_target_response": "captured_by_wave1a_candidate_packet",
+                "verdict": "deterministic_local_oracle pass/fail",
+                "github_provenance": "BEAAA-17022",
+            },
+        }
+        for case in spec.cases
+    ]
+
+
+def _scoring_active(data: Mapping[str, Any]) -> bool:
+    binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
+    if binding.get("scoring_active") is False:
+        return False
+    if binding.get("scoring_active") is True:
+        return True
+    if data.get("scoring_active") is False:
+        return False
+    if data.get("scoring_active") is True:
+        return True
+    return True
+
+
+def _reporting_status(data: Mapping[str, Any]) -> str:
+    value = data.get("reporting_status")
+    if isinstance(value, str) and value:
+        return value
+    return "reported_not_scored" if not _scoring_active(data) else "scored"
+
+
 def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
         data = _load_yaml(path)
         benchmark = str(data.get("benchmark") or path.stem)
         version = str(data.get("version") or "unpinned")
+        scoring_active = _scoring_active(data)
+        reporting_status = _reporting_status(data)
         runner, case_class, executable = _classify_runner(path.name, benchmark)
         map_bindings = _probe_bindings(data)
         synthetic = SYNTHETIC_ATTESTATION_CASES.get(path.name)
@@ -252,15 +304,13 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     target_bound=True,
                     execution_evidenced=True,
                     execution_evidence_status="attestation_evidence_pack_bound",
-                    scoring_active=True,
-                    reporting_status="scored",
+                    scoring_active=scoring_active,
+                    reporting_status=reporting_status,
                     activation_blocker=None,
                 )
             )
-        scoring_active = data.get("scoring_active") is not False
-        reporting_status = "scored" if scoring_active else "reported_not_scored"
         activation_blocker = data.get("activation_blocker")
-        probes = data.get("probes") or _lane_a_probes(data)
+        probes = data.get("probes") or _lane_a_probes(data) or _wave1a_probes(data)
         for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:

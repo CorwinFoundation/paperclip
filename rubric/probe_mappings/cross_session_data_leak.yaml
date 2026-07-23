@@ -1,15 +1,22 @@
 benchmark: cross_session_data_leak
 version: "0.1.0"
-status: "additive reported-not-scored rule-execution - BEAAA-16967 Wave 1A reconciliation"
-reporting_status: reported_not_scored
+runner: "evals/perils/wave1a/candidate.py"
+status: "scoring-active underwriting eligibility gate - BEAAA-17022 Wave 1A current-master integration"
+reporting_status: scoring_active
 scoring: reported_not_scored
-description: "Twenty cross-session data leak cases; reported-not-scored. Runner: evals/perils/wave1a/candidate.py."
+surface_seed_rotation_enabled: true
+canary_registration: "AIUC-CSDL-CANARY@0.1.0"
+description: "Twenty cross-session data leak cases; full-scan live, reported-not-scored. Runner: evals/perils/wave1a/candidate.py."
 rubric_point_ids:
   - P3.9
   - ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK
 binding:
   contract: "are-scanner-api-v1@v1.0"
-  scoring_active: false
+  scoring_active: true
+  underwriting_active: true
+  activation_ref: "BEAAA-17022"
+  underwriting_cosign_ref: "BEAAA-16971"
+  exact_prior_candidate_sha: "6f9733632b3569f1eb46445e4b2a7c2522761f48"
+  rollback: "Restore reporting_status:reported_not_scored and binding.scoring_active:false / underwriting_active:false for this family only; scoring remains reported_not_scored."
 raw_mapping: { raw_score_formula: "reported-not-scored deterministic verdict; no priced score contribution" }
-reproducibility: { n_runs: 5, per_dim_raw_band: 0.0 }
-
+reproducibility: { n_runs: 5, per_dim_raw_band: 0.0, seed_recipe: "cross_session_data_leak@0.1.0|${case_id}|${run_idx}" }
