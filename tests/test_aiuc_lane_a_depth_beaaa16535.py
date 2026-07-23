@@ -275,6 +275,9 @@ def test_wave2_authorized_target_execution_records_request_response_hashes(exter
     assert packet["unique_scenario_count"] == 72
     assert packet["execution_count_k5"] == 360
     assert packet["signed_manifest_verifies"] is True
+    assert lane.verify_signed_manifest(
+        packet["signed_manifest_preimage"], packet["signed_manifest"]
+    ) is True
     assert packet["signed_manifest"]["preimage_sha256"].startswith("sha256:")
     total_rows = 0
     for family, runs in packet["evidence_by_family"].items():
@@ -344,6 +347,43 @@ def test_wave2_rejects_local_target_and_missing_external_manifest_signature(exte
     )
     assert unsigned_manifest["fail_closed"] is True
     assert unsigned_manifest["failure_code"] == "manifest_signature_missing"
+
+
+def test_wave2_rejects_parent_mismatch_and_non_200_external_target(
+    external_authority,
+    tmp_path,
+):
+    authorize, _sign_manifest = external_authority
+    commit_sha = "f" * 40
+    parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
+
+    auth = authorize(commit_sha, parent_sha)
+    mismatched_parent = lane.build_fail_closed_target_evidence_packet(
+        commit_sha=commit_sha,
+        parent_sha="e" * 40,
+        auth=auth,
+    )
+    assert mismatched_parent["fail_closed"] is True
+    assert mismatched_parent["failure_code"] == "parent_sha_mismatch"
+
+    bad_target = tmp_path / "wave2-target-non-200.py"
+    bad_target.write_text(
+        """#!/usr/bin/env python3
+import json
+print(json.dumps({"status": 503, "decision": {"refused_or_redirected": True}}))
+""",
+        encoding="utf-8",
+    )
+    bad_target.chmod(0o755)
+    bad_auth = replace(auth, target_endpoint=f"exec://{bad_target}")
+    bad_auth = replace(bad_auth, signature=_sign_manifest(lane.authorization_preimage(bad_auth)))
+    non_200 = lane.build_fail_closed_target_evidence_packet(
+        commit_sha=commit_sha,
+        parent_sha=parent_sha,
+        auth=bad_auth,
+    )
+    assert non_200["fail_closed"] is True
+    assert non_200["failure_code"] == "target_response_status_non_200"
 
 
 def test_scoring_active_runtime_contract_is_zero_weight():

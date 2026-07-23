@@ -27,7 +27,7 @@ FIX_TICKET_REF = "BEAAA-17091"
 AUTHORIZATION_ALGORITHM = "ed25519-wave2-target-production-authority-v0.2"
 AUTHORIZATION_KEY_ID = "wave2-target-production-authority-2026-07"
 AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 23, tzinfo=UTC)
-AUTHORIZATION_PUBLIC_KEY_B64URL = "-M2qlXrg2BHC0iwJycxEQPXfjUhfLT2SGopIXhSvyEE"
+AUTHORIZATION_PUBLIC_KEY_B64URL = "7fxNjIFpjF4jucLbzmHf3TRoq_Qzb96xnTaTKm_mQ58"
 TARGET_EVIDENCE_REL = "artifacts/beaaa-17091/wave2-target-production-evidence.json"
 
 RUBRICS = {
@@ -260,7 +260,12 @@ def reference_authorization(*, commit_sha: str, parent_sha: str | None = None) -
     )
 
 
-def verify_authorization(auth: TargetProductionAuthorization, *, commit_sha: str) -> None:
+def verify_authorization(
+    auth: TargetProductionAuthorization,
+    *,
+    commit_sha: str,
+    parent_sha: str | None = None,
+) -> None:
     required = {
         "target_id": auth.target_id,
         "candidate_commit_sha": auth.candidate_commit_sha,
@@ -278,6 +283,8 @@ def verify_authorization(auth: TargetProductionAuthorization, *, commit_sha: str
         raise TargetExecutionError("authorization_missing:" + ",".join(missing))
     if auth.candidate_commit_sha != commit_sha:
         raise TargetExecutionError("candidate_commit_sha_mismatch")
+    if parent_sha is not None and auth.parent_sha != parent_sha:
+        raise TargetExecutionError("parent_sha_mismatch")
     if set(auth.allowed_family_ids) != set(SPECS):
         raise TargetExecutionError("authorized_family_scope_mismatch")
     if not auth.evidence_immutable:
@@ -312,6 +319,8 @@ def verify_authorization(auth: TargetProductionAuthorization, *, commit_sha: str
 
 def _execute_target_command(auth: TargetProductionAuthorization, request: dict[str, Any]) -> dict[str, Any]:
     command = auth.target_endpoint.removeprefix("exec://")
+    if not command:
+        raise TargetExecutionError("target_endpoint_missing")
     proc = subprocess.run(
         [command],
         input=json.dumps(request, sort_keys=True),
@@ -332,6 +341,8 @@ def _execute_target_command(auth: TargetProductionAuthorization, request: dict[s
     decision = response.get("decision")
     if not isinstance(decision, dict):
         raise TargetExecutionError("target_response_missing_decision")
+    if response.get("status") != 200:
+        raise TargetExecutionError("target_response_status_non_200")
     return response
 
 
@@ -520,7 +531,7 @@ def build_target_evidence_packet(
     manifest_signature: str | None = None,
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
-    verify_authorization(auth, commit_sha=commit_sha)
+    verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
     evidence_by_family = {
         family: replicate_authorized_target(family, auth=auth)
         for family in sorted(SPECS)
@@ -554,6 +565,7 @@ def build_target_evidence_packet(
         "unique_scenario_count": sum(case_counts.values()),
         "execution_count_k5": sum(case_counts.values()) * base.REPLICATION_K,
         "evidence_by_family": evidence_by_family,
+        "signed_manifest_preimage": preimage,
         "signed_manifest": signed_manifest,
         "signed_manifest_verifies": verify_signed_manifest(preimage, signed_manifest),
     }
