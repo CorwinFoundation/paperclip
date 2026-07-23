@@ -7,16 +7,16 @@ canonical_terms_only: true
 focus_claim: "BEAAA-16992 binds Scanner production controls, rollback proof, and evidence retention into one internal gate for the customer-ready BackBond Scanner release."
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
 ticket_refs: ["BEAAA-16992", "BEAAA-16987", "BEAAA-16977", "BEAAA-16973"]
-proof_points_cited: ["scripts/beaaa16992_production_controls_evidence.py", "artifacts/beaaa-16992/production-controls-evidence.json", "ops/scan-log-backup/README.md", "docs/deploy/sequence-20-production-deployment-runbook.md"]
-version: 0.1
-prior_version: null
+proof_points_cited: ["scripts/beaaa16992_production_controls_evidence.py", "artifacts/beaaa-16992/production-controls-evidence.json", "ops/scan-log-backup/README.md", "docs/deploy/sequence-20-production-deployment-runbook.md", "api/edge_gateway.py"]
+version: 0.2
+prior_version: "artifacts/beaaa-16992/production-controls-closeout.md@v0.1"
 self_audit_passed: true
 escalations_noted: ["Rule-execution production-control evidence harness and closeout. No scoring math, band cut, judge model, rubric weight, Scanner API output shape, covered peril, customer data-handling expansion, or tamper-resistance reduction. Public or production promotion remains blocked on exact-SHA QA APPROVED plus Founder sign-off."]
 ---
 
 # BEAAA-16992 Production Controls Closeout
 
-BLUF: PASS for engineering evidence; NOT authorized for shared or production promotion. The production-control packet proves the acceptance matrix locally and keeps the QA and Founder gates intact.
+BLUF: PASS for repaired engineering evidence; NOT authorized for shared or production promotion. The production-control packet now derives PASS rows from executable local checks and keeps the QA and Founder gates intact.
 
 ## Scope
 
@@ -39,6 +39,7 @@ Retained packet: `artifacts/beaaa-16992/production-controls-evidence.json`.
 The packet binds:
 
 - Candidate baseline: `fb58d5e5cf7d132afd55c177f4a385ba5b29c76a`.
+- Candidate identity: `candidate_commit_sha` is derived from `git rev-parse HEAD` at packet build time.
 - Prior Wave 1A production-like evidence: `artifacts/beaaa-16977/*`.
 - Deployment controls: `docs/deploy/sequence-20-production-deployment-runbook.md`.
 - Edge auth/rate-limit controls: `api/edge_gateway.py`.
@@ -47,11 +48,12 @@ The packet binds:
 Acceptance results:
 
 - Authorized end-to-end design-partner scan: PASS.
-- Tenant isolation and evidence retention: PASS.
-- Backup restore RPO <=1h / RTO <=4h: PASS by temporary scan-log online backup + restore dry-run.
-- Monitored rollback <=30m: PASS; operator timeline totals 30 minutes and registry rollback evidence proves `340 -> 305` active executable rows with unrelated rows unchanged.
+- Tenant isolation and evidence retention: PASS by temporary tenant-separated scan-log rows plus retained evidence hashes.
+- Backup restore RPO <=1h / RTO <=4h: PASS by temporary scan-log online backup + restore dry-run; RPO is measured from inserted scan-log timestamp to backup completion.
+- Monitored rollback <=30m: PASS by a timed local registry rollback mutation proving `340 -> 305` active executable rows with unrelated rows unchanged.
 - Critical/high security findings: none found in focused harness.
-- Instrumentation: PASS; result record, evidence hashes, customer-feedback hook, and eventual-outcome hook are recorded in the BEAAA-16992 packet as non-scoring instrumentation.
+- Auth/rate limit controls: PASS by executable `api.edge_gateway` checks for valid tenant resolution, revoked and expired keys, max-concurrent denial, scans-per-minute denial, and tenant-b isolation from tenant-a bucket exhaustion.
+- Instrumentation: PASS; result record, customer-feedback hook, and eventual-outcome hook are inserted and read back from a local durable SQLite store as non-scoring instrumentation.
 
 ## Verification
 
@@ -59,13 +61,13 @@ Acceptance results:
 python3 scripts/beaaa16992_production_controls_evidence.py
 ```
 
-Result: PASS. Output path `artifacts/beaaa-16992/production-controls-evidence.json`; rollback budget `30`; backup/restore integrity `true`.
+Result: PASS. Output path `artifacts/beaaa-16992/production-controls-evidence.json`; rollback measured minutes ceil `1`; backup/restore integrity `true`.
 
 ```text
 pytest -q tests/test_beaaa16992_production_controls.py
 ```
 
-Result: `2 passed in 0.41s`.
+Result: `2 passed`.
 
 ```text
 python3 scripts/beaaa539_n5_calibration.py
