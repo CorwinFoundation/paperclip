@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import json
 from dataclasses import replace
 
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 import pytest
 
 from evals.aiuc_path_b import base
@@ -15,44 +10,64 @@ from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import wave1a_candidate as wave
 
 
-def _b64url(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+def _reference_authorization_for(commit_sha: str) -> wave.TargetAuthorization:
+    return replace(wave.reference_authorization(), candidate_commit_sha=commit_sha)
 
 
-def _signed_authorization(commit_sha: str, monkeypatch: pytest.MonkeyPatch) -> wave.TargetAuthorization:
+def test_wave1a_runtime_public_pin_replacement_does_not_authorize_repository_signer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import base64
+    import hashlib
+    import json
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     private_key = Ed25519PrivateKey.from_private_bytes(
-        hashlib.sha256(b"BEAAA-16983 exact candidate SHA test authority").digest()
+        hashlib.sha256(b"BEAAA-16984 repository-derived signer must not authorize").digest()
     )
     public_key = private_key.public_key().public_bytes(
         encoding=serialization.Encoding.Raw,
         format=serialization.PublicFormat.Raw,
     )
-    monkeypatch.setattr(wave, "AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL", _b64url(public_key))
+    attacker_public_pin = base64.urlsafe_b64encode(public_key).decode("ascii").rstrip("=")
+    monkeypatch.setattr(wave, "AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL", attacker_public_pin)
+
     target = replace(
         wave.reference_authorization(),
-        candidate_commit_sha=commit_sha,
-        authorization_ref="BEAAA-16983#exact-candidate-sha-test-authority",
+        candidate_commit_sha="931495eea3cacc05346ad3f8fe73d1b2bd624923",
+        authorization_ref="BEAAA-16984#repository-derived-forgery",
     )
     signature = private_key.sign(
         json.dumps(
-            wave._authorization_signature_preimage(target),  # noqa: SLF001 - regression locks preimage.
+            wave._authorization_signature_preimage(target),  # noqa: SLF001 - locks auth preimage.
             sort_keys=True,
             separators=(",", ":"),
             default=str,
         ).encode("utf-8")
     )
-    return replace(
+    forged = replace(
         target,
-        authorization_signature=f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:{_b64url(signature)}",
+        authorization_signature=(
+            f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:"
+            f"{base64.urlsafe_b64encode(signature).decode('ascii').rstrip('=')}"
+        ),
     )
 
+    packet = wave.build_candidate_packet(
+        target=forged,
+        commit_sha="931495eea3cacc05346ad3f8fe73d1b2bd624923",
+    )
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signature_invalid"
 
-def test_wave1a_candidate_counts_and_reported_not_scored_packet(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+
+@pytest.mark.skip(reason="Requires a fresh out-of-band production-authority signature.")
+def test_wave1a_candidate_counts_and_reported_not_scored_packet() -> None:
     commit_sha = "acb36976e171ace36dff21e9e02f29cc783390f2"
     packet = wave.build_candidate_packet(
-        target=_signed_authorization(commit_sha, monkeypatch),
+        target=_reference_authorization_for(commit_sha),
         commit_sha=commit_sha,
     )
 
@@ -79,10 +94,11 @@ def test_wave1a_candidate_counts_and_reported_not_scored_packet(
     ]
 
 
-def test_wave1a_signed_manifest_binds_exact_candidate_sha(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.skip(reason="Requires a fresh out-of-band production-authority signature.")
+def test_wave1a_signed_manifest_binds_exact_candidate_sha() -> None:
     commit_sha = "cd349cd4b2d205d69492ad94c4088a7f7fb1f000"
     packet = wave.build_candidate_packet(
-        target=_signed_authorization(commit_sha, monkeypatch),
+        target=_reference_authorization_for(commit_sha),
         commit_sha=commit_sha,
     )
 
@@ -95,15 +111,13 @@ def test_wave1a_signed_manifest_binds_exact_candidate_sha(monkeypatch: pytest.Mo
     assert result["failure_code"] == "signed_manifest_verification_failed"
 
 
-def test_wave1a_production_authority_binds_exact_candidate_sha(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    authorized_sha = "74bb65b4e9a2ad8d917f928f49eb77e1aebeb2a8"
-    target = _signed_authorization(authorized_sha, monkeypatch)
+def test_wave1a_production_authority_requires_valid_signature_for_candidate_sha() -> None:
+    authorized_sha = "931495eea3cacc05346ad3f8fe73d1b2bd624923"
+    target = _reference_authorization_for(authorized_sha)
 
     packet = wave.build_candidate_packet(target=target, commit_sha=authorized_sha)
-    assert packet["fail_closed"] is False
-    assert packet["target_authorization"]["candidate_commit_sha"] == authorized_sha
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signature_invalid"
 
     rebuilt_sha = "ffffffffffffffffffffffffffffffffffffffff"
     rebuilt = wave.build_candidate_packet(target=target, commit_sha=rebuilt_sha)
@@ -137,24 +151,24 @@ def test_wave1a_families_discriminate_bad_reference_policies() -> None:
     assert cac_bad[base.FAIL] == 10
 
 
-def test_wave1a_fail_closed_missing_authorization(monkeypatch: pytest.MonkeyPatch) -> None:
-    target = replace(_signed_authorization("candidate", monkeypatch), authorization_ref="")
+def test_wave1a_fail_closed_missing_authorization() -> None:
+    target = replace(_reference_authorization_for("candidate"), authorization_ref="")
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["underwriting_state"] == "not_underwriting_active"
     assert packet["failure_code"] == "authorization_missing:authorization_ref"
 
 
-def test_wave1a_fail_closed_missing_authorization_signature(monkeypatch: pytest.MonkeyPatch) -> None:
-    target = replace(_signed_authorization("candidate", monkeypatch), authorization_signature="")
+def test_wave1a_fail_closed_missing_authorization_signature() -> None:
+    target = replace(_reference_authorization_for("candidate"), authorization_signature="")
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "authorization_missing:authorization_signature"
 
 
-def test_wave1a_fail_closed_invalid_authorization_signature(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave1a_fail_closed_invalid_authorization_signature() -> None:
     target = replace(
-        _signed_authorization("candidate", monkeypatch),
+        _reference_authorization_for("candidate"),
         authorization_signature=f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:invalid",
     )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
@@ -162,8 +176,8 @@ def test_wave1a_fail_closed_invalid_authorization_signature(monkeypatch: pytest.
     assert packet["failure_code"] == "authorization_signature_invalid"
 
 
-def test_wave1a_fail_closed_unknown_authorization_signer(monkeypatch: pytest.MonkeyPatch) -> None:
-    signed = _signed_authorization("candidate", monkeypatch)
+def test_wave1a_fail_closed_unknown_authorization_signer() -> None:
+    signed = _reference_authorization_for("candidate")
     signature = signed.authorization_signature.split(":", 2)[2]
     target = replace(
         signed,
@@ -174,9 +188,9 @@ def test_wave1a_fail_closed_unknown_authorization_signer(monkeypatch: pytest.Mon
     assert packet["failure_code"] == "authorization_signer_unknown"
 
 
-def test_wave1a_fail_closed_stale_authorization_signature(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave1a_fail_closed_stale_authorization_signature() -> None:
     stale = replace(
-        _signed_authorization("candidate", monkeypatch),
+        _reference_authorization_for("candidate"),
         authorization_expires_at="2026-07-21T23:59:59Z",
     )
     packet = wave.build_candidate_packet(target=stale, commit_sha="candidate")
@@ -184,9 +198,9 @@ def test_wave1a_fail_closed_stale_authorization_signature(monkeypatch: pytest.Mo
     assert packet["failure_code"] == "authorization_signature_stale"
 
 
-def test_wave1a_fail_closed_post_signature_scope_tampering(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave1a_fail_closed_post_signature_scope_tampering() -> None:
     tampered = replace(
-        _signed_authorization("candidate", monkeypatch),
+        _reference_authorization_for("candidate"),
         use_case_scope="attacker-expanded-scope",
     )
 
@@ -195,19 +209,21 @@ def test_wave1a_fail_closed_post_signature_scope_tampering(monkeypatch: pytest.M
     assert packet["failure_code"] == "authorization_signature_invalid"
 
 
-def test_wave1a_reference_authorized_signature_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave1a_reference_authorized_signature_fails_until_fresh_out_of_band_signature() -> None:
     packet = wave.build_candidate_packet(
-        target=_signed_authorization("candidate", monkeypatch),
+        target=_reference_authorization_for("candidate"),
         commit_sha="candidate",
     )
-    assert packet["fail_closed"] is False
+    assert packet["fail_closed"] is True
+    assert packet["failure_code"] == "authorization_signature_invalid"
 
 
-def test_wave1a_tampered_signed_manifest_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.skip(reason="Requires a fresh out-of-band production-authority signature.")
+def test_wave1a_tampered_signed_manifest_fails_closed() -> None:
     commit_sha = "candidate"
     packet = wave.build_scoring_active_packet(
         commit_sha=commit_sha,
-        target=_signed_authorization(commit_sha, monkeypatch),
+        target=_reference_authorization_for(commit_sha),
     )
     assert wave.fail_closed_for_signed_manifest(packet)["fail_closed"] is False
 
@@ -232,16 +248,16 @@ def test_wave1a_scoring_active_runtime_contract_separates_substrate_runs() -> No
     assert {run["score_contribution"] for run in scored_runs} == {0}
 
 
-def test_wave1a_fail_closed_missing_tool_inventory(monkeypatch: pytest.MonkeyPatch) -> None:
-    target = replace(_signed_authorization("candidate", monkeypatch), declared_tool_inventory=())
+def test_wave1a_fail_closed_missing_tool_inventory() -> None:
+    target = replace(_reference_authorization_for("candidate"), declared_tool_inventory=())
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "declared_tool_inventory_missing"
 
 
-def test_wave1a_fail_closed_scope_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave1a_fail_closed_scope_conflict() -> None:
     target = replace(
-        _signed_authorization("candidate", monkeypatch),
+        _reference_authorization_for("candidate"),
         allowed_family_ids=("cross_session_data_leak",),
     )
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
@@ -249,8 +265,8 @@ def test_wave1a_fail_closed_scope_conflict(monkeypatch: pytest.MonkeyPatch) -> N
     assert packet["failure_code"] == "family_scope_conflict"
 
 
-def test_wave1a_fail_closed_hash_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
-    target = _signed_authorization("candidate", monkeypatch)
+def test_wave1a_fail_closed_hash_mismatch() -> None:
+    target = _reference_authorization_for("candidate")
     bad = replace(
         target,
         corpus_sha256={**target.corpus_sha256, "cross_session_data_leak": "bad"},
@@ -260,16 +276,17 @@ def test_wave1a_fail_closed_hash_mismatch(monkeypatch: pytest.MonkeyPatch) -> No
     assert packet["failure_code"] == "corpus_hash_mismatch"
 
 
-def test_wave1a_fail_closed_mutable_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
-    target = replace(_signed_authorization("candidate", monkeypatch), evidence_immutable=False)
+def test_wave1a_fail_closed_mutable_evidence() -> None:
+    target = replace(_reference_authorization_for("candidate"), evidence_immutable=False)
     packet = wave.build_candidate_packet(target=target, commit_sha="candidate")
     assert packet["fail_closed"] is True
     assert packet["failure_code"] == "mutable_evidence"
 
 
-def test_wave1a_fail_closed_evaluator_incomplete(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.skip(reason="Requires a fresh out-of-band production-authority signature.")
+def test_wave1a_fail_closed_evaluator_incomplete() -> None:
     packet = wave.build_candidate_packet(
-        target=_signed_authorization("candidate", monkeypatch),
+        target=_reference_authorization_for("candidate"),
         commit_sha="candidate",
         force_incomplete_family="cross_session_data_leak",
     )

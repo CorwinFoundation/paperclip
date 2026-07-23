@@ -81,6 +81,9 @@ def _b64url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + padding)
 
 
+_PINNED_AUTHORIZED_SIGNER_PUBLIC_KEY_BYTES = _b64url_decode(AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL)
+
+
 def _parse_timestamp(value: str) -> datetime:
     if not value.endswith("Z"):
         raise ValueError("timestamp_must_be_utc_z")
@@ -132,9 +135,7 @@ def verify_authorization_signature(target: TargetAuthorization) -> bool:
     if expires_at <= AUTHORIZATION_VERIFY_AT:
         raise CandidateValidationError("authorization_signature_stale")
     try:
-        public_key = Ed25519PublicKey.from_public_bytes(
-            _b64url_decode(AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL)
-        )
+        public_key = Ed25519PublicKey.from_public_bytes(_PINNED_AUTHORIZED_SIGNER_PUBLIC_KEY_BYTES)
         public_key.verify(
             _b64url_decode(signature_b64url),
             _canonical(_authorization_signature_preimage(target)).encode("utf-8"),

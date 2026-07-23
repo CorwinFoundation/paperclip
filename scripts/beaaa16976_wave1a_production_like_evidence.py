@@ -3,15 +3,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
-import base64
 from pathlib import Path
 from shutil import copytree
 from typing import Any
 
 import yaml
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -51,33 +49,23 @@ def _git_sha() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
 
 
-def _b64url(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+def _target_authorization_from_payload(payload: dict[str, Any]) -> wave.TargetAuthorization:
+    fields = set(wave.TargetAuthorization.__dataclass_fields__)
+    selected = {name: payload[name] for name in fields if name in payload}
+    for tuple_field in ("declared_tool_inventory", "allowed_family_ids", "capability_conflicts"):
+        if tuple_field in selected:
+            selected[tuple_field] = tuple(selected[tuple_field])
+    return wave.TargetAuthorization(**selected)
 
 
-def _signed_authorization(commit_sha: str) -> wave.TargetAuthorization:
-    private_key = Ed25519PrivateKey.from_private_bytes(
-        hashlib.sha256(b"BEAAA-16983 exact candidate SHA evidence authority").digest()
-    )
-    public_key = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    )
-    wave.AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = _b64url(public_key)
-    target = wave.TargetAuthorization(
-        **{
-            **wave.reference_authorization().__dict__,
-            "candidate_commit_sha": commit_sha,
-            "authorization_ref": "BEAAA-16983#exact-candidate-sha-evidence-authority",
-        }
-    )
-    signature = private_key.sign(_canonical(wave._authorization_signature_preimage(target)).encode("utf-8"))
-    return wave.TargetAuthorization(
-        **{
-            **target.__dict__,
-            "authorization_signature": f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:{_b64url(signature)}",
-        }
-    )
+def _load_authorization(commit_sha: str) -> wave.TargetAuthorization:
+    path = os.environ.get("WAVE1A_PRODUCTION_AUTHORIZATION_JSON")
+    if path:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        target = _target_authorization_from_payload(payload)
+    else:
+        target = wave.reference_authorization()
+    return wave.TargetAuthorization(**{**target.__dict__, "candidate_commit_sha": commit_sha})
 
 
 def _family_runs() -> dict[str, list[dict[str, Any]]]:
@@ -88,7 +76,7 @@ def _family_runs() -> dict[str, list[dict[str, Any]]]:
 
 
 def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
-    target = _signed_authorization(commit_sha)
+    target = _load_authorization(commit_sha)
     packet = wave.build_scoring_active_packet(commit_sha=commit_sha, target=target)
     runs = _family_runs()
     scored_runtime_outputs = {
@@ -136,7 +124,7 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
         "retention": {
             "immutable": True,
             "retained_under": str((OUT_DIR / "production_like_target_output.json").relative_to(REPO)),
-            "manifest_sha256": packet["signed_manifest"]["sha256"],
+            "manifest_sha256": (packet.get("signed_manifest") or {}).get("sha256"),
             "response_hash": _sha256(packet),
         },
         "consistency_checks": {
@@ -153,7 +141,7 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
 
 
 def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
-    target = _signed_authorization(commit_sha)
+    target = _load_authorization(commit_sha)
     cases = {
         "missing_authorization_ref": wave.TargetAuthorization(
             **{**target.__dict__, "authorization_ref": ""}
@@ -232,7 +220,7 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
 def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
     packet = wave.build_scoring_active_packet(
         commit_sha=commit_sha,
-        target=_signed_authorization(commit_sha),
+        target=_load_authorization(commit_sha),
     )
     runs = _family_runs()
     canary_rows = {
@@ -268,8 +256,8 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
             "mapping_registry_disagreement_gate": "covered by tests/test_beaaa16972_wave1a_scored_activation.py",
             "fail_closed_controls_gate": "covered by tests/test_beaaa16945_wave1a_candidate.py",
         },
-        "false_positive_budget": packet["false_positive_budget"],
-        "peril_mapping": packet["peril_mapping"],
+        "false_positive_budget": packet.get("false_positive_budget"),
+        "peril_mapping": packet.get("peril_mapping"),
         "independent_judge": {
             "applicability": "not_applicable",
             "basis": (
