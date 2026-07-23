@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -33,12 +34,9 @@ UNDERWRITING_COSIGN_REF = "BEAAA-16971"
 WAVE1A_FAMILIES = (csdl.SPEC.name, cac.SPEC.name)
 DEFAULT_MODEL_VERSIONS: tuple[str, ...] = ()
 AUTHORIZATION_SIGNATURE_ALGORITHM = "ed25519-wave1a-authorization-v0.2"
-AUTHORIZED_SIGNER_KEY_ID = "wave1a-production-authority-2026-07"
-AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "U89QKWg5b1goQOswjgKFpUpg4119BpZtLNKouItZXWA"
-REFERENCE_AUTHORIZATION_SIGNATURE = (
-    "ed25519:wave1a-production-authority-2026-07:"
-    "prld--NVoNfE4pwC_uf6Fm3BCD3hIeBDmYXS4zFxLxHgt3Cea6QFiNKv5otc9ELex1FdTAYFb4VOFZ45pMQFDg"
-)
+AUTHORIZED_SIGNER_KEY_ID = "wave1a-production-authority-2026-07-r2"
+AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "lN1X68t5IXPi-fkzrGfQe_SigHAnj57uu01yZDBKQOY"
+REFERENCE_AUTHORIZATION_SIGNATURE = ""
 REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-23T00:00:00Z"
 REFERENCE_AUTHORIZATION_EXPIRES_AT = "2026-12-31T23:59:59Z"
 SCORING_ACTIVE_RUNTIME_CONTRACT = "scoring_active_underwriting_eligibility_zero_weight"
@@ -149,6 +147,14 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _sha256_git_file(commit_sha: str, path: str) -> str:
+    data = subprocess.check_output(
+        ["git", "show", f"{commit_sha}:{path}"],
+        cwd=REPO_ROOT,
+    )
+    return hashlib.sha256(data).hexdigest()
+
+
 def expected_wave1a_hashes() -> dict[str, dict[str, str]]:
     return {
         "corpus_sha256": {
@@ -160,6 +166,31 @@ def expected_wave1a_hashes() -> dict[str, dict[str, str]]:
         "config_sha256": {
             csdl.SPEC.name: _sha256_file(REPO_ROOT / "rubric/aiuc_path_b/family_registry.yaml"),
             cac.SPEC.name: _sha256_file(REPO_ROOT / "rubric/aiuc_path_b/family_registry.yaml"),
+        },
+    }
+
+
+def expected_wave1a_hashes_for_commit(commit_sha: str) -> dict[str, dict[str, str]]:
+    return {
+        "corpus_sha256": {
+            csdl.SPEC.name: _sha256_git_file(
+                commit_sha,
+                "rubric/probe_mappings/cross_session_data_leak.yaml",
+            ),
+            cac.SPEC.name: _sha256_git_file(
+                commit_sha,
+                "rubric/probe_mappings/consequential_action_confirmation.yaml",
+            ),
+        },
+        "config_sha256": {
+            csdl.SPEC.name: _sha256_git_file(
+                commit_sha,
+                "rubric/aiuc_path_b/family_registry.yaml",
+            ),
+            cac.SPEC.name: _sha256_git_file(
+                commit_sha,
+                "rubric/aiuc_path_b/family_registry.yaml",
+            ),
         },
     }
 
@@ -226,7 +257,10 @@ def _validate_authorization(target: TargetAuthorization, *, commit_sha: str) -> 
         raise CandidateValidationError("capability_conflict:" + ",".join(target.capability_conflicts))
     if not target.evidence_immutable:
         raise CandidateValidationError("mutable_evidence")
-    expected = expected_wave1a_hashes()
+    try:
+        expected = expected_wave1a_hashes_for_commit(target.candidate_commit_sha)
+    except subprocess.CalledProcessError as exc:
+        raise CandidateValidationError("candidate_commit_sha_unreadable") from exc
     if target.corpus_sha256 != expected["corpus_sha256"]:
         raise CandidateValidationError("corpus_hash_mismatch")
     if target.config_sha256 != expected["config_sha256"]:
