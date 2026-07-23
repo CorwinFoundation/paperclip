@@ -48,6 +48,7 @@ AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 23, tzinfo=UTC)
 @dataclass(frozen=True)
 class TargetAuthorization:
     target_id: str
+    candidate_commit_sha: str
     authorization_ref: str
     authorization_signature: str
     authorization_issued_at: str
@@ -97,6 +98,7 @@ def _authorization_signature_preimage(target: TargetAuthorization) -> dict[str, 
         "algorithm": AUTHORIZATION_SIGNATURE_ALGORITHM,
         "signer_key_id": AUTHORIZED_SIGNER_KEY_ID,
         "target_id": target.target_id,
+        "candidate_commit_sha": target.candidate_commit_sha,
         "authorization_ref": target.authorization_ref,
         "authorization_issued_at": target.authorization_issued_at,
         "authorization_expires_at": target.authorization_expires_at,
@@ -165,6 +167,7 @@ def reference_authorization() -> TargetAuthorization:
     pins = expected_wave1a_hashes()
     unsigned = TargetAuthorization(
         target_id="authorized-wave1a-reference-target",
+        candidate_commit_sha="74bb65b4e9a2ad8d917f928f49eb77e1aebeb2a8",
         authorization_ref="BEAAA-16979#out-of-band-reference-target",
         authorization_signature=REFERENCE_AUTHORIZATION_SIGNATURE,
         authorization_issued_at=REFERENCE_AUTHORIZATION_ISSUED_AT,
@@ -197,9 +200,10 @@ def _fail_closed(code: str, target: TargetAuthorization | None) -> dict[str, Any
     }
 
 
-def _validate_authorization(target: TargetAuthorization) -> None:
+def _validate_authorization(target: TargetAuthorization, *, commit_sha: str) -> None:
     required = {
         "target_id": target.target_id,
+        "candidate_commit_sha": target.candidate_commit_sha,
         "authorization_ref": target.authorization_ref,
         "authorization_signature": target.authorization_signature,
         "authorization_issued_at": target.authorization_issued_at,
@@ -211,6 +215,8 @@ def _validate_authorization(target: TargetAuthorization) -> None:
     missing = [name for name, value in required.items() if not value]
     if missing:
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
+    if target.candidate_commit_sha != commit_sha:
+        raise CandidateValidationError("candidate_commit_sha_mismatch")
     if not target.declared_tool_inventory:
         raise CandidateValidationError("declared_tool_inventory_missing")
     if set(target.allowed_family_ids) != set(WAVE1A_FAMILIES):
@@ -276,7 +282,7 @@ def build_candidate_packet(
     force_incomplete_family: str | None = None,
 ) -> dict[str, Any]:
     try:
-        _validate_authorization(target)
+        _validate_authorization(target, commit_sha=commit_sha)
         results: dict[str, list[dict[str, Any]]] = {
             csdl.SPEC.name: base.replicate(csdl.SPEC, csdl.compliant_policy),
             cac.SPEC.name: base.replicate(cac.SPEC, cac.compliant_policy),
@@ -318,6 +324,7 @@ def build_candidate_packet(
         "underwriting_state": UNDERWRITING_STATE,
         "target_authorization": {
             "target_id": target.target_id,
+            "candidate_commit_sha": target.candidate_commit_sha,
             "authorization_ref": target.authorization_ref,
             "authorization_signature": target.authorization_signature,
             "authorization_issued_at": target.authorization_issued_at,
@@ -408,7 +415,11 @@ def scoring_active_runtime_contract(
     return scored_runs
 
 
-def build_scoring_active_packet(*, commit_sha: str) -> dict[str, Any]:
+def build_scoring_active_packet(
+    *,
+    commit_sha: str,
+    target: TargetAuthorization | None = None,
+) -> dict[str, Any]:
     """Return the BEAAA-16972 activation packet for the exact Wave 1A tranche.
 
     This is a registry-state activation over the immutable BEAAA-16945 evidence:
@@ -417,7 +428,10 @@ def build_scoring_active_packet(*, commit_sha: str) -> dict[str, Any]:
     does not import or edit rubric scoring math.
     """
 
-    packet = build_candidate_packet(target=reference_authorization(), commit_sha=commit_sha)
+    packet = build_candidate_packet(
+        target=target or reference_authorization(),
+        commit_sha=commit_sha,
+    )
     if packet.get("fail_closed"):
         return packet
     counts = dict(packet["counts"])

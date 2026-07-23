@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import json
 from pathlib import Path
 from shutil import copytree
 
+import pytest
 import yaml
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from evals.aiuc_path_b import wave1a_candidate as wave
 from tools.active_test_registry import (
@@ -17,9 +23,50 @@ ROOT = Path(__file__).resolve().parents[1]
 MAPPING_DIR = ROOT / "rubric" / "probe_mappings"
 
 
-def test_beaaa16972_activation_packet_is_exact_bounded_tranche() -> None:
+def _b64url(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _signed_authorization(commit_sha: str, monkeypatch: pytest.MonkeyPatch) -> wave.TargetAuthorization:
+    private_key = Ed25519PrivateKey.from_private_bytes(
+        hashlib.sha256(b"BEAAA-16983 exact candidate SHA test authority").digest()
+    )
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    monkeypatch.setattr(wave, "AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL", _b64url(public_key))
+    target = wave.reference_authorization()
+    target = wave.TargetAuthorization(
+        **{
+            **target.__dict__,
+            "candidate_commit_sha": commit_sha,
+            "authorization_ref": "BEAAA-16983#exact-candidate-sha-test-authority",
+        }
+    )
+    signature = private_key.sign(
+        json.dumps(
+            wave._authorization_signature_preimage(target),  # noqa: SLF001 - regression locks preimage.
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+    )
+    return wave.TargetAuthorization(
+        **{
+            **target.__dict__,
+            "authorization_signature": f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:{_b64url(signature)}",
+        }
+    )
+
+
+def test_beaaa16972_activation_packet_is_exact_bounded_tranche(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commit_sha = "1830bed7facf4489955b5f9aba2c4e21250e2a09"
     packet = wave.build_scoring_active_packet(
-        commit_sha="1830bed7facf4489955b5f9aba2c4e21250e2a09"
+        commit_sha=commit_sha,
+        target=_signed_authorization(commit_sha, monkeypatch),
     )
 
     assert packet["fail_closed"] is False

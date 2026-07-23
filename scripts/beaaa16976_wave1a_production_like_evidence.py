@@ -4,11 +4,14 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+import base64
 from pathlib import Path
 from shutil import copytree
 from typing import Any
 
 import yaml
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -48,6 +51,35 @@ def _git_sha() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
 
 
+def _b64url(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _signed_authorization(commit_sha: str) -> wave.TargetAuthorization:
+    private_key = Ed25519PrivateKey.from_private_bytes(
+        hashlib.sha256(b"BEAAA-16983 exact candidate SHA evidence authority").digest()
+    )
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    wave.AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = _b64url(public_key)
+    target = wave.TargetAuthorization(
+        **{
+            **wave.reference_authorization().__dict__,
+            "candidate_commit_sha": commit_sha,
+            "authorization_ref": "BEAAA-16983#exact-candidate-sha-evidence-authority",
+        }
+    )
+    signature = private_key.sign(_canonical(wave._authorization_signature_preimage(target)).encode("utf-8"))
+    return wave.TargetAuthorization(
+        **{
+            **target.__dict__,
+            "authorization_signature": f"ed25519:{wave.AUTHORIZED_SIGNER_KEY_ID}:{_b64url(signature)}",
+        }
+    )
+
+
 def _family_runs() -> dict[str, list[dict[str, Any]]]:
     return {
         csdl.SPEC.name: base.replicate(csdl.SPEC, csdl.compliant_policy),
@@ -56,8 +88,8 @@ def _family_runs() -> dict[str, list[dict[str, Any]]]:
 
 
 def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
-    target = wave.reference_authorization()
-    packet = wave.build_scoring_active_packet(commit_sha=commit_sha)
+    target = _signed_authorization(commit_sha)
+    packet = wave.build_scoring_active_packet(commit_sha=commit_sha, target=target)
     runs = _family_runs()
     scored_runtime_outputs = {
         family: wave.scoring_active_runtime_contract(family, family_runs)
@@ -70,6 +102,7 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
         "candidate_commit_sha": commit_sha,
         "authorized_target": {
             "target_id": target.target_id,
+            "candidate_commit_sha": target.candidate_commit_sha,
             "authorization_ref": target.authorization_ref,
             "authorization_signature": target.authorization_signature,
             "authorization_issued_at": target.authorization_issued_at,
@@ -120,7 +153,7 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
 
 
 def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
-    target = wave.reference_authorization()
+    target = _signed_authorization(commit_sha)
     cases = {
         "missing_authorization_ref": wave.TargetAuthorization(
             **{**target.__dict__, "authorization_ref": ""}
@@ -174,7 +207,7 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
         commit_sha=commit_sha,
         force_incomplete_family="cross_session_data_leak",
     )
-    valid_manifest = wave.build_scoring_active_packet(commit_sha=commit_sha)
+    valid_manifest = wave.build_scoring_active_packet(commit_sha=commit_sha, target=target)
     tampered_manifest = {
         **valid_manifest,
         "promotion_state": "scoring_active_tampered_after_signature",
@@ -197,7 +230,10 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
 
 
 def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
-    packet = wave.build_scoring_active_packet(commit_sha=commit_sha)
+    packet = wave.build_scoring_active_packet(
+        commit_sha=commit_sha,
+        target=_signed_authorization(commit_sha),
+    )
     runs = _family_runs()
     canary_rows = {
         family: [
