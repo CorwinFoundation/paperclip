@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -131,6 +132,35 @@ def test_beaaa16992_control_matrix_has_no_unproven_required_control() -> None:
         "jsonl retained hook ledgers"
     )
     assert packet["design_partner_calibration_instrumentation"]["ledger_errors"] == []
+
+
+def test_beaaa17073_committed_instrumentation_store_is_rebuilt_idempotently(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    clean_out = tmp_path / "beaaa-16992"
+    clean_store = clean_out / "instrumentation-store"
+    shutil.copytree(evidence.OUT_DIR / "instrumentation-store", clean_store)
+    monkeypatch.setattr(evidence, "OUT_DIR", clean_out)
+
+    first = evidence.build_packet()
+    second = evidence.build_packet()
+
+    assert first["acceptance"]["overall_pass"] is True
+    assert second["acceptance"]["overall_pass"] is True
+    assert second["design_partner_calibration_instrumentation"]["retained_ledger_line_counts"] == {
+        "customer_feedback_hook": 1,
+        "eventual_outcome_hook": 1,
+        "result_record": 1,
+    }
+    assert {
+        path.name: len(path.read_text(encoding="utf-8").splitlines())
+        for path in clean_store.glob("*.jsonl")
+    } == {
+        "customer_feedback_hook.jsonl": 1,
+        "eventual_outcome_hook.jsonl": 1,
+        "result_record.jsonl": 1,
+    }
 
 
 def test_beaaa16992_rollback_hash_proof_fails_on_tamper_or_absent_retained_evidence() -> None:

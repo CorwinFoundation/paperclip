@@ -574,6 +574,7 @@ def _instrumentation_hook_drill(
     store_dir: Path | None = None,
     emit_event_types: set[str] | None = None,
     tamper_event_type: str | None = None,
+    reset_store: bool = False,
 ) -> dict[str, Any]:
     cleanup: tempfile.TemporaryDirectory[str] | None = None
     if store_dir is None:
@@ -614,6 +615,11 @@ def _instrumentation_hook_drill(
                 },
             },
         ]
+        if reset_store:
+            for row in rows:
+                path = store_dir / f"{row['event_type']}.jsonl"
+                if path.exists():
+                    path.unlink()
         retained_ledgers = {}
         written_records = []
         for row in rows:
@@ -681,6 +687,7 @@ def build_packet() -> dict[str, Any]:
         signed_manifest_sha256=signed_manifest.get("sha256"),
         target_output_sha256=target_output_sha256,
         store_dir=OUT_DIR / "instrumentation-store",
+        reset_store=True,
     )
 
     controls = {
