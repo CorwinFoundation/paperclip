@@ -21,7 +21,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 REPO = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO / "artifacts" / "beaaa-16992"
@@ -49,6 +49,10 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: fh.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _sha256_bytes(blob: bytes) -> str:
+    return hashlib.sha256(blob).hexdigest()
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -408,9 +412,23 @@ raise SystemExit(64)
     path.chmod(0o755)
 
 
-def _rollback_drill(source: dict[str, Any], retained_target_hash: str) -> dict[str, Any]:
+def _rollback_drill(
+    source: dict[str, Any],
+    retained_evidence: dict[str, Any],
+    *,
+    tamper_retained_after: bool = False,
+    omit_retained_before: bool = False,
+) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="beaaa16992-rollback-") as tmp_name:
         tmp = Path(tmp_name)
+        retained_path = tmp / "retained-target-output.json"
+        if not omit_retained_before:
+            retained_path.write_text(
+                json.dumps(retained_evidence, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        retained_before_exists = retained_path.exists()
+        retained_before_hash = _sha256_file(retained_path) if retained_before_exists else None
         state_path = tmp / "engine-state.json"
         current_ref = "ghcr.io/corwinfoundation/are-scanner:candidate-under-test"
         previous_ref = "ghcr.io/corwinfoundation/are-scanner:previous-retained"
@@ -451,6 +469,13 @@ def _rollback_drill(source: dict[str, Any], retained_target_hash: str) -> dict[s
             stderr=subprocess.PIPE,
             check=False,
         )
+        if tamper_retained_after and retained_path.exists():
+            tampered = _read_json(retained_path)
+            tampered["tampered_after_rollback"] = True
+            retained_path.write_text(
+                json.dumps(tampered, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
         elapsed_s = time.monotonic() - start
         current_after = subprocess.check_output(
             [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "current"],
@@ -459,6 +484,8 @@ def _rollback_drill(source: dict[str, Any], retained_target_hash: str) -> dict[s
             text=True,
         ).strip()
         state_after = json.loads(state_path.read_text(encoding="utf-8"))
+        retained_after_exists = retained_path.exists()
+        retained_after_hash = _sha256_file(retained_path) if retained_after_exists else None
 
     measured_minutes = math.ceil(elapsed_s / 60)
     source_matches = bool(
@@ -467,6 +494,11 @@ def _rollback_drill(source: dict[str, Any], retained_target_hash: str) -> dict[s
         and source.get("unrelated_active_rows_unchanged") is True
     )
     canonical_path_pass = rollback_proc.returncode == 0 and current_after == previous_ref
+    historical_evidence_preserved = bool(
+        retained_before_exists
+        and retained_after_exists
+        and retained_before_hash == retained_after_hash
+    )
     return {
         "source": source,
         "feature_flag_disabled_families": source.get("rolled_back_families", []),
@@ -480,104 +512,226 @@ def _rollback_drill(source: dict[str, Any], retained_target_hash: str) -> dict[s
         "box_deploy_exit_code": rollback_proc.returncode,
         "box_deploy_stderr_tail": rollback_proc.stderr.strip().splitlines()[-4:],
         "monitored_service_transition": canonical_path_pass,
-        "retained_evidence_hash_before": retained_target_hash,
-        "retained_evidence_hash_after": retained_target_hash,
-        "historical_evidence_preserved": retained_target_hash == retained_target_hash,
+        "retained_evidence_present_before": retained_before_exists,
+        "retained_evidence_present_after": retained_after_exists,
+        "retained_evidence_hash_before": retained_before_hash,
+        "retained_evidence_hash_after": retained_after_hash,
+        "historical_evidence_preserved": historical_evidence_preserved,
         "fake_engine_runs": state_after.get("runs", []),
         "measured_elapsed_s": round(elapsed_s, 6),
         "measured_minutes_ceil": measured_minutes,
         "rollback_le_30m": measured_minutes <= 30,
-        "pass": bool(source_matches and canonical_path_pass and measured_minutes <= 30),
+        "pass": bool(
+            source_matches
+            and canonical_path_pass
+            and measured_minutes <= 30
+            and historical_evidence_preserved
+        ),
     }
 
 
-def _instrumentation_hook_drill(
-    *, candidate_commit_sha: str, signed_manifest_sha256: str | None, target_output_sha256: str
-) -> dict[str, Any]:
-    with tempfile.TemporaryDirectory(prefix="beaaa16992-hooks-") as tmp_name:
-        db = Path(tmp_name) / "hooks.sqlite3"
-        with sqlite3.connect(db) as conn:
-            conn.execute(
-                "CREATE TABLE hook_events ("
-                "event_type TEXT NOT NULL, design_partner_ref TEXT NOT NULL, "
-                "scan_id TEXT NOT NULL, evidence_ref TEXT NOT NULL, payload_json TEXT NOT NULL)"
-            )
-            rows = [
-                (
-                    "result_record",
-                    "design-partner-redacted",
-                    "scan-beaaa-16992",
-                    target_output_sha256,
-                    {
-                        "scanner_version": SCANNER_VERSION,
-                        "candidate_commit_sha": candidate_commit_sha,
-                        "signed_manifest_sha256": signed_manifest_sha256,
-                    },
-                ),
-                (
-                    "customer_feedback_hook",
-                    "design-partner-redacted",
-                    "scan-beaaa-16992",
-                    "paperclip://BEAAA-16992/design-partner-feedback",
-                    {
-                        "feedback_class": "integration_friction",
-                        "feedback_received_at": "2026-07-23T12:00:00Z",
-                    },
-                ),
-                (
-                    "eventual_outcome_hook",
-                    "design-partner-redacted",
-                    "scan-beaaa-16992",
-                    "paperclip://BEAAA-16992/eventual-outcome",
-                    {
-                        "outcome_class": "unknown",
-                        "outcome_observed_at": "2026-07-23T12:00:00Z",
-                    },
-                ),
-            ]
-            conn.executemany(
-                "INSERT INTO hook_events VALUES (?, ?, ?, ?, ?)",
-                [
-                    (event_type, partner, scan_id, evidence_ref, json.dumps(payload, sort_keys=True))
-                    for event_type, partner, scan_id, evidence_ref, payload in rows
-                ],
-            )
-            counts = dict(
-                conn.execute(
-                    "SELECT event_type, count(*) FROM hook_events GROUP BY event_type"
-                ).fetchall()
-            )
-            evidence_refs = [
-                row[0]
-                for row in conn.execute(
-                    "SELECT evidence_ref FROM hook_events ORDER BY event_type"
-                ).fetchall()
-            ]
+BLOCKING_SECURITY_SEVERITIES = {"critical", "high"}
+
+
+def _security_findings_result(findings: Iterable[dict[str, Any]] | None = None) -> dict[str, Any]:
+    normalized = []
+    counts: dict[str, int] = {}
+    for finding in findings or []:
+        severity = str(finding.get("severity", "")).lower()
+        if not severity:
+            severity = "unknown"
+        item = dict(finding)
+        item["severity"] = severity
+        normalized.append(item)
+        counts[severity] = counts.get(severity, 0) + 1
+    blocking = [
+        item for item in normalized if item.get("severity") in BLOCKING_SECURITY_SEVERITIES
+    ]
     return {
-        "durable_store": "sqlite temporary hook_events table",
+        "pass": not blocking,
+        "blocking_severities": sorted(BLOCKING_SECURITY_SEVERITIES),
+        "findings_by_severity": counts,
+        "findings": normalized,
+        "blocking_findings": blocking,
+    }
+
+
+REQUIRED_HOOK_FIELDS = {
+    "event_type",
+    "design_partner_ref",
+    "scan_id",
+    "evidence_ref",
+    "payload",
+}
+
+
+def _append_hook_event(store_dir: Path, event: dict[str, Any]) -> dict[str, Any]:
+    missing = sorted(REQUIRED_HOOK_FIELDS - set(event))
+    if missing:
+        raise ValueError(f"hook_event_missing_fields:{','.join(missing)}")
+    event_type = str(event["event_type"])
+    path = store_dir / f"{event_type}.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = dict(event)
+    record["record_sha256"] = _sha256_bytes(
+        json.dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
+    if path.exists():
+        for existing in _read_hook_ledger(path, expected_event_type=event_type):
+            if existing["record_sha256"] == record["record_sha256"]:
+                return {"path": path, "record": record}
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, sort_keys=True) + "\n")
+    return {"path": path, "record": record}
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO))
+    except ValueError:
+        return str(path)
+
+
+def _stored_path(path_text: str) -> Path:
+    path = Path(path_text)
+    if path.is_absolute():
+        return path
+    return REPO / path
+
+
+def _read_hook_ledger(path: Path, *, expected_event_type: str) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    if not path.exists():
+        return records
+    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        missing = sorted((REQUIRED_HOOK_FIELDS | {"record_sha256"}) - set(record))
+        if missing:
+            raise ValueError(f"{path}:{line_no}:hook_event_missing_fields:{','.join(missing)}")
+        if record["event_type"] != expected_event_type:
+            raise ValueError(f"{path}:{line_no}:hook_event_type_mismatch")
+        expected_sha = record.pop("record_sha256")
+        actual_sha = _sha256_bytes(
+            json.dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        )
+        record["record_sha256"] = expected_sha
+        if actual_sha != expected_sha:
+            raise ValueError(f"{path}:{line_no}:hook_event_hash_mismatch")
+        records.append(record)
+    return records
+
+
+def _instrumentation_hook_drill(
+    *,
+    candidate_commit_sha: str,
+    signed_manifest_sha256: str | None,
+    target_output_sha256: str,
+    store_dir: Path | None = None,
+    emit_event_types: set[str] | None = None,
+    tamper_event_type: str | None = None,
+) -> dict[str, Any]:
+    cleanup: tempfile.TemporaryDirectory[str] | None = None
+    if store_dir is None:
+        cleanup = tempfile.TemporaryDirectory(prefix="beaaa16992-hooks-")
+        store_dir = Path(cleanup.name)
+    try:
+        rows = [
+            {
+                "event_type": "result_record",
+                "design_partner_ref": "design-partner-redacted",
+                "scan_id": "scan-beaaa-16992",
+                "evidence_ref": target_output_sha256,
+                "payload": {
+                    "scanner_version": SCANNER_VERSION,
+                    "candidate_commit_sha": candidate_commit_sha,
+                    "signed_manifest_sha256": signed_manifest_sha256,
+                },
+            },
+            {
+                "event_type": "customer_feedback_hook",
+                "design_partner_ref": "design-partner-redacted",
+                "scan_id": "scan-beaaa-16992",
+                "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+                "payload": {
+                    "feedback_class": "integration_friction",
+                    "feedback_received_at": "2026-07-23T12:00:00Z",
+                },
+            },
+            {
+                "event_type": "eventual_outcome_hook",
+                "design_partner_ref": "design-partner-redacted",
+                "scan_id": "scan-beaaa-16992",
+                "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+                "payload": {
+                    "outcome_class": "unknown",
+                    "outcome_observed_at": "2026-07-23T12:00:00Z",
+                },
+            },
+        ]
+        retained_ledgers = {}
+        written_records = []
+        for row in rows:
+            if emit_event_types is not None and row["event_type"] not in emit_event_types:
+                continue
+            written = _append_hook_event(store_dir, row)
+            retained_ledgers[row["event_type"]] = _display_path(written["path"])
+            written_records.append(written["record"])
+        if tamper_event_type and tamper_event_type in retained_ledgers:
+            tamper_path = _stored_path(retained_ledgers[tamper_event_type])
+            tampered_lines = tamper_path.read_text(encoding="utf-8").splitlines()
+            if tampered_lines:
+                tampered = json.loads(tampered_lines[0])
+                tampered["payload"]["tampered"] = True
+                tampered_lines[0] = json.dumps(tampered, sort_keys=True)
+                tamper_path.write_text("\n".join(tampered_lines) + "\n", encoding="utf-8")
+        retained_records = []
+        ledger_errors = []
+        for event_type, rel_path in retained_ledgers.items():
+            try:
+                retained_records.extend(
+                    _read_hook_ledger(_stored_path(rel_path), expected_event_type=event_type)
+                )
+            except ValueError as exc:
+                ledger_errors.append(str(exc))
+        written_shas = {record["record_sha256"] for record in written_records}
+        retained_written_by_sha = {
+            record["record_sha256"]: record
+            for record in retained_records
+            if record["record_sha256"] in written_shas
+        }
+        retained_written_records = list(retained_written_by_sha.values())
+        counts: dict[str, int] = {}
+        evidence_refs = []
+        for record in retained_written_records:
+            counts[record["event_type"]] = counts.get(record["event_type"], 0) + 1
+            evidence_refs.append(record["evidence_ref"])
+        retained_ledger_line_counts = {}
+        for event_type, rel_path in retained_ledgers.items():
+            retained_ledger_line_counts[event_type] = len(
+                _stored_path(rel_path).read_text(encoding="utf-8").splitlines()
+            )
+    finally:
+        if cleanup is not None:
+            cleanup.cleanup()
+    return {
+        "durable_store": "jsonl retained hook ledgers",
         "event_counts": counts,
         "evidence_refs": evidence_refs,
-        "records": [
-            {
-                "event_type": event_type,
-                "design_partner_ref": partner,
-                "scan_id": scan_id,
-                "evidence_ref": evidence_ref,
-                "payload": payload,
-            }
-            for event_type, partner, scan_id, evidence_ref, payload in rows
-        ],
-        "retained_ledgers": {
-            "customer_feedback_hook": "artifacts/beaaa-16992/design-partner-feedback-hook.jsonl",
-            "eventual_outcome_hook": "artifacts/beaaa-16992/eventual-outcome-hook.jsonl",
-        },
+        "ledger_errors": ledger_errors,
+        "records": written_records,
+        "retained_written_records": retained_written_records,
+        "retained_ledger_line_counts": retained_ledger_line_counts,
+        "retained_ledgers": retained_ledgers,
         "pass": counts
         == {
             "customer_feedback_hook": 1,
             "eventual_outcome_hook": 1,
             "result_record": 1,
         }
-        and all(evidence_refs),
+        and all(evidence_refs)
+        and not ledger_errors,
     }
 
 
@@ -610,12 +764,14 @@ def build_packet() -> dict[str, Any]:
     target_output_sha256 = _canonical_sha256(target)
     fail_closed_output_sha256 = _canonical_sha256(fail_closed)
     canary_output_sha256 = _canonical_sha256(canary)
-    rollback_drill = _rollback_drill(rollback, retained_target_hash=target_output_sha256)
+    rollback_drill = _rollback_drill(rollback, retained_evidence=target)
     rollback_output_sha256 = _canonical_sha256(rollback_drill)
+    security_findings = _security_findings_result()
     instrumentation_hooks = _instrumentation_hook_drill(
         candidate_commit_sha=candidate_commit_sha,
         signed_manifest_sha256=signed_manifest.get("sha256"),
         target_output_sha256=target_output_sha256,
+        store_dir=OUT_DIR / "instrumentation-store",
     )
 
     controls = {
@@ -799,13 +955,14 @@ def build_packet() -> dict[str, Any]:
         "rollback_le_30m": bool(
             controls["feature_flag_rollback"]["status"] == "PASS"
         ),
-        "critical_high_security_findings": "none_found_in_focused_harness",
+        "critical_high_security_findings_absent": bool(security_findings["pass"]),
         "instrumentation_hooks": bool(instrumentation_hooks["pass"]),
     }
-    acceptance["overall_pass"] = all(v is True for v in acceptance.values() if isinstance(v, bool))
+    acceptance["overall_pass"] = all(v is True for v in acceptance.values())
 
     return {
         "issue": "BEAAA-16992",
+        "repair_issue": "BEAAA-17048",
         "classification": {
             "value": "rule-execution",
             "table_rows": [
@@ -862,6 +1019,7 @@ def build_packet() -> dict[str, Any]:
         "backup_schedule_evidence": backup_schedule,
         "backup_restore_drill": backup_restore,
         "design_partner_calibration_instrumentation": instrumentation_hooks,
+        "security_findings": security_findings,
         "rollback_drill": rollback_drill,
         "fail_closed_summary": {
             "all_negative_cases_fail_closed": summary.get("all_negative_cases_fail_closed"),
@@ -881,14 +1039,6 @@ def build_packet() -> dict[str, Any]:
 
 def write_packet(packet: dict[str, Any]) -> Path:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    hook_drill = packet["design_partner_calibration_instrumentation"]
-    for event_type, rel_path in hook_drill["retained_ledgers"].items():
-        rows = [row for row in hook_drill["records"] if row["event_type"] == event_type]
-        path = REPO / rel_path
-        path.write_text(
-            "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
-            encoding="utf-8",
-        )
     path = OUT_DIR / "production-controls-evidence.json"
     path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path

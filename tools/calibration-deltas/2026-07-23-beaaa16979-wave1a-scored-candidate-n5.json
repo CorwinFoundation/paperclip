@@ -2,7 +2,7 @@
   "issue": "BEAAA-16979",
   "action": "security fix-forward for QA-rejected Wave 1A scored candidate authorization trust anchor",
   "classification_table_row": "scanner-implementation-supervision-v1.md@v1.1 rows 'Smoke test for an existing operation' and 'Refactor that doesn't touch behavior'",
-  "ran_at": "2026-07-23T06:30:36.120104+00:00",
+  "ran_at": "2026-07-23T12:34:13.151173+00:00",
   "n": 5,
   "scanner_version": "0.5.0",
   "contract_version": "are-scanner-api-v1@v1.0",

@@ -2,35 +2,35 @@
   "acceptance": {
     "authorized_end_to_end_design_partner_scan": true,
     "backup_restore_rpo_rto": true,
-    "critical_high_security_findings": "none_found_in_focused_harness",
+    "critical_high_security_findings_absent": true,
     "instrumentation_hooks": true,
     "overall_pass": true,
     "rollback_le_30m": true,
     "tenant_isolation_and_retention": true
   },
   "backup_restore_drill": {
-    "backup_elapsed_s": 0.015222,
+    "backup_elapsed_s": 0.02589,
     "backup_rc": 0,
     "backup_report": {
       "daily_promoted": true,
       "integrity": "ok",
       "row_count": 2,
-      "sha256_raw": "sha256:9cca0dc4f568eb1c4f75de58ea24b980705fbf0b85885762566842ef6b7842c9",
-      "snapshot": "scan_log-20260723T121947Z.sqlite3.gz",
+      "sha256_raw": "sha256:3db5e5817bca330004f2f8fb7b92389cc751d5a4f584cd151583bf8df00d6f38",
+      "snapshot": "scan_log-20260723T123317Z.sqlite3.gz",
       "status": "OK"
     },
     "integrity_pass": true,
-    "observed_recovery_point_lag_s": 0.041395,
-    "restore_elapsed_s": 0.001683,
+    "observed_recovery_point_lag_s": 0.050768,
+    "restore_elapsed_s": 0.001766,
     "restore_rc": 0,
     "restore_report": {
       "integrity": "ok",
       "mode": "dry-run",
       "row_count": 2,
-      "sha256_gz_actual": "sha256:5550a9b22c8091ec76492f2a2101f890465b4f31b936b62ae745b911f07df88f",
-      "sha256_gz_manifest": "sha256:5550a9b22c8091ec76492f2a2101f890465b4f31b936b62ae745b911f07df88f",
+      "sha256_gz_actual": "sha256:808c9a62ca0d27162327cdef0abd704559a48097f6aac223b2a18876473ae9c5",
+      "sha256_gz_manifest": "sha256:808c9a62ca0d27162327cdef0abd704559a48097f6aac223b2a18876473ae9c5",
       "sha256_match": true,
-      "snapshot": "scan_log-20260723T121947Z.sqlite3.gz",
+      "snapshot": "scan_log-20260723T123317Z.sqlite3.gz",
       "verify_ok": true
     },
     "rpo_pass": true,
@@ -61,7 +61,7 @@
     "candidate_commit_sha_source": "artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json",
     "evidence_build_head_sha_source": "git rev-parse HEAD at packet build",
     "fail_closed_output_sha256": "a90022a6e3034fd8ee7e1587e1335e5d6813feec529c36423af6936bbac27d7f",
-    "rollback_output_sha256": "9b3e8ea518f4822cbdca39c7ec861d9e48d2bafb75f5706eb61dc494b4f35400",
+    "rollback_output_sha256": "c082277d5e813a0d09e96dff213a930e54ac2fd6fb30f6e3057b789e8ad41197",
     "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16",
     "target_output_sha256": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
   },
@@ -104,28 +104,28 @@
     "backups": {
       "checks": {
         "drill": {
-          "backup_elapsed_s": 0.015222,
+          "backup_elapsed_s": 0.02589,
           "backup_rc": 0,
           "backup_report": {
             "daily_promoted": true,
             "integrity": "ok",
             "row_count": 2,
-            "sha256_raw": "sha256:9cca0dc4f568eb1c4f75de58ea24b980705fbf0b85885762566842ef6b7842c9",
-            "snapshot": "scan_log-20260723T121947Z.sqlite3.gz",
+            "sha256_raw": "sha256:3db5e5817bca330004f2f8fb7b92389cc751d5a4f584cd151583bf8df00d6f38",
+            "snapshot": "scan_log-20260723T123317Z.sqlite3.gz",
             "status": "OK"
           },
           "integrity_pass": true,
-          "observed_recovery_point_lag_s": 0.041395,
-          "restore_elapsed_s": 0.001683,
+          "observed_recovery_point_lag_s": 0.050768,
+          "restore_elapsed_s": 0.001766,
           "restore_rc": 0,
           "restore_report": {
             "integrity": "ok",
             "mode": "dry-run",
             "row_count": 2,
-            "sha256_gz_actual": "sha256:5550a9b22c8091ec76492f2a2101f890465b4f31b936b62ae745b911f07df88f",
-            "sha256_gz_manifest": "sha256:5550a9b22c8091ec76492f2a2101f890465b4f31b936b62ae745b911f07df88f",
+            "sha256_gz_actual": "sha256:808c9a62ca0d27162327cdef0abd704559a48097f6aac223b2a18876473ae9c5",
+            "sha256_gz_manifest": "sha256:808c9a62ca0d27162327cdef0abd704559a48097f6aac223b2a18876473ae9c5",
             "sha256_match": true,
-            "snapshot": "scan_log-20260723T121947Z.sqlite3.gz",
+            "snapshot": "scan_log-20260723T123317Z.sqlite3.gz",
             "verify_ok": true
           },
           "rpo_pass": true,
@@ -158,17 +158,18 @@
     },
     "design_partner_calibration_instrumentation": {
       "checks": {
-        "durable_store": "sqlite temporary hook_events table",
+        "durable_store": "jsonl retained hook ledgers",
         "event_counts": {
           "customer_feedback_hook": 1,
           "eventual_outcome_hook": 1,
           "result_record": 1
         },
         "evidence_refs": [
+          "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
           "paperclip://BEAAA-16992/design-partner-feedback",
-          "paperclip://BEAAA-16992/eventual-outcome",
-          "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
+          "paperclip://BEAAA-16992/eventual-outcome"
         ],
+        "ledger_errors": [],
         "pass": true,
         "records": [
           {
@@ -180,6 +181,7 @@
               "scanner_version": "0.5.0",
               "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
             },
+            "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
             "scan_id": "scan-beaaa-16992"
           },
           {
@@ -190,6 +192,7 @@
               "feedback_class": "integration_friction",
               "feedback_received_at": "2026-07-23T12:00:00Z"
             },
+            "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
             "scan_id": "scan-beaaa-16992"
           },
           {
@@ -200,13 +203,56 @@
               "outcome_class": "unknown",
               "outcome_observed_at": "2026-07-23T12:00:00Z"
             },
+            "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
             "scan_id": "scan-beaaa-16992"
           }
         ],
+        "retained_ledger_line_counts": {
+          "customer_feedback_hook": 1,
+          "eventual_outcome_hook": 1,
+          "result_record": 1
+        },
         "retained_ledgers": {
-          "customer_feedback_hook": "artifacts/beaaa-16992/design-partner-feedback-hook.jsonl",
-          "eventual_outcome_hook": "artifacts/beaaa-16992/eventual-outcome-hook.jsonl"
-        }
+          "customer_feedback_hook": "artifacts/beaaa-16992/instrumentation-store/customer_feedback_hook.jsonl",
+          "eventual_outcome_hook": "artifacts/beaaa-16992/instrumentation-store/eventual_outcome_hook.jsonl",
+          "result_record": "artifacts/beaaa-16992/instrumentation-store/result_record.jsonl"
+        },
+        "retained_written_records": [
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "result_record",
+            "evidence_ref": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+            "payload": {
+              "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+              "scanner_version": "0.5.0",
+              "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
+            },
+            "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
+            "scan_id": "scan-beaaa-16992"
+          },
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "customer_feedback_hook",
+            "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+            "payload": {
+              "feedback_class": "integration_friction",
+              "feedback_received_at": "2026-07-23T12:00:00Z"
+            },
+            "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
+            "scan_id": "scan-beaaa-16992"
+          },
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "eventual_outcome_hook",
+            "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+            "payload": {
+              "outcome_class": "unknown",
+              "outcome_observed_at": "2026-07-23T12:00:00Z"
+            },
+            "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
+            "scan_id": "scan-beaaa-16992"
+          }
+        ]
       },
       "evidence": [
         "production-like output records result, scanner version, signed manifest hash, evidence hashes",
@@ -247,13 +293,15 @@
         "historical_evidence_preserved": true,
         "measured_active_executable_after": 305,
         "measured_active_executable_before": 340,
-        "measured_elapsed_s": 0.270334,
+        "measured_elapsed_s": 0.261972,
         "measured_minutes_ceil": 1,
         "monitored_service_transition": true,
         "pass": true,
         "previous_ref": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
-        "retained_evidence_hash_after": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
-        "retained_evidence_hash_before": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+        "retained_evidence_hash_after": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+        "retained_evidence_hash_before": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+        "retained_evidence_present_after": true,
+        "retained_evidence_present_before": true,
         "rollback_le_30m": true,
         "source": {
           "active_executable_after": 305,
@@ -326,7 +374,7 @@
     },
     "retention": {
       "checks": {
-        "backup_sha256_raw": "sha256:9cca0dc4f568eb1c4f75de58ea24b980705fbf0b85885762566842ef6b7842c9",
+        "backup_sha256_raw": "sha256:3db5e5817bca330004f2f8fb7b92389cc751d5a4f584cd151583bf8df00d6f38",
         "target_retention": {
           "immutable": true,
           "manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16",
@@ -391,17 +439,18 @@
   "corpus_version": "golden fixture corpus versions plus Wave 1A expected_wave1a_hashes()",
   "cto_cosign_ref": null,
   "design_partner_calibration_instrumentation": {
-    "durable_store": "sqlite temporary hook_events table",
+    "durable_store": "jsonl retained hook ledgers",
     "event_counts": {
       "customer_feedback_hook": 1,
       "eventual_outcome_hook": 1,
       "result_record": 1
     },
     "evidence_refs": [
+      "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
       "paperclip://BEAAA-16992/design-partner-feedback",
-      "paperclip://BEAAA-16992/eventual-outcome",
-      "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
+      "paperclip://BEAAA-16992/eventual-outcome"
     ],
+    "ledger_errors": [],
     "pass": true,
     "records": [
       {
@@ -413,6 +462,7 @@
           "scanner_version": "0.5.0",
           "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
         },
+        "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
         "scan_id": "scan-beaaa-16992"
       },
       {
@@ -423,6 +473,7 @@
           "feedback_class": "integration_friction",
           "feedback_received_at": "2026-07-23T12:00:00Z"
         },
+        "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
         "scan_id": "scan-beaaa-16992"
       },
       {
@@ -433,15 +484,58 @@
           "outcome_class": "unknown",
           "outcome_observed_at": "2026-07-23T12:00:00Z"
         },
+        "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
         "scan_id": "scan-beaaa-16992"
       }
     ],
+    "retained_ledger_line_counts": {
+      "customer_feedback_hook": 1,
+      "eventual_outcome_hook": 1,
+      "result_record": 1
+    },
     "retained_ledgers": {
-      "customer_feedback_hook": "artifacts/beaaa-16992/design-partner-feedback-hook.jsonl",
-      "eventual_outcome_hook": "artifacts/beaaa-16992/eventual-outcome-hook.jsonl"
-    }
+      "customer_feedback_hook": "artifacts/beaaa-16992/instrumentation-store/customer_feedback_hook.jsonl",
+      "eventual_outcome_hook": "artifacts/beaaa-16992/instrumentation-store/eventual_outcome_hook.jsonl",
+      "result_record": "artifacts/beaaa-16992/instrumentation-store/result_record.jsonl"
+    },
+    "retained_written_records": [
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "result_record",
+        "evidence_ref": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+        "payload": {
+          "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+          "scanner_version": "0.5.0",
+          "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
+        },
+        "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
+        "scan_id": "scan-beaaa-16992"
+      },
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "customer_feedback_hook",
+        "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+        "payload": {
+          "feedback_class": "integration_friction",
+          "feedback_received_at": "2026-07-23T12:00:00Z"
+        },
+        "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
+        "scan_id": "scan-beaaa-16992"
+      },
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "eventual_outcome_hook",
+        "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+        "payload": {
+          "outcome_class": "unknown",
+          "outcome_observed_at": "2026-07-23T12:00:00Z"
+        },
+        "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
+        "scan_id": "scan-beaaa-16992"
+      }
+    ]
   },
-  "evidence_build_head_sha": "2d41f91c84e1539ef7cd16f00f2d4da9384e1f1f",
+  "evidence_build_head_sha": "0a4383bee9dc962d7f5107ba369d54be4ed2445c",
   "fail_closed_summary": {
     "all_negative_cases_fail_closed": true,
     "failure_codes": {
@@ -490,6 +584,7 @@
     "qa_engineer_agent_id": "cd1e82a0-d1cf-4b44-a8ea-a8b312120baa",
     "qa_required": true
   },
+  "repair_issue": "BEAAA-17048",
   "rollback_drill": {
     "box_deploy_exit_code": 0,
     "box_deploy_stderr_tail": [
@@ -509,13 +604,15 @@
     "historical_evidence_preserved": true,
     "measured_active_executable_after": 305,
     "measured_active_executable_before": 340,
-    "measured_elapsed_s": 0.270334,
+    "measured_elapsed_s": 0.261972,
     "measured_minutes_ceil": 1,
     "monitored_service_transition": true,
     "pass": true,
     "previous_ref": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
-    "retained_evidence_hash_after": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
-    "retained_evidence_hash_before": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+    "retained_evidence_hash_after": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+    "retained_evidence_hash_before": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+    "retained_evidence_present_after": true,
+    "retained_evidence_present_before": true,
     "rollback_le_30m": true,
     "source": {
       "active_executable_after": 305,
@@ -533,6 +630,16 @@
   },
   "rubric_point_id": "P3.9;ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK;P3.7;ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION",
   "scanner_version": "0.5.0",
+  "security_findings": {
+    "blocking_findings": [],
+    "blocking_severities": [
+      "critical",
+      "high"
+    ],
+    "findings": [],
+    "findings_by_severity": {},
+    "pass": true
+  },
   "supervision_contract": "scanner-implementation-supervision-v1@v1.1",
   "worktree_dirty_at_packet_build": true
 }
