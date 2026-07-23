@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ AUTHORIZATION_PUBLIC_KEY_B64URL = "7fxNjIFpjF4jucLbzmHf3TRoq_Qzb96xnTaTKm_mQ58"
 TARGET_EVIDENCE_REL = "artifacts/beaaa-17196/wave2-openrouter-unsigned-packet.json"
 PROMOTION_IDENTITY_SCHEME = "backbond-scanner-wave2-promotion-manifest-v1"
 OPENROUTER_TARGET_MODEL = "meta-llama/llama-3.3-70b-instruct"
+RETENTION_FORMAT_VERSION = "wave2-case-seed-retention/v0.1"
 
 BOUNDED_AGENT_SYSTEM_POLICY_VERSION = "wave2-bounded-agent-system-policy@0.1.0"
 BOUNDED_AGENT_SYSTEM_POLICY = """You are the bounded BackBond Wave 2 target agent for certification evidence.
@@ -494,11 +496,159 @@ def _fail_closed(code: str, auth: TargetProductionAuthorization | None) -> dict[
     }
 
 
+class DurableCaseRecordStore:
+    """Crash-safe per-case journal for Wave 2 target-bound evidence.
+
+    Each completed case-seed record is written to a temp file, fsynced, renamed,
+    and the containing directory is fsynced before fail-closed decisions can act
+    on the verdict. Readers reject corrupt rows and duplicate case-seed keys.
+    """
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.records_dir = root / "records"
+        self.records_dir.mkdir(parents=True, exist_ok=True)
+        _fsync_dir(self.records_dir)
+
+    @staticmethod
+    def key_for(row: dict[str, Any]) -> str:
+        return (
+            f"{row['family']}__seed-{int(row['seed'])}__"
+            f"{row['case_id']}.json"
+        )
+
+    def record_path(self, row: dict[str, Any]) -> Path:
+        return self.records_dir / self.key_for(row)
+
+    def write_record(self, row: dict[str, Any]) -> dict[str, Any]:
+        record = {
+            "retention_format_version": RETENTION_FORMAT_VERSION,
+            **row,
+        }
+        record_hash = _sha256_obj(record)
+        record["record_sha256"] = record_hash
+        path = self.record_path(record)
+        if path.exists():
+            raise TargetExecutionError(
+                f"duplicate_case_seed_record:{record['family']}:{record['case_id']}:seed-{record['seed']}"
+            )
+        tmp = path.with_name(path.name + f".tmp-{os.getpid()}")
+        _atomic_write_json(path, tmp, record)
+        return record
+
+    def read_records(self) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, int]] = set()
+        for path in sorted(self.records_dir.glob("*.json")):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise TargetExecutionError(f"corrupt_case_seed_record:{path.name}") from exc
+            if not isinstance(record, dict):
+                raise TargetExecutionError(f"corrupt_case_seed_record:{path.name}")
+            if record.get("retention_format_version") != RETENTION_FORMAT_VERSION:
+                raise TargetExecutionError(f"retention_format_mismatch:{path.name}")
+            expected_hash = record.get("record_sha256")
+            preimage = dict(record)
+            preimage.pop("record_sha256", None)
+            if expected_hash != _sha256_obj(preimage):
+                raise TargetExecutionError(f"case_seed_record_hash_mismatch:{path.name}")
+            key = (
+                str(record.get("family")),
+                str(record.get("case_id")),
+                int(record.get("seed")),
+            )
+            if key in seen:
+                raise TargetExecutionError(
+                    f"duplicate_case_seed_record:{key[0]}:{key[1]}:seed-{key[2]}"
+                )
+            seen.add(key)
+            records.append(record)
+        return records
+
+    def record_set_hash(self) -> str:
+        return _sha256_obj(self.read_records())
+
+
+def _fsync_dir(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _atomic_write_json(path: Path, tmp: Path, payload: dict[str, Any]) -> None:
+    blob = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    with tmp.open("wb") as handle:
+        handle.write(blob)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp, path)
+    _fsync_dir(path.parent)
+
+
+def _record_from_case_result(
+    *,
+    auth: TargetProductionAuthorization,
+    family: str,
+    seed: int,
+    case: base.Case,
+    prompt: str,
+    request: dict[str, Any],
+    response: dict[str, Any],
+    decision: dict[str, Any],
+    verdict: str,
+) -> dict[str, Any]:
+    request_sha = _sha256_obj(request)
+    response_sha = _sha256_obj(response)
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return {
+        "ticket_ref": FIX_TICKET_REF,
+        "family": family,
+        "case_id": case.case_id,
+        "category": case.category,
+        "seed": seed,
+        "rubric_point_ids": list(case.rubric_point_ids),
+        "is_canary": case.is_canary,
+        "rendered_prompt": prompt,
+        "target_request": request,
+        "target_response": response,
+        "raw_response": _raw_response_text(response),
+        "target_request_sha256": request_sha,
+        "target_response_sha256": response_sha,
+        "model_id": response.get("model_id"),
+        "started_at": response.get("started_at") or request.get("requested_at"),
+        "completed_at": response.get("completed_at") or now,
+        "decision": decision,
+        "verdict": verdict,
+        "execution_evidenced": bool(request_sha and response_sha and verdict),
+        "scanner_version": base.SCANNER_VERSION,
+        "corpus_version": SPECS[family].version,
+        "probe_set_version": SPECS[family].version,
+        "contract": "are-scanner-api-v1@v1.3.0",
+        "policy_version": BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+        "policy_sha256": _sha256_obj(
+            {
+                "version": BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+                "policy": BOUNDED_AGENT_SYSTEM_POLICY,
+            }
+        ),
+        "family_corpus_sha256": corpus_sha256(family),
+        "config_sha256": config_sha256(),
+        "evaluator_version": "wave2-deterministic-raw-response-evaluator@0.1.0",
+        "evaluator_sha256": config_sha256()["candidate_module"],
+        "target_authorization_preimage_sha256": _sha256_obj(authorization_preimage(auth)),
+    }
+
+
 def run_authorized_target_family(
     family: str,
     *,
     auth: TargetProductionAuthorization,
     seed: int,
+    record_store: DurableCaseRecordStore | None = None,
+    stop_after_non_pass: bool = False,
 ) -> dict[str, Any]:
     """Execute one Wave 2 family through the authorized target adapter.
 
@@ -527,27 +677,44 @@ def run_authorized_target_family(
         }
         response = _execute_target_command(auth, request)
         decision, verdict = _validate_external_target_response(family, case, response)
-        request_sha = _sha256_obj(request)
-        response_sha = _sha256_obj(response)
+        retained = _record_from_case_result(
+            auth=auth,
+            family=family,
+            seed=seed,
+            case=case,
+            prompt=prompt,
+            request=request,
+            response=response,
+            decision=decision,
+            verdict=verdict,
+        )
+        if record_store is not None:
+            retained = record_store.write_record(retained)
         case_results.append(
             {
-                "case_id": case.case_id,
-                "category": case.category,
-                "rubric_point_ids": list(case.rubric_point_ids),
-                "is_canary": case.is_canary,
-                "rendered_prompt": prompt,
-                "target_request": request,
-                "target_response": response,
-                "target_request_sha256": request_sha,
-                "target_response_sha256": response_sha,
-                "decision": decision,
-                "verdict": verdict,
-                "execution_evidenced": bool(request_sha and response_sha and verdict),
+                key: retained[key]
+                for key in (
+                    "case_id",
+                    "category",
+                    "rubric_point_ids",
+                    "is_canary",
+                    "rendered_prompt",
+                    "target_request",
+                    "target_response",
+                    "target_request_sha256",
+                    "target_response_sha256",
+                    "model_id",
+                    "decision",
+                    "verdict",
+                    "execution_evidenced",
+                )
             }
         )
         fired_probe_ledger.append(case.case_id)
         if case.is_canary:
             canary_registration.append(case.case_id)
+        if stop_after_non_pass and verdict != base.PASS:
+            raise TargetExecutionError(f"fail_closed_non_pass:{family}:{case.case_id}:seed-{seed}:{verdict}")
     evidence: dict[str, Any] = {
         "family": spec.name,
         "probe_set_version": spec.version,
@@ -588,9 +755,17 @@ def replicate_authorized_target(
     family: str,
     *,
     auth: TargetProductionAuthorization,
+    record_store: DurableCaseRecordStore | None = None,
+    stop_after_non_pass: bool = False,
 ) -> list[dict[str, Any]]:
     return [
-        run_authorized_target_family(family, auth=auth, seed=seed)
+        run_authorized_target_family(
+            family,
+            auth=auth,
+            seed=seed,
+            record_store=record_store,
+            stop_after_non_pass=stop_after_non_pass,
+        )
         for seed in range(SPECS[family].replication_required)
     ]
 
@@ -622,11 +797,12 @@ def build_target_evidence_packet(
     parent_sha: str | None = None,
     auth: TargetProductionAuthorization | None = None,
     manifest_signature: str | None = None,
+    record_store: DurableCaseRecordStore | None = None,
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
     evidence_by_family = {
-        family: replicate_authorized_target(family, auth=auth)
+        family: replicate_authorized_target(family, auth=auth, record_store=record_store)
         for family in sorted(SPECS)
     }
     assert_target_execution_evidenced(evidence_by_family)
@@ -635,12 +811,14 @@ def build_target_evidence_packet(
         for family, runs in evidence_by_family.items()
     }
     execution_evidence_sha256 = _sha256_obj(evidence_by_family)
+    durable_case_record_set_sha256 = record_store.record_set_hash() if record_store else None
     promotion_identity = promotion_identity_manifest(
         commit_sha=commit_sha,
         parent_sha=auth.parent_sha,
         target_authorization=auth,
         execution_evidence_sha256=execution_evidence_sha256,
         family_evidence_sha256=family_hashes,
+        durable_case_record_set_sha256=durable_case_record_set_sha256,
     )
     case_counts = {family: len(SPECS[family].cases) for family in sorted(SPECS)}
     preimage = candidate_manifest_preimage(
@@ -649,6 +827,7 @@ def build_target_evidence_packet(
         target_authorization=auth,
         execution_evidence_sha256=execution_evidence_sha256,
         family_evidence_sha256=family_hashes,
+        durable_case_record_set_sha256=durable_case_record_set_sha256,
     )
     preimage["promotion_identity_sha256"] = _sha256_obj(promotion_identity)
     if not manifest_signature:
@@ -666,6 +845,8 @@ def build_target_evidence_packet(
             "signature": auth.signature,
         },
         "target_authorization_preimage_sha256": _sha256_obj(authorization_preimage(auth)),
+        "retention_format_version": RETENTION_FORMAT_VERSION,
+        "durable_case_record_set_sha256": durable_case_record_set_sha256,
         "unique_scenario_count": sum(case_counts.values()),
         "execution_count_k5": sum(case_counts.values()) * base.REPLICATION_K,
         "evidence_by_family": evidence_by_family,
@@ -680,11 +861,12 @@ def build_unsigned_target_evidence_packet(
     commit_sha: str,
     parent_sha: str | None = None,
     auth: TargetProductionAuthorization | None = None,
+    record_store: DurableCaseRecordStore | None = None,
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
     evidence_by_family = {
-        family: replicate_authorized_target(family, auth=auth)
+        family: replicate_authorized_target(family, auth=auth, record_store=record_store)
         for family in sorted(SPECS)
     }
     assert_target_execution_evidenced(evidence_by_family)
@@ -693,12 +875,14 @@ def build_unsigned_target_evidence_packet(
         for family, runs in evidence_by_family.items()
     }
     execution_evidence_sha256 = _sha256_obj(evidence_by_family)
+    durable_case_record_set_sha256 = record_store.record_set_hash() if record_store else None
     promotion_identity = promotion_identity_manifest(
         commit_sha=commit_sha,
         parent_sha=auth.parent_sha,
         target_authorization=auth,
         execution_evidence_sha256=execution_evidence_sha256,
         family_evidence_sha256=family_hashes,
+        durable_case_record_set_sha256=durable_case_record_set_sha256,
     )
     preimage = candidate_manifest_preimage(
         commit_sha=commit_sha,
@@ -706,6 +890,7 @@ def build_unsigned_target_evidence_packet(
         target_authorization=auth,
         execution_evidence_sha256=execution_evidence_sha256,
         family_evidence_sha256=family_hashes,
+        durable_case_record_set_sha256=durable_case_record_set_sha256,
     )
     preimage["promotion_identity_sha256"] = _sha256_obj(promotion_identity)
     return {
@@ -722,6 +907,8 @@ def build_unsigned_target_evidence_packet(
             "signature": auth.signature,
         },
         "target_authorization_preimage_sha256": _sha256_obj(authorization_preimage(auth)),
+        "retention_format_version": RETENTION_FORMAT_VERSION,
+        "durable_case_record_set_sha256": durable_case_record_set_sha256,
         "unique_scenario_count": preimage["unique_scenario_count"],
         "execution_count_k5": preimage["execution_count_k5"],
         "evidence_by_family": evidence_by_family,
@@ -739,6 +926,7 @@ def build_fail_closed_target_evidence_packet(
     parent_sha: str | None = None,
     auth: TargetProductionAuthorization | None = None,
     manifest_signature: str | None = None,
+    record_store: DurableCaseRecordStore | None = None,
 ) -> dict[str, Any]:
     try:
         return build_target_evidence_packet(
@@ -746,6 +934,7 @@ def build_fail_closed_target_evidence_packet(
             parent_sha=parent_sha,
             auth=auth,
             manifest_signature=manifest_signature,
+            record_store=record_store,
         )
     except TargetExecutionError as exc:
         return _fail_closed(exc.code, auth)
@@ -796,6 +985,7 @@ def candidate_manifest_preimage(
     target_authorization: TargetProductionAuthorization | None = None,
     execution_evidence_sha256: str | None = None,
     family_evidence_sha256: dict[str, list[str]] | None = None,
+    durable_case_record_set_sha256: str | None = None,
 ) -> dict[str, Any]:
     hashes = expected_wave2_hashes()
     case_counts = {family: len(spec.cases) for family, spec in SPECS.items()}
@@ -849,6 +1039,8 @@ def candidate_manifest_preimage(
             "execution_evidence_sha256": execution_evidence_sha256,
             "family_evidence_sha256": family_evidence_sha256 or {},
             "retained_target_evidence": TARGET_EVIDENCE_REL,
+            "retention_format_version": RETENTION_FORMAT_VERSION,
+            "durable_case_record_set_sha256": durable_case_record_set_sha256,
         },
         "monitoring": {
             "canary_registration": "retain first and last case canaries per family",
@@ -869,6 +1061,7 @@ def promotion_identity_manifest(
     target_authorization: TargetProductionAuthorization,
     execution_evidence_sha256: str,
     family_evidence_sha256: dict[str, list[str]],
+    durable_case_record_set_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Build the immutable identity shared by QA, Underwriting, and deploy.
 
@@ -883,6 +1076,7 @@ def promotion_identity_manifest(
         target_authorization=target_authorization,
         execution_evidence_sha256=execution_evidence_sha256,
         family_evidence_sha256=family_evidence_sha256,
+        durable_case_record_set_sha256=durable_case_record_set_sha256,
     )
     return {
         "identity_scheme": PROMOTION_IDENTITY_SCHEME,
@@ -894,6 +1088,8 @@ def promotion_identity_manifest(
         ],
         "execution_evidence_sha256": execution_evidence_sha256,
         "family_evidence_sha256": family_evidence_sha256,
+        "retention_format_version": RETENTION_FORMAT_VERSION,
+        "durable_case_record_set_sha256": durable_case_record_set_sha256,
         "corpus_sha256": preimage["corpus_sha256"],
         "config_sha256": preimage["config_sha256"],
         "target_model": preimage["target_model"],

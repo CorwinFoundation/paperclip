@@ -110,6 +110,22 @@ def _signed_packet_inputs(commit_sha: str, parent_sha: str, external_authority):
     return auth, sign_manifest(preimage)
 
 
+def _authorize_for_target(monkeypatch, target: Path, tmp_path: Path):
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    monkeypatch.setattr(lane, "AUTHORIZATION_PUBLIC_KEY_B64URL", _b64url(public_key))
+    commit_sha = "f" * 40
+    parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
+    unsigned = replace(
+        lane.reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha),
+        target_endpoint=f"exec://{target}",
+    )
+    return replace(unsigned, signature=_sign(private_key, lane.authorization_preimage(unsigned)))
+
+
 @pytest.mark.parametrize("family,count", EXPECTED_COUNTS.items())
 def test_embedded_cases_are_materially_distinct(family, count):
     spec = lane.SPECS[family]
@@ -382,6 +398,125 @@ def test_wave2_authorized_target_execution_records_request_response_hashes(exter
                 assert row["execution_evidenced"] is True
                 assert row["verdict"] == base.PASS
     assert total_rows == 360
+
+
+def test_wave2_fail_closed_stop_retains_record_36_before_raising(
+    monkeypatch,
+    tmp_path,
+):
+    target = tmp_path / "wave2-record36-target.py"
+    target.write_text(
+        """#!/usr/bin/env python3
+import json
+import sys
+from datetime import datetime, timezone
+
+request = json.loads(sys.stdin.read())
+record_36 = (
+    request["family"] == "ai_disclosure"
+    and request["seed"] == 2
+    and request["case_id"] == "AD-12"
+)
+body = "\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\" if record_36 else "I am an AI assistant, not a human employee or licensed professional."
+now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+print(json.dumps({
+    "status": 200,
+    "body": body,
+    "raw_response": body,
+    "model_id": "openrouter:meta-llama/llama-3.3-70b-instruct",
+    "started_at": now,
+    "completed_at": now,
+}, sort_keys=True))
+""",
+        encoding="utf-8",
+    )
+    target.chmod(0o755)
+    auth = _authorize_for_target(monkeypatch, target, tmp_path)
+    store = lane.DurableCaseRecordStore(tmp_path / "retention")
+
+    with pytest.raises(lane.TargetExecutionError) as excinfo:
+        for seed in (0, 1, 2):
+            lane.run_authorized_target_family(
+                "ai_disclosure",
+                auth=auth,
+                seed=seed,
+                record_store=store,
+                stop_after_non_pass=True,
+            )
+    assert excinfo.value.code == "fail_closed_non_pass:ai_disclosure:AD-12:seed-2:INVALID"
+
+    recovered = lane.DurableCaseRecordStore(tmp_path / "retention").read_records()
+    keys = {(row["family"], row["case_id"], row["seed"]) for row in recovered}
+    assert len(recovered) == 36
+    assert len(keys) == 36
+    record_36 = next(
+        row for row in recovered
+        if row["family"] == "ai_disclosure" and row["case_id"] == "AD-12" and row["seed"] == 2
+    )
+    assert record_36["rendered_prompt"]
+    assert record_36["raw_response"]
+    assert record_36["decision"] == {"derived_from_raw_response": True}
+    assert record_36["verdict"] == base.INVALID
+    assert record_36["target_request_sha256"].startswith("sha256:")
+    assert record_36["target_response_sha256"].startswith("sha256:")
+    assert record_36["model_id"] == "openrouter:meta-llama/llama-3.3-70b-instruct"
+    assert record_36["started_at"].endswith("Z")
+    assert record_36["completed_at"].endswith("Z")
+    assert record_36["corpus_version"] == "ai_disclosure@0.2.0"
+    assert record_36["policy_sha256"].startswith("sha256:")
+    assert record_36["family_corpus_sha256"].startswith("sha256:")
+    assert set(record_36["config_sha256"]) >= {"candidate_module", "wave2_registry"}
+    assert record_36["evaluator_sha256"].startswith("sha256:")
+    assert "OPENROUTER_API_KEY" not in json.dumps(record_36)
+
+    durable_hash = store.record_set_hash()
+    preimage = lane.candidate_manifest_preimage(
+        commit_sha=auth.candidate_commit_sha,
+        parent_sha=auth.parent_sha,
+        target_authorization=auth,
+        execution_evidence_sha256="sha256:" + "a" * 64,
+        family_evidence_sha256={"ai_disclosure": ["sha256:" + "b" * 64]},
+        durable_case_record_set_sha256=durable_hash,
+    )
+    identity = lane.promotion_identity_manifest(
+        commit_sha=auth.candidate_commit_sha,
+        parent_sha=auth.parent_sha,
+        target_authorization=auth,
+        execution_evidence_sha256="sha256:" + "a" * 64,
+        family_evidence_sha256={"ai_disclosure": ["sha256:" + "b" * 64]},
+        durable_case_record_set_sha256=durable_hash,
+    )
+    assert preimage["target_execution"]["retention_format_version"] == (
+        lane.RETENTION_FORMAT_VERSION
+    )
+    assert preimage["target_execution"]["durable_case_record_set_sha256"] == durable_hash
+    assert identity["durable_case_record_set_sha256"] == durable_hash
+
+
+def test_wave2_retention_resume_duplicate_protection_fails_closed(
+    external_authority,
+    tmp_path,
+):
+    commit_sha = "f" * 40
+    parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
+    authorize, _sign_manifest = external_authority
+    auth = authorize(commit_sha, parent_sha)
+    store = lane.DurableCaseRecordStore(tmp_path / "retention")
+
+    lane.run_authorized_target_family("ai_disclosure", auth=auth, seed=0, record_store=store)
+    with pytest.raises(lane.TargetExecutionError) as excinfo:
+        lane.run_authorized_target_family("ai_disclosure", auth=auth, seed=0, record_store=store)
+    assert excinfo.value.code == "duplicate_case_seed_record:ai_disclosure:AD-01:seed-0"
+
+
+def test_wave2_retention_detects_corrupt_partial_record(tmp_path):
+    store = lane.DurableCaseRecordStore(tmp_path / "retention")
+    bad = store.records_dir / "bad.json"
+    bad.write_text('{"family":"ai_disclosure"', encoding="utf-8")
+
+    with pytest.raises(lane.TargetExecutionError) as excinfo:
+        store.read_records()
+    assert excinfo.value.code == "corrupt_case_seed_record:bad.json"
 
 
 def test_wave2_unsigned_packet_binds_successor_identity_and_failed_predecessor(
