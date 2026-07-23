@@ -42,6 +42,10 @@ from cryptography.x509.oid import NameOID
 import httpx
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from framework_assessment import (
+    build_framework_envelope,
+    enabled as framework_envelope_enabled,
+)
 
 # BEAAA-4919: BackBond governance questionnaire v0.1 schema (from BEAAA-4902). BackBond canon migration per BEAAA-5743.
 try:
@@ -1107,6 +1111,8 @@ class PortalService:
         }
         eval_results_path.write_bytes(canonical_json(eval_results))
         score = self._run_scanner_adapter(scan_id, eval_results_path, envelopes)
+        if framework_envelope_enabled():
+            score.update(build_framework_envelope(score))
         self.db.execute(
             "UPDATE scans SET status = 'complete', completed_at = ?, score_json = ? WHERE id = ?",
             (now_iso(), json.dumps(score, sort_keys=True), scan_id),
@@ -1120,6 +1126,8 @@ class PortalService:
         self.render_report(scan_id, "dp")
         self.render_report(scan_id, "internal_uw")
         self.render_report(scan_id, "evidence_appendix")
+        if framework_envelope_enabled():
+            self.render_assessment_pdf(scan_id)
         return score
 
     def vendor_scan_capability_manifest(
@@ -1293,6 +1301,7 @@ class PortalService:
                 "rubric_point_id": self.db.execute("SELECT rubric_point_id FROM tasks WHERE id = ?", (row["task_id"],)).fetchone()[0],
                 "test_id": f"{scan_id}:{row['task_id']}",
                 "artifact_uri": row["artifact_uri"],
+                "sha256": sha256_hex(row["artifact_uri"]),
                 "verdict": "partial",
                 "weight": 1,
                 "perils": [sample_perils[i]] if i < len(sample_perils) else [],
@@ -1387,6 +1396,7 @@ button{{padding:9px 12px}}
 <h1>{html.escape(title)}</h1>
 <p class="muted">Scan ID: {scan['id']} | Scanner v{SCANNER_VERSION} | Corpus v{CORPUS_VERSION} | Portal v{PORTAL_VERSION}</p>
 <div class="score">{score['are_total']} / 100</div><div class="band">Band {html.escape(score['band'])}</div>
+{self._render_framework_blocks(score)}
 <h2>Top 3 Remediation Items</h2><ol>{''.join(f'<li>{html.escape(item)}</li>' for item in top3)}</ol>
 <h2>Category Flags</h2>
 <table><tr><th>Flag</th><th>Status</th></tr>
@@ -1412,6 +1422,7 @@ button{{padding:9px 12px}}
 <h1>{html.escape(title)}</h1>
 <p class="muted">DP: {html.escape(dp_name)} | Scan ID: {scan['id']} | Contract: are-scanner-api-v1@v1.0</p>
 <p class="score">{score['are_total']} / 100 <span class="band">Band {html.escape(score['band'])}</span></p>
+{self._render_framework_blocks(score)}
 <h2>Pillar Subscores</h2><table>{''.join(f'<tr><th>{html.escape(k)}</th><td>{v}/25</td></tr>' for k, v in score['subscores'].items())}</table>
 {self._render_peril_rollup_block(score)}<h2>Rubric Dimensions</h2><table><tr><th>Rubric point</th><th>Verdict</th></tr>{dims}</table>
 <h2>Evidence References</h2><table><tr><th>Rubric point</th><th>Test ID</th><th>Artifact URI</th><th>Verdict</th></tr>{refs}</table>
@@ -1420,6 +1431,62 @@ button{{padding:9px 12px}}
 <p><strong>Non-binding pre-bind diagnostic.</strong> This report is not a signed quote, binder, or coverage commitment.</p>
 """
         return self._render_page(title, body)
+
+    def _render_framework_blocks(self, score: dict[str, Any]) -> str:
+        assessment = score.get("aiuc_1_mapped_technical_assessment")
+        extensions = score.get("backbond_extensions")
+        if not isinstance(assessment, dict) or not isinstance(extensions, dict):
+            return ""
+        rows = "".join(
+            f"<tr><td>{html.escape(str(row['control_id']))}</td>"
+            f"<td>{html.escape(str(row['status']))}</td>"
+            f"<td>{len(row['evidence_refs'])}</td></tr>"
+            for row in assessment["controls"]
+        )
+        limitations = "".join(
+            f"<li>{html.escape(str(item))}</li>" for item in assessment["limitations"]
+        )
+        return (
+            "<h2>BackBond Score</h2>"
+            f"<p>{score['are_total']} / 100 · Band {html.escape(str(score['band']))}</p>"
+            f"<h2>{html.escape(assessment['label'])}</h2>"
+            f"<p class='muted'>Mapping {html.escape(assessment['mapping_version'])} · "
+            f"Evaluated {html.escape(assessment['evaluation_date'])} · "
+            f"Certification status: {html.escape(assessment['certification_status'])}</p>"
+            f"<table><tr><th>Control</th><th>Status</th><th>Evidence refs</th></tr>{rows}</table>"
+            f"<h3>Limitations</h3><ul>{limitations}</ul>"
+            "<h2>BackBond Extensions</h2>"
+            f"<p>{len(extensions['evidence_refs'])} separately reported evidence reference(s).</p>"
+        )
+
+    def render_assessment_pdf(self, scan_id: str) -> str:
+        scan = self.db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
+        if not scan or not scan["score_json"]:
+            raise PortalError(404, "score_not_found", "Scan score not found.")
+        score = json.loads(scan["score_json"])
+        assessment = score.get("aiuc_1_mapped_technical_assessment")
+        if not isinstance(assessment, dict):
+            raise PortalError(409, "framework_assessment_disabled", "Framework assessment is disabled.")
+        path = self.config.evidence_dir / scan_id / "reports" / "assessment.pdf"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pdf = canvas.Canvas(str(path), pagesize=A4)
+        y = A4[1] - 56
+        lines = [
+            "BackBond Score",
+            f"{score['are_total']} / 100 · Band {score['band']}",
+            assessment["label"],
+            f"Mapping: {assessment['mapping_version']}",
+            f"Evaluated: {assessment['evaluation_date']}",
+            f"Certification status: {assessment['certification_status']}",
+            *[f"{row['control_id']}: {row['status']}" for row in assessment["controls"]],
+            "BackBond Extensions",
+            f"{len(score['backbond_extensions']['evidence_refs'])} separately reported evidence reference(s).",
+        ]
+        for line in lines:
+            pdf.drawString(56, y, str(line))
+            y -= 18
+        pdf.save()
+        return str(path)
 
     def _render_peril_rollup_block(self, score: dict[str, Any]) -> str:
         """BEAAA-5761 — peril rollup HTML block for internal_uw + evidence_appendix variants.

@@ -61,6 +61,10 @@ from api.sla import (
 )
 from harness import egress
 from harness.runner import RunnerError
+from framework_assessment import (
+    build_framework_envelope,
+    enabled as framework_envelope_enabled,
+)
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
     CorpusProvenanceMismatchError,
@@ -741,6 +745,8 @@ def _external_result_envelope(
         score_json.get("confidence_below_adjudication_threshold")
         or result.incomplete
     )
+    if framework_envelope_enabled():
+        envelope.update(build_framework_envelope(score_json))
     return envelope
 
 

@@ -225,6 +225,30 @@ def test_are_scan_binary_path_is_used_and_validated(service, tmp_path, monkeypat
     assert manifest["pin_mismatches"] == []
 
 
+def test_framework_envelope_round_trips_portal_html_json_and_pdf(service, monkeypatch):
+    monkeypatch.setenv("BACKBOND_FRAMEWORK_ENVELOPE_V1_1", "1")
+    signing_key, dp, enrollment = enroll_ready_dp(service)
+    scan = service.trigger_scan(dp["dp_id"])
+    submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+    row = service.db.execute("SELECT score_json FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
+    score = json.loads(row["score_json"])
+    assert score["backbond_score"]["total"] == score["are_total"]
+    assessment = score["aiuc_1_mapped_technical_assessment"]
+    assert assessment["certification_status"] == "not certification"
+    assert assessment["mapping_version"]
+    assert assessment["evaluation_date"]
+    html_body = Path(service.render_report(scan["scan_id"], "dp")).read_text(encoding="utf-8")
+    assert "BackBond Score" in html_body
+    assert "AIUC-1-mapped technical assessment" in html_body
+    assert "BackBond Extensions" in html_body
+    pdf_path = Path(service.render_assessment_pdf(scan["scan_id"]))
+    assert pdf_path.read_bytes().startswith(b"%PDF")
+    refs = [
+        ref for control in assessment["controls"] for ref in control["evidence_refs"]
+    ]
+    assert refs and all(ref["artifact_uri"] and ref["sha256"] for ref in refs)
+
+
 def test_vendor_scan_manifest_records_real_scanner_binary_pin_mismatch(service, tmp_path, monkeypatch):
     fake_are_scan = tmp_path / "fake_are_scan"
     _write_fake_are_scan(
