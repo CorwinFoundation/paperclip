@@ -62,10 +62,8 @@ def _load_authorization(commit_sha: str) -> wave.TargetAuthorization:
     path = os.environ.get("WAVE1A_PRODUCTION_AUTHORIZATION_JSON")
     if path:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        target = _target_authorization_from_payload(payload)
-    else:
-        target = wave.reference_authorization()
-    return wave.TargetAuthorization(**{**target.__dict__, "candidate_commit_sha": commit_sha})
+        return _target_authorization_from_payload(payload)
+    return wave.TargetAuthorization(**{**wave.reference_authorization().__dict__, "candidate_commit_sha": commit_sha})
 
 
 def _family_runs() -> dict[str, list[dict[str, Any]]]:
@@ -142,6 +140,11 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
 
 def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
     target = _load_authorization(commit_sha)
+    signature_tail = (
+        target.authorization_signature.split(":", 2)[2]
+        if len(target.authorization_signature.split(":", 2)) == 3
+        else "invalid"
+    )
     cases = {
         "missing_authorization_ref": wave.TargetAuthorization(
             **{**target.__dict__, "authorization_ref": ""}
@@ -158,10 +161,7 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
         "unknown_authorization_signer": wave.TargetAuthorization(
             **{
                 **target.__dict__,
-                "authorization_signature": (
-                    "ed25519:attacker-key:"
-                    + target.authorization_signature.split(":", 2)[2]
-                ),
+                "authorization_signature": "ed25519:attacker-key:" + signature_tail,
             }
         ),
         "stale_authorization_signature": wave.TargetAuthorization(
