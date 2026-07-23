@@ -74,6 +74,7 @@ class FrameworkSpec:
 
     key: str
     import_name: str
+    distribution_name: str
     pinned_version: str
     requirements: str
 
@@ -86,24 +87,28 @@ FRAMEWORKS: dict[str, FrameworkSpec] = {
     "garak": FrameworkSpec(
         key="garak",
         import_name="garak",
+        distribution_name="garak",
         pinned_version="0.10.0",
         requirements="requirements-eval-garak.txt",
     ),
     "pyrit": FrameworkSpec(
         key="pyrit",
         import_name="pyrit",
+        distribution_name="pyrit",
         pinned_version="0.6.0",
         requirements="requirements-eval-pyrit.txt",
     ),
     "agentdojo": FrameworkSpec(
         key="agentdojo",
         import_name="agentdojo",
+        distribution_name="agentdojo",
         pinned_version="0.1.35",
         requirements="requirements-eval-agentdojo.txt",
     ),
     "inspect": FrameworkSpec(
         key="inspect",
         import_name="inspect_ai",
+        distribution_name="inspect-ai",
         pinned_version="0.3.220",
         requirements="requirements-eval-inspect.txt",
     ),
@@ -170,8 +175,8 @@ def resolve_framework(
       is the no-op path (unconfigured CI host) and is byte-identical to the
       runners' historical ``except ImportError`` branch, so nothing downstream
       changes.
-    * If the venv is present, subprocess-probe it for
-      ``<import_name>.__version__``. On success → ``(True, version)``. On any
+    * If the venv is present, subprocess-probe its import and installed
+      distribution metadata. On success → ``(True, version)``. On any
       failure (broken venv, import error, timeout) → ``(False, "not-installed")``
       so a half-built venv degrades to "framework unavailable" rather than
       raising through the harness import path.
@@ -183,8 +188,9 @@ def resolve_framework(
     if not py.exists():
         return (False, "not-installed")
     code = (
-        f"import {spec.import_name} as _m, sys; "
-        f"sys.stdout.write(getattr(_m, '__version__', 'unknown'))"
+        f"import {spec.import_name}; import sys; "
+        f"from importlib.metadata import version; "
+        f"sys.stdout.write(version({spec.distribution_name!r}))"
     )
     try:
         proc = subprocess.run(
@@ -245,7 +251,15 @@ def resolve_or_import(framework: str, module: object | None) -> tuple[bool, str]
     venv probe.
     """
     if module is not None:
-        return (True, str(getattr(module, "__version__", "unknown")))
+        module_version = getattr(module, "__version__", None)
+        if module_version is not None:
+            return (True, str(module_version))
+        try:
+            from importlib.metadata import version
+
+            return (True, version(_require_known(framework).distribution_name))
+        except Exception:
+            return (True, "unknown")
     return resolve_framework(framework)
 
 
