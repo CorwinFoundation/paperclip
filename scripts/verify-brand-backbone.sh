@@ -14,8 +14,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRAND_DIR="${ROOT}/brand"
-PIN_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.5.sha256"
-PDF_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.5.pdf"
+PIN_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.6.sha256"
+PDF_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.6.pdf"
 
 if [[ ! -d "${BRAND_DIR}" || ! -f "${PIN_FILE}" ]]; then
   echo "FAIL: brand/ directory or pinned .sha256 missing at ${BRAND_DIR}" >&2
@@ -23,20 +23,20 @@ if [[ ! -d "${BRAND_DIR}" || ! -f "${PIN_FILE}" ]]; then
 fi
 
 if [[ ! -f "${PDF_FILE}" ]]; then
-  echo "FAIL: ${PDF_FILE} missing — re-pull from Paperclip Founder attachment on BEAAA-8369" >&2
+  echo "FAIL: ${PDF_FILE} missing - re-pull from Paperclip Founder attachment and retry" >&2
   exit 2
 fi
 
 cd "${BRAND_DIR}"
 if sha256sum -c "$(basename "${PIN_FILE}")" >/dev/null 2>&1; then
-  echo "OK: Brand Backbone v1.5 SHA matches pin (b1ae308e…)"
+  echo "OK: Brand Backbone v1.6 SHA matches pin (a2ffc4f9...)"
   exit 0
 fi
 
 ACTUAL="$(sha256sum "$(basename "${PDF_FILE}")" | awk '{print $1}')"
 EXPECTED="$(awk '{print $1}' "$(basename "${PIN_FILE}")")"
-echo "FAIL: SHA mismatch — on-disk PDF is NOT the pinned Backbone." >&2
+echo "FAIL: SHA mismatch - on-disk PDF is NOT the pinned Backbone." >&2
 echo "  expected: ${EXPECTED}" >&2
 echo "  actual:   ${ACTUAL}" >&2
-echo "  Do NOT ship. Re-pull from Paperclip BEAAA-8369 Founder attachment and escalate to CMO." >&2
+echo "  Do NOT ship. Re-pull the current Founder-authorized Backbone attachment and escalate to CMO." >&2
 exit 3

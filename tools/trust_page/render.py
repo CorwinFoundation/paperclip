@@ -28,8 +28,8 @@ from datetime import datetime
 
 from .verification_record import VerificationRecord
 
-BRAND_BACKBONE_VERSION = "v1.5"
-BRAND_BACKBONE_SHA256 = "b1ae308e0f150ff5d0a6bdf05071ee98540e296bb3a86a4626b03041a266838f"
+BRAND_BACKBONE_VERSION = "v1.6"
+BRAND_BACKBONE_SHA256 = "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
 
 # §3 red lines (Canon §10) — prohibited on this external-bound surface.
 # "claim" is intentionally excluded from the automated guard to avoid false
