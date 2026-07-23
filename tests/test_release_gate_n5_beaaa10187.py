@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from types import SimpleNamespace
 
@@ -145,6 +146,21 @@ def _approval_decisions(*roles):
     ]
 
 
+def _approval_manifest(decisions):
+    sources = {}
+    for decision in decisions:
+        markers = list(decision.get("decision_markers") or [])
+        content = "\n".join(markers or ["placeholder approval"])
+        sources[decision["decision_ref"]] = {
+            "author": dict(decision["source_author"]),
+            "content": content,
+            "content_hash_algorithm": "sha256",
+            "content_sha256": release_gate_n5._content_sha256(content),
+            "decision_markers": markers,
+        }
+    return {"sources": sources}
+
+
 def test_approval_provenance_rejects_ticket_label_without_decisions():
     errors = release_gate_n5._validate_approved_movement_sources(
         (_movement_source(movement=4.0),)
@@ -159,7 +175,8 @@ def test_approval_provenance_rejects_self_reference():
     decisions[0]["decision_ref"] = "BEAAA-16700"
 
     errors = release_gate_n5._validate_approved_movement_sources(
-        (_movement_source(movement=4.0, decisions=decisions),)
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=_approval_manifest(decisions),
     )
 
     assert any("self-referential" in error for error in errors)
@@ -175,7 +192,8 @@ def test_approval_provenance_rejects_misattributed_founder_reference():
     decisions[2]["decision_ref"] = "BEAAA-13412#comment-28cac28b-d5b7-4150-aa08-bc4aaf54e7aa"
 
     errors = release_gate_n5._validate_approved_movement_sources(
-        (_movement_source(movement=4.0, decisions=decisions),)
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=_approval_manifest(decisions),
     )
 
     assert any("Founder approver_id must match source_author.id" in error for error in errors)
@@ -186,31 +204,98 @@ def test_approval_provenance_requires_content_markers():
     decisions[1]["decision_markers"] = []
 
     errors = release_gate_n5._validate_approved_movement_sources(
-        (_movement_source(movement=4.0, decisions=decisions),)
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=_approval_manifest(decisions),
     )
 
     assert any("Underwriter decision_markers are required" in error for error in errors)
 
 
 def test_approval_provenance_requires_founder_above_three():
+    decisions = _approval_decisions("CTO", "Underwriter")
     errors = release_gate_n5._validate_approved_movement_sources(
-        (_movement_source(movement=4.0, decisions=_approval_decisions("CTO", "Underwriter")),)
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=_approval_manifest(decisions),
     )
 
     assert any("Founder" in error for error in errors)
 
 
 def test_approval_provenance_accepts_distinct_role_complete_chain():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
     errors = release_gate_n5._validate_approved_movement_sources(
         (
             _movement_source(
                 movement=4.0,
-                decisions=_approval_decisions("CTO", "Underwriter", "Founder"),
+                decisions=decisions,
             ),
-        )
+        ),
+        provenance_manifest=_approval_manifest(decisions),
     )
 
     assert errors == []
+
+
+def test_approval_provenance_rejects_consistently_fabricated_reference():
+    sources = deepcopy(release_gate_n5.APPROVED_MOVEMENT_SOURCES)
+    decision = sources[0]["approval_decisions"][2]
+    decision["decision_ref"] = "BEAAA-99999#comment-does-not-exist"
+    decision["approver_id"] = "local-board"
+    decision["source_author"] = {"kind": "user", "id": "local-board"}
+    decision["decision_markers"] = [
+        "Founder Authorization",
+        "I authorize deploying rubric 1.3.0",
+        "P3.5/P3.6 only",
+        "NO pillar-weight changes",
+    ]
+
+    errors = release_gate_n5._validate_approved_movement_sources(tuple(sources))
+
+    assert any("decision_ref BEAAA-99999#comment-does-not-exist is not in provenance manifest" in error for error in errors)
+
+
+def test_approval_provenance_rejects_fabricated_reference_even_if_internally_consistent():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    manifest = _approval_manifest(decisions[:2])
+    decisions[2]["decision_ref"] = "BEAAA-99999#comment-does-not-exist"
+    decisions[2]["approver_id"] = "local-board"
+    decisions[2]["source_author"] = {"kind": "user", "id": "local-board"}
+    decisions[2]["decision_markers"] = ["Founder approved"]
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=manifest,
+    )
+
+    assert any("decision_ref BEAAA-99999#comment-does-not-exist is not in provenance manifest" in error for error in errors)
+
+
+def test_approval_provenance_rejects_manifest_content_hash_mismatch():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    manifest = _approval_manifest(decisions)
+    manifest["sources"][decisions[0]["decision_ref"]]["content"] = "tampered CTO approval"
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=manifest,
+    )
+
+    assert any("CTO manifest content hash mismatch" in error for error in errors)
+
+
+def test_approval_provenance_rejects_marker_absent_from_manifest_content():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    manifest = _approval_manifest(decisions)
+    entry = manifest["sources"][decisions[1]["decision_ref"]]
+    entry["content"] = "Underwriter content without the approval anchor"
+    entry["content_sha256"] = release_gate_n5._content_sha256(entry["content"])
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),),
+        provenance_manifest=manifest,
+    )
+
+    assert any("Underwriter decision marker is absent from manifest content" in error for error in errors)
 
 
 def test_display_path_accepts_absolute_out_dir(tmp_path):
