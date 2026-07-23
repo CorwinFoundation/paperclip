@@ -1,6 +1,6 @@
 {
-  "published_active_test_count": 125,
+  "published_active_test_count": 160,
   "historic_claim_count": 1180,
-  "claim_source": "BEAAA-16270 compliance-approved lane-A activation",
-  "last_reconciled_at": "2026-07-21"
+  "claim_source": "BEAAA-17046 rebased Wave 1A count fix successor on BEAAA-17022; registry-derived active executable count",
+  "last_reconciled_at": "2026-07-23"
 }
