@@ -145,15 +145,16 @@ class CanonicalTestRegistryTests(unittest.TestCase):
 
     def test_beaaa13992_active_rows_count_only_target_bound_execution_evidence(self) -> None:
         # BEAAA-16775 promotes the production registry to 304 customer-target
-        # runtime identities plus one governance attestation.
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 305)
+        # runtime identities plus one governance attestation; BEAAA-16972 adds
+        # 35 Wave 1A scoring-active eligibility-gate scenarios.
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 340)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 305)
+        self.assertEqual(len(active_rows), 340)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {
