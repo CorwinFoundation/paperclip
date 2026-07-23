@@ -110,6 +110,11 @@ def test_beaaa16992_rollback_hash_proof_fails_on_tamper_or_absent_retained_evide
     assert absent["historical_evidence_preserved"] is False
     assert absent["pass"] is False
 
+    unmounted = evidence._rollback_drill(source, retained, omit_state_mount=True)
+    assert unmounted["state_mount_validation"]["mount_present"] is False
+    assert unmounted["historical_evidence_preserved"] is False
+    assert unmounted["pass"] is False
+
 
 def test_beaaa16992_security_findings_fail_closed_for_critical_or_high() -> None:
     clean = evidence._security_findings_result(
@@ -127,6 +132,23 @@ def test_beaaa16992_security_findings_fail_closed_for_critical_or_high() -> None
         [{"severity": "high", "id": "tenant-data-exposure"}]
     )
     assert high["pass"] is False
+
+
+def test_beaaa17051_packet_blocks_on_actual_security_source_findings(monkeypatch) -> None:
+    monkeypatch.setattr(
+        evidence.production_controls,
+        "repo_security_findings",
+        lambda _repo: [{"severity": "high", "id": "runtime-authz-bypass"}],
+    )
+
+    packet = evidence.build_packet()
+
+    assert packet["security_findings"]["pass"] is False
+    assert packet["acceptance"]["critical_high_security_findings_absent"] is False
+    assert packet["acceptance"]["overall_pass"] is False
+    assert packet["security_findings"]["source"]["kind"] == (
+        "api.production_controls.repo_security_findings"
+    )
 
 
 def test_beaaa16992_instrumentation_fails_when_retained_ledger_absent_or_tampered(
@@ -156,3 +178,6 @@ def test_beaaa16992_instrumentation_fails_when_retained_ledger_absent_or_tampere
     )
     assert tampered["pass"] is False
     assert any("hook_event_hash_mismatch" in err for err in tampered["ledger_errors"])
+    assert tampered["runtime_source"]["kind"] == (
+        "api.production_controls.ProductionControlLedger"
+    )

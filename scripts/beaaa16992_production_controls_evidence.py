@@ -24,6 +24,10 @@ from pathlib import Path
 from typing import Any, Iterable
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
+
+from api import production_controls
+
 OUT_DIR = REPO / "artifacts" / "beaaa-16992"
 AUTHORIZATION_FIXTURE = (
     REPO / "artifacts" / "beaaa-17044" / "wave1a-production-authorization-6f973363.json"
@@ -44,15 +48,11 @@ RUBRIC_POINT_IDS = (
 
 
 def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    return production_controls.sha256_file(path)
 
 
 def _sha256_bytes(blob: bytes) -> str:
-    return hashlib.sha256(blob).hexdigest()
+    return production_controls.sha256_bytes(blob)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -400,6 +400,7 @@ if args[:1] == ["run"]:
     if ref not in state.get("images", []):
         raise SystemExit(1)
     state["current"] = ref
+    state.setdefault("last_run_args", args)
     state.setdefault("runs", []).append(ref)
     save()
     print("fake-container-id")
@@ -418,11 +419,14 @@ def _rollback_drill(
     *,
     tamper_retained_after: bool = False,
     omit_retained_before: bool = False,
+    omit_state_mount: bool = False,
 ) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="beaaa16992-rollback-") as tmp_name:
         tmp = Path(tmp_name)
-        retained_path = tmp / "retained-target-output.json"
+        state_dir = tmp / "state"
+        retained_path = production_controls.retained_evidence_path(state_dir)
         if not omit_retained_before:
+            retained_path.parent.mkdir(parents=True, exist_ok=True)
             retained_path.write_text(
                 json.dumps(retained_evidence, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
@@ -449,10 +453,11 @@ def _rollback_drill(
             **os.environ,
             "ARE_CONTAINER_ENGINE": str(fake_engine),
             "ARE_CONTAINER_NAME": "are-scanner-edge",
-            "ARE_STATE_DIR": str(tmp / "state"),
             "ARE_SECRETS_ENV": "",
             "ARE_BIND": "127.0.0.1:18080",
         }
+        if not omit_state_mount:
+            env["ARE_STATE_DIR"] = str(state_dir)
         start = time.monotonic()
         current_before = subprocess.check_output(
             [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "current"],
@@ -486,6 +491,12 @@ def _rollback_drill(
         state_after = json.loads(state_path.read_text(encoding="utf-8"))
         retained_after_exists = retained_path.exists()
         retained_after_hash = _sha256_file(retained_path) if retained_after_exists else None
+        mount_validation = production_controls.validate_retained_evidence_mount(
+            state_dir=state_dir,
+            container_mount_args=state_after.get("last_run_args", []),
+            hash_before=retained_before_hash,
+            hash_after=retained_after_hash,
+        )
 
     measured_minutes = math.ceil(elapsed_s / 60)
     source_matches = bool(
@@ -494,11 +505,7 @@ def _rollback_drill(
         and source.get("unrelated_active_rows_unchanged") is True
     )
     canonical_path_pass = rollback_proc.returncode == 0 and current_after == previous_ref
-    historical_evidence_preserved = bool(
-        retained_before_exists
-        and retained_after_exists
-        and retained_before_hash == retained_after_hash
-    )
+    historical_evidence_preserved = mount_validation["historical_evidence_preserved"]
     return {
         "source": source,
         "feature_flag_disabled_families": source.get("rolled_back_families", []),
@@ -514,6 +521,8 @@ def _rollback_drill(
         "monitored_service_transition": canonical_path_pass,
         "retained_evidence_present_before": retained_before_exists,
         "retained_evidence_present_after": retained_after_exists,
+        "retained_evidence_path": str(retained_path),
+        "state_mount_validation": mount_validation,
         "retained_evidence_hash_before": retained_before_hash,
         "retained_evidence_hash_after": retained_after_hash,
         "historical_evidence_preserved": historical_evidence_preserved,
@@ -530,59 +539,17 @@ def _rollback_drill(
     }
 
 
-BLOCKING_SECURITY_SEVERITIES = {"critical", "high"}
-
-
 def _security_findings_result(findings: Iterable[dict[str, Any]] | None = None) -> dict[str, Any]:
-    normalized = []
-    counts: dict[str, int] = {}
-    for finding in findings or []:
-        severity = str(finding.get("severity", "")).lower()
-        if not severity:
-            severity = "unknown"
-        item = dict(finding)
-        item["severity"] = severity
-        normalized.append(item)
-        counts[severity] = counts.get(severity, 0) + 1
-    blocking = [
-        item for item in normalized if item.get("severity") in BLOCKING_SECURITY_SEVERITIES
-    ]
-    return {
-        "pass": not blocking,
-        "blocking_severities": sorted(BLOCKING_SECURITY_SEVERITIES),
-        "findings_by_severity": counts,
-        "findings": normalized,
-        "blocking_findings": blocking,
+    if findings is None:
+        findings = production_controls.repo_security_findings(REPO)
+    result = production_controls.security_findings_result(findings)
+    result["source"] = {
+        "kind": "api.production_controls.repo_security_findings",
+        "source_path": "api/production_controls.py",
+        "source_sha256": _sha256_file(REPO / "api" / "production_controls.py"),
+        "scanned_paths": ["scripts/deploy/box_deploy.sh"],
     }
-
-
-REQUIRED_HOOK_FIELDS = {
-    "event_type",
-    "design_partner_ref",
-    "scan_id",
-    "evidence_ref",
-    "payload",
-}
-
-
-def _append_hook_event(store_dir: Path, event: dict[str, Any]) -> dict[str, Any]:
-    missing = sorted(REQUIRED_HOOK_FIELDS - set(event))
-    if missing:
-        raise ValueError(f"hook_event_missing_fields:{','.join(missing)}")
-    event_type = str(event["event_type"])
-    path = store_dir / f"{event_type}.jsonl"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    record = dict(event)
-    record["record_sha256"] = _sha256_bytes(
-        json.dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    )
-    if path.exists():
-        for existing in _read_hook_ledger(path, expected_event_type=event_type):
-            if existing["record_sha256"] == record["record_sha256"]:
-                return {"path": path, "record": record}
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, sort_keys=True) + "\n")
-    return {"path": path, "record": record}
+    return result
 
 
 def _display_path(path: Path) -> str:
@@ -599,30 +566,6 @@ def _stored_path(path_text: str) -> Path:
     return REPO / path
 
 
-def _read_hook_ledger(path: Path, *, expected_event_type: str) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
-    if not path.exists():
-        return records
-    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line.strip():
-            continue
-        record = json.loads(line)
-        missing = sorted((REQUIRED_HOOK_FIELDS | {"record_sha256"}) - set(record))
-        if missing:
-            raise ValueError(f"{path}:{line_no}:hook_event_missing_fields:{','.join(missing)}")
-        if record["event_type"] != expected_event_type:
-            raise ValueError(f"{path}:{line_no}:hook_event_type_mismatch")
-        expected_sha = record.pop("record_sha256")
-        actual_sha = _sha256_bytes(
-            json.dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        )
-        record["record_sha256"] = expected_sha
-        if actual_sha != expected_sha:
-            raise ValueError(f"{path}:{line_no}:hook_event_hash_mismatch")
-        records.append(record)
-    return records
-
-
 def _instrumentation_hook_drill(
     *,
     candidate_commit_sha: str,
@@ -637,6 +580,7 @@ def _instrumentation_hook_drill(
         cleanup = tempfile.TemporaryDirectory(prefix="beaaa16992-hooks-")
         store_dir = Path(cleanup.name)
     try:
+        ledger = production_controls.ProductionControlLedger(store_dir)
         rows = [
             {
                 "event_type": "result_record",
@@ -675,7 +619,7 @@ def _instrumentation_hook_drill(
         for row in rows:
             if emit_event_types is not None and row["event_type"] not in emit_event_types:
                 continue
-            written = _append_hook_event(store_dir, row)
+            written = ledger.append(row)
             retained_ledgers[row["event_type"]] = _display_path(written["path"])
             written_records.append(written["record"])
         if tamper_event_type and tamper_event_type in retained_ledgers:
@@ -686,53 +630,18 @@ def _instrumentation_hook_drill(
                 tampered["payload"]["tampered"] = True
                 tampered_lines[0] = json.dumps(tampered, sort_keys=True)
                 tamper_path.write_text("\n".join(tampered_lines) + "\n", encoding="utf-8")
-        retained_records = []
-        ledger_errors = []
-        for event_type, rel_path in retained_ledgers.items():
-            try:
-                retained_records.extend(
-                    _read_hook_ledger(_stored_path(rel_path), expected_event_type=event_type)
-                )
-            except ValueError as exc:
-                ledger_errors.append(str(exc))
-        written_shas = {record["record_sha256"] for record in written_records}
-        retained_written_by_sha = {
-            record["record_sha256"]: record
-            for record in retained_records
-            if record["record_sha256"] in written_shas
-        }
-        retained_written_records = list(retained_written_by_sha.values())
-        counts: dict[str, int] = {}
-        evidence_refs = []
-        for record in retained_written_records:
-            counts[record["event_type"]] = counts.get(record["event_type"], 0) + 1
-            evidence_refs.append(record["evidence_ref"])
-        retained_ledger_line_counts = {}
-        for event_type, rel_path in retained_ledgers.items():
-            retained_ledger_line_counts[event_type] = len(
-                _stored_path(rel_path).read_text(encoding="utf-8").splitlines()
-            )
+        validation = ledger.validate_required()
+        validation["retained_ledgers"] = retained_ledgers
     finally:
         if cleanup is not None:
             cleanup.cleanup()
-    return {
-        "durable_store": "jsonl retained hook ledgers",
-        "event_counts": counts,
-        "evidence_refs": evidence_refs,
-        "ledger_errors": ledger_errors,
-        "records": written_records,
-        "retained_written_records": retained_written_records,
-        "retained_ledger_line_counts": retained_ledger_line_counts,
-        "retained_ledgers": retained_ledgers,
-        "pass": counts
-        == {
-            "customer_feedback_hook": 1,
-            "eventual_outcome_hook": 1,
-            "result_record": 1,
-        }
-        and all(evidence_refs)
-        and not ledger_errors,
+    validation["records"] = written_records
+    validation["runtime_source"] = {
+        "kind": "api.production_controls.ProductionControlLedger",
+        "source_path": "api/production_controls.py",
+        "source_sha256": _sha256_file(REPO / "api" / "production_controls.py"),
     }
+    return validation
 
 
 def _control(passed: bool, evidence: list[str], checks: dict[str, Any]) -> dict[str, Any]:
@@ -962,7 +871,7 @@ def build_packet() -> dict[str, Any]:
 
     return {
         "issue": "BEAAA-16992",
-        "repair_issue": "BEAAA-17048",
+        "repair_issue": "BEAAA-17051",
         "classification": {
             "value": "rule-execution",
             "table_rows": [
@@ -989,7 +898,7 @@ def build_packet() -> dict[str, Any]:
         "probe_set_version": PROBE_SET_VERSION,
         "rubric_point_id": RUBRIC_POINT_IDS,
         "n5_calibration_delta": {
-            "source": "tools/calibration-deltas/2026-07-22-beaaa16977-wave1a-scored-candidate-n5.json",
+            "source": "tools/calibration-deltas/2026-07-23-beaaa16979-wave1a-scored-candidate-n5.json",
             "total_spread": 0,
             "total_delta": 0,
             "max_pillar_spread": 0,
