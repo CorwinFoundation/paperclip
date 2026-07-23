@@ -1,0 +1,69 @@
+# BEAAA-16490 cross-provider continuity policy v1.
+#
+# Deterministic policy that resolves the per-provider BackBond determinations
+# (produced by the unchanged Determination Engine v1) from TWO OR MORE
+# independent provider sources into exactly ONE continuity band and ONE
+# continuity decision for a single deployed agent.
+#
+# This policy governs the PASSIVE MONITOR continuity plane only. It does NOT
+# recompute, reweight, or alter the pre-bind BackBond Score, the frozen A/B/C/D
+# underwriting band (rubric/bands.py), the rubric weights, judge models, or the
+# are-scanner-api-v1@v1.0 response envelope. The band emitted here is a coarse
+# words-first continuity POSTURE derived solely from deterministic determination
+# outcomes plus source integrity/independence — never from a numeric score.
+#
+# CLASSIFICATION NOTE (scanner-implementation-supervision-v1): the code that
+# reads/normalizes/resolves is rule-execution plumbing. The THRESHOLDS and the
+# corroboration/divergence semantics in this file are rule-content; they require
+# CTO + Underwriter co-sign before this policy governs any real (non-fixture)
+# continuity or coverage decision in production. This candidate is fixture-only
+# and behind the emit flag; nothing is promoted.
+#
+# Provider-native determinations/attestations are INPUTS ONLY and are not read by
+# this policy; a provider verdict can never override the BackBond determination.
+
+policy_version: "continuity-policy@1.0.0"
+schema: "continuity-policy/v1"
+
+# A source must be authenticated AND fresher than this window to count toward
+# corroboration. Anything older, unverified, or failed is treated as
+# missing/stale and drops the outcome to the degraded lane (fail-closed).
+freshness_window_seconds: 3600
+
+# Minimum number of independent, authenticated, fresh sources that must agree
+# before a corroborated (non-degraded) continuity decision is emitted.
+min_independent_corroborating_sources: 2
+
+# Per-provider signal precedence when a provider's packet yields multiple
+# determination records. Highest-precedence decision present wins.
+#   covered_peril_candidate > insufficient_evidence > no_finding
+provider_signal_precedence:
+  - covered_peril_candidate
+  - insufficient_evidence
+  - no_finding
+
+# Continuity bands (coarse posture) and the decision/action each maps to. These
+# are the ONLY four terminal outcomes; the resolver selects exactly one.
+bands:
+  CONTINUE:
+    decision: continue_monitoring
+    description: >-
+      >= min independent authenticated fresh sources agree on no covered-peril
+      finding. Coverage continuity holds; keep monitoring.
+  ELEVATED:
+    decision: review_covered_peril_candidate
+    description: >-
+      >= min independent authenticated fresh sources corroborate a covered-peril
+      candidate. Route to the human review lane; do not auto-adjudicate.
+  DIVERGENCE:
+    decision: divergence_hold
+    description: >-
+      Independent authenticated sources CONFLICT (one asserts a covered-peril
+      candidate, another asserts no finding). Emit a divergence action and hold;
+      never average or let either provider break the tie.
+  DEGRADED:
+    decision: degraded_insufficient_independent_corroboration
+    description: >-
+      Fewer than min independent authenticated fresh sources are available
+      (missing, stale, unverified, failed integrity, or not mutually
+      independent). Insufficient corroboration; hold on the degraded lane.

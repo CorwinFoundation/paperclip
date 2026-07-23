@@ -1,0 +1,107 @@
+{
+  "manifest_version": "backbond-sequence-20-release-candidate/v1.3",
+  "artifact_type": "provenance_manifest",
+  "owner": "scanner_engineer",
+  "persona_audience": "internal",
+  "phase": 1,
+  "canonical_terms_only": true,
+  "focus_claim": "This manifest binds the consolidated Sequence 20 production candidate to one source, OCI, workflow, Sigstore, SBOM, evidence-archive, and source-tar identity without authorizing production promotion.",
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
+  "ticket_refs": [
+    "BEAAA-15373",
+    "BEAAA-15400",
+    "BEAAA-16232",
+    "BEAAA-16257",
+    "BEAAA-16263",
+    "BEAAA-16268",
+    "BEAAA-16308",
+    "BEAAA-16318",
+    "BEAAA-16330",
+    "BEAAA-16331"
+  ],
+  "proof_points_cited": [
+    "BEAAA-16308 QA APPROVED comment b2f2c7b5-2fa7-4ff4-84f6-7ecc6d135744",
+    "GitHub Actions run 29823455831",
+    "BEAAA-16268 evidence archive attachment 5035ee4c-8cd5-4ec6-b3f2-db34444dc096",
+    "Sigstore bundle SHA-256 7fbc4190bda6d057b6cf47857256f9101735ec8049182dbcca02e5cfdb25a227",
+    "Deployable code surface remains byte-identical to reviewed origin 46eec2f1887800c2359a1cf75a06657e4eb4d844"
+  ],
+  "version": "1.3",
+  "prior_version": "1.1",
+  "self_audit_passed": true,
+  "escalations_noted": [
+    "This is a signed candidate identity, not Founder promotion authorization.",
+    "Production promotion remains blocked until QA APPROVED names this consolidation commit SHA and separate Founder sign-off lands under BEAAA-15373.",
+    "No rule change: this metadata/runbook consolidation changes no scoring, corpus, rubric, judge model, API output shape, or deployable nginx/stage-gate surface."
+  ],
+  "sequence": 20,
+  "commit_sha": "b1c577c74a127c1342617230689eb6f0ef9be6d2",
+  "source_commit_sha": "b1c577c74a127c1342617230689eb6f0ef9be6d2",
+  "oci_revision": "b1c577c74a127c1342617230689eb6f0ef9be6d2",
+  "source_ref": "refs/heads/master",
+  "workflow_commit_sha": "4064683754f9acefcf085cb6c7f55e9289bd5f7d",
+  "workflow_ref": "CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master",
+  "origin_master_tip": "4064683754f9acefcf085cb6c7f55e9289bd5f7d",
+  "reviewed_content_origin_sha": "46eec2f1887800c2359a1cf75a06657e4eb4d844",
+  "reviewed_file_sha256": {
+    "config/stage-gate/sequence-20-acceptance.example.toml": "8b5f468f379c41e383424a1941bb769c7d797240678e18451a98f3856d0c9a3e",
+    "docs/deploy/sequence-20-stage-gate-runbook.md": "e33c7024a388d087c2fb28f7e67ee5a904aff034a59b62d12b5821d67bf619d0",
+    "infra/edge/nginx/README.md": "c6ec38955f98a8b2e841547895a9c9fb7cea6cec193dd9fe0c9a06d3ebaaa1dc",
+    "scripts/deploy/stage_gate_config.py": "c0bf3989a1a1304f5ebc91a1bdf245c528b6ea9ac528e4e55215dec315aac321",
+    "infra/edge/nginx/backbond-scanner-edge.http.conf": "840c63d9e84b9818ae7ecc63d86cb6d9951b890186ba186da95148f6b4806814",
+    "infra/edge/nginx/backbond-scanner-edge.server.conf.template": "78c342c2ce35b2fc6fe95b5f2a9214f11f8751d0c266da151535e19150b865c1"
+  },
+  "repository_qualified_image": "ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65",
+  "image_digest": "sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65",
+  "source_bundle_sha256": "4b02ea1052e3d5f9717278a3ca4f1b5e7954a41b8c594dcd2b82c53b1805c3d7",
+  "source_bundle_command": "git archive --format=tar --prefix=are-scanner-b1c577c/ b1c577c74a127c1342617230689eb6f0ef9be6d2 | gzip -n",
+  "evidence_archive": {
+    "issue": "BEAAA-16268",
+    "attachment_id": "5035ee4c-8cd5-4ec6-b3f2-db34444dc096",
+    "filename": "scanner-edge-release-evidence-29823455831.tar.gz",
+    "sha256": "a30afbf1a0575b82611fad90b8dd4c45fe1d32db0803741f75eae3da25ddb67e"
+  },
+  "evidence_archive_files_sha256": {
+    "scanner-edge-cosign-verify.json": "06caa748d0b9b1554409a71fbf62fa4cd9868926d2faf9a66518bed2a8c5771d",
+    "scanner-edge-image.sigstore.json": "7fbc4190bda6d057b6cf47857256f9101735ec8049182dbcca02e5cfdb25a227",
+    "scanner-edge-image.sigstore.sha256": "e04a5f0ef3e57df2f0d9c25be39711a64c2291df64b540e7bd5a24f7afd911bb",
+    "scanner-edge-provenance-ref.txt": "5a2e89361881df354e531fa68bf9965b387165ec96a92f2b32f95e7d4f4affe0",
+    "scanner-edge-release-identity-gate.json": "1b763eb1d7e0222dd902cb0224f0c983223100e72b80142e9ca2f62c59f2ffca",
+    "scanner-edge-sbom.cdx.json": "205cf19ad1cec19f853d29280bbe251f0c63849bccfb0ffea8c7991af75b1106",
+    "scanner-edge-sbom.sha256": "cf01e01a1dad969146bd168e61995ea523f71fbbafb71993fe99c7d8d3ab8dda",
+    "scanner-release-candidate.json": "7bb63cb7ebacb4e6da9dc0c3b9f9cf4376075cc7b10df0bc0bc92ef28c98c5e8"
+  },
+  "production_runbook_version": "1.6",
+  "production_runbook_sha256": "851b20f0b8d1a14d97ff120f3511d8b1c2da1cd648ec5698644b5d51b7f8019c",
+  "nginx_template_sha256": "78c342c2ce35b2fc6fe95b5f2a9214f11f8751d0c266da151535e19150b865c1",
+  "stage_gate_config_sha256": "c0bf3989a1a1304f5ebc91a1bdf245c528b6ea9ac528e4e55215dec315aac321",
+  "acceptance_toml_sha256": "8b5f468f379c41e383424a1941bb769c7d797240678e18451a98f3856d0c9a3e",
+  "sbom_sha256": "205cf19ad1cec19f853d29280bbe251f0c63849bccfb0ffea8c7991af75b1106",
+  "sigstore_bundle_sha256": "7fbc4190bda6d057b6cf47857256f9101735ec8049182dbcca02e5cfdb25a227",
+  "cosign_verify_record_sha256": "06caa748d0b9b1554409a71fbf62fa4cd9868926d2faf9a66518bed2a8c5771d",
+  "release_identity_gate_sha256": "1b763eb1d7e0222dd902cb0224f0c983223100e72b80142e9ca2f62c59f2ffca",
+  "image_signature": {
+    "scheme": "cosign-keyless-github-oidc",
+    "identity": "https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "signature_bundle_ref": "https://github.com/CorwinFoundation/are-scanner/actions/runs/29823455831/artifacts/scanner-edge-release-candidate-b1c577c74a127c1342617230689eb6f0ef9be6d2-20/scanner-edge-image.sigstore.json",
+    "signature_verification_ref": "https://github.com/CorwinFoundation/are-scanner/actions/runs/29823455831/artifacts/scanner-edge-release-candidate-b1c577c74a127c1342617230689eb6f0ef9be6d2-20/scanner-edge-cosign-verify.json",
+    "provenance_ref": "https://github.com/CorwinFoundation/are-scanner/actions/runs/29823455831/artifacts/scanner-edge-release-candidate-b1c577c74a127c1342617230689eb6f0ef9be6d2-20/scanner-edge-provenance-ref.txt"
+  },
+  "manifest_signature": {
+    "scheme": "openssl-sha256-rsa-detached",
+    "signature_file": "sequence-20-release-manifest.json.sig",
+    "public_key_file": "sequence-20-release-manifest.pub.pem"
+  },
+  "workflow_run_url": "https://github.com/CorwinFoundation/are-scanner/actions/runs/29823455831",
+  "workflow_disposition": "candidate build, push, import-closure verification, SBOM generation, image signing, Sigstore bundle capture, cosign verification, release-identity gate, and artifact upload succeeded; final optional Paperclip relay step failed and was replaced by BEAAA-16268 attachment 5035ee4c-8cd5-4ec6-b3f2-db34444dc096",
+  "delivery": "operator-mediated inbound transfer; no production-host egress",
+  "promotion_authorized": false,
+  "edge_http_fragment_sha256": "840c63d9e84b9818ae7ecc63d86cb6d9951b890186ba186da95148f6b4806814",
+  "edge_server_fragment_sha256": "78c342c2ce35b2fc6fe95b5f2a9214f11f8751d0c266da151535e19150b865c1",
+  "signature_state": "UNSIGNED_REINPUT_PENDING_CTO_FOUNDER_SIGN",
+  "signature_note": "BEAAA-16331 v1.5: deployable surface (2 fragments) + runbook v1.5 rebound. openssl detached signature over this JSON MUST be regenerated by the CTO/Founder signing step before promotion; the .sig on disk predates this content. promotion_authorized stays false."
+}

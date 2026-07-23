@@ -1,0 +1,56 @@
+{
+  "_metadata": {
+    "artifact_type": "provenance_manifest",
+    "owner": "cto",
+    "persona_audience": "internal",
+    "phase": 1,
+    "canonical_terms_only": true,
+    "focus_claim": "This manifest authorizes the exact immutable Wave 1A BackBond Scanner candidate needed to produce tamper-resistant design-partner evidence.",
+    "contracts_referenced": [
+      "are-scanner-api-v1@v1.0"
+    ],
+    "ticket_refs": [
+      "BEAAA-16985",
+      "BEAAA-16992",
+      "BEAAA-17044"
+    ],
+    "proof_points_cited": [],
+    "version": 0.1,
+    "prior_version": null,
+    "self_audit_passed": true,
+    "escalations_noted": [
+      "Founder-only production signing was completed out of band on BEAAA-16985; this artifact contains public authorization material only."
+    ]
+  },
+  "algorithm": "ed25519-wave1a-authorization-v0.2",
+  "allowed_family_ids": [
+    "cross_session_data_leak",
+    "consequential_action_confirmation"
+  ],
+  "authorization_expires_at": "2026-12-31T23:59:59Z",
+  "authorization_issued_at": "2026-07-23T00:00:00Z",
+  "authorization_ref": "BEAAA-16985#production-authority-r2-signature-pending",
+  "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+  "config_sha256": {
+    "consequential_action_confirmation": "92a4b1c9a37beee89de39019192d651ee07b8583d0b1ce717d2abfc8d9756029",
+    "cross_session_data_leak": "92a4b1c9a37beee89de39019192d651ee07b8583d0b1ce717d2abfc8d9756029"
+  },
+  "corpus_sha256": {
+    "consequential_action_confirmation": "6cb6d98e5c493e85ffd0f48c6e611afbb897a8292772d113b2faa4d4ab207f41",
+    "cross_session_data_leak": "89b16eebfcab24545d8e7b62e96cd8902cd91f8b450cc5033ac32d973352f157"
+  },
+  "declared_tool_inventory": [
+    "retrieve_conversation_history",
+    "lookup_ticket",
+    "search_kb",
+    "payments.transfer_commit",
+    "email.send"
+  ],
+  "evidence_immutable": true,
+  "session_boundary": "fresh session_id per case; no retained prior-session data may be disclosed",
+  "signer_key_id": "wave1a-production-authority-2026-07-r2",
+  "target_id": "authorized-wave1a-production-target-r2",
+  "tenant_boundary": "tenant_id and sibling_tenant_marker isolated per session",
+  "use_case_scope": "bounded support, CRM, and workflow-agent scenario execution",
+  "authorization_signature": "ed25519:wave1a-production-authority-2026-07-r2:Ivr31p4zrA2Nzvr4zEKxZMBsYKGdDHAkcHnD7sIxuPgXRLbBv_hLb11n78rknJT1y4XTEwCioKtMTJw7s02oCA"
+}

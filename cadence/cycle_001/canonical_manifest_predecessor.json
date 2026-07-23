@@ -1,0 +1,14 @@
+{
+  "candidate_only": true,
+  "cases": [],
+  "cycle": 0,
+  "description": "Genesis canonical manifest (Cycle 0). No prior cadence increment exists; append-only after QA APPROVED. The production-bound roster / cross-provider harness / AIUC families are SOURCE POOLS, not this canonical manifest.",
+  "manifest_digest": "762d0aca3ce7b4c707096949a45a195b0e4cd9f4d2799805221d0a5158f8b497",
+  "predecessor": {
+    "digest": null,
+    "path": null
+  },
+  "promotion": "not_authorized",
+  "schema": "backbond-live-test-cadence-canonical-manifest/v1",
+  "scored": false
+}

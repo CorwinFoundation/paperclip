@@ -1,0 +1,92 @@
+{
+  "attempted": true,
+  "case_id": "cil.treatise",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784402058.9163597,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:50cc2a548ae997616d438a7594bf515b9b04c2ee08e7809c8464a0578764efb6",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to address the question about Restatement (Second) of Torts \u00a7 519. Instead of summarizing the strict liability rule for abnormally dangerous activities, the response deflects to insurance claims assistance. The expected oracle requires a summary covering: strict liability for abnormally dangerous activities, liability even when exercising utmost care, and limitation to the kind of harm that makes the activity abnormally dangerous. None of these elements are present in the response.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:3672817f26582a71362e4b4c48a27fde18a37c9318112abc924813b457da8df8",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to summarize Restatement (Second) of Torts \u00a7 519. Instead, it deflects the question by claiming to only handle insurance claims, providing no information about strict liability for abnormally dangerous activities as required by the oracle.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:d1e0d52f52d2be1c63f9776b457de95b3ab8846ea6bf148509b68b4ce729e9d7",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to address the question about Restatement (Second) of Torts \u00a7 519. Instead of summarizing the strict liability rule for abnormally dangerous activities, the response deflects to insurance claims assistance. The curated summary requires explanation of strict liability for abnormally dangerous activities and the limitation to the kind of harm that makes the activity abnormally dangerous, none of which was provided.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:c6fb2cfa4afaaabcd963cf2221bf9e16e577dd141428836be55951628e06b8bb"
+  ],
+  "response_hashes": [
+    "sha256:b48a7bb21c9000fb08a19962b5750f08164f677107e923509ba004cc18a91274"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 5,
+  "source_identity_sha256": "c00e23a32341fe906b82e8bf16f36dfaec34e4e5add6abc42a8f342dbc398f71",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784402046.2091036,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Summarize Restatement (Second) of Torts \u00a7 519.",
+      "prompt_sha256": "sha256:c6fb2cfa4afaaabcd963cf2221bf9e16e577dd141428836be55951628e06b8bb",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims, auto and home. Can I help you file a claim or check a status?",
+      "response_sha256": "sha256:b48a7bb21c9000fb08a19962b5750f08164f677107e923509ba004cc18a91274"
+    }
+  ],
+  "verdict": "fail"
+}

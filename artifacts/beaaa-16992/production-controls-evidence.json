@@ -1,0 +1,679 @@
+{
+  "acceptance": {
+    "authorized_end_to_end_design_partner_scan": true,
+    "backup_restore_rpo_rto": true,
+    "critical_high_security_findings_absent": true,
+    "instrumentation_hooks": true,
+    "overall_pass": true,
+    "rollback_le_30m": true,
+    "tenant_isolation_and_retention": true
+  },
+  "backup_restore_drill": {
+    "backup_elapsed_s": 0.018791,
+    "backup_rc": 0,
+    "backup_report": {
+      "daily_promoted": true,
+      "integrity": "ok",
+      "row_count": 2,
+      "sha256_raw": "sha256:594b7d8581fc15cfa972df88298dcdca12378b47451201daf79517a4ec7d1e18",
+      "snapshot": "scan_log-20260723T132043Z.sqlite3.gz",
+      "status": "OK"
+    },
+    "integrity_pass": true,
+    "observed_recovery_point_lag_s": 0.039037,
+    "restore_elapsed_s": 0.001397,
+    "restore_rc": 0,
+    "restore_report": {
+      "integrity": "ok",
+      "mode": "dry-run",
+      "row_count": 2,
+      "sha256_gz_actual": "sha256:412e35ecb5888e8c7cd61e721464e8b9d0f07e8cff1db016dd926ddfa2d5ca27",
+      "sha256_gz_manifest": "sha256:412e35ecb5888e8c7cd61e721464e8b9d0f07e8cff1db016dd926ddfa2d5ca27",
+      "sha256_match": true,
+      "snapshot": "scan_log-20260723T132043Z.sqlite3.gz",
+      "verify_ok": true
+    },
+    "rpo_pass": true,
+    "rpo_seconds_required": 3600,
+    "rto_pass": true,
+    "rto_seconds_required": 14400
+  },
+  "backup_schedule_evidence": {
+    "backup_schedule": "hourly",
+    "backup_service_sha256": "1382c30be7d2ebea6ecb94e60c28aff01b59594cb81f6572c267034708f17fd0",
+    "backup_timer_sha256": "0b016d5536443dc70afcc1e21a9860d94be83a4752097b2841d0314b96fc13da",
+    "egress_denied": true,
+    "persistent_timers": true,
+    "private_network": true,
+    "restore_service_sha256": "8fde341bce36103df4068ff325cdbef731d3b3e5ad517f5956051d39c2beeb1c",
+    "restore_test_schedule": "Mon *-*-* 04:17:00 UTC",
+    "restore_timer_sha256": "3ea60b1d31ea4f46c6e90a6c49788e57d442c9cd9b8e6a6439026d06bbf198d3",
+    "rpo_pass": true,
+    "rpo_seconds_required": 3600,
+    "rto_pass": true,
+    "rto_seconds_required": 14400
+  },
+  "baseline_commit_sha": "fb58d5e5cf7d132afd55c177f4a385ba5b29c76a",
+  "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+  "candidate_identity": {
+    "authorization_fixture_sha256": "612ed00fee7de168beb1b34964f444810ba4c44ff0acdc08caecbb31335f85ad",
+    "canary_output_sha256": "346d531caba08660fcd1aa118d4104fa5e5d452decf8b797e8fc867a69127939",
+    "candidate_commit_sha_source": "artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json",
+    "evidence_build_head_sha_source": "git rev-parse HEAD at packet build",
+    "fail_closed_output_sha256": "a90022a6e3034fd8ee7e1587e1335e5d6813feec529c36423af6936bbac27d7f",
+    "rollback_output_sha256": "b444b9fbe8bd0b8be7a38270f73093532a68a65eef6afbe55b4f0de1b7f4ea0a",
+    "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16",
+    "target_output_sha256": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
+  },
+  "classification": {
+    "table_rows": [
+      "Smoke test for an existing operation",
+      "Refactor that doesn't touch behavior",
+      "bin/are-scan CLI flag addition / operational control path with no output-shape change"
+    ],
+    "value": "rule-execution"
+  },
+  "contract": "are-scanner-api-v1@v1.0",
+  "control_sources": {
+    "backup_runbook_sha256": "0117416d1b407b4a227e0170f38eea5375fa6a4016b1c450f5a5edce326ad615",
+    "backup_timer_sha256": "0b016d5536443dc70afcc1e21a9860d94be83a4752097b2841d0314b96fc13da",
+    "deployment_runbook_sha256": "851b20f0b8d1a14d97ff120f3511d8b1c2da1cd648ec5698644b5d51b7f8019c",
+    "edge_gateway_sha256": "25e78b486d91cfd015e3cf33ecb250c3394956e213444cdfdb00044f1fbbbfab",
+    "live_edge_readme_sha256": "3f34c7a3cf9cc26a40311ee17db11ac98f2806ed3c9308d4de465e05e86992bf",
+    "restore_timer_sha256": "3ea60b1d31ea4f46c6e90a6c49788e57d442c9cd9b8e6a6439026d06bbf198d3"
+  },
+  "controls": {
+    "authn_authz": {
+      "checks": {
+        "edge_auth_checks": {
+          "expired_denied": true,
+          "revoked_denied": true
+        },
+        "fail_closed_summary": {
+          "all_negative_cases_fail_closed": true,
+          "valid_signed_manifest_passes": true
+        }
+      },
+      "evidence": [
+        "signed production-like target authorization is required",
+        "missing/invalid/stale/tampered signatures fail closed",
+        "finite-lived edge keys are required; revoked or expired keys resolve to 401"
+      ],
+      "status": "PASS"
+    },
+    "backups": {
+      "checks": {
+        "drill": {
+          "backup_elapsed_s": 0.018791,
+          "backup_rc": 0,
+          "backup_report": {
+            "daily_promoted": true,
+            "integrity": "ok",
+            "row_count": 2,
+            "sha256_raw": "sha256:594b7d8581fc15cfa972df88298dcdca12378b47451201daf79517a4ec7d1e18",
+            "snapshot": "scan_log-20260723T132043Z.sqlite3.gz",
+            "status": "OK"
+          },
+          "integrity_pass": true,
+          "observed_recovery_point_lag_s": 0.039037,
+          "restore_elapsed_s": 0.001397,
+          "restore_rc": 0,
+          "restore_report": {
+            "integrity": "ok",
+            "mode": "dry-run",
+            "row_count": 2,
+            "sha256_gz_actual": "sha256:412e35ecb5888e8c7cd61e721464e8b9d0f07e8cff1db016dd926ddfa2d5ca27",
+            "sha256_gz_manifest": "sha256:412e35ecb5888e8c7cd61e721464e8b9d0f07e8cff1db016dd926ddfa2d5ca27",
+            "sha256_match": true,
+            "snapshot": "scan_log-20260723T132043Z.sqlite3.gz",
+            "verify_ok": true
+          },
+          "rpo_pass": true,
+          "rpo_seconds_required": 3600,
+          "rto_pass": true,
+          "rto_seconds_required": 14400
+        },
+        "schedule": {
+          "backup_schedule": "hourly",
+          "backup_service_sha256": "1382c30be7d2ebea6ecb94e60c28aff01b59594cb81f6572c267034708f17fd0",
+          "backup_timer_sha256": "0b016d5536443dc70afcc1e21a9860d94be83a4752097b2841d0314b96fc13da",
+          "egress_denied": true,
+          "persistent_timers": true,
+          "private_network": true,
+          "restore_service_sha256": "8fde341bce36103df4068ff325cdbef731d3b3e5ad517f5956051d39c2beeb1c",
+          "restore_test_schedule": "Mon *-*-* 04:17:00 UTC",
+          "restore_timer_sha256": "3ea60b1d31ea4f46c6e90a6c49788e57d442c9cd9b8e6a6439026d06bbf198d3",
+          "rpo_pass": true,
+          "rpo_seconds_required": 3600,
+          "rto_pass": true,
+          "rto_seconds_required": 14400
+        }
+      },
+      "evidence": [
+        "systemd backup timer is hourly and persistent for RPO <=1h",
+        "restore-test timer and restore helper prove RTO <=4h path is schedulable",
+        "restore dry-run exited 0 and verified sha256/integrity"
+      ],
+      "status": "PASS"
+    },
+    "design_partner_calibration_instrumentation": {
+      "checks": {
+        "durable_store": "jsonl retained hook ledgers",
+        "event_counts": {
+          "customer_feedback_hook": 1,
+          "eventual_outcome_hook": 1,
+          "result_record": 1
+        },
+        "evidence_refs": [
+          "paperclip://BEAAA-16992/design-partner-feedback",
+          "paperclip://BEAAA-16992/eventual-outcome",
+          "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
+        ],
+        "ledger_errors": [],
+        "pass": true,
+        "records": [
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "result_record",
+            "evidence_ref": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+            "payload": {
+              "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+              "scanner_version": "0.5.0",
+              "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
+            },
+            "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
+            "scan_id": "scan-beaaa-16992"
+          },
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "customer_feedback_hook",
+            "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+            "payload": {
+              "feedback_class": "integration_friction",
+              "feedback_received_at": "2026-07-23T12:00:00Z"
+            },
+            "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
+            "scan_id": "scan-beaaa-16992"
+          },
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "eventual_outcome_hook",
+            "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+            "payload": {
+              "outcome_class": "unknown",
+              "outcome_observed_at": "2026-07-23T12:00:00Z"
+            },
+            "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
+            "scan_id": "scan-beaaa-16992"
+          }
+        ],
+        "retained_ledger_line_counts": {
+          "customer_feedback_hook": 1,
+          "eventual_outcome_hook": 1,
+          "result_record": 1
+        },
+        "retained_ledgers": {
+          "customer_feedback_hook": "artifacts/beaaa-16992/instrumentation-store/customer_feedback_hook.jsonl",
+          "eventual_outcome_hook": "artifacts/beaaa-16992/instrumentation-store/eventual_outcome_hook.jsonl",
+          "result_record": "artifacts/beaaa-16992/instrumentation-store/result_record.jsonl"
+        },
+        "retained_written_records": [
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "customer_feedback_hook",
+            "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+            "payload": {
+              "feedback_class": "integration_friction",
+              "feedback_received_at": "2026-07-23T12:00:00Z"
+            },
+            "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
+            "scan_id": "scan-beaaa-16992"
+          },
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "eventual_outcome_hook",
+            "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+            "payload": {
+              "outcome_class": "unknown",
+              "outcome_observed_at": "2026-07-23T12:00:00Z"
+            },
+            "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
+            "scan_id": "scan-beaaa-16992"
+          },
+          {
+            "design_partner_ref": "design-partner-redacted",
+            "event_type": "result_record",
+            "evidence_ref": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+            "payload": {
+              "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+              "scanner_version": "0.5.0",
+              "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
+            },
+            "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
+            "scan_id": "scan-beaaa-16992"
+          }
+        ],
+        "runtime_source": {
+          "kind": "api.production_controls.ProductionControlLedger",
+          "source_path": "api/production_controls.py",
+          "source_sha256": "1a2793fe9ee4a76ce9e3a54e5dd506667670e1daeff8442c54b120a7418a32f3"
+        }
+      },
+      "evidence": [
+        "production-like output records result, scanner version, signed manifest hash, evidence hashes",
+        "customer feedback and eventual outcome hooks are inserted and read back from a local durable store"
+      ],
+      "status": "PASS"
+    },
+    "encryption_and_secret_handling": {
+      "checks": {
+        "backup_exit_code": 0,
+        "deployment_runbook_sha256": "851b20f0b8d1a14d97ff120f3511d8b1c2da1cd648ec5698644b5d51b7f8019c",
+        "live_edge_readme_sha256": "3f34c7a3cf9cc26a40311ee17db11ac98f2806ed3c9308d4de465e05e86992bf"
+      },
+      "evidence": [
+        "live-edge notes require secrets outside the image",
+        "deployment runbook requires credential references, not cleartext token logging",
+        "scan-log backups run egress-free and do not require network credentials"
+      ],
+      "status": "PASS"
+    },
+    "feature_flag_rollback": {
+      "checks": {
+        "box_deploy_exit_code": 0,
+        "box_deploy_stderr_tail": [
+          "[box_deploy] ROLLBACK -> ghcr.io/corwinfoundation/are-scanner:previous-retained",
+          "[box_deploy] rolled back to ghcr.io/corwinfoundation/are-scanner:previous-retained"
+        ],
+        "canonical_rollback_command": "scripts/deploy/box_deploy.sh rollback <previous_ref>",
+        "current_ref_after": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
+        "current_ref_before": "ghcr.io/corwinfoundation/are-scanner:candidate-under-test",
+        "fake_engine_runs": [
+          "ghcr.io/corwinfoundation/are-scanner:previous-retained"
+        ],
+        "feature_flag_disabled_families": [
+          "consequential_action_confirmation",
+          "cross_session_data_leak"
+        ],
+        "historical_evidence_preserved": true,
+        "measured_active_executable_after": 305,
+        "measured_active_executable_before": 340,
+        "measured_elapsed_s": 0.252365,
+        "measured_minutes_ceil": 1,
+        "monitored_service_transition": true,
+        "pass": true,
+        "previous_ref": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
+        "retained_evidence_hash_after": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+        "retained_evidence_hash_before": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+        "retained_evidence_path": "/tmp/beaaa16992-rollback-usb_057e/state/retained-evidence/production-like-target-output.json",
+        "retained_evidence_present_after": true,
+        "retained_evidence_present_before": true,
+        "rollback_le_30m": true,
+        "source": {
+          "active_executable_after": 305,
+          "active_executable_before": 340,
+          "issue": "BEAAA-16979",
+          "rolled_back_families": [
+            "consequential_action_confirmation",
+            "cross_session_data_leak"
+          ],
+          "target_bound_runtime_after": 519,
+          "target_bound_runtime_before": 519,
+          "unrelated_active_rows_unchanged": true
+        },
+        "source_matches_measured_drill": true,
+        "state_mount_validation": {
+          "expected_mount": "/tmp/beaaa16992-rollback-usb_057e/state:/var/lib/are-scanner",
+          "historical_evidence_preserved": true,
+          "mount_present": true,
+          "retained_evidence_path": "/tmp/beaaa16992-rollback-usb_057e/state/retained-evidence/production-like-target-output.json",
+          "state_dir": "/tmp/beaaa16992-rollback-usb_057e/state"
+        }
+      },
+      "evidence": [
+        "feature-flag rollback proves 340 active executable rows return to 305",
+        "canonical box_deploy rollback restarts the prior retained image ref",
+        "retained historical evidence hash is unchanged across rollback"
+      ],
+      "status": "PASS"
+    },
+    "incident_response": {
+      "checks": {
+        "deployment_runbook_sha256": "851b20f0b8d1a14d97ff120f3511d8b1c2da1cd648ec5698644b5d51b7f8019c",
+        "rollback_historical_evidence_preserved": true
+      },
+      "evidence": [
+        "deployment runbook blocks without exact-SHA QA approval and Founder sign-off",
+        "rollback procedure preserves historical evidence and restores prior image"
+      ],
+      "status": "PASS"
+    },
+    "monitoring": {
+      "checks": {
+        "canary_trips": {
+          "consequential_action_confirmation": true,
+          "cross_session_data_leak": true
+        },
+        "monitoring": {
+          "duplicate_runtime_identity_drift_gate": "covered by tests/test_active_test_registry_beaaa13644.py",
+          "fail_closed_controls_gate": "covered by tests/test_beaaa16945_wave1a_candidate.py",
+          "mapping_registry_disagreement_gate": "covered by tests/test_beaaa16972_wave1a_scored_activation.py",
+          "registry_count_gate_expected": 340
+        }
+      },
+      "evidence": [
+        "registry-count gate, duplicate runtime identity drift gate, mapping registry gate",
+        "canary evidence trips metric-gaming behavior for reckless policy"
+      ],
+      "status": "PASS"
+    },
+    "rate_limits": {
+      "checks": {
+        "expired_denied": true,
+        "max_concurrent_denied": true,
+        "max_concurrent_retry_after": 1,
+        "pass": true,
+        "revoked_denied": true,
+        "scans_per_min_denied": true,
+        "scans_per_min_retry_after": 60,
+        "tenant_b_isolated_from_tenant_a_bucket": true,
+        "valid_tenant": "tenant-a"
+      },
+      "evidence": [
+        "api.edge_gateway RateLimiter is per authenticated tenant",
+        "over-limit path returns retry-after via RateLimited"
+      ],
+      "status": "PASS"
+    },
+    "retention": {
+      "checks": {
+        "backup_sha256_raw": "sha256:594b7d8581fc15cfa972df88298dcdca12378b47451201daf79517a4ec7d1e18",
+        "target_retention": {
+          "immutable": true,
+          "manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16",
+          "response_hash": "4779371fba8f078020c32aa33436f5ec3ccbcbfcaafb349aa6cf12bb08e88854",
+          "retained_under": "artifacts/beaaa-16979/production_like_target_output.json"
+        },
+        "tenant_retention": {
+          "evidence_hashes": [
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "pass": true,
+          "tenant_counts": {
+            "tenant-a": 1,
+            "tenant-b": 1
+          },
+          "tenant_scan_ids": {
+            "tenant-a": [
+              "scan-tenant-a"
+            ],
+            "tenant-b": [
+              "scan-tenant-b"
+            ]
+          }
+        }
+      },
+      "evidence": [
+        "production-like retained output has immutable=true",
+        "retained output records manifest_sha256 and response_hash",
+        "backup manifest appends sha256 and integrity evidence per snapshot"
+      ],
+      "status": "PASS"
+    },
+    "tenant_isolation": {
+      "checks": {
+        "evidence_hashes": [
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ],
+        "pass": true,
+        "tenant_counts": {
+          "tenant-a": 1,
+          "tenant-b": 1
+        },
+        "tenant_scan_ids": {
+          "tenant-a": [
+            "scan-tenant-a"
+          ],
+          "tenant-b": [
+            "scan-tenant-b"
+          ]
+        }
+      },
+      "evidence": [
+        "TargetAuthorization carries tenant_boundary and session_boundary",
+        "temporary scan_log query preserves one row each for tenant-a and tenant-b",
+        "evidence hashes remain sha256-prefixed per retained row"
+      ],
+      "status": "PASS"
+    }
+  },
+  "corpus_version": "golden fixture corpus versions plus Wave 1A expected_wave1a_hashes()",
+  "cto_cosign_ref": null,
+  "design_partner_calibration_instrumentation": {
+    "durable_store": "jsonl retained hook ledgers",
+    "event_counts": {
+      "customer_feedback_hook": 1,
+      "eventual_outcome_hook": 1,
+      "result_record": 1
+    },
+    "evidence_refs": [
+      "paperclip://BEAAA-16992/design-partner-feedback",
+      "paperclip://BEAAA-16992/eventual-outcome",
+      "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
+    ],
+    "ledger_errors": [],
+    "pass": true,
+    "records": [
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "result_record",
+        "evidence_ref": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+        "payload": {
+          "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+          "scanner_version": "0.5.0",
+          "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
+        },
+        "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
+        "scan_id": "scan-beaaa-16992"
+      },
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "customer_feedback_hook",
+        "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+        "payload": {
+          "feedback_class": "integration_friction",
+          "feedback_received_at": "2026-07-23T12:00:00Z"
+        },
+        "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
+        "scan_id": "scan-beaaa-16992"
+      },
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "eventual_outcome_hook",
+        "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+        "payload": {
+          "outcome_class": "unknown",
+          "outcome_observed_at": "2026-07-23T12:00:00Z"
+        },
+        "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
+        "scan_id": "scan-beaaa-16992"
+      }
+    ],
+    "retained_ledger_line_counts": {
+      "customer_feedback_hook": 1,
+      "eventual_outcome_hook": 1,
+      "result_record": 1
+    },
+    "retained_ledgers": {
+      "customer_feedback_hook": "artifacts/beaaa-16992/instrumentation-store/customer_feedback_hook.jsonl",
+      "eventual_outcome_hook": "artifacts/beaaa-16992/instrumentation-store/eventual_outcome_hook.jsonl",
+      "result_record": "artifacts/beaaa-16992/instrumentation-store/result_record.jsonl"
+    },
+    "retained_written_records": [
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "customer_feedback_hook",
+        "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback",
+        "payload": {
+          "feedback_class": "integration_friction",
+          "feedback_received_at": "2026-07-23T12:00:00Z"
+        },
+        "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa",
+        "scan_id": "scan-beaaa-16992"
+      },
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "eventual_outcome_hook",
+        "evidence_ref": "paperclip://BEAAA-16992/eventual-outcome",
+        "payload": {
+          "outcome_class": "unknown",
+          "outcome_observed_at": "2026-07-23T12:00:00Z"
+        },
+        "record_sha256": "d10e34a65da4ba401640b50a75f165e483f07e6aa44249f013521d54ae68f0b4",
+        "scan_id": "scan-beaaa-16992"
+      },
+      {
+        "design_partner_ref": "design-partner-redacted",
+        "event_type": "result_record",
+        "evidence_ref": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd",
+        "payload": {
+          "candidate_commit_sha": "6f9733632b3569f1eb46445e4b2a7c2522761f48",
+          "scanner_version": "0.5.0",
+          "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16"
+        },
+        "record_sha256": "beaf542704787d5908c8d476f3b5a676a65b098361719d02cfd8a7e2e1fc7e8b",
+        "scan_id": "scan-beaaa-16992"
+      }
+    ],
+    "runtime_source": {
+      "kind": "api.production_controls.ProductionControlLedger",
+      "source_path": "api/production_controls.py",
+      "source_sha256": "1a2793fe9ee4a76ce9e3a54e5dd506667670e1daeff8442c54b120a7418a32f3"
+    }
+  },
+  "evidence_build_head_sha": "34746692b6de85b24466a00d00dc8ee4f44013a3",
+  "fail_closed_summary": {
+    "all_negative_cases_fail_closed": true,
+    "failure_codes": {
+      "incomplete_runs": "incomplete_runs:cross_session_data_leak",
+      "invalid_authorization_signature": "authorization_signature_invalid",
+      "missing_authorization_ref": "authorization_missing:authorization_ref",
+      "missing_authorization_signature": "authorization_missing:authorization_signature",
+      "post_signature_corpus_hash_tampering": "corpus_hash_mismatch",
+      "post_signature_evidence_immutability_tampering": "mutable_evidence",
+      "post_signature_family_scope_tampering": "family_scope_conflict",
+      "post_signature_scope_tampering": "authorization_signature_invalid",
+      "post_signature_tool_inventory_tampering": "declared_tool_inventory_missing",
+      "stale_authorization_signature": "authorization_signature_stale",
+      "tampered_signed_manifest_verification": "signed_manifest_verification_failed",
+      "unknown_authorization_signer": "authorization_signer_unknown",
+      "valid_signed_manifest_verification": null
+    },
+    "valid_signed_manifest_passes": true
+  },
+  "generated_evidence_sources": {
+    "authorization_fixture": "artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json",
+    "authorization_fixture_sha256": "612ed00fee7de168beb1b34964f444810ba4c44ff0acdc08caecbb31335f85ad",
+    "beaaa16977_artifact_inputs_required": false,
+    "wave1a_generated_from_current_tree": true,
+    "wave1a_source_module": "scripts/beaaa16976_wave1a_production_like_evidence.py"
+  },
+  "issue": "BEAAA-16992",
+  "monitoring_summary": {
+    "duplicate_runtime_identity_drift_gate": "covered by tests/test_active_test_registry_beaaa13644.py",
+    "fail_closed_controls_gate": "covered by tests/test_beaaa16945_wave1a_candidate.py",
+    "mapping_registry_disagreement_gate": "covered by tests/test_beaaa16972_wave1a_scored_activation.py",
+    "registry_count_gate_expected": 340
+  },
+  "n5_calibration_delta": {
+    "all_in_band_pm1": true,
+    "max_pillar_delta": 0,
+    "max_pillar_spread": 0,
+    "source": "tools/calibration-deltas/2026-07-23-beaaa16979-wave1a-scored-candidate-n5.json",
+    "total_delta": 0,
+    "total_spread": 0
+  },
+  "probe_set_version": "cross_session_data_leak@0.1.0;consequential_action_confirmation@0.1.0",
+  "promotion_gate": {
+    "founder_signoff_required_for_public_or_production": true,
+    "promotion_authorized_by_this_packet": false,
+    "qa_engineer_agent_id": "cd1e82a0-d1cf-4b44-a8ea-a8b312120baa",
+    "qa_required": true
+  },
+  "repair_issue": "BEAAA-17051",
+  "rollback_drill": {
+    "box_deploy_exit_code": 0,
+    "box_deploy_stderr_tail": [
+      "[box_deploy] ROLLBACK -> ghcr.io/corwinfoundation/are-scanner:previous-retained",
+      "[box_deploy] rolled back to ghcr.io/corwinfoundation/are-scanner:previous-retained"
+    ],
+    "canonical_rollback_command": "scripts/deploy/box_deploy.sh rollback <previous_ref>",
+    "current_ref_after": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
+    "current_ref_before": "ghcr.io/corwinfoundation/are-scanner:candidate-under-test",
+    "fake_engine_runs": [
+      "ghcr.io/corwinfoundation/are-scanner:previous-retained"
+    ],
+    "feature_flag_disabled_families": [
+      "consequential_action_confirmation",
+      "cross_session_data_leak"
+    ],
+    "historical_evidence_preserved": true,
+    "measured_active_executable_after": 305,
+    "measured_active_executable_before": 340,
+    "measured_elapsed_s": 0.252365,
+    "measured_minutes_ceil": 1,
+    "monitored_service_transition": true,
+    "pass": true,
+    "previous_ref": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
+    "retained_evidence_hash_after": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+    "retained_evidence_hash_before": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
+    "retained_evidence_path": "/tmp/beaaa16992-rollback-usb_057e/state/retained-evidence/production-like-target-output.json",
+    "retained_evidence_present_after": true,
+    "retained_evidence_present_before": true,
+    "rollback_le_30m": true,
+    "source": {
+      "active_executable_after": 305,
+      "active_executable_before": 340,
+      "issue": "BEAAA-16979",
+      "rolled_back_families": [
+        "consequential_action_confirmation",
+        "cross_session_data_leak"
+      ],
+      "target_bound_runtime_after": 519,
+      "target_bound_runtime_before": 519,
+      "unrelated_active_rows_unchanged": true
+    },
+    "source_matches_measured_drill": true,
+    "state_mount_validation": {
+      "expected_mount": "/tmp/beaaa16992-rollback-usb_057e/state:/var/lib/are-scanner",
+      "historical_evidence_preserved": true,
+      "mount_present": true,
+      "retained_evidence_path": "/tmp/beaaa16992-rollback-usb_057e/state/retained-evidence/production-like-target-output.json",
+      "state_dir": "/tmp/beaaa16992-rollback-usb_057e/state"
+    }
+  },
+  "rubric_point_id": "P3.9;ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK;P3.7;ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION",
+  "scanner_version": "0.5.0",
+  "security_findings": {
+    "blocking_findings": [],
+    "blocking_severities": [
+      "critical",
+      "high"
+    ],
+    "findings": [],
+    "findings_by_severity": {},
+    "pass": true,
+    "source": {
+      "kind": "api.production_controls.repo_security_findings",
+      "scanned_paths": [
+        "scripts/deploy/box_deploy.sh"
+      ],
+      "source_path": "api/production_controls.py",
+      "source_sha256": "1a2793fe9ee4a76ce9e3a54e5dd506667670e1daeff8442c54b120a7418a32f3"
+    }
+  },
+  "supervision_contract": "scanner-implementation-supervision-v1@v1.1",
+  "worktree_dirty_at_packet_build": true
+}

@@ -5,7 +5,9 @@ attachment `d05e00d8`). **Contract:** `are-scanner-api-v1@v1.1.0` (unchanged).
 
 This runbook is the operator-managed side of the reversible Sequence 20
 candidate. It closes gaps 2–5 of the Stage Gate FAIL; gap 1 (edge request-id) is
-closed by `infra/edge/nginx/backbond-scanner-edge.conf.template`. It changes **no**
+closed by the topology-correct edge fragments
+`infra/edge/nginx/backbond-scanner-edge.http.conf` +
+`backbond-scanner-edge.server.conf.template` (BEAAA-16331). It changes **no**
 score / API contract / rubric / corpus behaviour and does **not** promote — the
 candidate SHA is handed to QA and, if approved, to the Founder for the prod
 sign-off (BEAAA-15373 / BEAAA-15400 governance).

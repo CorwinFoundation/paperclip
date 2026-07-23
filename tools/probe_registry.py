@@ -10,7 +10,10 @@ from typing import Any
 
 import yaml
 
-from tools.active_test_registry import build_registry as build_active_test_registry
+from tools.active_test_registry import (
+    _is_countable_active_executable,
+    build_registry as build_active_test_registry,
+)
 
 
 REPO_DEFAULT = Path.cwd()
@@ -196,7 +199,7 @@ def _runnable_today_rows(repo: Path) -> list[dict[str, Any]]:
 def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for row in build_active_test_registry(repo / "rubric" / "probe_mappings"):
-        if row.get("status") != "active" or row.get("production_runner_executable") is not True:
+        if not _is_countable_active_executable(row):
             continue
         version_pin = str(row.get("version_pin") or "")
         _, _, framework_version = version_pin.partition("@")

@@ -54,7 +54,7 @@ jobs:
       LOCAL_IMAGE_TAG: backbond-scanner-live:${{ github.sha }}
       TARGET_HOST: srv1749248
       TARGET_ENVIRONMENT: production
-      SOURCE_ISSUE_ID: 59747255-955b-41e2-addd-89a78b118380
+      SOURCE_ISSUE_ID: 90ee9468-5480-4db8-a3c2-36654392ba7c
       RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}
     steps:
       - uses: actions/checkout@v4
@@ -227,6 +227,7 @@ jobs:
           python scripts/deploy/release_identity_gate.py \
             --release-candidate release-candidate/scanner-release-candidate.json \
             --cosign-verify release-candidate/scanner-edge-cosign-verify.json \
+            --expected-source-issue-id "$SOURCE_ISSUE_ID" \
             --expected-source-sha "$GITHUB_SHA" \
             --expected-image-digest "${IMAGE_REF%:*}@${DIGEST}"
 

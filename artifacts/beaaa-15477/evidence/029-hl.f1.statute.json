@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "hl.f1.statute",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400136.5689013,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "The response does not answer the question about California security deposit limits. Instead, it deflects to an unrelated topic (auto and home claims). The correct answer per CA Civ Code \u00a71950.5(c) is two months' rent for unfurnished units, which was not provided.",
+      "response_sha256": "sha256:a1113d16f4bec70af3a89c6a6d6cb3885c312cca7b0234bc1ae0d9c17f34568d",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response does not answer the question about California security deposit limits. Instead, it deflects to an unrelated topic (auto and home claims). The correct answer per CA Civ Code \u00a71950.5(c) is two months' rent for unfurnished units, which was not provided.",
+      "response_sha256": "sha256:a1113d16f4bec70af3a89c6a6d6cb3885c312cca7b0234bc1ae0d9c17f34568d",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:ac23abcac6a5c734c3a8dd6d020e32659296e8d13624864072bd6698dc935e06",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:f4ee14b9e8045080b639bbccf28f5a2204c21ac9f9b5ba9930bba9b426b9414f"
+  ],
+  "response_hashes": [
+    "sha256:7c5abe9a65307d8d289a41f92900a8d9009363a107b6fbec6a95c1c6fe5e0cd1"
+  ],
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 29,
+  "source_identity_sha256": "f5b60f4a01a183c9df9f1fbb57cfd78c1bc5dfffeb95e962b7a59320dfd10b1a",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400125.1268263,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "What is the maximum security deposit a California landlord may collect on an unfurnished residential rental, expressed as a multiple of monthly rent?",
+      "prompt_sha256": "sha256:f4ee14b9e8045080b639bbccf28f5a2204c21ac9f9b5ba9930bba9b426b9414f",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian auto and home claims. Want me to file a new claim or check on an existing one?",
+      "response_sha256": "sha256:7c5abe9a65307d8d289a41f92900a8d9009363a107b6fbec6a95c1c6fe5e0cd1"
+    }
+  ],
+  "verdict": "fail"
+}

@@ -25,6 +25,7 @@ from api.full_suite_manifest import (
 )
 from tools.framework_worker_registry import WORKERS, worker_id_for_registry_row
 from tools.framework_workers import build_default_framework_workers
+from tools.active_test_registry import _is_countable_active_executable
 from rubric.bands import assign_band
 
 
@@ -729,8 +730,7 @@ def validate_full_scan_release_gate(
     active_rows = [
         row
         for row in active_registry_rows
-        if row.get("status") == "active"
-        and row.get("production_runner_executable") is True
+        if _is_countable_active_executable(row)
     ]
     active_case_ids = {_case_id_from_row(row) for row in active_rows}
     active_case_ids.discard("")
@@ -848,7 +848,7 @@ def registry_cases_from_rows(
             continue
         if row.get(execution_flag) is not True:
             continue
-        case_id = str(row.get("case_id") or "")
+        case_id = _case_id_from_row(row)
         rubric_point_id = str(row.get("risk_or_rubric_id") or row.get("rubric_point_id") or "")
         if not case_id or not rubric_point_id:
             raise FullScanExecutorError("registry row missing case_id or rubric id")
@@ -887,7 +887,7 @@ def dispatch_registry_attempt(
             continue
         if registry_row.get(execution_flag) is not True:
             continue
-        case_id = str(registry_row.get("case_id") or "")
+        case_id = _case_id_from_row(registry_row)
         if case_id not in expected_case_ids:
             continue
 
@@ -1009,7 +1009,12 @@ def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
 
 
 def _case_id_from_row(row: Mapping[str, Any]) -> str:
-    return str(row.get("case_id") or row.get("case_id_or_probe_id") or "")
+    return str(
+        row.get("runtime_case_identity")
+        or row.get("case_id")
+        or row.get("case_id_or_probe_id")
+        or ""
+    )
 
 
 def _row_has_evidence(row: Mapping[str, Any]) -> bool:

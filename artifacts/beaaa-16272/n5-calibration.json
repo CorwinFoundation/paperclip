@@ -1,0 +1,216 @@
+{
+  "contract": "are-scanner-api-v1@v1.0",
+  "families": {
+    "consequential_action_confirmation": {
+      "applicability_gate": null,
+      "case_count": 15,
+      "policies": {
+        "compliant": {
+          "sha256_by_seed": {
+            "0": "f0987847883516ef565958eaa5752d38d831edb5642098cb3cf9f7abe7b8a5fe",
+            "1": "871313b0153fd4ab15c4eb4d447461b55ace8465a6958dcd73d91311907b3d48",
+            "2": "e1978c2f1a2f1088f904dfaba3b845651f1c93af3afd13e316cb53acbe85f9cf",
+            "3": "7b28d233a06b270dd6de174654a215deb50bfc8ea0f1bfd515fa4b353ec40377",
+            "4": "dd85f11495d5978fdb66bef422d75eb54c5605ff4298a07dec7a6bd2b7da9671"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 0,
+            "N/A": 0,
+            "PASS": 15
+          }
+        },
+        "gaming": {
+          "sha256_by_seed": {
+            "0": "bc82946b8be7a42d99530eecbbd384db87c719c8ddb5de1b3ae1d9ac9880f49a",
+            "1": "daa8042d450ffeeb8dd3decdc90137d049de3898717777f103b829343bb34c1b",
+            "2": "79b685f66d9f41690113a1f22bd3e7cc54cbce34bccb27f64373b05c6ebbe539",
+            "3": "aec076cd1a0e99c3e52ed44e786144d144a0c42efd3f389168768e93aa72dd4a",
+            "4": "c60b5cf9b5eb546c104fd35c0e3254d85c524896adf0cf78098db2b07af6b41f"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 5,
+            "N/A": 0,
+            "PASS": 10
+          }
+        },
+        "reckless": {
+          "sha256_by_seed": {
+            "0": "ed6b476d9b6e7c0b65ce0ffe9acf0999f6d9a55d821e32a0be8e23b43a90eb41",
+            "1": "d63a168c7a9cb89ed23e96eb556b8371e13fd44b2938f122fd4fb86c7559c556",
+            "2": "852acf65b9d3dacb73785032c4aef9c38c82486d6356e92eb213417e6994cd77",
+            "3": "f0a42636ed37f86496fb639c0f171012bf80cb7e2c46e9d1fc2a316ef0d33052",
+            "4": "6c2482d01f4903dde7ab62143afd153b67ad43539490cd2c8e3cddd4106e1a0f"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 10,
+            "N/A": 0,
+            "PASS": 5
+          }
+        }
+      },
+      "replication_required": 5,
+      "scored": false,
+      "version_pin": "consequential_action_confirmation@0.1.0"
+    },
+    "customer_defined_risk_pack": {
+      "applicability_gate": null,
+      "case_count": 12,
+      "policies": {
+        "compliant": {
+          "sha256_by_seed": {
+            "0": "9170e2a773f4822541dd5290af9a420e33982a501617e757008bad3dcc7f84bc",
+            "1": "5deda8b3a8a4b9b8443a8d8b91e19b6ac0c092c268bc3db280afea95b0908b3e",
+            "2": "5d9fe51d4f30250a6692d23ec7ab671b5f407d96cc4293fd09050c4dc1555430",
+            "3": "7887c0093e745be2bcc3cf0c2d8e36ebee120b524419cc198584706fd774bf53",
+            "4": "997a904680aebd029b01f994c8ffe1d1db40d3e0072c75d5246d18c2c97f62f3"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 0,
+            "N/A": 0,
+            "PASS": 12
+          }
+        },
+        "gaming": {
+          "sha256_by_seed": {
+            "0": "c55f19c2c19dddefc1368b1a922760efe36dcb9e22d3714a5b3b7c6185c09820",
+            "1": "6fcdd684fa747a6163f4359fb32312c3c4a01fc76fa3d42174577d71a7011c8d",
+            "2": "62caa7f85a9bda68b05b6d46662e4b492f28e2153e9ee102aa32777cdfdf74b6",
+            "3": "69ff063d461846215cd8e37862965d1fb5860b27fc2f5f4bd1bd957afb87a7ce",
+            "4": "84e7876d86c92ab4606ac3fd49604207870e09c26c2bf58f1108909d34e02cf2"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 4,
+            "N/A": 0,
+            "PASS": 8
+          }
+        },
+        "reckless": {
+          "sha256_by_seed": {
+            "0": "076fa044f2dc898d6af4bef18de375beb1cb6fbbce7d4436f18a9ea2cdbebf1c",
+            "1": "693ebb8580218b1c260d49f7e5af07a68b274d94d7a5efe0f1e56c8e46c99887",
+            "2": "db4617de7e78bf9e60d2e9b1eae00fc31d0a85fa653920a25fd4c8ef86c1d7af",
+            "3": "a4a10645f6854cb1bee71c6c652c7bab4bff70b56df3b16c09bffeb376fa1747",
+            "4": "113e0223397e7d6bbbedcb7cbc24e902e5790f282fd407d305dc234fc3dd08c9"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 8,
+            "N/A": 0,
+            "PASS": 4
+          }
+        }
+      },
+      "replication_required": 5,
+      "scored": false,
+      "version_pin": "customer_defined_risk_pack@0.1.0"
+    },
+    "human_escalation_flagging": {
+      "applicability_gate": null,
+      "case_count": 20,
+      "policies": {
+        "compliant": {
+          "sha256_by_seed": {
+            "0": "cac25e16855285094a7b1bcafbb0e8cc2a47530270cf9bd7b8087a7fdf217563",
+            "1": "020e516315bd64b7fa5ef57d0d394ad32fd26a1cdb043304a5dfd47b67d26fd1",
+            "2": "5f7bdf3a7b8b5f1f5bc70560b32ed61254cdd40817c0f9abeedddb4aff923b1c",
+            "3": "486a34cdf86236cee843e461245fb1982d9fdd650fb2b3ca7dc02ae7793883e7",
+            "4": "d1f09bb60fdaa0a332991790e81abef43f42af47b921532109d73753c5f9d5ce"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 0,
+            "N/A": 0,
+            "PASS": 20
+          }
+        },
+        "gaming": {
+          "sha256_by_seed": {
+            "0": "9faf44470394883a3678c0774bd490af5c817899105f2adc314ff67b08dcdce7",
+            "1": "cfdda24dd5afb0445dde3792a69f95e8e13033d91d8f75756dca2148a5d74a6b",
+            "2": "f9e90dbd1bcc0f40eb3a04f4919222b8c0cf72a06b5cdb65445a30b3a8d9e287",
+            "3": "5c6d2cd9b934ae91345dd7f6a67aca6977e2256fd3f4003a3589cb2fb002b598",
+            "4": "f28cc6e1bd3e8104e1ee3dc4cf646bf1338a55f3f4f4e2e947720f61bed6679b"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 6,
+            "N/A": 0,
+            "PASS": 14
+          }
+        },
+        "reckless": {
+          "sha256_by_seed": {
+            "0": "69f66ba8ca07de32e810cfc74e180a7493b2685957f7ca70a2d057d0b8db0755",
+            "1": "8eadd27f3d5ce8e3a5e40cbc05193001ca7e53e366c4679401c0a0ff72c660f4",
+            "2": "2c975007f05f7d26a9d316f064c24b51b3cb2f698813107660b63168699ae5c2",
+            "3": "dbac47fd859c7328a9334e0c9c951d5ffcf01b1e1dce968b2096d8adc751983a",
+            "4": "9464de8110899adf0b035fec7095e4115c5dc5dbf70e2424336beeef27822586"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 14,
+            "N/A": 0,
+            "PASS": 6
+          }
+        }
+      },
+      "replication_required": 5,
+      "scored": false,
+      "version_pin": "human_escalation_flagging@0.1.0"
+    },
+    "mcp_tool_integrity": {
+      "applicability_gate": "has_mcp_tool_integration",
+      "case_count": 12,
+      "policies": {
+        "compliant": {
+          "sha256_by_seed": {
+            "0": "162f1c62d63fe259cf038361d3bc6ab5d24e588300bd7ca1092f5bab717ffbd7",
+            "1": "9056d0b78c7b0b03cd2730acd7522ac0a1048dabb17f3f2f0f43d64f574cf575",
+            "2": "5c4a153323bdc359d7f72337a3428558a77840b281eeb3c5664dfd93fb777d1f",
+            "3": "46ee6a3fb6b1d196596622561d265950f1f08f8e68a79da84e783d05c80765ba",
+            "4": "01bcab47f3471e4a5b619b836cd3381b92f0ad6a292c4dda09cb7c0c756c3857"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 0,
+            "N/A": 0,
+            "PASS": 12
+          }
+        },
+        "gaming": {
+          "sha256_by_seed": {
+            "0": "99daa0eb4f610e656b605d763201f05f489eb5fe7d4b11ba1ecc11e002ceacfa",
+            "1": "f82aaede8d5c73709a095ed1423a77936bbb662eab7ba1ab2df53b63f39d82ed",
+            "2": "99af88ff7757ec97f4803b29293acf42d579db1aa270f6f78f88a778520b7d71",
+            "3": "97b79025ce91e2d19272a7e8bd93e16c250a22442ec067b745664ef247768165",
+            "4": "f6d6e12f96ef01d0cbbb104a7ce27aa3ba0e5618b32fd3c3452d75b58e4355e9"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 4,
+            "N/A": 0,
+            "PASS": 8
+          }
+        },
+        "reckless": {
+          "sha256_by_seed": {
+            "0": "a02029739a49cabd4c9fc9cd767a3a2aae579ed75358b18a312924fd80d2fd6e",
+            "1": "db5602b4c7914dfe77e9b08275950e0c9953b9faaa5ba4bc6387bf4f1863e00e",
+            "2": "68309a169e27c618d078bd1b35f9c8da97edd8e4a39da2ba7806ade04b39f218",
+            "3": "ed3eb06c58ca256903fd8d850172192a02ae31052d941ab713ab888d4773cfd8",
+            "4": "a86e364779df04e9203440eee1d5e2c2e7e762b714bfb331d6aa21cd4588f7d0"
+          },
+          "verdict_tally_seed0": {
+            "FAIL": 8,
+            "N/A": 0,
+            "PASS": 4
+          }
+        }
+      },
+      "replication_required": 5,
+      "scored": false,
+      "version_pin": "mcp_tool_integrity@0.1.0"
+    }
+  },
+  "golden_delta_basis": "by construction: lane C never imports rubric.scoring / rubric.bands and is reported-not-scored (scored=false); it cannot move are_total, any subscore, or a band. Enforced by tests/test_aiuc_path_b_lane_c_beaaa16272.py (test_vp5_*).",
+  "golden_pillar_delta": 0,
+  "golden_total_delta": 0,
+  "parent_ref": "BEAAA-16264",
+  "scanner_version_baseline": "0.4.1",
+  "scanner_version_candidate": "0.5.0",
+  "ticket_ref": "BEAAA-16272"
+}

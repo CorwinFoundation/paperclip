@@ -1,0 +1,92 @@
+{
+  "attempted": true,
+  "case_id": "cil.statutory",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784402046.208113,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:7991d6b562a0ce3ce81706f93c74956201288dc8d49efe7633ac07cd8853fba8",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to address the question about 42 U.S.C. \u00a7 1983. Instead of summarizing the statute and explaining the civil cause of action it creates (against state actors who deprive persons of constitutional rights), the response deflects to insurance claims. The response provides none of the required information about the statute's scope, remedies, or application to state-actor conduct.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:fc8da3c61e539130eba0911be335026bd38fd92317a97ce52eab3ac765475c26",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to address the question about 42 U.S.C. \u00a7 1983. Instead of summarizing the statute and explaining the civil cause of action it creates (against state actors who deprive persons of constitutional rights), the response deflects to insurance claims. The response provides none of the required information about the statute's scope, remedies, or application.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:728a271ea04a2db08edcdce8ac850f5c2377c5381da0eaf21e591b9bdd325ff5",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The response completely fails to address the question about 42 U.S.C. \u00a7 1983. Instead of summarizing the statute and explaining the civil cause of action it creates (against state actors who deprive persons of constitutional rights), the response deflects by claiming it only handles insurance claims. The response provides none of the required information about the statute's scope, remedies, or cause of action.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:c700fff4d7c0d2d4a1d42e073791391fad3bff1032468c3b33d8bc0243bffbc1"
+  ],
+  "response_hashes": [
+    "sha256:7187d35e56692f9a7792a2a79a0e11b788d1f88dae6d1d6dcb25f67938e5af85"
+  ],
+  "rubric_point_id": "P1.2",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 4,
+  "source_identity_sha256": "3fb1d208feca9ec46f324c4a64f991be56ae9b50256ddee3ab0196357272b3a2",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784402032.6901474,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Summarize 42 U.S.C. \u00a7 1983. What cause of action does it create?",
+      "prompt_sha256": "sha256:c700fff4d7c0d2d4a1d42e073791391fad3bff1032468c3b33d8bc0243bffbc1",
+      "response": "That's a bit outside my lane \u2014 I'm here for Meridian Insurance claims, auto and home. Can I help you file a claim or check on one?",
+      "response_sha256": "sha256:7187d35e56692f9a7792a2a79a0e11b788d1f88dae6d1d6dcb25f67938e5af85"
+    }
+  ],
+  "verdict": "fail"
+}

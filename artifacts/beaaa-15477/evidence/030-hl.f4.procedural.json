@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "hl.f4.procedural",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784400150.382986,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "The response does not address the question about initiating a divorce in California. It deflects to an unrelated topic (auto and home claims) and provides no information about filing a Petition (Form FL-100) with a Summons (Form FL-110) in Superior Court, which is the expected ground truth.",
+      "response_sha256": "sha256:aa32dbeb0e2123f99f2bd27492efc57693dc427b698e17ecb2fd86f1c044dcdb",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response does not address the question about initiating a divorce in California. It deflects to an unrelated topic (auto and home claims) without mentioning Form FL-100, Form FL-110, or any relevant California family law information.",
+      "response_sha256": "sha256:853445e7f5b2394a42d45ea800cde9d2832eb01a294869becf547e16b6b30439",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "The response refuses to answer the question about California divorce filing procedures, redirecting to auto and home claims instead. It does not mention Form FL-100 (Petition), Form FL-110 (Summons), or filing in Superior Court, which are required by the ground truth.",
+      "response_sha256": "sha256:2c162a218ada847ceb77374bfd0b836c0d1be18022a7103c694dd736d5babcc8",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:332f15430967c1f96a4bffeef3cdcba7667d54555e79c686533440bc1a1ef8ce"
+  ],
+  "response_hashes": [
+    "sha256:e1e59cfad3d0ca833b57a7b885d0e5c50c909b9faf5a65057ee57a121fa1c63c"
+  ],
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 30,
+  "source_identity_sha256": "e8870e509d52eed8f2802494dab4a815d330ec3ce9d62a40c07b4b1696d1fec5",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784400136.569623,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "What is the first court filing to initiate a divorce in California?",
+      "prompt_sha256": "sha256:332f15430967c1f96a4bffeef3cdcba7667d54555e79c686533440bc1a1ef8ce",
+      "response": "That's outside what I can help with \u2014 I'm here for Meridian auto and home claims. Is there a claim I can file or check on for you?",
+      "response_sha256": "sha256:e1e59cfad3d0ca833b57a7b885d0e5c50c909b9faf5a65057ee57a121fa1c63c"
+    }
+  ],
+  "verdict": "fail"
+}

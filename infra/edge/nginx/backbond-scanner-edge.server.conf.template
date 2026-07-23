@@ -1,0 +1,108 @@
+# BackBond Scanner — Sequence 20 edge, SERVER-context include (no listener).
+# BEAAA-16331 (parent BEAAA-16330; operator STOP on BEAAA-16232 962f9417).
+#
+# WHY THIS FILE EXISTS
+#   Production `scanner.backbond.ai` is served by ONE TLS vhost at
+#   /etc/nginx/sites-available/scanner.backbond.ai (symlinked from
+#   /etc/nginx/sites-enabled/). The prior deployable surface was a standalone
+#   `server {}` block with its OWN `listen`/`server_name _`; installed live it
+#   would have stood up a second, conflicting listener. This fragment carries the
+#   SAME request-ID / redaction / allowlist / default-deny posture but as a
+#   SERVER-context include that is pulled INTO the existing vhost. It declares no
+#   `listen`, no `server_name`, and no `server {}` wrapper, so it cannot create,
+#   duplicate, or shadow a TLS listener.
+#
+# HOW IT IS INTEGRATED (see docs/deploy/sequence-20-production-deployment-runbook.md)
+#   1. Install backbond-scanner-edge.http.conf at HTTP scope (conf.d) so the
+#      `edge_json` log_format below resolves.
+#   2. Inside the live scanner.backbond.ai `server { ... }` block, REPLACE the
+#      existing scanner proxy location(s) with a single:
+#         include /etc/nginx/backbond-scanner-edge.server.conf;
+#      The listen/ssl_certificate/ssl_certificate_key/server_name directives of
+#      the live vhost are left EXACTLY as they are — this fragment never touches
+#      TLS termination or the socket.
+#   3. `nginx -t`, then zero-downtime `systemctl reload nginx`.
+#
+# WHAT IT GUARANTEES (identical posture to the reviewed standalone surface)
+#   1. Route allowlist / default-deny: only POST /scanner/v1/scans and
+#      GET /scan/{scan_id} reach upstream; everything else -> opaque 404.
+#   2. Topology hiding: no version banner (server_tokens off); upstream
+#      Server/Via/X-Powered-By/Location/X-Runtime/X-AspNet-Version stripped.
+#   3. Error normalization: upstream 5xx -> opaque {"error":"upstream_error",...}.
+#   4. Observability: an opaque per-request $request_id is added to EVERY response
+#      (incl. ordinary 401/404/5xx) via `always`, written to the access log AND
+#      forwarded upstream, so a response correlates to exactly one edge log line
+#      and one app-tier log line.
+#
+# RENDERING
+#   Only ${EDGE_UPSTREAM} is substituted (envsubst with NGINX_ENVSUBST_FILTER=EDGE
+#   or an explicit envsubst '${EDGE_UPSTREAM}'). nginx runtime vars ($request_id,
+#   $status, $time_iso8601, ...) MUST remain literal.
+#     EDGE_UPSTREAM - scanner app-tier host:port taken from the live vhost's
+#                     existing proxy_pass target (e.g. 127.0.0.1:8077). Do NOT
+#                     invent a new upstream: reuse whatever the backed-up live
+#                     vhost already proxies to.
+#
+# ROLLBACK
+#   This fragment mutates only the live vhost's location set. Rollback = restore
+#   the exact prior /etc/nginx/sites-available/scanner.backbond.ai file and its
+#   sites-enabled symlink, plus the Sequence 20 rollback image
+#   backbond-scanner-live@sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121.
+#   No score / API contract / rubric / corpus behaviour changes.
+
+# (2) no version banner; keep bodies opaque and small.
+server_tokens off;
+default_type application/json;
+
+# (4) exact-correlation access log; references the http-scope edge_json format
+# from backbond-scanner-edge.http.conf. The runbook rewrites this path to the
+# live vhost's access-log location during install.
+access_log /var/log/nginx/backbond-scanner-edge.access.log edge_json;
+
+# (4) opaque per-request id on EVERY response (incl. ordinary 401/404/5xx).
+# `always` is precisely what the deployed edge was missing.
+add_header X-Request-ID $request_id always;
+
+# (2) never let the app tier's identity/topology headers reach the client.
+proxy_hide_header Server;
+proxy_hide_header Via;
+proxy_hide_header X-Powered-By;
+proxy_hide_header X-AspNet-Version;
+proxy_hide_header X-Runtime;
+proxy_hide_header Location;
+
+# (4) forensic id also travels to the app tier so its logs align with ours.
+proxy_set_header X-Request-ID $request_id;
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-For $remote_addr;
+
+# (3) normalize any upstream 5xx to an opaque body; app 4xx pass through
+# unchanged (they are already opaque per the API contract) but still gain the
+# server-scope X-Request-ID header above.
+proxy_intercept_errors on;
+error_page 500 502 503 504 = @upstream_error;
+
+# --- (1) allowlist route A: create scan (POST only) ------------------------ #
+location = /scanner/v1/scans {
+    if ($request_method != POST) { return 404 '{"error":"not_found","request_id":"$request_id"}'; }
+    proxy_pass http://${EDGE_UPSTREAM};
+}
+
+# --- (1) allowlist route B: read scan by id, exactly one segment ----------- #
+location ~ "^/scan/[^/]+$" {
+    if ($request_method != GET) { return 404 '{"error":"not_found","request_id":"$request_id"}'; }
+    proxy_pass http://${EDGE_UPSTREAM};
+}
+
+# --- (1) default-deny catch-all: opaque 404 for everything else ------------ #
+#   /score, /quote, /forensic_bundle/*, /scanner/v1/rescans, /scanner/v1/sla,
+#   /admin, health-detail, two-segment /scan paths, wrong-method hits, and any
+#   unknown path all land here.
+location / {
+    return 404 '{"error":"not_found","request_id":"$request_id"}';
+}
+
+# (3) opaque upstream-error body; no internal detail survives.
+location @upstream_error {
+    return 502 '{"error":"upstream_error","request_id":"$request_id"}';
+}

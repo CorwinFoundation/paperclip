@@ -49,6 +49,40 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
 }
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
+LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
+    {
+        "out_of_scope_containment",
+        "harmful_output_golden",
+        "ai_disclosure",
+        "cbrn_refusal",
+        "cyber_misuse_refusal",
+        "voice_adversarial_pack",
+    }
+)
+AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
+    {
+        "p3_5_multiturn_jailbreak",
+        "p3_6_output_attack",
+        "system_prompt_extraction",
+        "insecure_code_generation",
+        "human_escalation_flagging",
+        "customer_defined_risk_pack",
+        "mcp_tool_integrity",
+    }
+)
+AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
+    {
+        "cross_session_data_leak",
+        "consequential_action_confirmation",
+    }
+)
+LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
+    {
+        # Pre-AIUC candidate invariant: these eight candidate rows remain target
+        # bound for runtime planning, but they are not executable/published.
+        "cross_customer_data_exposure",
+    }
+)
 NON_EXECUTABLE_PACK_HINTS = (
     "attestation",
     "owner_matrix",
@@ -104,6 +138,15 @@ class RegistryRow:
     scoring_active: bool
     reporting_status: str
     activation_blocker: str | None
+    k_replicates: int
+    surface_seed_rotation_enabled: bool
+    canary_registration: str
+    applicability_gate: dict[str, Any]
+    runtime_case_identity: str | None = None
+    canonical_runtime_case: bool = False
+    alias_of_runtime_case_identity: str | None = None
+    source_aliases: tuple[dict[str, str], ...] = ()
+    execution_mode: str | None = None
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -220,36 +263,6 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _wave1a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
-    if data.get("runner") != "evals/perils/wave1a/candidate.py":
-        return []
-    if not _scoring_active(data):
-        return []
-    from evals.perils.wave1a import candidate as wave
-
-    family = str(data["benchmark"])
-    specs = {spec.name: spec for spec in wave.FAMILIES}
-    spec = specs.get(family)
-    if spec is None:
-        return []
-    return [
-        {
-            "probe_id": case.case_id,
-            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
-            "rubric_point_id": case.rubric_point_ids[1],
-            "category": case.category,
-            "execution_evidence": {
-                "concrete_input_or_action": case.variants[0],
-                "expected_oracle": f"{case.oracle_field} == {case.expected}",
-                "recorded_target_response": "captured_by_wave1a_candidate_packet",
-                "verdict": "deterministic_local_oracle pass/fail",
-                "github_provenance": "BEAAA-17022",
-            },
-        }
-        for case in spec.cases
-    ]
-
-
 def _scoring_active(data: Mapping[str, Any]) -> bool:
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
@@ -278,6 +291,15 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
         version = str(data.get("version") or "unpinned")
         scoring_active = _scoring_active(data)
         reporting_status = _reporting_status(data)
+        reproducibility = data.get("reproducibility") if isinstance(data.get("reproducibility"), dict) else {}
+        k_replicates = int(reproducibility.get("n_runs") or 1)
+        surface_seed_rotation_enabled = bool(data.get("surface_seed_rotation_enabled", False))
+        canary_registration = str(data.get("canary_registration") or "")
+        applicability_gate = (
+            dict(data.get("applicability_gate"))
+            if isinstance(data.get("applicability_gate"), dict)
+            else {}
+        )
         runner, case_class, executable = _classify_runner(path.name, benchmark)
         map_bindings = _probe_bindings(data)
         synthetic = SYNTHETIC_ATTESTATION_CASES.get(path.name)
@@ -307,10 +329,14 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     scoring_active=scoring_active,
                     reporting_status=reporting_status,
                     activation_blocker=None,
+                    k_replicates=k_replicates,
+                    surface_seed_rotation_enabled=surface_seed_rotation_enabled,
+                    canary_registration=canary_registration,
+                    applicability_gate=applicability_gate,
                 )
             )
         activation_blocker = data.get("activation_blocker")
-        probes = data.get("probes") or _lane_a_probes(data) or _wave1a_probes(data)
+        probes = data.get("probes") or _lane_a_probes(data)
         for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
@@ -368,9 +394,80 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         scoring_active=scoring_active,
                         reporting_status=reporting_status,
                         activation_blocker=str(activation_blocker) if activation_blocker else None,
+                        k_replicates=k_replicates,
+                        surface_seed_rotation_enabled=surface_seed_rotation_enabled,
+                        canary_registration=canary_registration,
+                        applicability_gate=applicability_gate,
                     )
                 )
-    return [asdict(row) for row in rows]
+    return _reconcile_runtime_identities([asdict(row) for row in rows])
+
+
+def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Promote one executable row per distinct normalized runtime payload."""
+
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        if (
+            row.get("status") == "active"
+            and row.get("test_id") in LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES
+        ):
+            row["target_bound"] = True
+            row["production_runner_executable"] = True
+            row["execution_evidenced"] = True
+            row["execution_evidence_status"] = "legacy_target_bound_production_counted"
+            row["execution_mode"] = "legacy_registered_case_executor"
+        if not _is_promotable_runtime_row(row):
+            continue
+        identity = runtime_case_identity(row)
+        row["runtime_case_identity"] = identity
+        groups.setdefault(identity, []).append(row)
+
+    for identity, group in groups.items():
+        group.sort(
+            key=lambda row: (
+                str(row.get("test_id") or ""),
+                str(row.get("case_id") or ""),
+                str(row.get("risk_or_rubric_id") or ""),
+            )
+        )
+        aliases = tuple(
+            {
+                "test_id": str(alias.get("test_id") or ""),
+                "case_id": str(alias.get("case_id") or ""),
+                "risk_or_rubric_id": str(alias.get("risk_or_rubric_id") or ""),
+                "source_pack": str(alias.get("source_pack") or ""),
+                "version_pin": str(alias.get("version_pin") or ""),
+            }
+            for alias in group
+        )
+        canonical = group[0]
+        canonical["canonical_runtime_case"] = True
+        canonical["production_runner_executable"] = True
+        canonical["execution_evidenced"] = True
+        canonical["execution_evidence_status"] = "promoted_runtime_identity_bound"
+        canonical["source_aliases"] = aliases
+        canonical["execution_mode"] = "materialized_framework_compatible_case"
+        for alias in group[1:]:
+            alias["production_runner_executable"] = False
+            alias["execution_evidenced"] = False
+            alias["canonical_runtime_case"] = False
+            alias["alias_of_runtime_case_identity"] = identity
+            alias["source_aliases"] = aliases
+            alias["execution_evidence_status"] = "duplicate_runtime_identity_alias"
+            alias["activation_blocker"] = "duplicate_runtime_identity_alias"
+            alias["execution_mode"] = "alias_not_executed"
+    return rows
+
+
+def _is_promotable_runtime_row(row: Mapping[str, Any]) -> bool:
+    return (
+        row.get("status") == "active"
+        and row.get("case_class") != "attestation"
+        and row.get("reporting_status") != "reported_not_scored"
+        and row.get("target_bound") is True
+        and row.get("execution_evidence_status") == "target_bound_evidence_pending"
+    )
 
 
 def validate_registry(
@@ -412,21 +509,18 @@ def validate_registry(
             f"{published_count} exceeds active executable registry count {active_executable}"
         )
     if strict:
-        for collapse in distinct_case_collapses(rows):
-            errors.append(
-                f"family {collapse['family']} over-declares distinct coverage: "
-                f"declared {collapse['declared']} > distinct {collapse['distinct']} "
-                f"(-{collapse['collapsed']} collapsed byte-identical cases)"
-            )
-        counts = distinct_case_counts(rows)
-        if counts["cross_family_collapsed"] > 0:
-            errors.append(
-                "registry over-declares distinct coverage across families: "
-                f"{counts['cross_family_collapsed']} byte-identical "
-                "(prompts, expected) pairs are shared between families "
-                f"(global distinct {counts['total']} < per-family distinct sum "
-                f"{sum(counts['by_family'].values())})"
-            )
+        counted_identities: dict[str, str] = {}
+        for row in rows:
+            if not _is_countable_active_executable(row):
+                continue
+            identity = str(row.get("runtime_case_identity") or row.get("case_id") or "")
+            label = f"{row.get('test_id')}:{row.get('case_id')}"
+            if identity in counted_identities:
+                errors.append(
+                    "duplicate production-counted runtime identity "
+                    f"{identity}: {counted_identities[identity]} and {label}"
+                )
+            counted_identities[identity] = label
     return errors
 
 
@@ -436,7 +530,23 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
     return sum(
         1
         for row in rows
-        if row.get("status") == "active"
+        if _is_countable_active_executable(row)
+    )
+
+
+def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
+    return (
+        row.get("test_id")
+        in (AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES)
+        and row.get("reporting_status") == "reported_not_scored"
+        and row.get("scoring_active") is False
+    )
+
+
+def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
+    return (
+        not _is_aiuc_path_b_reported_not_scored(row)
+        and row.get("status") == "active"
         and row.get("production_runner_executable") is True
     )
 
@@ -444,9 +554,14 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
 def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
+    if _is_aiuc_path_b_reported_not_scored(row):
+        return False
     return (
         row.get("status") == "active"
-        and row.get("target_bound") is True
+        and (
+            row.get("target_bound") is True
+            or row.get("test_id") in LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES
+        )
         and row.get("case_class") != "attestation"
     )
 

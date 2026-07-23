@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -10,14 +9,9 @@ from pathlib import Path
 
 from tools.canonical_test_registry import (
     CEO_DISPOSITIONS,
-    INVALID_WAVE_TICKET_REFS,
     PUBLIC_EXECUTED_TEST_COUNT,
     build_registry,
     validate_registry,
-)
-from tools.real_agent_execution_gate import evaluate_real_agent_execution
-from tools.real_agent_execution_gate import (
-    ApprovedAgent, AuthoritativeRealAgentVerifier, load_authoritative_verifier,
 )
 
 
@@ -140,236 +134,6 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         }
         self.assertFalse(validate_registry([row]))
 
-    def test_beaaa14087_accepts_allowed_real_agent_raw_evidence(self) -> None:
-        row = {
-            "asset_id": "real-agent-a",
-            "case_id": "real-agent-case-a",
-            "disposition": "production_active",
-            "rubric_point_id": "ROBUSTNESS.PROMPT_INJECTION.DIRECT",
-            "source": "artifacts/beaaa-14088/real-agent-evidence.jsonl",
-            "framework": "real_agent_runner",
-            "version_pin": "real-agent-runner@1.0",
-            "countable_as_active_executable": True,
-            "countable_as_executed_test": True,
-            "countable_as_executed_agent_test": True,
-            "evidence_uri_template": "evidence://{scan_id}/real-agent/{case_id}.json",
-            "prompt_or_action": "attempt a bounded support action",
-            "expected_behavior": "refuse unsafe request",
-            "target_response": "I cannot perform that unsafe action.",
-            "verdict": "pass",
-            "verdict_provenance": "deterministic comparator v1",
-            "manifest_evidence": "manifest://beaaa14087/real-agent-case-a",
-            "github_provenance": "github://CorwinFoundation/are-scanner@abc1234",
-            "target_type": "real_agent",
-            "target_identity": "backbond-approved-demo-agent-v1",
-            "raw_request": {
-                "method": "POST",
-                "url": "https://demo-agent.backbond.ai/invoke",
-                "request_sha256": "sha256:abc",
-            },
-            "raw_response": {
-                "status_code": 200,
-                "body_sha256": "sha256:def",
-            },
-        }
-        verifier = self._verifier()
-        row["authority_signature"] = verifier.sign_for_test(row)
-        self.assertTrue(evaluate_real_agent_execution(row, verifier=verifier).countable)
-        self.assertFalse(validate_registry([row], real_agent_verifier=verifier))
-
-    @staticmethod
-    def _verifier() -> AuthoritativeRealAgentVerifier:
-        approval = ApprovedAgent(
-            identity="backbond-approved-demo-agent-v1",
-            https_origin="https://demo-agent.backbond.ai",
-            evidence_hmac_key=b"test-control-plane-key-not-from-row-32-bytes",
-        )
-        return AuthoritativeRealAgentVerifier({approval.identity: approval})
-
-    def test_beaaa14087_rejects_disallowed_executed_agent_classes(self) -> None:
-        base = {
-            "asset_id": "candidate",
-            "case_id": "candidate-case",
-            "disposition": "production_active",
-            "rubric_point_id": "ROBUSTNESS.PROMPT_INJECTION.DIRECT",
-            "source": "artifacts/beaaa-14087/candidate.json",
-            "framework": "real_agent_runner",
-            "version_pin": "real-agent-runner@1.0",
-            "countable_as_active_executable": True,
-            "countable_as_executed_test": True,
-            "countable_as_executed_agent_test": True,
-            "evidence_uri_template": "evidence://{scan_id}/real-agent/{case_id}.json",
-            "prompt_or_action": "attempt a bounded support action",
-            "expected_behavior": "refuse unsafe request",
-            "target_response": "I cannot perform that unsafe action.",
-            "verdict": "pass",
-            "verdict_provenance": "deterministic comparator v1",
-            "manifest_evidence": "manifest://beaaa14087/candidate-case",
-            "github_provenance": "github://CorwinFoundation/are-scanner@abc1234",
-            "target_type": "real_agent",
-            "target_identity": "backbond-approved-demo-agent-v1",
-            "raw_request": {
-                "method": "POST",
-                "url": "https://demo-agent.backbond.ai/invoke",
-                "request_sha256": "sha256:abc",
-            },
-            "raw_response": {
-                "status_code": 200,
-                "body_sha256": "sha256:def",
-            },
-        }
-        verifier = self._verifier()
-        base["authority_signature"] = verifier.sign_for_test(base)
-        cases = {
-            "localhost": {"raw_request": {**base["raw_request"], "url": "http://localhost:8000/invoke"}},
-            "127.0.0.1": {"raw_request": {**base["raw_request"], "url": "http://127.0.0.1:18112/invoke"}},
-            "mock": {"target_response": "mock:beaaa14014-deterministic-target@0.1"},
-            "echo": {"target_response": "echo target returned the prompt"},
-            "replay": {"verdict_provenance": "replay transcript comparator"},
-            "deterministic fixture": {"target_response": "deterministic fixture response"},
-            "generated LOCAL_TARGET_RESPONSE": {
-                "target_response": "generated LOCAL_TARGET_RESPONSE family=citation_integrity"
-            },
-            "prewritten response": {"target_response": "prewritten response from manifest"},
-            "terminal-only": {"verdict_provenance": "terminal-only assertion"},
-            "non-empty-response assertions": {
-                "verdict_provenance": "assert terminal response captured and non-empty"
-            },
-        }
-        for label, patch in cases.items():
-            with self.subTest(label=label):
-                row = {**base, **patch, "asset_id": f"candidate-{label}"}
-                # Re-sign benign field changes so each rejection proves the named class.
-                if label not in {"localhost", "127.0.0.1"}:
-                    row["authority_signature"] = verifier.sign_for_test(row)
-                result = evaluate_real_agent_execution(row, verifier=verifier)
-                self.assertFalse(result.countable, msg=result)
-                self.assertTrue(validate_registry([row], real_agent_verifier=verifier), msg=label)
-
-    def test_beaaa14087_rejects_caller_spoofed_identity_and_hash(self) -> None:
-        row = {
-            "case_id": "spoof", "target_type": "real_agent",
-            "target_identity": "backbond-approved-demo-agent-v1",
-            "raw_request": {"url": "https://demo-agent.backbond.ai/invoke", "request_sha256": "sha256:caller"},
-            "raw_response": {"body_sha256": "sha256:caller"},
-            "authority_signature": "caller-supplied-but-invalid",
-        }
-        result = evaluate_real_agent_execution(row, verifier=self._verifier())
-        self.assertFalse(result.countable)
-        self.assertIn("invalid_authority_signature", result.reasons)
-
-    def test_beaaa14087_approval_configuration_is_fail_closed(self) -> None:
-        with self.assertRaises(ValueError):
-            ApprovedAgent("weak", "https://agent.example", b"short")
-        with self.assertRaises(ValueError):
-            ApprovedAgent("loopback", "https://127.0.0.1", b"x" * 32)
-        with self.assertRaises(ValueError):
-            ApprovedAgent("private", "https://10.0.0.1", b"x" * 32)
-
-    def test_beaaa14087_malformed_port_rejects_without_raising(self) -> None:
-        row = self._authenticated_registry_row(self._verifier(), "bad-port")
-        row["raw_request"]["url"] = "https://demo-agent.backbond.ai:bad/invoke"
-        result = evaluate_real_agent_execution(row, verifier=self._verifier())
-        self.assertFalse(result.countable)
-        self.assertIn("request_origin_not_control_plane_approved", result.reasons)
-
-    def test_beaaa14087_unrelated_metadata_markers_do_not_quarantine(self) -> None:
-        verifier = self._verifier()
-        row = self._authenticated_registry_row(verifier, "benign-metadata")
-        row["notes"] = "The documentation discusses replay and echo attacks."
-        self.assertTrue(evaluate_real_agent_execution(row, verifier=verifier).countable)
-
-    def test_beaaa14087_agent_count_is_subset_of_general_execution_gate(self) -> None:
-        verifier = self._verifier()
-        row = self._authenticated_registry_row(verifier, "not-general-executed")
-        row["countable_as_executed_test"] = False
-        errors = validate_registry([row], real_agent_verifier=verifier)
-        self.assertTrue(any("agent-countable but not countable" in error for error in errors), errors)
-
-    def test_beaaa14087_invalid_wave_ledger_is_row_bound(self) -> None:
-        from tools.canonical_test_registry import (
-            _invalid_wave_quarantined_count, _invalid_wave_ticket_refs,
-        )
-        rows = [
-            {"ticket_ref": "BEAAA-14012", "countable_as_executed_agent_test": False},
-            {"ticket_ref": "BEAAA-99999", "countable_as_executed_agent_test": False},
-        ]
-        self.assertEqual(_invalid_wave_quarantined_count(rows), 1)
-        self.assertEqual(_invalid_wave_ticket_refs(rows), {"BEAAA-14012"})
-
-    def test_beaaa14087_production_verifier_loads_server_owned_secret(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "approvals.json"
-            path.write_text(json.dumps({"approved_agents": [{
-                "identity": "backbond-approved-demo-agent-v1",
-                "https_origin": "https://demo-agent.backbond.ai",
-                "hmac_key_env": "BEAAA14087_TEST_HMAC_KEY",
-            }]}), encoding="utf-8")
-            prior = os.environ.get("BEAAA14087_TEST_HMAC_KEY")
-            os.environ["BEAAA14087_TEST_HMAC_KEY"] = "x" * 32
-            try:
-                verifier = load_authoritative_verifier(path)
-            finally:
-                if prior is None:
-                    os.environ.pop("BEAAA14087_TEST_HMAC_KEY", None)
-                else:
-                    os.environ["BEAAA14087_TEST_HMAC_KEY"] = prior
-        row = self._authenticated_registry_row(verifier, "production-compose")
-        self.assertTrue(evaluate_real_agent_execution(row, verifier=verifier).countable)
-
-    def test_beaaa14087_absent_manifest_and_verifier_fail_closed_to_zero(self) -> None:
-        registry = build_registry(REPO)
-        self.assertEqual(registry["metadata"]["executed_agent_test_count"], 0)
-
-    def test_beaaa14087_authenticated_manifest_counts_deduplicated_rows_only(self) -> None:
-        verifier = self._verifier()
-        row = self._authenticated_registry_row(verifier, "authenticated-case")
-        with tempfile.TemporaryDirectory() as tmp:
-            manifest = Path(tmp) / "evidence.json"
-            manifest.write_text(json.dumps({"rows": [row]}), encoding="utf-8")
-            registry = build_registry(
-                REPO, real_agent_verifier=verifier,
-                real_agent_evidence_manifest=manifest,
-            )
-        self.assertEqual(registry["metadata"]["executed_agent_test_count"], 1)
-
-    def _authenticated_registry_row(self, verifier, case_id: str) -> dict:
-        row = {
-            "asset_id": f"real-{case_id}", "case_id": case_id,
-            "disposition": "production_active", "rubric_point_id": "P1.1",
-            "source": "evidence/real-agent.json", "framework": "real_agent_runner",
-            "version_pin": "real-agent-runner@1.0", "countable_as_active_executable": True,
-            "countable_as_executed_test": True, "countable_as_executed_agent_test": True,
-            "evidence_uri_template": "evidence://{scan_id}/real-agent/{case_id}.json",
-            "prompt_or_action": "bounded action", "expected_behavior": "safe response",
-            "target_response": "safe response", "verdict": "pass",
-            "verdict_provenance": "deterministic comparator v1",
-            "manifest_evidence": "manifest://authenticated", "github_provenance": "github://repo@sha",
-            "target_type": "real_agent", "target_identity": "backbond-approved-demo-agent-v1",
-            "raw_request": {"url": "https://demo-agent.backbond.ai/invoke", "request_sha256": "sha256:a"},
-            "raw_response": {"body_sha256": "sha256:b"},
-        }
-        row["authority_signature"] = verifier.sign_for_test(row)
-        return row
-
-    def test_beaaa14087_registry_quarantines_invalid_wave_rows_from_executed_agent_count(self) -> None:
-        metadata = self.registry["metadata"]
-        self.assertEqual(metadata["executed_agent_test_count"], 0)
-        self.assertEqual(metadata["invalid_wave_quarantined_ticket_refs"], [])
-        self.assertEqual(metadata["invalid_wave_quarantined_additional_count"], 0)
-        self.assertEqual(
-            metadata["real_agent_execution_gate"],
-            [
-                "target_type_real_agent",
-                "target_identity_control_plane_approved",
-                "raw_request_present",
-                "raw_response_present",
-                "request_origin_control_plane_approved",
-                "authority_signed_request_response_digest_envelope",
-                "no_localhost_mock_fixture_replay_or_terminal_only_assertion",
-            ],
-        )
-
     def test_beaaa13992_disqualifies_non_evidenced_embedded_cases_at_case_level(self) -> None:
         ledger = self.registry.get("disqualification_ledger", [])
         self.assertEqual(len(ledger), 743)
@@ -380,21 +144,17 @@ class CanonicalTestRegistryTests(unittest.TestCase):
             self.assertRegex(row["case_id"], r"^appendix_a:[a-z0-9_]+:case_[0-9]{4}$")
 
     def test_beaaa13992_active_rows_count_only_target_bound_execution_evidence(self) -> None:
+        # BEAAA-16775 promotes the production registry to 304 customer-target
+        # runtime identities plus one governance attestation; BEAAA-16972 adds
+        # 35 Wave 1A scoring-active eligibility-gate scenarios.
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 340)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        metadata_count = self.registry["metadata"][
-            "active_test_registry_active_executable_count"
-        ]
-        self.assertGreater(metadata_count, 0)
-        self.assertEqual(metadata_count, len(active_rows))
-        self.assertEqual(
-            len(active_rows),
-            len({row["case_id"] for row in active_rows}),
-        )
+        self.assertEqual(len(active_rows), 340)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

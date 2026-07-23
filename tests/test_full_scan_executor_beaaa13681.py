@@ -348,6 +348,69 @@ def test_registry_dispatch_runs_unique_cases_not_collapsed_rubric_points(monkeyp
     } == {"promptinject.case_001", "promptinject.case_002"}
 
 
+def test_registry_dispatch_keys_canonical_runtime_identity_once(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-16775-test-key")
+    registry_rows = [
+        {
+            "test_id": "promptinject",
+            "case_id": "promptinject.case_001",
+            "runtime_case_identity": "sha256-runtime-identity-1",
+            "canonical_runtime_case": True,
+            "status": "active",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "promptfoo_wrapper",
+        },
+        {
+            "test_id": "garak",
+            "case_id": "garak.alias_001",
+            "runtime_case_identity": "sha256-runtime-identity-1",
+            "alias_of_runtime_case_identity": "sha256-runtime-identity-1",
+            "status": "active",
+            "production_runner_executable": False,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "garak_wrapper",
+        },
+    ]
+    store = FullScanJobStore()
+    job = store.submit(
+        agent_id="agent-1",
+        scanner_version="0.5.0",
+        corpus_version="registry-baseline-2026-07-13",
+        model_versions={"primary": "fixture-agent-v0", "judges": []},
+        seed=0,
+        registry_cases=registry_cases_from_rows(registry_rows),
+    )
+    lease = store.lease(job.job_id)
+    attempted = []
+
+    def promptfoo_worker(row, _job):
+        attempted.append(row["case_id"])
+        return WorkerAttemptResult(
+            status="complete",
+            evidence_ref=f"evidence://scan/{row['runtime_case_identity']}.json",
+        )
+
+    dispatch_registry_attempt(
+        store,
+        job.job_id,
+        attempt_id=lease["attempt_id"],
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+    )
+    finalized = store.finalize(job.job_id)
+
+    assert finalized.status == "complete"
+    assert attempted == ["promptinject.case_001"]
+    assert finalized.final_manifest is not None
+    assert finalized.final_manifest["counts"] == {
+        "expected": 1,
+        "evidence_rows": 1,
+        "missing_required": 0,
+    }
+    assert finalized.final_manifest["evidence_rows"][0]["probe_id"] == "sha256-runtime-identity-1"
+
+
 def test_registry_dispatch_worker_failure_blocks_completion(monkeypatch):
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-13761-test-key")
     registry_rows = [

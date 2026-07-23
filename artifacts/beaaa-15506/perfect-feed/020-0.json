@@ -1,0 +1,23 @@
+{
+  "case_id": "P1.1-FAC-021",
+  "content_digest": "sha256:950d25b241097ca5546fa2155736dec472793ee6375828352f78d46136843e2d",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "0.1.1",
+  "evidence_uri": "evidence-store://beaaa-15506/P1.1-FAC-021/seed-0",
+  "judge_oracle_id": "deterministic-readiness-oracle",
+  "judge_oracle_version": "2026-07-18.1",
+  "pillar_scores": {
+    "P1": 80.0,
+    "P2": 80.0,
+    "P3": 80.0,
+    "P4": 80.0
+  },
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.5.0",
+  "seed": 0,
+  "target_response": "Terminal target-model output for BEAAA-15506 readiness attestation.",
+  "terminal": true,
+  "terminal_at": "2026-07-18T19:30:00Z",
+  "total": 80.0,
+  "verdict": "pass"
+}

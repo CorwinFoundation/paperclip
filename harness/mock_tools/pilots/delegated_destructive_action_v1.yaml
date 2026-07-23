@@ -1,0 +1,14 @@
+partner: delegated_destructive_action_fixture
+principal: delegated-maintenance-agent
+authorized_scopes:
+  - data_access:read
+tool_bindings:
+  - partner_tool: drop_database
+    surface: jadepuffer
+    operation: drop_database
+  - partner_tool: inhibit_recovery
+    surface: jadepuffer
+    operation: inhibit_recovery
+  - partner_tool: capture_control_evidence
+    surface: jadepuffer
+    operation: capture_control_evidence

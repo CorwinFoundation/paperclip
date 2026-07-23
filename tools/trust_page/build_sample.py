@@ -2,8 +2,8 @@
 
 Proves the dynamic wiring end-to-end against real Phase-1 data sources:
 
-  1. Runs rubric.scoring.score() on a golden calibration fixture against the LOCKED
-     rubric 1.2.0 (locked_through 2026-08-04, WI-1 / BEAAA-11915) -> real are_total,
+  1. Runs rubric.scoring.score() on a golden calibration fixture against the repository's
+     current LOCKED rubric (WI-1 / BEAAA-11915) -> real are_total,
      band, and reproducibility envelope. (A golden fixture is a real scan on a locked
      rubric; per Trust Page spec Red Line 6 it is NOT external production proof, so
      the render is watermarked internal.)
@@ -28,7 +28,7 @@ import yaml
 from rubric.scoring import Rubric, score
 from post_bind_ingest.continuity_gate import evaluate_attach_renew_continuity
 
-from .verification_record import build_record
+from .verification_record import VerificationRecord, build_record
 from .warranty_eligibility import evaluate_warranty_eligibility
 
 REPO = Path(__file__).resolve().parents[2]
@@ -36,10 +36,16 @@ DEFAULT_FIXTURE = "G1"       # golden known-good fixture (Standard band)
 VERIFICATION_CADENCE_DAYS = 30
 
 WATERMARK = (
-    "INTERNAL — real scan on locked rubric 1.2.0 against golden calibration fixture "
+    "INTERNAL — real scan on locked rubric {rubric_version} against golden calibration fixture "
     "{fid}. Not a partner production scan (Trust Page Red Line 6). Visual harmonized to "
     "the BEAAA-11928 locked design. Not for external send until a real partner intake "
     "scan on the locked rubric and outside-counsel sign-off complete (BEAAA-11917 lane)."
+)
+
+FROZEN_WATERMARK = (
+    "INTERNAL — frozen historical sample record. Not rescored by the current rubric and not a "
+    "partner production scan (Trust Page Red Line 6). Not for external send until a real partner "
+    "intake scan on the locked rubric and outside-counsel sign-off complete (BEAAA-11917 lane)."
 )
 
 
@@ -120,6 +126,10 @@ def main() -> None:
     ap.add_argument("--now", default="2026-07-05T12:00:00+00:00")
     ap.add_argument("--out-html", default="/tmp/trust-page-v1.html")
     ap.add_argument("--out-json", default="/tmp/sample_record.json")
+    ap.add_argument(
+        "--frozen-record",
+        help="Render an existing historical record without rescoring it against the current rubric",
+    )
     args = ap.parse_args()
     now = datetime.fromisoformat(args.now)
     if now.tzinfo is None:
@@ -127,13 +137,28 @@ def main() -> None:
     generated_at = args.now
 
     from .render import render_html
-    record, sr = build(args.fixture, now, generated_at)
-    watermark = WATERMARK.format(fid=args.fixture)
-    html_doc = render_html(record, watermark=watermark)
+    if args.frozen_record:
+        record_data = json.loads(Path(args.frozen_record).read_text())
+        record = VerificationRecord(**record_data)
+        sr = None
+        watermark = FROZEN_WATERMARK
+        provenance_mode = "frozen_sample"
+    else:
+        record, sr = build(args.fixture, now, generated_at)
+        watermark = WATERMARK.format(
+            fid=args.fixture, rubric_version=record.envelope["rubric_version"]
+        )
+        provenance_mode = "live"
+    html_doc = render_html(record, watermark=watermark, provenance_mode=provenance_mode)
 
     Path(args.out_html).write_text(html_doc)
     Path(args.out_json).write_text(json.dumps(record.to_dict(), indent=2, sort_keys=True))
-    print(f"fixture={args.fixture} are_total={sr['are_total']} band={record.band_display} "
+    source = (
+        f"frozen_record={args.frozen_record}"
+        if args.frozen_record
+        else f"fixture={args.fixture} are_total={sr['are_total']}"
+    )
+    print(f"{source} band={record.band_display} "
           f"continuity={record.monitoring_continuity} warranty={record.warranty['status']} "
           f"stale_state={record.stale_state}")
     print(f"envelope={json.dumps(record.envelope, sort_keys=True)}")

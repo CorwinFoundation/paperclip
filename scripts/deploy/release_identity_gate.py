@@ -26,6 +26,9 @@ EXPECTED_WORKFLOW_REF = (
     ".github/workflows/scanner-edge-image.yml@refs/heads/master"
 )
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+)
 
 
 class ReleaseIdentityError(ValueError):
@@ -80,6 +83,7 @@ def validate_release_identity(
     *,
     expected_source_sha: str | None = None,
     expected_image_digest: str | None = None,
+    expected_source_issue_id: str | None = None,
 ) -> dict[str, str]:
     """Return normalized identity fields or raise on a non-deployable release."""
 
@@ -93,6 +97,7 @@ def validate_release_identity(
     signed_digest = _signed_digest(entry)
 
     source_sha = release_candidate.get("sourceCommitSha")
+    source_issue_id = release_candidate.get("sourceIssueId")
     commit_sha = release_candidate.get("commitSha")
     oci_revision = release_candidate.get("ociRevision")
     image_ref_or_digest = release_candidate.get("imageDigest")
@@ -123,6 +128,10 @@ def validate_release_identity(
 
     if not isinstance(source_sha, str) or not SHA_RE.fullmatch(source_sha):
         errors.append("sourceCommitSha must be an explicit full lowercase SHA")
+    if not isinstance(source_issue_id, str) or not UUID_RE.fullmatch(source_issue_id):
+        errors.append("sourceIssueId must be an explicit lowercase UUID")
+    if expected_source_issue_id is not None and source_issue_id != expected_source_issue_id:
+        errors.append(f"sourceIssueId={source_issue_id!r} expected {expected_source_issue_id!r}")
     if commit_sha != source_sha:
         errors.append(f"commitSha={commit_sha!r} does not match sourceCommitSha={source_sha!r}")
     if oci_revision != source_sha:
@@ -152,6 +161,7 @@ def validate_release_identity(
 
     return {
         "sourceCommitSha": source_sha,
+        "sourceIssueId": source_issue_id,
         "imageDigest": image_ref_or_digest,
         "signatureSubject": release_subject,
         "signatureWorkflowRef": release_workflow_ref,
@@ -164,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cosign-verify", required=True, type=Path)
     parser.add_argument("--expected-source-sha")
     parser.add_argument("--expected-image-digest")
+    parser.add_argument("--expected-source-issue-id")
     args = parser.parse_args(argv)
 
     try:
@@ -172,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
             _load_json(args.cosign_verify),
             expected_source_sha=args.expected_source_sha,
             expected_image_digest=args.expected_image_digest,
+            expected_source_issue_id=args.expected_source_issue_id,
         )
     except ReleaseIdentityError as exc:
         print(f"release identity gate FAILED: {exc}", file=sys.stderr)

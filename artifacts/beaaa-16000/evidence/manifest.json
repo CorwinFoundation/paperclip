@@ -1,0 +1,56 @@
+{
+  "classification": "rule-execution",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "cto_cosign_ref": null,
+  "evidence": [
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-good-seed-0.json",
+      "sha256": "e5f48000d8db64cb715618763f278a3637653f7d2778c02004a6b19a2484e31b"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-good-seed-1.json",
+      "sha256": "7dc9b1e68f0532e5196b9d65c4922c301f04a4a943bbf1ae9b38673b3ff54c02"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-good-seed-2.json",
+      "sha256": "42e49ccba7dadcf5320ec90a056c4281960d325f4c256c78866f3920c81c9463"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-good-seed-3.json",
+      "sha256": "2fdce8ea744f7ba664c9b9b6183b9b307d067e259b372a2f47fd20ab2b937c1d"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-good-seed-4.json",
+      "sha256": "64130adad963b7cd0d510c842470a60b01a9fc34a3e739148781b9f6944d9f2d"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-bad-seed-0.json",
+      "sha256": "6908023f28edf6af930de27f9810d280cddb204cb3aea197f259aac931791820"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-bad-seed-1.json",
+      "sha256": "9c28909c9418e3a1fd45cbd0d1e53c4f5096f54b4b2658d2436683fe413dd172"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-bad-seed-2.json",
+      "sha256": "421393823938dcc1f03c66a6c930ff3f76c5b96657a9daad0ebc695640fce270"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-bad-seed-3.json",
+      "sha256": "a54e175dc9b923010b58f445a33c9affc48cc3ce71f5b62bb09c74c9627d0722"
+    },
+    {
+      "path": "artifacts/beaaa-16000/evidence/known-bad-seed-4.json",
+      "sha256": "b17944430cd65546bfd4c9ebe0217ea6dd2ae6bcd6817857c7bb544ecac3e0e3"
+    }
+  ],
+  "probe_set_version": "delegated_destructive_action@0.1.0",
+  "rubric_point_id": [
+    "P3.2",
+    "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
+    "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER"
+  ],
+  "scanner_version": "0.4.1",
+  "ticket_ref": "BEAAA-16000"
+}

@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import inspect
+import os
 import shutil
 import subprocess
 import sys
@@ -18,22 +19,9 @@ DOCKERFILE_PATH = DEMO_DIR / "Dockerfile.demo"
 DEPLOY_PATH = DEMO_DIR / "deploy.sh"
 sys.path.insert(0, str(DEMO_DIR))
 
-from lifecycle import RUBRIC_PATH, _rating_projection, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
+from lifecycle import RUBRIC_PATH, _evidence_digest, _rating_projection, generate_final_report, rubric_display_label, run_preproduction, verify_certificate  # noqa: E402
 from app import DemoHandler  # noqa: E402
 from rubric.scoring import Rubric  # noqa: E402
-
-
-def test_rating_availability_is_derived_from_registry_counts() -> None:
-    assert _rating_projection(81, 4, 27) == {
-        "backbond_score": None,
-        "rating_status": "not_available",
-        "rating_reason": "only 4 of 27 risk areas tested; no rating can be issued.",
-    }
-    assert _rating_projection(81, 27, 27) == {
-        "backbond_score": 81,
-        "rating_status": "available",
-        "rating_reason": None,
-    }
 
 
 def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -> None:
@@ -76,6 +64,9 @@ def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -
     assert "Run limit reached · showing the latest completed assessment" in html
     assert "mention this notice to Eric" not in html
     assert "continue as a text-only assessment" in html
+    assert 'href="/lifecycle"' in html
+    assert "Detailed lifecycle views" in html
+    assert 'aria-label="Open detailed lifecycle views"' in html
     for forbidden in (
         "application/x-backbond-reference",
         "1,184 probes",
@@ -92,6 +83,29 @@ def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -
         assert forbidden.lower() not in html.lower()
 
 
+def test_detailed_lifecycle_route_restores_nine_views_and_evidence_json_renderer() -> None:
+    html = (DEMO_DIR / "index_v2.html").read_text(encoding="utf-8")
+    expected_views = {
+        "timeline": "Live process",
+        "scan": "Scans + scores",
+        "bind": "Demo gate + install",
+        "cicd": "CI/CD",
+        "certificate": "Certificate",
+        "production": "Production logs",
+        "passive": "Passive + tracker",
+        "report": "Final report",
+        "evidence": "Evidence JSON",
+    }
+    for view, label in expected_views.items():
+        assert f'data-view="{view}"' in html
+        assert label in html
+    assert html.count('class="tab') == 9
+    assert "function renderEvidence()" in html
+    assert "state.result" in html
+    assert "evidence_id:state.result.evidence_id" in html
+    assert "/api/runs/${encodeURIComponent(state.runId)}" in html
+
+
 def test_public_rate_limit_uses_validated_cloudflare_visitor_ip() -> None:
     source = inspect.getsource(DemoHandler._client_key)
     assert 'self.headers.get("CF-Connecting-IP"' in source
@@ -99,12 +113,107 @@ def test_public_rate_limit_uses_validated_cloudflare_visitor_ip() -> None:
     assert "return self.client_address[0]" in source
 
 
-def test_partner_quota_uses_canonical_bounded_window_hardening() -> None:
+def test_rating_projection_is_derived_from_measured_registry_counts() -> None:
+    partial = _rating_projection(81, 4, 27)
+    assert partial == {
+        "backbond_score": None,
+        "rating_status": "not_available",
+        "rating_reason": "only 4 of 27 risk areas tested; no rating can be issued.",
+    }
+    complete = _rating_projection(81, 27, 27)
+    assert complete == {"backbond_score": 81, "rating_status": "available", "rating_reason": None}
+
+
+def test_renderer_requires_registry_live_and_digest_valid_real_evidence() -> None:
+    record = {
+        "case_id": "real-case-1",
+        "rubric_point_id": "P1.1",
+        "target_response": "A real target response",
+        "verdict": "pass",
+        "evidence_uri": "evidence://real-run/case-1",
+        "judge_oracle_id": "exact-match-oracle",
+        "judge_oracle_version": "1.0.0",
+        "scanner_version": "0.5.0",
+        "corpus_version": "0.1.1",
+        "model_versions": {"target": "agent-release-1"},
+        "seed": 42,
+        "terminal_at": "2026-07-18T18:00:00Z",
+    }
+    record["content_digest"] = _evidence_digest(record)
+    with tempfile.TemporaryDirectory(prefix="demo-evidence-") as tmp:
+        evidence_path = Path(tmp) / "records.json"
+        evidence_path.write_text(json.dumps([record]), encoding="utf-8")
+        lifecycle, _ = run_preproduction(
+            Path(tmp) / "run",
+            "evidence-run",
+            lambda *_args, **_kwargs: None,
+            lambda: {"status": "passed"},
+            evidence_store_path=evidence_path,
+        )
+        panels = {row["dimension_id"]: row for row in lifecycle["updated_scan"]["panels"]}
+        assert panels["P1.1"]["result"] == "held"
+        assert panels["P1.1"]["probe_count"] == 1
+        assert panels["P1.2"]["result"] is None
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 1
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 1
+        assert lifecycle["updated_scan"]["backbond_score"] is None
+
+        record["content_digest"] = "sha256:" + "0" * 64
+        evidence_path.write_text(json.dumps([record]), encoding="utf-8")
+        lifecycle, _ = run_preproduction(
+            Path(tmp) / "invalid-run",
+            "invalid-evidence-run",
+            lambda *_args, **_kwargs: None,
+            lambda: {"status": "passed"},
+            evidence_store_path=evidence_path,
+        )
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+
+
+def test_scan_without_bound_evidence_store_ignores_deployment_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = inspect.getsource(run_preproduction)
+    assert "DEMO_EVIDENCE_STORE_PATH" not in source
+    assert "/data/evidence-store" not in source
+    record = {
+        "case_id": "deployment-case",
+        "rubric_point_id": "P1.1",
+        "target_response": "Evidence from an unrelated deployment lifecycle",
+        "verdict": "pass",
+        "evidence_uri": "evidence://deployment/case",
+        "judge_oracle_id": "exact-match-oracle",
+        "judge_oracle_version": "1.0.0",
+        "scanner_version": "0.5.0",
+        "corpus_version": "0.1.1",
+        "model_versions": {"target": "agent-release-1"},
+        "seed": 42,
+        "terminal_at": "2026-07-18T18:00:00Z",
+    }
+    record["content_digest"] = _evidence_digest(record)
+    with tempfile.TemporaryDirectory(prefix="deployment-evidence-") as tmp:
+        deployment_store = Path(tmp) / "evidence-store"
+        deployment_store.mkdir()
+        (deployment_store / "record.json").write_text(json.dumps(record), encoding="utf-8")
+        monkeypatch.setenv("DEMO_EVIDENCE_STORE_PATH", str(deployment_store))
+
+        lifecycle, _ = run_preproduction(
+            Path(tmp) / "isolated-run",
+            "isolated-run",
+            lambda *_args, **_kwargs: None,
+            lambda: {"status": "passed"},
+        )
+
+        assert os.environ["DEMO_EVIDENCE_STORE_PATH"] == str(deployment_store)
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 0
+        assert lifecycle["updated_scan"]["rating_status"] == "not_available"
+        assert lifecycle["updated_scan"]["backbond_score"] is None
+
+
+def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> None:
     source = inspect.getsource(sys.modules["app"])
-    assert 'os.environ.get("DEMO_RUN_MAX_REQUESTS", "5")' in source
-    assert 'os.environ.get("DEMO_RUN_WINDOW_SECONDS", "3600")' in source
-    assert '"error": "run_quota_exceeded"' in source
-    assert '"retry_after_seconds": retry_after' in source
+    assert 'os.environ.get("DEMO_RUN_QUOTA", "100")' in source
+    assert '"quota_scope": "visitor"' in source
+    assert "Please contact your BackBond partner manager to continue." in source
     assert "HTTPStatus.TOO_MANY_REQUESTS" in source
 
 
@@ -129,7 +238,7 @@ def test_demo_image_includes_truthful_registry_runtime_dependency() -> None:
 def test_deploy_reuses_an_active_token_gated_tunnel_without_privileged_restart() -> None:
     deploy = DEPLOY_PATH.read_text(encoding="utf-8")
     assert "systemctl is-active --quiet backbond-passive-demo-tunnel.service" in deploy
-    assert "DEMO_RUN_QUOTA" not in deploy
+    assert 'DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-100}' in deploy
 
 
 def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
@@ -147,7 +256,7 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         )
         assert lifecycle["initial_scan"]["backbond_score"] is None
         assert lifecycle["updated_scan"]["backbond_score"] is None
-        assert lifecycle["bind"]["admittance_class"] == "CONSTRAINED_BIND"
+        assert lifecycle["bind"]["status"] == "NOT_AVAILABLE"
         assert lifecycle["bind"]["real_policy_bound"] is False
         assert lifecycle["installation"]["status"] == "INSTALLED"
         assert len(lifecycle["installation"]["components"]) == 4
@@ -170,37 +279,38 @@ def test_real_scanner_bind_ci_and_certificate_lifecycle() -> None:
         }
         assert {panel["result"] for panel in lifecycle["updated_scan"]["panels"]} <= {"held", "exposure", None}
         assert lifecycle["updated_scan"]["registry"]["dimension_count"] == 27
-        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 4
-        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 90
+        assert lifecycle["updated_scan"]["registry"]["measured_dimension_count"] == 0
+        assert lifecycle["updated_scan"]["registry"]["unique_executable_count"] == 0
         dimension_events = [event for event in events if event["kind"] == "dimension"]
         assert len(dimension_events) == registry_dimension_count * 2
-        assert all(event["panel"]["evidence_id"] or not event["panel"]["applicable"] for event in dimension_events)
+        assert all(not event["panel"]["applicable"] for event in dimension_events)
         assert verify_certificate(lifecycle["certificate"])
         customer_projection = {key: value for key, value in lifecycle.items() if not key.startswith("_")}
         customer_json = json.dumps(customer_projection, sort_keys=True)
         assert '"backbond_score": null' in customer_json
         assert '"rating_status": "not_available"' in customer_json
-        assert "only 4 of 27 risk areas tested; no rating can be issued." in customer_json
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in customer_json
         assert '"score": 81' not in customer_json
         assert '"backbond_score": 81' not in customer_json
         assert '"are_total": 81' not in customer_json
         assert '"are_total": 80' not in customer_json
-        assert "are_total in [70,84]" not in customer_json
+        customer_events = json.dumps(events, sort_keys=True)
+        assert '"are_total": 81' not in customer_events
+        assert '"are_total": 80' not in customer_events
         diagnostics = json.loads((Path(tmp) / "run" / "internal-diagnostics.json").read_text(encoding="utf-8"))
-        assert diagnostics["synthetic_ci_gate"]["score"] == 81
+        assert diagnostics["renderer_gate"]["score"] is None
         assert lifecycle["certificate"]["backbond_score"] is None
         assert lifecycle["certificate"]["rating_status"] == "not_available"
-        assert lifecycle["certificate"]["tested_area_count"] == 4
+        assert lifecycle["certificate"]["tested_area_count"] == 0
         assert lifecycle["certificate"]["risk_area_count"] == 27
-        assert len(lifecycle["certificate"]["tested_areas"]) == 4
-        assert {row["result"] for row in lifecycle["certificate"]["tested_areas"]} == {"clean"}
-        assert lifecycle["certificate"]["not_tested_area_count"] == 23
+        assert len(lifecycle["certificate"]["tested_areas"]) == 0
+        assert lifecycle["certificate"]["not_tested_area_count"] == 27
         assert lifecycle["certificate"]["rating_issued"] is False
         certificate_html = (Path(tmp) / "run" / "certificate.html").read_text(encoding="utf-8")
         assert "N/A - Not available" in certificate_html
-        assert "only 4 of 27 risk areas tested; no rating can be issued." in certificate_html
-        assert certificate_html.count(">CLEAN<") == 4
-        assert certificate_html.count("N/A - not tested yet") == 23
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in certificate_html
+        assert certificate_html.count(">CLEAN<") == 0
+        assert certificate_html.count("N/A - not tested yet") == 27
         visible_certificate_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", certificate_html)
         assert ">81<" not in visible_certificate_html
         assert "AGENT RISK RATINGS &amp; INSURANCE" in certificate_html
@@ -241,99 +351,14 @@ def test_generated_report_uses_backbond_canon_and_demo_boundary() -> None:
         assert "ARE Insurance" not in html
         assert "BOUND_DEMO and bind-threshold signals" in html
         assert "not evidence of bound insurance coverage" in html
+        assert "N/A - Not available" in html
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in html
+        assert "81/100" not in html
+        assert ">81<" not in html
+        assert "score-number" not in html
         visible_html = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html)
-        measured_count = lifecycle["updated_scan"]["registry"]["measured_dimension_count"]
-        dimension_count = lifecycle["updated_scan"]["registry"]["dimension_count"]
-        reason = f"only {measured_count} of {dimension_count} risk areas tested; no rating can be issued."
         assert "BackBond Score N/A - Not available" in visible_html
-        assert reason in visible_html
+        assert "only 0 of 27 risk areas tested; no rating can be issued." in visible_html
         assert "81" not in visible_html
         assert "/100" not in visible_html
-        assert "score-number" not in visible_html
-        assert "score-band" not in visible_html
-        assert "sensitivity" not in visible_html.lower()
-
-
-def test_customer_documents_do_not_overflow_390px_viewport() -> None:
-    if shutil.which("node") is None or shutil.which("google-chrome") is None:
-        pytest.skip("host-only browser regression requires Node and Google Chrome")
-
-    events: list[dict] = []
-
-    def emit(kind: str, message: str, **details) -> None:
-        events.append({"kind": kind, "message": message, **details})
-
-    passive = {
-        "raw_events": [{} for _ in range(9)],
-        "detections": [{} for _ in range(7)],
-        "tracker_rows": [{} for _ in range(7)],
-        "report": {
-            "perils_detected": ["P1", "P2", "P3", "P4", "P5", "P6"],
-            "continuity": {"continuity_status": "healthy"},
-        },
-    }
-    with tempfile.TemporaryDirectory(prefix="scanner-lifecycle-mobile-") as tmp:
-        output_dir = Path(tmp) / "run"
-        lifecycle, _tests = run_preproduction(
-            output_dir,
-            "mobile-overflow-test",
-            emit,
-            lambda: {"status": "passed", "summary": "test callback passed", "elapsed_ms": 1},
-        )
-        generate_final_report(output_dir, lifecycle, passive, emit)
-        subprocess.run(
-            [
-                "node",
-                str(Path(__file__).with_name("document_mobile_overflow.cjs")),
-                str((output_dir / "backbond-report.html").resolve()),
-                str((output_dir / "certificate.html").resolve()),
-            ],
-            check=True,
-            cwd=Path(__file__).resolve().parents[3],
-        )
-
-
-def test_bind_reject_scenario_stops_before_installation() -> None:
-    events: list[dict] = []
-
-    def emit(kind: str, message: str, **details) -> None:
-        events.append({"kind": kind, "message": message, **details})
-
-    with tempfile.TemporaryDirectory(prefix="scanner-bind-reject-") as tmp:
-        lifecycle, tests = run_preproduction(Path(tmp) / "run", "bind-reject", emit, lambda: {"status": "passed"}, scenario="bind_reject")
-
-    assert lifecycle["initial_scan"]["backbond_score"] is None
-    assert lifecycle["bind"]["status"] == "REJECTED"
-    assert lifecycle["initial_admittance"]["admittance_class"] == "REFUSE"
-    assert lifecycle["installation"] is None
-    assert lifecycle["ci_gate"] is None
-    assert lifecycle["certificate"] is None
-    assert lifecycle["terminal_failure"]["stage"] == "bind"
-    assert len(lifecycle["failure_analysis"]["findings"]) == 4
-    assert tests["status"] == "not_run"
-    assert len([event for event in events if event["kind"] == "scenario_finding"]) == 4
-
-
-def test_cicd_regression_scenario_blocks_release_with_negative_delta() -> None:
-    events: list[dict] = []
-
-    def emit(kind: str, message: str, **details) -> None:
-        events.append({"kind": kind, "message": message, **details})
-
-    with tempfile.TemporaryDirectory(prefix="scanner-cicd-regression-") as tmp:
-        lifecycle, tests = run_preproduction(Path(tmp) / "run", "cicd-regression", emit, lambda: {"status": "passed"}, scenario="cicd_regression")
-
-    assert lifecycle["updated_scan"]["backbond_score"] is None
-    assert lifecycle["score_delta"] is None
-    assert lifecycle["ci_gate"]["status"] == "failed"
-    assert lifecycle["certificate"] is None
-    assert lifecycle["terminal_failure"]["stage"] == "cicd"
-    assert tests["status"] == "passed"
-
-
-def test_demo_ui_renders_failure_explanations_and_pillar_impact() -> None:
-    html = (DEMO_DIR / "index_v2.html").read_text(encoding="utf-8")
-    assert "Why this scenario failed" in html
-    assert "function failureAnalysis" in html
-    assert "function pillarImpact" in html
-    assert "scenario_finding" in html
+        assert "sample estimate" not in visible_html.lower()

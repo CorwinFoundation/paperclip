@@ -58,7 +58,6 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import logging
 import tarfile
 import tempfile
 import uuid
@@ -66,8 +65,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from api.config import ApiConfig
-from api.full_scan_executor import FullScanJobStore
-from api.full_scan_job_persistence import FullScanJobPersistence
+from api import production_controls
 from api.scan_handlers import (
     ScanRuntime,
     _apply_prior_scan_cap,
@@ -98,8 +96,6 @@ from scanners.live_probe_workers import (
 )
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
-LOGGER = logging.getLogger(__name__)
-
 
 # ADR-0017 addendum-1 §2.4 — Phase 1 prod fleet scan_log path on EFS-mounted
 # /var/lib/are-scanner. Overridable via ARE_SCAN_LOG_PATH so the cut-over
@@ -107,6 +103,7 @@ LOGGER = logging.getLogger(__name__)
 # temp file without touching the prod constant.
 ARE_SCAN_LOG_PATH_ENV: str = "ARE_SCAN_LOG_PATH"
 ARE_SCAN_LOG_DEFAULT_PATH: str = "/var/lib/are-scanner/scan_log.sqlite3"
+ARE_PRODUCTION_CONTROL_LEDGER_DIR_ENV: str = "ARE_PRODUCTION_CONTROL_LEDGER_DIR"
 ARE_FIRED_PROBE_LEDGER_PATH_ENV: str = "ARE_FIRED_PROBE_LEDGER_PATH"
 # BEAAA-11872 / Founder rule 3d — durable audit-spine substrate for the canary
 # fired-probe ledger. Default is the EFS-mounted audit-spine sink under the same
@@ -409,6 +406,8 @@ def make_production_scan_runtime(
     score_runtime: Any = None,
     score_envelope_registry: dict[str, dict[str, Any]] | None = None,
     fired_probe_ledger: FiredProbeLedger | None = None,
+    production_control_ledger: production_controls.ProductionControlLedger | None = None,
+    production_security_findings_source: Callable[[], Iterable[dict[str, Any]]] | None = None,
 ) -> ScanRuntime:
     """Build a production ``ScanRuntime`` wired to the fork-spawned Prober/Scorer.
 
@@ -610,7 +609,11 @@ def make_production_scan_runtime(
             # here is the scan-finalize hook.
             vault.forget_all()
 
-    return ScanRuntime(run_scan_fn=run_scan_fn)
+    return ScanRuntime(
+        run_scan_fn=run_scan_fn,
+        production_control_ledger=production_control_ledger,
+        production_security_findings_source=production_security_findings_source,
+    )
 
 
 def _production_score_envelope_factory(
@@ -792,6 +795,9 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         walker_active=_customer_agent_walker_enabled(),
     )
 
+    scan_log_path = ApiConfig.from_env().scan_log_path(ARE_SCAN_LOG_DEFAULT_PATH)
+    ledger_dir = _production_control_ledger_dir(Path(scan_log_path).parent)
+
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
         runner_factory=_selected_runner_factory,
@@ -799,6 +805,10 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         score_runtime=score_runtime,
         score_envelope_registry=score_envelope_registry,
         fired_probe_ledger=fired_probe_ledger,
+        production_control_ledger=production_controls.ProductionControlLedger(ledger_dir),
+        production_security_findings_source=lambda: production_controls.repo_security_findings(
+            Path(__file__).resolve().parents[1]
+        ),
     )
 
     # The standard full tier is registry-driven and asynchronous.  Only rows
@@ -811,32 +821,12 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     runtime._full_scan_registry_rows = tuple(build_active_registry())
     runtime._full_scan_workers_factory = build_registered_case_workers
 
-    scan_log_path = ApiConfig.from_env().scan_log_path(ARE_SCAN_LOG_DEFAULT_PATH)
     # Ensure parent dir exists when caller pointed at a non-prod path; the
     # EFS-mount path is created at infra-provision time and exists in prod.
     parent_dir = Path(scan_log_path).parent
     if str(parent_dir) and str(parent_dir) != ".":
         parent_dir.mkdir(parents=True, exist_ok=True)
     scan_log = ScanLog(scan_log_path)
-    # BEAAA-14401 — bind the durable full-scan job store next to the scan_log so
-    # accepted queued/running full scans survive a process restart, then run the
-    # recovery sweep once at startup. Default path is the scan_log sibling on the
-    # Phase 1 EFS mount; ``ARE_FULL_SCAN_JOB_STORE_PATH`` overrides for test rigs.
-    job_store_default = str(
-        Path(scan_log_path).with_name("full_scan_jobs.sqlite3")
-    )
-    job_store_path = ApiConfig.from_env().full_scan_job_store_path(job_store_default)
-    durable_job_store = FullScanJobStore(
-        persistence=FullScanJobPersistence(job_store_path)
-    )
-    recovery = durable_job_store.recover()
-    if recovery["resumed"] or recovery["failed"]:
-        LOGGER.info(
-            "full_scan_job_store restart recovery: resumed=%s failed=%s",
-            recovery["resumed"],
-            recovery["failed"],
-        )
-    runtime._full_scan_job_store = durable_job_store
     # Post-set the persistence bindings on the constructed ScanRuntime so
     # the score_envelope_factory can close over the runtime and project
     # prior_scan_refs at envelope build time per addendum §2.2.
@@ -847,6 +837,13 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         score_envelope_registry,
     )
     return runtime
+
+
+def _production_control_ledger_dir(scan_log_parent: Path) -> Path:
+    configured = ApiConfig.from_env().env.get(ARE_PRODUCTION_CONTROL_LEDGER_DIR_ENV)
+    if configured:
+        return Path(configured)
+    return scan_log_parent / "production-control-ledger"
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,415 @@
+{
+  "_about": "BEAAA-16534 next-provider cross-provider increment. Adds AWS Bedrock/CloudWatch as a THIRD, distinct provider stack (Provider C) on top of the BEAAA-16490 ADR-0039 normalization harness for ONE synthetic deployed agent (agent-synthetic-xprov-aws-001/v3). Provider C = aws-bedrock-cloudwatch, SigV4-signed CloudWatch Logs delivery, key kid-C-sigv4, independence group aws-acct-9910-us-east-1. It is exercised against each existing stack (Provider A = otel-genai-collector, key kid-A-ed25519; Provider B = datadog-llm-obs, key kid-B-hmac). No new monitor, no policy threshold change, no credentials or customer data. provider_native_determination is INPUT ONLY and is never read by the resolver. Synthetic only.",
+  "issue": "BEAAA-16534",
+  "builds_on": "BEAAA-16490",
+  "agent_id": "agent-synthetic-xprov-aws-001",
+  "agent_version": "v3",
+  "scenarios": {
+    "aws_otel_corroboration_clean": {
+      "_about": "AWS Bedrock/CloudWatch corroborates the OTel collector on a clean run. Two independent authenticated fresh sources agree on no covered-peril finding -> CONTINUE.",
+      "expected_band": "CONTINUE",
+      "expected_decision": "continue_monitoring",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-c-aws",
+          "provider_stack": "aws-bedrock-cloudwatch",
+          "attestation_type": "cloudwatch_signed_log_delivery",
+          "attestation_key_id": "kid-C-sigv4",
+          "authentication_method": "aws_sigv4_cloudwatch_logs",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "independence_group": "aws-acct-9910-us-east-1",
+          "provider_native_determination": {"guardrail_action": "NONE", "verdict": "benign"},
+          "packet": {
+            "evidence_batch_id": "batch-c-clean",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:ccc1clean0000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "AWS4-HMAC-SHA256",
+            "collector_version": "cloudwatch-logs-delivery-v1",
+            "events": [
+              {
+                "evidence_event_id": "c-clean-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:c0clean0000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-c-clean",
+                "span_id": "span-c-clean",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "success"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "independence_group": "otel-collector-fleet-eu",
+          "provider_native_determination": {"verdict": "benign"},
+          "packet": {
+            "evidence_batch_id": "batch-a-aws-clean",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa1awsclean00000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-aws-clean-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:a0awsclean000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-aws-clean",
+                "span_id": "span-a-aws-clean",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "success"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "aws_datadog_conflict_divergence": {
+      "_about": "AWS Bedrock/CloudWatch asserts a covered-peril candidate (redaction failed) while the Datadog LLM-obs feed sees a clean run. Independent authenticated sources CONFLICT -> DIVERGENCE, never averaged, neither provider breaks the tie.",
+      "expected_band": "DIVERGENCE",
+      "expected_decision": "divergence_hold",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-c-aws",
+          "provider_stack": "aws-bedrock-cloudwatch",
+          "attestation_type": "cloudwatch_signed_log_delivery",
+          "attestation_key_id": "kid-C-sigv4",
+          "authentication_method": "aws_sigv4_cloudwatch_logs",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "independence_group": "aws-acct-9910-us-east-1",
+          "provider_native_determination": {"guardrail_action": "BLOCKED", "verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-c-conflict",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:ccc2conf00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "AWS4-HMAC-SHA256",
+            "collector_version": "cloudwatch-logs-delivery-v1",
+            "events": [
+              {
+                "evidence_event_id": "c-conflict-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:c0conf00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-c-conflict",
+                "span_id": "span-c-conflict",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-b-datadog",
+          "provider_stack": "datadog-llm-obs",
+          "attestation_type": "otel_feed",
+          "attestation_key_id": "kid-B-hmac",
+          "authentication_method": "mtls_hmac_feed",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "independence_group": "datadog-org-4471",
+          "provider_native_determination": {"verdict": "benign"},
+          "packet": {
+            "evidence_batch_id": "batch-b-aws-conflict",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:bbb2awsconf000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "HMAC-SHA256",
+            "collector_version": "dd-llm-obs-v4",
+            "events": [
+              {
+                "evidence_event_id": "b-aws-conflict-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:b0awsconf00000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-b-aws-conflict",
+                "span_id": "span-b-aws-conflict",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "success"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "aws_stale_degraded": {
+      "_about": "AWS Bedrock/CloudWatch evidence is authenticated but STALE (older than the freshness window), so it is ineligible; only the fresh OTel source remains, which is fewer than the required independent corroborating sources -> DEGRADED (fail-closed). Also covers the missing case: a single eligible source cannot corroborate.",
+      "expected_band": "DEGRADED",
+      "expected_decision": "degraded_insufficient_independent_corroboration",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-c-aws",
+          "provider_stack": "aws-bedrock-cloudwatch",
+          "attestation_type": "cloudwatch_signed_log_delivery",
+          "attestation_key_id": "kid-C-sigv4",
+          "authentication_method": "aws_sigv4_cloudwatch_logs",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T09:00:00Z",
+          "independence_group": "aws-acct-9910-us-east-1",
+          "provider_native_determination": {"guardrail_action": "BLOCKED", "verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-c-stale",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:ccc3stale0000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "AWS4-HMAC-SHA256",
+            "collector_version": "cloudwatch-logs-delivery-v1",
+            "events": [
+              {
+                "evidence_event_id": "c-stale-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T08:55:00Z",
+                "content_sha256": "sha256:c0stale0000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-c-stale",
+                "span_id": "span-c-stale",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "independence_group": "otel-collector-fleet-eu",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-a-aws-fresh",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa3awsfresh00000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-aws-fresh-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:a0awsfresh000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-aws-fresh",
+                "span_id": "span-a-aws-fresh",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "aws_verdict_cannot_override": {
+      "_negative_test": "AWS Bedrock guardrail asserts guardrail_action=NONE / verdict=no_incident and even override=true, and the OTel source agrees on the (benign) provider verdict, but BOTH packets carry BackBond covered-peril-candidate evidence (redaction failed). BackBond must STILL resolve ELEVATED; the AWS provider verdict cannot flip the outcome to CONTINUE.",
+      "expected_band": "ELEVATED",
+      "expected_decision": "review_covered_peril_candidate",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-c-aws",
+          "provider_stack": "aws-bedrock-cloudwatch",
+          "attestation_type": "cloudwatch_signed_log_delivery",
+          "attestation_key_id": "kid-C-sigv4",
+          "authentication_method": "aws_sigv4_cloudwatch_logs",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "independence_group": "aws-acct-9910-us-east-1",
+          "provider_native_determination": {"guardrail_action": "NONE", "verdict": "no_incident", "benign": true, "override": true},
+          "packet": {
+            "evidence_batch_id": "batch-c-override",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:ccc4over00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "AWS4-HMAC-SHA256",
+            "collector_version": "cloudwatch-logs-delivery-v1",
+            "events": [
+              {
+                "evidence_event_id": "c-override-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:c0over00000000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-c-override",
+                "span_id": "span-c-override",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii", "credential"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-A-ed25519",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "independence_group": "otel-collector-fleet-eu",
+          "provider_native_determination": {"verdict": "no_incident", "benign": true},
+          "packet": {
+            "evidence_batch_id": "batch-a-aws-override",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa4awsover000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-aws-override-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:a0awsover000000000000000000000000000000000000000000000000000000",
+                "trace_id": "trace-a-aws-override",
+                "span_id": "span-a-aws-override",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii", "secret"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "aws_shared_signing_key_not_independent": {
+      "_negative_test": "AWS and OTel both assert a covered-peril candidate but are signed by the SAME attestation key (kid-shared-c). Shared signing lineage means agreement proves nothing -> not independent -> DEGRADED, not ELEVATED.",
+      "expected_band": "DEGRADED",
+      "expected_decision": "degraded_insufficient_independent_corroboration",
+      "as_of": "2026-07-21T12:10:00Z",
+      "envelopes": [
+        {
+          "source_provider_id": "provider-c-aws",
+          "provider_stack": "aws-bedrock-cloudwatch",
+          "attestation_type": "cloudwatch_signed_log_delivery",
+          "attestation_key_id": "kid-shared-c",
+          "authentication_method": "aws_sigv4_cloudwatch_logs",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:05:00Z",
+          "independence_group": "aws-acct-9910-us-east-1",
+          "provider_native_determination": {"guardrail_action": "BLOCKED", "verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-c-shared",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:ccc5shar00000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "AWS4-HMAC-SHA256",
+            "collector_version": "cloudwatch-logs-delivery-v1",
+            "events": [
+              {
+                "evidence_event_id": "c-shared-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:00:00Z",
+                "content_sha256": "sha256:c0shar00000000000000000000000000000000000000000000000000000000000",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "source_provider_id": "provider-a-otel",
+          "provider_stack": "otel-genai-collector",
+          "attestation_type": "signed_batch_manifest",
+          "attestation_key_id": "kid-shared-c",
+          "authentication_method": "ed25519_manifest_signature",
+          "integrity_status": "authenticated",
+          "received_timestamp": "2026-07-21T12:06:00Z",
+          "independence_group": "otel-collector-fleet-eu",
+          "provider_native_determination": {"verdict": "leak_suspected"},
+          "packet": {
+            "evidence_batch_id": "batch-a-aws-shared",
+            "tenant_id_hash": "tenant-hash-xprov-aws",
+            "agent_id": "agent-synthetic-xprov-aws-001",
+            "agent_version": "v3",
+            "manifest_content_sha256": "sha256:aaa5awsshar000000000000000000000000000000000000000000000000000000",
+            "manifest_signature_algorithm": "EdDSA",
+            "collector_version": "otel-collector-v2",
+            "events": [
+              {
+                "evidence_event_id": "a-aws-shared-1",
+                "event_kind": "data_access",
+                "event_timestamp": "2026-07-21T12:01:00Z",
+                "content_sha256": "sha256:a0awsshar000000000000000000000000000000000000000000000000000000",
+                "attributes": {
+                  "action_class": "data_access",
+                  "outcome_status": "completed",
+                  "authority_context": {"authorized": true},
+                  "data_classes_touched": ["pii"],
+                  "redaction_status": "failed"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

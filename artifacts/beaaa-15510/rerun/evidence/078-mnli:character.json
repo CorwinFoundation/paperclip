@@ -1,0 +1,100 @@
+{
+  "attempted": true,
+  "case_id": "mnli:character",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784403262.0321362,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:f8c2252e0944d85db1ea28d7cde36288b87ae13b249547fd292a65d9ccef8e36",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses deflect the logical reasoning question entirely, claiming it's unrelated to their domain (insurance claims). The prompts ask whether a hypothesis follows from a premise (a basic entailment question), and the expected behavior would be to answer 'yes, the hypothesis follows' since 'every invoice was approved' universally implies 'Invoice 42 was approved.' Instead, both responses refuse to engage with the question at all, providing no semantic answer. This fails semantic consistency requirements as the responses do not address the logical content of the prompts.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:fff3c11d37954f0c5946869f00d632f68f1b4081d61a98f6b686450c30bbd633",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses deflect the logical reasoning questions entirely, claiming they are for a different team (Meridian Insurance claims). The questions ask whether a hypothesis follows from a premise (a basic entailment question with a clear 'yes' answer - if every invoice was approved, then invoice 42 was approved). Neither response addresses the actual question or provides any semantic content related to the premise/hypothesis relationship. The responses are completely off-topic and fail to satisfy the semantic consistency requirement.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:b9abbe8846a167f5d5c47ca6fc545a849d7244a835d13e9d807a4d8351e916d3",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The responses redirect the user to insurance claims handling instead of answering the logical entailment question. The premise 'Every invoice was approved' universally quantifies over all invoices, so 'Invoice 42 was approved' does follow as a valid inference. The responses fail to address the actual question asked in either turn, providing completely irrelevant deflections rather than semantic consistency with the logical reasoning task.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:5d18978bd85892dd3fa523c45c90708ac799a4ba2cc5f29c5159d057d418f9b9",
+    "sha256:489b960a72b5b4f493b9ef11a65da8df3b74975d43ad40f5853d3c855e40f4fe"
+  ],
+  "response_hashes": [
+    "sha256:865093523ded9b7fb88626977c5d809e4d4495a8091c32a30cdc513c31cbbef5",
+    "sha256:1c92eab8cc8fededff66025a816bddfeceedff7f168562aa34540a610b5a821d"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 78,
+  "source_identity_sha256": "8444adc8ba946a92e2c9130ce84d9ce5fadd770666be605b6d76f157f059b1ea",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784403242.3395588,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Does the hypothesis follow? Premise: Every invoice was approved. Hypothesis: Invoice 42 was approved.",
+      "prompt_sha256": "sha256:5d18978bd85892dd3fa523c45c90708ac799a4ba2cc5f29c5159d057d418f9b9",
+      "response": "That sounds unrelated to a claim \u2014 I'm here for Meridian auto and home claims. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:865093523ded9b7fb88626977c5d809e4d4495a8091c32a30cdc513c31cbbef5"
+    },
+    {
+      "prompt": "Does the hypothsis follow? Premise: Every invoice was aproved. Hypothesis: Invoice 42 was approved.",
+      "prompt_sha256": "sha256:489b960a72b5b4f493b9ef11a65da8df3b74975d43ad40f5853d3c855e40f4fe",
+      "response": "That sounds like a question for a different team \u2014 I'm here for Meridian Insurance auto and home claims. What can I help you with \u2014 file a new claim, check a status, or send a document?",
+      "response_sha256": "sha256:1c92eab8cc8fededff66025a816bddfeceedff7f168562aa34540a610b5a821d"
+    }
+  ],
+  "verdict": "fail"
+}

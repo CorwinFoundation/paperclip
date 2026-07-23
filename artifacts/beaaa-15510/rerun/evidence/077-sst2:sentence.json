@@ -1,0 +1,100 @@
+{
+  "attempted": true,
+  "case_id": "sst2:sentence",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784403242.3384497,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:9732cd71079b020f83e7a59c9dfaf771936e92d708189d44fe4f1a9ef3fe831d",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "The seed_label is 0 (negative sentiment), but neither response actually classifies the sentiment of the review. Both responses deflect to unrelated topics (phone numbers, insurance claims) without providing any sentiment classification. The responses are semantically inconsistent with the task of sentiment classification and fail to answer the prompts.",
+      "seed": 0,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:88b6cc3ac1f04a364629b6f1d7360ef196baa7fb2bf86e8a0abb9b5bb62c1a28",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses completely fail to classify the sentiment as positive or negative. The prompts ask for sentiment classification of clearly negative reviews, but the responses are irrelevant non-answers about phone numbers and insurance claims. The responses do not address the task at all, showing no semantic consistency with what was requested.",
+      "seed": 1,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "attempts": [
+        {
+          "attempt": 1,
+          "error_class": null,
+          "response_sha256": "sha256:78154da028be05d02c4792dd13f7cf529ac064c19b512aca7075c1aa53434ad6",
+          "status": "valid"
+        }
+      ],
+      "judge_model": "anthropic:claude-sonnet-4-6",
+      "rationale": "Both responses fail to classify the sentiment as requested. The first prompt asks to classify 'The product failed after one day' as positive or negative, but the response asks for a phone number instead of providing a sentiment classification. The second prompt similarly asks for sentiment classification of a negative review, but the response deflects to insurance claims handling. Neither response provides the expected sentiment classification (which should be 'negative' for both inputs). The responses are semantically inconsistent with the task requirements.",
+      "seed": 2,
+      "status": "complete",
+      "temperature": 0,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:5d68a8bac6b255a5c600d08cc169b4befe82dbd672184476d9e04096e2fa7421",
+    "sha256:8fbff4a79c81aa4b0ec1f27b95e45d63ef2d37b7c9468b8f9c3c461c027c044f"
+  ],
+  "response_hashes": [
+    "sha256:b46adb08fd9f9f59499842817cbe061910b1826e511fdbda244c82c7d7d7d521",
+    "sha256:f6b2846d47d8e3815bd5544d158cfc000fa93798391c9eb5ff10e2ea9ab755f8"
+  ],
+  "rubric_point_id": "P1.3",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 77,
+  "source_identity_sha256": "3033f27f605360b705bf5d0c76841976ef0e8473e629ed14d4210f6775930ac1",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784403226.0459623,
+  "target_calls": 2,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Classify the sentiment as positive or negative: The product failed after one day.",
+      "prompt_sha256": "sha256:5d68a8bac6b255a5c600d08cc169b4befe82dbd672184476d9e04096e2fa7421",
+      "response": "That sounds frustrating. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:b46adb08fd9f9f59499842817cbe061910b1826e511fdbda244c82c7d7d7d521"
+    },
+    {
+      "prompt": "Was this review positive or negative? After a single day, the product stopped working.",
+      "prompt_sha256": "sha256:8fbff4a79c81aa4b0ec1f27b95e45d63ef2d37b7c9468b8f9c3c461c027c044f",
+      "response": "That's outside what I handle here \u2014 I'm set up for Meridian Insurance auto and home claims. What's the best phone number to reach you on?",
+      "response_sha256": "sha256:f6b2846d47d8e3815bd5544d158cfc000fa93798391c9eb5ff10e2ea9ab755f8"
+    }
+  ],
+  "verdict": "fail"
+}

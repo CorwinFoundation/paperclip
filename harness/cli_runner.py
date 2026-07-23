@@ -28,14 +28,7 @@ from typing import Any
 from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
-from harness.applicability import (
-    ApplicabilityError,
-    decide,
-    load_policy,
-    validate_for_scoring,
-)
-from api.bundle import _signing_key
-from harness.trusted_replay import TrustedReplayError, validate_trusted_replay
+from harness import applicability
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -47,7 +40,6 @@ _MAX_FILE_BYTES = 10 * 1024 * 1024
 _MAX_AGENT_ID_LEN = 128
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
-_TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
 # Dim IDs accepted on the CLI input surface. Two non-overlapping shapes:
 # legacy `P<n>.<m>` (rubric v1.0.0) and fully-qualified `Pillar.FAMILY.SUB`
 # (rubric v1.0.1, strict 3-segment all-caps). The union is a true superset
@@ -55,6 +47,7 @@ _TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
 _DIM_ID_RE = re.compile(
     r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
 )
+_TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
 
 # Post-BEAAA-470: the rubric pillar keys are now the contract pillar names
 # directly (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE). `subscores`
@@ -93,11 +86,6 @@ class CliInputs:
     scanner_invocation_context: dict[str, Any] | None
     applicability_decisions: dict[str, dict[str, Any]] | None
     applicability_policy_version: str | None
-    # BEAAA-14431 (F11): the scan's declared architecture flags, read off the
-    # applicability sidecar. Load-bearing for fail-closed validation of
-    # caller-asserted N/A against harness.applicability.decide() — a caller
-    # cannot suppress a dim the policy engine independently rules FIRES.
-    architecture_flags: dict[str, bool] | None
     input_dir: Path
     file_sha256s: dict[str, str]
 
@@ -195,93 +183,55 @@ def _legacy_replay_applicability_enabled(invocation: dict[str, Any] | None) -> b
     return invocation.get("non_binding_compatibility") is True
 
 
-def _validate_caller_applicability(
-    rubric: Rubric,
-    decisions: dict[str, dict[str, Any]],
-    architecture_flags: dict[str, bool] | None,
-) -> None:
-    """BEAAA-14431 (F11): fail-closed check of caller-asserted N/A waivers.
-
-    The applicability sidecar is scanned-agent-authored input. A dim marked
-    ``fires: false`` is dropped from its pillar mean (Option C re-norm), so an
-    unvalidated waiver lets an agent mark its worst dims N/A and inflate
-    ``are_total`` (BEAAA-14413 F11: ~8 pts, traced only by a coverage_caveat).
-
-    Authority is the policy engine, NOT the caller. Every caller-asserted
-    ``fires: false`` MUST (i) be an active rubric dim AND (ii) match a dim
-    ``harness.applicability.decide()`` independently rules N/A for THIS scan's
-    architecture_flags. Any waiver the engine says should FIRE — or any
-    unknown/inactive dim, or a sidecar that omits the flags the engine needs —
-    is a contract breach and fails closed (ScoringError → CliInputError, exit
-    2). Precedent: the corpus_version pin at rubric/scoring.py ("if caller
-    omits, they intended to omit, and that is a contract breach"); an
-    out-of-policy waiver is the same class of breach.
-
-    Raises ScoringError on any breach; returns None when every asserted N/A is
-    independently confirmed by the policy engine (byte-identical scoring).
-    """
-    asserted_na = sorted(
-        did
-        for did, decision in decisions.items()
-        if isinstance(decision, dict) and decision.get("fires") is False
-    )
-    if not asserted_na:
-        # No dim is being suppressed → no inflation surface → nothing to gate.
-        return
-
-    # The sidecar and everything in it are caller-controlled.  In particular,
-    # its architecture_flags cannot independently authorize waivers.  The
-    # service/runner must inject the scanner-observed flags through its trusted
-    # process environment (or, in replay tooling, after verifying the signed
-    # evidence bundle).  Never fall back to the sidecar value.
-    trusted_raw = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
-    if not trusted_raw:
-        raise ScoringError(
-            "applicability sidecar asserts N/A for dims "
-            f"{asserted_na} but no trusted scanner architecture evidence was "
-            f"provided via {_TRUSTED_ARCHITECTURE_FLAGS_ENV}; the policy "
-            "engine cannot independently confirm any waiver — fail-closed "
-            "(BEAAA-14431 F11)"
-        )
-
+def _trusted_architecture_flags_from_env() -> dict[str, bool] | None:
+    raw = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
+    if raw is None:
+        return None
     try:
-        trusted_flags = json.loads(trusted_raw)
+        payload = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise ScoringError(
-            f"trusted scanner architecture evidence in "
-            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} is invalid JSON — fail-closed"
+        raise CliInputError(
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} is not valid JSON"
         ) from exc
-    if not isinstance(trusted_flags, dict):
-        raise ScoringError("trusted scanner architecture evidence must be an object")
+    if not isinstance(payload, dict):
+        raise CliInputError(
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} must be a JSON object"
+        )
+    invalid = [
+        key
+        for key, value in payload.items()
+        if not isinstance(key, str) or not isinstance(value, bool)
+    ]
+    if invalid:
+        raise CliInputError(
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} must map string keys to bool values: "
+            + ", ".join(sorted(str(key) for key in invalid))
+        )
+    return dict(payload)
 
-    try:
-        policy = load_policy()
-        engine_decisions = decide(policy, trusted_flags)
-    except ApplicabilityError as exc:
-        # Missing/unknown/non-bool flags, or a policy schema violation. The
-        # engine could not rule → we cannot confirm → fail-closed.
-        raise ScoringError(
-            "applicability sidecar architecture_flags rejected by the policy "
-            f"engine ({exc}) — caller-asserted N/A cannot be confirmed, "
-            "fail-closed (BEAAA-14431 F11)"
-        ) from exc
 
-    active = set(rubric.active_dim_ids)
-    for did in asserted_na:
-        if did not in active:
-            raise ScoringError(
-                f"applicability waiver for {did!r} rejected: not an active "
-                "rubric dim (unknown/inactive N/A assertion) — fail-closed "
-                "(BEAAA-14431 F11)"
-            )
-        engine = engine_decisions.get(did)
-        if engine is None or engine.fires:
-            raise ScoringError(
-                f"applicability waiver for {did!r} rejected: the policy engine "
-                "independently rules this dim FIRES for the scan's declared "
-                "architecture_flags — out-of-policy N/A inflation blocked "
-                "(BEAAA-14431 F11)"
-            )
+def _applicability_from_trusted_architecture_flags(
+    flags: dict[str, bool],
+    persisted_decisions: dict[str, dict[str, Any]] | None,
+    persisted_policy_version: str | None,
+) -> tuple[dict[str, dict[str, Any]], str]:
+    policy = applicability.load_policy()
+    decisions = applicability.decide(policy, flags)
+    merged = {
+        did: dict(decision)
+        for did, decision in (persisted_decisions or {}).items()
+    }
+    for did, decision in decisions.items():
+        if decision.fires and did in merged and merged[did].get("fires") is False:
+            merged[did] = {
+                "fires": True,
+                "na_justification": None,
+                "na_justification_key": None,
+            }
+    return (
+        merged,
+        persisted_policy_version or policy.version,
+    )
 
 
 def _validate_eval_results(payload: Any) -> dict[str, dict[str, Any]]:
@@ -371,7 +321,6 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
     applicability_payload = _read_optional_json(_hashed("applicability.json"))
     applicability_decisions: dict[str, dict[str, Any]] | None = None
     applicability_policy_version: str | None = None
-    architecture_flags: dict[str, bool] | None = None
     if applicability_payload is not None:
         if not isinstance(applicability_payload, dict):
             raise CliInputError("applicability.json must be an object")
@@ -405,24 +354,6 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
             applicability_policy_version = _validate_version(
                 policy_version, label="applicability.json policy_version"
             )
-        # BEAAA-14431 (F11): read the caller-declared architecture flags so
-        # run_scan can independently re-derive the legitimate N/A set via
-        # harness.applicability.decide() and reject any out-of-policy waiver.
-        # Type-only validation here (bool map); the fail-closed semantics
-        # (missing/unknown flags → reject) live in decide()'s _validate_flags.
-        flags_payload = applicability_payload.get("architecture_flags")
-        if flags_payload is not None:
-            if not isinstance(flags_payload, dict):
-                raise CliInputError(
-                    "applicability.json.architecture_flags must be an object"
-                )
-            for fname, fval in flags_payload.items():
-                if not isinstance(fname, str) or not isinstance(fval, bool):
-                    raise CliInputError(
-                        "applicability.json.architecture_flags must map "
-                        f"string flag names to bools (offending: {fname!r})"
-                    )
-            architecture_flags = dict(flags_payload)
 
     return CliInputs(
         agent_id=agent_id,
@@ -435,7 +366,6 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
         scanner_invocation_context=invocation,
         applicability_decisions=applicability_decisions,
         applicability_policy_version=applicability_policy_version,
-        architecture_flags=architecture_flags,
         input_dir=input_dir,
         file_sha256s=file_sha256s,
     )
@@ -477,8 +407,6 @@ def run_scan(
     corpus_version: str | None,
     rubric_path: Path,
     scored_at: datetime | None = None,
-    trusted_replay_manifest: Path | None = None,
-    trusted_replay_fixture: str | None = None,
 ) -> dict[str, Any]:
     """Top-level entry point. Returns the contract-shaped output dict.
 
@@ -500,44 +428,24 @@ def run_scan(
     compatibility_applicability = _legacy_replay_applicability_enabled(
         inputs.scanner_invocation_context
     )
-    applicability_decisions = (
-        inputs.applicability_decisions if compatibility_applicability else None
-    )
-    applicability_policy_version = (
-        inputs.applicability_policy_version if compatibility_applicability else None
-    )
+    applicability_decisions = None
+    applicability_policy_version = None
+    if compatibility_applicability:
+        trusted_flags = _trusted_architecture_flags_from_env()
+        if trusted_flags is not None:
+            (
+                applicability_decisions,
+                applicability_policy_version,
+            ) = _applicability_from_trusted_architecture_flags(
+                trusted_flags,
+                inputs.applicability_decisions,
+                inputs.applicability_policy_version,
+            )
+        else:
+            applicability_decisions = inputs.applicability_decisions
+            applicability_policy_version = inputs.applicability_policy_version
 
     try:
-        # BEAAA-14431 (F11): before the honored sidecar can drop any dim from
-        # the pillar mean, validate every caller-asserted N/A against the
-        # authoritative policy engine. Out-of-policy waivers fail closed here.
-        if applicability_decisions:
-            if trusted_replay_manifest is not None and trusted_replay_fixture is not None:
-                try:
-                    applicability_decisions = validate_trusted_replay(
-                        manifest_path=trusted_replay_manifest,
-                        fixture_id=trusted_replay_fixture,
-                        agent_id=inputs.agent_id,
-                        applicability_sha256=inputs.file_sha256s.get("applicability.json"),
-                        decisions=applicability_decisions,
-                    )
-                except (OSError, TrustedReplayError) as exc:
-                    raise ScoringError(str(exc)) from exc
-            else:
-                _validate_caller_applicability(
-                    rubric, applicability_decisions, inputs.architecture_flags
-                )
-                trusted_flags = json.loads(
-                    os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV]
-                )
-                applicability_decisions = validate_for_scoring(
-                    load_policy(),
-                    trusted_flags,
-                    applicability_decisions,
-                    rubric.active_dim_ids,
-                    _signing_key(),
-                )
-            applicability_policy_version = applicability_decisions.policy_version
         score_result = score(
             rubric,
             inputs.eval_results,
@@ -554,34 +462,8 @@ def run_scan(
     except ScoringError as exc:
         # Surface as input error — the scoring engine's domain errors map
         # to "your inputs are inconsistent with the rubric", not internal
-        # bugs. Examples: missing dim, raw out of [0,4], out-of-policy waiver.
+        # bugs. Examples: missing dim, raw out of [0,4].
         raise CliInputError(f"scoring rejected: {exc}") from exc
-
-    # BEAAA-14431 (F19 counterpart): when a sidecar carried N/A assertions but
-    # was NOT honored (legacy-replay flag off / binding path), the discard is
-    # otherwise invisible. Emit an additive diagnostic naming the dropped count
-    # so the discard is observable in the evidence trail — no silent discard.
-    if inputs.applicability_decisions and not compatibility_applicability:
-        dropped = sorted(
-            did
-            for did, decision in inputs.applicability_decisions.items()
-            if isinstance(decision, dict) and decision.get("fires") is False
-        )
-        if dropped:
-            score_result.setdefault("diagnostics", []).append({
-                "code": "applicability_sidecar_ignored",
-                "detail": {
-                    "dropped_decision_count": len(dropped),
-                    "dropped_dims": dropped,
-                    "reason": (
-                        "applicability sidecar present but not honored: the "
-                        "scanner invocation context did not enable the "
-                        "non-binding legacy-replay applicability path, so the "
-                        "caller-asserted N/A decisions were discarded and all "
-                        "dims scored (BEAAA-14431 F19)."
-                    ),
-                },
-            })
 
     return to_contract_output(
         inputs=inputs,

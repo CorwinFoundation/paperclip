@@ -7,16 +7,18 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from api.full_scan_executor import WorkerAttemptResult
+from api.scan_log import ScanLog
 from api.scan_handlers import ScanRuntime
 from harness import egress
 from harness.runner import MockRunner
-from scanners.live_probe_orchestrator import ScanRequest
+from scanners.live_probe_orchestrator import ScanRequest, ScanResult
 import tools.registered_case_executor as execution
 from tools.registered_case_executor import (
     EvidenceStore,
     RegisteredCaseExecutor,
     ScanBudget,
 )
+from tools.active_test_registry import build_registry
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -93,6 +95,44 @@ def test_registered_case_calls_target_and_judge_and_writes_evidence(tmp_path):
     assert evidence["budget"]["case_delta"]["target_calls"] == 1
     assert evidence["payload_sha256"].startswith("sha256:")
     assert evidence["response_sha256"].startswith("sha256:")
+
+
+def test_materialized_framework_case_records_runtime_identity_and_aliases(tmp_path):
+    row = next(
+        row
+        for row in build_registry()
+        if row.get("canonical_runtime_case") is True
+        and row["test_id"] == "promptinject"
+    )
+    target = MockRunner("target", lambda _prompt: "I will ignore the injected instruction.")
+    judge = MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}')
+    executor = RegisteredCaseExecutor(
+        subject=target,
+        judge=judge,
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(max_estimated_judge_cost_usd=100.0),
+    )
+
+    result = executor(
+        row,
+        SimpleNamespace(job_id="job-materialized", agent_id="agent-1", seed=42),
+    )
+
+    assert result.status == "complete"
+    assert result.verdict == "pass"
+    evidence = json.loads(
+        (
+            tmp_path
+            / "job-materialized"
+            / row["test_id"]
+            / f"{row['case_id']}.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert evidence["runtime_case_identity"] == row["runtime_case_identity"]
+    assert evidence["canonical_runtime_case"] is True
+    assert evidence["execution_mode"] == "materialized_framework_compatible_case"
+    assert evidence["source_aliases"]
+    assert evidence["judge"]["computed_runtime_case_identity"] == row["runtime_case_identity"]
 
 
 def test_registered_case_budget_failure_is_terminal_and_evidenced(tmp_path):
@@ -193,6 +233,74 @@ def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):
     assert completed.full_suite_manifest["verdict_counts"]["pass"] == 1
     assert completed.full_suite_manifest["budget"]["estimated_judge_cost_usd"] == 0.01
     assert legacy_called == []
+
+
+def test_registry_only_full_scan_persists_score_envelope_without_dim_results(monkeypatch, tmp_path):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
+    scan_log = ScanLog(tmp_path / "scan-log.sqlite3")
+
+    def workers_factory(_request, _secret):
+        return {
+            "inspect": lambda _row, _job: WorkerAttemptResult(
+                status="complete",
+                evidence_ref="evidence://test/P1.1-FAC-001.json",
+                verdict="pass",
+            )
+        }
+
+    def envelope_factory(result, agent_id, run_timestamp):
+        assert result.full_suite_manifest is not None
+        assert result.dim_results == ()
+        return {
+            "agent_id": agent_id,
+            "are_total": 90,
+            "band": "A",
+            "confidence_below_adjudication_threshold": False,
+            "corpus_version": result.corpus_version,
+            "evidence_refs": [result.full_suite_manifest["manifest_evidence_ref"]],
+            "model_versions": {"primary": "fixture-agent-v0", "judges": []},
+            "partial_completion": False,
+            "prior_scan_refs": [],
+            "purpose": "pre_bind",
+            "rubric_version": "rubric@fixture",
+            "run_timestamp": run_timestamp,
+            "scanner_version": result.scanner_version,
+            "seed": 42,
+            "subscores": {"OPS": 90},
+        }
+
+    runtime = ScanRuntime(
+        run_scan_fn=lambda request, _secret: ScanResult(
+            scan_id=request.scan_id,
+            status="complete",
+            scanner_version=request.scanner_version,
+            corpus_version=request.corpus_version,
+            rows_emitted=0,
+            k_replicates=request.k_replicates,
+            dim_results=(),
+        ),
+        scan_log=scan_log,
+        full_scan_registry_rows=[_row()],
+        full_scan_workers_factory=workers_factory,
+        run_timestamp_factory=lambda: "2026-07-22T12:00:00Z",
+        score_envelope_factory=envelope_factory,
+    )
+    request = _request("scan-registry-persist")
+
+    runtime.kickoff(request, "secret", agent_id="agent-1")
+    deadline = time.monotonic() + 3
+    completed = runtime.fetch(request.scan_id)
+    while completed is not None and completed.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        completed = runtime.fetch(request.scan_id)
+
+    rows = scan_log.list_for_agent("agent-1")
+    assert len(rows) == 1
+    assert rows[0]["scan_id"] == "scan-registry-persist"
+    assert rows[0]["score_json"]["evidence_refs"] == [
+        completed.full_suite_manifest["manifest_evidence_ref"]
+    ]
 
 
 def test_running_full_scan_does_not_expire_from_status_store():

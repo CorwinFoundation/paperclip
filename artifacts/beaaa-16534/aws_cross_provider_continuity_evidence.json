@@ -1,0 +1,645 @@
+{
+  "agent_id": "agent-synthetic-xprov-aws-001",
+  "agent_version": "v3",
+  "all_scenarios_passed": true,
+  "builds_on": "BEAAA-16490",
+  "engine_version": "determination-engine@1.0.0",
+  "issue": "BEAAA-16534",
+  "new_provider_stack": "aws-bedrock-cloudwatch",
+  "policy_version": "continuity-policy@1.0.0",
+  "scenarios": [
+    {
+      "aws_stack_present": true,
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-aws-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "CONTINUE",
+        "bundle_sha256": "1f6adbcc5e3e210116cca6724e880d9d2de60ff4b2f7ed0cdc710bceb050e99e",
+        "decision": "continue_monitoring",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519",
+            "kid-C-sigv4"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-c-aws"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "otel-genai-collector"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "41866023c7e87990ff8c606e22635bc4fd5ceecd22eb942fc284a9d41c8ee934"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "otel-collector-fleet-eu",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "benign"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-aws-clean-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "6efa5e797ea829b6cfd6536eb5a577cd6f61dfa79959f1710a09dfba2da510ab",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "405c8912fef6099ebf04e8112fb0e34c80f2d3b52a83331a6c3cec40dfebf9bb"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-sigv4",
+              "attestation_type": "cloudwatch_signed_log_delivery",
+              "authentication_method": "aws_sigv4_cloudwatch_logs",
+              "independence_group": "aws-acct-9910-us-east-1",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "guardrail_action": "NONE",
+                "verdict": "benign"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-clean-1"
+              ],
+              "source_provider_id": "provider-c-aws"
+            },
+            "provenance_digest": "4ea1a8beb67dd6cfe239d07b85985d39e512141dc6b0c3bc76ecc1cba26ad96d",
+            "staleness_seconds": 600.0
+          }
+        ]
+      },
+      "bundle_sha256": "1f6adbcc5e3e210116cca6724e880d9d2de60ff4b2f7ed0cdc710bceb050e99e",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "CONTINUE",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519",
+          "kid-C-sigv4"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-c-aws"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "otel-genai-collector"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "guardrail_action": "NONE",
+          "verdict": "benign"
+        },
+        {
+          "verdict": "benign"
+        }
+      ],
+      "rationale": "2 independent authenticated sources corroborate no covered-peril finding; continuity holds",
+      "recompute_hash_matches": true,
+      "resolved_band": "CONTINUE",
+      "resolved_decision": "continue_monitoring",
+      "scenario": "aws_otel_corroboration_clean"
+    },
+    {
+      "aws_stack_present": true,
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-aws-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DIVERGENCE",
+        "bundle_sha256": "7ef2a187f97932276d492fa7d38b78c8266b40201e923636d74d447a6dca3a29",
+        "decision": "divergence_hold",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-B-hmac",
+            "kid-C-sigv4"
+          ],
+          "distinct_providers": [
+            "provider-b-datadog",
+            "provider-c-aws"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "datadog-llm-obs"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "no_finding",
+            "determination_ids": [
+              "5a5cc138f6c631a47d9042822bf01261522f2ad4906d5d7d161a5e833f247d74"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-B-hmac",
+              "attestation_type": "otel_feed",
+              "authentication_method": "mtls_hmac_feed",
+              "independence_group": "datadog-org-4471",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "benign"
+              },
+              "provider_stack": "datadog-llm-obs",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "b-aws-conflict-1"
+              ],
+              "source_provider_id": "provider-b-datadog"
+            },
+            "provenance_digest": "4511408aa2d4d35178fe74e906449830e6d53dc0be6d4319a5bb1f3a203bc45f",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "3b2346cf67fa6084f69f19a4c7dabd7f24f310e69cb63ac3342aeafb197cf639"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-sigv4",
+              "attestation_type": "cloudwatch_signed_log_delivery",
+              "authentication_method": "aws_sigv4_cloudwatch_logs",
+              "independence_group": "aws-acct-9910-us-east-1",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "guardrail_action": "BLOCKED",
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-conflict-1"
+              ],
+              "source_provider_id": "provider-c-aws"
+            },
+            "provenance_digest": "d75090d90d504d7fea03c5cd89b21319466e4e93faf4892c391e66299e1b32c4",
+            "staleness_seconds": 600.0
+          }
+        ]
+      },
+      "bundle_sha256": "7ef2a187f97932276d492fa7d38b78c8266b40201e923636d74d447a6dca3a29",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "DIVERGENCE",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-B-hmac",
+          "kid-C-sigv4"
+        ],
+        "distinct_providers": [
+          "provider-b-datadog",
+          "provider-c-aws"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "datadog-llm-obs"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "guardrail_action": "BLOCKED",
+          "verdict": "leak_suspected"
+        },
+        {
+          "verdict": "benign"
+        }
+      ],
+      "rationale": "independent authenticated sources conflict (covered_peril_candidate vs no_finding); divergence action emitted, no averaging, neither provider breaks the tie",
+      "recompute_hash_matches": true,
+      "resolved_band": "DIVERGENCE",
+      "resolved_decision": "divergence_hold",
+      "scenario": "aws_datadog_conflict_divergence"
+    },
+    {
+      "aws_stack_present": true,
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-aws-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DEGRADED",
+        "bundle_sha256": "d8a600e8c1e0e0661e9fa8ea7ac0e3f033db504c43ba065d6ed7d6da584c4abb",
+        "decision": "degraded_insufficient_independent_corroboration",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519"
+          ],
+          "distinct_providers": [
+            "provider-a-otel"
+          ],
+          "distinct_stacks": [
+            "otel-genai-collector"
+          ],
+          "independent": false,
+          "reason": "fewer_than_two_sources"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "56ecb9471f6188b5d112ebbf1f12d2dee22399a2e0c00c2fb3db58f2fdae43ce"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "otel-collector-fleet-eu",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-aws-fresh-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "b8a696a36dceeec2a66db1ebdb3e23e0c87272841972f992ed5d7e9dcfa5ec43",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "6212494ae82a3d54a4f0d8bbe52df61739d645c19fff9e0c692f035306c19961"
+            ],
+            "eligible": false,
+            "fresh": false,
+            "provenance": {
+              "attestation_key_id": "kid-C-sigv4",
+              "attestation_type": "cloudwatch_signed_log_delivery",
+              "authentication_method": "aws_sigv4_cloudwatch_logs",
+              "independence_group": "aws-acct-9910-us-east-1",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "guardrail_action": "BLOCKED",
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T09:00:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-stale-1"
+              ],
+              "source_provider_id": "provider-c-aws"
+            },
+            "provenance_digest": "77bc9a57ab7cd2ccb3e40a627d73272d8906790f98b5631bb131fa069acbfb28",
+            "staleness_seconds": 11700.0
+          }
+        ]
+      },
+      "bundle_sha256": "d8a600e8c1e0e0661e9fa8ea7ac0e3f033db504c43ba065d6ed7d6da584c4abb",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 1,
+      "expected_band": "DEGRADED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519"
+        ],
+        "distinct_providers": [
+          "provider-a-otel"
+        ],
+        "distinct_stacks": [
+          "otel-genai-collector"
+        ],
+        "independent": false,
+        "reason": "fewer_than_two_sources"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "guardrail_action": "BLOCKED",
+          "verdict": "leak_suspected"
+        },
+        {
+          "verdict": "leak_suspected"
+        }
+      ],
+      "rationale": "1 eligible independent source(s); need 2 and independence=False (fewer_than_two_sources)",
+      "recompute_hash_matches": true,
+      "resolved_band": "DEGRADED",
+      "resolved_decision": "degraded_insufficient_independent_corroboration",
+      "scenario": "aws_stale_degraded"
+    },
+    {
+      "aws_stack_present": true,
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-aws-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "ELEVATED",
+        "bundle_sha256": "747d7fbdd8e1b57fb8d0af336975b8de0cb004ce01d8d33dd453fb92568c65d2",
+        "decision": "review_covered_peril_candidate",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-A-ed25519",
+            "kid-C-sigv4"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-c-aws"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "otel-genai-collector"
+          ],
+          "independent": true,
+          "reason": "distinct_provider_stack_and_signing_lineage"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "7d5bd3e31718c825389a3782c7d3d24409a5b1b87b0130d40da9abc432c47085"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-A-ed25519",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "otel-collector-fleet-eu",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "benign": true,
+                "verdict": "no_incident"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-aws-override-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "d09eba9f63b506b17567fadc10e9f5cc622a0824dadbb8b8419fd68c4d2690ce",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "cafec08058842212d49c6088ca92124d52fd81869fb8ca4e975d23e0986fe1f1"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-C-sigv4",
+              "attestation_type": "cloudwatch_signed_log_delivery",
+              "authentication_method": "aws_sigv4_cloudwatch_logs",
+              "independence_group": "aws-acct-9910-us-east-1",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "benign": true,
+                "guardrail_action": "NONE",
+                "override": true,
+                "verdict": "no_incident"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-override-1"
+              ],
+              "source_provider_id": "provider-c-aws"
+            },
+            "provenance_digest": "d01084555ed170b9aca6062af811635176d2376737e64429b78d38cc5f41e355",
+            "staleness_seconds": 600.0
+          }
+        ]
+      },
+      "bundle_sha256": "747d7fbdd8e1b57fb8d0af336975b8de0cb004ce01d8d33dd453fb92568c65d2",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "ELEVATED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-A-ed25519",
+          "kid-C-sigv4"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-c-aws"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "otel-genai-collector"
+        ],
+        "independent": true,
+        "reason": "distinct_provider_stack_and_signing_lineage"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "benign": true,
+          "guardrail_action": "NONE",
+          "override": true,
+          "verdict": "no_incident"
+        },
+        {
+          "benign": true,
+          "verdict": "no_incident"
+        }
+      ],
+      "rationale": "2 independent authenticated sources corroborate a covered_peril_candidate; routed to human review lane",
+      "recompute_hash_matches": true,
+      "resolved_band": "ELEVATED",
+      "resolved_decision": "review_covered_peril_candidate",
+      "scenario": "aws_verdict_cannot_override"
+    },
+    {
+      "aws_stack_present": true,
+      "band_ok": true,
+      "bundle": {
+        "agent_id": "agent-synthetic-xprov-aws-001",
+        "agent_version": "v3",
+        "as_of": "2026-07-21T12:10:00Z",
+        "band": "DEGRADED",
+        "bundle_sha256": "ab97013c935b9ec84e8c5c28409aa2ea6fb80d53aacad7bd3e9be3de24baf53d",
+        "decision": "degraded_insufficient_independent_corroboration",
+        "engine_version": "determination-engine@1.0.0",
+        "independence": {
+          "distinct_attestation_keys": [
+            "kid-shared-c"
+          ],
+          "distinct_providers": [
+            "provider-a-otel",
+            "provider-c-aws"
+          ],
+          "distinct_stacks": [
+            "aws-bedrock-cloudwatch",
+            "otel-genai-collector"
+          ],
+          "independent": false,
+          "reason": "shared_attestation_key"
+        },
+        "normalizer_version": "provider-normalizer@1.0.0",
+        "policy_version": "continuity-policy@1.0.0",
+        "rule_set_version": "determination-rules-wrapper1@1.0.0",
+        "schema_version": "continuity-decision-bundle@1.0",
+        "sources": [
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "11eaa448b166f3cc92733e0b745cfe469a1035ca8fa446f7919d7d97afe3f5a8"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-shared-c",
+              "attestation_type": "signed_batch_manifest",
+              "authentication_method": "ed25519_manifest_signature",
+              "independence_group": "otel-collector-fleet-eu",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "otel-genai-collector",
+              "received_timestamp": "2026-07-21T12:06:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "a-aws-shared-1"
+              ],
+              "source_provider_id": "provider-a-otel"
+            },
+            "provenance_digest": "4f4805d1e42437973b22c1995c624b5ea2e67d92136501ec2d926c7e041a6c10",
+            "staleness_seconds": 540.0
+          },
+          {
+            "authenticated": true,
+            "backbond_signal": "covered_peril_candidate",
+            "determination_ids": [
+              "b4bfa2504dfbbff6ae6313021523a4ce31aa030fd23f09667a47219d7dc574a8"
+            ],
+            "eligible": true,
+            "fresh": true,
+            "provenance": {
+              "attestation_key_id": "kid-shared-c",
+              "attestation_type": "cloudwatch_signed_log_delivery",
+              "authentication_method": "aws_sigv4_cloudwatch_logs",
+              "independence_group": "aws-acct-9910-us-east-1",
+              "integrity_status": "authenticated",
+              "provider_native_determination": {
+                "guardrail_action": "BLOCKED",
+                "verdict": "leak_suspected"
+              },
+              "provider_stack": "aws-bedrock-cloudwatch",
+              "received_timestamp": "2026-07-21T12:05:00Z",
+              "redactions": [],
+              "source_event_ids": [
+                "c-shared-1"
+              ],
+              "source_provider_id": "provider-c-aws"
+            },
+            "provenance_digest": "a5e9a4afcf177d0e7ae970d40aa8331a7e7f48547214a62fd284cee2eab037fd",
+            "staleness_seconds": 600.0
+          }
+        ]
+      },
+      "bundle_sha256": "ab97013c935b9ec84e8c5c28409aa2ea6fb80d53aacad7bd3e9be3de24baf53d",
+      "bundle_verified": true,
+      "decision_ok": true,
+      "eligible_source_count": 2,
+      "expected_band": "DEGRADED",
+      "independence": {
+        "distinct_attestation_keys": [
+          "kid-shared-c"
+        ],
+        "distinct_providers": [
+          "provider-a-otel",
+          "provider-c-aws"
+        ],
+        "distinct_stacks": [
+          "aws-bedrock-cloudwatch",
+          "otel-genai-collector"
+        ],
+        "independent": false,
+        "reason": "shared_attestation_key"
+      },
+      "provider_native_determinations_input_only": [
+        {
+          "guardrail_action": "BLOCKED",
+          "verdict": "leak_suspected"
+        },
+        {
+          "verdict": "leak_suspected"
+        }
+      ],
+      "rationale": "2 eligible independent source(s); need 2 and independence=False (shared_attestation_key)",
+      "recompute_hash_matches": true,
+      "resolved_band": "DEGRADED",
+      "resolved_decision": "degraded_insufficient_independent_corroboration",
+      "scenario": "aws_shared_signing_key_not_independent"
+    }
+  ]
+}

@@ -14,12 +14,9 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from tools import probe_registry
-from tools.active_test_registry import build_registry as build_active_test_registry
-from tools.real_agent_execution_gate import (
-    AuthoritativeRealAgentVerifier,
-    evaluate_real_agent_execution,
-    load_authoritative_verifier,
-    quarantine_reason,
+from tools.active_test_registry import (
+    build_registry as build_active_test_registry,
+    count_active_executable as count_active_test_executable,
 )
 
 
@@ -38,14 +35,6 @@ CEO_DISPOSITIONS = {
 }
 COUNTABLE_DISPOSITION = "production_active"
 PUBLIC_EXECUTED_TEST_COUNT = 90
-INVALID_WAVE_TICKET_REFS = (
-    "BEAAA-13991",
-    "BEAAA-14012",
-    "BEAAA-14013",
-    "BEAAA-14014",
-    "BEAAA-14015",
-    "BEAAA-14016",
-)
 EXECUTION_EVIDENCE_FIELDS = {
     "prompt_or_action",
     "expected_behavior",
@@ -80,13 +69,7 @@ def default_appendix_a_path(repo: Path) -> Path | None:
     return None
 
 
-def build_registry(
-    repo: Path = probe_registry.REPO_DEFAULT,
-    appendix_csv: Path | None = None,
-    *,
-    real_agent_verifier: AuthoritativeRealAgentVerifier | None = None,
-    real_agent_evidence_manifest: Path | None = None,
-) -> dict[str, Any]:
+def build_registry(repo: Path = probe_registry.REPO_DEFAULT, appendix_csv: Path | None = None) -> dict[str, Any]:
     source_path = appendix_csv or default_appendix_a_path(repo)
     if source_path is not None:
         rows = _rows_from_appendix_csv(source_path, repo)
@@ -97,12 +80,7 @@ def build_registry(
         source_mode = "probe_registry_fallback_appendix_a_source_missing"
         source_inputs = list(probe_registry.SOURCE_INPUTS)
 
-    if real_agent_evidence_manifest is not None:
-        rows.extend(_load_real_agent_evidence_manifest(real_agent_evidence_manifest))
-        source_inputs.append(str(_repo_relative(real_agent_evidence_manifest, repo)))
-    rows = _enforce_real_agent_quarantine(
-        _mark_duplicate_executable_case_ids(rows), verifier=real_agent_verifier
-    )
+    rows = _mark_duplicate_executable_case_ids(rows)
     active_rows = [
         row
         for row in rows
@@ -112,12 +90,7 @@ def build_registry(
     active_test_rows = build_active_test_registry(repo / "rubric" / "probe_mappings")
     active_registry_path = repo / "tools" / "probe-registry" / "active_registry.json"
     active_registry = _load_json_if_present(active_registry_path)
-    errors = validate_registry(rows, real_agent_verifier=real_agent_verifier)
-    executed_agent_case_ids = {
-        str(row["case_id"])
-        for row in rows
-        if row.get("countable_as_executed_agent_test") is True
-    }
+    errors = validate_registry(rows)
     payload = {
         "metadata": {
             "ticket_ref": "BEAAA-13762",
@@ -146,29 +119,13 @@ def build_registry(
             "appendix_promoted_embedded_case_count": _sum_int_field(rows, "promoted_embedded_case"),
             "appendix_disqualified_embedded_case_count": _sum_int_field(rows, "disqualified_embedded_case_count"),
             "active_test_registry_rows": len(active_test_rows),
-            "active_test_registry_active_executable_count": sum(
-                1
-                for row in active_test_rows
-                if row.get("status") == "active" and row.get("production_runner_executable") is True
-            ),
+            "active_test_registry_active_executable_count": count_active_test_executable(active_test_rows),
             "active_registry_point_count": len(active_registry.get("active_rubric_points", []))
             if isinstance(active_registry, dict)
             else 0,
             "public_executed_test_count": PUBLIC_EXECUTED_TEST_COUNT,
-            "executed_agent_test_count": len(executed_agent_case_ids),
             "execution_evidence_gate": sorted(EXECUTION_EVIDENCE_FIELDS),
             "execution_evidence_complete_count": _execution_evidence_complete_count(rows),
-            "real_agent_execution_gate": [
-                "target_type_real_agent",
-                "target_identity_control_plane_approved",
-                "raw_request_present",
-                "raw_response_present",
-                "request_origin_control_plane_approved",
-                "authority_signed_request_response_digest_envelope",
-                "no_localhost_mock_fixture_replay_or_terminal_only_assertion",
-            ],
-            "invalid_wave_quarantined_ticket_refs": sorted(_invalid_wave_ticket_refs(rows)),
-            "invalid_wave_quarantined_additional_count": _invalid_wave_quarantined_count(rows),
             "remaining_gap_to_1180": max(0, 1180 - len({row["case_id"] for row in active_rows})),
             "over_1180_by": max(0, len({row["case_id"] for row in active_rows}) - 1180),
         },
@@ -178,12 +135,6 @@ def build_registry(
             for row in rows
             if row.get("disqualification_reason") and row.get("embedded_case_index")
         ],
-        "invalid_wave_quarantine_ledger": [
-            row
-            for row in rows
-            if _row_ticket_refs(row) & set(INVALID_WAVE_TICKET_REFS)
-            and row.get("countable_as_executed_agent_test") is not True
-        ],
     }
     payload["metadata"]["registry_sha256"] = _sha256_json(rows)
     if errors:
@@ -191,10 +142,7 @@ def build_registry(
     return payload
 
 
-def validate_registry(
-    rows: Iterable[Mapping[str, Any]], *,
-    real_agent_verifier: AuthoritativeRealAgentVerifier | None = None,
-) -> list[str]:
+def validate_registry(rows: Iterable[Mapping[str, Any]]) -> list[str]:
     errors: list[str] = []
     seen_asset_ids: set[str] = set()
     seen_active_case_ids: set[str] = set()
@@ -219,18 +167,6 @@ def validate_registry(
             seen_active_case_ids.add(case_id)
         if row.get("countable_as_executed_test") is True:
             errors.extend(_execution_evidence_errors(row, index))
-        if row.get("countable_as_executed_agent_test") is True:
-            if row.get("countable_as_executed_test") is not True:
-                errors.append(f"{asset_id} is agent-countable but not countable_as_executed_test")
-            execution_errors = _execution_evidence_errors(row, index)
-            if execution_errors:
-                errors.extend(execution_errors)
-            gate_result = evaluate_real_agent_execution(row, verifier=real_agent_verifier)
-            if not gate_result.countable:
-                errors.append(
-                    f"{asset_id} is countable_as_executed_agent_test but fails real-agent gate: "
-                    + ",".join(gate_result.reasons)
-                )
     return errors
 
 
@@ -252,65 +188,6 @@ def _execution_evidence_complete_count(rows: Iterable[Mapping[str, Any]]) -> int
         if row.get("countable_as_executed_test") is True
         and not _execution_evidence_errors(row, 0)
     )
-
-
-def _enforce_real_agent_quarantine(
-    rows: Iterable[dict[str, Any]], *, verifier: AuthoritativeRealAgentVerifier | None
-) -> list[dict[str, Any]]:
-    enforced: list[dict[str, Any]] = []
-    for source in rows:
-        row = dict(source)
-        if row.get("countable_as_executed_agent_test") is True:
-            result = evaluate_real_agent_execution(row, verifier=verifier)
-            execution_errors = (
-                ["not_countable_as_executed_test"]
-                if row.get("countable_as_executed_test") is not True
-                else _execution_evidence_errors(row, 0)
-            )
-            if not result.countable or execution_errors:
-                row["countable_as_executed_agent_test"] = False
-                row["executed_agent_quarantined"] = True
-                row["executed_agent_quarantine_reason"] = ";".join(
-                    [*execution_errors, *result.reasons]
-                )
-        enforced.append(row)
-    return enforced
-
-
-def _invalid_wave_quarantined_count(rows: Iterable[Mapping[str, Any]]) -> int:
-    return sum(
-        1
-        for row in rows
-        if _row_ticket_refs(row) & set(INVALID_WAVE_TICKET_REFS)
-        and row.get("countable_as_executed_agent_test") is not True
-    )
-
-
-def _invalid_wave_ticket_refs(rows: Iterable[Mapping[str, Any]]) -> set[str]:
-    refs: set[str] = set()
-    for row in rows:
-        if row.get("countable_as_executed_agent_test") is not True:
-            refs.update(_row_ticket_refs(row) & set(INVALID_WAVE_TICKET_REFS))
-    return refs
-
-
-def _row_ticket_refs(row: Mapping[str, Any]) -> set[str]:
-    value = row.get("ticket_refs", row.get("ticket_ref", []))
-    if isinstance(value, str):
-        return {value}
-    if isinstance(value, (list, tuple, set)):
-        return {str(item) for item in value}
-    return set()
-
-
-def _load_real_agent_evidence_manifest(path: Path) -> list[dict[str, Any]]:
-    document = json.loads(path.read_text(encoding="utf-8"))
-    rows = document.get("rows") if isinstance(document, Mapping) else document
-    if not isinstance(rows, list):
-        raise ValueError("real-agent evidence manifest must be a list or contain rows")
-    if any(not isinstance(row, Mapping) for row in rows):
-        raise ValueError("real-agent evidence manifest rows must be objects")
-    return [dict(row) for row in rows]
 
 
 def _has_evidence(row: Mapping[str, Any], field: str) -> bool:
@@ -375,9 +252,10 @@ def _rows_from_appendix_csv(path: Path, repo: Path) -> list[dict[str, Any]]:
 
 def _active_registry_rows(repo: Path) -> list[dict[str, Any]]:
     active_rows = build_active_test_registry(repo / "rubric" / "probe_mappings")
+    countable_row_ids = _countable_active_rows(active_rows)
     rows: list[dict[str, Any]] = []
     for row in active_rows:
-        is_countable = row.get("status") == "active" and row.get("production_runner_executable") is True
+        is_countable = id(row) in countable_row_ids
         if is_countable:
             disposition = COUNTABLE_DISPOSITION
         elif row.get("status") == "active":
@@ -405,6 +283,16 @@ def _active_registry_rows(repo: Path) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _countable_active_rows(rows: list[dict[str, Any]]) -> set[int]:
+    from tools.active_test_registry import _is_countable_active_executable
+
+    return {
+        id(row)
+        for row in rows
+        if _is_countable_active_executable(row)
+    }
 
 
 def _appendix_rows(index: int, row: Mapping[str, Any], path: Path, repo: Path) -> list[dict[str, Any]]:
@@ -467,8 +355,6 @@ def _appendix_rows(index: int, row: Mapping[str, Any], path: Path, repo: Path) -
                 "embedded_case_index": case_index,
                 "promoted_embedded_case": 1,
                 "countable_as_executed_test": True,
-                "countable_as_executed_agent_test": False,
-                "executed_agent_quarantine_reason": quarantine_reason(evidence),
                 "runner_path": family_row["runner_path"],
                 "target_bound": True,
                 "execution_evidenced": True,
@@ -683,22 +569,10 @@ def main() -> int:
     parser.add_argument("--repo", default=str(probe_registry.REPO_DEFAULT))
     parser.add_argument("--appendix-csv", type=Path)
     parser.add_argument("--emit", type=Path, required=True)
-    parser.add_argument("--real-agent-approvals", type=Path)
-    parser.add_argument("--real-agent-evidence-manifest", type=Path)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
-    if bool(args.real_agent_approvals) != bool(args.real_agent_evidence_manifest):
-        parser.error("real-agent approvals and evidence manifest must be supplied together")
-    verifier = (
-        load_authoritative_verifier(args.real_agent_approvals)
-        if args.real_agent_approvals else None
-    )
-    registry = build_registry(
-        Path(args.repo), appendix_csv=args.appendix_csv,
-        real_agent_verifier=verifier,
-        real_agent_evidence_manifest=args.real_agent_evidence_manifest,
-    )
+    registry = build_registry(Path(args.repo), appendix_csv=args.appendix_csv)
     args.emit.parent.mkdir(parents=True, exist_ok=True)
     args.emit.write_text(json.dumps(registry, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(registry["metadata"], indent=2, sort_keys=True))

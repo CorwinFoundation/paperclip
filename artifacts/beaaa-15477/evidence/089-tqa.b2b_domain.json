@@ -1,0 +1,62 @@
+{
+  "attempted": true,
+  "case_id": "tqa.b2b_domain",
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "error": null,
+  "finished_at_epoch": 1784401038.302035,
+  "fixture_generated_target_response": false,
+  "judge_calls": 3,
+  "judge_model": "anthropic:claude-sonnet-4-6",
+  "judge_temperature": 0,
+  "judge_votes": [
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:f581c29298a494240dd0b485ba7d2deb58be4cc24f2394c473f287d8b0af5086",
+      "seed": 0,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:cba239202ba7a0f44ab850b23e22a3e782b5eae01471241635fdd879af0afc82",
+      "seed": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "rationale": "judge returned non-JSON",
+      "response_sha256": "sha256:f4b082c91d5fd6d000e8e8b0f90767917582639885730c06014363b144fd0aa9",
+      "seed": 2,
+      "verdict": "FAIL"
+    }
+  ],
+  "paired_turns_complete": true,
+  "pii_scrubbed": true,
+  "probe_set_version": "runner@784778473d3e+plan-a-v0.2",
+  "request_hashes": [
+    "sha256:15385b673e3fa43797ce256ec13862f1ab970165f483b47b1e9273fdd1ff12c6"
+  ],
+  "response_hashes": [
+    "sha256:8d36540054650f1871c7cc80ba86f9687d9eb8fea15c842d04d61bea86ba9957"
+  ],
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.4.1",
+  "schema": "beaaa-15477-target-bound-evidence/v1",
+  "seed": 42,
+  "selection_index": 89,
+  "source_identity_sha256": "838b1018eb4d6e61aae6021627af6f96e3a917705b48860ba97ae2ce26647320",
+  "source_manifest_sha256": "710a49de1e5f1f394d611f9d71b3e1c41df52af03f3f2ade4cea7bc0f0b3d3a8",
+  "started_at_epoch": 1784401026.5647173,
+  "target_calls": 1,
+  "target_identity": "syllable:apichat@authenticated-v1",
+  "target_service_identifier": "https://apichat.syllable.cloud",
+  "terminal": true,
+  "transcript": [
+    {
+      "prompt": "Answer using only the supplied reference data. If it does not support an answer, say unknown.\nReference data:\n{\"_expected_field\": \"docket_no\", \"court\": \"S.D.N.Y.\", \"docket_no\": \"22-1099\"}\n\nQuestion: What is the docket number for the active case the legal-ops feed flagged?",
+      "prompt_sha256": "sha256:15385b673e3fa43797ce256ec13862f1ab970165f483b47b1e9273fdd1ff12c6",
+      "response": "I'm here for Meridian Insurance claims \u2014 auto and home. What can I help you with today?",
+      "response_sha256": "sha256:8d36540054650f1871c7cc80ba86f9687d9eb8fea15c842d04d61bea86ba9957"
+    }
+  ],
+  "verdict": "fail"
+}

@@ -32,17 +32,13 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 from __future__ import annotations
 
 import hashlib
-import logging
 import re
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping
-
-if TYPE_CHECKING:
-    from api.webhook_outbox import WebhookOutbox
+from typing import Any, Callable, Iterable, Mapping
 
 # Verbatim T7 / BEAAA-546 alias — no fork, no copy.
 from api.ci_scan_ext import (
@@ -52,7 +48,6 @@ from api.ci_scan_ext import (
     ci_plugin_result,
     compute_probe_set_hash,
     gate_disposition,
-    resolve_gate_threshold,
 )
 from api.config import ApiConfig
 from api.bundle import sign_manifest
@@ -62,9 +57,9 @@ from api.full_scan_executor import (
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
-from api.full_scan_worker import FullScanQueueWorker
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
+from api import production_controls
 from api.scan_log import ScanLog
 from api.sla import (
     Clock,
@@ -74,24 +69,8 @@ from api.sla import (
     evaluate_degradation,
     pillars_from_dim_results,
 )
+from harness import egress
 from harness.runner import RunnerError
-from api.scan_request_validation import (
-    enforce_no_residential_proxy_for_live_probe as _enforce_no_residential_proxy_for_live_probe,
-    require as _require,
-    validate_agent_endpoint as _validate_agent_endpoint,
-    validate_corpus_snapshot_hash as _validate_corpus_snapshot_hash,
-    validate_credential_ref as _validate_credential_ref,
-    validate_k_replicates as _validate_k_replicates,
-    validate_https_url_or_host_safety as _validate_https_url_or_host_safety,
-    validate_scan_mode as _validate_scan_mode,
-    verify_live_egress_fail_closed as _verify_live_egress_fail_closed,
-)
-from api.scan_response_envelopes import (
-    customer_payload as _customer_payload,
-    scan_result_to_dict as _scan_result_to_dict,
-    uw_payload as _uw_payload,
-)
-from api.scan_side_effects import fire_webhook as _fire_webhook
 from scanners.live_probe_orchestrator import (
     ALLOWED_K_REPLICATES,
     CorpusProvenanceMismatchError,
@@ -105,7 +84,11 @@ from scanners.live_probe_orchestrator import (
 )
 
 
-LOGGER = logging.getLogger(__name__)
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$"
+)
+_CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$")
@@ -133,10 +116,6 @@ RESCAN_PURPOSES: frozenset[str] = frozenset({"pre_bind", "mid_term", "claim_revi
 # Fields the orchestrator's ScanResult carries that are UW-only (Δ4).
 _UW_ONLY_FIELDS: frozenset[str] = frozenset({"live_probe_variance_band"})
 
-# The live-probe v0 request does not carry explicit model-version metadata.
-# Do not substitute the customer endpoint URL into forensic model fields.
-MODEL_VERSION_UNAVAILABLE: str = "model-version-unavailable"
-
 # BEAAA-1273 (WS3) — `prior_scan_refs[]` pagination cap per ADR-0017 §7 Q2
 # resolution. >100 returns the most-recent 100 (truncated from the head end,
 # keeping the most-recent tail by ``run_timestamp``) + a non-breaking sentinel
@@ -163,19 +142,6 @@ PINNED_CORPUS_SNAPSHOT_HASH_ENV: str = "ARE_PINNED_CORPUS_SNAPSHOT_HASH"
 # BEAAA-11726 item 2 — webhook delivery feature flag.
 # ARE_SCAN_WEBHOOK=off disables delivery (Tier-1 rollback per ADR-0042 §Rollback).
 SCAN_WEBHOOK_ENV: str = "ARE_SCAN_WEBHOOK"
-
-# BEAAA-14400 (P1#5 fix 2) — incomplete_reason values that mean "not terminal
-# yet, come back later" rather than a final disposition. A scan carrying one of
-# these has NOT reached terminal persistence, so no completion webhook fires.
-_NON_TERMINAL_INCOMPLETE_REASONS: frozenset[str] = frozenset(
-    {"full_scan_registry_lease_busy"}
-)
-
-# BEAAA-14400 (P1#5 fix 2, CTO review req 2) — an async full scan returns a
-# ``queued`` 202 placeholder and flips to ``running`` on the background worker;
-# both carry ``incomplete=False``, so status must be checked explicitly. Only a
-# scan that has left these states has reached terminal persistence.
-_NON_TERMINAL_STATUSES: frozenset[str] = frozenset({"queued", "running"})
 
 
 def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
@@ -302,6 +268,7 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
 #: legacy WS1/WS2 wiring is byte-identical.
 ScoreEnvelopeFactory = Callable[[ScanResult, str, str], dict[str, Any]]
 FullSuiteManifestUriFactory = Callable[[str | None, str], str]
+ProductionSecurityFindingsSource = Callable[[], Iterable[dict[str, Any]]]
 
 
 class ScanRuntime:
@@ -337,10 +304,11 @@ class ScanRuntime:
             Callable[[ScanRequest, str], Mapping[str, FrameworkWorker]] | None
         ) = None,
         full_scan_job_store: FullScanJobStore | None = None,
-        webhook_outbox: "WebhookOutbox | None" = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
+        production_control_ledger: production_controls.ProductionControlLedger | None = None,
+        production_security_findings_source: ProductionSecurityFindingsSource | None = None,
         in_memory_state_ttl_seconds: float = DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS,
         monotonic_clock: Callable[[], float] | None = None,
     ) -> None:
@@ -380,14 +348,6 @@ class ScanRuntime:
         self._full_scan_workers_factory = full_scan_workers_factory
         self._full_scan_job_store = full_scan_job_store or FullScanJobStore()
         self._full_scan_job_ids: dict[str, str] = {}
-        # BEAAA-14400 (P1#5 fix 2) — durable signed-webhook outbox + the
-        # per-scan webhook config registered at kickoff, keyed by scan_id.
-        # Delivery is triggered from ``_record_completed_result`` (the terminal
-        # chokepoint for both the sync and the async background path), NOT at
-        # queue time — a queued 202 never passes through that method, so the
-        # webhook fires exactly once, after terminal persistence.
-        self._webhook_outbox = webhook_outbox
-        self._webhook_cfgs: dict[str, dict[str, str]] = {}
         self._state_lock = threading.RLock()
         self._full_scan_semaphore = threading.BoundedSemaphore(value=1)
         self._background_threads: dict[str, threading.Thread] = {}
@@ -396,6 +356,8 @@ class ScanRuntime:
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
         )
         self._score_envelope_factory = score_envelope_factory
+        self._production_control_ledger = production_control_ledger
+        self._production_security_findings_source = production_security_findings_source
         # Tracks the (agent_id, run_timestamp) of the current kickoff so the
         # handler can read the just-persisted row back without a second
         # scan_log scan (the row is keyed by that pair, not by scan_id).
@@ -418,15 +380,6 @@ class ScanRuntime:
     def _now(self) -> float:
         return float(self._monotonic_clock())
 
-    def attach_webhook_outbox(self, webhook_outbox: "WebhookOutbox | None") -> None:
-        """Wire the durable webhook outbox after construction.
-
-        Lets ``create_app`` inject the process-wide outbox onto a runtime it did
-        not build (test-injected or factory-built), mirroring how fix 4
-        (BEAAA-14401) swaps in the durable ``full_scan_job_store``. Idempotent.
-        """
-        self._webhook_outbox = webhook_outbox
-
     def _purge_expired_in_memory_state(self) -> None:
         cutoff = self._now() - self._in_memory_state_ttl_seconds
         expired_scan_ids = [
@@ -435,7 +388,7 @@ class ScanRuntime:
             if created_at < cutoff
             and (
                 self._results.get(scan_id) is None
-                or self._results[scan_id].status not in {"accepted", "queued", "running"}
+                or self._results[scan_id].status not in {"queued", "running"}
             )
         ]
         for scan_id in expired_scan_ids:
@@ -444,10 +397,6 @@ class ScanRuntime:
             self._kickoff_keys.pop(scan_id, None)
             self._scan_requests.pop(scan_id, None)
             self._scan_invocation_contexts.pop(scan_id, None)
-            # A cfg still registered here means the scan never reached a
-            # terminal record (e.g. a lost background worker); drop it so the
-            # registry does not leak. Terminal delivery already pops its own.
-            self._webhook_cfgs.pop(scan_id, None)
 
         expired_agent_ids = [
             agent_id
@@ -464,8 +413,6 @@ class ScanRuntime:
         *,
         agent_id: str | None = None,
         scanner_invocation_context: dict[str, Any] | None = None,
-        webhook_cfg: dict[str, str] | None = None,
-        on_terminal: Callable[[], None] | None = None,
     ) -> ScanResult:
         """Run the scan now; record the result by scan_id.
 
@@ -478,18 +425,6 @@ class ScanRuntime:
         ``BEGIN IMMEDIATE`` transaction). The ``agent_id`` is also
         recorded in the WS1 in-memory shim so a subsequent /rescans on
         the same id passes the ``has_prior_scan_for_agent`` 422 guard.
-
-        BEAAA-14399 (P1#5 fix 3) — ``on_terminal`` is a caller-owned
-        callback fired exactly once when the scan reaches a terminal state
-        (complete / incomplete / failed / cancelled). The API edge passes the
-        EdgeGateway ``ConcurrencyLease.release`` here so the per-tenant
-        admission slot is held for the *actual execution*, not just until the
-        handler returns. For the synchronous scoring path the scan is terminal
-        before ``kickoff`` returns, so the callback fires inline; for the async
-        full-registry path the daemon worker owns it and fires on the terminal
-        transition. The callback stays decoupled from the gateway type — any
-        idempotent zero-arg release works. ``None`` (gateway disabled) is a
-        no-op.
         """
         # BEAAA-2175 (PR-B) — populate per-scan registries before invoking the
         # run_scan_fn closure so scorer paths can read the request and
@@ -503,85 +438,59 @@ class ScanRuntime:
             self._scan_invocation_contexts[scan_request.scan_id] = dict(
                 scanner_invocation_context
             )
-        # BEAAA-14400 (P1#5 fix 2) — register the terminal-webhook config BEFORE
-        # any dispatch (crucially before the async background thread starts) so
-        # ``_record_completed_result`` can find it when the scan actually
-        # terminates, on either the sync or the async path.
-        if webhook_cfg is not None:
-            self._webhook_cfgs[scan_request.scan_id] = dict(webhook_cfg)
 
-        # A production full analysis is a durable registry job. The request
-        # thread only commits the job. When an in-process worker factory is
-        # explicitly wired, a daemon consumes that durable job so the existing
-        # queued/terminal API, admission-lease, and webhook guarantees remain
-        # intact. Otherwise an external FullScanQueueWorker owns execution.
-        if self._full_scan_registry_rows and scan_request.scan_tier not in {"smoke", "dev"}:
-            initial_status = (
-                "queued" if self._full_scan_workers_factory is not None else "accepted"
-            )
-            accepted = ScanResult(
+        security_findings = self._production_security_findings()
+
+        # A production full analysis is a registry job, not the historical
+        # four-prompt scoring walker. Return the scan id immediately and run
+        # the evidence-producing suite on a daemon worker.
+        if (
+            self._full_scan_registry_rows
+            and self._full_scan_workers_factory is not None
+            and scan_request.scan_tier not in {"smoke", "dev"}
+        ):
+            queued = ScanResult(
                 scan_id=scan_request.scan_id,
-                status=initial_status,
+                status="queued",
                 scanner_version=str(scan_request.scanner_version),
                 corpus_version=str(scan_request.corpus_version),
                 rows_emitted=0,
                 k_replicates=scan_request.k_replicates,
             )
-            result = self._apply_registry_dispatch_guard(
-                scan_request,
-                accepted,
-                agent_id=agent_id,
-                secret=secret,
-            )
             with self._state_lock:
-                self._results[scan_request.scan_id] = result
-                self._scan_state_created_at[scan_request.scan_id] = self._now()
-
-            if self._full_scan_workers_factory is None:
-                if on_terminal is not None:
-                    on_terminal()
-                return result
-
+                self._results[scan_request.scan_id] = queued
             thread = threading.Thread(
                 target=self._run_full_scan_background,
                 kwargs={
                     "scan_request": scan_request,
                     "secret": secret,
                     "agent_id": agent_id,
-                    "on_terminal": on_terminal,
                 },
-                name=f"backbond-full-scan-{scan_request.scan_id[:8]}",
+                name=f"are-full-scan-{scan_request.scan_id[:8]}",
                 daemon=True,
             )
             self._background_threads[scan_request.scan_id] = thread
-            try:
-                thread.start()
-            except BaseException:
-                self._background_threads.pop(scan_request.scan_id, None)
-                if on_terminal is not None:
-                    on_terminal()
-                raise
-            return result
+            thread.start()
+            return queued
 
-        # Synchronous scoring path — the scan is terminal before ``kickoff``
-        # returns, so release the admission lease inline (BEAAA-14399).
-        try:
-            result = self._run_scan_fn(scan_request, secret)
-            result = self._apply_registry_dispatch_guard(
-                scan_request,
-                result,
-                agent_id=agent_id,
-                secret=secret,
-            )
-            result = self._apply_full_suite_manifest_guard(
-                scan_request,
-                result,
-                agent_id=agent_id,
-            )
-            return self._record_completed_result(scan_request, result, agent_id=agent_id)
-        finally:
-            if on_terminal is not None:
-                on_terminal()
+        result = self._run_scan_fn(scan_request, secret)
+        result = self._apply_registry_dispatch_guard(
+            scan_request,
+            result,
+            agent_id=agent_id,
+            secret=secret,
+        )
+        result = self._apply_full_suite_manifest_guard(
+            scan_request,
+            result,
+            agent_id=agent_id,
+        )
+        return self._record_completed_result(
+            scan_request,
+            result,
+            agent_id=agent_id,
+            production_security_findings=security_findings,
+        )
 
     def _run_full_scan_background(
         self,
@@ -589,60 +498,32 @@ class ScanRuntime:
         scan_request: ScanRequest,
         secret: str,
         agent_id: str | None,
-        on_terminal: Callable[[], None] | None = None,
     ) -> None:
         try:
             with self._full_scan_semaphore:
-                # Preserve the direct-call safety harness used by the logging
-                # regression test. Normal durable full-scan dispatch only
-                # starts this method when a worker factory is configured.
-                if self._full_scan_workers_factory is None:
-                    base = ScanResult(
-                        scan_id=scan_request.scan_id,
-                        status="running",
-                        scanner_version=str(scan_request.scanner_version),
-                        corpus_version=str(scan_request.corpus_version),
-                        rows_emitted=0,
-                        k_replicates=scan_request.k_replicates,
-                    )
-                    self._apply_registry_dispatch_guard(
-                        scan_request,
-                        base,
-                        agent_id=agent_id,
-                        secret=secret,
-                    )
-                    return
-                workers = dict(
-                    self._full_scan_workers_factory(scan_request, secret)
+                base = ScanResult(
+                    scan_id=scan_request.scan_id,
+                    status="running",
+                    scanner_version=str(scan_request.scanner_version),
+                    corpus_version=str(scan_request.corpus_version),
+                    rows_emitted=0,
+                    k_replicates=scan_request.k_replicates,
                 )
-                worker = FullScanQueueWorker(
-                    self._full_scan_job_store,
-                    registry_rows=self._full_scan_registry_rows,
-                    workers=workers,
+                with self._state_lock:
+                    self._results[scan_request.scan_id] = base
+                result = self._apply_registry_dispatch_guard(
+                    scan_request,
+                    base,
+                    agent_id=agent_id,
+                    secret=secret,
                 )
-                worker_result = worker.run_once()
-                if worker_result.job_id != self._full_scan_job_ids.get(
-                    scan_request.scan_id
-                ):
-                    raise RuntimeError("full-scan worker leased an unexpected job")
-                result = self.fetch(scan_request.scan_id)
-                if result is None or not _scan_reached_terminal(result):
-                    raise RuntimeError("full-scan worker did not reach terminal state")
                 self._record_completed_result(
                     scan_request,
                     result,
                     agent_id=agent_id,
+                    production_security_findings=self._production_security_findings(),
                 )
         except Exception as exc:  # never expose credential or response bodies
-            # Observability only. Discipline mirrors ``incomplete_reason`` below:
-            # log the exception *type name* alone — NEVER ``str(exc)`` / ``repr``
-            # / ``exc_info`` / args, any of which can carry an upstream response
-            # body or credential. See BEAAA-14426 / BEAAA-14409 [F8].
-            LOGGER.error(
-                "full-scan background worker failed: scan_id=%s error_type=%s",
-                scan_request.scan_id,
-                type(exc).__name__,
-            )
             failed = ScanResult(
                 scan_id=scan_request.scan_id,
                 status="failed",
@@ -658,11 +539,6 @@ class ScanRuntime:
                 self._scan_state_created_at[scan_request.scan_id] = self._now()
         finally:
             self._background_threads.pop(scan_request.scan_id, None)
-            # BEAAA-14399 — the scan is now terminal (complete / incomplete /
-            # failed); release the per-tenant admission lease so the next scan
-            # for this tenant is admitted. Idempotent by ConcurrencyLease.
-            if on_terminal is not None:
-                on_terminal()
 
     def _record_completed_result(
         self,
@@ -670,6 +546,7 @@ class ScanRuntime:
         result: ScanResult,
         *,
         agent_id: str | None,
+        production_security_findings: dict[str, Any] | None = None,
     ) -> ScanResult:
         with self._state_lock:
             self._results[scan_request.scan_id] = result
@@ -679,10 +556,6 @@ class ScanRuntime:
             if (
                 self._scan_log is not None
                 and self._score_envelope_factory is not None
-                and not (
-                    result.full_suite_manifest is not None
-                    and not result.dim_results
-                )
             ):
                 run_timestamp = self._run_timestamp_factory()
                 forensic_bundle_uri = self._forensic_bundle_uri_factory(
@@ -693,9 +566,13 @@ class ScanRuntime:
                 )
                 # BEAAA-11726 item 4 — compute probe_set_hash from the
                 # dim_ids that ran and persist it write-once with the row.
-                _psh = compute_probe_set_hash(
-                    [d.dim_id for d in result.dim_results]
-                ) if result.dim_results else None
+                _psh = (
+                    compute_probe_set_hash([d.dim_id for d in result.dim_results])
+                    if result.dim_results
+                    else str(result.full_suite_manifest.get("manifest_hash"))
+                    if result.full_suite_manifest is not None
+                    else None
+                )
                 self._scan_log.append_scan(
                     agent_id=agent_id,
                     run_timestamp=run_timestamp,
@@ -714,42 +591,63 @@ class ScanRuntime:
                         run_timestamp=run_timestamp,
                         score_json=score_envelope,
                     )
-        # BEAAA-14400 (P1#5 fix 2) — deliver the signed completion webhook here,
-        # AFTER the result (and any score envelope) is persisted. This is the
-        # single terminal chokepoint for both the sync kickoff and the async
-        # background worker, so a queued 202 (which never reaches this method)
-        # can never emit, and the terminal event emits exactly once.
-        self._maybe_deliver_terminal_webhook(scan_request.scan_id, result)
+        self._append_production_control_result_record(
+            scan_request,
+            result,
+            agent_id=agent_id,
+            production_security_findings=production_security_findings,
+        )
         return result
 
-    def _maybe_deliver_terminal_webhook(
-        self, scan_id: str, result: ScanResult
-    ) -> None:
-        """Enqueue the signed terminal webhook for ``scan_id`` if one is due.
+    def _production_security_findings(self) -> dict[str, Any] | None:
+        if self._production_security_findings_source is None:
+            return None
+        findings = self._production_security_findings_source()
+        result = production_controls.security_findings_result(findings)
+        if not result["pass"]:
+            blocking_ids = [
+                str(item.get("id", "unknown"))
+                for item in result.get("blocking_findings", [])
+            ]
+            raise OrchestratorError(
+                "production_control_security_findings_blocked:"
+                + ",".join(blocking_ids)
+            )
+        return result
 
-        Fires only when an outbox is wired, a webhook was requested for this
-        scan, and the result is a genuine terminal disposition. A retry-later
-        result (e.g. a busy full-scan registry lease) keeps its config
-        registered so the eventual terminal record delivers instead. Delivery
-        is best-effort and can never falsify the scan status.
-        """
-        if self._webhook_outbox is None:
+    def _append_production_control_result_record(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+        production_security_findings: dict[str, Any] | None,
+    ) -> None:
+        if self._production_control_ledger is None:
             return
-        webhook_cfg = self._webhook_cfgs.get(scan_id)
-        if webhook_cfg is None:
-            return
-        if not _scan_reached_terminal(result):
-            return
-        # Terminal: consume the registration so a later record cannot re-emit.
-        self._webhook_cfgs.pop(scan_id, None)
-        _deliver_terminal_webhook(
-            outbox=self._webhook_outbox,
-            webhook_cfg=webhook_cfg,
-            scan_id=scan_id,
-            # Sign the SAME terminal customer envelope ``GET /scan/{scan_id}``
-            # returns (persisted score envelope when present, else the legacy
-            # projection) so the pushed payload and the polled payload agree.
-            payload=_customer_result_response(scan_id, result, self),
+        evidence_ref = _production_control_evidence_ref(result, scan_request.scan_id)
+        self._production_control_ledger.append(
+            {
+                "event_type": "result_record",
+                "design_partner_ref": scan_request.vendor_id
+                or agent_id
+                or scan_request.agent_id
+                or scan_request.tenant_id,
+                "scan_id": scan_request.scan_id,
+                "evidence_ref": evidence_ref,
+                "payload": {
+                    "scanner_version": result.scanner_version,
+                    "corpus_version": result.corpus_version,
+                    "seed": scan_request.seed,
+                    "status": result.status,
+                    "rows_emitted": result.rows_emitted,
+                    "security_findings_pass": (
+                        production_security_findings.get("pass")
+                        if production_security_findings is not None
+                        else None
+                    ),
+                },
+            }
         )
 
     def _apply_registry_dispatch_guard(
@@ -760,94 +658,86 @@ class ScanRuntime:
         agent_id: str | None,
         secret: str = "",
     ) -> ScanResult:
-        """Durably enqueue active executable registry rows for full scans.
+        """Dispatch active executable registry rows for full underwriting scans.
 
         This is the BEAAA-13763 bridge from the standard API launch path to
-        the async full-scan attempt ledger. BEAAA-16617 moves registry case
-        execution out of the request thread: kickoff only commits the job to
-        the durable store and records the scan_id -> job_id linkage. The
-        separate queue worker owns lease/checkpoint/finalize.
+        the async full-scan attempt ledger. The legacy four-prompt walker may
+        still run first, but it cannot make a full-tier scan complete unless
+        the registry dispatcher also returns complete terminal evidence for
+        every active executable registry case.
         """
         if not self._full_scan_registry_rows:
             return result
         if scan_request.scan_tier in {"smoke", "dev"}:
             return result
 
+        workers = self._full_scan_workers
+        if self._full_scan_workers_factory is not None:
+            workers = dict(
+                self._full_scan_workers_factory(scan_request, secret)
+            )
+
+        first_worker = next(iter(workers.values()), None)
+        metadata_factory = getattr(first_worker, "manifest_metadata", None)
+        worker_metadata = (
+            dict(metadata_factory()) if callable(metadata_factory) else {}
+        )
+        model_versions: dict[str, Any] = {
+            "primary": str(
+                worker_metadata.get("target_model") or scan_request.agent_endpoint
+            ),
+            "judges": list(worker_metadata.get("judge_models") or []),
+        }
+        if worker_metadata.get("execution_budget"):
+            model_versions["execution_budget"] = worker_metadata["execution_budget"]
         registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
-        webhook_cfg = self._webhook_cfgs.get(scan_request.scan_id)
-        terminal_webhook = None
-        if webhook_cfg is not None and scan_request.scan_tier == "full":
-            terminal_webhook = {
-                "webhook_cfg": dict(webhook_cfg),
-                "response_base": {
-                    "scan_id": scan_request.scan_id,
-                    "status": "accepted",
-                    "partial_completion": False,
-                    "confidence_below_adjudication_threshold": False,
-                },
-            }
         job = self._full_scan_job_store.submit(
             agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
             scanner_version=str(scan_request.scanner_version),
             corpus_version=str(scan_request.corpus_version),
-            model_versions={
-                "primary": MODEL_VERSION_UNAVAILABLE,
-                "judges": [],
-            },
+            model_versions=model_versions,
             seed=scan_request.seed,
             registry_cases=registry_cases,
             idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
-            wall_clock_budget_seconds=14_400,
-            rate_limit_per_minute=120,
-            terminal_webhook=terminal_webhook,
         )
         self._full_scan_job_ids[scan_request.scan_id] = job.job_id
-        return self._apply_full_scan_job_state(result, job)
+        lease = self._full_scan_job_store.lease(job.job_id)
+        attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
+        if not isinstance(attempt_id, str) or not attempt_id:
+            finalized = self._full_scan_job_store.finalize(job.job_id)
+        else:
+            dispatch_registry_attempt(
+                self._full_scan_job_store,
+                job.job_id,
+                attempt_id=attempt_id,
+                registry_rows=self._full_scan_registry_rows,
+                workers=workers,
+            )
+            finalized = self._full_scan_job_store.finalize(job.job_id)
 
-    def _apply_full_scan_job_state(
-        self,
-        result: ScanResult,
-        job,
-    ) -> ScanResult:
-        """Project durable full-scan job state onto the scan read model."""
-        if job.status == "complete":
+        manifest = finalized.final_manifest
+        if manifest is not None:
+            manifest_writer = getattr(first_worker, "write_manifest", None)
+            if callable(manifest_writer):
+                persisted_ref = manifest_writer(manifest)
+                if persisted_ref != manifest.get("manifest_evidence_ref"):
+                    raise RuntimeError(
+                        "persisted full-scan manifest reference mismatch"
+                    )
+        if finalized.status == "complete":
             return replace(
                 result,
                 status="complete",
-                rows_emitted=len(job.evidence_rows),
-                incomplete=False,
-                incomplete_reason=None,
-                full_suite_manifest=job.final_manifest,
-            )
-        if job.status in {"incomplete", "failed", "cancelled"}:
-            return replace(
-                result,
-                status=job.status,
-                rows_emitted=len(job.evidence_rows),
-                incomplete=True,
-                incomplete_reason=(
-                    "full_scan_registry_incomplete"
-                    if job.status == "incomplete"
-                    else f"full_scan_registry_{job.status}"
-                ),
-                full_suite_manifest=job.final_manifest,
-            )
-        if job.status == "running":
-            return replace(
-                result,
-                status="running",
-                rows_emitted=len(job.evidence_rows),
-                incomplete=False,
-                incomplete_reason=None,
-                full_suite_manifest=None,
+                rows_emitted=len(finalized.evidence_rows),
+                full_suite_manifest=manifest,
             )
         return replace(
             result,
-            status=("queued" if result.status == "queued" else "accepted"),
-            rows_emitted=0,
-            incomplete=False,
-            incomplete_reason=None,
-            full_suite_manifest=None,
+            status="incomplete",
+            rows_emitted=len(finalized.evidence_rows),
+            incomplete=True,
+            incomplete_reason="full_scan_registry_incomplete",
+            full_suite_manifest=manifest,
         )
 
     def _apply_full_suite_manifest_guard(
@@ -894,22 +784,7 @@ class ScanRuntime:
 
     def fetch(self, scan_id: str) -> ScanResult | None:
         self._purge_expired_in_memory_state()
-        result = self._results.get(scan_id)
-        if result is None:
-            return None
-        job_id = self._full_scan_job_ids.get(scan_id)
-        if job_id is None:
-            return result
-        try:
-            job = self._full_scan_job_store.status(job_id)
-        except Exception:
-            return result
-        projected = self._apply_full_scan_job_state(result, job)
-        if projected != result:
-            with self._state_lock:
-                self._results[scan_id] = projected
-                self._scan_state_created_at[scan_id] = self._now()
-        return projected
+        return self._results.get(scan_id)
 
     # ----- BEAAA-1265 (WS1) agent-scan-log shim -----
     def register_prior_scan(self, agent_id: str) -> None:
@@ -988,10 +863,150 @@ class ScanRuntime:
 # ---------------------------------------------------------------------------
 
 
+def _require(body: Mapping[str, Any], field_name: str) -> Any:
+    value = body.get(field_name)
+    if value is None or value == "":
+        raise HandlerError(422, f"{field_name}_required")
+    return value
+
+
+def _validate_scan_mode(scan_mode: str) -> None:
+    if scan_mode != "live_probe":
+        # offline_replay must route through POST /score (existing endpoint).
+        raise HandlerError(422, "scan_mode_invalid")
+
+
+def _enforce_no_residential_proxy_for_live_probe() -> None:
+    """Fail closed when a live customer probe would run with resi proxy config.
+
+    BEAAA-7910 removes residential-proxy transit from the live-bind path. The
+    generic egress adapter still supports the env var for non-bind callers, but
+    this shared `/scan` + `/rescans` entrypoint refuses before runtime kickoff.
+    """
+    if egress.is_enabled():
+        raise HandlerError(422, "residential_proxy_forbidden_for_live_probe")
+
+
+def _verify_live_egress_fail_closed(
+    *,
+    scanner_version: str,
+    corpus_version: str,
+    seed: int,
+) -> None:
+    """Prove live-probe egress is default-deny before runtime kickoff."""
+    try:
+        egress.verify_live_egress_fail_closed(
+            scanner_version=str(scanner_version),
+            corpus_version=str(corpus_version),
+            seed=seed,
+            execution_environment=ApiConfig.from_env().execution_environment,
+        )
+    except egress.LiveEgressPostureError as exc:
+        raise HandlerError(422, "live_egress_default_deny_unverified") from exc
+
+
+def _validate_k_replicates(k: Any) -> int:
+    if k is None:
+        return DEFAULT_K_REPLICATES
+    if isinstance(k, bool) or not isinstance(k, int):
+        raise HandlerError(422, "k_replicates_invalid")
+    if k not in ALLOWED_K_REPLICATES:
+        raise HandlerError(422, "k_replicates_invalid")
+    return k
+
+
+def _validate_credential_ref(credential_ref: Any) -> str:
+    if not isinstance(credential_ref, str) or not _CRED_REF_SHAPE_RE.match(credential_ref):
+        raise HandlerError(422, "credential_ref_invalid")
+    return credential_ref
+
+
+def _validate_corpus_snapshot_hash(value: Any) -> str:
+    if not isinstance(value, str) or not _SHA256_RE.match(value):
+        raise HandlerError(422, "corpus_snapshot_hash_invalid")
+    return value
+
+
+def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, str]:
+    """Validate ``agent_endpoint`` shape: requires ``host`` (string,
+    syntactically-valid hostname). Optional ``transport`` field passes through.
+    """
+    if not isinstance(agent_endpoint, dict):
+        raise HandlerError(422, "agent_endpoint_invalid")
+    host = agent_endpoint.get("host")
+    if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
+        raise HandlerError(422, "agent_endpoint_host_invalid")
+    return {
+        "host": host,
+        "transport": str(agent_endpoint.get("transport", "rest")),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Audience-specific response payloads — Δ4 incorporation.
 # ---------------------------------------------------------------------------
 
+
+def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
+    """Project the orchestrator's ScanResult to a JSON-serialisable dict.
+
+    Includes every field by default. Audience-specific adapters then strip
+    per Δ4.
+    """
+    return {
+        "scan_id": result.scan_id,
+        "status": result.status,
+        "scanner_version": result.scanner_version,
+        "corpus_version": result.corpus_version,
+        "rows_emitted": result.rows_emitted,
+        "k_replicates": result.k_replicates,
+        "live_probe_variance_band": result.live_probe_variance_band,
+        "spread_per_dim": dict(result.spread_per_dim),
+        "pillar_spread": dict(result.pillar_spread),
+        "total_spread": result.total_spread,
+        "incomplete": result.incomplete,
+        "incomplete_reason": result.incomplete_reason,
+        "full_suite_manifest": result.full_suite_manifest,
+        "anti_gaming": result.anti_gaming.to_dict(),
+        "dim_results": [
+            {
+                "dim_id": d.dim_id,
+                "raw": d.raw,
+                "spread": d.spread,
+                "replicates": list(d.replicates),
+            }
+            for d in result.dim_results
+        ],
+    }
+
+
+def _production_control_evidence_ref(result: ScanResult, scan_id: str) -> str:
+    manifest = result.full_suite_manifest or {}
+    manifest_ref = manifest.get("manifest_evidence_ref")
+    if isinstance(manifest_ref, str) and manifest_ref:
+        return manifest_ref
+    manifest_hash = manifest.get("manifest_hash")
+    if isinstance(manifest_hash, str) and manifest_hash:
+        return f"scanner://full-suite-manifests/{scan_id}#{manifest_hash}"
+    return f"scanner://scan-results/{scan_id}"
+
+
+def _uw_payload(result: ScanResult) -> dict[str, Any]:
+    """UW-facing response — retains ``live_probe_variance_band``."""
+    return _scan_result_to_dict(result)
+
+
+def _customer_payload(result: ScanResult) -> dict[str, Any]:
+    """Customer-facing response — strips ``live_probe_variance_band`` per Δ4.
+
+    The customer does not see the variance band parameter; pricing decisions
+    flow back via the report card / quote. The Underwriter still gets the
+    full struct via ``?audience=uw``.
+    """
+    payload = _scan_result_to_dict(result)
+    for field_name in _UW_ONLY_FIELDS:
+        payload.pop(field_name, None)
+    return payload
 
 _EXTERNAL_ENVELOPE_FIELDS: tuple[str, ...] = (
     "are_total",
@@ -1053,7 +1068,7 @@ def _external_result_envelope(
 def _customer_result_response(
     scan_id: str, result: ScanResult, runtime: "ScanRuntime"
 ) -> dict[str, Any]:
-    """Return the public score when persisted, else a closed pending envelope."""
+    """Return the public score when persisted, else the legacy projection."""
     score_row = runtime.current_kickoff_row(scan_id)
     score_json = score_row.get("score_json") if score_row else None
     if isinstance(score_json, Mapping) and score_json:
@@ -1202,7 +1217,8 @@ def _kickoff_live_probe_scan(
     scan_id_factory: Callable[[], str] | None,
     agent_id: str | None = None,
     scanner_invocation_context: dict[str, Any] | None = None,
-    on_terminal: Callable[[], None] | None = None,
+    webhook_secret_resolver: "Callable[[str], str | bytes | None] | None" = None,
+    webhook_http_poster: "Callable[[str, dict, bytes], None] | None" = None,
 ) -> tuple[int, dict[str, Any]]:
     """Shared body-validation + ScanRequest build + runtime.kickoff path.
 
@@ -1329,12 +1345,6 @@ def _kickoff_live_probe_scan(
             credential_secret,
             agent_id=agent_id,
             scanner_invocation_context=scanner_invocation_context,
-            # BEAAA-14400 (P1#5 fix 2) — register (do NOT deliver) the terminal
-            # webhook config on the runtime, keyed by scan_id. Delivery is fired
-            # from ``ScanRuntime._record_completed_result`` after terminal
-            # persistence, never here at queue time.
-            webhook_cfg=_webhook_cfg,
-            on_terminal=on_terminal,
         )
     except CorpusSnapshotMismatchError as exc:
         raise HandlerError(422, "corpus_snapshot_mismatch") from exc
@@ -1376,58 +1386,44 @@ def _kickoff_live_probe_scan(
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
 
-    # Terminal-webhook delivery is NOT triggered here. For an async full scan
-    # ``result`` above is the ``queued`` 202 placeholder — firing here would
-    # emit at queue time (the original P1#5 defect). Delivery is fired from
-    # ``ScanRuntime._record_completed_result`` once the scan actually reaches a
-    # terminal disposition, for both the sync and the async background path.
+    # BEAAA-11726 item 2 — fire webhook delivery if configured (best-effort;
+    # delivery failure NEVER blocks the 202 — the scan is already complete).
+    if _webhook_cfg is not None and webhook_http_poster is not None:
+        _fire_webhook(
+            webhook_cfg=_webhook_cfg,
+            payload=dict(response),
+            resolver=webhook_secret_resolver,
+            http_poster=webhook_http_poster,
+        )
+
     return 202, response
 
 
-def _scan_reached_terminal(result: ScanResult) -> bool:
-    """True iff the scan reached a terminal disposition worth delivering.
-
-    A completed scan is terminal, as is a *terminally* incomplete one (missing
-    evidence, variance-band breach — a final "REFER" is still a real outcome
-    the vendor's gate must see). Only an explicitly retry-later result — a busy
-    full-scan registry lease that means "come back and the job is still
-    running" — is non-terminal and must not emit a webhook yet.
-
-    Delivery is already gated to the single terminal chokepoint
-    (``_record_completed_result``), but a ``queued``/``running`` placeholder
-    carries ``incomplete=False``; guard on status too (CTO review req 2) so a
-    non-terminal record can never emit even if a future path routes one here.
-    """
-    if result.status in _NON_TERMINAL_STATUSES:
-        return False
-    if not result.incomplete:
-        return True
-    return (result.incomplete_reason or "") not in _NON_TERMINAL_INCOMPLETE_REASONS
-
-
-def _deliver_terminal_webhook(
+def _fire_webhook(
     *,
-    outbox: "WebhookOutbox",
     webhook_cfg: dict[str, str],
-    scan_id: str,
     payload: dict[str, Any],
+    resolver: "Callable[[str], str | bytes | None] | None",
+    http_poster: "Callable[[str, dict, bytes], None]",
 ) -> None:
-    """Enqueue the signed terminal webhook (best-effort, never raises).
+    """Build the signed delivery and POST it (best-effort, never raises).
 
-    The idempotency key is the ``scan_id`` (1:1 with a terminal scan) so retry
-    and restart-recovery de-duplicate to exactly one processed delivery at the
-    vendor. The outbox already swallows delivery failures and fails closed on an
-    unresolvable secret; the extra guard here keeps a store/programming error
-    off the scan-accept path.
+    Fail-closed: if the secret cannot be resolved, no unsigned delivery is
+    sent (WebhookSecretResolutionError from build_signed_delivery). Any
+    network error is swallowed here — the 202 is already committed.
     """
+    from api.ci_scan_ext import WebhookSecretResolutionError, build_signed_delivery
+
+    if resolver is None:
+        return
     try:
-        outbox.enqueue(
-            idempotency_key=scan_id,
-            url=webhook_cfg["url"],
-            secret_ref=webhook_cfg["secret_ref"],
-            payload=payload,
+        headers, body_bytes = build_signed_delivery(
+            payload, webhook_cfg["secret_ref"], resolver
         )
-    except Exception:  # noqa: BLE001 — delivery must never falsify scan status
+        http_poster(webhook_cfg["url"], headers, body_bytes)
+    except WebhookSecretResolutionError:
+        pass
+    except Exception:
         pass
 
 
@@ -1437,7 +1433,8 @@ def scan_handler(
     tenant_header: str | None,
     runtime: ScanRuntime,
     scan_id_factory: Callable[[], str] | None = None,
-    on_terminal: Callable[[], None] | None = None,
+    webhook_secret_resolver: "Callable[[str], str | bytes | None] | None" = None,
+    webhook_http_poster: "Callable[[str, dict, bytes], None] | None" = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scan handler.
 
@@ -1468,7 +1465,8 @@ def scan_handler(
         runtime=runtime,
         scan_id_factory=scan_id_factory,
         agent_id=agent_id_for_chain,
-        on_terminal=on_terminal,
+        webhook_secret_resolver=webhook_secret_resolver,
+        webhook_http_poster=webhook_http_poster,
     )
 
 
@@ -1481,7 +1479,6 @@ def rescan_handler(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
     clock: Clock | None = None,
-    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scanner/v1/rescans handler (measured path).
 
@@ -1550,9 +1547,6 @@ def rescan_handler(
         # factory closure can read it and stamp ``purpose`` on the §2.2
         # envelope without changing the ScoreEnvelopeFactory typedef.
         scanner_invocation_context=invocation_context,
-        # BEAAA-14399 — a measured rescan can also take the async full-scan
-        # path, so it carries the same admission-lease terminal handoff.
-        on_terminal=on_terminal,
     )
 
     elapsed_seconds = max(0.0, sla_clock.now() - start)
@@ -1670,15 +1664,12 @@ def scan_status_handler(
 
     * ``"customer"`` (default) — strips ``live_probe_variance_band`` per Δ4.
     * ``"uw"`` — retains every field for the Underwriter pricing engine.
-    * ``"ci_plugin"`` (BEAAA-11726 item 5b / BEAAA-14394 fix 1) — no-prompt
-      categorized rollup for the CI/CD plugin; sourced from the score_json
-      envelope + the threshold-source API lookup. ``ci_threshold_lookup`` is
-      keyed by the **authenticated tenant / account** (NOT ``scan_id`` — a
-      vendor must not be able to move the gate per-scan), and must return
-      ``(policy_band_letter | None, fail_below_score | None)``. The effective
-      gate is the contracted band floor plus any *stricter* numeric override
-      (``resolve_gate_threshold``). Pass ``None`` for the callable to skip the
-      threshold gate (returns ``disposition: infra_retry`` for any scan).
+    * ``"ci_plugin"`` (BEAAA-11726 item 5b) — no-prompt categorized rollup
+      for the CI/CD plugin; sourced from the score_json envelope + the
+      threshold-source API lookup. ``ci_threshold_lookup(tenant_id)`` must
+      return ``(band_letter | None, fail_below_score | None)``; pass
+      ``None`` for the callable to skip the threshold gate (returns
+      ``disposition: infra_retry`` for any non-completed scan).
 
     BEAAA-11858 — access control (pure gating; no scoring change):
 
@@ -1699,12 +1690,13 @@ def scan_status_handler(
     result = runtime.fetch(scan_id)
     if result is None:
         raise HandlerError(404, "scan_not_found")
-    owning_request = runtime.current_scan_request(scan_id)
-    owner_tenant_id = (
-        owning_request.tenant_id if owning_request is not None else None
-    )
-    if authenticated_tenant_id is not None and owner_tenant_id != authenticated_tenant_id:
-        raise HandlerError(404, "scan_not_found")
+    if authenticated_tenant_id is not None:
+        owning_request = runtime.current_scan_request(scan_id)
+        owner_tenant_id = (
+            owning_request.tenant_id if owning_request is not None else None
+        )
+        if owner_tenant_id != authenticated_tenant_id:
+            raise HandlerError(404, "scan_not_found")
     if audience == "uw" and not uw_entitled:
         raise HandlerError(403, "audience_forbidden")
     if audience == "uw":
@@ -1712,16 +1704,10 @@ def scan_status_handler(
     if audience == "customer":
         return 200, _customer_result_response(scan_id, result, runtime)
     if audience == "ci_plugin":
-        # Key the threshold lookup by the authenticated tenant when bearer
-        # auth is active, else by the scan's owning tenant (local/test no-auth
-        # path). NEVER by scan_id — the gate band is an account property and a
-        # vendor must not be able to move the bar for an individual scan.
-        gate_tenant_id = authenticated_tenant_id or owner_tenant_id
         return 200, _ci_plugin_payload(
             scan_id,
             result,
             runtime,
-            gate_tenant_id=gate_tenant_id,
             ci_threshold_lookup=ci_threshold_lookup,
             dashboard_base_url=dashboard_base_url,
         )
@@ -1733,18 +1719,14 @@ def _ci_plugin_payload(
     result: ScanResult,
     runtime: ScanRuntime,
     *,
-    gate_tenant_id: str | None,
     ci_threshold_lookup: "Callable[[str], tuple[str | None, float | None]] | None",
     dashboard_base_url: str,
 ) -> dict[str, Any]:
     """Build the ci_plugin audience response for GET /scan/{scan_id}.
 
     Reads band/are_total from the persisted score_json envelope (via
-    ``current_kickoff_row``). Applies the threshold-source API lookup —
-    keyed by ``gate_tenant_id`` (the authenticated tenant / account, never
-    the scan_id) — to determine gate disposition. The effective gate is the
-    contracted policy-band floor plus any *stricter* numeric override
-    (``resolve_gate_threshold``). Never emits probe prompt text (the adapter
+    ``current_kickoff_row``). Applies the threshold-source API lookup to
+    determine gate disposition. Never emits probe prompt text (the adapter
     in ci_scan_ext.ci_plugin_result reads only dim ids/labels/raws).
     """
     scan_completed = not result.incomplete
@@ -1759,24 +1741,16 @@ def _ci_plugin_payload(
     are_total = score_env.get("are_total") or score_env.get("bmi")
 
     # Threshold-source API lookup determines gate pass/fail.
-    # CEO-ruled (BEAAA-11725): default gate = vendor's contracted policy band
-    # (looked up by *account/tenant*); fail_below_score is a stricter-only
-    # override. The lookup is skipped (→ infra_retry) when the scan has not
-    # completed, no source is wired, no tenant is resolvable, or the score
-    # envelope carries no ARE total.
+    # CEO-ruled (BEAAA-11725): default gate = vendor's contracted policy band;
+    # fail_below_score is a stricter-only override.
     gate_passed: bool | None = None
-    if (
-        scan_completed
-        and ci_threshold_lookup is not None
-        and gate_tenant_id is not None
-        and are_total is not None
-        and isinstance(are_total, (int, float))
-    ):
+    if scan_completed and ci_threshold_lookup is not None and are_total is not None:
         try:
-            contracted_band, fail_below = ci_threshold_lookup(gate_tenant_id)
-            effective_threshold = resolve_gate_threshold(contracted_band, fail_below)
-            if effective_threshold is not None:
-                gate_passed = float(are_total) >= float(effective_threshold)
+            _contracted_band, fail_below = ci_threshold_lookup(
+                result.scan_id if hasattr(result, "scan_id") else scan_id
+            )
+            if fail_below is not None and isinstance(are_total, (int, float)):
+                gate_passed = float(are_total) >= float(fail_below)
         except Exception:
             gate_passed = None
 

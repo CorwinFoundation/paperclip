@@ -1,0 +1,1 @@
+{"design_partner_ref": "design-partner-redacted", "event_type": "customer_feedback_hook", "evidence_ref": "paperclip://BEAAA-16992/design-partner-feedback", "payload": {"feedback_class": "integration_friction", "feedback_received_at": "2026-07-23T12:00:00Z"}, "record_sha256": "352415806a91cdee4bc5ab4bd826d3d8bcf30d7dd9e4ad6494e6062d76527afa", "scan_id": "scan-beaaa-16992"}
