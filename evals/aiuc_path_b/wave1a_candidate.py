@@ -33,16 +33,16 @@ UNDERWRITING_COSIGN_REF = "BEAAA-16971"
 WAVE1A_FAMILIES = (csdl.SPEC.name, cac.SPEC.name)
 DEFAULT_MODEL_VERSIONS: tuple[str, ...] = ()
 AUTHORIZATION_SIGNATURE_ALGORITHM = "ed25519-wave1a-authorization-v0.2"
-AUTHORIZED_SIGNER_KEY_ID = "wave1a-production-authority-2026-07"
-AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "U89QKWg5b1goQOswjgKFpUpg4119BpZtLNKouItZXWA"
+AUTHORIZED_SIGNER_KEY_ID = "wave1a-test-authority-2026-07"
+AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "H5bDXvFTj9JPm92qZPVRHrOW6UMAQxd7wDFdw1rL2KM"
 REFERENCE_AUTHORIZATION_SIGNATURE = (
-    "ed25519:wave1a-production-authority-2026-07:"
-    "prld--NVoNfE4pwC_uf6Fm3BCD3hIeBDmYXS4zFxLxHgt3Cea6QFiNKv5otc9ELex1FdTAYFb4VOFZ45pMQFDg"
+    "ed25519:wave1a-test-authority-2026-07:"
+    "2DQ5B2Q1OOoeQ46sttZLpJChaobxuljVJYlfunhcUW_a8SBSE-n6BPBE1nQG1Umg_3DK6X9K_EY_RxfiqmzjDA"
 )
-REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-23T00:00:00Z"
+REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-22T00:00:00Z"
 REFERENCE_AUTHORIZATION_EXPIRES_AT = "2026-12-31T23:59:59Z"
 SCORING_ACTIVE_RUNTIME_CONTRACT = "scoring_active_underwriting_eligibility_zero_weight"
-AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 23, tzinfo=UTC)
+AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 22, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -88,7 +88,6 @@ def _parse_timestamp(value: str) -> datetime:
 
 def _signature_preimage(manifest: dict[str, Any]) -> dict[str, Any]:
     preimage = dict(manifest)
-    preimage.pop("candidate_commit_sha", None)
     preimage.pop("signed_manifest", None)
     return preimage
 
@@ -166,7 +165,7 @@ def reference_authorization() -> TargetAuthorization:
     pins = expected_wave1a_hashes()
     unsigned = TargetAuthorization(
         target_id="authorized-wave1a-reference-target",
-        authorization_ref="BEAAA-16979#out-of-band-reference-target",
+        authorization_ref="BEAAA-16945#authorized-reference-target",
         authorization_signature=REFERENCE_AUTHORIZATION_SIGNATURE,
         authorization_issued_at=REFERENCE_AUTHORIZATION_ISSUED_AT,
         authorization_expires_at=REFERENCE_AUTHORIZATION_EXPIRES_AT,
@@ -348,7 +347,7 @@ def build_candidate_packet(
     manifest_hash = hashlib.sha256(_canonical(_signature_preimage(unsigned_manifest)).encode("utf-8")).hexdigest()
     unsigned_manifest["signed_manifest"] = {
         "algorithm": "sha256-canonical-json-self-signature",
-        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
+        "preimage_excludes": ["signed_manifest"],
         "sha256": manifest_hash,
         "signature": f"sha256:{manifest_hash}",
     }
@@ -474,7 +473,7 @@ def build_scoring_active_packet(*, commit_sha: str) -> dict[str, Any]:
     manifest_hash = hashlib.sha256(_canonical(_signature_preimage(activated)).encode("utf-8")).hexdigest()
     activated["signed_manifest"] = {
         "algorithm": "sha256-canonical-json-self-signature",
-        "preimage_excludes": ["candidate_commit_sha", "signed_manifest"],
+        "preimage_excludes": ["signed_manifest"],
         "sha256": manifest_hash,
         "signature": f"sha256:{manifest_hash}",
     }

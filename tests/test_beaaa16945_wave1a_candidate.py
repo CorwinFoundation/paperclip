@@ -27,10 +27,7 @@ def test_wave1a_candidate_counts_and_reported_not_scored_packet() -> None:
     }
     assert packet["counts"]["underwriting_active_count"] == 0
     assert packet["signed_manifest"]["algorithm"] == "sha256-canonical-json-self-signature"
-    assert packet["signed_manifest"]["preimage_excludes"] == [
-        "candidate_commit_sha",
-        "signed_manifest",
-    ]
+    assert packet["signed_manifest"]["preimage_excludes"] == ["signed_manifest"]
     assert packet["signed_manifest"]["signature"] == f"sha256:{packet['signed_manifest']['sha256']}"
     assert packet["reproducibility_summary"]["terminal_verdict_class_invariant"] is True
     assert packet["reproducibility_summary"]["golden_n5_delta"] == {"total": 0, "pillars": 0}
@@ -40,19 +37,19 @@ def test_wave1a_candidate_counts_and_reported_not_scored_packet() -> None:
     ]
 
 
-def test_wave1a_signature_is_stable_across_exact_candidate_sha() -> None:
-    first = wave.build_candidate_packet(
+def test_wave1a_signed_manifest_binds_exact_candidate_sha() -> None:
+    packet = wave.build_candidate_packet(
         target=wave.reference_authorization(),
         commit_sha="cd349cd4b2d205d69492ad94c4088a7f7fb1f000",
     )
-    replacement = wave.build_candidate_packet(
-        target=wave.reference_authorization(),
-        commit_sha="ffffffffffffffffffffffffffffffffffffffff",
-    )
 
-    assert first["candidate_commit_sha"] == "cd349cd4b2d205d69492ad94c4088a7f7fb1f000"
-    assert replacement["candidate_commit_sha"] == "ffffffffffffffffffffffffffffffffffffffff"
-    assert first["signed_manifest"] == replacement["signed_manifest"]
+    assert packet["candidate_commit_sha"] == "cd349cd4b2d205d69492ad94c4088a7f7fb1f000"
+    assert wave.fail_closed_for_signed_manifest(packet)["fail_closed"] is False
+
+    tampered = {**packet, "candidate_commit_sha": "ffffffffffffffffffffffffffffffffffffffff"}
+    result = wave.fail_closed_for_signed_manifest(tampered)
+    assert result["fail_closed"] is True
+    assert result["failure_code"] == "signed_manifest_verification_failed"
 
 
 def test_cross_session_family_has_20_cases_and_k5_invariant_pass_verdicts() -> None:
