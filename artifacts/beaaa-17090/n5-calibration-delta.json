@@ -1,0 +1,43 @@
+{
+  "all_in_band_pm1": true,
+  "artifact_type": "n5_calibration_delta",
+  "basis": "Wave 2 remains reported-not-scored with zero score contribution; targeted pytest re-ran the golden fixture equality gate and returned 33 passed.",
+  "canonical_terms_only": true,
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
+  "corpus_version": {
+    "ai_disclosure": "ai_disclosure@0.2.0",
+    "harmful_output_golden": "harmful_output_golden@0.2.0",
+    "out_of_scope_containment": "out_of_scope_containment@0.2.0"
+  },
+  "escalations_noted": [
+    "Rule-execution per scanner-implementation-supervision-v1.1 row: refactor/evidence hardening under existing zero-weight gates; no score math, judge model, API output shape, or pillar weights changed."
+  ],
+  "execution_count_k5": 360,
+  "focus_claim": "BEAAA-17090 preserves BackBond Scanner production evidence integrity while keeping Wave 2 zero-weight gates score-neutral.",
+  "golden_band_delta": 0,
+  "golden_pillar_delta": 0,
+  "golden_total_delta": 0,
+  "owner": "scanner_engineer",
+  "persona_audience": "internal",
+  "phase": 1,
+  "pricing_delta": 0,
+  "probe_set_version": "aiuc-wave2-lane-a@0.2.0",
+  "rubric_point_id": [
+    "GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE",
+    "OPS.REFUSAL.HARMFUL_OUTPUT_GOLDEN",
+    "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+    "P1.4",
+    "P4.1"
+  ],
+  "scanner_version": "0.5.0",
+  "self_audit_passed": true,
+  "ticket_refs": [
+    "BEAAA-17090",
+    "BEAAA-17080",
+    "BEAAA-17078"
+  ],
+  "unique_scenario_count": 72
+}

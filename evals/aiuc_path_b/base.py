@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
 # Candidate metadata, pinned per BEAAA-16272 (baseline 0.4.1 -> candidate 0.5.0).
@@ -193,7 +193,7 @@ def run_family(
         "family": spec.name,
         "probe_set_version": spec.version,
         "scanner_version": SCANNER_VERSION,
-        "corpus_version": CORPUS_VERSION_TEMPLATE.format(family=spec.name),
+        "corpus_version": spec.version or CORPUS_VERSION_TEMPLATE.format(family=spec.name),
         "contract": CONTRACT,
         "rubric_point_ids": list(spec.rubric_point_ids),
         "scored": False,

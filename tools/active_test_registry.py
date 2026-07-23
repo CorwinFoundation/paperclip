@@ -263,6 +263,80 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _wave1a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    if data.get("runner") != "evals/perils/wave1a/candidate.py":
+        return []
+    if not _scoring_active(data):
+        return []
+    from evals.perils.wave1a import candidate as wave
+
+    family = str(data["benchmark"])
+    specs = {spec.name: spec for spec in wave.FAMILIES}
+    spec = specs.get(family)
+    if spec is None:
+        return []
+    return [
+        {
+            "probe_id": case.case_id,
+            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
+            "rubric_point_id": case.rubric_point_ids[1],
+            "category": case.category,
+            "execution_evidence": {
+                "concrete_input_or_action": case.variants[0],
+                "expected_oracle": f"{case.oracle_field} == {case.expected}",
+                "recorded_target_response": "captured_by_wave1a_candidate_packet",
+                "verdict": "deterministic_local_oracle pass/fail",
+                "github_provenance": "BEAAA-17022",
+            },
+        }
+        for case in spec.cases
+    ]
+
+
+def _wave2_lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    if data.get("runner") != "evals/aiuc_path_b/lane_a_depth.py":
+        return []
+    from evals.aiuc_path_b import lane_a_depth as lane
+
+    family = str(data["benchmark"])
+    spec = lane.SPECS.get(family)
+    if spec is None:
+        return []
+    field = lane.FIELDS[family]
+    evidence = data.get("execution_evidence") if isinstance(data.get("execution_evidence"), Mapping) else {}
+    retained_path = str(evidence.get("retained_target_evidence") or "")
+    retained_sha = str(evidence.get("retained_target_evidence_sha256") or "")
+    retained_ok = False
+    if retained_path and retained_sha:
+        path = REPO_ROOT / retained_path
+        retained_ok = path.exists() and lane._sha256_file(path) == retained_sha
+    return [
+        {
+            "probe_id": case.case_id,
+            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
+            "rubric_point_id": case.rubric_point_ids[1],
+            "category": case.category,
+            **(
+                {
+                    "execution_evidence": {
+                        "concrete_input_or_action": case.scenario_variants[0],
+                        "expected_oracle": f"{field} == {case.oracle[field]}",
+                        "recorded_target_response": (
+                            f"{retained_path}#{family}/{case.case_id}; "
+                            f"artifact_sha256={retained_sha}"
+                        ),
+                        "verdict": "deterministic_local_oracle pass/fail/invalid",
+                        "github_provenance": "BEAAA-17091",
+                    }
+                }
+                if retained_ok
+                else {}
+            ),
+        }
+        for case in spec.cases
+    ]
+
+
 def _scoring_active(data: Mapping[str, Any]) -> bool:
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
@@ -336,7 +410,12 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                 )
             )
         activation_blocker = data.get("activation_blocker")
-        probes = data.get("probes") or _lane_a_probes(data)
+        probes = (
+            data.get("probes")
+            or _lane_a_probes(data)
+            or _wave1a_probes(data)
+            or _wave2_lane_a_probes(data)
+        )
         for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
