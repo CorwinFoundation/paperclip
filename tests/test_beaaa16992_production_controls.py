@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -50,22 +51,34 @@ def _runtime_result(req: ScanRequest, _secret: str) -> ScanResult:
 
 def test_beaaa16992_packet_proves_required_controls() -> None:
     packet = evidence.build_packet()
+    head_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 
     assert packet["classification"]["value"] == "rule-execution"
     assert packet["contract"] == "are-scanner-api-v1@v1.0"
     assert packet["acceptance"]["overall_pass"] is True
+    assert packet["acceptance"]["candidate_identity_matches_build"] is True
     assert packet["acceptance"]["authorized_end_to_end_design_partner_scan"] is True
     assert packet["acceptance"]["tenant_isolation_and_retention"] is True
     assert packet["acceptance"]["backup_restore_rpo_rto"] is True
     assert packet["acceptance"]["rollback_le_30m"] is True
-    assert packet["candidate_commit_sha"] == "6f9733632b3569f1eb46445e4b2a7c2522761f48"
-    assert packet["evidence_build_head_sha"]
+    assert packet["candidate_commit_sha"] == head_sha
+    assert packet["evidence_build_head_sha"] == head_sha
     assert (
         packet["candidate_identity"]["candidate_commit_sha_source"]
-        == "artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json"
+        == "git rev-parse HEAD at packet build"
     )
     assert packet["candidate_identity"]["evidence_build_head_sha_source"] == (
         "git rev-parse HEAD at packet build"
+    )
+    assert packet["candidate_identity"]["candidate_identity_matches_build"] is True
+    assert packet["candidate_identity"]["candidate_identity_failure_code"] is None
+    assert (
+        packet["candidate_identity"]["authorized_wave1a_target_commit_sha"]
+        == "6f9733632b3569f1eb46445e4b2a7c2522761f48"
+    )
+    assert (
+        packet["candidate_identity"]["authorized_wave1a_target_sha_source"]
+        == "artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json"
     )
     assert packet["rollback_drill"]["measured_minutes_ceil"] <= 30
     assert packet["rollback_drill"]["source_matches_measured_drill"] is True
@@ -96,6 +109,23 @@ def test_beaaa16992_packet_proves_required_controls() -> None:
     assert packet["promotion_gate"]["promotion_authorized_by_this_packet"] is False
     assert packet["generated_evidence_sources"]["wave1a_generated_from_current_tree"] is True
     assert packet["generated_evidence_sources"]["beaaa16977_artifact_inputs_required"] is False
+
+
+def test_beaaa17081_packet_fails_closed_on_candidate_sha_mismatch() -> None:
+    packet = evidence.build_packet(
+        candidate_commit_sha="6f9733632b3569f1eb46445e4b2a7c2522761f48"
+    )
+
+    assert packet["candidate_commit_sha"] == "6f9733632b3569f1eb46445e4b2a7c2522761f48"
+    assert packet["evidence_build_head_sha"] != packet["candidate_commit_sha"]
+    assert packet["acceptance"]["candidate_identity_matches_build"] is False
+    assert packet["acceptance"]["authorized_end_to_end_design_partner_scan"] is True
+    assert packet["acceptance"]["overall_pass"] is False
+    assert packet["candidate_identity"]["candidate_identity_matches_build"] is False
+    assert (
+        packet["candidate_identity"]["candidate_identity_failure_code"]
+        == "candidate_commit_sha_mismatch"
+    )
 
 
 def test_beaaa16992_control_matrix_has_no_unproven_required_control() -> None:

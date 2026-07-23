@@ -654,11 +654,13 @@ def _control(passed: bool, evidence: list[str], checks: dict[str, Any]) -> dict[
     return {"status": "PASS" if passed else "FAIL", "evidence": evidence, "checks": checks}
 
 
-def build_packet() -> dict[str, Any]:
+def build_packet(candidate_commit_sha: str | None = None) -> dict[str, Any]:
     evidence_build_head_sha = _git("rev-parse", "HEAD")
     authorization_payload = _read_json(AUTHORIZATION_FIXTURE)
-    candidate_commit_sha = authorization_payload["candidate_commit_sha"]
-    wave1a = _current_wave1a_outputs(candidate_commit_sha, AUTHORIZATION_FIXTURE)
+    authorized_wave1a_commit_sha = authorization_payload["candidate_commit_sha"]
+    candidate_commit_sha = candidate_commit_sha or evidence_build_head_sha
+    candidate_identity_matches_build = candidate_commit_sha == evidence_build_head_sha
+    wave1a = _current_wave1a_outputs(authorized_wave1a_commit_sha, AUTHORIZATION_FIXTURE)
     summary = wave1a["summary"]
     target = wave1a["target"]
     fail_closed = wave1a["fail_closed"]
@@ -854,6 +856,7 @@ def build_packet() -> dict[str, Any]:
     }
 
     acceptance = {
+        "candidate_identity_matches_build": candidate_identity_matches_build,
         "authorized_end_to_end_design_partner_scan": bool(
             summary.get("production_like_scored_contract_consistent")
             and target.get("authorized_target", {}).get("authorization_signature")
@@ -898,6 +901,7 @@ def build_packet() -> dict[str, Any]:
             "wave1a_source_module": "scripts/beaaa16976_wave1a_production_like_evidence.py",
             "authorization_fixture": str(AUTHORIZATION_FIXTURE.relative_to(REPO)),
             "authorization_fixture_sha256": _sha256_file(AUTHORIZATION_FIXTURE),
+            "authorized_wave1a_target_commit_sha": authorized_wave1a_commit_sha,
             "beaaa16977_artifact_inputs_required": False,
         },
         "scanner_version": SCANNER_VERSION,
@@ -914,8 +918,14 @@ def build_packet() -> dict[str, Any]:
         },
         "cto_cosign_ref": None,
         "candidate_identity": {
-            "candidate_commit_sha_source": str(AUTHORIZATION_FIXTURE.relative_to(REPO)),
+            "candidate_commit_sha_source": "git rev-parse HEAD at packet build",
             "evidence_build_head_sha_source": "git rev-parse HEAD at packet build",
+            "candidate_identity_matches_build": candidate_identity_matches_build,
+            "candidate_identity_failure_code": None
+            if candidate_identity_matches_build
+            else "candidate_commit_sha_mismatch",
+            "authorized_wave1a_target_commit_sha": authorized_wave1a_commit_sha,
+            "authorized_wave1a_target_sha_source": str(AUTHORIZATION_FIXTURE.relative_to(REPO)),
             "authorization_fixture_sha256": _sha256_file(AUTHORIZATION_FIXTURE),
             "signed_manifest_sha256": signed_manifest.get("sha256"),
             "target_output_sha256": target_output_sha256,

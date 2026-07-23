@@ -6,17 +6,17 @@ phase: 1
 canonical_terms_only: true
 focus_claim: "BEAAA-16992 binds Scanner production controls, rollback proof, and evidence retention into one internal gate for the customer-ready BackBond Scanner release."
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
-ticket_refs: ["BEAAA-17052", "BEAAA-17051", "BEAAA-16992", "BEAAA-16994", "BEAAA-16987", "BEAAA-16979", "BEAAA-16973"]
+ticket_refs: ["BEAAA-17081", "BEAAA-17075", "BEAAA-17073", "BEAAA-17052", "BEAAA-17051", "BEAAA-16992", "BEAAA-16994", "BEAAA-16987", "BEAAA-16979", "BEAAA-16973"]
 proof_points_cited: ["api/production_controls.py", "scripts/beaaa16992_production_controls_evidence.py", "artifacts/beaaa-16992/production-controls-evidence.json", "ops/scan-log-backup/README.md", "docs/deploy/sequence-20-production-deployment-runbook.md", "api/edge_gateway.py"]
-version: 0.4
-prior_version: "artifacts/beaaa-16992/production-controls-closeout.md@v0.3"
+version: 0.5
+prior_version: "artifacts/beaaa-16992/production-controls-closeout.md@v0.4"
 self_audit_passed: true
 escalations_noted: ["Rule-execution production-control evidence harness and closeout. No scoring math, band cut, judge model, rubric weight, Scanner API output shape, covered peril, customer data-handling expansion, or tamper-resistance reduction. Public or production promotion remains blocked on exact-SHA QA APPROVED plus Founder sign-off."]
 ---
 
 # BEAAA-16992 Production Controls Closeout
 
-BLUF: PASS for [BEAAA-17052](/BEAAA/issues/BEAAA-17052) clean-checkout evidence reproducibility and runtime production-control wiring; NOT authorized for shared or production promotion. Exact-SHA QA approval and Founder sign-off remain required.
+BLUF: PASS for [BEAAA-17081](/BEAAA/issues/BEAAA-17081) exact-SHA production-control evidence binding; NOT authorized for shared or production promotion. Exact-SHA QA approval and Founder sign-off remain required.
 
 ## Scope
 
@@ -39,7 +39,8 @@ Retained packet: `artifacts/beaaa-16992/production-controls-evidence.json`.
 The packet binds:
 
 - Candidate baseline: `fb58d5e5cf7d132afd55c177f4a385ba5b29c76a`.
-- Candidate identity: `candidate_commit_sha` is derived from `artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json`; `evidence_build_head_sha` records `git rev-parse HEAD` at packet build time.
+- Candidate identity: `candidate_commit_sha` and `evidence_build_head_sha` are both derived from `git rev-parse HEAD` at packet build time. The packet includes `candidate_identity_matches_build`; any mismatch sets `candidate_identity_failure_code: candidate_commit_sha_mismatch` and blocks `overall_pass`.
+- Signed Wave 1A target input: `authorized_wave1a_target_commit_sha` remains the historical production-authority fixture `6f9733632b3569f1eb46445e4b2a7c2522761f48`; it is not used as the production-control candidate identity.
 - Runtime production-control source: `api/production_controls.py`.
 - Prior Wave 1A production-like evidence: `artifacts/beaaa-16979/*`.
 - Deployment controls: `docs/deploy/sequence-20-production-deployment-runbook.md`.
@@ -48,6 +49,7 @@ The packet binds:
 
 Acceptance results:
 
+- Candidate identity matches build SHA: PASS.
 - Authorized end-to-end design-partner scan: PASS.
 - Tenant isolation and evidence retention: PASS by temporary tenant-separated scan-log rows plus retained evidence hashes.
 - Backup restore RPO <=1h / RTO <=4h: PASS by temporary scan-log online backup + restore dry-run; RPO is measured from inserted scan-log timestamp to backup completion.
@@ -70,7 +72,7 @@ Result: PASS. Output path `artifacts/beaaa-16992/production-controls-evidence.js
 pytest -q tests/test_beaaa16992_production_controls.py tests/test_release_gate_n5_beaaa10187.py
 ```
 
-Result: `23 passed`.
+Result: `25 passed`.
 
 Regression coverage added under [BEAAA-17052](/BEAAA/issues/BEAAA-17052):
 
@@ -85,6 +87,12 @@ Regression coverage added under [BEAAA-17052](/BEAAA/issues/BEAAA-17052):
 - Scan handler writes one retained runtime production-control result record across two identical runs.
 - Runtime security findings source blocks scan execution before `run_scan_fn` when a high finding is present.
 
+Regression coverage added under [BEAAA-17081](/BEAAA/issues/BEAAA-17081):
+
+- The packet top-level `candidate_commit_sha` equals `git rev-parse HEAD`.
+- The retained instrumentation result record writes the build SHA, not the historical signed Wave 1A target SHA.
+- A supplied candidate SHA that differs from the build SHA fails closed with `candidate_commit_sha_mismatch` and blocks `overall_pass`, even if the historical signed Wave 1A target remains valid.
+
 ```text
 python3 scripts/beaaa539_n5_calibration.py
 ```
@@ -92,10 +100,10 @@ python3 scripts/beaaa539_n5_calibration.py
 Result: PASS. B1/G1/G2/M1/M2/M3 all observed five identical totals. Total spread `0`; total delta `0`; max pillar spread `0`; max pillar delta `0`; `all_in_band_pm1=True`.
 
 ```text
-python3 scripts/release_gate_n5.py --baseline 1b93c090-beaaa17051-pre-repair --candidate beaaa17051-source-bound-repair --today 2026-07-23 --out-dir "$PWD/tools/calibration-deltas"
+python3 scripts/release_gate_n5.py --baseline 1b93c090-beaaa17051-pre-repair --candidate beaaa17075-production-controls-residual-repair --today 2026-07-23 --out-dir "$PWD/tools/calibration-deltas"
 ```
 
-Result: BLOCK. The stale compatibility-failure claim is removed: the release runner no longer passes unsupported `--trusted-replay-*` CLI flags, reaches score comparison, and writes `tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17051-source-bound-repair.md`. Single-turn spread passes; single-turn delta blocks on G3, M2, M3, B1, and B3 residual movement. This is a release blocker, not a compatibility failure.
+Result: PASS for the [BEAAA-17075](/BEAAA/issues/BEAAA-17075) residual repair. The release runner writes `tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17075-production-controls-residual-repair.md`; single-turn spread PASS, single-turn delta PASS, approval provenance PASS, unresolved movement `[]`, `release_reliance_authorized=true`.
 
 ## Operational Metadata
 
