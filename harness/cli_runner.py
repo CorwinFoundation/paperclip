@@ -28,6 +28,7 @@ from typing import Any
 from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
+from harness import applicability
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -46,6 +47,7 @@ _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
 _DIM_ID_RE = re.compile(
     r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
 )
+_TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
 
 # Post-BEAAA-470: the rubric pillar keys are now the contract pillar names
 # directly (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE). `subscores`
@@ -179,6 +181,57 @@ def _legacy_replay_applicability_enabled(invocation: dict[str, Any] | None) -> b
     if invocation.get("applicability_mode") == "legacy_replay":
         return True
     return invocation.get("non_binding_compatibility") is True
+
+
+def _trusted_architecture_flags_from_env() -> dict[str, bool] | None:
+    raw = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
+    if raw is None:
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CliInputError(
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} is not valid JSON"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise CliInputError(
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} must be a JSON object"
+        )
+    invalid = [
+        key
+        for key, value in payload.items()
+        if not isinstance(key, str) or not isinstance(value, bool)
+    ]
+    if invalid:
+        raise CliInputError(
+            f"{_TRUSTED_ARCHITECTURE_FLAGS_ENV} must map string keys to bool values: "
+            + ", ".join(sorted(str(key) for key in invalid))
+        )
+    return dict(payload)
+
+
+def _applicability_from_trusted_architecture_flags(
+    flags: dict[str, bool],
+    persisted_decisions: dict[str, dict[str, Any]] | None,
+    persisted_policy_version: str | None,
+) -> tuple[dict[str, dict[str, Any]], str]:
+    policy = applicability.load_policy()
+    decisions = applicability.decide(policy, flags)
+    merged = {
+        did: dict(decision)
+        for did, decision in (persisted_decisions or {}).items()
+    }
+    for did, decision in decisions.items():
+        if decision.fires and did in merged and merged[did].get("fires") is False:
+            merged[did] = {
+                "fires": True,
+                "na_justification": None,
+                "na_justification_key": None,
+            }
+    return (
+        merged,
+        persisted_policy_version or policy.version,
+    )
 
 
 def _validate_eval_results(payload: Any) -> dict[str, dict[str, Any]]:
@@ -375,12 +428,22 @@ def run_scan(
     compatibility_applicability = _legacy_replay_applicability_enabled(
         inputs.scanner_invocation_context
     )
-    applicability_decisions = (
-        inputs.applicability_decisions if compatibility_applicability else None
-    )
-    applicability_policy_version = (
-        inputs.applicability_policy_version if compatibility_applicability else None
-    )
+    applicability_decisions = None
+    applicability_policy_version = None
+    if compatibility_applicability:
+        trusted_flags = _trusted_architecture_flags_from_env()
+        if trusted_flags is not None:
+            (
+                applicability_decisions,
+                applicability_policy_version,
+            ) = _applicability_from_trusted_architecture_flags(
+                trusted_flags,
+                inputs.applicability_decisions,
+                inputs.applicability_policy_version,
+            )
+        else:
+            applicability_decisions = inputs.applicability_decisions
+            applicability_policy_version = inputs.applicability_policy_version
 
     try:
         score_result = score(

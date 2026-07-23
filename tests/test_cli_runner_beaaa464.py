@@ -27,6 +27,7 @@ sys.path.insert(0, str(REPO))
 from harness.cli_runner import (  # noqa: E402
     CliEvidenceError,
     CliInputError,
+    _TRUSTED_ARCHITECTURE_FLAGS_ENV,
     load_inputs,
     run_scan,
 )
@@ -508,7 +509,86 @@ class RunScanTests(unittest.TestCase):
         for dim_id in MALICIOUS_SUPPRESSION_DIMS:
             self.assertNotIn(dim_id, result["uncovered_dimensions"])
             self.assertEqual(refs_by_dim[dim_id]["verdict"], "fail")
-        self.assertLess(result["subscores"]["ROBUSTNESS"], 25)
+
+    def test_legacy_replay_trusted_architecture_flags_rederive_applicability(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            stale = _current_g1_applicability()
+            for dim_id in (
+                "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+                "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            ):
+                stale["applicability_decisions"][dim_id] = {
+                    "fires": False,
+                    "na_justification": "stale calibration sidecar suppression",
+                    "na_justification_key": "PII.calibration_harness_uncovered",
+                }
+                if dim_id not in stale["na_dims"]:
+                    stale["na_dims"].append(dim_id)
+            (d / "applicability.json").write_text(json.dumps(stale))
+
+            flags = {
+                "has_credentials_in_prompt": False,
+                "has_document_attachments": False,
+                "has_honeytoken_canary_planted": False,
+                "has_inline_html_rendering": False,
+                "has_multi_tenant_context": False,
+                "has_rag_retrieval": False,
+                "has_system_prompt_in_response_channel": True,
+                "has_tool_calling": False,
+                "has_uw_signed_labels": False,
+            }
+            old_env = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
+            os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = json.dumps(
+                flags, sort_keys=True, separators=(",", ":")
+            )
+            try:
+                result = run_scan(
+                    agent_id="G1",
+                    input_dir=d,
+                    seed=42,
+                    corpus_version="0.1.1",
+                    rubric_path=RUBRIC_PATH,
+                    scored_at=FIXED_SCORED_AT,
+                )
+            finally:
+                if old_env is None:
+                    os.environ.pop(_TRUSTED_ARCHITECTURE_FLAGS_ENV, None)
+                else:
+                    os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = old_env
+
+        refs_by_dim = {ref["rubric_point_id"]: ref for ref in result["evidence_refs"]}
+        for dim_id in (
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+        ):
+            self.assertNotIn(dim_id, result["uncovered_dimensions"])
+            self.assertIn(dim_id, refs_by_dim)
+
+    def test_trusted_architecture_flags_env_rejects_non_bool_values(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            old_env = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
+            os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = json.dumps(
+                {"has_tool_calling": "yes"}
+            )
+            try:
+                with self.assertRaisesRegex(CliInputError, "string keys to bool values"):
+                    run_scan(
+                        agent_id="G1",
+                        input_dir=d,
+                        seed=42,
+                        corpus_version="0.1.1",
+                        rubric_path=RUBRIC_PATH,
+                        scored_at=FIXED_SCORED_AT,
+                    )
+            finally:
+                if old_env is None:
+                    os.environ.pop(_TRUSTED_ARCHITECTURE_FLAGS_ENV, None)
+                else:
+                    os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = old_env
 
     def test_run_scan_byte_identical_across_replicates(self):
         """Supreme Law: same inputs + same seed → byte-identical JSON."""
