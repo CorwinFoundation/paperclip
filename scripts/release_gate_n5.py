@@ -14,6 +14,7 @@ table under tools/calibration-deltas/.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -38,6 +39,7 @@ from scripts import behavioral_golden_fixtures  # noqa: E402
 BASELINES = REPO / "artifacts" / "beaaa-387"
 MANIFEST_PATH = BASELINES / "manifest.json"
 OUT_DIR = REPO / "tools" / "calibration-deltas"
+APPROVAL_PROVENANCE_MANIFEST_PATH = REPO / "artifacts" / "beaaa-16864" / "approved_movement_provenance_manifest.json"
 FULL_ROSTER = ("G1", "G2", "G3", "M1", "M2", "M3", "B1", "B2", "B3")
 EXCLUDED_FIXTURES = {
     "B2": (
@@ -94,6 +96,51 @@ APPROVED_MOVEMENT_SOURCES = (
         "underwriter_ref": "BEAAA-13412",
         "founder_comment_ref": None,
         "description": "P3.5/P3.6 ROBUSTNESS promotion",
+        "approval_decisions": [
+            {
+                "role": "CTO",
+                "approver_id": "88e68019-1cb6-4c4f-83e1-9fd340fb6821",
+                "decision_ref": "BEAAA-13383#comment-4878fe5e-25e1-46cf-93a9-ddffcf9f3990",
+                "source_author": {
+                    "kind": "agent",
+                    "id": "88e68019-1cb6-4c4f-83e1-9fd340fb6821",
+                },
+                "decision_markers": [
+                    "Score-moving deltas exceeded +/-1 by design",
+                    "Underwriter co-sign BEAAA-13382",
+                    "No new contract output-shape, pillar-weight, band-cut",
+                ],
+            },
+            {
+                "role": "Underwriter",
+                "approver_id": "afa65747-4323-419c-9850-bdb77711648f",
+                "decision_ref": "BEAAA-13382#comment-884abe13-32a3-4cc3-95fc-c96ce4347d36",
+                "source_author": {
+                    "kind": "agent",
+                    "id": "afa65747-4323-419c-9850-bdb77711648f",
+                },
+                "decision_markers": [
+                    "Underwriter co-signs",
+                    "Option-C active-dim re-normalization",
+                    "pillar weights stay 25/25/25/25",
+                ],
+            },
+            {
+                "role": "Founder",
+                "approver_id": "local-board",
+                "decision_ref": "BEAAA-13486#description",
+                "source_author": {
+                    "kind": "user",
+                    "id": "local-board",
+                },
+                "decision_markers": [
+                    "Founder Authorization",
+                    "I authorize deploying rubric 1.3.0",
+                    "P3.5/P3.6 only",
+                    "NO pillar-weight changes",
+                ],
+            },
+        ],
         "deltas": BEAAA_13412_DELTAS,
     },
     {
@@ -102,12 +149,68 @@ APPROVED_MOVEMENT_SOURCES = (
         "underwriter_ref": "BEAAA-14868",
         "founder_comment_ref": "88696878-087a-463f-b48a-eac74a660df0",
         "description": "authenticated applicability for always-applicable PII dimensions",
+        "approval_decisions": [
+            {
+                "role": "CTO",
+                "approver_id": "88e68019-1cb6-4c4f-83e1-9fd340fb6821",
+                "decision_ref": "BEAAA-14867#comment-c096f2f1-780b-448c-922c-591ae17bc9ec",
+                "source_author": {
+                    "kind": "agent",
+                    "id": "88e68019-1cb6-4c4f-83e1-9fd340fb6821",
+                },
+                "decision_markers": [
+                    "classified as a **rule-change delta caused by a tamper-resistance correction**",
+                    "Underwriter co-sign: [BEAAA-14868]",
+                    "Founder app",
+                ],
+            },
+            {
+                "role": "Underwriter",
+                "approver_id": "afa65747-4323-419c-9850-bdb77711648f",
+                "decision_ref": "BEAAA-14868#comment-bbdbbec7-e18d-4f1e-9190-8d2cf6da5289",
+                "source_author": {
+                    "kind": "agent",
+                    "id": "afa65747-4323-419c-9850-bdb77711648f",
+                },
+                "decision_markers": [
+                    "Approved: narrow operational UW co-sign",
+                    "keyed exactly to BEAAA-14798",
+                    "not fixture rebaselining",
+                ],
+            },
+            {
+                "role": "Founder",
+                "approver_id": "local-board",
+                "decision_ref": "BEAAA-14867#comment-88696878-087a-463f-b48a-eac74a660df0",
+                "source_author": {
+                    "kind": "user",
+                    "id": "local-board",
+                },
+                "decision_markers": [
+                    "approved",
+                ],
+            },
+        ],
         "deltas": BEAAA_14798_DELTAS,
     },
 )
 
 FAIL_INVALID_APPROVAL = "invalid_approval_input"
 APPROVAL_KNOWN_ROLES = frozenset({"CTO", "Underwriter", "Founder"})
+APPROVAL_SOURCE_AUTHOR_KINDS = frozenset({"agent", "user"})
+APPROVAL_CONTENT_HASH_ALGORITHM = "sha256"
+
+
+def _content_sha256(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _load_approval_provenance_manifest(path: Path = APPROVAL_PROVENANCE_MANIFEST_PATH) -> dict[str, Any]:
+    try:
+        manifest = _load_json(path)
+    except FileNotFoundError:
+        return {}
+    return manifest if isinstance(manifest, dict) else {}
 
 
 def _required_roles_for_movement(movement: float) -> frozenset[str]:
@@ -121,14 +224,21 @@ def _required_roles_for_movement(movement: float) -> frozenset[str]:
 
 def _validate_approved_movement_sources(
     sources: tuple[dict[str, Any], ...],
+    *,
+    provenance_manifest: dict[str, Any] | None = None,
 ) -> list[str]:
     """Fail closed unless every movement has distinct, role-complete evidence.
 
-    BEAAA-16713: a ticket label or acknowledgement is not approval evidence.
-    Every source must name a distinct decision reference for each required role;
+    BEAAA-16713 / BEAAA-16864: a ticket label or acknowledgement is not
+    approval evidence. Every source must name a distinct decision reference,
+    the authoritative source author, and content anchors for each required role;
     one identity/reference cannot satisfy multiple authority legs.
     """
     errors: list[str] = []
+    manifest = provenance_manifest if provenance_manifest is not None else _load_approval_provenance_manifest()
+    manifest_sources = manifest.get("sources") if isinstance(manifest, dict) else None
+    if not isinstance(manifest_sources, dict):
+        return ["approval provenance manifest is missing or invalid"]
     for index, source in enumerate(sources):
         ticket = source.get("source_ticket")
         decisions = source.get("approval_decisions")
@@ -142,6 +252,7 @@ def _validate_approved_movement_sources(
         by_role: dict[str, tuple[str, str]] = {}
         identities: set[str] = set()
         refs: set[str] = set()
+        author_identities: set[str] = set()
         for decision in decisions:
             if not isinstance(decision, dict):
                 errors.append(f"{ticket}: approval decision must be an object")
@@ -149,6 +260,8 @@ def _validate_approved_movement_sources(
             role = decision.get("role")
             identity = decision.get("approver_id")
             decision_ref = decision.get("decision_ref")
+            source_author = decision.get("source_author")
+            decision_markers = decision.get("decision_markers")
             if role not in APPROVAL_KNOWN_ROLES:
                 errors.append(f"{ticket}: unrecognized approval role {role!r}")
                 continue
@@ -160,15 +273,82 @@ def _validate_approved_movement_sources(
                 continue
             identity = identity.strip()
             decision_ref = decision_ref.strip()
+            if not decision_ref.startswith("BEAAA-"):
+                errors.append(f"{ticket}: {role} decision_ref must be an issue/comment reference")
+                continue
             if decision_ref in {ticket.strip(), identity}:
                 errors.append(f"{ticket}: {role} decision_ref is self-referential")
+                continue
+            manifest_entry = manifest_sources.get(decision_ref)
+            if not isinstance(manifest_entry, dict):
+                errors.append(f"{ticket}: {role} decision_ref {decision_ref} is not in provenance manifest")
                 continue
             if identity in identities or decision_ref in refs:
                 errors.append(f"{ticket}: approval identities and decision refs must be distinct")
                 continue
-            identities.add(identity)
-            refs.add(decision_ref)
-            by_role[role] = (identity, decision_ref)
+            if not isinstance(source_author, dict):
+                errors.append(f"{ticket}: {role} source_author is required")
+                continue
+            author_kind = source_author.get("kind")
+            author_id = source_author.get("id")
+            if author_kind not in APPROVAL_SOURCE_AUTHOR_KINDS:
+                errors.append(f"{ticket}: {role} source_author.kind is invalid")
+                continue
+            if not isinstance(author_id, str) or not author_id.strip():
+                errors.append(f"{ticket}: {role} source_author.id is required")
+                continue
+            author_identity = f"{author_kind}:{author_id.strip()}"
+            if author_identity in author_identities:
+                errors.append(f"{ticket}: source authors must be distinct across approval roles")
+                continue
+            if identity != author_id.strip():
+                errors.append(f"{ticket}: {role} approver_id must match source_author.id")
+                continue
+            manifest_author = manifest_entry.get("author")
+            if not isinstance(manifest_author, dict):
+                errors.append(f"{ticket}: {role} manifest author is missing")
+                continue
+            if manifest_author.get("kind") != author_kind or manifest_author.get("id") != author_id.strip():
+                errors.append(f"{ticket}: {role} decision_ref author does not match manifest")
+                continue
+            content_sha256 = manifest_entry.get("content_sha256")
+            if not isinstance(content_sha256, str) or len(content_sha256) != 64:
+                errors.append(f"{ticket}: {role} manifest content_sha256 is invalid")
+                continue
+            if manifest_entry.get("content_hash_algorithm") != APPROVAL_CONTENT_HASH_ALGORITHM:
+                errors.append(f"{ticket}: {role} manifest content hash algorithm is invalid")
+                continue
+            manifest_content = manifest_entry.get("content")
+            if not isinstance(manifest_content, str) or not manifest_content.strip():
+                errors.append(f"{ticket}: {role} manifest content is missing")
+                continue
+            if _content_sha256(manifest_content) != content_sha256:
+                errors.append(f"{ticket}: {role} manifest content hash mismatch")
+                continue
+            manifest_markers = manifest_entry.get("decision_markers")
+            if not isinstance(manifest_markers, list) or not all(isinstance(marker, str) for marker in manifest_markers):
+                errors.append(f"{ticket}: {role} manifest decision_markers are invalid")
+                continue
+            if not isinstance(decision_markers, list) or not decision_markers:
+                errors.append(f"{ticket}: {role} decision_markers are required")
+                continue
+            for marker in decision_markers:
+                if not isinstance(marker, str) or len(marker.strip()) < 3:
+                    errors.append(f"{ticket}: {role} decision_markers must be non-empty strings")
+                    break
+                if marker not in manifest_markers:
+                    errors.append(f"{ticket}: {role} decision marker is not bound to manifest content")
+                    break
+                if marker not in manifest_content:
+                    errors.append(f"{ticket}: {role} decision marker is absent from manifest content")
+                    break
+            else:
+                author_identities.add(author_identity)
+                identities.add(identity)
+                refs.add(decision_ref)
+                by_role[role] = (identity, decision_ref)
+                continue
+            continue
 
         required: set[str] = set()
         deltas = source.get("deltas")
@@ -583,12 +763,12 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "canonical_terms_only: true",
         'focus_claim: "BEAAA-14948 preserves BackBond Scanner pricing discipline by reporting acknowledged M2/M3 residual movement without authorizing release reliance."',
         'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-14948", "BEAAA-14949", "BEAAA-14950", "BEAAA-14874", "BEAAA-14798", "BEAAA-13412"]',
+        'ticket_refs: ["BEAAA-16864", "BEAAA-14948", "BEAAA-14949", "BEAAA-14950", "BEAAA-14874", "BEAAA-14867", "BEAAA-14868", "BEAAA-14798", "BEAAA-13412"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.2",
         'prior_version: "BEAAA-14874 receipt v0.1"',
         "self_audit_passed: true",
-        'escalations_noted: ["BEAAA-14949 revision f7aacc18 and BEAAA-14950 acknowledge the corrected residual accounting but do not authorize release or pricing reliance outside the +/-1 gate."]',
+        'escalations_noted: ["BEAAA-16864 remediates approved-movement provenance accounting without rebaseline, scoring math, applicability, or tamper-resistance changes; BEAAA-14949 revision f7aacc18 and BEAAA-14950 remain accounting-only and do not authorize release or pricing reliance outside the +/-1 gate."]',
         "---",
         "",
         "# BEAAA-14948 Golden N=5 Release Gate Reconciliation",
@@ -613,6 +793,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- Drift gate: `absolute residual median delta for total and each pillar <= {report['delta_tolerance']}`",
         "- Approved historical movements are separately attributed below: `BEAAA-13412` and `BEAAA-14798`",
         f"- Result: `{'PASS' if report['passed'] else 'BLOCK'}`",
+        f"- Approval provenance: `{'PASS' if (report.get('approval_provenance') or {}).get('passed') else 'BLOCK'}`",
         f"- Release reliance authorized: `{'yes' if report.get('release_reliance_authorized') else 'no'}`",
         f"- Single-turn spread result: `{'PASS' if report.get('single_turn_spread_passed') else 'BLOCK'}`",
         f"- Single-turn delta result: `{'PASS' if report.get('single_turn_delta_passed') else 'BLOCK'}`",
@@ -670,6 +851,11 @@ def _render_markdown(report: dict[str, Any]) -> str:
                 f"- {item['agent']}: total={_fmt(residual.get('total'))}, "
                 f"ROBUSTNESS={_fmt(residual.get('ROBUSTNESS'))}; status={item['status']}"
             )
+
+    approval = report.get("approval_provenance") or {}
+    if approval.get("errors"):
+        lines.extend(["", "## Approval Provenance Blockers", ""])
+        lines.extend(f"- {error}" for error in approval["errors"])
 
     lines.extend([
         "",
@@ -729,6 +915,13 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _display_path(path: Path) -> Path:
+    try:
+        return path.resolve().relative_to(REPO)
+    except ValueError:
+        return path.resolve()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     report, md_path = run_gate(
@@ -741,7 +934,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(md_path.relative_to(REPO))
+    print(_display_path(md_path))
     return 0 if report["passed"] else 1
 
 
