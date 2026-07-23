@@ -60,12 +60,12 @@ def test_beaaa16972_registry_promotes_only_two_families() -> None:
         assert mapping["scoring"] == "reported_not_scored"
 
 
-def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_rows(tmp_path) -> None:
+def test_beaaa16972_executable_rollback_restores_181_without_touching_unrelated_rows(tmp_path) -> None:
     mapping_dir = tmp_path / "probe_mappings"
     copytree(MAPPING_DIR, mapping_dir)
 
     before_rows = build_registry(mapping_dir)
-    assert count_active_executable(before_rows) == 340
+    assert count_active_executable(before_rows) == 216
 
     unrelated_before = {
         (row["test_id"], row["case_id"], row["risk_or_rubric_id"]): row
@@ -87,7 +87,7 @@ def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_
         path.write_text(yaml.safe_dump(row, sort_keys=False), encoding="utf-8")
 
     after_rows = build_registry(mapping_dir)
-    assert count_active_executable(after_rows) == 305
+    assert count_active_executable(after_rows) == 181
 
     for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
         restored_rows = [row for row in after_rows if row["test_id"] == family]

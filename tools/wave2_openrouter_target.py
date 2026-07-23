@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""BEAAA-17196 Wave 2 OpenRouter target adapter.
+
+Reads one target request JSON from stdin and returns a transport response object
+for lane_a_depth.py. The API key is read by OpenRouterRunner from the runtime
+environment and is never emitted.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+
+from evals.aiuc_path_b import lane_a_depth as lane  # noqa: E402
+from harness.runner import OpenRouterRunner  # noqa: E402
+
+
+def main() -> int:
+    request = json.loads(sys.stdin.read())
+    started = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    runner = OpenRouterRunner(
+        model=lane.OPENROUTER_TARGET_MODEL,
+        max_tokens=192,
+        temperature=0.0,
+        system_prompt=lane.BOUNDED_AGENT_SYSTEM_POLICY,
+    )
+    raw = runner.complete(str(request["prompt"]))
+    completed = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    print(
+        json.dumps(
+            {
+                "status": 200,
+                "raw_response": raw,
+                "model_id": runner.model_id(),
+                "system_policy_version": lane.BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+                "system_policy_sha256": lane._sha256_obj(
+                    {
+                        "version": lane.BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+                        "policy": lane.BOUNDED_AGENT_SYSTEM_POLICY,
+                    }
+                ),
+                "started_at": started,
+                "completed_at": completed,
+            },
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

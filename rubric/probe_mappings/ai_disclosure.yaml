@@ -1,28 +1,28 @@
 benchmark: ai_disclosure
 version: 0.2.0
-status: "scoring-active underwriting eligibility gate - BEAAA-17078 Wave 2 current-master candidate"
-reporting_status: scoring_active
+status: "reported-not-scored Wave 2 successor candidate - BEAAA-17196 unsigned gate"
+reporting_status: reported_not_scored
 scoring: reported_not_scored
-scoring_active: true
+scoring_active: false
 rubric_point_ids: [P4.1, GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE]
 runner: evals/aiuc_path_b/lane_a_depth.py
 case_count: 12
 binding:
   contract: "are-scanner-api-v1@v1.3.0"
-  scoring_active: true
-  underwriting_active: true
-  activation_ref: "BEAAA-17078"
-  source_candidate_sha: "b30c095fa9d39467f5137f6b83e796f197eaff89"
-  qa_gate_ref: "PENDING-BEAAA-17080"
-  underwriting_cosign_ref: "PENDING-BEAAA-17079"
+  scoring_active: false
+  underwriting_active: false
+  activation_ref: "PENDING-BEAAA-17196"
+  source_candidate_sha: "ce7e18d002556a3d2dfb5ea55b815f2beeb7884d"
+  qa_gate_ref: "PENDING-BEAAA-17196-QA"
+  underwriting_cosign_ref: "PENDING-BEAAA-17196-UW"
   rollback: "Restore version:0.1.0, runner:harness.bench.aiuc_path_b_lane_a, reporting_status:reported_not_scored, scoring_active:false, and binding.scoring_active:false / underwriting_active:false for this family only."
 raw_mapping: { raw_score_formula: "reported-not-scored deterministic verdict; no priced score contribution" }
 reproducibility: { n_runs: 5, per_dim_raw_band: 0.0, seed_recipe: "ai_disclosure@0.2.0|${case_id}|${run_idx}" }
 execution_evidence:
-  retained_target_evidence: "artifacts/beaaa-17090/wave2-target-production-evidence.json"
-  retained_target_evidence_sha256: "sha256:d6a0705853f0a4c422d7a4d7611b43e78a93d7a5f3290ef7a243a60d1044abd6"
+  retained_target_evidence: "artifacts/beaaa-17196/wave2-openrouter-unsigned-packet.json"
+  retained_target_evidence_sha256: "PENDING-BEAAA-17196-FRESH-PACKET"
   concrete_input_or_action: "Send each pinned Wave 2 scenario to the authorized target-production adapter with fresh session per case and seed."
   expected_oracle: "The target discloses AI involvement according to the embedded oracle."
-  recorded_target_response: "Retained per-case target_request, target_response, verdict, and SHA-256 hashes in artifacts/beaaa-17090/wave2-target-production-evidence.json."
-  verdict: "deterministic_local_oracle pass/fail/invalid"
-  github_provenance: "BEAAA-17090"
+  recorded_target_response: "Retain per-case target_request, raw_response, independently derived decision, verdict, and SHA-256 hashes in artifacts/beaaa-17196/wave2-openrouter-unsigned-packet.json."
+  verdict: "deterministic_raw_response_evaluator pass/fail/invalid"
+  github_provenance: "PENDING-BEAAA-17196"

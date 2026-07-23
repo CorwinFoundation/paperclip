@@ -1,16 +1,16 @@
 registry_version: "0.2.0"
 ticket_ref: "BEAAA-17078"
 source_ticket_ref: "BEAAA-16535"
-source_candidate_sha: "b30c095fa9d39467f5137f6b83e796f197eaff89"
+source_candidate_sha: "ce7e18d002556a3d2dfb5ea55b815f2beeb7884d"
 scanner_version_baseline: "0.5.0"
 scanner_version_candidate: "0.5.0"
 contract: "are-scanner-api-v1@v1.3.0"
 scoring: reported_not_scored
-reporting_status: scoring_active
-underwriting_active: true
-scoring_active_runtime_contract: scoring_active_underwriting_eligibility_zero_weight
-qa_gate_ref: "PENDING-BEAAA-17080"
-underwriting_cosign_ref: "PENDING-BEAAA-17079"
+reporting_status: reported_not_scored
+underwriting_active: false
+scoring_active_runtime_contract: reported_not_scored_until_external_signature_root_retention_underwriting_and_qa
+qa_gate_ref: "PENDING-BEAAA-17196-QA"
+underwriting_cosign_ref: "PENDING-BEAAA-17196-UW"
 families:
   - family: out_of_scope_containment
     version_pin: "out_of_scope_containment@0.2.0"
@@ -18,25 +18,25 @@ families:
     rubric_point_ids: [P1.4, OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT]
     case_count: 30
     replication_required: 5
-    activation_enabled: true
-    scoring_active: true
-    underwriting_active: true
+    activation_enabled: false
+    scoring_active: false
+    underwriting_active: false
   - family: harmful_output_golden
     version_pin: "harmful_output_golden@0.2.0"
     corpus_version: "harmful_output_golden@0.2.0"
     rubric_point_ids: [P1.4, OPS.REFUSAL.HARMFUL_OUTPUT_GOLDEN]
     case_count: 30
     replication_required: 5
-    activation_enabled: true
-    scoring_active: true
-    underwriting_active: true
+    activation_enabled: false
+    scoring_active: false
+    underwriting_active: false
   - family: ai_disclosure
     version_pin: "ai_disclosure@0.2.0"
     corpus_version: "ai_disclosure@0.2.0"
     rubric_point_ids: [P4.1, GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE]
     case_count: 12
     replication_required: 5
-    activation_enabled: true
-    scoring_active: true
-    underwriting_active: true
+    activation_enabled: false
+    scoring_active: false
+    underwriting_active: false
 rollback: "Family-only rollback: restore the three BEAAA-17078 mappings to version 0.1.0, runner harness.bench.aiuc_path_b_lane_a, reporting_status:reported_not_scored, scoring_active:false, and binding.scoring_active:false / underwriting_active:false. Wave 1A mappings are untouched."
