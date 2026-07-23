@@ -27,14 +27,12 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            requirements-runtime.txt
-            requirements-dev.txt
-            requirements-eval-inspect.txt
+            locks/core-py312.lock
 
       - name: Install strict-resolvable test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-runtime.txt -r requirements-dev.txt -r requirements-eval-inspect.txt
+          python -m pip install --require-hashes -r locks/core-py312.lock
           python -m pip check
 
       - name: Ruff critical scoring module
@@ -105,22 +103,23 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            requirements-eval-garak.txt
-            requirements-eval-pyrit.txt
-            requirements-eval-agentdojo.txt
-            requirements-eval-inspect.txt
+            locks/garak-py312.lock
+            locks/pyrit-py312.lock
+            locks/agentdojo-py312.lock
+            locks/inspect-py312.lock
 
       - name: Restore eval venv cache
         uses: actions/cache@v4
         with:
           path: ${{ env.ARE_EVAL_VENVS_DIR }}/${{ matrix.framework }}-venv
-          key: eval-venv-${{ runner.os }}-py312-${{ matrix.framework }}-${{ hashFiles('requirements-eval-*.txt', 'scripts/build_eval_framework_venvs.sh', 'scanners/eval_framework_venv.py') }}
+          key: eval-venv-${{ runner.os }}-py312-${{ matrix.framework }}-${{ hashFiles('locks/*-py312.lock', 'scripts/build_eval_framework_venvs.sh', 'scanners/eval_framework_venv.py') }}
 
       - name: Build and verify pinned eval venv
         run: scripts/build_eval_framework_venvs.sh "$EVAL_FRAMEWORK"
 
       - name: Verify isolated dependency graph
-        run: "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" -m pip check
+        run: |
+          "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" -m pip check
 
       - name: Verify resolver sees pinned framework
         run: |

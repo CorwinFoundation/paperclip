@@ -37,10 +37,10 @@ PYTHON="${PYTHON:-python3}"
 
 # framework -> "requirements-file import-module expected-version"
 declare -A FRAMEWORKS=(
-  [garak]="requirements-eval-garak.txt garak 0.10.0"
-  [pyrit]="requirements-eval-pyrit.txt pyrit 0.6.0"
-  [agentdojo]="requirements-eval-agentdojo.txt agentdojo 0.1.35"
-  [inspect]="requirements-eval-inspect.txt inspect_ai 0.3.220"
+  [garak]="locks/garak-py312.lock garak 0.10.0"
+  [pyrit]="locks/pyrit-py312.lock pyrit 0.6.0"
+  [agentdojo]="locks/agentdojo-py312.lock agentdojo 0.1.35"
+  [inspect]="locks/inspect-py312.lock inspect_ai 0.3.220"
 )
 
 if [[ $# -gt 0 ]]; then
@@ -75,7 +75,8 @@ build_one() {
 
   "$PYTHON" -m venv "$vdir"
   "$vpy" -m pip install --upgrade pip >/dev/null
-  "$vpy" -m pip install -r "$REPO_ROOT/$req"
+  "$vpy" -m pip install --require-hashes -r "$REPO_ROOT/$req"
+  "$vpy" -m pip check
 
   # Verify the framework imports and reports the pinned version.
   local got
