@@ -54,13 +54,19 @@ jobs:
 
       - name: Prove pytest discovers integration regressions
         run: |
-          python -m pytest --collect-only -q tests | tee pytest-collection.txt
+          python -m pytest --collect-only -q tests \
+            --ignore=tests/test_inspect_runner.py \
+            --ignore=tests/unit/test_inspect_provenance_pin.py \
+            | tee pytest-collection.txt
           grep -F "tests/integration/test_customer_runner_egress.py::TestCustomerRunnerRefusesLoopbackRedirect::test_runner_refuses_loopback_pivot_via_redirect" pytest-collection.txt
           grep -F "tests/integration/test_invocation_context_e2e.py::test_rescans_includes_invocation_context_in_score_inputs" pytest-collection.txt
           grep -F "tests/integration/test_walker_customer_agent_v0_3.py::TestAGB1WalkerRoundTrip::test_walker_yields_rows_against_echo_server" pytest-collection.txt
 
       - name: Run tests
-        run: python -m pytest -v -ra tests
+        run: |
+          python -m pytest -v -ra tests \
+            --ignore=tests/test_inspect_runner.py \
+            --ignore=tests/unit/test_inspect_provenance_pin.py
 
   eval-framework-venvs:
     name: eval venv (${{ matrix.framework }})
@@ -159,6 +165,13 @@ jobs:
               )
           print(f"{framework}: imported {import_name}=={version}")
           PY
+
+      - name: Run Inspect-specific tests in pinned Inspect environment
+        if: matrix.framework == 'inspect'
+        run: |
+          "$ARE_EVAL_VENVS_DIR/inspect-venv/bin/python" -m pytest -v -ra \
+            tests/test_inspect_runner.py \
+            tests/unit/test_inspect_provenance_pin.py
 
       - name: Report datasets resolver split
         if: matrix.framework == 'garak' || matrix.framework == 'pyrit'

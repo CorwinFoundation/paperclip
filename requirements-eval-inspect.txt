@@ -10,3 +10,8 @@
 # requirements.txt; a bump is a rule-change (CTO co-sign + fresh N=5 delta) per
 # contracts/scanner-implementation-supervision-v1.md.
 inspect-ai==0.3.220
+
+# Test runner for the Inspect-only CI lane. Keeping it in this hashed slice
+# lets that lane execute the Inspect-specific tests without leaking Inspect AI
+# into the core environment.
+pytest==9.0.3

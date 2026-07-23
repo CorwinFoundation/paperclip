@@ -50,7 +50,7 @@
     },
     "inspect": {
       "path": "locks/inspect-py312.lock",
-      "sha256": "86dd4378953775c6f95f03317744aaa642890d1811909b9d95715605cfe63f56"
+      "sha256": "24b30f393092284cb052f33a2901ba475739dea02bef2146aef7cb931b731217"
     }
   }
 }
