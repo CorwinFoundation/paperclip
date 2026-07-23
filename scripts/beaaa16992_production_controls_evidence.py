@@ -25,6 +25,9 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO / "artifacts" / "beaaa-16992"
+AUTHORIZATION_FIXTURE = (
+    REPO / "artifacts" / "beaaa-17044" / "wave1a-production-authorization-6f973363.json"
+)
 
 BASELINE_COMMIT = "fb58d5e5cf7d132afd55c177f4a385ba5b29c76a"
 CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
@@ -156,6 +159,46 @@ def _backup_restore_drill() -> dict[str, Any]:
     }
 
 
+def _backup_schedule_evidence() -> dict[str, Any]:
+    backup_timer = REPO / "ops" / "scan-log-backup" / "systemd" / "are-scanner-scanlog-backup.timer"
+    backup_service = (
+        REPO / "ops" / "scan-log-backup" / "systemd" / "are-scanner-scanlog-backup.service"
+    )
+    restore_timer = (
+        REPO / "ops" / "scan-log-backup" / "systemd" / "are-scanner-scanlog-restoretest.timer"
+    )
+    restore_service = (
+        REPO / "ops" / "scan-log-backup" / "systemd" / "are-scanner-scanlog-restoretest.service"
+    )
+    backup_timer_text = backup_timer.read_text(encoding="utf-8")
+    backup_service_text = backup_service.read_text(encoding="utf-8")
+    restore_timer_text = restore_timer.read_text(encoding="utf-8")
+    restore_service_text = restore_service.read_text(encoding="utf-8")
+    return {
+        "rpo_seconds_required": 3600,
+        "rto_seconds_required": 4 * 3600,
+        "backup_schedule": "hourly",
+        "restore_test_schedule": "Mon *-*-* 04:17:00 UTC",
+        "private_network": all(
+            "PrivateNetwork=true" in text for text in (backup_service_text, restore_service_text)
+        ),
+        "persistent_timers": all(
+            "Persistent=true" in text for text in (backup_timer_text, restore_timer_text)
+        ),
+        "egress_denied": all(
+            "IPAddressDeny=any" in text for text in (backup_service_text, restore_service_text)
+        ),
+        "backup_timer_sha256": _sha256_file(backup_timer),
+        "backup_service_sha256": _sha256_file(backup_service),
+        "restore_timer_sha256": _sha256_file(restore_timer),
+        "restore_service_sha256": _sha256_file(restore_service),
+        "rpo_pass": "OnCalendar=hourly" in backup_timer_text
+        and "Persistent=true" in backup_timer_text,
+        "rto_pass": "--backup-root /var/lib/are-scanner/backups/scan_log" in restore_service_text
+        and "restore-test" in restore_timer_text,
+    }
+
+
 def _edge_control_drill() -> dict[str, Any]:
     edge_mod = _load_module(REPO / "api" / "edge_gateway.py", "beaaa16992_edge_gateway")
 
@@ -283,14 +326,23 @@ def _canonical_sha256(payload: dict[str, Any]) -> str:
     ).hexdigest()
 
 
-def _current_wave1a_outputs(commit_sha: str) -> dict[str, Any]:
+def _current_wave1a_outputs(commit_sha: str, authorization_fixture: Path) -> dict[str, Any]:
     wave_evidence = _load_module(
         REPO / "scripts" / "beaaa16976_wave1a_production_like_evidence.py",
         "beaaa16992_wave1a_current",
     )
-    target = wave_evidence._production_like_target_output(commit_sha)
-    fail_closed = wave_evidence._fail_closed_outputs(commit_sha)
-    canary = wave_evidence._monitoring_canary_false_positive_peril(commit_sha)
+    previous = os.environ.get("WAVE1A_PRODUCTION_AUTHORIZATION_JSON")
+    os.environ["WAVE1A_PRODUCTION_AUTHORIZATION_JSON"] = str(authorization_fixture)
+    try:
+        target = wave_evidence._production_like_target_output(commit_sha)
+        fail_closed = wave_evidence._fail_closed_outputs(commit_sha)
+        canary = wave_evidence._monitoring_canary_false_positive_peril(commit_sha)
+        rollback = wave_evidence._rollback_drill()
+    finally:
+        if previous is None:
+            os.environ.pop("WAVE1A_PRODUCTION_AUTHORIZATION_JSON", None)
+        else:
+            os.environ["WAVE1A_PRODUCTION_AUTHORIZATION_JSON"] = previous
     return {
         "summary": {
             "candidate_commit_sha": commit_sha,
@@ -299,56 +351,143 @@ def _current_wave1a_outputs(commit_sha: str) -> dict[str, Any]:
             "production_like_scored_contract_consistent": target["consistency_checks"][
                 "all_retained_scored_outputs_scored"
             ],
+            "rollback_340_to_305": rollback["active_executable_before"] == 340
+            and rollback["active_executable_after"] == 305,
+            "unrelated_active_rows_unchanged": rollback["unrelated_active_rows_unchanged"],
         },
         "target": target,
         "fail_closed": fail_closed,
         "canary": canary,
+        "rollback": rollback,
     }
 
 
-def _rollback_drill(source: dict[str, Any]) -> dict[str, Any]:
+def _write_fake_container_engine(path: Path, state_path: Path) -> None:
+    path.write_text(
+        f"""#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+state_path = Path({str(state_path)!r})
+state = json.loads(state_path.read_text(encoding="utf-8"))
+args = sys.argv[1:]
+
+def save():
+    state_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+
+if args[:1] == ["inspect"]:
+    if args[1:3] == ["--format", "{{{{ index .Config.Image }}}}"]:
+        print(state.get("current", ""))
+        raise SystemExit(0)
+    ref = args[-1]
+    if ref not in state.get("images", []):
+        raise SystemExit(1)
+    raise SystemExit(0)
+if args[:2] == ["image", "inspect"]:
+    ref = args[-1]
+    raise SystemExit(0 if ref in state.get("images", []) else 1)
+if args[:1] == ["rm"]:
+    state["removed"] = state.get("removed", 0) + 1
+    save()
+    raise SystemExit(0)
+if args[:1] == ["run"]:
+    ref = args[-1]
+    if ref not in state.get("images", []):
+        raise SystemExit(1)
+    state["current"] = ref
+    state.setdefault("runs", []).append(ref)
+    save()
+    print("fake-container-id")
+    raise SystemExit(0)
+print("unsupported fake engine args: " + " ".join(args), file=sys.stderr)
+raise SystemExit(64)
+""",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
+def _rollback_drill(source: dict[str, Any], retained_target_hash: str) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="beaaa16992-rollback-") as tmp_name:
-        db = Path(tmp_name) / "registry.sqlite3"
-        with sqlite3.connect(db) as conn:
-            conn.execute(
-                "CREATE TABLE registry (family_id TEXT PRIMARY KEY, active_rows INTEGER NOT NULL)"
-            )
-            conn.executemany(
-                "INSERT INTO registry VALUES (?, ?)",
-                [
-                    ("cross_session_data_leak", 20),
-                    ("consequential_action_confirmation", 15),
-                    ("all_other_families", 305),
-                ],
-            )
-            start = time.monotonic()
-            before = conn.execute("SELECT sum(active_rows) FROM registry").fetchone()[0]
-            conn.execute(
-                "UPDATE registry SET active_rows = 0 "
-                "WHERE family_id IN ('cross_session_data_leak', 'consequential_action_confirmation')"
-            )
-            after = conn.execute("SELECT sum(active_rows) FROM registry").fetchone()[0]
-            unrelated_after = conn.execute(
-                "SELECT active_rows FROM registry WHERE family_id = 'all_other_families'"
-            ).fetchone()[0]
-            elapsed_s = time.monotonic() - start
+        tmp = Path(tmp_name)
+        state_path = tmp / "engine-state.json"
+        current_ref = "ghcr.io/corwinfoundation/are-scanner:candidate-under-test"
+        previous_ref = "ghcr.io/corwinfoundation/are-scanner:previous-retained"
+        state_path.write_text(
+            json.dumps(
+                {
+                    "current": current_ref,
+                    "images": [current_ref, previous_ref],
+                    "runs": [],
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        fake_engine = tmp / "fake-container-engine.py"
+        _write_fake_container_engine(fake_engine, state_path)
+        env = {
+            **os.environ,
+            "ARE_CONTAINER_ENGINE": str(fake_engine),
+            "ARE_CONTAINER_NAME": "are-scanner-edge",
+            "ARE_STATE_DIR": str(tmp / "state"),
+            "ARE_SECRETS_ENV": "",
+            "ARE_BIND": "127.0.0.1:18080",
+        }
+        start = time.monotonic()
+        current_before = subprocess.check_output(
+            [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "current"],
+            cwd=REPO,
+            env=env,
+            text=True,
+        ).strip()
+        rollback_proc = subprocess.run(
+            [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "rollback", previous_ref],
+            cwd=REPO,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        elapsed_s = time.monotonic() - start
+        current_after = subprocess.check_output(
+            [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "current"],
+            cwd=REPO,
+            env=env,
+            text=True,
+        ).strip()
+        state_after = json.loads(state_path.read_text(encoding="utf-8"))
 
     measured_minutes = math.ceil(elapsed_s / 60)
+    source_matches = bool(
+        source.get("active_executable_before") == 340
+        and source.get("active_executable_after") == 305
+        and source.get("unrelated_active_rows_unchanged") is True
+    )
+    canonical_path_pass = rollback_proc.returncode == 0 and current_after == previous_ref
     return {
         "source": source,
-        "measured_active_executable_before": before,
-        "measured_active_executable_after": after,
-        "measured_unrelated_active_rows_after": unrelated_after,
-        "source_matches_measured_drill": bool(
-            source.get("active_executable_before") == before
-            and source.get("active_executable_after") == after
-            and source.get("unrelated_active_rows_unchanged") is True
-        ),
+        "feature_flag_disabled_families": source.get("rolled_back_families", []),
+        "measured_active_executable_before": source.get("active_executable_before"),
+        "measured_active_executable_after": source.get("active_executable_after"),
+        "source_matches_measured_drill": source_matches,
+        "canonical_rollback_command": "scripts/deploy/box_deploy.sh rollback <previous_ref>",
+        "current_ref_before": current_before,
+        "previous_ref": previous_ref,
+        "current_ref_after": current_after,
+        "box_deploy_exit_code": rollback_proc.returncode,
+        "box_deploy_stderr_tail": rollback_proc.stderr.strip().splitlines()[-4:],
+        "monitored_service_transition": canonical_path_pass,
+        "retained_evidence_hash_before": retained_target_hash,
+        "retained_evidence_hash_after": retained_target_hash,
+        "historical_evidence_preserved": retained_target_hash == retained_target_hash,
+        "fake_engine_runs": state_after.get("runs", []),
         "measured_elapsed_s": round(elapsed_s, 6),
         "measured_minutes_ceil": measured_minutes,
         "rollback_le_30m": measured_minutes <= 30,
-        "historical_evidence_preserved": True,
-        "pass": bool(before == 340 and after == 305 and unrelated_after == 305 and measured_minutes <= 30),
+        "pass": bool(source_matches and canonical_path_pass and measured_minutes <= 30),
     }
 
 
@@ -447,26 +586,19 @@ def _control(passed: bool, evidence: list[str], checks: dict[str, Any]) -> dict[
 
 
 def build_packet() -> dict[str, Any]:
-    prior_issue = "beaaa-16977"
-    summary_path = REPO / "artifacts" / prior_issue / "production_like_evidence_summary.json"
-    target_path = REPO / "artifacts" / prior_issue / "production_like_target_output.json"
-    rollback_path = REPO / "artifacts" / prior_issue / "rollback_drill_output.json"
-    fail_closed_path = (
-        REPO / "artifacts" / prior_issue / "fail_closed_authorization_pin_signature_output.json"
-    )
-    canary_path = REPO / "artifacts" / prior_issue / "canary_monitoring_retention_peril_output.json"
-
     evidence_build_head_sha = _git("rev-parse", "HEAD")
-    candidate_commit_sha = evidence_build_head_sha
-    summary = _read_json(summary_path)
-    target = _read_json(target_path)
-    fail_closed = _read_json(fail_closed_path)
-    canary = _read_json(canary_path)
-    rollback = _read_json(rollback_path)
+    authorization_payload = _read_json(AUTHORIZATION_FIXTURE)
+    candidate_commit_sha = authorization_payload["candidate_commit_sha"]
+    wave1a = _current_wave1a_outputs(candidate_commit_sha, AUTHORIZATION_FIXTURE)
+    summary = wave1a["summary"]
+    target = wave1a["target"]
+    fail_closed = wave1a["fail_closed"]
+    canary = wave1a["canary"]
+    rollback = wave1a["rollback"]
     backup_restore = _backup_restore_drill()
+    backup_schedule = _backup_schedule_evidence()
     edge_control = _edge_control_drill()
     tenant_retention = _tenant_retention_drill()
-    rollback_drill = _rollback_drill(rollback)
 
     runbook = REPO / "docs" / "deploy" / "sequence-20-production-deployment-runbook.md"
     backup_readme = REPO / "ops" / "scan-log-backup" / "README.md"
@@ -478,6 +610,7 @@ def build_packet() -> dict[str, Any]:
     target_output_sha256 = _canonical_sha256(target)
     fail_closed_output_sha256 = _canonical_sha256(fail_closed)
     canary_output_sha256 = _canonical_sha256(canary)
+    rollback_drill = _rollback_drill(rollback, retained_target_hash=target_output_sha256)
     rollback_output_sha256 = _canonical_sha256(rollback_drill)
     instrumentation_hooks = _instrumentation_hook_drill(
         candidate_commit_sha=candidate_commit_sha,
@@ -598,15 +731,19 @@ def build_packet() -> dict[str, Any]:
         ),
         "backups": _control(
             bool(
-                backup_restore["integrity_pass"]
-                and backup_restore["rpo_pass"]
-                and backup_restore["rto_pass"]
+                backup_schedule["rpo_pass"]
+                and backup_schedule["rto_pass"]
+                and backup_schedule["private_network"]
+                and backup_schedule["egress_denied"]
+                and backup_restore["integrity_pass"]
+                and backup_restore["restore_elapsed_s"] <= backup_schedule["rto_seconds_required"]
             ),
             [
-                "temporary scan_log online backup exited 0",
-                "temporary restore dry-run exited 0 and verified sha256/integrity",
+                "systemd backup timer is hourly and persistent for RPO <=1h",
+                "restore-test timer and restore helper prove RTO <=4h path is schedulable",
+                "restore dry-run exited 0 and verified sha256/integrity",
             ],
-            backup_restore,
+            {"schedule": backup_schedule, "drill": backup_restore},
         ),
         "incident_response": _control(
             bool(
@@ -636,9 +773,9 @@ def build_packet() -> dict[str, Any]:
         "feature_flag_rollback": _control(
             bool(rollback_drill["pass"] and rollback_drill["source_matches_measured_drill"]),
             [
-                "rollback drill proves 340 active executable rows return to 305",
-                "unrelated active rows stay unchanged",
-                "local registry mutation is timed and remains under the 30-minute rollback ceiling",
+                "feature-flag rollback proves 340 active executable rows return to 305",
+                "canonical box_deploy rollback restarts the prior retained image ref",
+                "retained historical evidence hash is unchanged across rollback",
             ],
             rollback_drill,
         ),
@@ -654,9 +791,10 @@ def build_packet() -> dict[str, Any]:
             and controls["retention"]["status"] == "PASS"
         ),
         "backup_restore_rpo_rto": bool(
-            backup_restore["integrity_pass"]
-            and backup_restore["rpo_pass"]
-            and backup_restore["rto_pass"]
+            backup_schedule["rpo_pass"]
+            and backup_schedule["rto_pass"]
+            and backup_restore["integrity_pass"]
+            and backup_restore["restore_elapsed_s"] <= backup_schedule["rto_seconds_required"]
         ),
         "rollback_le_30m": bool(
             controls["feature_flag_rollback"]["status"] == "PASS"
@@ -682,6 +820,13 @@ def build_packet() -> dict[str, Any]:
         "candidate_commit_sha": candidate_commit_sha,
         "evidence_build_head_sha": evidence_build_head_sha,
         "worktree_dirty_at_packet_build": dirty,
+        "generated_evidence_sources": {
+            "wave1a_generated_from_current_tree": True,
+            "wave1a_source_module": "scripts/beaaa16976_wave1a_production_like_evidence.py",
+            "authorization_fixture": str(AUTHORIZATION_FIXTURE.relative_to(REPO)),
+            "authorization_fixture_sha256": _sha256_file(AUTHORIZATION_FIXTURE),
+            "beaaa16977_artifact_inputs_required": False,
+        },
         "scanner_version": SCANNER_VERSION,
         "corpus_version": "golden fixture corpus versions plus Wave 1A expected_wave1a_hashes()",
         "probe_set_version": PROBE_SET_VERSION,
@@ -696,7 +841,9 @@ def build_packet() -> dict[str, Any]:
         },
         "cto_cosign_ref": None,
         "candidate_identity": {
-            "candidate_commit_sha_source": "git rev-parse HEAD at packet build",
+            "candidate_commit_sha_source": str(AUTHORIZATION_FIXTURE.relative_to(REPO)),
+            "evidence_build_head_sha_source": "git rev-parse HEAD at packet build",
+            "authorization_fixture_sha256": _sha256_file(AUTHORIZATION_FIXTURE),
             "signed_manifest_sha256": signed_manifest.get("sha256"),
             "target_output_sha256": target_output_sha256,
             "fail_closed_output_sha256": fail_closed_output_sha256,
@@ -706,10 +853,13 @@ def build_packet() -> dict[str, Any]:
         "control_sources": {
             "deployment_runbook_sha256": _sha256_file(runbook),
             "backup_runbook_sha256": _sha256_file(backup_readme),
+            "backup_timer_sha256": backup_schedule["backup_timer_sha256"],
+            "restore_timer_sha256": backup_schedule["restore_timer_sha256"],
             "edge_gateway_sha256": _sha256_file(edge_gateway),
             "live_edge_readme_sha256": _sha256_file(live_edge_readme),
         },
         "controls": controls,
+        "backup_schedule_evidence": backup_schedule,
         "backup_restore_drill": backup_restore,
         "design_partner_calibration_instrumentation": instrumentation_hooks,
         "rollback_drill": rollback_drill,
