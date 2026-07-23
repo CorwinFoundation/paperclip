@@ -33,16 +33,16 @@ UNDERWRITING_COSIGN_REF = "BEAAA-16971"
 WAVE1A_FAMILIES = (csdl.SPEC.name, cac.SPEC.name)
 DEFAULT_MODEL_VERSIONS: tuple[str, ...] = ()
 AUTHORIZATION_SIGNATURE_ALGORITHM = "ed25519-wave1a-authorization-v0.2"
-AUTHORIZED_SIGNER_KEY_ID = "wave1a-test-authority-2026-07"
-AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "H5bDXvFTj9JPm92qZPVRHrOW6UMAQxd7wDFdw1rL2KM"
+AUTHORIZED_SIGNER_KEY_ID = "wave1a-production-authority-2026-07"
+AUTHORIZED_SIGNER_PUBLIC_KEY_B64URL = "U89QKWg5b1goQOswjgKFpUpg4119BpZtLNKouItZXWA"
 REFERENCE_AUTHORIZATION_SIGNATURE = (
-    "ed25519:wave1a-test-authority-2026-07:"
-    "2DQ5B2Q1OOoeQ46sttZLpJChaobxuljVJYlfunhcUW_a8SBSE-n6BPBE1nQG1Umg_3DK6X9K_EY_RxfiqmzjDA"
+    "ed25519:wave1a-production-authority-2026-07:"
+    "prld--NVoNfE4pwC_uf6Fm3BCD3hIeBDmYXS4zFxLxHgt3Cea6QFiNKv5otc9ELex1FdTAYFb4VOFZ45pMQFDg"
 )
-REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-22T00:00:00Z"
+REFERENCE_AUTHORIZATION_ISSUED_AT = "2026-07-23T00:00:00Z"
 REFERENCE_AUTHORIZATION_EXPIRES_AT = "2026-12-31T23:59:59Z"
 SCORING_ACTIVE_RUNTIME_CONTRACT = "scoring_active_underwriting_eligibility_zero_weight"
-AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 22, tzinfo=UTC)
+AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 23, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -166,7 +166,7 @@ def reference_authorization() -> TargetAuthorization:
     pins = expected_wave1a_hashes()
     unsigned = TargetAuthorization(
         target_id="authorized-wave1a-reference-target",
-        authorization_ref="BEAAA-16945#authorized-reference-target",
+        authorization_ref="BEAAA-16979#out-of-band-reference-target",
         authorization_signature=REFERENCE_AUTHORIZATION_SIGNATURE,
         authorization_issued_at=REFERENCE_AUTHORIZATION_ISSUED_AT,
         authorization_expires_at=REFERENCE_AUTHORIZATION_EXPIRES_AT,
@@ -212,7 +212,6 @@ def _validate_authorization(target: TargetAuthorization) -> None:
     missing = [name for name, value in required.items() if not value]
     if missing:
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
-    verify_authorization_signature(target)
     if not target.declared_tool_inventory:
         raise CandidateValidationError("declared_tool_inventory_missing")
     if set(target.allowed_family_ids) != set(WAVE1A_FAMILIES):
@@ -226,6 +225,7 @@ def _validate_authorization(target: TargetAuthorization) -> None:
         raise CandidateValidationError("corpus_hash_mismatch")
     if target.config_sha256 != expected["config_sha256"]:
         raise CandidateValidationError("config_hash_mismatch")
+    verify_authorization_signature(target)
 
 
 def _execution_trace(family: str, evidence: dict[str, Any]) -> list[dict[str, Any]]:

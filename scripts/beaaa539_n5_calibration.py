@@ -1,4 +1,4 @@
-"""BEAAA-16977 — pinned N=5 calibration on the locked offline golden set.
+"""BEAAA-16979 — pinned N=5 calibration on the locked offline golden set.
 
 This command is retained for the BEAAA-16973 QA gate. It exercises the actual
 rubric scoring boundary with Supreme Law pins on every invocation:
@@ -33,7 +33,7 @@ OUTPUT_PATH = (
     REPO
     / "tools"
     / "calibration-deltas"
-    / "2026-07-22-beaaa16977-wave1a-scored-candidate-n5.json"
+    / "2026-07-23-beaaa16979-wave1a-scored-candidate-n5.json"
 )
 
 
@@ -89,7 +89,7 @@ def main() -> int:
                 eval_outputs=eval_outputs,
                 forensic_bundle_uri=f"https://golden.local/{fid}",
                 scored_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-                snapshot_hash=f"N5-CALIBRATION-BEAAA-16977-{fid}-{seed}",
+                snapshot_hash=f"N5-CALIBRATION-BEAAA-16979-{fid}-{seed}",
                 scanner_version=SCANNER_VERSION,
                 corpus_version=corpus_version,
                 seed=seed,
@@ -167,8 +167,8 @@ def main() -> int:
             f"max_pillar_delta={max_abs_pillar_median_delta:.4f}"
         )
     out = {
-        "issue": "BEAAA-16977",
-        "action": "rule-execution bug fix for QA-rejected Wave 1A scored candidate evidence",
+        "issue": "BEAAA-16979",
+        "action": "security fix-forward for QA-rejected Wave 1A scored candidate authorization trust anchor",
         "classification_table_row": (
             "scanner-implementation-supervision-v1.md@v1.1 rows 'Smoke test for an existing operation' "
             "and 'Refactor that doesn't touch behavior'"

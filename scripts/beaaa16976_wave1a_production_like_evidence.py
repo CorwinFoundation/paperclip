@@ -1,4 +1,4 @@
-"""BEAAA-16977 retained production-like evidence for Wave 1A QA retest."""
+"""BEAAA-16979 retained production-like evidence for Wave 1A QA retest."""
 from __future__ import annotations
 
 import hashlib
@@ -23,7 +23,7 @@ from tools.active_test_registry import (  # noqa: E402
     count_active_executable,
 )
 
-OUT_DIR = REPO / "artifacts" / "beaaa-16977"
+OUT_DIR = REPO / "artifacts" / "beaaa-16979"
 MAPPING_DIR = REPO / "rubric" / "probe_mappings"
 
 
@@ -64,7 +64,7 @@ def _production_like_target_output(commit_sha: str) -> dict[str, Any]:
         for family, family_runs in runs.items()
     }
     return {
-        "issue": "BEAAA-16977",
+        "issue": "BEAAA-16979",
         "contract": wave.CONTRACT,
         "scanner_version": base.SCANNER_VERSION,
         "candidate_commit_sha": commit_sha,
@@ -182,7 +182,7 @@ def _fail_closed_outputs(commit_sha: str) -> dict[str, Any]:
     outputs["valid_signed_manifest_verification"] = wave.fail_closed_for_signed_manifest(valid_manifest)
     outputs["tampered_signed_manifest_verification"] = wave.fail_closed_for_signed_manifest(tampered_manifest)
     return {
-        "issue": "BEAAA-16977",
+        "issue": "BEAAA-16979",
         "candidate_commit_sha": commit_sha,
         "fail_closed_cases": outputs,
         "all_negative_cases_fail_closed": all(
@@ -213,7 +213,7 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
         cac.SPEC.name: base.verdict_tally(base.run_family(cac.SPEC, cac.reckless_policy, seed=0)),
     }
     return {
-        "issue": "BEAAA-16977",
+        "issue": "BEAAA-16979",
         "candidate_commit_sha": commit_sha,
         "canary": {
             "records": {family: [row["case_id"] for row in rows] for family, rows in canary_rows.items()},
@@ -250,7 +250,7 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
 def _rollback_drill() -> dict[str, Any]:
     import tempfile
 
-    with tempfile.TemporaryDirectory(prefix="beaaa16977-rollback-") as td:
+    with tempfile.TemporaryDirectory(prefix="beaaa16979-rollback-") as td:
         mapping_dir = Path(td) / "probe_mappings"
         copytree(MAPPING_DIR, mapping_dir)
         before_rows = build_registry(mapping_dir)
@@ -280,7 +280,7 @@ def _rollback_drill() -> dict[str, Any]:
             and row["production_runner_executable"] is True
         }
         return {
-            "issue": "BEAAA-16977",
+            "issue": "BEAAA-16979",
             "active_executable_before": count_active_executable(before_rows),
             "active_executable_after": count_active_executable(after_rows),
             "target_bound_runtime_before": len(before_rows),
@@ -300,7 +300,7 @@ def main() -> int:
     }
     written = {name: str(_write_json(name, payload).relative_to(REPO)) for name, payload in outputs.items()}
     summary = {
-        "issue": "BEAAA-16977",
+        "issue": "BEAAA-16979",
         "candidate_commit_sha": commit_sha,
         "outputs": written,
         "all_negative_cases_fail_closed": outputs["fail_closed_authorization_pin_signature_output.json"][
