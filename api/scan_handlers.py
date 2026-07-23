@@ -59,6 +59,7 @@ from api.full_scan_executor import (
 )
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
+from api import production_controls
 from api.scan_log import ScanLog
 from api.sla import (
     Clock,
@@ -267,6 +268,7 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
 #: legacy WS1/WS2 wiring is byte-identical.
 ScoreEnvelopeFactory = Callable[[ScanResult, str, str], dict[str, Any]]
 FullSuiteManifestUriFactory = Callable[[str | None, str], str]
+ProductionSecurityFindingsSource = Callable[[], Iterable[dict[str, Any]]]
 
 
 class ScanRuntime:
@@ -305,6 +307,8 @@ class ScanRuntime:
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
+        production_control_ledger: production_controls.ProductionControlLedger | None = None,
+        production_security_findings_source: ProductionSecurityFindingsSource | None = None,
         in_memory_state_ttl_seconds: float = DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS,
         monotonic_clock: Callable[[], float] | None = None,
     ) -> None:
@@ -352,6 +356,8 @@ class ScanRuntime:
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
         )
         self._score_envelope_factory = score_envelope_factory
+        self._production_control_ledger = production_control_ledger
+        self._production_security_findings_source = production_security_findings_source
         # Tracks the (agent_id, run_timestamp) of the current kickoff so the
         # handler can read the just-persisted row back without a second
         # scan_log scan (the row is keyed by that pair, not by scan_id).
@@ -433,6 +439,8 @@ class ScanRuntime:
                 scanner_invocation_context
             )
 
+        security_findings = self._production_security_findings()
+
         # A production full analysis is a registry job, not the historical
         # four-prompt scoring walker. Return the scan id immediately and run
         # the evidence-producing suite on a daemon worker.
@@ -477,7 +485,12 @@ class ScanRuntime:
             result,
             agent_id=agent_id,
         )
-        return self._record_completed_result(scan_request, result, agent_id=agent_id)
+        return self._record_completed_result(
+            scan_request,
+            result,
+            agent_id=agent_id,
+            production_security_findings=security_findings,
+        )
 
     def _run_full_scan_background(
         self,
@@ -508,6 +521,7 @@ class ScanRuntime:
                     scan_request,
                     result,
                     agent_id=agent_id,
+                    production_security_findings=self._production_security_findings(),
                 )
         except Exception as exc:  # never expose credential or response bodies
             failed = ScanResult(
@@ -532,6 +546,7 @@ class ScanRuntime:
         result: ScanResult,
         *,
         agent_id: str | None,
+        production_security_findings: dict[str, Any] | None = None,
     ) -> ScanResult:
         with self._state_lock:
             self._results[scan_request.scan_id] = result
@@ -576,7 +591,64 @@ class ScanRuntime:
                         run_timestamp=run_timestamp,
                         score_json=score_envelope,
                     )
+        self._append_production_control_result_record(
+            scan_request,
+            result,
+            agent_id=agent_id,
+            production_security_findings=production_security_findings,
+        )
         return result
+
+    def _production_security_findings(self) -> dict[str, Any] | None:
+        if self._production_security_findings_source is None:
+            return None
+        findings = self._production_security_findings_source()
+        result = production_controls.security_findings_result(findings)
+        if not result["pass"]:
+            blocking_ids = [
+                str(item.get("id", "unknown"))
+                for item in result.get("blocking_findings", [])
+            ]
+            raise OrchestratorError(
+                "production_control_security_findings_blocked:"
+                + ",".join(blocking_ids)
+            )
+        return result
+
+    def _append_production_control_result_record(
+        self,
+        scan_request: ScanRequest,
+        result: ScanResult,
+        *,
+        agent_id: str | None,
+        production_security_findings: dict[str, Any] | None,
+    ) -> None:
+        if self._production_control_ledger is None:
+            return
+        evidence_ref = _production_control_evidence_ref(result, scan_request.scan_id)
+        self._production_control_ledger.append(
+            {
+                "event_type": "result_record",
+                "design_partner_ref": scan_request.vendor_id
+                or agent_id
+                or scan_request.agent_id
+                or scan_request.tenant_id,
+                "scan_id": scan_request.scan_id,
+                "evidence_ref": evidence_ref,
+                "payload": {
+                    "scanner_version": result.scanner_version,
+                    "corpus_version": result.corpus_version,
+                    "seed": scan_request.seed,
+                    "status": result.status,
+                    "rows_emitted": result.rows_emitted,
+                    "security_findings_pass": (
+                        production_security_findings.get("pass")
+                        if production_security_findings is not None
+                        else None
+                    ),
+                },
+            }
+        )
 
     def _apply_registry_dispatch_guard(
         self,
@@ -906,6 +978,17 @@ def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
             for d in result.dim_results
         ],
     }
+
+
+def _production_control_evidence_ref(result: ScanResult, scan_id: str) -> str:
+    manifest = result.full_suite_manifest or {}
+    manifest_ref = manifest.get("manifest_evidence_ref")
+    if isinstance(manifest_ref, str) and manifest_ref:
+        return manifest_ref
+    manifest_hash = manifest.get("manifest_hash")
+    if isinstance(manifest_hash, str) and manifest_hash:
+        return f"scanner://full-suite-manifests/{scan_id}#{manifest_hash}"
+    return f"scanner://scan-results/{scan_id}"
 
 
 def _uw_payload(result: ScanResult) -> dict[str, Any]:

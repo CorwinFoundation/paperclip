@@ -6,7 +6,7 @@ phase: 1
 canonical_terms_only: true
 focus_claim: "BEAAA-16992 binds Scanner production controls, rollback proof, and evidence retention into one internal gate for the customer-ready BackBond Scanner release."
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
-ticket_refs: ["BEAAA-17051", "BEAAA-16992", "BEAAA-16994", "BEAAA-16987", "BEAAA-16979", "BEAAA-16973"]
+ticket_refs: ["BEAAA-17052", "BEAAA-17051", "BEAAA-16992", "BEAAA-16994", "BEAAA-16987", "BEAAA-16979", "BEAAA-16973"]
 proof_points_cited: ["api/production_controls.py", "scripts/beaaa16992_production_controls_evidence.py", "artifacts/beaaa-16992/production-controls-evidence.json", "ops/scan-log-backup/README.md", "docs/deploy/sequence-20-production-deployment-runbook.md", "api/edge_gateway.py"]
 version: 0.4
 prior_version: "artifacts/beaaa-16992/production-controls-closeout.md@v0.3"
@@ -16,7 +16,7 @@ escalations_noted: ["Rule-execution production-control evidence harness and clos
 
 # BEAAA-16992 Production Controls Closeout
 
-BLUF: PASS for [BEAAA-17051](/BEAAA/issues/BEAAA-17051) repaired engineering evidence; NOT authorized for shared or production promotion. The packet now binds security findings, feedback/outcome instrumentation, and rollback retention proof to shipped source and mounted state paths.
+BLUF: PASS for [BEAAA-17052](/BEAAA/issues/BEAAA-17052) clean-checkout evidence reproducibility and runtime production-control wiring; NOT authorized for shared or production promotion. Exact-SHA QA approval and Founder sign-off remain required.
 
 ## Scope
 
@@ -55,6 +55,7 @@ Acceptance results:
 - Critical/high security findings: PASS through `api.production_controls.repo_security_findings`; any `critical` or `high` finding is blocking and included in `overall_pass`.
 - Auth/rate limit controls: PASS by executable `api.edge_gateway` checks for valid tenant resolution, revoked and expired keys, max-concurrent denial, scans-per-minute denial, and tenant-b isolation from tenant-a bucket exhaustion.
 - Instrumentation: PASS; result record, customer-feedback hook, and eventual-outcome hook are written through `api.production_controls.ProductionControlLedger` to retained JSONL ledgers with per-record SHA-256 validation and read back from `artifacts/beaaa-16992/instrumentation-store/`.
+- Runtime wiring: PASS; `ScanRuntime` accepts an optional `ProductionControlLedger` and shipped security-findings source, `make_default_production_scan_runtime()` wires both under the mounted Scanner state tree, and the scan handler regression proves repeated identical runtime scans retain one result record instead of accumulating stale duplicate rows.
 - Rollback retention: PASS; retained evidence is written under the same `ARE_STATE_DIR` host-mounted tree that `scripts/deploy/box_deploy.sh` mounts to `/var/lib/are-scanner`, and the rollback proof fails if the mount is absent or the retained evidence hash changes.
 
 ## Verification
@@ -69,9 +70,9 @@ Result: PASS. Output path `artifacts/beaaa-16992/production-controls-evidence.js
 pytest -q tests/test_beaaa16992_production_controls.py tests/test_release_gate_n5_beaaa10187.py
 ```
 
-Result: `21 passed`.
+Result: `23 passed`.
 
-Regression coverage added under [BEAAA-17051](/BEAAA/issues/BEAAA-17051):
+Regression coverage added under [BEAAA-17052](/BEAAA/issues/BEAAA-17052):
 
 - Rollback hash proof fails when retained evidence is absent before rollback.
 - Rollback hash proof fails when retained evidence is tampered after rollback.
@@ -81,6 +82,8 @@ Regression coverage added under [BEAAA-17051](/BEAAA/issues/BEAAA-17051):
 - Instrumentation proof fails when a retained ledger row hash is tampered.
 - Instrumentation proof cites the shipped runtime ledger source.
 - Rollback proof fails when the retained evidence is not under the mounted state path.
+- Scan handler writes one retained runtime production-control result record across two identical runs.
+- Runtime security findings source blocks scan execution before `run_scan_fn` when a high finding is present.
 
 ```text
 python3 scripts/beaaa539_n5_calibration.py
@@ -88,7 +91,11 @@ python3 scripts/beaaa539_n5_calibration.py
 
 Result: PASS. B1/G1/G2/M1/M2/M3 all observed five identical totals. Total spread `0`; total delta `0`; max pillar spread `0`; max pillar delta `0`; `all_in_band_pm1=True`.
 
-Additional release-gate note: `python3 scripts/release_gate_n5.py --baseline 1b93c090-beaaa17051-pre-repair --candidate beaaa17051-source-bound-repair --today 2026-07-23 --out-dir "$PWD/tools/calibration-deltas"` was attempted and blocked before score output because the current `bin/are-scan` interface rejects the runner's `--trusted-replay-manifest` and `--trusted-replay-fixture` arguments. That is not a score delta from this repair.
+```text
+python3 scripts/release_gate_n5.py --baseline 1b93c090-beaaa17051-pre-repair --candidate beaaa17051-source-bound-repair --today 2026-07-23 --out-dir "$PWD/tools/calibration-deltas"
+```
+
+Result: BLOCK. The stale compatibility-failure claim is removed: the release runner no longer passes unsupported `--trusted-replay-*` CLI flags, reaches score comparison, and writes `tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17051-source-bound-repair.md`. Single-turn spread passes; single-turn delta blocks on G3, M2, M3, B1, and B3 residual movement. This is a release blocker, not a compatibility failure.
 
 ## Operational Metadata
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
+
+import pytest
 
 from scripts import release_gate_n5
 
@@ -115,9 +118,102 @@ def test_agent_result_isolates_approved_rule_change_delta():
     assert result.delta_passed
 
 
+def _movement_source(*, movement=4.0, decisions=None):
+    return {
+        "source_ticket": "BEAAA-16700",
+        "commits": ["deadbee"],
+        "approval_decisions": decisions or [],
+        "deltas": {"G3": {"total": movement}},
+    }
+
+
+def _approval_decisions(*roles):
+    return [
+        {
+            "role": role,
+            "approver_id": f"identity-{role.lower()}",
+            "decision_ref": f"comment-{role.lower()}-approved",
+        }
+        for role in roles
+    ]
+
+
+def test_approval_provenance_rejects_ticket_label_without_decisions():
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0),)
+    )
+
+    assert errors
+    assert "missing required approval roles" in errors[0]
+
+
+def test_approval_provenance_rejects_self_reference():
+    decisions = _approval_decisions("CTO", "Underwriter", "Founder")
+    decisions[0]["decision_ref"] = "BEAAA-16700"
+
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=decisions),)
+    )
+
+    assert any("self-referential" in error for error in errors)
+
+
+def test_approval_provenance_requires_founder_above_three():
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (_movement_source(movement=4.0, decisions=_approval_decisions("CTO", "Underwriter")),)
+    )
+
+    assert any("Founder" in error for error in errors)
+
+
+def test_approval_provenance_accepts_distinct_role_complete_chain():
+    errors = release_gate_n5._validate_approved_movement_sources(
+        (
+            _movement_source(
+                movement=4.0,
+                decisions=_approval_decisions("CTO", "Underwriter", "Founder"),
+            ),
+        )
+    )
+
+    assert errors == []
+
+
+def test_receipt_keeps_acknowledged_m2_m3_residuals_release_blocking():
+    """BEAAA-14948: acknowledgement must never be rendered as zero or PASS."""
+
+    results = {
+        "M2": release_gate_n5.AgentGateResult(
+            agent_id="M2",
+            baseline_values={"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+            candidate_values=[{"total": 1.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 1.3542, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
+        ),
+        "M3": release_gate_n5.AgentGateResult(
+            agent_id="M3",
+            baseline_values={"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+            candidate_values=[{"total": 3.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 2.1875, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
+        ),
+    }
+    agents = [release_gate_n5._result_to_dict(results[agent]) for agent in ("M2", "M3")]
+    unresolved = release_gate_n5._unresolved_movement_accounting(agents)
+
+    assert release_gate_n5.MOVEMENT_ACCOUNTING_DECISION_REF == "BEAAA-14949#decision@f7aacc18"
+    assert [item["agent"] for item in unresolved] == ["M2", "M3"]
+    assert unresolved[0]["residual"]["ROBUSTNESS"] == 1.3542
+    assert unresolved[1]["residual"]["total"] == 3.0
+    assert unresolved[1]["residual"]["ROBUSTNESS"] == 2.1875
+
+
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
         "contract": "are-scanner-api-v1@v1.0",
+        "scanner_version": "0.6.0",
+        "probe-set-version": "artifacts/beaaa-387/manifest.json",
+        "rubric_point_id": [
+            "GOVERNANCE.PII.HANDLING_ATTESTATION",
+            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        ],
+        "cto_cosign_ref": "BEAAA-14867",
         "baseline": "0.4.0",
         "candidate": "0.4.1",
         "claim": "8/9 baselined",
@@ -129,6 +225,8 @@ def test_render_markdown_uses_required_delta_table_columns():
         "delta_tolerance": 1.0,
         "single_turn_spread_passed": True,
         "single_turn_delta_passed": True,
+        "approval_provenance": {"passed": True, "failure_reason": None, "errors": []},
+        "release_reliance_authorized": True,
         "passed": True,
         "agents": [
             {
@@ -210,6 +308,7 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     monkeypatch.setattr(release_gate_n5, "BASELINES", baseline_root)
     monkeypatch.setattr(release_gate_n5, "ROSTER", ("G1",))
     monkeypatch.setattr(release_gate_n5, "SEEDS", (0,))
+    monkeypatch.setattr(release_gate_n5, "APPROVED_MOVEMENT_SOURCES", ())
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "run_behavioral_gate", lambda: {"passed": True})
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "render_markdown_section", lambda _report: ["behavioral"])
 
@@ -248,3 +347,53 @@ def test_v1_gate_excludes_b2_but_keeps_full_roster_reference():
     assert "B2" not in release_gate_n5.ROSTER
     assert set(release_gate_n5.ROSTER) == {"G1", "G2", "G3", "M1", "M2", "M3", "B1", "B3"}
     assert release_gate_n5.EXCLUDED_FIXTURES["B2"].startswith("BEAAA-10199")
+
+
+def test_run_cli_passes_trusted_architecture_flags_env(monkeypatch, tmp_path):
+    input_dir = tmp_path / "inputs" / "G1"
+    input_dir.mkdir(parents=True)
+    (input_dir / "applicability.json").write_text(
+        json.dumps(
+            {
+                "architecture_flags": {
+                    "has_rag_retrieval": False,
+                    "has_tool_calling": True,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured["env"] = kwargs["env"]
+        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(release_gate_n5.subprocess, "run", fake_run)
+
+    code, stdout, stderr = release_gate_n5._run_cli(
+        "G1",
+        0,
+        input_dir,
+        tmp_path / "outputs" / "G1" / "seed-0.json",
+    )
+
+    assert (code, stdout, stderr) == (0, "ok", "")
+    assert "--trusted-replay-manifest" not in captured["cmd"]
+    assert "--trusted-replay-fixture" not in captured["cmd"]
+    assert captured["env"][release_gate_n5.TRUSTED_ARCHITECTURE_FLAGS_ENV] == (
+        '{"has_rag_retrieval":false,"has_tool_calling":true}'
+    )
+
+
+def test_trusted_architecture_flags_env_rejects_non_bool_values(tmp_path):
+    input_dir = tmp_path / "inputs" / "G1"
+    input_dir.mkdir(parents=True)
+    (input_dir / "applicability.json").write_text(
+        json.dumps({"architecture_flags": {"has_tool_calling": "yes"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="string keys to bool values"):
+        release_gate_n5._trusted_architecture_flags_json(input_dir)

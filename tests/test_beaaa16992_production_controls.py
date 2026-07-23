@@ -2,7 +2,49 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from api.production_controls import ProductionControlLedger
+from api.scan_handlers import ScanRuntime, scan_handler
 from scripts import beaaa16992_production_controls_evidence as evidence
+from scanners.live_probe_orchestrator import DimResult, OrchestratorError, ScanRequest, ScanResult
+
+
+TENANT = "tenant-beaaa16992"
+
+
+def _scan_body() -> dict:
+    return {
+        "tenant_id": TENANT,
+        "agent_endpoint": {"host": "scanner-target.example.com"},
+        "credential_ref": "phase1-probe.v1",
+        "credential_secret": "redacted-secret",
+        "corpus_snapshot_hash": "sha256:" + "a" * 64,
+        "scanner_version": "0.5.0",
+        "corpus_version": "golden-fixtures@0.5.0",
+        "seed": 0,
+        "k_replicates": 5,
+        "vendor_id": "design-partner-redacted",
+    }
+
+
+def _runtime_result(req: ScanRequest, _secret: str) -> ScanResult:
+    return ScanResult(
+        scan_id=req.scan_id,
+        status="complete",
+        scanner_version=str(req.scanner_version),
+        corpus_version=str(req.corpus_version),
+        rows_emitted=1,
+        k_replicates=req.k_replicates,
+        dim_results=(
+            DimResult(
+                dim_id="ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK",
+                raw=4.0,
+                spread=0.0,
+                replicates=(4.0,) * 5,
+            ),
+        ),
+    )
 
 
 def test_beaaa16992_packet_proves_required_controls() -> None:
@@ -181,3 +223,68 @@ def test_beaaa16992_instrumentation_fails_when_retained_ledger_absent_or_tampere
     assert tampered["runtime_source"]["kind"] == (
         "api.production_controls.ProductionControlLedger"
     )
+
+
+def test_beaaa17052_scan_handler_writes_runtime_production_control_ledger_once(
+    tmp_path: Path,
+) -> None:
+    ledger = ProductionControlLedger(tmp_path / "runtime-ledger")
+    runtime = ScanRuntime(
+        run_scan_fn=_runtime_result,
+        production_control_ledger=ledger,
+        production_security_findings_source=lambda: [
+            {"severity": "medium", "id": "dependency-warning"}
+        ],
+    )
+
+    for _ in range(2):
+        status, payload = scan_handler(
+            _scan_body(),
+            tenant_header=TENANT,
+            runtime=runtime,
+            scan_id_factory=lambda: "scan-beaaa17052-runtime",
+        )
+        assert status == 202
+        assert payload["scan_id"] == "scan-beaaa17052-runtime"
+
+    records = ledger.read("result_record")
+    assert len(records) == 1
+    assert records[0]["design_partner_ref"] == "design-partner-redacted"
+    assert records[0]["scan_id"] == "scan-beaaa17052-runtime"
+    assert records[0]["evidence_ref"] == "scanner://scan-results/scan-beaaa17052-runtime"
+    assert records[0]["payload"]["scanner_version"] == "0.5.0"
+    assert records[0]["payload"]["security_findings_pass"] is True
+
+
+def test_beaaa17052_runtime_security_source_blocks_before_scan(tmp_path: Path) -> None:
+    calls = {"run_scan": 0}
+
+    def run_scan(req: ScanRequest, secret: str) -> ScanResult:
+        calls["run_scan"] += 1
+        return _runtime_result(req, secret)
+
+    runtime = ScanRuntime(
+        run_scan_fn=run_scan,
+        production_control_ledger=ProductionControlLedger(tmp_path / "runtime-ledger"),
+        production_security_findings_source=lambda: [
+            {"severity": "high", "id": "runtime-authz-bypass"}
+        ],
+    )
+
+    with pytest.raises(OrchestratorError, match="runtime-authz-bypass"):
+        runtime.kickoff(
+            ScanRequest(
+                scan_id="scan-beaaa17052-blocked",
+                tenant_id=TENANT,
+                agent_endpoint="https://scanner-target.example.com",
+                credential_ref="phase1-probe.v1",
+                corpus_snapshot_hash="sha256:" + "a" * 64,
+                scanner_version="0.5.0",
+                corpus_version="golden-fixtures@0.5.0",
+                seed=0,
+                k_replicates=5,
+            ),
+            "redacted-secret",
+        )
+
+    assert calls["run_scan"] == 0

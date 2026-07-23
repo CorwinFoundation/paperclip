@@ -9,28 +9,28 @@
     "tenant_isolation_and_retention": true
   },
   "backup_restore_drill": {
-    "backup_elapsed_s": 0.013709,
+    "backup_elapsed_s": 0.01155,
     "backup_rc": 0,
     "backup_report": {
       "daily_promoted": true,
       "integrity": "ok",
       "row_count": 2,
-      "sha256_raw": "sha256:4b1ab71a9b23148bc6d22f3f6eddd8d71773f3d9db3f158d945b9644024d2083",
-      "snapshot": "scan_log-20260723T124902Z.sqlite3.gz",
+      "sha256_raw": "sha256:acb3571532707535b1e6320adbb11a2464d88464220bd360e98dd792cb816ebe",
+      "snapshot": "scan_log-20260723T130308Z.sqlite3.gz",
       "status": "OK"
     },
     "integrity_pass": true,
-    "observed_recovery_point_lag_s": 0.052151,
-    "restore_elapsed_s": 0.001827,
+    "observed_recovery_point_lag_s": 0.02467,
+    "restore_elapsed_s": 0.002004,
     "restore_rc": 0,
     "restore_report": {
       "integrity": "ok",
       "mode": "dry-run",
       "row_count": 2,
-      "sha256_gz_actual": "sha256:efb007d0560afcfd7660500dcd461bb7da4d7aa31c3e34118d35830a4c9157b2",
-      "sha256_gz_manifest": "sha256:efb007d0560afcfd7660500dcd461bb7da4d7aa31c3e34118d35830a4c9157b2",
+      "sha256_gz_actual": "sha256:c8c1e86cd7be33d8dae49ad586160129f69a16556a3f4a7b558c1110ac828c8b",
+      "sha256_gz_manifest": "sha256:c8c1e86cd7be33d8dae49ad586160129f69a16556a3f4a7b558c1110ac828c8b",
       "sha256_match": true,
-      "snapshot": "scan_log-20260723T124902Z.sqlite3.gz",
+      "snapshot": "scan_log-20260723T130308Z.sqlite3.gz",
       "verify_ok": true
     },
     "rpo_pass": true,
@@ -61,7 +61,7 @@
     "candidate_commit_sha_source": "artifacts/beaaa-17044/wave1a-production-authorization-6f973363.json",
     "evidence_build_head_sha_source": "git rev-parse HEAD at packet build",
     "fail_closed_output_sha256": "a90022a6e3034fd8ee7e1587e1335e5d6813feec529c36423af6936bbac27d7f",
-    "rollback_output_sha256": "7cd87b7098ef96b89411e936ef6d350572d5cb4dd10e175ffb040514637ca73a",
+    "rollback_output_sha256": "f06cb11eaed27e27a6dc28175c48c655e1eba4e57d6234566bc1b7061b32990f",
     "signed_manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16",
     "target_output_sha256": "9ba65bf798962d05a8452faa457df153b796a70bfe039f91c823f8f6a93520bd"
   },
@@ -104,28 +104,28 @@
     "backups": {
       "checks": {
         "drill": {
-          "backup_elapsed_s": 0.013709,
+          "backup_elapsed_s": 0.01155,
           "backup_rc": 0,
           "backup_report": {
             "daily_promoted": true,
             "integrity": "ok",
             "row_count": 2,
-            "sha256_raw": "sha256:4b1ab71a9b23148bc6d22f3f6eddd8d71773f3d9db3f158d945b9644024d2083",
-            "snapshot": "scan_log-20260723T124902Z.sqlite3.gz",
+            "sha256_raw": "sha256:acb3571532707535b1e6320adbb11a2464d88464220bd360e98dd792cb816ebe",
+            "snapshot": "scan_log-20260723T130308Z.sqlite3.gz",
             "status": "OK"
           },
           "integrity_pass": true,
-          "observed_recovery_point_lag_s": 0.052151,
-          "restore_elapsed_s": 0.001827,
+          "observed_recovery_point_lag_s": 0.02467,
+          "restore_elapsed_s": 0.002004,
           "restore_rc": 0,
           "restore_report": {
             "integrity": "ok",
             "mode": "dry-run",
             "row_count": 2,
-            "sha256_gz_actual": "sha256:efb007d0560afcfd7660500dcd461bb7da4d7aa31c3e34118d35830a4c9157b2",
-            "sha256_gz_manifest": "sha256:efb007d0560afcfd7660500dcd461bb7da4d7aa31c3e34118d35830a4c9157b2",
+            "sha256_gz_actual": "sha256:c8c1e86cd7be33d8dae49ad586160129f69a16556a3f4a7b558c1110ac828c8b",
+            "sha256_gz_manifest": "sha256:c8c1e86cd7be33d8dae49ad586160129f69a16556a3f4a7b558c1110ac828c8b",
             "sha256_match": true,
-            "snapshot": "scan_log-20260723T124902Z.sqlite3.gz",
+            "snapshot": "scan_log-20260723T130308Z.sqlite3.gz",
             "verify_ok": true
           },
           "rpo_pass": true,
@@ -298,14 +298,14 @@
         "historical_evidence_preserved": true,
         "measured_active_executable_after": 305,
         "measured_active_executable_before": 340,
-        "measured_elapsed_s": 0.297481,
+        "measured_elapsed_s": 0.243007,
         "measured_minutes_ceil": 1,
         "monitored_service_transition": true,
         "pass": true,
         "previous_ref": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
         "retained_evidence_hash_after": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
         "retained_evidence_hash_before": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
-        "retained_evidence_path": "/tmp/beaaa16992-rollback-1fdbl6lp/state/retained-evidence/production-like-target-output.json",
+        "retained_evidence_path": "/tmp/beaaa16992-rollback-3koge4cm/state/retained-evidence/production-like-target-output.json",
         "retained_evidence_present_after": true,
         "retained_evidence_present_before": true,
         "rollback_le_30m": true,
@@ -323,11 +323,11 @@
         },
         "source_matches_measured_drill": true,
         "state_mount_validation": {
-          "expected_mount": "/tmp/beaaa16992-rollback-1fdbl6lp/state:/var/lib/are-scanner",
+          "expected_mount": "/tmp/beaaa16992-rollback-3koge4cm/state:/var/lib/are-scanner",
           "historical_evidence_preserved": true,
           "mount_present": true,
-          "retained_evidence_path": "/tmp/beaaa16992-rollback-1fdbl6lp/state/retained-evidence/production-like-target-output.json",
-          "state_dir": "/tmp/beaaa16992-rollback-1fdbl6lp/state"
+          "retained_evidence_path": "/tmp/beaaa16992-rollback-3koge4cm/state/retained-evidence/production-like-target-output.json",
+          "state_dir": "/tmp/beaaa16992-rollback-3koge4cm/state"
         }
       },
       "evidence": [
@@ -387,7 +387,7 @@
     },
     "retention": {
       "checks": {
-        "backup_sha256_raw": "sha256:4b1ab71a9b23148bc6d22f3f6eddd8d71773f3d9db3f158d945b9644024d2083",
+        "backup_sha256_raw": "sha256:acb3571532707535b1e6320adbb11a2464d88464220bd360e98dd792cb816ebe",
         "target_retention": {
           "immutable": true,
           "manifest_sha256": "b9811198d4b14c19c26ed6fc9cd549a2e7c242ffdc74820a420c75e3bfffbd16",
@@ -553,7 +553,7 @@
       "source_sha256": "1a2793fe9ee4a76ce9e3a54e5dd506667670e1daeff8442c54b120a7418a32f3"
     }
   },
-  "evidence_build_head_sha": "1b93c09007412575ffc9395844ff949414df40d7",
+  "evidence_build_head_sha": "e4cc14b63044b5a35c9a7a5570ce12ad1b63fb0e",
   "fail_closed_summary": {
     "all_negative_cases_fail_closed": true,
     "failure_codes": {
@@ -622,14 +622,14 @@
     "historical_evidence_preserved": true,
     "measured_active_executable_after": 305,
     "measured_active_executable_before": 340,
-    "measured_elapsed_s": 0.297481,
+    "measured_elapsed_s": 0.243007,
     "measured_minutes_ceil": 1,
     "monitored_service_transition": true,
     "pass": true,
     "previous_ref": "ghcr.io/corwinfoundation/are-scanner:previous-retained",
     "retained_evidence_hash_after": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
     "retained_evidence_hash_before": "603b4bfccfc72621fc95f71425fc3ad5a606bf9dad1a0c990fa97ee945c8cadf",
-    "retained_evidence_path": "/tmp/beaaa16992-rollback-1fdbl6lp/state/retained-evidence/production-like-target-output.json",
+    "retained_evidence_path": "/tmp/beaaa16992-rollback-3koge4cm/state/retained-evidence/production-like-target-output.json",
     "retained_evidence_present_after": true,
     "retained_evidence_present_before": true,
     "rollback_le_30m": true,
@@ -647,11 +647,11 @@
     },
     "source_matches_measured_drill": true,
     "state_mount_validation": {
-      "expected_mount": "/tmp/beaaa16992-rollback-1fdbl6lp/state:/var/lib/are-scanner",
+      "expected_mount": "/tmp/beaaa16992-rollback-3koge4cm/state:/var/lib/are-scanner",
       "historical_evidence_preserved": true,
       "mount_present": true,
-      "retained_evidence_path": "/tmp/beaaa16992-rollback-1fdbl6lp/state/retained-evidence/production-like-target-output.json",
-      "state_dir": "/tmp/beaaa16992-rollback-1fdbl6lp/state"
+      "retained_evidence_path": "/tmp/beaaa16992-rollback-3koge4cm/state/retained-evidence/production-like-target-output.json",
+      "state_dir": "/tmp/beaaa16992-rollback-3koge4cm/state"
     }
   },
   "rubric_point_id": "P3.9;ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK;P3.7;ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION",
