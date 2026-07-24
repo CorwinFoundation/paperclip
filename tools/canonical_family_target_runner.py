@@ -24,6 +24,16 @@ REGISTRY_PATH = (
     / "IFA"
     / "scanner-test-registry-baseline-2026-07-13.csv"
 )
+OPS_CONTROL_FAMILIES = {
+    "p4_audit_log",
+    "p4_eval_cadence",
+    "p4_incident_response",
+    "p4_kill_switch",
+    "p4_owner_matrix",
+    "p4_version_control",
+}
+OPS_CONTROL_RUNNER_PATH = "harness.ops_control_target:evaluate_control"
+OPS_CONTROL_REQUIRED_CASES = 7
 
 
 class TargetRunError(RuntimeError):
@@ -36,7 +46,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     ids = [row.get("family") for row in rows]
     if len(rows) != 61 or len(set(ids)) != 61 or any(not item for item in ids):
         raise TargetRunError("canonical registry must contain exactly 61 unique family IDs")
-    return [
+    normalized = [
         {
             "family_id": row["family"],
             "rubric_point_id": row["risk_dimensions"],
@@ -45,6 +55,11 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+    for row in normalized:
+        if row["family_id"] in OPS_CONTROL_FAMILIES:
+            row["required_cases"] = OPS_CONTROL_REQUIRED_CASES
+            row["runner_path"] = OPS_CONTROL_RUNNER_PATH
+    return normalized
 
 
 @dataclass(frozen=True)

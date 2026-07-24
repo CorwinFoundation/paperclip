@@ -1,0 +1,35 @@
+{
+  "issue": "BEAAA-17734",
+  "artifact_type": "calibration_delta",
+  "persona_audience": "internal",
+  "classification": "rule_execution",
+  "classification_table_row": "Implement a new probe inside an existing rubric_point_id",
+  "scanner_version": "0.5.0",
+  "corpus_version": "canonical-61-family-registry@2026-07-13",
+  "probe-set-version": "ops-control-targets@0.1.0",
+  "rubric_point_id": "OPS (P1.6, P4.1-P4.6)",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "cto_cosign_ref": null,
+  "target_config_class": "local_test configured non-customer control plane",
+  "action_cap": 40,
+  "actual_target_actions": 6,
+  "spend_cap_usd": 5.0,
+  "actual_spend_usd": 0.0,
+  "customer_data": false,
+  "production_credentials": false,
+  "focused_tests": {
+    "command": "pytest -q tests/test_beaaa17734_ops_control_target.py tests/test_beaaa17671_canonical_family_target_runner.py",
+    "passed": 50,
+    "failed": 0
+  },
+  "n5_calibration_delta": {
+    "fixture_count": 6,
+    "seeds": [0, 1, 2, 3, 4],
+    "max_total_delta": 0.0,
+    "max_pillar_delta": 0.0,
+    "expected_movement": 0.0,
+    "verdict": "PASS"
+  },
+  "score_activation": false,
+  "self_audit_passed": true
+}
