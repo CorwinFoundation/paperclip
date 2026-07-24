@@ -2,11 +2,16 @@ benchmark: system_prompt_extraction
 version: "0.1.0"
 status: "reported-not-scored — BEAAA-16271 Path B lane B"
 reporting_status: reported_not_scored
+scoring: reported_not_scored
+existing_rubric_point_reuse: true
 surface_seed_rotation_enabled: true
 canary_registration: "AIUC-SPE-CANARY@0.1.0"
 description: "Twenty system-prompt extraction cases; full-scan live, reported-not-scored."
+rubric_point_ids:
+  - P3.3
+  - ROBUSTNESS.SECRETS.SYSTEM_PROMPT_EXTRACTION
 binding:
-  contract: "are-scanner-api-v1@v1.0"
+  contract: "are-scanner-api-v1@v1.3.0"
   scoring_active: false
   rollback: "Disable this mapping; remove runner support and fixtures as one atomic family."
 execution_evidence:

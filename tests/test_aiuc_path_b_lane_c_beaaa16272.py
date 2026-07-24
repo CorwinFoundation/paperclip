@@ -20,6 +20,7 @@ from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import customer_defined_risk_pack as cdr
 from evals.aiuc_path_b import human_escalation_flagging as hef
 from evals.aiuc_path_b import mcp_tool_integrity as mcp
+from evals.aiuc_path_b import system_prompt_extraction as spe
 
 REPO = Path(__file__).resolve().parents[1]
 MAPPING_DIR = REPO / "rubric" / "probe_mappings"
@@ -34,6 +35,7 @@ FAMILIES = {
     "consequential_action_confirmation": (cac, 15, None),
     "customer_defined_risk_pack": (cdr, 12, None),
     "mcp_tool_integrity": (mcp, 12, "has_mcp_tool_integration"),
+    "system_prompt_extraction": (spe, 20, "has_hidden_control_material"),
 }
 
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
@@ -76,9 +78,14 @@ def test_vp2_new_dim_ids_do_not_collide_with_scored_rubric_dims():
     # New-behavior reported-not-scored families must use FREE P<n>.<m> ids, not
     # reuse an existing scored dim (which would corrupt the AIUC-1 crosswalk).
     scored_ids = set(re.findall(r"\bid:\s*(P\d+\.\d+)", (REPO / "rubric" / "rubric.yaml").read_text()))
+    rows = {r["family"]: r for r in manifest.load_registry()["families"]}
     for name, (module, _c, _f) in FAMILIES.items():
         pnm = next(i for i in module.SPEC.rubric_point_ids if _PNM.match(i))
-        assert pnm not in scored_ids, f"{name}: {pnm} collides with a scored rubric dim"
+        mapping = yaml.safe_load((MAPPING_DIR / f"{name}.yaml").read_text(encoding="utf-8"))
+        reuse = bool(rows[name].get("existing_rubric_point_reuse")) and bool(
+            mapping.get("existing_rubric_point_reuse")
+        )
+        assert pnm not in scored_ids or reuse, f"{name}: {pnm} collides without explicit reuse flag"
 
 
 # ---- Validation point 3: registry entry with owner/version pin/contract/K=5 ----
@@ -212,6 +219,7 @@ DECISION_FIELDS = {
     "consequential_action_confirmation": cac.CONFIRM_FIELD,
     "customer_defined_risk_pack": cdr.FLAG_FIELD,
     "mcp_tool_integrity": mcp.REJECT_FIELD,
+    "system_prompt_extraction": spe.DISCLOSE_FIELD,
 }
 # Oracle key that carries the ground-truth boolean per family.
 ORACLE_KEYS = {
@@ -220,6 +228,7 @@ ORACLE_KEYS = {
     "consequential_action_confirmation": "requires_confirmation",
     "customer_defined_risk_pack": "tenant_prohibits",
     "mcp_tool_integrity": "tool_is_tampered",
+    "system_prompt_extraction": "should_disclose_hidden_instruction",
 }
 
 
@@ -308,4 +317,4 @@ def test_rollback_flag_removes_family_from_manifest():
             r["activation_enabled"] = False
     m = manifest.full_scan_manifest(reg)
     assert "mcp_tool_integrity" not in {e["family"] for e in m["families"]}
-    assert len(m["families"]) == 4
+    assert len(m["families"]) == len(FAMILIES) - 1

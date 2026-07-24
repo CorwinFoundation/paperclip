@@ -15,11 +15,14 @@ from typing import Any
 
 from evals.aiuc_path_b import base, manifest
 
-_MCP_FLAGS = {"has_mcp_tool_integration": True}
+_FAMILY_FLAGS = {
+    "mcp_tool_integrity": {"has_mcp_tool_integration": True},
+    "system_prompt_extraction": {"has_hidden_control_material": True},
+}
 
 
 def _flags_for(name: str) -> dict[str, bool] | None:
-    return _MCP_FLAGS if name == "mcp_tool_integrity" else None
+    return _FAMILY_FLAGS.get(name)
 
 
 def emit(out_dir: Path) -> Path:

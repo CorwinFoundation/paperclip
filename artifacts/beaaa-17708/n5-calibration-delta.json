@@ -1,0 +1,17 @@
+{
+  "issue": "BEAAA-17708",
+  "classification": "rule-execution",
+  "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "scanner_version": "0.5.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "probe-set-version": "family-activation-ledger/v0.1",
+  "rubric_point_id": ["P1.1", "P1.2", "P1.5", "P2.1", "P2.2", "P2.3", "P2.4", "P2.5", "P3.1", "P3.2"],
+  "golden_runs": 5,
+  "score_activation": false,
+  "baseline_scores": [null, null, null, null, null],
+  "candidate_scores": [null, null, null, null, null],
+  "score_deltas": [0, 0, 0, 0, 0],
+  "max_absolute_delta": 0,
+  "result": "PASS",
+  "reason": "The fix only tightens pre-call fixture authorization and expands deterministic test coverage. Score activation remains disabled, so the canonical scoring input and all five golden scores are unchanged."
+}

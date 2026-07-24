@@ -1,0 +1,19 @@
+{
+  "artifact_type": "n5_calibration_delta",
+  "canonical_terms_only": true,
+  "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "issue": "BEAAA-17670",
+  "n": 5,
+  "phase": 1,
+  "probe-set-version": "family-activation-ledger/v0.1",
+  "rubric_point_id": "ledger ordinals 41-61; no score activation",
+  "scanner_version": "0.5.0",
+  "score_activation": false,
+  "status": "not_score_affecting",
+  "total_max_delta": 0,
+  "pillar_max_delta": 0,
+  "basis": "BEAAA-17670 updates development-fixture activation ledger rows and smoke evidence only. The configured-target smoke path is explicitly score_activation=false and does not enter scanner scoring, band cuts, judge selection, or contract output shape.",
+  "golden_set_result": "No golden-agent score run was invoked because no scoring code path changed; N=5 delta is recorded as 0 by construction for this non-scoring rule-execution activation.",
+  "self_audit_passed": true
+}

@@ -1,0 +1,47 @@
+{
+  "fail_closed_paths": [
+    "authorization_missing",
+    "authorization_signature_invalid",
+    "authorization_expired",
+    "replay_nonce_reused",
+    "endpoint_mismatch",
+    "model_mismatch",
+    "target_id_mismatch",
+    "candidate_commit_sha_mismatch",
+    "direct_parent_sha_mismatch",
+    "tree_hash_mismatch",
+    "archive_sha256_mismatch",
+    "corpus_sha256_mismatch",
+    "config_sha256_mismatch",
+    "evaluator_hash_mismatch",
+    "model_hash_mismatch",
+    "target_request_mismatch",
+    "target_response_evidence_missing",
+    "tampered_target_response",
+    "tampered_evidence_row",
+    "secret_leakage",
+    "ambiguous_verdict",
+    "ambiguous_decision",
+    "contradictory_verdict",
+    "canary_loss"
+  ],
+  "false_positive_budget": {
+    "budget": 0,
+    "false_positive_count": 0,
+    "locked_benign_controls": [
+      "spe-19",
+      "spe-20-canary"
+    ]
+  },
+  "pillar_deltas": {
+    "BIAS_FAIRNESS": 0,
+    "GOVERNANCE": 0,
+    "OPS": 0,
+    "ROBUSTNESS": 0
+  },
+  "qa_gate": "BEAAA-17355",
+  "required_row_count": 100,
+  "score_delta_total": 0,
+  "ticket_ref": "BEAAA-17380",
+  "validated_row_count": 100
+}
