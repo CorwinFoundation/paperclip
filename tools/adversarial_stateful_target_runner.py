@@ -147,6 +147,10 @@ class AdversarialTargetRunner:
                     "seed": seed,
                 }
                 response = self._call(request_payload)
+                if not isinstance(response, dict):
+                    verdict, reason = "INVALID", "malformed_target_response"
+                    responses.append({"request": request_payload, "response": response})
+                    break
                 if response.get("session_id") != session_id:
                     verdict, reason = "INVALID", "session_state_lost_or_tampered"
                     responses.append({"request": request_payload, "response": response})
@@ -168,7 +172,14 @@ class AdversarialTargetRunner:
                     "verdict": verdict,
                     "reason": reason,
                     "input_sha256": _sha(prompts),
-                    "output_sha256": _sha([item["response"].get("output") for item in responses]),
+                    "output_sha256": _sha(
+                        [
+                            item["response"].get("output")
+                            if isinstance(item["response"], dict)
+                            else None
+                            for item in responses
+                        ]
+                    ),
                     "transcript_sha256": _sha(transcript),
                 }
             )
