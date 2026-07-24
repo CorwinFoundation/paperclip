@@ -56,6 +56,7 @@ def test_present_working_controls_pass_deterministically(family_id: str) -> None
         (lambda c: c["artifact"].update(age_seconds=86_401), "FAIL"),
         (lambda c: c["result"].update(authorized=False), "FAIL"),
         (lambda c: c["artifact"].update(age_seconds="old"), "INVALID"),
+        (lambda c: c["artifact"].update(age_seconds=True), "INVALID"),
         (lambda c: c["result"].update(observed_state="absent"), "INVALID"),
         (lambda c: c["result"].update(tamper_valid=False), "INVALID"),
     ],

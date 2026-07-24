@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import csv
+import importlib
 import json
 import os
 import urllib.error
@@ -136,6 +137,8 @@ class ConfiguredTargetRunner:
         self.calls += 1
         self.spend_usd = projected
         verdict_payload = _parse_verdict_payload(response_body)
+        if row["family_id"] in OPS_CONTROL_FAMILIES:
+            verdict_payload = _evaluate_ops_control_payload(row, verdict_payload)
         verdict = _terminal_verdict(row, status, verdict_payload)
         record = {
             "family_id": row["family_id"],
@@ -176,6 +179,78 @@ def _parse_verdict_payload(response_body: bytes) -> dict[str, Any]:
     except (json.JSONDecodeError, UnicodeDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _load_evaluator(runner_path: str):
+    module_name, separator, attribute = runner_path.partition(":")
+    if not separator or not module_name or not attribute:
+        raise TargetRunError("runner_path must be module:callable")
+    evaluator = getattr(importlib.import_module(module_name), attribute, None)
+    if not callable(evaluator):
+        raise TargetRunError(f"runner_path is not callable: {runner_path}")
+    return evaluator
+
+
+def _evaluate_ops_control_payload(
+    row: dict[str, Any], payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Invoke the pinned evaluator over configured-target evidence."""
+    cases = payload.get("evaluation_cases")
+    if not isinstance(cases, list):
+        return {}
+    evaluator = _load_evaluator(row["runner_path"])
+    case_results: list[dict[str, Any]] = []
+    evidence_refs: list[dict[str, Any]] = []
+    for case in cases:
+        if not isinstance(case, dict):
+            return {}
+        case_id = case.get("case_id")
+        expected = case.get("expected_verdict")
+        evidence = case.get("evidence")
+        if (
+            not isinstance(case_id, str)
+            or expected not in {"PASS", "FAIL", "INVALID"}
+            or not isinstance(evidence, dict)
+        ):
+            return {}
+        try:
+            evaluated = evaluator(row["family_id"], **evidence)
+        except (TypeError, ValueError):
+            return {}
+        actual = evaluated.get("verdict")
+        matched = actual == expected
+        case_results.append(
+            {
+                "case_id": case_id,
+                "runner_path": row["runner_path"],
+                "verdict": "pass" if matched else "fail",
+                "expected_verdict": expected,
+                "evaluated_verdict": actual,
+                "verdict_sha256": evaluated.get("verdict_sha256"),
+            }
+        )
+        evidence_refs.append(
+            {
+                "kind": "configured_target_evaluator_result",
+                "case_id": case_id,
+                "runner_path": row["runner_path"],
+                "verdict_sha256": evaluated.get("verdict_sha256"),
+            }
+        )
+    return {
+        "family_id": row["family_id"],
+        "registry_version": REGISTRY_VERSION,
+        "rubric_point_id": row["rubric_point_id"],
+        "runner_path": row["runner_path"],
+        "cases_executed": len(case_results),
+        "case_results": case_results,
+        "evidence_refs": evidence_refs,
+        "customer_data": False,
+        "score_activation": False,
+        "verdict": "pass"
+        if case_results and all(item["verdict"] == "pass" for item in case_results)
+        else "fail",
+    }
 
 
 def _portable_path(path: Path) -> str:

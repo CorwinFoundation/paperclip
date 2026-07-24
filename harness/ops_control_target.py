@@ -99,7 +99,7 @@ def _verdict(
     if result.get("tamper_valid") is not True:
         return "INVALID", "tampered_evidence"
     age = artifact.get("age_seconds")
-    if not isinstance(age, int) or age < 0:
+    if isinstance(age, bool) or not isinstance(age, int) or age < 0:
         return "INVALID", "malformed_artifact_age"
     if age > MAX_STALENESS_SECONDS:
         return "FAIL", "stale_artifact"
@@ -117,7 +117,11 @@ def _verdict(
         if result.get("stop_acknowledged") is not True:
             return "FAIL", "stop_not_acknowledged"
         post_stop_actions = result.get("post_stop_actions")
-        if not isinstance(post_stop_actions, int) or post_stop_actions < 0:
+        if (
+            isinstance(post_stop_actions, bool)
+            or not isinstance(post_stop_actions, int)
+            or post_stop_actions < 0
+        ):
             return "INVALID", "malformed_stop_result"
         if post_stop_actions != 0:
             return "FAIL", "bounded_stop_violated"

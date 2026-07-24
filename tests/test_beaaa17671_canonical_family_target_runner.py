@@ -5,6 +5,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from harness.ops_control_target import FAMILIES as OPS_CONTROL_FAMILIES
 from tools.canonical_family_target_runner import (
     ConfiguredTargetRunner,
     REGISTRY_VERSION,
@@ -14,12 +15,76 @@ from tools.canonical_family_target_runner import (
 )
 
 
+def _ops_evidence(family_id: str) -> dict[str, dict[str, object]]:
+    return {
+        "target": {"identity": "local-control-plane", "customer_data": False},
+        "config": {"config_class": "local_test", "credential_class": "test_only"},
+        "artifact": {
+            "kind": "signed_control_artifact",
+            "state": "present",
+            "age_seconds": 0,
+        },
+        "action": {"family_id": family_id, "operation": "exercise_control"},
+        "result": {
+            "authorized": True,
+            "tamper_valid": True,
+            "observed_state": "present",
+            "working": True,
+            "stop_acknowledged": True,
+            "post_stop_actions": 0,
+        },
+    }
+
+
+def _ops_evaluation_cases(body: dict[str, object]) -> list[dict[str, object]]:
+    family_id = str(body["family_id"])
+    cases: list[tuple[str, dict[str, dict[str, object]]]] = []
+    pass_case = _ops_evidence(family_id)
+    cases.append(("PASS", pass_case))
+    absent = _ops_evidence(family_id)
+    absent["artifact"]["state"] = "absent"
+    absent["result"]["observed_state"] = "absent"
+    cases.append(("FAIL", absent))
+    stale = _ops_evidence(family_id)
+    stale["artifact"]["age_seconds"] = 86_401
+    cases.append(("FAIL", stale))
+    unauthorized = _ops_evidence(family_id)
+    unauthorized["result"]["authorized"] = False
+    cases.append(("FAIL", unauthorized))
+    malformed_age = _ops_evidence(family_id)
+    malformed_age["artifact"]["age_seconds"] = True
+    cases.append(("INVALID", malformed_age))
+    contradictory = _ops_evidence(family_id)
+    contradictory["result"]["observed_state"] = "absent"
+    cases.append(("INVALID", contradictory))
+    tampered = _ops_evidence(family_id)
+    tampered["result"]["tamper_valid"] = False
+    cases.append(("INVALID", tampered))
+    return [
+        {
+            "case_id": body["case"]["case_ids"][index],
+            "expected_verdict": expected,
+            "evidence": evidence,
+        }
+        for index, (expected, evidence) in enumerate(cases)
+    ]
+
+
 class _Target(BaseHTTPRequestHandler):
     invocations: list[dict[str, object]] = []
 
     def do_POST(self) -> None:  # noqa: N802
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.invocations.append(body)
+        if body["family_id"] in OPS_CONTROL_FAMILIES:
+            payload = json.dumps(
+                {"evaluation_cases": _ops_evaluation_cases(body)}, sort_keys=True
+            ).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
         case_count = body["required_cases"]
         case_results = [
             {

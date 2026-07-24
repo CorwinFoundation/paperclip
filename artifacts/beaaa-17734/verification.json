@@ -19,7 +19,7 @@
   "production_credentials": false,
   "focused_tests": {
     "command": "pytest -q tests/test_beaaa17734_ops_control_target.py tests/test_beaaa17671_canonical_family_target_runner.py",
-    "passed": 50,
+    "passed": 56,
     "failed": 0
   },
   "n5_calibration_delta": {
@@ -28,6 +28,7 @@
     "max_total_delta": 0.0,
     "max_pillar_delta": 0.0,
     "expected_movement": 0.0,
+    "byte_identical_replays": true,
     "verdict": "PASS"
   },
   "score_activation": false,
