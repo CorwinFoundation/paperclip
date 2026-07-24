@@ -50,13 +50,13 @@ def test_contract_payload_rejects_blank_corpus_version():
 def test_agent_result_blocks_candidate_spread_over_one():
     result = release_gate_n5.AgentGateResult(
         agent_id="G1",
-        baseline_values={
+        baseline_values=[{
             "total": 80.0,
             "GOVERNANCE": 20.0,
             "ROBUSTNESS": 20.0,
             "BIAS_FAIRNESS": 20.0,
             "OPS": 20.0,
-        },
+        }],
         candidate_values=[
             {"total": 80.0, "GOVERNANCE": 20.0, "ROBUSTNESS": 20.0, "BIAS_FAIRNESS": 20.0, "OPS": 20.0},
             {"total": 81.2, "GOVERNANCE": 20.0, "ROBUSTNESS": 20.0, "BIAS_FAIRNESS": 20.0, "OPS": 20.0},
@@ -70,13 +70,13 @@ def test_agent_result_blocks_candidate_spread_over_one():
 def test_agent_result_blocks_stable_candidate_delta_over_one():
     result = release_gate_n5.AgentGateResult(
         agent_id="G3",
-        baseline_values={
+        baseline_values=[{
             "total": 73.0,
             "GOVERNANCE": 22.3958,
             "ROBUSTNESS": 18.75,
             "BIAS_FAIRNESS": 12.5,
             "OPS": 19.7917,
-        },
+        }],
         candidate_values=[
             {"total": 77.0, "GOVERNANCE": 22.3958, "ROBUSTNESS": 22.5, "BIAS_FAIRNESS": 12.5, "OPS": 19.7917}
             for _ in release_gate_n5.SEEDS
@@ -85,19 +85,19 @@ def test_agent_result_blocks_stable_candidate_delta_over_one():
 
     assert result.spread_passed
     assert not result.delta_passed
-    assert result.passed
+    assert not result.passed
 
 
-def test_agent_result_isolates_approved_rule_change_delta():
+def test_agent_result_does_not_subtract_historical_approved_movement():
     result = release_gate_n5.AgentGateResult(
         agent_id="G3",
-        baseline_values={
+        baseline_values=[{
             "total": 73.0,
             "GOVERNANCE": 22.3958,
             "ROBUSTNESS": 18.75,
             "BIAS_FAIRNESS": 12.5,
             "OPS": 19.7917,
-        },
+        }],
         approved_rule_change_deltas={
             "total": 4.0,
             "GOVERNANCE": 0.0,
@@ -113,9 +113,9 @@ def test_agent_result_isolates_approved_rule_change_delta():
 
     assert result.raw_deltas["total"] == 4.0
     assert result.raw_deltas["ROBUSTNESS"] == 3.75
-    assert result.deltas["total"] == 0.0
-    assert result.deltas["ROBUSTNESS"] == 0.625
-    assert result.delta_passed
+    assert result.deltas["total"] == 4.0
+    assert result.deltas["ROBUSTNESS"] == 3.75
+    assert not result.delta_passed
 
 
 def _movement_source(*, movement=4.0, decisions=None):
@@ -185,12 +185,12 @@ def test_receipt_keeps_acknowledged_m2_m3_residuals_visible():
     results = {
         "M2": release_gate_n5.AgentGateResult(
             agent_id="M2",
-            baseline_values={"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+            baseline_values=[{"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
             candidate_values=[{"total": 1.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 1.3542, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
         ),
         "M3": release_gate_n5.AgentGateResult(
             agent_id="M3",
-            baseline_values={"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0},
+            baseline_values=[{"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
             candidate_values=[{"total": 3.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 2.1875, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}],
         ),
     }
@@ -204,7 +204,7 @@ def test_receipt_keeps_acknowledged_m2_m3_residuals_visible():
     assert unresolved[1]["residual"]["ROBUSTNESS"] == 2.1875
 
 
-def test_agent_result_treats_development_delta_as_informational_with_zero_spread():
+def test_agent_result_blocks_direct_delta_with_zero_spread():
     baseline = {
         "total": 80.0,
         "GOVERNANCE": 20.0,
@@ -215,14 +215,14 @@ def test_agent_result_treats_development_delta_as_informational_with_zero_spread
     candidate = dict(baseline, total=84.0, ROBUSTNESS=24.0)
     result = release_gate_n5.AgentGateResult(
         agent_id="G3",
-        baseline_values=baseline,
+        baseline_values=[baseline] * 5,
         candidate_values=[candidate] * 5,
     )
 
     assert result.candidate_spread["total"] == 0
     assert result.deltas["total"] == 4
     assert result.deltas["ROBUSTNESS"] == 4
-    assert result.passed
+    assert not result.passed
 
 
 def test_non_development_phase_requires_approved_policy(tmp_path):
@@ -248,7 +248,12 @@ def test_render_markdown_uses_required_delta_table_columns():
         "phase": "development",
         "development_drift_disposition": "informational_non_blocking",
         "baseline": "0.4.0",
+        "baseline_commit": "a" * 40,
+        "baseline_tree": "b" * 40,
         "candidate": "0.4.1",
+        "candidate_commit": "c" * 40,
+        "candidate_tree": "d" * 40,
+        "frozen_input_hashes": {},
         "claim": "8/9 baselined",
         "full_roster": ["G1", "B2"],
         "roster": ["G1"],
@@ -313,7 +318,7 @@ def test_render_markdown_uses_required_delta_table_columns():
     assert "| G1 | 0 | 0 | 0 | 0 | 0 | total=0" in markdown
     assert "Claim: `8/9 baselined`" in markdown
     assert "B2 is explicitly excluded from the v1 gate" in markdown
-    assert "Approved Rule-Change Isolation" in markdown
+    assert "Historical Approved-Movement Provenance" in markdown
 
 
 def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
@@ -342,15 +347,33 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     monkeypatch.setattr(release_gate_n5, "ROSTER", ("G1",))
     monkeypatch.setattr(release_gate_n5, "SEEDS", (0,))
     monkeypatch.setattr(release_gate_n5, "APPROVED_MOVEMENT_SOURCES", ())
+    monkeypatch.setattr(
+        release_gate_n5,
+        "_resolve_commit",
+        lambda label: (f"{label}-commit", f"{label}-tree"),
+    )
+    monkeypatch.setattr(
+        release_gate_n5,
+        "_archive_commit",
+        lambda _commit, target: target.mkdir(parents=True),
+    )
+    monkeypatch.setattr(
+        release_gate_n5,
+        "_frozen_input_hashes",
+        lambda _repo: {"fixture": "abc"},
+    )
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "run_behavioral_gate", lambda: {"passed": True})
     monkeypatch.setattr(release_gate_n5.behavioral_golden_fixtures, "render_markdown_section", lambda _report: ["behavioral"])
 
-    def fake_prepare_input_dir(agent_id, tmp_root):
+    def fake_prepare_input_dir(agent_id, tmp_root, _source_root):
         path = tmp_root / "inputs" / agent_id
         path.mkdir(parents=True)
         return path
 
-    def fake_run_cli(agent_id, seed, input_dir, output_path):
+    executed_repos = []
+
+    def fake_run_cli(repo, agent_id, seed, input_dir, output_path):
+        executed_repos.append(repo.name)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         payload = _payload(seed=seed, total=80.0)
         payload["corpus_version"] = release_gate_n5.RELEASE_GATE_CORPUS_VERSION
@@ -373,6 +396,8 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     assert md_path.exists()
     assert json_path.exists()
     assert json.loads(json_path.read_text(encoding="utf-8"))["passed"] is True
+    assert executed_repos == ["baseline", "candidate"]
+    assert report["agents"][0]["delta"]["total"] == 0.0
 
 
 def test_v1_gate_excludes_b2_but_keeps_full_roster_reference():
@@ -406,6 +431,7 @@ def test_run_cli_passes_trusted_architecture_flags_env(monkeypatch, tmp_path):
     monkeypatch.setattr(release_gate_n5.subprocess, "run", fake_run)
 
     code, stdout, stderr = release_gate_n5._run_cli(
+        tmp_path,
         "G1",
         0,
         input_dir,

@@ -14,6 +14,7 @@ table under tools/calibration-deltas/.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -227,7 +228,7 @@ def _validate_approved_movement_sources(
 @dataclass
 class AgentGateResult:
     agent_id: str
-    baseline_values: dict[str, float] | None = None
+    baseline_values: list[dict[str, float]] = field(default_factory=list)
     candidate_values: list[dict[str, float]] = field(default_factory=list)
     approved_rule_change_deltas: dict[str, float] = field(default_factory=dict)
     approved_movements: list[dict[str, Any]] = field(default_factory=list)
@@ -247,32 +248,32 @@ class AgentGateResult:
     def baseline_spread(self) -> dict[str, float]:
         if not self.baseline_values:
             return {}
-        return {key: 0.0 for key in ("total", *PILLARS)}
+        return {
+            key: max(v[key] for v in self.baseline_values)
+            - min(v[key] for v in self.baseline_values)
+            for key in ("total", *PILLARS)
+        }
 
     @property
     def raw_deltas(self) -> dict[str, float | None]:
         if not self.baseline_values or not self.candidate_values:
             return {key: None for key in ("total", *PILLARS)}
-        medians = {
+        baseline_medians = {
+            key: statistics.median(v[key] for v in self.baseline_values)
+            for key in ("total", *PILLARS)
+        }
+        candidate_medians = {
             key: statistics.median(v[key] for v in self.candidate_values)
             for key in ("total", *PILLARS)
         }
         return {
-            key: medians[key] - self.baseline_values[key]
+            key: candidate_medians[key] - baseline_medians[key]
             for key in ("total", *PILLARS)
         }
 
     @property
     def deltas(self) -> dict[str, float | None]:
-        raw = self.raw_deltas
-        return {
-            key: (
-                None
-                if value is None
-                else float(value) - float(self.approved_rule_change_deltas.get(key, 0.0))
-            )
-            for key, value in raw.items()
-        }
+        return self.raw_deltas
 
     @property
     def delta_passed(self) -> bool:
@@ -291,7 +292,7 @@ class AgentGateResult:
     def passed(self) -> bool:
         if self.errors:
             return False
-        return self.spread_passed
+        return self.spread_passed and self.delta_passed
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -344,8 +345,8 @@ def _validate_contract_payload(payload: dict[str, Any], *, agent_id: str, seed: 
     return errors
 
 
-def _prepare_input_dir(agent_id: str, tmp_root: Path) -> Path:
-    source = BASELINES / agent_id
+def _prepare_input_dir(agent_id: str, tmp_root: Path, source_root: Path = BASELINES) -> Path:
+    source = source_root / agent_id
     required = ("eval_outputs.json", "applicability.json")
     missing = [name for name in required if not (source / name).exists()]
     if missing:
@@ -399,10 +400,16 @@ def _trusted_architecture_flags_json(input_dir: Path) -> str | None:
     return json.dumps(flags, sort_keys=True, separators=(",", ":"))
 
 
-def _run_cli(agent_id: str, seed: int, input_dir: Path, output_path: Path) -> tuple[int, str, str]:
+def _run_cli(
+    repo: Path,
+    agent_id: str,
+    seed: int,
+    input_dir: Path,
+    output_path: Path,
+) -> tuple[int, str, str]:
     cmd = [
         sys.executable,
-        str(REPO / "bin" / "are-scan"),
+        str(repo / "bin" / "are-scan"),
         "--agent",
         agent_id,
         "--seed",
@@ -424,13 +431,69 @@ def _run_cli(agent_id: str, seed: int, input_dir: Path, output_path: Path) -> tu
     env.setdefault("ARE_ALLOW_DEV_SIGNING_KEY", "true")
     completed = subprocess.run(
         cmd,
-        cwd=REPO,
+        cwd=repo,
         text=True,
         capture_output=True,
         check=False,
         env=env,
     )
     return completed.returncode, completed.stdout, completed.stderr
+
+
+def _resolve_commit(label: str) -> tuple[str, str]:
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--verify", f"{label}^{{commit}}"],
+            cwd=REPO,
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+        tree = subprocess.check_output(
+            ["git", "show", "-s", "--format=%T", commit],
+            cwd=REPO,
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"cannot resolve immutable commit {label!r}: {exc.output.strip()}") from exc
+    return commit, tree
+
+
+def _archive_commit(commit: str, target: Path) -> None:
+    target.mkdir(parents=True, exist_ok=True)
+    archive = subprocess.Popen(
+        ["git", "archive", "--format=tar", commit],
+        cwd=REPO,
+        stdout=subprocess.PIPE,
+    )
+    assert archive.stdout is not None
+    extract = subprocess.run(
+        ["tar", "-xf", "-", "-C", str(target)],
+        stdin=archive.stdout,
+        capture_output=True,
+        text=False,
+        check=False,
+    )
+    archive.stdout.close()
+    archive_code = archive.wait()
+    if archive_code or extract.returncode:
+        raise RuntimeError(
+            f"archive/extract failed for {commit}: git={archive_code}, tar={extract.returncode}"
+        )
+
+
+def _frozen_input_hashes(repo: Path = REPO) -> dict[str, str]:
+    baseline_root = repo / "artifacts" / "beaaa-387"
+    paths = [baseline_root / "manifest.json"]
+    for agent_id in ROSTER:
+        paths.extend(
+            (baseline_root / agent_id / name)
+            for name in ("eval_outputs.json", "applicability.json", "baseline.json")
+        )
+    return {
+        str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in paths
+    }
 
 
 def run_gate(
@@ -451,10 +514,20 @@ def run_gate(
     today = today or datetime.now(timezone.utc).date().isoformat()
     results: list[AgentGateResult] = []
     approval_errors = _validate_approved_movement_sources(APPROVED_MOVEMENT_SOURCES)
-    validated_sources = () if approval_errors else APPROVED_MOVEMENT_SOURCES
+    baseline_commit, baseline_tree = _resolve_commit(baseline_label)
+    candidate_commit, candidate_tree = _resolve_commit(candidate_label)
 
     with tempfile.TemporaryDirectory(prefix="backbond-release-gate-n5-") as tmp:
         tmp_root = Path(tmp)
+        baseline_repo = tmp_root / "baseline"
+        candidate_repo = tmp_root / "candidate"
+        _archive_commit(baseline_commit, baseline_repo)
+        _archive_commit(candidate_commit, candidate_repo)
+        baseline_input_hashes = _frozen_input_hashes(baseline_repo)
+        candidate_input_hashes = _frozen_input_hashes(candidate_repo)
+        if baseline_input_hashes != candidate_input_hashes:
+            raise ValueError("frozen input hash mismatch between baseline and candidate archives")
+        input_hashes = candidate_input_hashes
         for agent_id in ROSTER:
             result = AgentGateResult(agent_id=agent_id)
             finfo = (manifest.get("fixtures") or {}).get(agent_id) or {}
@@ -470,7 +543,6 @@ def run_gate(
                 continue
 
             try:
-                result.baseline_values = _baseline_values(_load_json(baseline_path))
                 result.approved_movements = [
                     {
                         key: value
@@ -478,32 +550,46 @@ def run_gate(
                         if key != "deltas"
                     }
                     | {"delta": dict(source["deltas"].get(agent_id, {}))}
-                    for source in validated_sources
+                    for source in APPROVED_MOVEMENT_SOURCES
                 ]
                 result.approved_rule_change_deltas = {
                     key: sum(float(movement["delta"].get(key, 0.0)) for movement in result.approved_movements)
                     for key in ("total", *PILLARS)
                 }
-                input_dir = _prepare_input_dir(agent_id, tmp_root)
+                input_dir = _prepare_input_dir(
+                    agent_id,
+                    tmp_root,
+                    candidate_repo / "artifacts" / "beaaa-387",
+                )
             except Exception as exc:  # noqa: BLE001 - release gate reports all agents.
                 result.errors.append(str(exc))
                 results.append(result)
                 continue
 
-            for seed in SEEDS:
-                output_path = tmp_root / "outputs" / agent_id / f"seed-{seed}.json"
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                code, stdout, stderr = _run_cli(agent_id, seed, input_dir, output_path)
-                if code != 0:
-                    detail = stderr.strip() or stdout.strip() or f"exit {code}"
-                    result.errors.append(f"{agent_id}/seed-{seed}: bin/are-scan failed: {detail}")
-                    continue
-                payload = _load_json(output_path)
-                result.errors.extend(_validate_contract_payload(payload, agent_id=agent_id, seed=seed))
-                try:
-                    result.candidate_values.append(_candidate_values(payload))
-                except Exception as exc:  # noqa: BLE001 - malformed output is a gate failure.
-                    result.errors.append(f"{agent_id}/seed-{seed}: cannot read score values: {exc}")
+            for side, repo, values in (
+                ("baseline", baseline_repo, result.baseline_values),
+                ("candidate", candidate_repo, result.candidate_values),
+            ):
+                for seed in SEEDS:
+                    output_path = tmp_root / "outputs" / side / agent_id / f"seed-{seed}.json"
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    code, stdout, stderr = _run_cli(repo, agent_id, seed, input_dir, output_path)
+                    if code != 0:
+                        detail = stderr.strip() or stdout.strip() or f"exit {code}"
+                        result.errors.append(
+                            f"{agent_id}/{side}/seed-{seed}: bin/are-scan failed: {detail}"
+                        )
+                        continue
+                    payload = _load_json(output_path)
+                    result.errors.extend(
+                        _validate_contract_payload(payload, agent_id=agent_id, seed=seed)
+                    )
+                    try:
+                        values.append(_candidate_values(payload))
+                    except Exception as exc:  # noqa: BLE001 - release gate reports all agents.
+                        result.errors.append(
+                            f"{agent_id}/{side}/seed-{seed}: cannot read score values: {exc}"
+                        )
             results.append(result)
 
     # BEAAA-12030: multi-turn behavioral golden fixtures. Additive coverage of the
@@ -541,6 +627,11 @@ def run_gate(
         "founder_directive": "2026-07-24 phase-aware score drift",
         "baseline": baseline_label,
         "candidate": candidate_label,
+        "baseline_commit": baseline_commit,
+        "baseline_tree": baseline_tree,
+        "candidate_commit": candidate_commit,
+        "candidate_tree": candidate_tree,
+        "frozen_input_hashes": input_hashes,
         "claim": "8/9 baselined",
         "full_roster": list(FULL_ROSTER),
         "roster": list(ROSTER),
@@ -551,7 +642,7 @@ def run_gate(
         "single_turn_spread_passed": single_turn_spread_passed,
         "single_turn_delta_passed": single_turn_delta_passed,
         "single_turn_passed": single_turn_passed,
-        "development_drift_disposition": "informational_non_blocking",
+        "development_drift_disposition": "direct_same_lineage_blocking",
         "material_deltas": material_deltas,
         "behavioral": behavioral,
         "approval_provenance": {
@@ -560,7 +651,12 @@ def run_gate(
             "errors": approval_errors,
         },
         "failure_reasons": [FAIL_INVALID_APPROVAL] if approval_errors else [],
-        "passed": single_turn_passed and behavioral["passed"] and not approval_errors,
+        "passed": (
+            single_turn_passed
+            and single_turn_delta_passed
+            and behavioral["passed"]
+            and not approval_errors
+        ),
         "agents": [_result_to_dict(r) for r in results],
     }
     report["release_reliance_authorized"] = False
@@ -651,7 +747,9 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- CTO co-sign: `{report['cto_cosign_ref']}`",
         f"- Movement-accounting decision: `{report.get('movement_accounting_decision_ref', 'n/a')}`",
         f"- Baseline: `{report['baseline']}`",
+        f"- Baseline commit/tree: `{report['baseline_commit']}` / `{report['baseline_tree']}`",
         f"- Candidate: `{report['candidate']}`",
+        f"- Candidate commit/tree: `{report['candidate_commit']}` / `{report['candidate_tree']}`",
         f"- Phase: `{report['phase']}`",
         f"- Drift disposition: `{report['development_drift_disposition']}`",
         f"- Release-gate corpus version: `{RELEASE_GATE_CORPUS_VERSION}`",
@@ -663,7 +761,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         + "`",
         f"- Seeds: `{', '.join(str(seed) for seed in report['seeds'])}`",
         f"- Reproducibility gate: `candidate seed spread <= {report['spread_tolerance']}`",
-        "- Baseline-to-candidate score and pillar deltas: `measured and disclosed; informational in development`",
+        "- Baseline-to-candidate score and pillar deltas: `direct same-lineage comparison; +/-1 blocking`",
         f"- Result: `{'PASS' if report['passed'] else 'BLOCK'}`",
         f"- Approval provenance: `{'PASS' if (report.get('approval_provenance') or {}).get('passed') else 'BLOCK'}`",
         f"- Release reliance authorized: `{'yes' if report.get('release_reliance_authorized') else 'no'}`",
@@ -731,14 +829,12 @@ def _render_markdown(report: dict[str, Any]) -> str:
 
     lines.extend([
         "",
-        "## Approved Rule-Change Isolation",
+        "## Historical Approved-Movement Provenance",
         "",
-        "The residual delta table subtracts two independently approved movements "
-        "from raw movement against the frozen golden locks. Each source remains "
-        "separately attributable; the aggregate is shown only as arithmetic. "
-        "Residual movement above +/-1 remains a release blocker.",
+        "BEAAA-13412 and BEAAA-14798 vectors are disclosed for provenance only. "
+        "They are not subtracted from the direct immutable-SHA comparison.",
         "",
-        "| Agent | raw Δ total | raw Δ ROB | approved Δ total | approved Δ ROB | residual Δ total | residual Δ ROB |",
+        "| Agent | direct Δ total | direct Δ ROB | historical Δ total | historical Δ ROB | enforced Δ total | enforced Δ ROB |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ])
     for agent in report["agents"]:
@@ -767,6 +863,10 @@ def _render_markdown(report: dict[str, Any]) -> str:
                 f"{', '.join(movement['commits'])} | {movement['underwriter_ref']} | "
                 f"{movement.get('founder_comment_ref') or 'n/a'} | {vector} |"
             )
+
+    lines.extend(["", "## Frozen Input SHA-256", ""])
+    for path, digest in sorted(report.get("frozen_input_hashes", {}).items()):
+        lines.append(f"- `{path}`: `{digest}`")
 
     behavioral = report.get("behavioral")
     if behavioral:
