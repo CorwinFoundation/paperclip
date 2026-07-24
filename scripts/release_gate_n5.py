@@ -459,6 +459,40 @@ def _resolve_commit(label: str) -> tuple[str, str]:
     return commit, tree
 
 
+def _artifact_candidate_identity(
+    candidate_label: str,
+    candidate_commit: str,
+    candidate_tree: str,
+) -> tuple[str, str, str, str]:
+    """Return a stable identity when evidence is generated for its owning HEAD.
+
+    A Git commit cannot contain a file that embeds that commit's object id:
+    adding the file changes both the tree and commit ids.  For the common
+    release-candidate invocation where ``--candidate`` resolves to the current
+    HEAD, serialize the candidate identity as ``HEAD``/``self``.  The immutable
+    candidate argument is still resolved and archived before this projection,
+    so the gate evaluates the exact requested commit while the committed
+    evidence remains byte-stable when rerun from that commit.
+    """
+    try:
+        head_commit = subprocess.check_output(
+            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            cwd=REPO,
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+    except subprocess.CalledProcessError:
+        head_commit = ""
+    if candidate_commit == head_commit:
+        return (
+            "HEAD",
+            "self",
+            "self",
+            "candidate argument resolved to artifact-owning HEAD at gate execution",
+        )
+    return candidate_label, candidate_commit, candidate_tree, "explicit immutable ref"
+
+
 def _archive_commit(commit: str, target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
     archive = subprocess.Popen(
@@ -516,6 +550,12 @@ def run_gate(
     approval_errors = _validate_approved_movement_sources(APPROVED_MOVEMENT_SOURCES)
     baseline_commit, baseline_tree = _resolve_commit(baseline_label)
     candidate_commit, candidate_tree = _resolve_commit(candidate_label)
+    (
+        artifact_candidate_label,
+        artifact_candidate_commit,
+        artifact_candidate_tree,
+        candidate_identity_resolution,
+    ) = _artifact_candidate_identity(candidate_label, candidate_commit, candidate_tree)
 
     with tempfile.TemporaryDirectory(prefix="backbond-release-gate-n5-") as tmp:
         tmp_root = Path(tmp)
@@ -626,11 +666,12 @@ def run_gate(
         "phase": phase,
         "founder_directive": "2026-07-24 phase-aware score drift",
         "baseline": baseline_label,
-        "candidate": candidate_label,
+        "candidate": artifact_candidate_label,
         "baseline_commit": baseline_commit,
         "baseline_tree": baseline_tree,
-        "candidate_commit": candidate_commit,
-        "candidate_tree": candidate_tree,
+        "candidate_commit": artifact_candidate_commit,
+        "candidate_tree": artifact_candidate_tree,
+        "candidate_identity_resolution": candidate_identity_resolution,
         "frozen_input_hashes": input_hashes,
         "claim": "8/9 baselined",
         "full_roster": list(FULL_ROSTER),
@@ -663,7 +704,7 @@ def run_gate(
     report["unresolved_movement_accounting"] = _unresolved_movement_accounting(
         report["agents"]
     )
-    md_path = out_dir / f"{today}-{baseline_label}-vs-{candidate_label}.md"
+    md_path = out_dir / f"{today}-{baseline_label}-vs-{artifact_candidate_label}.md"
     md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text(_render_markdown(report), encoding="utf-8")
     md_path.with_suffix(".json").write_text(

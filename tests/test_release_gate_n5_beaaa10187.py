@@ -400,6 +400,27 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     assert report["agents"][0]["delta"]["total"] == 0.0
 
 
+def test_artifact_candidate_identity_is_stable_for_owning_head(monkeypatch):
+    monkeypatch.setattr(
+        release_gate_n5.subprocess,
+        "check_output",
+        lambda *args, **kwargs: "a" * 40 + "\n",
+    )
+
+    identity = release_gate_n5._artifact_candidate_identity(
+        "a" * 40,
+        "a" * 40,
+        "b" * 40,
+    )
+
+    assert identity == (
+        "HEAD",
+        "self",
+        "self",
+        "candidate argument resolved to artifact-owning HEAD at gate execution",
+    )
+
+
 def test_v1_gate_excludes_b2_but_keeps_full_roster_reference():
     assert "B2" in release_gate_n5.FULL_ROSTER
     assert "B2" not in release_gate_n5.ROSTER
