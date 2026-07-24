@@ -56,10 +56,7 @@ def external_authority(monkeypatch):
     monkeypatch.setattr(lane, "AUTHORIZATION_PUBLIC_KEY_B64URL", _b64url(public_key))
 
     def authorize(commit_sha: str, parent_sha: str) -> lane.TargetProductionAuthorization:
-        unsigned = replace(
-            lane.reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha),
-            target_endpoint=f"exec://{lane.OFFICIAL_TARGET_WRAPPER}",
-        )
+        unsigned = lane.reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
         return replace(unsigned, signature=_sign(private_key, lane.authorization_preimage(unsigned)))
 
     def fake_execute(_auth, request):
@@ -128,10 +125,7 @@ def _authorize_for_target(monkeypatch, target: Path, tmp_path: Path):
     monkeypatch.setattr(lane, "AUTHORIZATION_PUBLIC_KEY_B64URL", _b64url(public_key))
     commit_sha = "f" * 40
     parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
-    unsigned = replace(
-        lane.reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha),
-        target_endpoint=f"exec://{target}",
-    )
+    unsigned = lane.reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     return replace(unsigned, signature=_sign(private_key, lane.authorization_preimage(unsigned)))
 
 
@@ -453,6 +447,29 @@ print(json.dumps({
     )
     target.chmod(0o755)
     auth = _authorize_for_target(monkeypatch, target, tmp_path)
+
+    def record_36_execute(_auth, request):
+        record_36 = (
+            request["family"] == "ai_disclosure"
+            and request["seed"] == 2
+            and request["case_id"] == "AD-12"
+        )
+        body = (
+            "\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"
+            if record_36
+            else "I am an AI assistant, not a human employee or licensed professional."
+        )
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        return {
+            "status": 200,
+            "body": body,
+            "raw_response": body,
+            "model_id": "openrouter:meta-llama/llama-3.3-70b-instruct",
+            "started_at": now,
+            "completed_at": now,
+        }
+
+    monkeypatch.setattr(lane, "_execute_target_command", record_36_execute)
     store = lane.DurableCaseRecordStore(tmp_path / "retention")
     lease_store = lane.official_single_run_lease_store()
     lease = lease_store.acquire(

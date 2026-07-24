@@ -32,12 +32,13 @@ TICKET_REF = "BEAAA-17078"
 FIX_TICKET_REF = "BEAAA-17196"
 R7_ANCHOR_TICKET_REF = "BEAAA-17663"
 AUTHORIZATION_ALGORITHM = "ed25519-wave2-target-production-authority-v0.2"
-AUTHORIZATION_KEY_ID = "wave2-target-production-authority-r7-2026-07-root1"
+AUTHORIZATION_KEY_ID = "wave2-target-production-authority-r8-2026-07-root2"
 AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 24, tzinfo=UTC)
-AUTHORIZATION_PUBLIC_KEY_B64URL = "Dt0BaMLDj9DgU0FgHvcjZiZId0XCc9zhuB8norYUoOw"
+AUTHORIZATION_PUBLIC_KEY_B64URL = ""
 AUTHORIZATION_PUBLIC_KEY_FINGERPRINT = (
-    "sha256:45b1b136e040e1caf2778fffaf0a5754eecd2475de284ad32188757b9d16e3db"
+    ""
 )
+OFFICIAL_TARGET_ENDPOINT = "exec://backbond/wave2-openrouter-target@v0.1"
 TARGET_EVIDENCE_REL = "artifacts/beaaa-17196/wave2-openrouter-unsigned-packet.json"
 PROMOTION_IDENTITY_SCHEME = "backbond-scanner-wave2-promotion-manifest-v1"
 OPENROUTER_TARGET_MODEL = "meta-llama/llama-3.3-70b-instruct"
@@ -270,6 +271,23 @@ def _b64url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + ("=" * (-len(value) % 4)))
 
 
+def _auth_key_id(auth: TargetProductionAuthorization) -> str:
+    return auth.key_id or AUTHORIZATION_KEY_ID
+
+
+def _auth_public_key_b64url(auth: TargetProductionAuthorization) -> str:
+    return auth.public_key_b64url or AUTHORIZATION_PUBLIC_KEY_B64URL
+
+
+def _auth_public_key_fingerprint(auth: TargetProductionAuthorization) -> str:
+    public_key = _auth_public_key_b64url(auth)
+    if auth.public_key_fingerprint:
+        return auth.public_key_fingerprint
+    if not public_key:
+        return ""
+    return "sha256:" + hashlib.sha256(_b64url_decode(public_key)).hexdigest()
+
+
 def _git_parent(commit_sha: str) -> str:
     return subprocess.check_output(
         ["git", "rev-parse", f"{commit_sha}^"],
@@ -293,6 +311,10 @@ class TargetProductionAuthorization:
     allowed_family_ids: tuple[str, ...]
     evidence_immutable: bool
     signature: str
+    key_id: str = AUTHORIZATION_KEY_ID
+    public_key_b64url: str = AUTHORIZATION_PUBLIC_KEY_B64URL
+    public_key_fingerprint: str = AUTHORIZATION_PUBLIC_KEY_FINGERPRINT
+    custody_receipt_sha256: str = ""
 
 
 class TargetExecutionError(ValueError):
@@ -431,20 +453,106 @@ def single_run_authority_preimage(
 
 
 def authorization_preimage(auth: TargetProductionAuthorization) -> dict[str, Any]:
+    hashes = expected_wave2_hashes()
+    family_case_counts = {family: len(spec.cases) for family, spec in sorted(SPECS.items())}
+    unique_scenario_count = sum(family_case_counts.values())
     return {
+        "artifact_type": "target_production_authorization",
+        "preimage_schema": "backbond-wave2-target-authorization-preimage@r8.0",
         "algorithm": AUTHORIZATION_ALGORITHM,
-        "key_id": AUTHORIZATION_KEY_ID,
+        "key_id": _auth_key_id(auth),
+        "public_key_b64url": _auth_public_key_b64url(auth),
+        "public_key_fingerprint": _auth_public_key_fingerprint(auth),
+        "custody_receipt_sha256": auth.custody_receipt_sha256,
         "target_id": auth.target_id,
         "candidate_commit_sha": auth.candidate_commit_sha,
         "parent_sha": auth.parent_sha,
+        "source_candidate_sha": auth.parent_sha,
         "authorization_ref": auth.authorization_ref,
         "authorization_issued_at": auth.authorization_issued_at,
         "authorization_expires_at": auth.authorization_expires_at,
         "target_endpoint": auth.target_endpoint,
+        "target_model": f"openrouter:{OPENROUTER_TARGET_MODEL}",
+        "runner": {
+            "official_entrypoint": OFFICIAL_TARGET_ENDPOINT,
+            "official_entrypoint_sha256": _sha256_file(OFFICIAL_TARGET_WRAPPER),
+            "system_policy_version": BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+            "system_policy_sha256": _sha256_obj(
+                {
+                    "version": BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+                    "policy": BOUNDED_AGENT_SYSTEM_POLICY,
+                }
+            ),
+        },
         "lease_root": auth.lease_root,
+        "lease": {
+            "root": auth.lease_root,
+            "schema_version": RUN_LEASE_FORMAT_VERSION,
+            "single_run": True,
+            "reject_active_residue_before_target_invocation": True,
+            "reject_consumed_authority_before_target_invocation": True,
+        },
         "tenant_boundary": auth.tenant_boundary,
         "session_boundary": auth.session_boundary,
         "allowed_family_ids": list(auth.allowed_family_ids),
+        "authorization_scope": {
+            "authorized_family_ids": sorted(auth.allowed_family_ids),
+            "rubric_point_id": sorted(
+                {point for spec in SPECS.values() for point in spec.rubric_point_ids}
+            ),
+            "corpus_version": {family: spec.version for family, spec in sorted(SPECS.items())},
+            "probe_set_version": {
+                family: spec.version for family, spec in sorted(SPECS.items())
+            },
+            "family_case_counts": family_case_counts,
+            "unique_scenario_count": unique_scenario_count,
+            "seeds": list(range(base.REPLICATION_K)),
+            "execution_count_k5": unique_scenario_count * base.REPLICATION_K,
+            "maximum_calls": unique_scenario_count * base.REPLICATION_K,
+            "retries": 0,
+            "fresh_sessions": "required_per_case_seed",
+        },
+        "hashes": {
+            "corpus_sha256": hashes["corpus_sha256"],
+            "config_sha256": hashes["config_sha256"],
+            "policy_sha256": _sha256_obj(
+                {
+                    "version": BOUNDED_AGENT_SYSTEM_POLICY_VERSION,
+                    "policy": BOUNDED_AGENT_SYSTEM_POLICY,
+                }
+            ),
+            "evaluator_id": "wave2-deterministic-raw-response-evaluator@0.1.0",
+            "evaluator_sha256": hashes["config_sha256"]["candidate_module"],
+        },
+        "fail_closed_stop_conditions": [
+            "r6_or_rejected_engineering_r7_key_id_or_public_key_or_signature_or_preimage_or_approval_or_partial_packet_seen",
+            "rejected_engineering_r7_commit_seen",
+            "candidate_or_parent_sha_mismatch",
+            "target_endpoint_not_official_entrypoint",
+            "lease_root_mismatch",
+            "active_or_consumed_lease_residue",
+            "family_scope_mismatch",
+            "case_count_or_seed_count_mismatch",
+            "call_count_exceeds_360",
+            "retry_requested",
+            "missing_target_request_or_response_hash",
+            "any_invalid_or_fail_verdict",
+        ],
+        "retention": {
+            "minimum_retention": "policy term + 7 years",
+        },
+        "score_effect": {
+            "total_delta": 0,
+            "pillar_deltas": {
+                "GOVERNANCE": 0,
+                "ROBUSTNESS": 0,
+                "BIAS_FAIRNESS": 0,
+                "OPS": 0,
+            },
+            "band_delta": 0,
+            "pricing_delta": 0,
+            "false_positive_movement": 0,
+        },
         "evidence_immutable": auth.evidence_immutable,
     }
 
@@ -457,7 +565,7 @@ def reference_authorization(*, commit_sha: str, parent_sha: str | None = None) -
         authorization_ref="BEAAA-17091#target-production-execution-authority",
         authorization_issued_at="2026-07-23T00:00:00Z",
         authorization_expires_at="2026-12-31T23:59:59Z",
-        target_endpoint="",
+        target_endpoint=OFFICIAL_TARGET_ENDPOINT,
         lease_root=str(OFFICIAL_RUN_LEASE_ROOT),
         tenant_boundary="single authorized tenant; no cross-tenant context reuse",
         session_boundary="fresh target session per case and seed",
@@ -497,12 +605,20 @@ def verify_authorization(
         raise TargetExecutionError("authorized_family_scope_mismatch")
     if not auth.evidence_immutable:
         raise TargetExecutionError("mutable_evidence")
+    if _auth_key_id(auth) != AUTHORIZATION_KEY_ID:
+        raise TargetExecutionError("authorization_key_id_mismatch")
+    public_key_b64url = _auth_public_key_b64url(auth)
+    public_key_fingerprint = _auth_public_key_fingerprint(auth)
+    if not public_key_b64url or not public_key_fingerprint:
+        raise TargetExecutionError("authorization_public_key_missing")
     if Path(auth.lease_root).resolve() != OFFICIAL_RUN_LEASE_ROOT:
         raise TargetExecutionError("authorization_lease_root_mismatch")
     if auth.target_endpoint.startswith("local://"):
         raise TargetExecutionError("target_endpoint_local_forbidden")
     if not auth.target_endpoint.startswith("exec://"):
         raise TargetExecutionError("target_endpoint_scheme_unsupported")
+    if auth.target_endpoint != OFFICIAL_TARGET_ENDPOINT:
+        raise TargetExecutionError("custom_target_wrapper_forbidden")
     try:
         issued = datetime.fromisoformat(auth.authorization_issued_at.removesuffix("Z") + "+00:00")
         expires = datetime.fromisoformat(auth.authorization_expires_at.removesuffix("Z") + "+00:00")
@@ -513,12 +629,13 @@ def verify_authorization(
     if expires <= AUTHORIZATION_VERIFY_AT:
         raise TargetExecutionError("authorization_expired")
     parts = auth.signature.split(":")
-    if len(parts) != 3 or parts[0] != "ed25519" or parts[1] != AUTHORIZATION_KEY_ID:
+    if len(parts) != 3 or parts[0] != "ed25519" or parts[1] != _auth_key_id(auth):
         raise TargetExecutionError("authorization_signature_invalid")
     try:
-        public_key = Ed25519PublicKey.from_public_bytes(
-            _b64url_decode(AUTHORIZATION_PUBLIC_KEY_B64URL)
-        )
+        public_key_bytes = _b64url_decode(public_key_b64url)
+        if "sha256:" + hashlib.sha256(public_key_bytes).hexdigest() != public_key_fingerprint:
+            raise TargetExecutionError("authorization_public_key_fingerprint_mismatch")
+        public_key = Ed25519PublicKey.from_public_bytes(public_key_bytes)
         public_key.verify(
             _b64url_decode(parts[2]),
             _canonical(authorization_preimage(auth)).encode("utf-8"),
@@ -533,6 +650,8 @@ def _authorized_target_command(auth: TargetProductionAuthorization) -> Path:
     raw_command = auth.target_endpoint.removeprefix("exec://")
     if not raw_command:
         raise TargetExecutionError("target_endpoint_missing")
+    if auth.target_endpoint == OFFICIAL_TARGET_ENDPOINT:
+        return OFFICIAL_TARGET_WRAPPER.resolve()
     return Path(raw_command).expanduser().resolve()
 
 
