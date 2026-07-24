@@ -309,6 +309,25 @@ def _load_checkpointed(rows_path: Path, auth: spe.Wave3Authorization) -> dict[tu
     return checkpointed
 
 
+def _load_source_responses(rows_path: Path | None) -> dict[tuple[str, int], dict[str, Any]]:
+    responses: dict[tuple[str, int], dict[str, Any]] = {}
+    if rows_path is None:
+        return responses
+    for line in rows_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        response = row.get("target_response")
+        key = (row.get("case_id"), row.get("seed"))
+        if isinstance(response, dict) and isinstance(key[0], str) and key[1] in range(5):
+            copied = dict(response)
+            copied["replayed_from_candidate_commit_sha"] = row.get("candidate_commit_sha")
+            copied["replayed_from_row_sha256"] = row.get("row_sha256")
+            copied["provider_call_repeated"] = False
+            responses[(key[0], key[1])] = copied
+    return responses
+
+
 def _ordered_case_inputs() -> list[tuple[int, base.Case, str]]:
     inputs: list[tuple[int, base.Case, str]] = []
     for seed in range(5):
@@ -333,9 +352,11 @@ def build_rows(
     out_dir: Path | None = None,
     transport: Transport | None = None,
     max_rows: int | None = None,
+    source_rows: Path | None = None,
 ) -> tuple[spe.Wave3Authorization, list[dict[str, Any]]]:
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
-    if transport is None and not api_key:
+    source_responses = _load_source_responses(source_rows)
+    if transport is None and not api_key and not source_responses:
         raise SystemExit("OPENROUTER_API_KEY is required")
     auth = _auth(commit, nonce)
     rows_path = out_dir / "target-evidence-rows.jsonl" if out_dir else None
@@ -350,28 +371,34 @@ def build_rows(
         if key in checkpointed:
             rows.append(checkpointed[key])
             continue
-        if call_count >= spe.LIVE_CALL_CAP:
+        if key in source_responses:
+            response = source_responses[key]
+            call_started = time.time()
+            call_repeated = False
+        elif call_count >= spe.LIVE_CALL_CAP:
             raise SystemExit("live_call_cap_exceeded")
-        call_count += 1
-        call_started = time.time()
-        active_transport = transport or _call_openrouter
-        started = time.monotonic()
-        try:
-            with _hard_deadline(timeout):
-                response = active_transport(
-                    api_key=api_key,
-                    prompt=rendered_prompt,
+        else:
+            call_count += 1
+            call_started = time.time()
+            call_repeated = True
+            active_transport = transport or _call_openrouter
+            started = time.monotonic()
+            try:
+                with _hard_deadline(timeout):
+                    response = active_transport(
+                        api_key=api_key,
+                        prompt=rendered_prompt,
+                        case_id=case.case_id,
+                        seed=seed,
+                        timeout=timeout,
+                    )
+            except DeadlineExceeded:
+                response = _target_error(
                     case_id=case.case_id,
                     seed=seed,
-                    timeout=timeout,
+                    error_class="deadline_exceeded",
+                    elapsed_ms=round((time.monotonic() - started) * 1000),
                 )
-        except DeadlineExceeded:
-            response = _target_error(
-                case_id=case.case_id,
-                seed=seed,
-                error_class="deadline_exceeded",
-                elapsed_ms=round((time.monotonic() - started) * 1000),
-            )
         if response.get("target_execution_error") is True:
             row = _build_error_evidence_row(
                 auth=auth,
@@ -395,13 +422,16 @@ def build_rows(
             "replay_nonce": auth.replay_nonce,
             "case_id": case.case_id,
             "seed": seed,
-            "call_number_this_run": call_count,
+            "call_number_this_run": call_count if call_repeated else None,
             "endpoint": spe.OPENROUTER_ENDPOINT,
             "model": spe.OPENROUTER_MODEL,
             "terminal_row_sha256": row["row_sha256"],
             "target_execution_error": row.get("target_execution_error") is True,
             "error_class": row.get("error_class"),
             "elapsed_ms": response.get("elapsed_ms"),
+            "provider_call_repeated": call_repeated,
+            "replayed_from_candidate_commit_sha": response.get("replayed_from_candidate_commit_sha"),
+            "replayed_from_row_sha256": response.get("replayed_from_row_sha256"),
             "ledger_written_at_unix": call_started,
         }
         if rows_path and ledger_path:
@@ -450,6 +480,12 @@ def write_packet(*, out_dir: Path, auth: spe.Wave3Authorization, rows: list[dict
         "canary_seeds": sorted({row["seed"] for row in rows if row["case_id"] == "spe-20-canary"}),
         "verdict_tally": tally,
         "live_call_count": len(rows),
+        "provider_calls_repeated_for_packet_rebuild": sum(
+            1
+            for row in rows
+            if isinstance(row.get("target_response"), dict)
+            and row["target_response"].get("provider_call_repeated") is not False
+        ),
         "live_call_cap": spe.LIVE_CALL_CAP,
         "cumulative_conservative_call_ceiling": 301,
         "provider_usage_records_available": len(usage_rows),
@@ -472,6 +508,7 @@ def main() -> None:
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--sleep-seconds", type=float, default=0.0)
+    parser.add_argument("--source-rows", type=Path)
     args = parser.parse_args()
 
     auth, rows = build_rows(
@@ -480,6 +517,7 @@ def main() -> None:
         timeout=args.timeout,
         sleep_seconds=args.sleep_seconds,
         out_dir=args.out_dir,
+        source_rows=args.source_rows,
     )
     write_packet(out_dir=args.out_dir, auth=auth, rows=rows)
     spe.validate_evidence_rows(rows, expected_authorization=auth, allow_error_rows=True)
