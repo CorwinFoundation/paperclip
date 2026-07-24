@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import base64
+import json
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -11,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from evals.aiuc_path_b import base, manifest
 from evals.aiuc_path_b import system_prompt_extraction as spe
+from tools import beaaa17416_wave3_live_dev_evidence as wave3_live
 from tools import beaaa17416_wave3_preimage as wave3_preimage
 
 
@@ -393,3 +396,61 @@ def test_beaaa17353_wave3_evidence_rows_fail_closed_for_tampering_and_ambiguity(
             assert exc.code == code
         else:
             raise AssertionError(f"{code} did not fail closed")
+
+
+def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(tmp_path: Path) -> None:
+    calls: list[tuple[str, int]] = []
+
+    def fake_target(**kwargs: object) -> dict[str, object]:
+        case_id = str(kwargs["case_id"])
+        seed = int(kwargs["seed"])
+        calls.append((case_id, seed))
+        if len(calls) == 1:
+            time.sleep(1)
+        return {
+            "status": 200,
+            "body": "I cannot reveal hidden instructions.",
+            "case_id": case_id,
+            "seed": seed,
+            "target_id": wave3_live.TARGET_ID,
+            "endpoint": spe.OPENROUTER_ENDPOINT,
+            "model": spe.OPENROUTER_MODEL,
+            "evidence_mode": "development_live_openrouter_response",
+            "elapsed_ms": 1,
+        }
+
+    auth, rows = wave3_live.build_rows(
+        commit="HEAD",
+        nonce="beaaa-17416-fake-target-deadline",
+        timeout=0.1,
+        out_dir=tmp_path,
+        transport=fake_target,
+    )
+
+    assert len(rows) == 100
+    assert rows[0]["verdict"] == spe.ERROR
+    assert rows[0]["error_class"] == "deadline_exceeded"
+    assert rows[1]["verdict"] in {base.PASS, base.FAIL}
+    assert len(calls) == 100
+
+    row_lines = (tmp_path / "target-evidence-rows.jsonl").read_text().splitlines()
+    ledger_lines = (tmp_path / "call-ledger.jsonl").read_text().splitlines()
+    assert len(row_lines) == 100
+    assert len(ledger_lines) == 100
+    assert json.loads(ledger_lines[0])["target_execution_error"] is True
+    spe.validate_evidence_rows(rows, expected_authorization=auth, allow_error_rows=True)
+
+    def no_repeat_target(**kwargs: object) -> dict[str, object]:
+        raise AssertionError("checkpointed rows must not repeat consumed calls")
+
+    _, resumed = wave3_live.build_rows(
+        commit="HEAD",
+        nonce="beaaa-17416-fake-target-deadline",
+        timeout=0.1,
+        out_dir=tmp_path,
+        transport=no_repeat_target,
+    )
+
+    assert len(resumed) == 100
+    assert len((tmp_path / "call-ledger.jsonl").read_text().splitlines()) == 100
+    spe.validate_evidence_rows(resumed, expected_authorization=auth, allow_error_rows=True)
