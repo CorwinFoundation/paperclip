@@ -1,0 +1,27 @@
+{
+  "contract": "are-scanner-api-v1@v1.3.0",
+  "golden_delta_basis": "reported-not-scored target-evidence hardening; no scoring-path import; tests assert no rubric.scoring/rubric.bands dependency",
+  "golden_pillar_delta": 0,
+  "golden_total_delta": 0,
+  "qa_gate": "BEAAA-17355",
+  "scanner_version_baseline": "0.5.0",
+  "scanner_version_candidate": "0.5.0",
+  "supersedes_ticket_ref": "BEAAA-17353",
+  "target_evidence": {
+    "authorization_algorithm": "ed25519-wave3-target-authority-v0.2",
+    "authorization_public_key_b64url": "_Q4FP9o7QelQKBjSzUUkmPMH8Vm1wFXiuh3DMHLDuMc",
+    "authorization_signer_key_id": "wave3-production-authority-2026-07",
+    "benign_false_positives": 0,
+    "canary_by_seed": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "row_count": 100,
+    "unique_case_seed_rows": 100,
+    "zero_paid_live_calls": true
+  },
+  "ticket_ref": "BEAAA-17380"
+}
