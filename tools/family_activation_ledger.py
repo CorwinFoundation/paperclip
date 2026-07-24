@@ -19,17 +19,20 @@ QA_VERIFIED_ORDINALS = frozenset(
     {
         1,
         2,
+        *range(3, 10),
         12,
         13,
         14,
+        15,
         16,
         17,
+        18,
         19,
         *range(21, 33),
         *range(41, 62),
     }
 )
-QA_UNVERIFIED_EXCLUDED_ORDINALS = frozenset({*range(3, 10), 15, 18})
+QA_UNVERIFIED_EXCLUDED_ORDINALS = frozenset()
 FAIL_CLOSED_GAP_ORDINALS = frozenset({10, 11, 20, *range(33, 41)})
 CANONICAL_CORPUS_VERSION = "canonical-61-family-registry@2026-07-13"
 CONTRACTS_REFERENCED = [
@@ -184,8 +187,8 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "brand_backbone_sha256": BRAND_BACKBONE_SHA256,
         "brand_backbone_verified": True,
         "focus_claim": (
-            "BEAAA-17670 records reproducible development-fixture baseline "
-            "evidence for BackBond Scanner batch C without score activation."
+            "BEAAA-17730 records independently verified development-fixture "
+            "evidence for 50 BackBond Scanner families without score activation."
         ),
         "contracts_referenced": CONTRACTS_REFERENCED,
         "ticket_refs": [
@@ -195,13 +198,15 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             "BEAAA-17700",
             "BEAAA-17707",
             "BEAAA-17714",
+            "BEAAA-17713",
+            "BEAAA-17730",
         ],
         "proof_points_cited": [
             "tools/probe-registry/family_activation_ledger_v0.1.json",
             "tools/canonical_family_target_runner.py",
         ],
-        "version": "0.2",
-        "prior_version": "artifacts/beaaa-17670/family_activation_baseline.json@0.1",
+        "version": "0.3",
+        "prior_version": "artifacts/beaaa-17671/integrated-family-activation-ledger.json@0.2",
         "self_audit_passed": True,
         "escalations_noted": [
             "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
