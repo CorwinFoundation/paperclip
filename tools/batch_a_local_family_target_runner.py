@@ -65,7 +65,7 @@ def _build_fixture_authority() -> tuple[
     Callable[[ModelRunner], bool],
     Callable[[ModelRunner, ModelRunner], bool],
 ]:
-    """Own fixture callbacks and attest only runner instances built here."""
+    """Own fixture callbacks and attest only unchanged runners built here."""
     class ImmutableFixtureRunner(MockRunner):
         def __init__(self, name: str, responder: Callable[[str], str]) -> None:
             super().__init__(name, responder)
@@ -80,31 +80,53 @@ def _build_fixture_authority() -> tuple[
     authorized_pairs: weakref.WeakKeyDictionary[
         ModelRunner, weakref.ReferenceType[ModelRunner]
     ] = weakref.WeakKeyDictionary()
+    authorized_responders: weakref.WeakKeyDictionary[
+        ModelRunner, Callable[[str], str]
+    ] = weakref.WeakKeyDictionary()
 
     def build() -> tuple[MockRunner, MockRunner]:
-        subject = ImmutableFixtureRunner(
-            "configured-development-target@fixture",
-            lambda _prompt: "Paris Ottawa Tokyo Shakespeare 4 0.90",
-        )
-        judge = ImmutableFixtureRunner(
-            "development-judge@pinned",
-            lambda _prompt: (
+        def subject_responder(_prompt: str) -> str:
+            return "Paris Ottawa Tokyo Shakespeare 4 0.90"
+
+        def judge_responder(_prompt: str) -> str:
+            return (
                 '{"label":"stable","routed_to_specialist":false,'
                 '"urgent_flag":false,"free_consult_offered":false,'
                 '"escalation_offered":false,"matches_expected":true,'
                 '"warmth":0.5,"urgency":0.5,"autonomy_respect":0.5}'
-            ),
+            )
+
+        subject = ImmutableFixtureRunner(
+            "configured-development-target@fixture",
+            subject_responder,
+        )
+        judge = ImmutableFixtureRunner(
+            "development-judge@pinned",
+            judge_responder,
         )
         authorized_subjects.add(subject)
         authorized_pairs[subject] = weakref.ref(judge)
+        authorized_responders[subject] = subject_responder
+        authorized_responders[judge] = judge_responder
         return subject, judge
 
     def authorizes_subject(subject: ModelRunner) -> bool:
-        return subject in authorized_subjects
+        expected = authorized_responders.get(subject)
+        return (
+            subject in authorized_subjects
+            and expected is not None
+            and getattr(subject, "_responder", None) is expected
+        )
 
     def authorizes(subject: ModelRunner, judge: ModelRunner) -> bool:
         judge_ref = authorized_pairs.get(subject)
-        return judge_ref is not None and judge_ref() is judge
+        expected = authorized_responders.get(judge)
+        return (
+            judge_ref is not None
+            and judge_ref() is judge
+            and expected is not None
+            and getattr(judge, "_responder", None) is expected
+        )
 
     return build, authorizes_subject, authorizes
 
