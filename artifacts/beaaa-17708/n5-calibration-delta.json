@@ -13,5 +13,5 @@
   "score_deltas": [0, 0, 0, 0, 0],
   "max_absolute_delta": 0,
   "result": "PASS",
-  "reason": "The candidate only connects development-fixture target execution and ledger evidence. Score activation is explicitly disabled, so the canonical scoring input and all five golden scores are unchanged."
+  "reason": "The fix only tightens pre-call fixture authorization and expands deterministic test coverage. Score activation remains disabled, so the canonical scoring input and all five golden scores are unchanged."
 }
