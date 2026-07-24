@@ -94,13 +94,7 @@ class AgentGateResult:
     def passed(self) -> bool:
         if self.errors:
             return False
-        return (
-            all(spread <= SPREAD_TOLERANCE for spread in self.candidate_spread.values())
-            and all(
-                delta is not None and abs(delta) <= SPREAD_TOLERANCE
-                for delta in self.deltas.values()
-            )
-        )
+        return all(spread <= SPREAD_TOLERANCE for spread in self.candidate_spread.values())
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -211,8 +205,14 @@ def run_gate(
     out_dir: Path = OUT_DIR,
     baseline_label: str,
     candidate_label: str,
+    phase: str = "development",
     today: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
+    if phase != "development":
+        raise ValueError(
+            "production/underwriting drift policy is not configured; "
+            "a named baseline and explicitly approved review policy are required"
+        )
     manifest = _load_json(manifest_path)
     today = today or datetime.now(timezone.utc).date().isoformat()
     results: list[AgentGateResult] = []
@@ -263,9 +263,22 @@ def run_gate(
     behavioral = behavioral_golden_fixtures.run_behavioral_gate()
 
     single_turn_passed = all(r.passed for r in results)
+    material_deltas = [
+        {
+            "agent": r.agent_id,
+            "delta": r.deltas,
+        }
+        for r in results
+        if any(
+            delta is not None and abs(delta) > SPREAD_TOLERANCE
+            for delta in r.deltas.values()
+        )
+    ]
     report = {
-        "issue": "BEAAA-10459/BEAAA-10453",
+        "issue": "BEAAA-17328",
         "contract": "are-scanner-api-v1@v1.0",
+        "phase": phase,
+        "founder_directive": "2026-07-24 phase-aware score drift",
         "baseline": baseline_label,
         "candidate": candidate_label,
         "claim": "8/9 baselined",
@@ -275,6 +288,8 @@ def run_gate(
         "seeds": list(SEEDS),
         "spread_tolerance": SPREAD_TOLERANCE,
         "single_turn_passed": single_turn_passed,
+        "development_drift_disposition": "informational_non_blocking",
+        "material_deltas": material_deltas,
         "behavioral": behavioral,
         "passed": single_turn_passed and behavioral["passed"],
         "agents": [_result_to_dict(r) for r in results],
@@ -318,23 +333,25 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "artifact_type: other",
         "owner: cto",
         "persona_audience: internal",
-        "phase: 1",
+        f"phase: {report['phase']}",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-10453 preserves BackBond Scanner evidence completeness by proving server-authoritative applicability and uncovered-dimension handling do not move the golden-set N=5 gate."',
+        'focus_claim: "BEAAA-17328 discloses measured development score drift while preserving reproducibility and evidence integrity."',
         'contracts_referenced: ["are-scanner-api-v1@v1.0", "are-scanner-api-v1@v1.8.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-10459", "BEAAA-10453", "BEAAA-10199", "BEAAA-12030"]',
+        'ticket_refs: ["BEAAA-17328", "BEAAA-16995", "BEAAA-16996", "BEAAA-12030"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.1",
         "prior_version: null",
         "self_audit_passed: true",
-        'escalations_noted: ["No Underwriter co-sign required: N=5 total and pillar deltas are 0 across the 8/9 baselined roster; no scoring logic, rubric, corpus, judge, output-shape, tamper-resistance, or customer-data change.", "BEAAA-12030 behavioral fixtures assert evidence-row / end-state stability and the behavioral_integrity scored:false invariant (ADR-0045) only; they read no pillar or are_total and import no scoring-path code, so single-turn golden deltas stay 0 -> rule-execution, no co-sign."]',
+        'escalations_noted: ["Founder directive 2026-07-24 makes measured score and pillar deltas informational for development builds. Production or underwriting transition requires a named frozen baseline and separately approved review policy."]',
         "---",
         "",
-        "# BEAAA-10453 Server-Authoritative Applicability N=5 Gate",
+        "# BEAAA-17328 Development N=5 Replay",
         "",
         f"- Contract: `{report['contract']}`",
         f"- Baseline: `{report['baseline']}`",
         f"- Candidate: `{report['candidate']}`",
+        f"- Phase: `{report['phase']}`",
+        f"- Drift disposition: `{report['development_drift_disposition']}`",
         f"- Release-gate corpus version: `{RELEASE_GATE_CORPUS_VERSION}`",
         f"- Claim: `{report['claim']}`",
         f"- Full roster: `{', '.join(report['full_roster'])}`",
@@ -343,10 +360,11 @@ def _render_markdown(report: dict[str, Any]) -> str:
         + "; ".join(f"{agent}: {reason}" for agent, reason in report["excluded"].items())
         + "`",
         f"- Seeds: `{', '.join(str(seed) for seed in report['seeds'])}`",
-        f"- Gate: `total and each pillar spread <= {report['spread_tolerance']}`",
+        f"- Reproducibility gate: `candidate seed spread <= {report['spread_tolerance']}`",
+        "- Baseline-to-candidate score and pillar deltas: `measured and disclosed; informational in development`",
         f"- Result: `{'PASS' if report['passed'] else 'BLOCK'}`",
         "",
-        "Release wording: BackBond Scanner v1 engine release ran on 8/9 baselined golden fixtures. "
+        "Development wording: BackBond Scanner replay ran on 8/9 baselined golden fixtures. "
         "B2 is explicitly excluded from the v1 gate because its approved target model returned 404 "
         "through the approved provider path before score output. The prior B2 dry-run score, 55/C-, "
         "is retained as historical evidence and is not promoted as a known-bad golden baseline.",
@@ -389,6 +407,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the nine-golden N=5 release gate.")
     parser.add_argument("--baseline", required=True, help="Baseline label for the delta filename/table.")
     parser.add_argument("--candidate", required=True, help="Candidate label for the delta filename/table.")
+    parser.add_argument(
+        "--phase",
+        required=True,
+        choices=("development",),
+        help="Explicit lifecycle phase. Production/underwriting requires a separately approved drift policy.",
+    )
     parser.add_argument("--today", default=None, help="YYYY-MM-DD override for deterministic tests.")
     parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
@@ -403,6 +427,7 @@ def main(argv: list[str] | None = None) -> int:
         out_dir=args.out_dir,
         baseline_label=args.baseline,
         candidate_label=args.candidate,
+        phase=args.phase,
         today=args.today,
     )
     if args.json_out:

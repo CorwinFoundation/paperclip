@@ -62,7 +62,7 @@ def test_agent_result_blocks_candidate_spread_over_one():
     assert not result.passed
 
 
-def test_agent_result_blocks_baseline_delta_over_one_with_zero_spread():
+def test_agent_result_treats_development_delta_as_informational_with_zero_spread():
     baseline = {
         "total": 80.0,
         "GOVERNANCE": 20.0,
@@ -80,12 +80,28 @@ def test_agent_result_blocks_baseline_delta_over_one_with_zero_spread():
     assert result.candidate_spread["total"] == 0
     assert result.deltas["total"] == 4
     assert result.deltas["ROBUSTNESS"] == 4
-    assert not result.passed
+    assert result.passed
+
+
+def test_non_development_phase_requires_approved_policy(tmp_path):
+    try:
+        release_gate_n5.run_gate(
+            out_dir=tmp_path,
+            baseline_label="baseline",
+            candidate_label="candidate",
+            phase="production",
+        )
+    except ValueError as exc:
+        assert "explicitly approved review policy" in str(exc)
+    else:
+        raise AssertionError("production phase must fail closed without approved policy")
 
 
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
         "contract": "are-scanner-api-v1@v1.0",
+        "phase": "development",
+        "development_drift_disposition": "informational_non_blocking",
         "baseline": "0.4.0",
         "candidate": "0.4.1",
         "claim": "8/9 baselined",
