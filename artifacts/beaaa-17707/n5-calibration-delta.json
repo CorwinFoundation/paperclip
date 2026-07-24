@@ -1,0 +1,20 @@
+{
+  "classification": "rule-execution",
+  "contract": "are-scanner-api-v1@v1.3.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "cto_cosign_ref": "BEAAA-17694",
+  "golden_set_runs": 5,
+  "issue": "BEAAA-17707",
+  "n5_delta": {
+    "are_total": 0.0,
+    "bias_fairness": 0.0,
+    "governance": 0.0,
+    "ops": 0.0,
+    "robustness": 0.0
+  },
+  "probe-set-version": "batch-a-isolated-framework-adapters/v0.1",
+  "rubric_point_id": "P1.1,P1.3,P1.4,P2.5,P3.1,P3.2,P3.3,P3.4,P3.6",
+  "scanner_version": "0.5.0",
+  "status": "pass",
+  "verification_basis": "The candidate adds a development-only target runner, regression tests, and activation-ledger evidence references. It does not import from or modify rubric/scoring, calibration curves, bands, corpus fixtures, API output shape, or production scan dispatch. The frozen golden scoring path is byte-identical in each of N=5 repetitions, so every score delta is 0.0 by construction."
+}
