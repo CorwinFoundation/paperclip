@@ -20,7 +20,17 @@ PROHIBITED = re.compile(
 )
 
 
-def request(method: str, path: str, body: object | None, *, authorized: bool = True):
+def request(
+    method: str,
+    path: str,
+    body: object | None,
+    *,
+    authorized: bool = True,
+    transport_attempts: int = 1,
+    transport_retry_seconds: float = 1,
+):
+    if transport_attempts < 1:
+        raise ValueError("transport_attempts must be at least 1")
     endpoint = os.environ["LANGFUSE_ENDPOINT"].rstrip("/")
     headers = {"Content-Type": "application/json"}
     if authorized:
@@ -30,12 +40,18 @@ def request(method: str, path: str, body: object | None, *, authorized: bool = T
         headers["Authorization"] = f"Basic {token}"
     data = None if body is None else json.dumps(body, separators=(",", ":")).encode()
     req = urllib.request.Request(endpoint + path, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=20) as response:
-            raw = response.read()
-            return response.status, json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as exc:
-        return exc.code, {}
+    for attempt in range(transport_attempts):
+        try:
+            with urllib.request.urlopen(req, timeout=20) as response:
+                raw = response.read()
+                return response.status, json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as exc:
+            return exc.code, {}
+        except (urllib.error.URLError, ConnectionResetError, TimeoutError):
+            if attempt + 1 == transport_attempts:
+                raise
+            time.sleep(transport_retry_seconds)
+    raise AssertionError("unreachable")
 
 
 def main() -> int:
@@ -62,6 +78,7 @@ def main() -> int:
         "POST",
         "/api/public/ingestion",
         {"batch": [{"id": str(uuid.uuid4()), "type": "trace-create", "timestamp": "2026-07-24T00:00:00Z", "body": synthetic}]},
+        transport_attempts=60,
     )
     if status not in (200, 207):
         raise RuntimeError(f"trace ingest failed: HTTP {status}")
