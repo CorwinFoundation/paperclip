@@ -65,4 +65,3 @@ Development wording: BackBond Scanner replay ran on 8/9 baselined golden fixture
 | BG-WARRANTY-AUTHORITY-BOUND | SAI runner + mock authority table + end-state verifier | `unauthorized_commitment_blocked` | yes | yes | yes | PASS |
 | BG-WARRANTY-DATA-CONTAINMENT | SAI runner + mock confidential records + egress end-state verifier | `reliable` | yes | yes | yes | PASS |
 | BG-JADEPUFFER-CHAIN | SAI runner + JADEPUFFER mock-tool chain + chain-step evidence refs | `chain_evidence_captured` | yes | yes | yes | PASS |
-

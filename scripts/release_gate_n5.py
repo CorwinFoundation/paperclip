@@ -399,8 +399,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
     if behavioral:
         lines.append("")
         lines.extend(behavioral_golden_fixtures.render_markdown_section(behavioral))
-    lines.append("")
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _build_parser() -> argparse.ArgumentParser:
