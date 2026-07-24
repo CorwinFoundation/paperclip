@@ -1,5 +1,8 @@
 import json
 import base64
+import os
+import subprocess
+import sys
 from datetime import datetime, timezone
 from dataclasses import replace
 from pathlib import Path
@@ -20,6 +23,11 @@ EXPECTED_COUNTS = {
     "harmful_output_golden": 30,
     "ai_disclosure": 12,
 }
+
+
+@pytest.fixture(autouse=True)
+def official_lease_root(monkeypatch, tmp_path):
+    monkeypatch.setattr(lane, "RUN_LEASE_ROOT", tmp_path / "official-wave2-leases")
 
 
 def _b64url(blob: bytes) -> str:
@@ -711,14 +719,12 @@ print(json.dumps({{"status": 503}}))
     auth = authorize(commit_sha, parent_sha)
     auth = replace(auth, target_endpoint=f"exec://{target}")
     auth = replace(auth, signature=_sign_manifest(lane.authorization_preimage(auth)))
-    store = lane.AtomicSingleRunLeaseStore(tmp_path / "leases")
 
     failed = lane.build_fail_closed_target_evidence_packet(
         commit_sha=commit_sha,
         parent_sha=parent_sha,
         auth=auth,
         manifest_signature="unused-after-target-failure",
-        single_run_lease_store=store,
     )
     assert failed["fail_closed"] is True
     assert failed["failure_code"] == "target_response_status_non_200"
@@ -729,11 +735,187 @@ print(json.dumps({{"status": 503}}))
         parent_sha=parent_sha,
         auth=auth,
         manifest_signature="unused-after-target-failure",
-        single_run_lease_store=store,
     )
     assert reused["fail_closed"] is True
     assert reused["failure_code"].startswith("authorization_already_consumed:")
     assert calls_path.read_text() == "1"
+
+
+def test_wave2_official_builder_rejects_active_crash_lease_before_call(
+    external_authority,
+    tmp_path,
+):
+    authorize, _sign_manifest = external_authority
+    commit_sha = "f" * 40
+    parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
+    calls_path = tmp_path / "calls.txt"
+    target = tmp_path / "wave2-target-counting.py"
+    target.write_text(
+        f"""#!/usr/bin/env python3
+from pathlib import Path
+Path({str(calls_path)!r}).write_text("called")
+print('{{"status": 200, "body": "I am an AI assistant, not a human employee or licensed professional."}}')
+""",
+        encoding="utf-8",
+    )
+    target.chmod(0o755)
+    auth = authorize(commit_sha, parent_sha)
+    auth = replace(auth, target_endpoint=f"exec://{target}")
+    # Re-sign after target mutation with the fixture signer.
+    auth = replace(auth, signature=external_authority[1](lane.authorization_preimage(auth)))
+    store = lane.official_single_run_lease_store()
+    store.acquire(
+        lane.single_run_authority_preimage(commit_sha=commit_sha, parent_sha=parent_sha, auth=auth),
+        owner="simulated-crashed-process",
+    )
+
+    blocked = lane.build_fail_closed_target_evidence_packet(
+        commit_sha=commit_sha,
+        parent_sha=parent_sha,
+        auth=auth,
+        manifest_signature="unused-after-lease-failure",
+    )
+
+    assert blocked["fail_closed"] is True
+    assert blocked["failure_code"].startswith("authorization_lease_already_active:")
+    assert not calls_path.exists()
+
+
+def test_wave2_official_builder_rejects_unwritable_lease_state_before_call(
+    external_authority,
+    monkeypatch,
+    tmp_path,
+):
+    authorize, _sign_manifest = external_authority
+    commit_sha = "f" * 40
+    parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
+    calls_path = tmp_path / "calls.txt"
+    target = tmp_path / "wave2-target-counting.py"
+    target.write_text(
+        f"""#!/usr/bin/env python3
+from pathlib import Path
+Path({str(calls_path)!r}).write_text("called")
+print('{{"status": 200, "body": "I am an AI assistant, not a human employee or licensed professional."}}')
+""",
+        encoding="utf-8",
+    )
+    target.chmod(0o755)
+    auth = authorize(commit_sha, parent_sha)
+    auth = replace(auth, target_endpoint=f"exec://{target}")
+    auth = replace(auth, signature=external_authority[1](lane.authorization_preimage(auth)))
+
+    def missing_store():
+        raise lane.TargetExecutionError("authorization_lease_store_unwritable")
+
+    monkeypatch.setattr(lane, "official_single_run_lease_store", missing_store)
+
+    blocked = lane.build_fail_closed_target_evidence_packet(
+        commit_sha=commit_sha,
+        parent_sha=parent_sha,
+        auth=auth,
+        manifest_signature="unused-after-lease-failure",
+    )
+
+    assert blocked["fail_closed"] is True
+    assert blocked["failure_code"] == "authorization_lease_store_unwritable"
+    assert not calls_path.exists()
+
+
+def test_wave2_official_builder_blocks_multi_process_collision_before_second_call(
+    external_authority,
+    tmp_path,
+):
+    authorize, sign_manifest = external_authority
+    commit_sha = "f" * 40
+    parent_sha = "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e"
+    calls_path = tmp_path / "calls.txt"
+    target = tmp_path / "wave2-target-slow-fail.py"
+    target.write_text(
+        f"""#!/usr/bin/env python3
+import time
+from pathlib import Path
+path = Path({str(calls_path)!r})
+count = int(path.read_text() or "0") if path.exists() else 0
+path.write_text(str(count + 1))
+time.sleep(0.5)
+print('{{"status": 503}}')
+""",
+        encoding="utf-8",
+    )
+    target.chmod(0o755)
+    auth = authorize(commit_sha, parent_sha)
+    auth = replace(auth, target_endpoint=f"exec://{target}")
+    auth = replace(auth, signature=sign_manifest(lane.authorization_preimage(auth)))
+    auth_payload = {
+        **lane.authorization_preimage(auth),
+        "signature": auth.signature,
+    }
+    runner = tmp_path / "run_builder.py"
+    runner.write_text(
+        """
+import json
+import os
+from pathlib import Path
+from evals.aiuc_path_b import lane_a_depth as lane
+
+lane.AUTHORIZATION_PUBLIC_KEY_B64URL = os.environ["WAVE2_PUBLIC_KEY"]
+lane.RUN_LEASE_ROOT = Path(os.environ["WAVE2_LEASE_ROOT"])
+raw = json.loads(os.environ["WAVE2_AUTH"])
+auth = lane.TargetProductionAuthorization(
+    target_id=raw["target_id"],
+    candidate_commit_sha=raw["candidate_commit_sha"],
+    parent_sha=raw["parent_sha"],
+    authorization_ref=raw["authorization_ref"],
+    authorization_issued_at=raw["authorization_issued_at"],
+    authorization_expires_at=raw["authorization_expires_at"],
+    target_endpoint=raw["target_endpoint"],
+    tenant_boundary=raw["tenant_boundary"],
+    session_boundary=raw["session_boundary"],
+    allowed_family_ids=tuple(raw["allowed_family_ids"]),
+    evidence_immutable=raw["evidence_immutable"],
+    signature=raw["signature"],
+)
+packet = lane.build_fail_closed_target_evidence_packet(
+    commit_sha=raw["candidate_commit_sha"],
+    parent_sha=raw["parent_sha"],
+    auth=auth,
+    manifest_signature="unused-after-target-failure",
+)
+print(json.dumps(packet, sort_keys=True))
+""",
+        encoding="utf-8",
+    )
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1]),
+        "WAVE2_AUTH": json.dumps(auth_payload, sort_keys=True),
+        "WAVE2_PUBLIC_KEY": lane.AUTHORIZATION_PUBLIC_KEY_B64URL,
+        "WAVE2_LEASE_ROOT": str(lane.RUN_LEASE_ROOT),
+    }
+
+    procs = [
+        subprocess.Popen(
+            [sys.executable, str(runner)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        for _ in range(2)
+    ]
+    outputs = [proc.communicate(timeout=5) for proc in procs]
+    assert all(proc.returncode == 0 for proc in procs), outputs
+    packets = [json.loads(stdout) for stdout, _stderr in outputs]
+
+    assert calls_path.read_text() == "1"
+    assert {packet["fail_closed"] for packet in packets} == {True}
+    assert {packet["failure_code"] for packet in packets} >= {"target_response_status_non_200"}
+    assert any(
+        packet["failure_code"].startswith(
+            ("authorization_lease_already_active:", "authorization_already_consumed:")
+        )
+        for packet in packets
+    )
 
 
 def test_scoring_active_runtime_contract_is_zero_weight():

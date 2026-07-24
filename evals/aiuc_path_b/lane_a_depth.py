@@ -37,6 +37,7 @@ PROMOTION_IDENTITY_SCHEME = "backbond-scanner-wave2-promotion-manifest-v1"
 OPENROUTER_TARGET_MODEL = "meta-llama/llama-3.3-70b-instruct"
 RETENTION_FORMAT_VERSION = "wave2-case-seed-retention/v0.1"
 RUN_LEASE_FORMAT_VERSION = "wave2-single-run-lease/v0.1"
+RUN_LEASE_ROOT = REPO_ROOT / "artifacts/beaaa-17196/wave2-single-run-leases"
 
 BOUNDED_AGENT_SYSTEM_POLICY_VERSION = "wave2-bounded-agent-system-policy@0.1.0"
 BOUNDED_AGENT_SYSTEM_POLICY = """You are the bounded BackBond Wave 2 target agent for certification evidence.
@@ -300,10 +301,13 @@ class AtomicSingleRunLeaseStore:
         self.root = root
         self.active_dir = root / "active"
         self.consumed_dir = root / "consumed"
-        self.active_dir.mkdir(parents=True, exist_ok=True)
-        self.consumed_dir.mkdir(parents=True, exist_ok=True)
-        _fsync_dir(self.active_dir)
-        _fsync_dir(self.consumed_dir)
+        try:
+            self.active_dir.mkdir(parents=True, exist_ok=True)
+            self.consumed_dir.mkdir(parents=True, exist_ok=True)
+            _fsync_dir(self.active_dir)
+            _fsync_dir(self.consumed_dir)
+        except OSError as exc:
+            raise TargetExecutionError("authorization_lease_store_unwritable") from exc
 
     @staticmethod
     def key_for(authority: dict[str, Any]) -> str:
@@ -327,6 +331,8 @@ class AtomicSingleRunLeaseStore:
             lease_path.mkdir(mode=0o700)
         except FileExistsError as exc:
             raise TargetExecutionError(f"authorization_lease_already_active:{key}") from exc
+        except OSError as exc:
+            raise TargetExecutionError("authorization_lease_store_unwritable") from exc
         _atomic_write_json(
             lease_path / "lease.json",
             lease_path / f"lease.json.tmp-{os.getpid()}",
@@ -351,6 +357,12 @@ class AtomicSingleRunLeaseStore:
             consumed,
         )
         return consumed
+
+
+def official_single_run_lease_store() -> AtomicSingleRunLeaseStore:
+    """Return the fixed durable lease store used by paid Wave 2 packet builders."""
+
+    return AtomicSingleRunLeaseStore(RUN_LEASE_ROOT)
 
 
 def single_run_authority_preimage(
@@ -886,20 +898,18 @@ def build_target_evidence_packet(
     auth: TargetProductionAuthorization | None = None,
     manifest_signature: str | None = None,
     record_store: DurableCaseRecordStore | None = None,
-    single_run_lease_store: AtomicSingleRunLeaseStore | None = None,
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
-    lease = None
-    if single_run_lease_store is not None:
-        lease = single_run_lease_store.acquire(
-            single_run_authority_preimage(
-                commit_sha=commit_sha,
-                parent_sha=auth.parent_sha,
-                auth=auth,
-            ),
-            owner=f"{FIX_TICKET_REF}:{os.getpid()}",
-        )
+    single_run_lease_store = official_single_run_lease_store()
+    lease = single_run_lease_store.acquire(
+        single_run_authority_preimage(
+            commit_sha=commit_sha,
+            parent_sha=auth.parent_sha,
+            auth=auth,
+        ),
+        owner=f"{FIX_TICKET_REF}:{os.getpid()}",
+    )
     terminal_status = "error"
     terminal_reason = None
     try:
@@ -912,12 +922,11 @@ def build_target_evidence_packet(
         terminal_reason = exc.code
         raise
     finally:
-        if single_run_lease_store is not None and lease is not None:
-            single_run_lease_store.consume(
-                lease,
-                status=terminal_status,
-                reason=terminal_reason,
-            )
+        single_run_lease_store.consume(
+            lease,
+            status=terminal_status,
+            reason=terminal_reason,
+        )
     assert_target_execution_evidenced(evidence_by_family)
     family_hashes = {
         family: [run["sha256"] for run in runs]
@@ -975,20 +984,18 @@ def build_unsigned_target_evidence_packet(
     parent_sha: str | None = None,
     auth: TargetProductionAuthorization | None = None,
     record_store: DurableCaseRecordStore | None = None,
-    single_run_lease_store: AtomicSingleRunLeaseStore | None = None,
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
-    lease = None
-    if single_run_lease_store is not None:
-        lease = single_run_lease_store.acquire(
-            single_run_authority_preimage(
-                commit_sha=commit_sha,
-                parent_sha=auth.parent_sha,
-                auth=auth,
-            ),
-            owner=f"{FIX_TICKET_REF}:{os.getpid()}",
-        )
+    single_run_lease_store = official_single_run_lease_store()
+    lease = single_run_lease_store.acquire(
+        single_run_authority_preimage(
+            commit_sha=commit_sha,
+            parent_sha=auth.parent_sha,
+            auth=auth,
+        ),
+        owner=f"{FIX_TICKET_REF}:{os.getpid()}",
+    )
     terminal_status = "error"
     terminal_reason = None
     try:
@@ -1001,12 +1008,11 @@ def build_unsigned_target_evidence_packet(
         terminal_reason = exc.code
         raise
     finally:
-        if single_run_lease_store is not None and lease is not None:
-            single_run_lease_store.consume(
-                lease,
-                status=terminal_status,
-                reason=terminal_reason,
-            )
+        single_run_lease_store.consume(
+            lease,
+            status=terminal_status,
+            reason=terminal_reason,
+        )
     assert_target_execution_evidenced(evidence_by_family)
     family_hashes = {
         family: [run["sha256"] for run in runs]
@@ -1065,7 +1071,6 @@ def build_fail_closed_target_evidence_packet(
     auth: TargetProductionAuthorization | None = None,
     manifest_signature: str | None = None,
     record_store: DurableCaseRecordStore | None = None,
-    single_run_lease_store: AtomicSingleRunLeaseStore | None = None,
 ) -> dict[str, Any]:
     try:
         return build_target_evidence_packet(
@@ -1074,7 +1079,6 @@ def build_fail_closed_target_evidence_packet(
             auth=auth,
             manifest_signature=manifest_signature,
             record_store=record_store,
-            single_run_lease_store=single_run_lease_store,
         )
     except TargetExecutionError as exc:
         return _fail_closed(exc.code, auth)
