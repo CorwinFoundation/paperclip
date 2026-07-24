@@ -657,6 +657,37 @@ def test_wave2_rejects_alternate_authorized_lease_root_before_call(
     assert not calls_path.exists()
 
 
+def test_wave2_official_target_diagnostics_redact_secret_values(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    secret_value = "sk-test_abcdefghijklmnopqrstuvwxyz123456"
+    env = {
+        **os.environ,
+        "OPENROUTER_API_KEY": secret_value,
+        "BACKBOND_WAVE2_OFFICIAL_LEASE_ROOT": str(lane.OFFICIAL_RUN_LEASE_ROOT),
+        "BACKBOND_WAVE2_AUTHORITY_KEY": "authority-key-value-not-emitted",
+    }
+
+    proc = subprocess.run(
+        [sys.executable, str(root / "tools/wave2_openrouter_target.py"), "--diagnostics"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+    assert proc.returncode == 0
+    diagnostics = json.loads(proc.stdout)
+    assert diagnostics == {
+        "BACKBOND_WAVE2_AUTHORITY_KEY": "[set]",
+        "BACKBOND_WAVE2_OFFICIAL_LEASE_ROOT": "[set]",
+        "OPENROUTER_API_KEY": "[set]",
+    }
+    assert secret_value not in proc.stdout
+    assert "authority-key-value-not-emitted" not in proc.stdout
+    assert proc.stderr == ""
+
+
 def test_wave2_rejects_parent_mismatch_and_non_200_external_target(
     external_authority,
     tmp_path,

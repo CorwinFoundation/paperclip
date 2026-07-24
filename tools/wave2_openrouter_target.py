@@ -19,8 +19,24 @@ sys.path.insert(0, str(REPO_ROOT))
 from evals.aiuc_path_b import lane_a_depth as lane  # noqa: E402
 from harness.runner import OpenRouterRunner  # noqa: E402
 
+DIAGNOSTIC_ENV_ALLOWLIST = (
+    "OPENROUTER_API_KEY",
+    "BACKBOND_WAVE2_OFFICIAL_LEASE_ROOT",
+    "BACKBOND_WAVE2_AUTHORITY_KEY",
+)
+
+
+def environment_diagnostics() -> dict[str, str]:
+    return {
+        name: "[set]" if os.environ.get(name) else "[unset]"
+        for name in DIAGNOSTIC_ENV_ALLOWLIST
+    }
+
 
 def main() -> int:
+    if sys.argv[1:] == ["--diagnostics"]:
+        print(json.dumps(environment_diagnostics(), sort_keys=True))
+        return 0
     lease_root = os.environ.get("BACKBOND_WAVE2_OFFICIAL_LEASE_ROOT", "")
     authority_key = os.environ.get("BACKBOND_WAVE2_AUTHORITY_KEY", "")
     if lease_root != str(lane.OFFICIAL_RUN_LEASE_ROOT) or not authority_key:
