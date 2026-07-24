@@ -355,6 +355,7 @@ def _target_auth_from_packet(packet: Mapping[str, Any]):
         authorization_issued_at=str(raw_auth.get("authorization_issued_at") or ""),
         authorization_expires_at=str(raw_auth.get("authorization_expires_at") or ""),
         target_endpoint=str(raw_auth.get("target_endpoint") or ""),
+        lease_root=str(raw_auth.get("lease_root") or ""),
         tenant_boundary=str(raw_auth.get("tenant_boundary") or ""),
         session_boundary=str(raw_auth.get("session_boundary") or ""),
         allowed_family_ids=tuple(raw_auth.get("allowed_family_ids") or ()),
