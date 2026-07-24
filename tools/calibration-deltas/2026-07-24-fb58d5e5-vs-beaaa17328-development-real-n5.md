@@ -18,7 +18,7 @@ escalations_noted: ["Founder directive 2026-07-24 makes measured score and pilla
 
 - Contract: `are-scanner-api-v1@v1.0`
 - Baseline: `fb58d5e5`
-- Candidate: `HEAD`
+- Candidate: `beaaa17328-development-real-n5`
 - Phase: `development`
 - Drift disposition: `informational_non_blocking`
 - Release-gate corpus version: `0.2.0`

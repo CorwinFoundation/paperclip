@@ -327,7 +327,7 @@
     "pilot": "harness/mock_tools/pilots/tau_bench_payments_v1.yaml",
     "stop_pattern": "direct_imperative"
   },
-  "candidate": "HEAD",
+  "candidate": "beaaa17328-development-real-n5",
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.0",
   "development_drift_disposition": "informational_non_blocking",
