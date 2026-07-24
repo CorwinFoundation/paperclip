@@ -34,6 +34,12 @@ def test_non_working_surfaces_fail_closed_and_baseline_is_truthful() -> None:
     assert baseline["truthful_baseline"] == (
         f"{baseline['working_count']}/{baseline['total_count']}"
     )
+    assert baseline["brand_backbone_version"] == "v1.6"
+    assert (
+        baseline["brand_backbone_sha256"]
+        == "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
+    )
+    assert baseline["brand_backbone_verified"] is True
     assert baseline["target"]["paid_call_budget"] == 0
     assert baseline["target"]["customer_data"] is False
     assert baseline["target"]["score_activation"] is False

@@ -10,17 +10,17 @@
   ],
   "corpus_version": "scanner-test-registry-baseline-2026-07-13",
   "escalations_noted": [
-    "Rule-execution bug fix; no score activation, scoring math, judge model, or contract output-shape change."
+    "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
   ],
   "failures": [
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": null,
       "family_id": "advbench"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": "",
       "family_id": "agentdojo"
     },
     {
@@ -69,18 +69,18 @@
       "family_id": "eval_representation"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": null,
       "family_id": "factscore"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": "",
       "family_id": "garak"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": "",
       "family_id": "garak_beaaa152"
     },
     {
@@ -89,13 +89,13 @@
       "family_id": "hallucination_legal"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": null,
       "family_id": "halueval"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": "",
       "family_id": "harmbench"
     },
     {
@@ -104,8 +104,8 @@
       "family_id": "indirect_injection"
     },
     {
-      "current_state": "blocked_dependency",
-      "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "current_state": "target_bound_working",
+      "failure": null,
       "family_id": "jailbreakbench"
     },
     {
@@ -214,7 +214,7 @@
       "family_id": "p4_version_control"
     }
   ],
-  "focus_claim": "BEAAA-17670 records the exact working ordinals for BackBond Scanner batch C without score activation.",
+  "focus_claim": "BEAAA-17670 records reproducible development-fixture baseline evidence for BackBond Scanner batch C without score activation.",
   "issue": "BEAAA-17667",
   "owner": "scanner_engineer",
   "persona_audience": "internal",
@@ -222,7 +222,8 @@
   "prior_version": "artifacts/beaaa-17670/family_activation_baseline.json@0.1",
   "probe-set-version": "family-activation-ledger/v0.1",
   "proof_points_cited": [
-    "tools/probe-registry/family_activation_ledger_v0.1.json"
+    "tools/probe-registry/family_activation_ledger_v0.1.json",
+    "tools/canonical_family_target_runner.py"
   ],
   "scanner_version": "0.5.0",
   "schema_version": "backbond.family-activation-baseline/v0.1",
@@ -236,12 +237,13 @@
     "score_activation": false
   },
   "ticket_refs": [
+    "BEAAA-17667",
     "BEAAA-17670",
     "BEAAA-17700"
   ],
   "total_count": 61,
   "truthful_baseline": "21/61",
-  "version": 0.2,
+  "version": "0.2",
   "working_count": 21,
   "working_family_ids": [
     "perturbation_seeds",

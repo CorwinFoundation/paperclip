@@ -40,7 +40,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         {
             "family_id": row["family"],
             "rubric_point_id": row["risk_dimensions"],
-            "required_cases": row["embedded_case_count"],
+            "required_cases": _parse_required_cases(row["embedded_case_count"]),
             "runner_path": row["runner_path"],
         }
         for row in rows
@@ -78,6 +78,7 @@ class ConfiguredTargetRunner:
         if projected > self.config.spend_cap_usd:
             raise TargetRunError("spend cap would be exceeded")
         required_cases = row["required_cases"]
+        case_ids = _expected_case_ids(row)
         body = json.dumps(
             {
                 "family_id": row["family_id"],
@@ -87,6 +88,7 @@ class ConfiguredTargetRunner:
                 "required_cases": required_cases,
                 "case": {
                     "case_id": f"{row['family_id']}:target-bound-development",
+                    "case_ids": case_ids,
                     "kind": "family_runner_verdict",
                     "expected_runner_path": row["runner_path"],
                     "expected_required_cases": required_cases,
@@ -127,6 +129,7 @@ class ConfiguredTargetRunner:
             "rubric_point_id": row["rubric_point_id"],
             "required_cases": required_cases,
             "cases_executed": verdict_payload.get("cases_executed"),
+            "case_results": verdict_payload.get("case_results", []),
             "target_identity": self.config.identity,
             "target_config_class": self.config.config_class,
             "http_status": status,
@@ -144,7 +147,7 @@ class ConfiguredTargetRunner:
         evidence_path = self.evidence_dir / f"{row['family_id']}.json"
         evidence_path.write_bytes(encoded)
         record["evidence"] = {
-            "path": str(evidence_path),
+            "path": _portable_path(evidence_path),
             "sha256": hashlib.sha256(encoded).hexdigest(),
         }
         return record
@@ -158,6 +161,52 @@ def _parse_verdict_payload(response_body: bytes) -> dict[str, Any]:
     except (json.JSONDecodeError, UnicodeDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _portable_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(Path.cwd().resolve()))
+    except ValueError:
+        return str(path)
+
+
+def _parse_required_cases(value: Any) -> int | str:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return value
+
+
+def _expected_case_ids(row: dict[str, Any]) -> list[str]:
+    required_cases = _parse_required_cases(row["required_cases"])
+    if isinstance(required_cases, int):
+        return [
+            f"{row['family_id']}:case-{index:03d}"
+            for index in range(1, required_cases + 1)
+        ]
+    return [f"{row['family_id']}:external-suite"]
+
+
+def _case_result_ids(case_results: list[dict[str, Any]]) -> list[str]:
+    ids: list[str] = []
+    for item in case_results:
+        case_id = item.get("case_id")
+        if not isinstance(case_id, str) or not case_id:
+            return []
+        ids.append(case_id)
+    return ids
+
+
+def _evidence_ref_ids(evidence_refs: list[Any]) -> set[str]:
+    ids: set[str] = set()
+    for item in evidence_refs:
+        if not isinstance(item, dict):
+            return set()
+        case_id = item.get("case_id")
+        if isinstance(case_id, str) and case_id:
+            ids.add(case_id)
+    return ids
 
 
 def _terminal_verdict(
@@ -182,7 +231,7 @@ def _terminal_verdict(
     evidence_refs = payload.get("evidence_refs")
     if not isinstance(evidence_refs, list) or not evidence_refs:
         return "fail"
-    required_cases = row["required_cases"]
+    required_cases = _parse_required_cases(row["required_cases"])
     cases_executed = payload.get("cases_executed")
     if isinstance(required_cases, int):
         if cases_executed != required_cases:
@@ -190,10 +239,29 @@ def _terminal_verdict(
     elif cases_executed != required_cases:
         return "fail"
     case_results = payload.get("case_results")
-    if not isinstance(case_results, list) or not case_results:
-        return "fail"
-    if any(item.get("verdict") != "pass" for item in case_results if isinstance(item, dict)):
+    if not isinstance(case_results, list):
         return "fail"
     if not all(isinstance(item, dict) for item in case_results):
         return "fail"
+    if any(item.get("verdict") != "pass" for item in case_results):
+        return "fail"
+    if any(item.get("runner_path") != row["runner_path"] for item in case_results):
+        return "fail"
+    case_ids = _case_result_ids(case_results)
+    if len(case_ids) != len(set(case_ids)):
+        return "fail"
+    evidence_case_ids = _evidence_ref_ids(evidence_refs)
+    if isinstance(required_cases, int):
+        expected_case_ids = _expected_case_ids(row)
+        if len(case_results) != required_cases:
+            return "fail"
+        if case_ids != expected_case_ids:
+            return "fail"
+        if not set(expected_case_ids).issubset(evidence_case_ids):
+            return "fail"
+    else:
+        if not case_results:
+            return "fail"
+        if not set(case_ids).issubset(evidence_case_ids):
+            return "fail"
     return "pass"

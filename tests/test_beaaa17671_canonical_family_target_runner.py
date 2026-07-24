@@ -21,6 +21,28 @@ class _Target(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.invocations.append(body)
         case_count = body["required_cases"]
+        case_results = [
+            {
+                "case_id": case_id,
+                "runner_path": body["runner_path"],
+                "verdict": "pass",
+            }
+            for case_id in body["case"]["case_ids"]
+        ]
+        evidence_refs = [
+            {
+                "kind": "development_fixture_case_result",
+                "case_id": case_id,
+                "runner_path": body["runner_path"],
+            }
+            for case_id in body["case"]["case_ids"]
+        ] or [
+            {
+                "case_id": body["case"]["case_id"],
+                "kind": "development_fixture_runner_result",
+                "runner_path": body["runner_path"],
+            }
+        ]
         payload = json.dumps(
             {
                 "family_id": body["family_id"],
@@ -28,19 +50,8 @@ class _Target(BaseHTTPRequestHandler):
                 "rubric_point_id": body["rubric_point_id"],
                 "runner_path": body["runner_path"],
                 "cases_executed": case_count,
-                "case_results": [
-                    {
-                        "case_id": body["case"]["case_id"],
-                        "runner_path": body["runner_path"],
-                        "verdict": "pass",
-                    }
-                ],
-                "evidence_refs": [
-                    {
-                        "kind": "development_fixture_case_result",
-                        "case_id": body["case"]["case_id"],
-                    }
-                ],
+                "case_results": case_results,
+                "evidence_refs": evidence_refs,
                 "customer_data": False,
                 "score_activation": False,
                 "verdict": "pass",
@@ -97,6 +108,11 @@ def test_all_61_are_discovered_and_invoked_through_one_configured_target(
     assert all(result["verdict"] == "pass" for result in results)
     assert all(result["target_verdict"] == "pass" for result in results)
     assert all(result["evidence"]["sha256"] for result in results)
+    assert all(
+        len(result["case_results"]) == result["cases_executed"]
+        for result in results
+        if isinstance(result["cases_executed"], int)
+    )
     assert runner.calls == 61
     assert runner.spend_usd == 0.0
     assert REGISTRY_VERSION == "canonical-61-family-registry@2026-07-13"
@@ -204,6 +220,71 @@ def test_runner_fails_closed_on_family_specific_failed_verdict(
 
     assert result["verdict"] == "fail"
     assert result["target_verdict"] == "fail"
+
+
+def test_runner_fails_closed_on_claimed_count_without_case_results(
+    tmp_path: Path, monkeypatch
+) -> None:
+    class CountOnlyTarget(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            payload = json.dumps(
+                {
+                    "family_id": body["family_id"],
+                    "registry_version": body["registry_version"],
+                    "rubric_point_id": body["rubric_point_id"],
+                    "runner_path": body["runner_path"],
+                    "cases_executed": body["required_cases"],
+                    "case_results": [
+                        {
+                            "case_id": body["case"]["case_id"],
+                            "runner_path": body["runner_path"],
+                            "verdict": "pass",
+                        }
+                    ],
+                    "evidence_refs": [
+                        {
+                            "kind": "development_fixture_case_result",
+                            "case_id": body["case"]["case_id"],
+                            "runner_path": body["runner_path"],
+                        }
+                    ],
+                    "customer_data": False,
+                    "score_activation": False,
+                    "verdict": "pass",
+                },
+                sort_keys=True,
+            ).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *_args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), CountOnlyTarget)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    monkeypatch.setenv("BACKBOND_TEST_TARGET_TOKEN", "test-token")
+    runner = ConfiguredTargetRunner(
+        TargetConfig(
+            url=f"http://127.0.0.1:{server.server_port}/complete",
+            identity="pytest-non-customer-target",
+            config_class="local_http_test_fixture",
+            credential_env="BACKBOND_TEST_TARGET_TOKEN",
+            call_cap=1,
+            spend_cap_usd=0.0,
+        ),
+        tmp_path,
+    )
+    try:
+        result = runner.run_family(load_registry()[40])
+    finally:
+        server.shutdown()
+
+    assert result["verdict"] == "fail"
+    assert result["target_verdict"] == "pass"
 
 
 def test_runner_rejects_production_credential_markers(tmp_path: Path, monkeypatch) -> None:
