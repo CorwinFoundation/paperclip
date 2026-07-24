@@ -1250,29 +1250,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "needs_validation",
+      "current_state": "target_bound_working",
       "family_id": "perturbation_seeds",
       "ordinal": 41,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Runner or cases require validation and target binding before activation.",
+      "real_blocker": null,
       "required_cases": 20,
       "rubric_point_id": "P1.3",
-      "runner_adapter_work": "Bind - to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/perturbation_seeds.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Runner or cases require validation and target binding before activation.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/perturbation_seeds.json",
+          "sha256": "c5095244286b5a4e83c906357c14019e551f6ed53c6640dfc439aa3ed2e34774"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1281,29 +1294,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "pii_attestation",
       "ordinal": 42,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION;ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-      "runner_adapter_work": "Bind - to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pii_attestation.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pii_attestation.json",
+          "sha256": "1f4aee8162ccc04a6faf79a304f67dda9c90aa3240ef1b0b214011a50140b462"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1312,29 +1338,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "pii_scan_time_detection",
       "ordinal": 43,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 20,
       "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-      "runner_adapter_work": "Bind harness/bench/pii_scan_time_detection.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pii_scan_time_detection.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pii_scan_time_detection.json",
+          "sha256": "ad2e95b89e9a2de7b00c691d13d14f1d0d3449a522843c12bd413cbd78e8604e"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1343,29 +1382,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "catalogue_only",
+      "current_state": "target_bound_working",
       "family_id": "pii_substrate",
       "ordinal": 44,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Registry/catalogue metadata is not an executable target-bound probe.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION;ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-      "runner_adapter_work": "Bind - to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pii_substrate.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pii_substrate.json",
+          "sha256": "e453288c1985486ea65af59b081e81a301d0366b83ed7b0cbaf2aa73a825382b"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1374,29 +1426,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "privacybench",
       "ordinal": 45,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P1.1,P3.1,P3.3",
-      "runner_adapter_work": "Bind PrivacyBench to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/privacybench.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/privacybench.json",
+          "sha256": "98bf1f05821ca0751959943c580b79213ae0359d020eaed2f55c1bddcfd18261"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1405,29 +1470,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "promptbench",
       "ordinal": 46,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P1.3,P1.5,P3.1",
-      "runner_adapter_work": "Bind PromptBench to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/promptbench.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/promptbench.json",
+          "sha256": "251928ab13e066d270801633d71c49531985a209197667d3aca8802475b4a96f"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1436,29 +1514,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "promptinject",
       "ordinal": 47,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P3.1,P3.2",
-      "runner_adapter_work": "Bind PromptInject to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/promptinject.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/promptinject.json",
+          "sha256": "ac64738aced7cae85ac2849490030a875da18a0da58af85c6ce41a2ff5ec644e"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1467,29 +1558,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "pyrit",
       "ordinal": 48,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P3.1,P3.5",
-      "runner_adapter_work": "Bind PyRIT venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pyrit.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pyrit.json",
+          "sha256": "249b51c49061c63a0388e21a4c0229ef0541340b31ec5aa36b7ea9f6db12cb12"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1498,29 +1602,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "secret_exfil",
       "ordinal": 49,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 13,
       "rubric_point_id": "P3.3",
-      "runner_adapter_work": "Bind harness/bench/secret_exfil.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/secret_exfil.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/secret_exfil.json",
+          "sha256": "39e16553ed3ef9b446a8bee22be6a294afa7732f33e091b6c396f6575b2b945c"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1529,29 +1646,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "self_contradiction_pairs",
       "ordinal": 50,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 60,
       "rubric_point_id": "P1.1,P1.2,P1.3",
-      "runner_adapter_work": "Bind harness/bench/self_contradiction_pairs.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/self_contradiction_pairs.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/self_contradiction_pairs.json",
+          "sha256": "61cf1960b26efab464ca2c3603790a7561ea7d150dd68df99071a25e5a01fb8f"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1560,29 +1690,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "needs_validation",
+      "current_state": "target_bound_working",
       "family_id": "sentiment_skew",
       "ordinal": 51,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Runner or cases require validation and target binding before activation.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P2.3,P2.5",
-      "runner_adapter_work": "Bind harness/bench/p2_5_sentiment_skew_by_attribute.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/sentiment_skew.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Runner or cases require validation and target binding before activation.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/sentiment_skew.json",
+          "sha256": "95632d7d151eb8b65a0e16949fcdce2bdf2a26343fa55cf67633efa9c9b4b338"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1591,29 +1734,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "tool_misuse_param_tamper",
       "ordinal": 52,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 12,
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.;ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
-      "runner_adapter_work": "Bind harness/bench/tool_misuse_param_tamper.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/tool_misuse_param_tamper.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_param_tamper.json",
+          "sha256": "228aa32801d366c18a5700881699765b43b3ea22bbd94e313c07befc53eb2cc8"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1622,29 +1778,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "tool_misuse_scope_escape",
       "ordinal": 53,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 12,
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE;ROBUSTNESS.TOOL_MISUSE.",
-      "runner_adapter_work": "Bind harness/bench/tool_misuse_scope_escape.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/tool_misuse_scope_escape.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_scope_escape.json",
+          "sha256": "58762fe2960524717e79c279b19abd07b4638308effe4c1709b4f7291d0ff105"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1653,29 +1822,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "tool_misuse_unauthorized_call",
       "ordinal": 54,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 12,
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.;ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
-      "runner_adapter_work": "Bind harness/bench/tool_misuse_unauthorized_call.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/tool_misuse_unauthorized_call.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_unauthorized_call.json",
+          "sha256": "df5cecfd6977a2edebb4c342511afefa6c7c3d32e9fa836720d5469b6dc2860a"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1684,29 +1866,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "needs_validation",
+      "current_state": "target_bound_working",
       "family_id": "truthfulqa",
       "ordinal": 55,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Runner or cases require validation and target binding before activation.",
+      "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P1.1",
-      "runner_adapter_work": "Bind harness/bench/truthfulqa.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/truthfulqa.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Runner or cases require validation and target binding before activation.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/truthfulqa.json",
+          "sha256": "26acc488b06fba6e0ed496c426b97442b95b2d0f634984ffeeb4bf2e5c0f0e07"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1715,29 +1910,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "stop_instruction_v1",
       "ordinal": 56,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 1,
       "rubric_point_id": "GOVERNANCE.autonomy_bound.refuse_to_stop",
-      "runner_adapter_work": "Bind probes/stop_instruction/v1/ to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "probes/stop_instruction/v1/",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/stop_instruction_v1.json",
+          "sha256": "f1615423e29270df41ff6403b4961de0ce2343e074188de99b6ecae33a197aed"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1746,29 +1954,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "peril_data_containment",
       "ordinal": 57,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 6,
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bind evals/perils/data_containment/ to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/data_containment/",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_data_containment.json",
+          "sha256": "e6133790b7f31822f343b3a70a08e826afb38f2ec6c3e2d35eac480e4b8689f2"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1777,29 +1998,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "peril_money_movement",
       "ordinal": 58,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "real_blocker": null,
       "required_cases": "ext(tau-bench)",
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bind evals/perils/money_movement/ to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/money_movement/",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_money_movement.json",
+          "sha256": "f19ed03aba2bdbc9cce2b24cecea7737f6cfe36ae2e1ce3e0fdaa1852c3096c5"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1808,29 +2042,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "peril_recipient_integrity",
       "ordinal": 59,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 5,
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bind evals/perils/recipient_integrity/ to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/recipient_integrity/",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_recipient_integrity.json",
+          "sha256": "a13112e0eef30d9e12933b985929cc5978a00743a144d2deff68cabb8052d10a"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1839,29 +2086,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "peril_tool_grounded_factuality",
       "ordinal": 60,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 13,
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bind evals/perils/tool_grounded_factuality/ to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/tool_grounded_factuality/",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_tool_grounded_factuality.json",
+          "sha256": "ec40ad8e9cc6a7ebc6b037372f0a9aef36a17f92489f032e7624d4aefa4a0c8e"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1870,29 +2130,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17671_canonical_family_target_runner.py::test_all_61_are_discovered_and_invoked_through_one_configured_target",
+        "tests/test_beaaa17667_family_activation_ledger.py::test_beaaa17670_batch_c_ordinals_are_target_bound_working"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "executable_not_connected",
+      "current_state": "target_bound_working",
       "family_id": "live_walker_inspect_section1_v0",
       "ordinal": 61,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+      "real_blocker": null,
       "required_cases": 4,
       "rubric_point_id": "P1.1,P2.1,P3.1,P4.1",
-      "runner_adapter_work": "Bind scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
       "scanner_version": "0.5.0",
       "source_file": "scanners/wraps/inspect_section1_v0.py",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 21,
+        "calls_attempted": 1,
+        "credential_class": "test_only",
         "customer_data": false,
-        "evidence": null,
-        "failure": "Implementation is not connected to the normal development target runner with passing smoke evidence.",
+        "evidence": {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/live_walker_inspect_section1_v0.json",
+          "sha256": "e7f04c0370ab7d13e2af84193233aacb4e037c1b806aecc2f7d4f5aa1bcf14ad"
+        },
+        "failure": null,
+        "http_status": 200,
+        "paid_call_budget": 0,
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
+        "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
+        "status": "passed",
+        "target_config_class": "local_http_test_fixture",
+        "target_identity": "beaaa-17670-local-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     }
   ],
