@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import sqlite3
 import stat
@@ -247,6 +248,10 @@ def test_framework_envelope_round_trips_portal_html_json_and_pdf(service, monkey
         ref for control in assessment["controls"] for ref in control["evidence_refs"]
     ]
     assert refs and all(ref["artifact_uri"] and ref["sha256"] for ref in refs)
+    for ref in refs:
+        task_id = ref["artifact_uri"].rsplit("/", 1)[-1]
+        artifact = service.config.evidence_dir / scan["scan_id"] / "envelopes" / f"{task_id}.json"
+        assert ref["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
 
 
 def test_vendor_scan_manifest_records_real_scanner_binary_pin_mismatch(service, tmp_path, monkeypatch):

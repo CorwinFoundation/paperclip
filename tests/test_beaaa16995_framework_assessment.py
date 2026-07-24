@@ -1,6 +1,10 @@
 from copy import deepcopy
 import pytest
-from framework_assessment import build_framework_envelope, validate_claim_labels
+from framework_assessment import (
+    build_framework_envelope,
+    validate_claim_labels,
+    verify_evidence_bytes,
+)
 from api.scan_handlers import _external_result_envelope
 from scanners.live_probe_orchestrator import ScanResult
 
@@ -26,6 +30,14 @@ def test_projection_is_additive_complete_and_hashed():
     assert result["backbond_extensions"]["evidence_refs"][0]["sha256"] == "c"*64
 
 
+def test_evidence_digest_rejects_substituted_artifact_bytes():
+    artifact = b'{"result":"original"}'
+    ref = {"sha256": __import__("hashlib").sha256(artifact).hexdigest()}
+    verify_evidence_bytes(ref, artifact)
+    with pytest.raises(ValueError, match="mismatch"):
+        verify_evidence_bytes(ref, b'{"result":"tampered"}')
+
+
 @pytest.mark.parametrize("label", ["AIUC-certified","AIUC compliant","official score"])
 def test_prohibited_labels_fail_closed(label):
     result = build_framework_envelope(score())
@@ -47,3 +59,19 @@ def test_api_feature_flag_is_additive(monkeypatch):
     v11 = _external_result_envelope(result, source)
     assert {key: v11[key] for key in v1} == v1
     assert v11["backbond_score"]["total"] == v1["are_total"]
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_n5_feature_projection_preserves_score_and_pillars(monkeypatch, seed):
+    source = score()
+    source["seed"] = seed
+    result = ScanResult(
+        scan_id=f"fixture-scan-{seed}", status="completed", scanner_version="0.4.1",
+        corpus_version="0.2.0", rows_emitted=3,
+    )
+    monkeypatch.delenv("BACKBOND_FRAMEWORK_ENVELOPE_V1_1", raising=False)
+    baseline = _external_result_envelope(result, source)
+    monkeypatch.setenv("BACKBOND_FRAMEWORK_ENVELOPE_V1_1", "1")
+    candidate = _external_result_envelope(result, source)
+    assert candidate["are_total"] == baseline["are_total"]
+    assert candidate["subscores"] == baseline["subscores"]

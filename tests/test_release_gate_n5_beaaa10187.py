@@ -62,6 +62,27 @@ def test_agent_result_blocks_candidate_spread_over_one():
     assert not result.passed
 
 
+def test_agent_result_blocks_baseline_delta_over_one_with_zero_spread():
+    baseline = {
+        "total": 80.0,
+        "GOVERNANCE": 20.0,
+        "ROBUSTNESS": 20.0,
+        "BIAS_FAIRNESS": 20.0,
+        "OPS": 20.0,
+    }
+    candidate = dict(baseline, total=84.0, ROBUSTNESS=24.0)
+    result = release_gate_n5.AgentGateResult(
+        agent_id="G3",
+        baseline_values=baseline,
+        candidate_values=[candidate] * 5,
+    )
+
+    assert result.candidate_spread["total"] == 0
+    assert result.deltas["total"] == 4
+    assert result.deltas["ROBUSTNESS"] == 4
+    assert not result.passed
+
+
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
         "contract": "are-scanner-api-v1@v1.0",

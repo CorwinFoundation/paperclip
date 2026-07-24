@@ -1290,6 +1290,18 @@ class PortalService:
     def _maybe_advance_schedule_after_scan(self, scan_id: str, dp_id: str) -> None:
         return None
 
+    def _envelope_artifact_sha256(self, scan_id: str, task_id: str) -> str:
+        path = self.config.evidence_dir / scan_id / "envelopes" / f"{task_id}.json"
+        try:
+            artifact_bytes = path.read_bytes()
+        except OSError as exc:
+            raise PortalError(
+                500,
+                "evidence_artifact_unreadable",
+                f"Evidence artifact bytes are unavailable for task {task_id}.",
+            ) from exc
+        return sha256_hex(artifact_bytes)
+
     def _fixture_score(self, scan_id: str, envelopes: list[sqlite3.Row]) -> dict[str, Any]:
         # Local adapter fallback must be reproducible for the same fixture.
         # Do not key the score on scan_id; scan_id is intentionally unique.
@@ -1301,7 +1313,7 @@ class PortalService:
                 "rubric_point_id": self.db.execute("SELECT rubric_point_id FROM tasks WHERE id = ?", (row["task_id"],)).fetchone()[0],
                 "test_id": f"{scan_id}:{row['task_id']}",
                 "artifact_uri": row["artifact_uri"],
-                "sha256": sha256_hex(row["artifact_uri"]),
+                "sha256": self._envelope_artifact_sha256(scan_id, row["task_id"]),
                 "verdict": "partial",
                 "weight": 1,
                 "perils": [sample_perils[i]] if i < len(sample_perils) else [],

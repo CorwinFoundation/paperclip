@@ -94,7 +94,13 @@ class AgentGateResult:
     def passed(self) -> bool:
         if self.errors:
             return False
-        return all(spread <= SPREAD_TOLERANCE for spread in self.candidate_spread.values())
+        return (
+            all(spread <= SPREAD_TOLERANCE for spread in self.candidate_spread.values())
+            and all(
+                delta is not None and abs(delta) <= SPREAD_TOLERANCE
+                for delta in self.deltas.values()
+            )
+        )
 
 
 def _load_json(path: Path) -> dict[str, Any]:

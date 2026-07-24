@@ -1,6 +1,8 @@
 """Read-only v1.1 framework projection (BEAAA-16995)."""
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -44,6 +46,16 @@ def _reachable_ref(ref: Mapping[str, Any]) -> dict[str, Any] | None:
         return None
     return {"rubric_point_id": ref.get("rubric_point_id"), "test_id": ref.get("test_id"),
             "artifact_uri": uri, "sha256": digest}
+
+
+def verify_evidence_bytes(ref: Mapping[str, Any], artifact_bytes: bytes) -> None:
+    """Fail closed unless retrieved artifact bytes match the evidence reference."""
+    expected = ref.get("sha256") or ref.get("artifact_sha256")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError("evidence reference is missing a valid SHA-256 digest")
+    actual = hashlib.sha256(artifact_bytes).hexdigest()
+    if not hmac.compare_digest(actual, expected.lower()):
+        raise ValueError("evidence artifact SHA-256 mismatch")
 
 
 def build_framework_envelope(score: Mapping[str, Any], *, evaluation_date: str | None = None,
