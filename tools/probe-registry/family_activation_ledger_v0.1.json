@@ -83,7 +83,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
+      "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "needs_validation",
       "family_id": "bbq",
@@ -405,7 +405,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "target_bound_working",
       "family_id": "garak",
@@ -465,7 +465,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
+      "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "executable_not_connected",
       "family_id": "hallucination_legal",
@@ -543,7 +543,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "target_bound_working",
       "family_id": "harmbench",
