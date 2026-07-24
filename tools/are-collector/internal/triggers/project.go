@@ -6,16 +6,15 @@ import "backbond/are-collector/internal/schemav1"
 // projector reads trigger inputs from these keys only, so triggers are derived
 // from runtime evidence rows and never from a lossy side channel.
 const (
-	attrTenantID            = "backbond.evidence.tenant_id"
-	attrAgentID             = "backbond.evidence.agent_id"
-	attrDeploymentID        = "backbond.evidence.deployment_id"
-	attrModelRef            = "backbond.evidence.model_ref"
-	attrAuthorityContext    = "backbond.evidence.authority_context"
-	attrOutcomeStatus       = "backbond.evidence.outcome_status"
-	attrContentHash         = "backbond.evidence.content_hash"
-	attrBatchSeq            = "backbond.evidence.batch_seq"
-	attrToolchainProvenance = "backbond.evidence.toolchain_provenance"
-	attrEventTime           = "event_time"
+	attrTenantID         = "backbond.evidence.tenant_id"
+	attrAgentID          = "backbond.evidence.agent_id"
+	attrDeploymentID     = "backbond.evidence.deployment_id"
+	attrModelRef         = "backbond.evidence.model_ref"
+	attrAuthorityContext = "backbond.evidence.authority_context"
+	attrOutcomeStatus    = "backbond.evidence.outcome_status"
+	attrContentHash      = "backbond.evidence.content_hash"
+	attrBatchSeq         = "backbond.evidence.batch_seq"
+	attrEventTime        = "event_time"
 )
 
 // ProjectRow builds an EvidenceRow from an Evidence Profile v1 attribute bag (the
@@ -30,46 +29,17 @@ func ProjectRow(attributes map[string]any) (EvidenceRow, bool) {
 		return EvidenceRow{}, false
 	}
 	row := EvidenceRow{
-		TenantID:            tenant,
-		AgentID:             agent,
-		DeploymentID:        deployment,
-		EventTime:           stringAttr(attributes, attrEventTime),
-		ModelRef:            stringAttr(attributes, attrModelRef),
-		OutcomeStatus:       stringAttr(attributes, attrOutcomeStatus),
-		ContentHash:         stringAttr(attributes, attrContentHash),
-		BatchSeq:            intAttr(attributes, attrBatchSeq),
-		AuthorityContext:    projectAuthority(attributes[attrAuthorityContext]),
-		ToolchainProvenance: projectToolchainProvenance(attributes[attrToolchainProvenance]),
+		TenantID:         tenant,
+		AgentID:          agent,
+		DeploymentID:     deployment,
+		EventTime:        stringAttr(attributes, attrEventTime),
+		ModelRef:         stringAttr(attributes, attrModelRef),
+		OutcomeStatus:    stringAttr(attributes, attrOutcomeStatus),
+		ContentHash:      stringAttr(attributes, attrContentHash),
+		BatchSeq:         intAttr(attributes, attrBatchSeq),
+		AuthorityContext: projectAuthority(attributes[attrAuthorityContext]),
 	}
 	return row, true
-}
-
-func projectToolchainProvenance(value any) *ToolchainProvenance {
-	object, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	credentials := []CredentialProvenance{}
-	for _, item := range objectSlice(object["inherited_credentials"]) {
-		credential, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		credentials = append(credentials, CredentialProvenance{
-			Class:  asString(credential["class"]),
-			Source: asString(credential["source"]),
-			Scopes: stringSlice(credential["scopes"]),
-		})
-	}
-	return &ToolchainProvenance{
-		ArtifactDigest:        asString(object["artifact_digest"]),
-		DependencyDigest:      asString(object["dependency_digest"]),
-		MCPManifestDigest:     asString(object["mcp_manifest_digest"]),
-		WorkflowIdentity:      asString(object["workflow_identity"]),
-		InheritedCredentials:  credentials,
-		DeclaredDestinations:  stringSlice(object["declared_destinations"]),
-		ContactedDestinations: stringSlice(object["contacted_destinations"]),
-	}
 }
 
 // ProjectEvent projects a collector schemav1.Event whose payload carries the
@@ -143,11 +113,4 @@ func stringSlice(value any) []string {
 	default:
 		return nil
 	}
-}
-
-func objectSlice(value any) []any {
-	if values, ok := value.([]any); ok {
-		return values
-	}
-	return nil
 }

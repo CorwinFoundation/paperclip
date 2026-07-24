@@ -94,17 +94,6 @@ class ResolveFrameworkTests(unittest.TestCase):
                     efv.resolve_or_import("pyrit", None), (False, "not-installed")
                 )
 
-    def test_resolve_or_import_uses_distribution_metadata_without_dunder(self) -> None:
-        class _FakeMod:
-            pass
-
-        with patch("importlib.metadata.version", return_value="0.1.35") as get_version:
-            self.assertEqual(
-                efv.resolve_or_import("agentdojo", _FakeMod()),
-                (True, "0.1.35"),
-            )
-        get_version.assert_called_once_with("agentdojo")
-
 
 class VenvPathTests(unittest.TestCase):
     def test_venvs_root_env_override(self) -> None:
@@ -142,9 +131,6 @@ class FrameworkRegistryTests(unittest.TestCase):
     def test_import_names(self) -> None:
         self.assertEqual(efv.FRAMEWORKS["inspect"].import_name, "inspect_ai")
         self.assertEqual(efv.FRAMEWORKS["pyrit"].import_name, "pyrit")
-        self.assertEqual(
-            efv.FRAMEWORKS["agentdojo"].distribution_name, "agentdojo"
-        )
 
     def test_distribution_names(self) -> None:
         self.assertEqual(efv.FRAMEWORKS["inspect"].distribution_name, "inspect-ai")

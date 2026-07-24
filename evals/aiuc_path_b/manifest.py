@@ -23,7 +23,6 @@ from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import customer_defined_risk_pack as cdr
 from evals.aiuc_path_b import human_escalation_flagging as hef
 from evals.aiuc_path_b import mcp_tool_integrity as mcp
-from evals.aiuc_path_b import system_prompt_extraction as spe
 
 _REPO = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = _REPO / "rubric" / "aiuc_path_b" / "family_registry.yaml"
@@ -35,7 +34,6 @@ FAMILY_MODULES = {
     "consequential_action_confirmation": cac,
     "customer_defined_risk_pack": cdr,
     "mcp_tool_integrity": mcp,
-    "system_prompt_extraction": spe,
 }
 
 

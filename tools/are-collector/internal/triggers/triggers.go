@@ -4,15 +4,12 @@
 // operational drift derived from evidence rows can REQUEST a BackBond rescan, but
 // can never move a BackBond Score, band, or any rubric output directly.
 //
-// Four trigger classes are detected from evidence rows only:
+// Three trigger classes are detected from evidence rows only:
 //
 //   - ModelRefChange     — model_ref differs from the last observed value (model swap).
 //   - AuthorityExpansion — a new tool or permission appears in authority_context.
 //   - OutcomeDrift        — failure/escalation/reversal rate over a rolling window
 //     crosses a configurable threshold.
-//   - ToolchainProvenanceChange — a deployment artifact, dependency set, MCP
-//     manifest, workflow identity, inherited credential scope, or contacted
-//     infrastructure destination changes.
 //
 // For each positive trigger the detector appends a RescanRequest to an AuditSpine.
 // A RescanRequest is a request only: it carries no score, band, or rubric field
@@ -39,10 +36,9 @@ import (
 type TriggerClass string
 
 const (
-	ModelRefChange            TriggerClass = "model_ref_change"
-	AuthorityExpansion        TriggerClass = "authority_expansion"
-	OutcomeDrift              TriggerClass = "outcome_drift"
-	ToolchainProvenanceChange TriggerClass = "toolchain_provenance_change"
+	ModelRefChange     TriggerClass = "model_ref_change"
+	AuthorityExpansion TriggerClass = "authority_expansion"
+	OutcomeDrift       TriggerClass = "outcome_drift"
 )
 
 // EvidenceRow is the trigger-relevant projection of one Evidence Profile v1
@@ -56,33 +52,14 @@ type EvidenceRow struct {
 	DeploymentID string
 	EventTime    string // RFC3339, carried through onto the request for audit ordering
 
-	ModelRef            string
-	AuthorityContext    AuthorityContext
-	OutcomeStatus       string
-	ToolchainProvenance *ToolchainProvenance
+	ModelRef         string
+	AuthorityContext AuthorityContext
+	OutcomeStatus    string
 
 	// ContentHash and BatchSeq are chain-of-custody anchors copied onto the
 	// emitted request so the audit spine can point back at the triggering row.
 	ContentHash string
 	BatchSeq    int
-}
-
-// ToolchainProvenance carries immutable digests and redacted deployment metadata.
-// Credential values and proprietary source material are deliberately unrepresentable.
-type ToolchainProvenance struct {
-	ArtifactDigest        string
-	DependencyDigest      string
-	MCPManifestDigest     string
-	WorkflowIdentity      string
-	InheritedCredentials  []CredentialProvenance
-	DeclaredDestinations  []string
-	ContactedDestinations []string
-}
-
-type CredentialProvenance struct {
-	Class  string
-	Source string
-	Scopes []string
 }
 
 // AuthorityContext captures the permissions-in-force view an evidence row carries.
@@ -118,17 +95,15 @@ type OutcomeDriftConfig struct {
 // when false, evidence ingestion (baseline tracking) continues unchanged but no
 // rescan-request is emitted or returned.
 type Config struct {
-	Enabled                    bool
-	ToolchainProvenanceEnabled bool
-	OutcomeDrift               OutcomeDriftConfig
+	Enabled      bool
+	OutcomeDrift OutcomeDriftConfig
 }
 
 // DefaultConfig returns explicit, conservative defaults. Every threshold is a
 // named field so operators tune them without code changes.
 func DefaultConfig() Config {
 	return Config{
-		Enabled:                    true,
-		ToolchainProvenanceEnabled: true,
+		Enabled: true,
 		OutcomeDrift: OutcomeDriftConfig{
 			Window:          20,
 			MinObservations: 10,
@@ -207,9 +182,6 @@ type streamState struct {
 
 	outcomes    []string
 	driftFiring bool
-
-	seededToolchain bool
-	lastToolchain   string
 }
 
 // Detector holds per-(tenant, agent, deployment) baseline state and evaluates
@@ -266,11 +238,6 @@ func (detector *Detector) Observe(row EvidenceRow) ([]RescanRequest, error) {
 	if req, ok := detector.evalOutcomeDrift(state, row); ok {
 		requests = append(requests, req)
 	}
-	if req, ok, err := detector.evalToolchainProvenance(state, row); err != nil {
-		return nil, err
-	} else if ok {
-		requests = append(requests, req)
-	}
 
 	if !detector.cfg.Enabled {
 		// Rollback gate: baselines advanced above (ingestion unchanged) but no
@@ -284,97 +251,6 @@ func (detector *Detector) Observe(row EvidenceRow) ([]RescanRequest, error) {
 		}
 	}
 	return requests, nil
-}
-
-func (detector *Detector) evalToolchainProvenance(state *streamState, row EvidenceRow) (RescanRequest, bool, error) {
-	provenance := row.ToolchainProvenance
-	if provenance == nil {
-		return RescanRequest{}, false, nil
-	}
-	if provenance.ArtifactDigest == "" || provenance.DependencyDigest == "" ||
-		provenance.MCPManifestDigest == "" || provenance.WorkflowIdentity == "" {
-		return RescanRequest{}, false, fmt.Errorf("toolchain provenance is incomplete")
-	}
-	fingerprint, details, unexpected := toolchainFingerprint(*provenance)
-	if !state.seededToolchain {
-		state.seededToolchain = true
-		state.lastToolchain = fingerprint
-		if len(unexpected) == 0 || !detector.cfg.ToolchainProvenanceEnabled {
-			return RescanRequest{}, false, nil
-		}
-		details["new_destinations"] = strings.Join(unexpected, ",")
-		return detector.newRequest(ToolchainProvenanceChange, row,
-			"toolchain provenance contacted undeclared destinations ["+strings.Join(unexpected, ", ")+"]", details), true, nil
-	}
-	if fingerprint == state.lastToolchain {
-		return RescanRequest{}, false, nil
-	}
-	previous := state.lastToolchain
-	state.lastToolchain = fingerprint
-	if !detector.cfg.ToolchainProvenanceEnabled {
-		return RescanRequest{}, false, nil
-	}
-	details["previous_fingerprint"] = previous
-	details["current_fingerprint"] = fingerprint
-	if len(unexpected) > 0 {
-		details["new_destinations"] = strings.Join(unexpected, ",")
-	}
-	return detector.newRequest(ToolchainProvenanceChange, row,
-		"deployment toolchain provenance changed", details), true, nil
-}
-
-func toolchainFingerprint(provenance ToolchainProvenance) (string, map[string]string, []string) {
-	credentials := make([]string, 0, len(provenance.InheritedCredentials))
-	for _, credential := range provenance.InheritedCredentials {
-		scopes := normalized(credential.Scopes)
-		credentials = append(credentials, credential.Class+"\x1e"+credential.Source+"\x1e"+strings.Join(scopes, ","))
-	}
-	sort.Strings(credentials)
-	declared := normalized(provenance.DeclaredDestinations)
-	contacted := normalized(provenance.ContactedDestinations)
-	allowlist := map[string]struct{}{}
-	for _, destination := range declared {
-		allowlist[destination] = struct{}{}
-	}
-	unexpected := []string{}
-	for _, destination := range contacted {
-		if _, ok := allowlist[destination]; !ok {
-			unexpected = append(unexpected, destination)
-		}
-	}
-	preimage := strings.Join([]string{
-		provenance.ArtifactDigest,
-		provenance.DependencyDigest,
-		provenance.MCPManifestDigest,
-		provenance.WorkflowIdentity,
-		strings.Join(credentials, "\x1d"),
-		strings.Join(declared, "\x1d"),
-		strings.Join(contacted, "\x1d"),
-	}, "\x1f")
-	sum := sha256.Sum256([]byte(preimage))
-	fingerprint := "sha256:" + hex.EncodeToString(sum[:])
-	return fingerprint, map[string]string{
-		"artifact_digest":     provenance.ArtifactDigest,
-		"dependency_digest":   provenance.DependencyDigest,
-		"mcp_manifest_digest": provenance.MCPManifestDigest,
-		"workflow_identity":   provenance.WorkflowIdentity,
-	}, unexpected
-}
-
-func normalized(values []string) []string {
-	seen := map[string]struct{}{}
-	for _, value := range values {
-		value = strings.ToLower(strings.TrimSpace(value))
-		if value != "" {
-			seen[value] = struct{}{}
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for value := range seen {
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
 }
 
 func (detector *Detector) evalModelRef(state *streamState, row EvidenceRow) (RescanRequest, bool) {

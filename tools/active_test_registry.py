@@ -227,8 +227,6 @@ def _execution_evidence_status(
     probe: dict[str, Any],
     mapping: dict[str, Any],
 ) -> tuple[bool, str]:
-    if probe.get("requires_retained_packet") is True and probe.get("retained_packet_valid") is not True:
-        return False, "retained_packet_invalid"
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
     if not isinstance(evidence, dict):
         return False, "execution_evidence_not_object"
@@ -263,214 +261,6 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
         }
         for case in embedded_cases(family)
     ]
-
-
-def _wave1a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
-    if data.get("runner") != "evals/perils/wave1a/candidate.py":
-        return []
-    if not _scoring_active(data):
-        return []
-    from evals.perils.wave1a import candidate as wave
-
-    family = str(data["benchmark"])
-    specs = {spec.name: spec for spec in wave.FAMILIES}
-    spec = specs.get(family)
-    if spec is None:
-        return []
-    return [
-        {
-            "probe_id": case.case_id,
-            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
-            "rubric_point_id": case.rubric_point_ids[1],
-            "category": case.category,
-            "execution_evidence": {
-                "concrete_input_or_action": case.variants[0],
-                "expected_oracle": f"{case.oracle_field} == {case.expected}",
-                "recorded_target_response": "captured_by_wave1a_candidate_packet",
-                "verdict": "deterministic_local_oracle pass/fail",
-                "github_provenance": "BEAAA-17022",
-            },
-        }
-        for case in spec.cases
-    ]
-
-
-def _wave2_lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
-    if data.get("runner") != "evals/aiuc_path_b/lane_a_depth.py":
-        return []
-    from evals.aiuc_path_b import lane_a_depth as lane
-
-    family = str(data["benchmark"])
-    spec = lane.SPECS.get(family)
-    if spec is None:
-        return []
-    field = lane.FIELDS[family]
-    evidence = data.get("execution_evidence") if isinstance(data.get("execution_evidence"), Mapping) else {}
-    retained_path = str(evidence.get("retained_target_evidence") or "")
-    retained_sha = str(evidence.get("retained_target_evidence_sha256") or "")
-    retained_ok = False
-    if retained_path and retained_sha:
-        path = REPO_ROOT / retained_path
-        retained_ok = _validate_wave2_retained_packet(path, retained_sha, family, evidence)
-    return [
-        {
-            "probe_id": case.case_id,
-            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
-            "rubric_point_id": case.rubric_point_ids[1],
-            "category": case.category,
-            "requires_retained_packet": True,
-            "retained_packet_valid": retained_ok,
-            **(
-                {
-                    "execution_evidence": {
-                        "concrete_input_or_action": case.scenario_variants[0],
-                        "expected_oracle": f"{field} == {case.oracle[field]}",
-                        "recorded_target_response": (
-                            f"{retained_path}#{family}/{case.case_id}; "
-                            f"artifact_sha256={retained_sha}"
-                        ),
-                        "verdict": "deterministic_raw_response_evaluator pass/fail/invalid",
-                        "github_provenance": "BEAAA-17196",
-                    }
-                }
-                if retained_ok
-                else {}
-            ),
-        }
-        for case in spec.cases
-    ]
-
-
-def _target_auth_from_packet(packet: Mapping[str, Any]):
-    from evals.aiuc_path_b import lane_a_depth as lane
-
-    raw_auth = packet.get("target_authorization")
-    if not isinstance(raw_auth, Mapping):
-        raise lane.TargetExecutionError("target_authorization_missing")
-    return lane.TargetProductionAuthorization(
-        target_id=str(raw_auth.get("target_id") or ""),
-        candidate_commit_sha=str(raw_auth.get("candidate_commit_sha") or ""),
-        parent_sha=str(raw_auth.get("parent_sha") or ""),
-        authorization_ref=str(raw_auth.get("authorization_ref") or ""),
-        authorization_issued_at=str(raw_auth.get("authorization_issued_at") or ""),
-        authorization_expires_at=str(raw_auth.get("authorization_expires_at") or ""),
-        target_endpoint=str(raw_auth.get("target_endpoint") or ""),
-        lease_root=str(raw_auth.get("lease_root") or ""),
-        tenant_boundary=str(raw_auth.get("tenant_boundary") or ""),
-        session_boundary=str(raw_auth.get("session_boundary") or ""),
-        allowed_family_ids=tuple(raw_auth.get("allowed_family_ids") or ()),
-        evidence_immutable=bool(raw_auth.get("evidence_immutable")),
-        signature=str(raw_auth.get("signature") or ""),
-    )
-
-
-def _validate_wave2_retained_packet(
-    path: Path,
-    retained_sha: str,
-    family: str,
-    mapping_evidence: Mapping[str, Any],
-) -> bool:
-    from evals.aiuc_path_b import lane_a_depth as lane
-
-    try:
-        if not path.exists() or lane._sha256_file(path) != retained_sha:
-            return False
-        packet = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(packet, dict):
-            return False
-        auth = _target_auth_from_packet(packet)
-        candidate_sha = str(packet.get("candidate_commit_sha") or "")
-        parent_sha = str(packet.get("parent_sha") or "")
-        if candidate_sha != auth.candidate_commit_sha or parent_sha != auth.parent_sha:
-            return False
-        if packet.get("ticket_ref") != lane.FIX_TICKET_REF:
-            return False
-        lane.verify_authorization(auth, commit_sha=candidate_sha, parent_sha=parent_sha)
-        if packet.get("unique_scenario_count") != 72 or packet.get("execution_count_k5") != 360:
-            return False
-        evidence_by_family = packet.get("evidence_by_family")
-        if not isinstance(evidence_by_family, dict) or family not in evidence_by_family:
-            return False
-        if set(evidence_by_family) != set(lane.SPECS):
-            return False
-        family_hashes: dict[str, list[str]] = {}
-        row_count = 0
-        for family_name, runs in evidence_by_family.items():
-            spec = lane.SPECS.get(family_name)
-            if spec is None or not isinstance(runs, list) or len(runs) != 5:
-                return False
-            family_hashes[family_name] = []
-            for run in runs:
-                if not isinstance(run, dict):
-                    return False
-                if run.get("sha256") != lane._sha256_obj({k: v for k, v in run.items() if k != "sha256"}):
-                    return False
-                cases = run.get("case_results")
-                if not isinstance(cases, list) or len(cases) != len(spec.cases):
-                    return False
-                for row in cases:
-                    if not isinstance(row, dict):
-                        return False
-                    request = row.get("target_request")
-                    response = row.get("target_response")
-                    verdict = row.get("verdict")
-                    if not isinstance(request, dict) or not isinstance(response, dict) or not verdict:
-                        return False
-                    if row.get("target_request_sha256") != lane._sha256_obj(request):
-                        return False
-                    if row.get("target_response_sha256") != lane._sha256_obj(response):
-                        return False
-                    if row.get("execution_evidenced") is not True:
-                        return False
-                    row_count += 1
-                family_hashes[family_name].append(run["sha256"])
-        if row_count != 360:
-            return False
-        execution_sha = lane._sha256_obj(evidence_by_family)
-        auth_sha = lane._sha256_obj(lane.authorization_preimage(auth))
-        if packet.get("target_authorization_preimage_sha256") != auth_sha:
-            return False
-        preimage = packet.get("signed_manifest_preimage") or packet.get("manifest_preimage")
-        if not isinstance(preimage, dict):
-            return False
-        target_execution = preimage.get("target_execution")
-        if not isinstance(target_execution, dict):
-            return False
-        if preimage.get("candidate_commit_sha") != candidate_sha or preimage.get("parent_sha") != parent_sha:
-            return False
-        if target_execution.get("execution_evidence_sha256") != execution_sha:
-            return False
-        if target_execution.get("family_evidence_sha256") != family_hashes:
-            return False
-        if target_execution.get("target_authorization_preimage_sha256") != auth_sha:
-            return False
-        promotion_identity = packet.get("promotion_identity")
-        if not isinstance(promotion_identity, dict):
-            return False
-        promotion_sha = lane._sha256_obj(promotion_identity)
-        if packet.get("promotion_identity_sha256") != promotion_sha:
-            return False
-        if preimage.get("promotion_identity_sha256") != promotion_sha:
-            return False
-        expected_promotion_sha = mapping_evidence.get("promotion_identity_sha256")
-        if expected_promotion_sha and expected_promotion_sha != promotion_sha:
-            return False
-        if promotion_identity.get("identity_scheme") != lane.PROMOTION_IDENTITY_SCHEME:
-            return False
-        if promotion_identity.get("promotion_ticket_ref") != lane.FIX_TICKET_REF:
-            return False
-        if promotion_identity.get("candidate_commit_sha") != candidate_sha:
-            return False
-        if promotion_identity.get("parent_sha") != parent_sha:
-            return False
-        if promotion_identity.get("execution_evidence_sha256") != execution_sha:
-            return False
-        if promotion_identity.get("target_authorization_preimage_sha256") != auth_sha:
-            return False
-        signed_manifest = packet.get("signed_manifest")
-        return isinstance(signed_manifest, dict) and lane.verify_signed_manifest(preimage, signed_manifest)
-    except (OSError, ValueError, lane.TargetExecutionError):
-        return False
 
 
 def _scoring_active(data: Mapping[str, Any]) -> bool:
@@ -546,12 +336,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                 )
             )
         activation_blocker = data.get("activation_blocker")
-        probes = (
-            data.get("probes")
-            or _lane_a_probes(data)
-            or _wave1a_probes(data)
-            or _wave2_lane_a_probes(data)
-        )
+        probes = data.get("probes") or _lane_a_probes(data)
         for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
@@ -563,9 +348,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
             target_bound = execution_evidenced or materializable
             if materializable and not execution_evidenced:
                 evidence_status = "target_bound_evidence_pending"
-            executable_for_count = (
-                executable and target_bound and execution_evidenced and scoring_active
-            )
+            executable_for_count = executable and target_bound and execution_evidenced
             direct_pillar = probe.get("pillar")
             direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
             if direct_pillar and direct_rubric_id:
