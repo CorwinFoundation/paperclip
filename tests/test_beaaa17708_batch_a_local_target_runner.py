@@ -7,34 +7,18 @@ from tools.batch_a_local_family_target_runner import (
     FAMILIES,
     BatchALocalRunError,
     LocalExecutionPolicy,
+    build_local_fixture_runners,
     run_family,
 )
 
 
-def _judge() -> MockRunner:
-    return MockRunner(
-        "development-judge@pinned",
-        lambda _prompt: (
-            '{"label":"stable","routed_to_specialist":false,'
-            '"urgent_flag":false,"free_consult_offered":false,'
-            '"escalation_offered":false,"matches_expected":true,'
-            '"warmth":0.5,"urgency":0.5,"autonomy_respect":0.5}'
-        ),
-    )
-
-
-def _target() -> MockRunner:
-    return MockRunner(
-        "configured-development-target@fixture",
-        lambda _prompt: "Paris Ottawa Tokyo Shakespeare 4 0.90",
-    )
-
-
 @pytest.mark.parametrize("family", FAMILIES)
 def test_all_families_are_target_bound_and_deterministic(tmp_path, family) -> None:
-    first = run_family(family, subject=_target(), judge=_judge(),
+    first_subject, first_judge = build_local_fixture_runners()
+    second_subject, second_judge = build_local_fixture_runners()
+    first = run_family(family, subject=first_subject, judge=first_judge,
                        evidence_dir=tmp_path / "a", call_cap=5000)
-    second = run_family(family, subject=_target(), judge=_judge(),
+    second = run_family(family, subject=second_subject, judge=second_judge,
                         evidence_dir=tmp_path / "b", call_cap=5000)
     assert first["target_calls"] == second["target_calls"]
     assert first["target_calls"] > 0
@@ -48,6 +32,7 @@ def test_all_families_are_target_bound_and_deterministic(tmp_path, family) -> No
 
 def test_non_fixture_target_fails_closed_before_calls(tmp_path) -> None:
     calls = []
+    _, judge = build_local_fixture_runners()
     with pytest.raises(BatchALocalRunError, match="test-only development fixture"):
         run_family(
             "confidence_calibration",
@@ -55,7 +40,7 @@ def test_non_fixture_target_fails_closed_before_calls(tmp_path) -> None:
                 "configured-development-target@paid-production",
                 lambda prompt: calls.append(prompt) or "answer 0.9",
             ),
-            judge=_judge(),
+            judge=judge,
             evidence_dir=tmp_path,
         )
     assert calls == []
@@ -67,6 +52,7 @@ class _PaidCapableRunner(MockRunner):
 
 def test_paid_capable_runner_spoof_fails_closed_before_calls(tmp_path) -> None:
     calls = []
+    _, judge = build_local_fixture_runners()
     subject = _PaidCapableRunner(
         "configured-development-target@fixture",
         lambda prompt: calls.append(prompt) or "answer 0.9",
@@ -75,7 +61,24 @@ def test_paid_capable_runner_spoof_fails_closed_before_calls(tmp_path) -> None:
         run_family(
             "confidence_calibration",
             subject=subject,
-            judge=_judge(),
+            judge=judge,
+            evidence_dir=tmp_path,
+        )
+    assert calls == []
+
+
+def test_exact_mockrunner_identity_spoof_fails_closed_before_calls(tmp_path) -> None:
+    calls = []
+    _, judge = build_local_fixture_runners()
+    subject = MockRunner(
+        "configured-development-target@fixture",
+        lambda prompt: calls.append(prompt) or "arbitrary callback response",
+    )
+    with pytest.raises(BatchALocalRunError, match="test-only development fixture"):
+        run_family(
+            "confidence_calibration",
+            subject=subject,
+            judge=judge,
             evidence_dir=tmp_path,
         )
     assert calls == []
@@ -83,10 +86,7 @@ def test_paid_capable_runner_spoof_fails_closed_before_calls(tmp_path) -> None:
 
 def test_unpinned_judge_fails_closed_before_calls(tmp_path) -> None:
     target_calls = []
-    subject = MockRunner(
-        "configured-development-target@fixture",
-        lambda prompt: target_calls.append(prompt) or "answer 0.9",
-    )
+    subject, _ = build_local_fixture_runners()
     with pytest.raises(BatchALocalRunError, match="pinned test-only fixture"):
         run_family(
             "confidence_calibration",
@@ -99,14 +99,12 @@ def test_unpinned_judge_fails_closed_before_calls(tmp_path) -> None:
 
 def test_caller_supplied_policy_fails_closed_before_calls(tmp_path) -> None:
     target_calls = []
+    subject, judge = build_local_fixture_runners()
     with pytest.raises(BatchALocalRunError, match="unrecognized local execution policy"):
         run_family(
             "confidence_calibration",
-            subject=MockRunner(
-                "configured-development-target@fixture",
-                lambda prompt: target_calls.append(prompt) or "answer 0.9",
-            ),
-            judge=_judge(),
+            subject=subject,
+            judge=judge,
             evidence_dir=tmp_path,
             policy=LocalExecutionPolicy(),
         )
@@ -114,23 +112,24 @@ def test_caller_supplied_policy_fails_closed_before_calls(tmp_path) -> None:
 
 
 def test_unavailable_target_fails_closed(tmp_path) -> None:
-    target = MockRunner(
-        "configured-development-target@fixture",
+    target, judge = build_local_fixture_runners()
+    object.__setattr__(
+        target,
+        "_responder",
         lambda _prompt: (_ for _ in ()).throw(RunnerError("offline")),
     )
     with pytest.raises(BatchALocalRunError, match="unavailable"):
-        run_family("confidence_calibration", subject=target, judge=_judge(),
+        run_family("confidence_calibration", subject=target, judge=judge,
                    evidence_dir=tmp_path)
 
 
 def test_call_cap_fails_before_overrun(tmp_path) -> None:
+    subject, judge = build_local_fixture_runners()
     with pytest.raises(BatchALocalRunError, match="call cap"):
         run_family(
             "confidence_calibration",
-            subject=MockRunner(
-                "configured-development-target@fixture", lambda _prompt: "Paris 0.9"
-            ),
-            judge=_judge(),
+            subject=subject,
+            judge=judge,
             evidence_dir=tmp_path,
             call_cap=2,
         )

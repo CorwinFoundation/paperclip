@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -59,17 +60,76 @@ class BatchALocalRunError(RuntimeError):
     """A local family did not produce complete target-bound evidence."""
 
 
+def _build_fixture_authority() -> tuple[
+    Callable[[], tuple[MockRunner, MockRunner]],
+    Callable[[ModelRunner], bool],
+    Callable[[ModelRunner, ModelRunner], bool],
+]:
+    """Own fixture callbacks and attest only runner instances built here."""
+    class ImmutableFixtureRunner(MockRunner):
+        def __init__(self, name: str, responder: Callable[[str], str]) -> None:
+            super().__init__(name, responder)
+            self._fixture_frozen = True
+
+        def __setattr__(self, name: str, value: Any) -> None:
+            if getattr(self, "_fixture_frozen", False):
+                raise AttributeError("fixture runner provenance is immutable")
+            super().__setattr__(name, value)
+
+    authorized_subjects: weakref.WeakSet[ModelRunner] = weakref.WeakSet()
+    authorized_pairs: weakref.WeakKeyDictionary[
+        ModelRunner, weakref.ReferenceType[ModelRunner]
+    ] = weakref.WeakKeyDictionary()
+
+    def build() -> tuple[MockRunner, MockRunner]:
+        subject = ImmutableFixtureRunner(
+            "configured-development-target@fixture",
+            lambda _prompt: "Paris Ottawa Tokyo Shakespeare 4 0.90",
+        )
+        judge = ImmutableFixtureRunner(
+            "development-judge@pinned",
+            lambda _prompt: (
+                '{"label":"stable","routed_to_specialist":false,'
+                '"urgent_flag":false,"free_consult_offered":false,'
+                '"escalation_offered":false,"matches_expected":true,'
+                '"warmth":0.5,"urgency":0.5,"autonomy_respect":0.5}'
+            ),
+        )
+        authorized_subjects.add(subject)
+        authorized_pairs[subject] = weakref.ref(judge)
+        return subject, judge
+
+    def authorizes_subject(subject: ModelRunner) -> bool:
+        return subject in authorized_subjects
+
+    def authorizes(subject: ModelRunner, judge: ModelRunner) -> bool:
+        judge_ref = authorized_pairs.get(subject)
+        return judge_ref is not None and judge_ref() is judge
+
+    return build, authorizes_subject, authorizes
+
+
+(
+    build_local_fixture_runners,
+    _fixture_authorizes_subject,
+    _fixture_authorizes,
+) = _build_fixture_authority()
+
+
 def _authorize_local_fixture(
     subject: ModelRunner,
     judge: ModelRunner,
     policy: LocalExecutionPolicy,
 ) -> None:
     """Reject adapters that can reach a provider before either runner is called."""
-    if type(subject) is not MockRunner or subject.model_id() != policy.subject_model_id:
+    if not _fixture_authorizes_subject(subject) or subject.model_id() != policy.subject_model_id:
         raise BatchALocalRunError(
             "subject is not the authorized test-only development fixture"
         )
-    if type(judge) is not MockRunner or judge.model_id() != policy.judge_model_id:
+    if (
+        not _fixture_authorizes(subject, judge)
+        or judge.model_id() != policy.judge_model_id
+    ):
         raise BatchALocalRunError("judge is not the authorized pinned test-only fixture")
 
 
