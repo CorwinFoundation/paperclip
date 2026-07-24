@@ -10,28 +10,40 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
-      "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "automated_tests": [
+        "tests/test_beaaa17668_batch_a_pins.py",
+        "tests/test_beaaa17709_batch_a_pinned_jsonl_target_runner.py"
+      ],
+      "corpus_version": "p5_direct_v1",
+      "current_state": "target_bound_working",
       "family_id": "advbench",
       "ordinal": 1,
       "owner": "Scanner Engineer",
-      "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
+      "probe-set-version": "p5_direct_advbench_v1",
+      "real_blocker": null,
+      "required_cases": 8,
       "rubric_point_id": "P3.1",
-      "runner_adapter_work": "Bind external dataset AdvBench to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Batch-A pinned JSONL adapter executes the CTO-approved immutable input through the normal configured development target runner, validates file SHA-256 before execution, and records terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/advbench.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 170,
+        "calls_attempted": 40,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": [
+          {
+            "path": "artifacts/beaaa-17709/target-smoke/p5_direct_advbench_v1.json",
+            "sha256": "503953e00c15217cc59b48008610805fc25ce7bccd087618c1064dded28fdb96"
+          }
+        ],
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
+        "summary_evidence": {
+          "deterministic_digest": "sha256:59747c07df1fc1970672d6fdee6eec3d3fb74a6c36791e8dfc71a6292d01447f",
+          "path": "artifacts/beaaa-17709/target-smoke/summary.json",
+          "sha256": "0565369e5d8bc0d70c8a9ea68ec0293e75b04156b0a5b91b16b2669c0db4b4f4"
+        },
         "target_kind": "development_fixture"
       }
     },
@@ -41,28 +53,27 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "agentdojo",
       "ordinal": 2,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
+      "real_blocker": "",
+      "required_cases": 4,
       "rubric_point_id": "P3.2",
       "runner_adapter_work": "Bind AgentDojo venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/agentdojo.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 100,
+        "calls_attempted": 4,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": "BEAAA-17707 smoke agentdojo sha256:f32abb0dc3dfd351fe4fe5261cbe768f73527429d2862c290313140bcd9b7c81",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
         "target_kind": "development_fixture"
       }
     },
@@ -72,7 +83,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "needs_validation",
       "family_id": "bbq",
@@ -351,28 +362,40 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
-      "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "automated_tests": [
+        "tests/test_beaaa17668_batch_a_pins.py",
+        "tests/test_beaaa17709_batch_a_pinned_jsonl_target_runner.py"
+      ],
+      "corpus_version": "p4_citation_grounded_v1",
+      "current_state": "target_bound_working",
       "family_id": "factscore",
       "ordinal": 12,
       "owner": "Scanner Engineer",
-      "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
-      "rubric_point_id": "P1.1,P1.2",
-      "runner_adapter_work": "Bind FactScore to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "probe-set-version": "p4_citation_grounded_factscore_v1",
+      "real_blocker": null,
+      "required_cases": 6,
+      "rubric_point_id": "P1.2",
+      "runner_adapter_work": "Batch-A pinned JSONL adapter executes the CTO-approved immutable input through the normal configured development target runner, validates file SHA-256 before execution, and records terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/factscore.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 170,
+        "calls_attempted": 30,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": [
+          {
+            "path": "artifacts/beaaa-17709/target-smoke/p4_citation_grounded_factscore_v1.json",
+            "sha256": "45828cab22e482b602f92b326aa63b3d69c865424d65ada443740da490f28659"
+          }
+        ],
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
+        "summary_evidence": {
+          "deterministic_digest": "sha256:59747c07df1fc1970672d6fdee6eec3d3fb74a6c36791e8dfc71a6292d01447f",
+          "path": "artifacts/beaaa-17709/target-smoke/summary.json",
+          "sha256": "0565369e5d8bc0d70c8a9ea68ec0293e75b04156b0a5b91b16b2669c0db4b4f4"
+        },
         "target_kind": "development_fixture"
       }
     },
@@ -384,26 +407,25 @@
       ],
       "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "garak",
       "ordinal": 13,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
+      "real_blocker": "",
+      "required_cases": 9,
       "rubric_point_id": "P1.1,P1.3,P3.1,P3.2,P3.3,P3.4,P3.6",
       "runner_adapter_work": "Bind garak venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/garak.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 100,
+        "calls_attempted": 9,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": "BEAAA-17707 smoke garak sha256:2a094a317bce98daa00176b0179e7f180a6b3d2b817d135ff7d47b36910ddf21",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
         "target_kind": "development_fixture"
       }
     },
@@ -413,28 +435,27 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "garak_beaaa152",
       "ordinal": 14,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
+      "real_blocker": "",
+      "required_cases": 18,
       "rubric_point_id": "P1.1,P1.3,P2.5,P3.1,P3.2,P3.3",
       "runner_adapter_work": "Bind garak venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/garak_beaaa152.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 100,
+        "calls_attempted": 18,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": "BEAAA-17707 smoke garak_beaaa152 sha256:39fc505b605006d0026349e2c27af9a191a12ab22af0d7a26e6573586303522c",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
         "target_kind": "development_fixture"
       }
     },
@@ -444,7 +465,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "executable_not_connected",
       "family_id": "hallucination_legal",
@@ -475,28 +496,44 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
-      "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "automated_tests": [
+        "tests/test_beaaa17668_batch_a_pins.py",
+        "tests/test_beaaa17709_batch_a_pinned_jsonl_target_runner.py"
+      ],
+      "corpus_version": "p4_grounded_factuality_v1+p4_citation_grounded_v1",
+      "current_state": "target_bound_working",
       "family_id": "halueval",
       "ordinal": 16,
       "owner": "Scanner Engineer",
-      "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
-      "rubric_point_id": "P1.1,P1.2,P1.3,P1.6,P2.5",
-      "runner_adapter_work": "Bind HaluEval (measured n=400 in artifacts/beaaa-152) to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "probe-set-version": "p4_grounded_factuality_halueval_qa_v1+p4_citation_grounded_halueval_summ_v1",
+      "real_blocker": null,
+      "required_cases": 12,
+      "rubric_point_id": "P1.1,P1.2",
+      "runner_adapter_work": "Batch-A pinned JSONL adapter executes the CTO-approved immutable input through the normal configured development target runner, validates file SHA-256 before execution, and records terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/halueval.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 170,
+        "calls_attempted": 60,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": [
+          {
+            "path": "artifacts/beaaa-17709/target-smoke/p4_grounded_factuality_halueval_qa_v1.json",
+            "sha256": "894fb0e968a1a271a699099140f1df306258e0bc94580629c1ec087df90dbd89"
+          },
+          {
+            "path": "artifacts/beaaa-17709/target-smoke/p4_citation_grounded_halueval_summ_v1.json",
+            "sha256": "2d83ddcc98b5eef474f655a19a0fd1b308cbfbfe922847ce07c47346c72963d4"
+          }
+        ],
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
+        "summary_evidence": {
+          "deterministic_digest": "sha256:59747c07df1fc1970672d6fdee6eec3d3fb74a6c36791e8dfc71a6292d01447f",
+          "path": "artifacts/beaaa-17709/target-smoke/summary.json",
+          "sha256": "0565369e5d8bc0d70c8a9ea68ec0293e75b04156b0a5b91b16b2669c0db4b4f4"
+        },
         "target_kind": "development_fixture"
       }
     },
@@ -508,26 +545,25 @@
       ],
       "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "current_state": "target_bound_working",
       "family_id": "harmbench",
       "ordinal": 17,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
+      "real_blocker": "",
+      "required_cases": 7,
       "rubric_point_id": "P1.1,P1.4,P3.1,P3.2,P3.4,P3.6",
       "runner_adapter_work": "Bind external dataset HarmBench to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/harmbench.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 100,
+        "calls_attempted": 7,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": "BEAAA-17707 smoke harmbench sha256:d40fd5439be528a0cf9dfc330f383bba60c3580b3b12aa90d1b2559d6a1ea93d",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
         "target_kind": "development_fixture"
       }
     },
@@ -568,28 +604,40 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
-      "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "blocked_dependency",
+      "automated_tests": [
+        "tests/test_beaaa17668_batch_a_pins.py",
+        "tests/test_beaaa17709_batch_a_pinned_jsonl_target_runner.py"
+      ],
+      "corpus_version": "p5_direct_v1",
+      "current_state": "target_bound_working",
       "family_id": "jailbreakbench",
       "ordinal": 19,
       "owner": "Scanner Engineer",
-      "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
-      "required_cases": 0,
-      "rubric_point_id": "P2.5,P3.1,P3.3",
-      "runner_adapter_work": "Bind external dataset JBB (artifact n=80) to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "probe-set-version": "p5_direct_jailbreakbench_v1",
+      "real_blocker": null,
+      "required_cases": 8,
+      "rubric_point_id": "P3.1",
+      "runner_adapter_work": "Batch-A pinned JSONL adapter executes the CTO-approved immutable input through the normal configured development target runner, validates file SHA-256 before execution, and records terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/jailbreakbench.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
+        "call_cap": 170,
+        "calls_attempted": 40,
         "customer_data": false,
-        "evidence": null,
-        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+        "evidence": [
+          {
+            "path": "artifacts/beaaa-17709/target-smoke/p5_direct_jailbreakbench_v1.json",
+            "sha256": "43d28bc897f6652207e98b5e27cef9f41bdef410deb37955bb3aa3535b8fb738"
+          }
+        ],
         "paid_calls": 0,
         "score_activation": false,
-        "status": "failed_closed",
+        "status": "passed",
+        "summary_evidence": {
+          "deterministic_digest": "sha256:59747c07df1fc1970672d6fdee6eec3d3fb74a6c36791e8dfc71a6292d01447f",
+          "path": "artifacts/beaaa-17709/target-smoke/summary.json",
+          "sha256": "0565369e5d8bc0d70c8a9ea68ec0293e75b04156b0a5b91b16b2669c0db4b4f4"
+        },
         "target_kind": "development_fixture"
       }
     },
@@ -647,24 +695,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "configured-development-target@fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
-        "calls_attempted": 110,
-        "judge_calls": 90,
-        "cases_executed": 90,
         "call_cap": 110,
+        "calls_attempted": 110,
+        "cases_executed": 90,
+        "credential_class": "test_only",
+        "cto_cosign_ref": null,
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
           "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
         },
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": null
+        "judge_calls": 90,
+        "paid_calls": 0,
+        "score_activation": false,
+        "status": "passed",
+        "target_identity": "configured-development-target@fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -690,24 +738,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p1_3_consistency_golden.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "configured-development-target@fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
-        "calls_attempted": 110,
-        "judge_calls": 90,
-        "cases_executed": 90,
         "call_cap": 110,
+        "calls_attempted": 110,
+        "cases_executed": 90,
+        "credential_class": "test_only",
+        "cto_cosign_ref": null,
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
           "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
         },
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": null
+        "judge_calls": 90,
+        "paid_calls": 0,
+        "score_activation": false,
+        "status": "passed",
+        "target_identity": "configured-development-target@fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -733,24 +781,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p1_4_refusal_golden.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "configured-development-target@fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
-        "calls_attempted": 110,
-        "judge_calls": 90,
-        "cases_executed": 90,
         "call_cap": 110,
+        "calls_attempted": 110,
+        "cases_executed": 90,
+        "credential_class": "test_only",
+        "cto_cosign_ref": null,
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
           "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
         },
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": null
+        "judge_calls": 90,
+        "paid_calls": 0,
+        "score_activation": false,
+        "status": "passed",
+        "target_identity": "configured-development-target@fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -776,24 +824,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p1_5_calibration_golden.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "configured-development-target@fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
-        "calls_attempted": 110,
-        "judge_calls": 90,
-        "cases_executed": 90,
         "call_cap": 110,
+        "calls_attempted": 110,
+        "cases_executed": 90,
+        "credential_class": "test_only",
+        "cto_cosign_ref": null,
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
           "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
         },
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": null
+        "judge_calls": 90,
+        "paid_calls": 0,
+        "score_activation": false,
+        "status": "passed",
+        "target_identity": "configured-development-target@fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -819,24 +867,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p2_1_demographic_parity_gap.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p2_1_demographic_parity_gap.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -862,24 +910,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p2_2_equal_opportunity_gap.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -905,24 +953,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p2_3_counterfactual_stability.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p2_3_counterfactual_stability.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -948,24 +996,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p2_4_eval_representation.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p2_4_eval_representation.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -991,24 +1039,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p2_5_sentiment_skew_by_attribute.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1034,24 +1082,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p2_6_mitigation_evidence.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p2_6_mitigation_evidence.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1077,24 +1125,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p3_2_indirect_injection_rob.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p3_2_indirect_injection_rob.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {
@@ -1120,24 +1168,24 @@
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p3_3_secret_exfiltration_rob.yaml",
       "target_bound_smoke_result": {
-        "status": "passed",
-        "target_kind": "development_fixture",
-        "target_identity": "known-good-development-fixture",
-        "credential_class": "test_only",
-        "customer_data": false,
-        "paid_calls": 0,
-        "score_activation": false,
+        "call_cap": 96,
         "calls_attempted": 12,
         "cases_executed": 12,
-        "call_cap": 96,
+        "credential_class": "test_only",
+        "cto_cosign_ref": "BEAAA-17692",
+        "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17669/target-smoke/p3_3_secret_exfiltration_rob.json",
           "sha256": "recorded-in-smoke-summary"
         },
-        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
         "failure": null,
-        "verdict": "pass",
-        "cto_cosign_ref": "BEAAA-17692"
+        "paid_calls": 0,
+        "score_activation": false,
+        "smoke_summary": "artifacts/beaaa-17669/smoke-summary.json",
+        "status": "passed",
+        "target_identity": "known-good-development-fixture",
+        "target_kind": "development_fixture",
+        "verdict": "pass"
       }
     },
     {

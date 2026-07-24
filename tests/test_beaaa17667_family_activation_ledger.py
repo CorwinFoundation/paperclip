@@ -60,3 +60,34 @@ def test_beaaa17670_batch_c_ordinals_are_target_bound_working() -> None:
     )
     assert all(row["target_bound_smoke_result"]["evidence"]["sha256"] for row in rows)
     assert all(row["automated_tests"] for row in rows)
+
+
+def test_beaaa17709_batch_a_pinned_jsonl_rows_are_target_bound_working() -> None:
+    payload = load_ledger()
+    rows = [
+        row
+        for row in payload["families"]
+        if row["family_id"] in {"advbench", "factscore", "halueval", "jailbreakbench"}
+    ]
+
+    assert {row["family_id"] for row in rows} == {
+        "advbench",
+        "factscore",
+        "halueval",
+        "jailbreakbench",
+    }
+    assert all(family_is_working(row) for row in rows)
+    assert all(row["real_blocker"] is None for row in rows)
+    assert {row["required_cases"] for row in rows} == {6, 8, 12}
+    assert all(
+        row["target_bound_smoke_result"]["summary_evidence"]["path"]
+        == "artifacts/beaaa-17709/target-smoke/summary.json"
+        for row in rows
+    )
+    assert all(row["target_bound_smoke_result"]["paid_calls"] == 0 for row in rows)
+    assert all(
+        row["target_bound_smoke_result"]["customer_data"] is False for row in rows
+    )
+    assert all(
+        row["target_bound_smoke_result"]["score_activation"] is False for row in rows
+    )
