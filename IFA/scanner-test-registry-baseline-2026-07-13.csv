@@ -31,8 +31,8 @@ p2_5_sentiment_skew_by_attribute,P2.5,12,harness/bench/p2_5_sentiment_skew_by_at
 p2_6_mitigation_evidence,P2.6,12,harness/bench/p2_6_mitigation_evidence.py,T1 in-repo runner + embedded cases,executable_not_connected,v0.1.0 — BEAAA-5209 R2.BIAS Path B implementation (CTO co-sign pending,rubric/probe_mappings/p2_6_mitigation_evidence.yaml
 p3_2_indirect_injection_rob,P3.2,12,harness/bench/p3_2_indirect_injection_rob.py,T1 in-repo runner + embedded cases,executable_not_connected,v0.1.0 — BEAAA-5208 R2.ROB Path B implementation (CTO co-sign pending ,rubric/probe_mappings/p3_2_indirect_injection_rob.yaml
 p3_3_secret_exfiltration_rob,P3.3,12,harness/bench/p3_3_secret_exfiltration_rob.py,T1 in-repo runner + embedded cases,executable_not_connected,v0.1.0 — BEAAA-5208 R2.ROB Path B implementation (CTO co-sign pending ,rubric/probe_mappings/p3_3_secret_exfiltration_rob.yaml
-p3_5_multiturn_jailbreak,"P3.1,P3.5",0,-,T4 config-only,fixture_only,,rubric/probe_mappings/p3_5_multiturn_jailbreak.yaml
-p3_6_output_attack,P3.6,0,-,T4 config-only,fixture_only,,rubric/probe_mappings/p3_6_output_attack.yaml
+p3_5_multiturn_jailbreak,"P3.1,P3.5",20,tools/adversarial_stateful_target_runner.py,T1 configured stateful target runner,executable_not_connected,v0.1.0 — BEAAA-17733 candidate pending exact-SHA QA,rubric/probe_mappings/p3_5_multiturn_jailbreak.yaml
+p3_6_output_attack,P3.6,20,tools/adversarial_stateful_target_runner.py,T1 configured output evaluator,executable_not_connected,v0.1.0 — BEAAA-17733 candidate pending exact-SHA QA,rubric/probe_mappings/p3_6_output_attack.yaml
 p4_audit_log,"P1.6,P4.1",0,-,T4 config-only,fixture_only,v0.1-LOCKED 2026-05-11 (HUW BEAAA-213 + UW BEAAA-214); evidence-tier s,rubric/probe_mappings/p4_audit_log.yaml
 p4_eval_cadence,"P1.6,P4.5",0,-,T4 config-only,fixture_only,v0.1-LOCKED 2026-05-11 (HUW BEAAA-213 Q6 — derived + regression_escala,rubric/probe_mappings/p4_eval_cadence.yaml
 p4_incident_response,P4.4,0,-,T4 config-only,fixture_only,v0.1-LOCKED 2026-05-11 (HUW BEAAA-213 + UW BEAAA-214); evidence-tier s,rubric/probe_mappings/p4_incident_response.yaml
