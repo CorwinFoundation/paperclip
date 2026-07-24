@@ -20,9 +20,9 @@ from evals.aiuc_path_b import system_prompt_extraction as spe
 
 FOUNDER_DEV_AUTH_REF = "BEAAA-17418#comment-53829031-44ad-48aa-bd5c-788943a67162"
 CTO_TIMEOUT_POLICY_REF = "BEAAA-17693"
-DEVELOPMENT_AUTHORIZATION = "founder_declined_signature_development_run_authorized_2026-07-24"
 TARGET_ID = "aiuc-wave3-openrouter-reference-target"
 DEFAULT_TIMEOUT_SECONDS = 20.0
+DEFAULT_MAX_TOKENS = 256
 
 Transport = Callable[..., dict[str, Any]]
 
@@ -51,11 +51,21 @@ def _auth(commit: str, nonce: str) -> spe.Wave3Authorization:
         direct_parent_sha=_git(["rev-parse", f"{commit_sha}^"]),
         tree_hash=_git(["rev-parse", f"{commit_sha}^{{tree}}"]),
         archive_sha256=_archive_sha256(commit_sha),
-        authorization_ref=FOUNDER_DEV_AUTH_REF,
-        authorization_signature=DEVELOPMENT_AUTHORIZATION,
+        authorization_ref=os.environ.get("WAVE3_AUTHORIZATION_REF", ""),
+        authorization_signature=os.environ.get("WAVE3_AUTHORIZATION_SIGNATURE", ""),
         corpus_sha256=_sha256_file(Path("rubric/probe_mappings/system_prompt_extraction.yaml")),
         config_sha256=_sha256_file(Path("rubric/aiuc_path_b/family_registry.yaml")),
         replay_nonce=nonce,
+    )
+
+
+def _validate_exact_authorization(auth: spe.Wave3Authorization) -> None:
+    spe.validate_authorization(
+        auth,
+        expected_commit_sha=auth.candidate_commit_sha,
+        expected_direct_parent_sha=auth.direct_parent_sha,
+        expected_tree_hash=auth.tree_hash,
+        expected_archive_sha256=auth.archive_sha256,
     )
 
 
@@ -114,13 +124,21 @@ def _extract_content(payload: dict[str, Any]) -> str:
     return str(content).strip()
 
 
-def _call_openrouter(*, api_key: str, prompt: str, case_id: str, seed: int, timeout: float) -> dict[str, Any]:
+def _call_openrouter(
+    *,
+    api_key: str,
+    prompt: str,
+    case_id: str,
+    seed: int,
+    timeout: float,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+) -> dict[str, Any]:
     body = {
         "model": spe.OPENROUTER_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
         "seed": seed,
-        "max_tokens": 96,
+        "max_tokens": max_tokens,
         "reasoning": {"exclude": False},
     }
     req = urllib.request.Request(
@@ -216,7 +234,6 @@ def _build_error_evidence_row(
     row: dict[str, Any] = {
         "authorization_ref": auth.authorization_ref,
         "authorization_signature": auth.authorization_signature,
-        "authorization_mode": "development_test_no_ed25519_signature",
         "founder_development_authorization_ref": FOUNDER_DEV_AUTH_REF,
         "cto_timeout_policy_ref": CTO_TIMEOUT_POLICY_REF,
         "endpoint": spe.OPENROUTER_ENDPOINT,
@@ -271,9 +288,6 @@ def _build_success_evidence_row(
         rendered_prompt=rendered_prompt,
         target_response=target_response,
     )
-    row["authorization_mode"] = "development_test_no_ed25519_signature"
-    row["founder_development_authorization_ref"] = FOUNDER_DEV_AUTH_REF
-    row["cto_timeout_policy_ref"] = CTO_TIMEOUT_POLICY_REF
     row["replay_nonce"] = auth.replay_nonce
     row["row_sha256"] = spe.evidence_row_sha256(row)
     return row
@@ -359,6 +373,7 @@ def build_rows(
     if transport is None and not api_key and not source_responses:
         raise SystemExit("OPENROUTER_API_KEY is required")
     auth = _auth(commit, nonce)
+    _validate_exact_authorization(auth)
     rows_path = out_dir / "target-evidence-rows.jsonl" if out_dir else None
     ledger_path = out_dir / "call-ledger.jsonl" if out_dir else None
     checkpointed = _load_checkpointed(rows_path, auth) if rows_path else {}
@@ -491,7 +506,7 @@ def write_packet(*, out_dir: Path, auth: spe.Wave3Authorization, rows: list[dict
         "provider_usage_records_available": len(usage_rows),
         "provider_usage": usage_rows,
         "credential_retained": False,
-        "signature_status": "not_required_for_founder_authorized_development_test",
+        "signature_status": "valid_ed25519_authorization_required_and_verified",
         "fail_closed_error_rows_are_not_scoring_evidence": True,
         "n5_calibration_delta": {"total": 0, "pillars": 0, "band": 0},
     }

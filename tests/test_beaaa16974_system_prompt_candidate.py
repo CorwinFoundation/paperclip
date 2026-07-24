@@ -170,6 +170,34 @@ def _auth(**overrides: object) -> spe.Wave3Authorization:
     return replace(auth, **overrides)
 
 
+def _live_auth_for_commit(commit: str, nonce: str, **overrides: object) -> spe.Wave3Authorization:
+    commit_sha = wave3_live._git(["rev-parse", commit])
+    auth = spe.Wave3Authorization(
+        target_id=wave3_live.TARGET_ID,
+        candidate_commit_sha=commit_sha,
+        direct_parent_sha=wave3_live._git(["rev-parse", f"{commit_sha}^"]),
+        tree_hash=wave3_live._git(["rev-parse", f"{commit_sha}^{{tree}}"]),
+        archive_sha256=wave3_live._archive_sha256(commit_sha),
+        corpus_sha256=_hash_file("rubric/probe_mappings/system_prompt_extraction.yaml"),
+        config_sha256=_hash_file("rubric/aiuc_path_b/family_registry.yaml"),
+        replay_nonce=nonce,
+    )
+    return replace(auth, **overrides)
+
+
+def _install_live_authorization_env(
+    monkeypatch: pytest.MonkeyPatch,
+    private_key: Ed25519PrivateKey,
+    *,
+    commit: str,
+    nonce: str,
+) -> spe.Wave3Authorization:
+    auth = _sign(private_key, _live_auth_for_commit(commit, nonce, authorization_ref="BEAAA-17721-test-auth"))
+    monkeypatch.setenv("WAVE3_AUTHORIZATION_REF", auth.authorization_ref)
+    monkeypatch.setenv("WAVE3_AUTHORIZATION_SIGNATURE", auth.authorization_signature)
+    return auth
+
+
 def _evidence_rows(auth: spe.Wave3Authorization) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for seed in range(5):
@@ -315,7 +343,7 @@ def test_beaaa17353_wave3_evidence_rows_accept_exact_100_with_canary_each_seed(w
 def test_beaaa17715_wave3_evidence_rows_reject_development_unsigned_authorization() -> None:
     auth = _auth(
         authorization_ref=wave3_live.FOUNDER_DEV_AUTH_REF,
-        authorization_signature=wave3_live.DEVELOPMENT_AUTHORIZATION,
+        authorization_signature="founder_declined_signature_development_run_authorized_2026-07-24",
     )
 
     try:
@@ -467,7 +495,30 @@ def test_beaaa17353_wave3_evidence_rows_fail_closed_for_tampering_and_ambiguity(
             raise AssertionError(f"{code} did not fail closed")
 
 
-def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(tmp_path: Path) -> None:
+def test_beaaa17721_live_runner_requires_exact_valid_authorization_before_target_call(tmp_path: Path) -> None:
+    def forbidden_target(**kwargs: object) -> dict[str, object]:
+        raise AssertionError("target call must not start without valid authorization")
+
+    with pytest.raises(spe.CandidateValidationError, match="authorization_missing:authorization_ref,authorization_signature"):
+        wave3_live.build_rows(
+            commit="HEAD",
+            nonce="beaaa-17721-missing-auth",
+            timeout=0.1,
+            out_dir=tmp_path,
+            transport=forbidden_target,
+        )
+
+    assert not (tmp_path / "target-evidence-rows.jsonl").exists()
+    assert not (tmp_path / "call-ledger.jsonl").exists()
+
+
+def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    wave3_authority,
+) -> None:
+    nonce = "beaaa-17416-fake-target-deadline"
+    _install_live_authorization_env(monkeypatch, wave3_authority, commit="HEAD", nonce=nonce)
     calls: list[tuple[str, int]] = []
 
     def fake_target(**kwargs: object) -> dict[str, object]:
@@ -490,7 +541,7 @@ def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(tmp_path: Pa
 
     auth, rows = wave3_live.build_rows(
         commit="HEAD",
-        nonce="beaaa-17416-fake-target-deadline",
+        nonce=nonce,
         timeout=0.1,
         out_dir=tmp_path,
         transport=fake_target,
@@ -507,15 +558,14 @@ def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(tmp_path: Pa
     assert len(row_lines) == 100
     assert len(ledger_lines) == 100
     assert json.loads(ledger_lines[0])["target_execution_error"] is True
-    with pytest.raises(spe.CandidateValidationError, match="authorization_signature_invalid"):
-        spe.validate_evidence_rows(rows, expected_authorization=auth, allow_error_rows=True)
+    spe.validate_evidence_rows(rows, expected_authorization=auth, allow_error_rows=True)
 
     def no_repeat_target(**kwargs: object) -> dict[str, object]:
         raise AssertionError("checkpointed rows must not repeat consumed calls")
 
     _, resumed = wave3_live.build_rows(
         commit="HEAD",
-        nonce="beaaa-17416-fake-target-deadline",
+        nonce=nonce,
         timeout=0.1,
         out_dir=tmp_path,
         transport=no_repeat_target,
@@ -523,5 +573,4 @@ def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(tmp_path: Pa
 
     assert len(resumed) == 100
     assert len((tmp_path / "call-ledger.jsonl").read_text().splitlines()) == 100
-    with pytest.raises(spe.CandidateValidationError, match="authorization_signature_invalid"):
-        spe.validate_evidence_rows(resumed, expected_authorization=auth, allow_error_rows=True)
+    spe.validate_evidence_rows(resumed, expected_authorization=auth, allow_error_rows=True)
