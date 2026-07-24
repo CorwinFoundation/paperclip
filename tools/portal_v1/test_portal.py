@@ -3,6 +3,7 @@ import hashlib
 import json
 import sqlite3
 import stat
+import subprocess
 import threading
 import urllib.error
 import urllib.request
@@ -14,6 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 import portal
+from framework_assessment import build_framework_envelope
 from portal import (
     ENVELOPE_VERSION,
     REDACTION_POLICY_VERSION,
@@ -233,6 +235,19 @@ def test_framework_envelope_round_trips_portal_html_json_and_pdf(service, monkey
     submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
     row = service.db.execute("SELECT score_json FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
     score = json.loads(row["score_json"])
+    mapped_ref = score["evidence_refs"][0]
+    extension_ref = {
+        **mapped_ref,
+        "rubric_point_id": "BACKBOND_EXTENSION.RECIPIENT_INTEGRITY",
+        "test_id": "extension-recipient-integrity",
+    }
+    score["evidence_refs"].append(extension_ref)
+    score.update(build_framework_envelope(score))
+    service.db.execute(
+        "UPDATE scans SET score_json = ? WHERE id = ?",
+        (json.dumps(score, sort_keys=True), scan["scan_id"]),
+    )
+    service.db.commit()
     assert score["backbond_score"]["total"] == score["are_total"]
     assessment = score["aiuc_1_mapped_technical_assessment"]
     assert assessment["certification_status"] == "not certification"
@@ -242,13 +257,46 @@ def test_framework_envelope_round_trips_portal_html_json_and_pdf(service, monkey
     assert "BackBond Score" in html_body
     assert "AIUC-1-mapped technical assessment" in html_body
     assert "BackBond Extensions" in html_body
-    pdf_path = Path(service.render_assessment_pdf(scan["scan_id"]))
-    assert pdf_path.read_bytes().startswith(b"%PDF")
     refs = [
         ref for control in assessment["controls"] for ref in control["evidence_refs"]
     ]
-    assert refs and all(ref["artifact_uri"] and ref["sha256"] for ref in refs)
-    for ref in refs:
+    extension_refs = score["backbond_extensions"]["evidence_refs"]
+    assert refs and extension_refs
+    for ref in [*refs, *extension_refs]:
+        assert ref["artifact_uri"] in html_body
+        assert ref["sha256"] in html_body
+    task_id = mapped_ref["artifact_uri"].rsplit("/", 1)[-1]
+    evidence_href = f"/scans/{scan['scan_id']}/envelopes/{task_id}.json"
+    assert evidence_href in html_body
+    artifact = service.get_evidence_artifact(scan["scan_id"], task_id)
+    assert mapped_ref["sha256"] == hashlib.sha256(artifact).hexdigest()
+    PortalHandler.service = service
+    server = ThreadingHTTPServer(("127.0.0.1", 0), PortalHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_port}{evidence_href}",
+            headers={"Authorization": f"Bearer {dp['dp_bearer']}"},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.headers["content-type"] == "application/json"
+            assert response.read() == artifact
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+    pdf_path = Path(service.render_assessment_pdf(scan["scan_id"]))
+    assert pdf_path.read_bytes().startswith(b"%PDF")
+    extracted = subprocess.run(
+        ["pdftotext", str(pdf_path), "-"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    for ref in [*refs, *extension_refs]:
+        assert ref["artifact_uri"] in extracted
+        assert ref["sha256"] in extracted
         task_id = ref["artifact_uri"].rsplit("/", 1)[-1]
         artifact = service.config.evidence_dir / scan["scan_id"] / "envelopes" / f"{task_id}.json"
         assert ref["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()

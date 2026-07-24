@@ -33,7 +33,7 @@ from pathlib import Path
 from io import BytesIO
 from html.parser import HTMLParser
 from typing import Any
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, quote, urljoin, urlparse
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -1449,10 +1449,46 @@ button{{padding:9px 12px}}
         extensions = score.get("backbond_extensions")
         if not isinstance(assessment, dict) or not isinstance(extensions, dict):
             return ""
+        def evidence_table(refs: list[dict[str, Any]]) -> str:
+            if not refs:
+                return "<p class='muted'>No reachable evidence references.</p>"
+            rows = []
+            for ref in refs:
+                uri = str(ref["artifact_uri"])
+                href = ""
+                prefix = "portal-evidence://"
+                if uri.startswith(prefix):
+                    parts = uri[len(prefix):].split("/")
+                    if len(parts) == 3 and parts[1] == "envelopes":
+                        href = (
+                            f"/scans/{quote(parts[0], safe='')}/envelopes/"
+                            f"{quote(parts[2], safe='')}.json"
+                        )
+                rendered_uri = html.escape(uri)
+                if href:
+                    rendered_uri = (
+                        f"<a href='{html.escape(href, quote=True)}'>{rendered_uri}</a>"
+                    )
+                rows.append(
+                    "<tr>"
+                    f"<td>{html.escape(str(ref.get('rubric_point_id') or ''))}</td>"
+                    f"<td>{html.escape(str(ref.get('test_id') or ''))}</td>"
+                    f"<td>{rendered_uri}</td>"
+                    f"<td><code>{html.escape(str(ref['sha256']))}</code></td>"
+                    "</tr>"
+                )
+            return (
+                "<table><tr><th>Rubric point</th><th>Test ID</th>"
+                "<th>Artifact URI</th><th>SHA-256</th></tr>"
+                + "".join(rows)
+                + "</table>"
+            )
+
         rows = "".join(
             f"<tr><td>{html.escape(str(row['control_id']))}</td>"
             f"<td>{html.escape(str(row['status']))}</td>"
             f"<td>{len(row['evidence_refs'])}</td></tr>"
+            f"<tr><td colspan='3'>{evidence_table(row['evidence_refs'])}</td></tr>"
             for row in assessment["controls"]
         )
         limitations = "".join(
@@ -1469,6 +1505,7 @@ button{{padding:9px 12px}}
             f"<h3>Limitations</h3><ul>{limitations}</ul>"
             "<h2>BackBond Extensions</h2>"
             f"<p>{len(extensions['evidence_refs'])} separately reported evidence reference(s).</p>"
+            f"{evidence_table(extensions['evidence_refs'])}"
         )
 
     def render_assessment_pdf(self, scan_id: str) -> str:
@@ -1482,23 +1519,83 @@ button{{padding:9px 12px}}
         path = self.config.evidence_dir / scan_id / "reports" / "assessment.pdf"
         path.parent.mkdir(parents=True, exist_ok=True)
         pdf = canvas.Canvas(str(path), pagesize=A4)
+        pdf.setFont("Helvetica", 7)
         y = A4[1] - 56
-        lines = [
+        lines: list[str] = [
             "BackBond Score",
             f"{score['are_total']} / 100 · Band {score['band']}",
             assessment["label"],
             f"Mapping: {assessment['mapping_version']}",
             f"Evaluated: {assessment['evaluation_date']}",
             f"Certification status: {assessment['certification_status']}",
-            *[f"{row['control_id']}: {row['status']}" for row in assessment["controls"]],
-            "BackBond Extensions",
-            f"{len(score['backbond_extensions']['evidence_refs'])} separately reported evidence reference(s).",
         ]
+
+        def append_refs(label: str, refs: list[dict[str, Any]]) -> None:
+            lines.append(label)
+            if not refs:
+                lines.append("Evidence: none")
+                return
+            for ref in refs:
+                lines.extend(
+                    [
+                        f"Evidence identity: {ref.get('rubric_point_id') or ''} / {ref.get('test_id') or ''}",
+                        f"Artifact URI: {ref['artifact_uri']}",
+                        f"SHA-256: {ref['sha256']}",
+                    ]
+                )
+
+        for row in assessment["controls"]:
+            lines.append(f"{row['control_id']}: {row['status']}")
+            append_refs(f"{row['control_id']} evidence", row["evidence_refs"])
+        extensions = score["backbond_extensions"]["evidence_refs"]
+        lines.extend(
+            [
+                "BackBond Extensions",
+                f"{len(extensions)} separately reported evidence reference(s).",
+            ]
+        )
+        append_refs("BackBond Extensions evidence", extensions)
         for line in lines:
+            if y < 56:
+                pdf.showPage()
+                pdf.setFont("Helvetica", 7)
+                y = A4[1] - 56
             pdf.drawString(56, y, str(line))
-            y -= 18
+            y -= 12
         pdf.save()
         return str(path)
+
+    def get_evidence_artifact(self, scan_id: str, task_id: str) -> bytes:
+        row = self.db.execute(
+            "SELECT artifact_uri FROM envelopes WHERE scan_id = ? AND task_id = ?",
+            (scan_id, task_id),
+        ).fetchone()
+        if not row:
+            raise PortalError(404, "evidence_artifact_not_found", "Evidence artifact not found.")
+        path = self.config.evidence_dir / scan_id / "envelopes" / f"{task_id}.json"
+        try:
+            artifact = path.read_bytes()
+        except OSError as exc:
+            raise PortalError(
+                404, "evidence_artifact_not_found", "Evidence artifact not found."
+            ) from exc
+        scan = self.db.execute(
+            "SELECT score_json FROM scans WHERE id = ?", (scan_id,)
+        ).fetchone()
+        score = json.loads(scan["score_json"]) if scan and scan["score_json"] else {}
+        expected = {
+            str(ref.get("sha256"))
+            for ref in score.get("evidence_refs", [])
+            if ref.get("artifact_uri") == row["artifact_uri"]
+        }
+        actual = sha256_hex(artifact)
+        if expected and expected != {actual}:
+            raise PortalError(
+                409,
+                "evidence_artifact_digest_mismatch",
+                "Evidence artifact digest no longer matches the scored reference.",
+            )
+        return artifact
 
     def _render_peril_rollup_block(self, score: dict[str, Any]) -> str:
         """BEAAA-5761 — peril rollup HTML block for internal_uw + evidence_appendix variants.
@@ -2832,6 +2929,20 @@ class PortalHandler(BaseHTTPRequestHandler):
                 if not path.exists():
                     raise PortalError(404, "report_not_found", "Report not found.")
                 self._send(200, path.read_text(encoding="utf-8"))
+            elif (
+                len(parts) == 4
+                and parts[0] == "scans"
+                and parts[2] == "envelopes"
+                and parts[3].endswith(".json")
+            ):
+                scan_id = parts[1]
+                self._require_portal_read(dp_id=self._scan_owner_dp_id(scan_id))
+                task_id = parts[3][:-5]
+                self._send(
+                    200,
+                    self.service.get_evidence_artifact(scan_id, task_id),
+                    "application/json",
+                )
             elif url.path == "/portal_pins.json":
                 self._send(200, self.service.config.pins_path.read_bytes(), "application/json")
             elif len(parts) == 3 and parts[0] == "scans" and parts[2] == "sbom-attestation":
