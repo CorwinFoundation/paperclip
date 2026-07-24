@@ -16,7 +16,9 @@ escalations_noted: ["Rule-execution implementation: existing rubric_point_id fam
 
 # BEAAA-17732 Implementation Closeout
 
-BLUF: Implemented the canonical governance/eval target runner for ordinals 10, 11, and 20. The runner invokes one configured non-customer target path per family and accepts PASS only from target-produced evidence, not catalogue presence.
+BLUF: Implemented the canonical governance/eval target runner for ordinals 10, 11, and 20. The runner invokes one configured non-customer target path per family and accepts PASS only from semantically valid target-produced evidence, not catalogue presence.
+
+Supersession: `0e3fcea` was rejected by QA because contradictory target evidence could still return `PASS`. The corrected candidate adds semantic fail-closed validation for measured/total coverage reconciliation, bounded percentages/counts/tiers/raw values, and content-addressed SHA-256 fields.
 
 Deliverable: This is a target-runner implementation for the CTO that closes the ordinals 10/11/20 execution gap inside the existing BEAAA-17667 family activation ledger scope within the 8-hour, 30-call, $5 budget.
 
@@ -31,10 +33,12 @@ Implementation:
 - Immutable pins: `scanner_version=0.5.0`, `corpus_version=canonical-61-family-registry@2026-07-13`, `probe-set-version=family-activation-ledger/v0.1`.
 - Verdicts: explicit `PASS`, `FAIL`, `INVALID`.
 - Evidence hashes: request/config/input/output/verdict hashes plus content-addressed evidence record SHA-256.
+- Semantic fail-closed validation: coverage percentages reconcile to measured/total dimensions; percentages are bounded 0-100; representation counts are nonnegative; optional representation coverage is bounded 0-1; mitigation tiers are bounded 0-4; raw/weighted values are bounded; `sha256:<64 lowercase hex>` references are required where target evidence claims content-addressed inputs.
 
 Verification:
 - `pytest -q tests/test_beaaa17732_governance_eval_target_runner.py tests/test_beaaa17667_family_activation_ledger.py`
-- Result: `13 passed in 3.43s`.
+- Result after QA correction: `17 passed in 3.53s`.
+- Added deterministic regressions for QA's four invalid payloads: contradictory coverage percentage, negative coverage percentage, negative representation count plus malformed hash, and negative mitigation tier/raw plus malformed hash.
 
 Bounded target smoke:
 - Target config class: `local_http_test_fixture`.
@@ -46,7 +50,7 @@ Bounded target smoke:
 - Production credentials: `false`.
 - Score activation: `false`.
 - Summary: `artifacts/beaaa-17732/target-smoke/summary.json`.
-- Summary SHA-256: `38688c71fb9e666a93d294743fec9ffe9a5031951b9ed742b5da89977ba3461a`.
+- Summary SHA-256 after QA correction: `aef6ea108a065f7fb29481594757f1b160b17b1c07264073498ff429458180fa`.
 
 N=5 calibration delta:
 - Status: not run as score-bearing calibration because this change does not enter a score-bearing path and the smoke has `score_activation=false`.
@@ -55,7 +59,7 @@ N=5 calibration delta:
 
 QA gate:
 - Required before reporting these rows working: QA Engineer exact-SHA `APPROVED` on the canonical QA child for BEAAA-17732.
-- Current status at artifact creation: pending QA child creation for the immutable candidate SHA.
+- Current status after QA correction: return same QA child BEAAA-17737 with `SUPERSEDED: 0e3fcea -> <corrected SHA>`.
 
 Self-audit:
 - Read required canon and Scanner contract files this turn.

@@ -9,7 +9,9 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import os
+import re
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
@@ -28,6 +30,8 @@ FAMILY_KINDS = {
     "eval_representation": "eval_representation",
     "mitigation_evidence": "mitigation_evidence",
 }
+SHA256_REF_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
+COVERAGE_RECONCILIATION_TOLERANCE = 0.01
 
 
 class GovernanceEvalRunError(RuntimeError):
@@ -253,14 +257,19 @@ def _valid_family_evidence(family_id: str, evidence: Any) -> bool:
     if family_id == "eval_coverage_breadth":
         measured = evidence.get("measured_dim_ids")
         in_scope = evidence.get("in_scope_dim_ids")
-        return (
-            isinstance(measured, list)
-            and bool(measured)
-            and all(isinstance(item, str) and item for item in measured)
-            and isinstance(in_scope, list)
-            and set(measured).issubset(set(in_scope))
-            and isinstance(evidence.get("coverage_breadth_pct"), (int, float))
-        )
+        pct = evidence.get("coverage_breadth_pct")
+        if (
+            not isinstance(measured, list)
+            or not measured
+            or not _all_unique_strings(measured)
+            or not isinstance(in_scope, list)
+            or not _all_unique_strings(in_scope)
+            or not set(measured).issubset(set(in_scope))
+            or not _bounded_number(pct, minimum=0.0, maximum=100.0)
+        ):
+            return False
+        expected_pct = 100.0 * len(measured) / len(in_scope)
+        return abs(float(pct) - expected_pct) <= COVERAGE_RECONCILIATION_TOLERANCE
     if family_id == "eval_representation":
         axes = evidence.get("axes")
         return (
@@ -270,10 +279,16 @@ def _valid_family_evidence(family_id: str, evidence: Any) -> bool:
                 isinstance(axis, dict)
                 and isinstance(axis.get("axis"), str)
                 and isinstance(axis.get("total_count"), int)
+                and axis["total_count"] >= 0
                 and axis.get("status") in {"ok", "below_min", "no_threshold"}
+                and (
+                    "coverage" not in axis
+                    or axis["coverage"] is None
+                    or _bounded_number(axis["coverage"], minimum=0.0, maximum=1.0)
+                )
                 for axis in axes
             )
-            and "source_inventory_hash" in evidence
+            and _valid_sha256_ref(evidence.get("source_inventory_hash"))
         )
     if family_id == "mitigation_evidence":
         per_class = evidence.get("per_class")
@@ -283,12 +298,43 @@ def _valid_family_evidence(family_id: str, evidence: Any) -> bool:
             and all(
                 isinstance(item, dict)
                 and isinstance(item.get("effective_tier"), int)
-                and isinstance(item.get("weighted_raw"), (int, float))
+                and 0 <= item["effective_tier"] <= 4
+                and _bounded_number(item.get("weighted_raw"), minimum=0.0, maximum=4.0)
+                and (
+                    "raw_contribution" not in item
+                    or _bounded_number(
+                        item["raw_contribution"], minimum=0.0, maximum=4.0
+                    )
+                )
+                and (
+                    "weight" not in item
+                    or _bounded_number(item["weight"], minimum=0.0, maximum=1.0)
+                )
                 for item in per_class.values()
             )
-            and isinstance(evidence.get("signed_attestation_hash"), str)
+            and _valid_sha256_ref(evidence.get("signed_attestation_hash"))
         )
     return False
+
+
+def _all_unique_strings(values: list[Any]) -> bool:
+    return (
+        all(isinstance(item, str) and bool(item) for item in values)
+        and len(values) == len(set(values))
+    )
+
+
+def _bounded_number(value: Any, *, minimum: float, maximum: float) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+        and minimum <= float(value) <= maximum
+    )
+
+
+def _valid_sha256_ref(value: Any) -> bool:
+    return isinstance(value, str) and SHA256_REF_PATTERN.fullmatch(value) is not None
 
 
 def _parse_json_object(raw: bytes) -> dict[str, Any]:

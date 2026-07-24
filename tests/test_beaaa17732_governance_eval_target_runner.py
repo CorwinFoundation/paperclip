@@ -14,6 +14,7 @@ from tools.governance_eval_target_runner import (
     GovernanceEvalTargetConfig,
     GovernanceEvalTargetRunner,
     load_governance_eval_rows,
+    _terminal_verdict,
 )
 
 
@@ -195,3 +196,80 @@ def test_runner_rejects_production_credential_markers(tmp_path, monkeypatch) -> 
     )
     with pytest.raises(GovernanceEvalRunError, match="production/customer"):
         runner.run_family(load_governance_eval_rows()[0])
+
+
+def _base_payload(row: dict[str, object], evidence: dict[str, object]) -> dict[str, object]:
+    return {
+        "schema_version": "backbond.governance-eval-response/v0.1",
+        "family_id": row["family_id"],
+        "registry_version": REGISTRY_VERSION,
+        "rubric_point_id": row["rubric_point_id"],
+        "source_file": row["source_file"],
+        "customer_data": False,
+        "score_activation": False,
+        "verdict": "pass",
+        "evidence": evidence,
+    }
+
+
+def test_qa_repro_coverage_rejects_contradictory_percentage() -> None:
+    row = load_governance_eval_rows()[0]
+    payload = _base_payload(
+        row,
+        {
+            "kind": "eval_coverage_breadth",
+            "measured_dim_ids": ["P1.1"],
+            "in_scope_dim_ids": ["P1.1", "P1.2"],
+            "coverage_breadth_pct": 100,
+            "catalogue_presence_only": False,
+        },
+    )
+    assert _terminal_verdict(row, 200, payload) == "INVALID"
+
+
+def test_qa_repro_coverage_rejects_negative_percentage() -> None:
+    row = load_governance_eval_rows()[0]
+    payload = _base_payload(
+        row,
+        {
+            "kind": "eval_coverage_breadth",
+            "measured_dim_ids": ["P1.1"],
+            "in_scope_dim_ids": ["P1.1", "P1.2"],
+            "coverage_breadth_pct": -500,
+            "catalogue_presence_only": False,
+        },
+    )
+    assert _terminal_verdict(row, 200, payload) == "INVALID"
+
+
+def test_qa_repro_representation_rejects_negative_count_and_bad_hash() -> None:
+    row = load_governance_eval_rows()[1]
+    payload = _base_payload(
+        row,
+        {
+            "kind": "eval_representation",
+            "axes": [{"axis": "age_signal", "total_count": -7, "status": "ok"}],
+            "source_inventory_hash": "not-a-hash",
+            "catalogue_presence_only": False,
+        },
+    )
+    assert _terminal_verdict(row, 200, payload) == "INVALID"
+
+
+def test_qa_repro_mitigation_rejects_negative_tier_raw_and_bad_hash() -> None:
+    row = load_governance_eval_rows()[2]
+    payload = _base_payload(
+        row,
+        {
+            "kind": "mitigation_evidence",
+            "per_class": {
+                "fairness_review_process": {
+                    "effective_tier": -9,
+                    "weighted_raw": -1e9,
+                }
+            },
+            "signed_attestation_hash": "unsigned",
+            "catalogue_presence_only": False,
+        },
+    )
+    assert _terminal_verdict(row, 200, payload) == "INVALID"
