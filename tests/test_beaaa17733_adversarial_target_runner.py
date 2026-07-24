@@ -87,6 +87,30 @@ def test_state_loss_and_tamper_fail_closed_as_invalid(monkeypatch, tmp_path):
     assert {item["reason"] for item in record["case_results"]} == {"session_state_lost_or_tampered"}
 
 
+@pytest.mark.parametrize("malformed_response", [[], "not-an-object", None])
+def test_malformed_target_response_emits_deterministic_invalid_evidence(
+    monkeypatch, tmp_path, malformed_response
+):
+    def transport(_payload, _credential):
+        return malformed_response
+
+    first = AdversarialTargetRunner(config(monkeypatch), tmp_path / "a", transport).run_family(
+        "p3_6_output_attack", seed=0, session_prefix="fresh", case_limit=1
+    )
+    second = AdversarialTargetRunner(config(monkeypatch), tmp_path / "b", transport).run_family(
+        "p3_6_output_attack", seed=0, session_prefix="fresh", case_limit=1
+    )
+
+    assert first["verdict"] == "INVALID"
+    assert first["case_results"][0]["reason"] == "malformed_target_response"
+    assert first["verdict_sha256"] == second["verdict_sha256"]
+    assert first["case_results"][0]["transcript_sha256"] == second["case_results"][0]["transcript_sha256"]
+    stored = json.loads(
+        (tmp_path / "a" / "p3_6_output_attack-seed-0.json").read_text()
+    )
+    assert stored["case_results"][0]["reason"] == "malformed_target_response"
+
+
 def test_caps_and_credentials_fail_before_overrun(monkeypatch, tmp_path):
     calls = []
     runner = AdversarialTargetRunner(
