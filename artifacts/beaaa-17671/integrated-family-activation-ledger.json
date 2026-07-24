@@ -5,68 +5,294 @@
   "brand_backbone_version": "v1.6",
   "canonical_terms_only": true,
   "contracts_referenced": [
-    "are-scanner-api-v1@v1.3.0",
-    "scanner-implementation-supervision-v1@v1.1"
+    "are-scanner-api-v1@v1.0",
+    "scanner-implementation-supervision-v1@v1.0"
   ],
-  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "corpus_version": "canonical-61-family-registry@2026-07-13",
   "escalations_noted": [
     "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
   ],
+  "fail_closed_gap_count": 11,
+  "fail_closed_gap_ordinals": [
+    10,
+    11,
+    20,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
   "failures": [
     {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/bbq.json",
+        "sha256": "19dd956010ecf22fe783d541f2cfc0057c31c3012181602c5b656ada250d1cab"
+      },
+      "failure": null,
+      "family_id": "bbq",
+      "ordinal": 3,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/citation_integrity_legal.json",
+        "sha256": "fc20db89d003fe70b2a238a16258d42b01b3b773ac0391d998782eae1d68b0a7"
+      },
+      "failure": null,
+      "family_id": "citation_integrity_legal",
+      "ordinal": 4,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/confidence_calibration.json",
+        "sha256": "e463b2fb2c01051a38b96b1315c2ce51c108edcd34b1d4545c390b8124b93a80"
+      },
+      "failure": null,
+      "family_id": "confidence_calibration",
+      "ordinal": 5,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/counterfactual_stability.json",
+        "sha256": "794c5185bc642a8c25ddad35363bf515b4145a637e0955f4b91cd653b37cd643"
+      },
+      "failure": null,
+      "family_id": "counterfactual_stability",
+      "ordinal": 6,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/demographic_parity.json",
+        "sha256": "e25ebaabfa3921b5788c21a0514c5b90f3d6cd1569d02e32ab91c47e5cdabf57"
+      },
+      "failure": null,
+      "family_id": "demographic_parity",
+      "ordinal": 7,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/donotanswer.json",
+        "sha256": "c52134a74598ddc12a7192fb09ff00c5aeaff1564c07bb6d851dc37e0972a897"
+      },
+      "failure": null,
+      "family_id": "donotanswer",
+      "ordinal": 8,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/equal_opportunity.json",
+        "sha256": "f6ba4088025a47896be06bbe74296dd3b8de87d8279cf33b715e17dfe5ecda47"
+      },
+      "failure": null,
+      "family_id": "equal_opportunity",
+      "ordinal": 9,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "fail_closed_gap",
       "current_state": "catalogue_only",
+      "evidence": null,
       "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "eval_coverage_breadth"
+      "family_id": "eval_coverage_breadth",
+      "ordinal": 10,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "catalogue_only",
+      "evidence": null,
       "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "eval_representation"
+      "family_id": "eval_representation",
+      "ordinal": 11,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/hallucination_legal.json",
+        "sha256": "14137aaec7d1b48d866a07c136100b190d82f0350a67bde96a2fe2b9858f6e49"
+      },
+      "failure": null,
+      "family_id": "hallucination_legal",
+      "ordinal": 15,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "qa_unverified_excluded",
+      "current_state": "target_bound_working",
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/indirect_injection.json",
+        "sha256": "da9f5def3fde853c73e2679a23554fe56fb747c1e0fe2cfdb8ee904f59598e44"
+      },
+      "failure": null,
+      "family_id": "indirect_injection",
+      "ordinal": 18,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
+    },
+    {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "mitigation_evidence"
+      "family_id": "mitigation_evidence",
+      "ordinal": 20,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "catalogue_only",
+      "evidence": null,
       "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "p3_5_multiturn_jailbreak"
+      "family_id": "p3_5_multiturn_jailbreak",
+      "ordinal": 33,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "catalogue_only",
+      "evidence": null,
       "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "p3_6_output_attack"
+      "family_id": "p3_6_output_attack",
+      "ordinal": 34,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_audit_log"
+      "family_id": "p4_audit_log",
+      "ordinal": 35,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_eval_cadence"
+      "family_id": "p4_eval_cadence",
+      "ordinal": 36,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_incident_response"
+      "family_id": "p4_incident_response",
+      "ordinal": 37,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_kill_switch"
+      "family_id": "p4_kill_switch",
+      "ordinal": 38,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_owner_matrix"
+      "family_id": "p4_owner_matrix",
+      "ordinal": 39,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     },
     {
+      "classification": "fail_closed_gap",
       "current_state": "governance_only",
+      "evidence": null,
       "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_version_control"
+      "family_id": "p4_version_control",
+      "ordinal": 40,
+      "source_ledger": {
+        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
+        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+      }
     }
   ],
   "focus_claim": "BEAAA-17670 records reproducible development-fixture baseline evidence for BackBond Scanner batch C without score activation.",
@@ -79,6 +305,18 @@
   "proof_points_cited": [
     "tools/probe-registry/family_activation_ledger_v0.1.json",
     "tools/canonical_family_target_runner.py"
+  ],
+  "qa_unverified_excluded_count": 9,
+  "qa_unverified_excluded_ordinals": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    15,
+    18
   ],
   "scanner_version": "0.5.0",
   "schema_version": "backbond.family-activation-baseline/v0.1",
@@ -100,26 +338,17 @@
     "BEAAA-17714"
   ],
   "total_count": 61,
-  "truthful_baseline": "50/61",
+  "truthful_baseline": "41/61",
   "version": "0.2",
-  "working_count": 50,
+  "working_count": 41,
   "working_family_ids": [
     "advbench",
     "agentdojo",
-    "bbq",
-    "citation_integrity_legal",
-    "confidence_calibration",
-    "counterfactual_stability",
-    "demographic_parity",
-    "donotanswer",
-    "equal_opportunity",
     "factscore",
     "garak",
     "garak_beaaa152",
-    "hallucination_legal",
     "halueval",
     "harmbench",
-    "indirect_injection",
     "jailbreakbench",
     "p1_1_factuality_golden",
     "p1_3_consistency_golden",
@@ -158,20 +387,11 @@
   "working_ordinals": [
     1,
     2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
     12,
     13,
     14,
-    15,
     16,
     17,
-    18,
     19,
     21,
     22,

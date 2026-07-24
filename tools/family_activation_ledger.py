@@ -19,18 +19,26 @@ QA_VERIFIED_ORDINALS = frozenset(
     {
         1,
         2,
-        *range(3, 10),
         12,
         13,
         14,
-        15,
         16,
         17,
-        18,
         19,
         *range(21, 33),
         *range(41, 62),
     }
+)
+QA_UNVERIFIED_EXCLUDED_ORDINALS = frozenset({*range(3, 10), 15, 18})
+FAIL_CLOSED_GAP_ORDINALS = frozenset({10, 11, 20, *range(33, 41)})
+CANONICAL_CORPUS_VERSION = "canonical-61-family-registry@2026-07-13"
+CONTRACTS_REFERENCED = [
+    "are-scanner-api-v1@v1.0",
+    "scanner-implementation-supervision-v1@v1.0",
+]
+SOURCE_LEDGER_REFERENCE = "tools/probe-registry/family_activation_ledger_v0.1.json"
+SOURCE_LEDGER_SHA256 = (
+    "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
 )
 BRAND_BACKBONE_VERSION = "v1.6"
 BRAND_BACKBONE_SHA256 = (
@@ -128,17 +136,43 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     working = [row["family_id"] for row in working_rows]
     working_ordinals = [row["ordinal"] for row in working_rows]
     working_ids = set(working)
-    failures = [
-        {
-            "family_id": row["family_id"],
-            "current_state": row["current_state"],
-            "failure": row["target_bound_smoke_result"].get(
-                "failure", row["real_blocker"]
-            ),
-        }
-        for row in rows
-        if row["family_id"] not in working_ids
-    ]
+    non_verified_rows = [row for row in rows if row["family_id"] not in working_ids]
+    failures = []
+    for row in non_verified_rows:
+        ordinal = row["ordinal"]
+        smoke = row["target_bound_smoke_result"]
+        evidence = smoke.get("evidence")
+        if ordinal in QA_UNVERIFIED_EXCLUDED_ORDINALS:
+            classification = "qa_unverified_excluded"
+            failure = None
+        elif ordinal in FAIL_CLOSED_GAP_ORDINALS:
+            classification = "fail_closed_gap"
+            failure = smoke.get("failure") or row["real_blocker"]
+        else:
+            raise LedgerError(
+                f"{row['family_id']}: non-verified ordinal {ordinal} is unclassified"
+            )
+        failures.append(
+            {
+                "ordinal": ordinal,
+                "family_id": row["family_id"],
+                "classification": classification,
+                "current_state": row["current_state"],
+                "failure": failure,
+                "source_ledger": {
+                    "path": SOURCE_LEDGER_REFERENCE,
+                    "sha256": SOURCE_LEDGER_SHA256,
+                },
+                "evidence": (
+                    {
+                        "path": evidence["path"],
+                        "sha256": evidence["sha256"],
+                    }
+                    if isinstance(evidence, dict)
+                    else None
+                ),
+            }
+        )
     return {
         "schema_version": "backbond.family-activation-baseline/v0.1",
         "artifact_type": "other",
@@ -153,10 +187,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             "BEAAA-17670 records reproducible development-fixture baseline "
             "evidence for BackBond Scanner batch C without score activation."
         ),
-        "contracts_referenced": [
-            "are-scanner-api-v1@v1.3.0",
-            "scanner-implementation-supervision-v1@v1.1",
-        ],
+        "contracts_referenced": CONTRACTS_REFERENCED,
         "ticket_refs": [
             "BEAAA-17667",
             "BEAAA-17669",
@@ -177,7 +208,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         ],
         "issue": "BEAAA-17667",
         "scanner_version": payload["scanner_version"],
-        "corpus_version": payload["corpus_version"],
+        "corpus_version": CANONICAL_CORPUS_VERSION,
         "probe-set-version": payload["probe-set-version"],
         "target": {
             "kind": "development_fixture",
@@ -192,6 +223,10 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "truthful_baseline": f"{len(working)}/{len(rows)}",
         "working_ordinals": working_ordinals,
         "working_family_ids": working,
+        "qa_unverified_excluded_count": len(QA_UNVERIFIED_EXCLUDED_ORDINALS),
+        "qa_unverified_excluded_ordinals": sorted(QA_UNVERIFIED_EXCLUDED_ORDINALS),
+        "fail_closed_gap_count": len(FAIL_CLOSED_GAP_ORDINALS),
+        "fail_closed_gap_ordinals": sorted(FAIL_CLOSED_GAP_ORDINALS),
         "failures": failures,
     }
 
