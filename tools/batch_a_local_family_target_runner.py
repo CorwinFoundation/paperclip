@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -22,7 +23,7 @@ from harness.bench import (
     indirect_injection,
     p2_paired_attr,
 )
-from harness.runner import ModelRunner, RunnerError
+from harness.runner import MockRunner, ModelRunner, RunnerError
 
 ROOT = Path(__file__).resolve().parents[1]
 SCANNER_VERSION = "0.5.0"
@@ -39,9 +40,37 @@ FAMILIES = (
     "indirect_injection",
 )
 
+@dataclass(frozen=True)
+class LocalExecutionPolicy:
+    """Immutable authorization facts for the zero-cost local fixture lane."""
+
+    subject_model_id: str = "mock:configured-development-target@fixture"
+    judge_model_id: str = "mock:development-judge@pinned"
+    credential_class: str = "test_only"
+    paid_calls: int = 0
+    customer_data: bool = False
+    score_activation: bool = False
+
+
+LOCAL_FIXTURE_POLICY = LocalExecutionPolicy()
+
 
 class BatchALocalRunError(RuntimeError):
     """A local family did not produce complete target-bound evidence."""
+
+
+def _authorize_local_fixture(
+    subject: ModelRunner,
+    judge: ModelRunner,
+    policy: LocalExecutionPolicy,
+) -> None:
+    """Reject adapters that can reach a provider before either runner is called."""
+    if type(subject) is not MockRunner or subject.model_id() != policy.subject_model_id:
+        raise BatchALocalRunError(
+            "subject is not the authorized test-only development fixture"
+        )
+    if type(judge) is not MockRunner or judge.model_id() != policy.judge_model_id:
+        raise BatchALocalRunError("judge is not the authorized pinned test-only fixture")
 
 
 class _CountingRunner(ModelRunner):
@@ -138,11 +167,13 @@ def run_family(
     judge: ModelRunner,
     evidence_dir: Path,
     call_cap: int = 2000,
+    policy: LocalExecutionPolicy = LOCAL_FIXTURE_POLICY,
 ) -> dict[str, Any]:
     if family not in FAMILIES:
         raise BatchALocalRunError(f"family is not in batch A local set: {family}")
-    if "configured-development-target@" not in subject.model_id():
-        raise BatchALocalRunError("subject is not a configured development target")
+    if policy is not LOCAL_FIXTURE_POLICY:
+        raise BatchALocalRunError("unrecognized local execution policy")
+    _authorize_local_fixture(subject, judge, policy)
     counted_subject = _CountingRunner(subject, call_cap)
     counted_judge = _CountingRunner(judge, call_cap)
     case_evidence: list[dict[str, Any]] = []
@@ -179,10 +210,10 @@ def run_family(
         "target_calls": counted_subject.calls,
         "judge_calls": counted_judge.calls,
         "call_cap": call_cap,
-        "paid_calls": 0,
-        "credential_class": "test_only",
-        "customer_data": False,
-        "score_activation": False,
+        "paid_calls": policy.paid_calls,
+        "credential_class": policy.credential_class,
+        "customer_data": policy.customer_data,
+        "score_activation": policy.score_activation,
         "raw": raw,
         "status": "complete",
         "case_evidence": case_evidence,
