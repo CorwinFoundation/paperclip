@@ -54,7 +54,9 @@ def test_beaaa17670_batch_c_ordinals_are_target_bound_working() -> None:
     ]
 
     assert len(rows) == 21
-    assert build_baseline(payload)["working_ordinals"] == list(range(41, 62))
+    baseline = build_baseline(payload)
+    assert baseline["working_ordinals"][-21:] == list(range(41, 62))
+    assert baseline["truthful_baseline"] == "41/61"
     assert all(family_is_working(row) for row in rows)
     assert all(row["real_blocker"] is None for row in rows)
     assert all(row["target_bound_smoke_result"]["paid_calls"] == 0 for row in rows)
@@ -99,7 +101,7 @@ def test_beaaa17709_batch_a_pinned_jsonl_rows_are_target_bound_working() -> None
     )
 
 
-def test_beaaa17714_out_of_scope_batch_a_framework_rows_stay_fail_closed() -> None:
+def test_beaaa17671_qa_approved_isolated_framework_rows_are_integrated() -> None:
     payload = load_ledger()
     rows = [
         row
@@ -113,13 +115,13 @@ def test_beaaa17714_out_of_scope_batch_a_framework_rows_stay_fail_closed() -> No
         "garak_beaaa152",
         "harmbench",
     }
-    assert all(row["current_state"] == "blocked_dependency" for row in rows)
-    assert all(not family_is_working(row) for row in rows)
-    assert all(row["automated_tests"] == [] for row in rows)
-    assert all(row["required_cases"] == 0 for row in rows)
-    assert all(row["target_bound_smoke_result"]["call_cap"] == 0 for row in rows)
-    assert all(row["target_bound_smoke_result"]["calls_attempted"] == 0 for row in rows)
-    assert all(row["target_bound_smoke_result"]["evidence"] is None for row in rows)
+    assert all(row["current_state"] == "target_bound_working" for row in rows)
+    assert all(family_is_working(row) for row in rows)
     assert all(
-        row["target_bound_smoke_result"]["status"] == "failed_closed" for row in rows
+        "tests/test_beaaa17707_batch_a_isolated_target_runner.py"
+        in row["automated_tests"]
+        for row in rows
+    )
+    assert all(
+        row["target_bound_smoke_result"]["status"] == "passed" for row in rows
     )

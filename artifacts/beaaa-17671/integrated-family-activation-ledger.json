@@ -1,0 +1,237 @@
+{
+  "artifact_type": "other",
+  "brand_backbone_sha256": "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090",
+  "brand_backbone_verified": true,
+  "brand_backbone_version": "v1.6",
+  "canonical_terms_only": true,
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "escalations_noted": [
+    "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
+  ],
+  "failures": [
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "bbq"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "citation_integrity_legal"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "confidence_calibration"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "counterfactual_stability"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "demographic_parity"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "donotanswer"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "equal_opportunity"
+    },
+    {
+      "current_state": "catalogue_only",
+      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+      "family_id": "eval_coverage_breadth"
+    },
+    {
+      "current_state": "catalogue_only",
+      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+      "family_id": "eval_representation"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "hallucination_legal"
+    },
+    {
+      "current_state": "target_bound_working",
+      "failure": null,
+      "family_id": "indirect_injection"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "mitigation_evidence"
+    },
+    {
+      "current_state": "catalogue_only",
+      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+      "family_id": "p3_5_multiturn_jailbreak"
+    },
+    {
+      "current_state": "catalogue_only",
+      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+      "family_id": "p3_6_output_attack"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "p4_audit_log"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "p4_eval_cadence"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "p4_incident_response"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "p4_kill_switch"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "p4_owner_matrix"
+    },
+    {
+      "current_state": "governance_only",
+      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+      "family_id": "p4_version_control"
+    }
+  ],
+  "focus_claim": "BEAAA-17670 records reproducible development-fixture baseline evidence for BackBond Scanner batch C without score activation.",
+  "issue": "BEAAA-17667",
+  "owner": "scanner_engineer",
+  "persona_audience": "internal",
+  "phase": 1,
+  "prior_version": "artifacts/beaaa-17670/family_activation_baseline.json@0.1",
+  "probe-set-version": "family-activation-ledger/v0.1",
+  "proof_points_cited": [
+    "tools/probe-registry/family_activation_ledger_v0.1.json",
+    "tools/canonical_family_target_runner.py"
+  ],
+  "scanner_version": "0.5.0",
+  "schema_version": "backbond.family-activation-baseline/v0.1",
+  "self_audit_passed": true,
+  "target": {
+    "call_cap": 0,
+    "credentials": "test_only",
+    "customer_data": false,
+    "kind": "development_fixture",
+    "paid_call_budget": 0,
+    "score_activation": false
+  },
+  "ticket_refs": [
+    "BEAAA-17667",
+    "BEAAA-17669",
+    "BEAAA-17670",
+    "BEAAA-17700",
+    "BEAAA-17707",
+    "BEAAA-17714"
+  ],
+  "total_count": 61,
+  "truthful_baseline": "41/61",
+  "version": "0.2",
+  "working_count": 41,
+  "working_family_ids": [
+    "advbench",
+    "agentdojo",
+    "factscore",
+    "garak",
+    "garak_beaaa152",
+    "halueval",
+    "harmbench",
+    "jailbreakbench",
+    "p1_1_factuality_golden",
+    "p1_3_consistency_golden",
+    "p1_4_refusal_golden",
+    "p1_5_calibration_golden",
+    "p2_1_demographic_parity_gap",
+    "p2_2_equal_opportunity_gap",
+    "p2_3_counterfactual_stability",
+    "p2_4_eval_representation",
+    "p2_5_sentiment_skew_by_attribute",
+    "p2_6_mitigation_evidence",
+    "p3_2_indirect_injection_rob",
+    "p3_3_secret_exfiltration_rob",
+    "perturbation_seeds",
+    "pii_attestation",
+    "pii_scan_time_detection",
+    "pii_substrate",
+    "privacybench",
+    "promptbench",
+    "promptinject",
+    "pyrit",
+    "secret_exfil",
+    "self_contradiction_pairs",
+    "sentiment_skew",
+    "tool_misuse_param_tamper",
+    "tool_misuse_scope_escape",
+    "tool_misuse_unauthorized_call",
+    "truthfulqa",
+    "stop_instruction_v1",
+    "peril_data_containment",
+    "peril_money_movement",
+    "peril_recipient_integrity",
+    "peril_tool_grounded_factuality",
+    "live_walker_inspect_section1_v0"
+  ],
+  "working_ordinals": [
+    1,
+    2,
+    12,
+    13,
+    14,
+    16,
+    17,
+    19,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61
+  ]
+}

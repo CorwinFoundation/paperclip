@@ -15,7 +15,20 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LEDGER = ROOT / "tools" / "probe-registry" / "family_activation_ledger_v0.1.json"
-BASELINE_ACTIVE_ORDINALS = range(41, 62)
+QA_VERIFIED_ORDINALS = frozenset(
+    {
+        1,
+        2,
+        12,
+        13,
+        14,
+        16,
+        17,
+        19,
+        *range(21, 33),
+        *range(41, 62),
+    }
+)
 BRAND_BACKBONE_VERSION = "v1.6"
 BRAND_BACKBONE_SHA256 = (
     "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
@@ -107,7 +120,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     working_rows = [
         row
         for row in rows
-        if row["ordinal"] in BASELINE_ACTIVE_ORDINALS and family_is_working(row)
+        if row["ordinal"] in QA_VERIFIED_ORDINALS and family_is_working(row)
     ]
     working = [row["family_id"] for row in working_rows]
     working_ordinals = [row["ordinal"] for row in working_rows]
@@ -141,7 +154,14 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             "are-scanner-api-v1@v1.3.0",
             "scanner-implementation-supervision-v1@v1.1",
         ],
-        "ticket_refs": ["BEAAA-17667", "BEAAA-17670", "BEAAA-17700"],
+        "ticket_refs": [
+            "BEAAA-17667",
+            "BEAAA-17669",
+            "BEAAA-17670",
+            "BEAAA-17700",
+            "BEAAA-17707",
+            "BEAAA-17714",
+        ],
         "proof_points_cited": [
             "tools/probe-registry/family_activation_ledger_v0.1.json",
             "tools/canonical_family_target_runner.py",
