@@ -53,27 +53,28 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
+      "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "target_bound_working",
+      "current_state": "blocked_dependency",
       "family_id": "agentdojo",
       "ordinal": 2,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "",
-      "required_cases": 4,
+      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "required_cases": 0,
       "rubric_point_id": "P3.2",
       "runner_adapter_work": "Bind AgentDojo venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/agentdojo.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 100,
-        "calls_attempted": 4,
+        "call_cap": 0,
+        "calls_attempted": 0,
         "customer_data": false,
-        "evidence": "BEAAA-17707 smoke agentdojo sha256:f32abb0dc3dfd351fe4fe5261cbe768f73527429d2862c290313140bcd9b7c81",
+        "evidence": null,
+        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "passed",
+        "status": "failed_closed",
         "target_kind": "development_fixture"
       }
     },
@@ -83,7 +84,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
+      "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "needs_validation",
       "family_id": "bbq",
@@ -407,25 +408,26 @@
       ],
       "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "target_bound_working",
+      "current_state": "blocked_dependency",
       "family_id": "garak",
       "ordinal": 13,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "",
-      "required_cases": 9,
+      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "required_cases": 0,
       "rubric_point_id": "P1.1,P1.3,P3.1,P3.2,P3.3,P3.4,P3.6",
       "runner_adapter_work": "Bind garak venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/garak.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 100,
-        "calls_attempted": 9,
+        "call_cap": 0,
+        "calls_attempted": 0,
         "customer_data": false,
-        "evidence": "BEAAA-17707 smoke garak sha256:2a094a317bce98daa00176b0179e7f180a6b3d2b817d135ff7d47b36910ddf21",
+        "evidence": null,
+        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "passed",
+        "status": "failed_closed",
         "target_kind": "development_fixture"
       }
     },
@@ -435,27 +437,28 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
+      "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "target_bound_working",
+      "current_state": "blocked_dependency",
       "family_id": "garak_beaaa152",
       "ordinal": 14,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "",
-      "required_cases": 18,
+      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "required_cases": 0,
       "rubric_point_id": "P1.1,P1.3,P2.5,P3.1,P3.2,P3.3",
       "runner_adapter_work": "Bind garak venv to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/garak_beaaa152.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 100,
-        "calls_attempted": 18,
+        "call_cap": 0,
+        "calls_attempted": 0,
         "customer_data": false,
-        "evidence": "BEAAA-17707 smoke garak_beaaa152 sha256:39fc505b605006d0026349e2c27af9a191a12ab22af0d7a26e6573586303522c",
+        "evidence": null,
+        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "passed",
+        "status": "failed_closed",
         "target_kind": "development_fixture"
       }
     },
@@ -465,7 +468,7 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": ["tests/test_beaaa17707_batch_a_isolated_target_runner.py"],
+      "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
       "current_state": "executable_not_connected",
       "family_id": "hallucination_legal",
@@ -545,25 +548,26 @@
       ],
       "automated_tests": [],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "target_bound_working",
+      "current_state": "blocked_dependency",
       "family_id": "harmbench",
       "ordinal": 17,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "",
-      "required_cases": 7,
+      "real_blocker": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
+      "required_cases": 0,
       "rubric_point_id": "P1.1,P1.4,P3.1,P3.2,P3.4,P3.6",
       "runner_adapter_work": "Bind external dataset HarmBench to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/harmbench.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 100,
-        "calls_attempted": 7,
+        "call_cap": 0,
+        "calls_attempted": 0,
         "customer_data": false,
-        "evidence": "BEAAA-17707 smoke harmbench sha256:d40fd5439be528a0cf9dfc330f383bba60c3580b3b12aa90d1b2559d6a1ea93d",
+        "evidence": null,
+        "failure": "Pinned external framework/dataset adapter is not runnable in the normal development target runner.",
         "paid_calls": 0,
         "score_activation": false,
-        "status": "passed",
+        "status": "failed_closed",
         "target_kind": "development_fixture"
       }
     },
@@ -1455,34 +1459,130 @@
       "real_blocker": null,
       "required_cases": 20,
       "rubric_point_id": "P1.3",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/perturbation.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/perturbation_seeds.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "20",
+        "cases_executed": 20,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/perturbation_seeds.json",
-          "sha256": "6ddb32dd89276c2053eedfaa030427920bc0032202181c1ca9778bb57ab75e2a"
+          "sha256": "6726b0a68072d9a6a2260d51f689190674f5845cd42e5520a18d4a334678a8ec"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "20",
-        "runner_path": "-",
+        "required_cases": 20,
+        "runner_path": "harness/bench/perturbation.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
         "status": "passed",
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "perturbation_seeds:target-bound-development",
+            "case_id": "perturbation_seeds:case-001",
             "kind": "development_fixture_case_result",
-            "runner_path": "-"
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-012",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-013",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-014",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-015",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-016",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-017",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-018",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-019",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
+          },
+          {
+            "case_id": "perturbation_seeds:case-020",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/perturbation.py"
           }
         ],
         "target_identity": "beaaa-17670-local-development-fixture",
@@ -1510,25 +1610,26 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION;ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/p4_attestation_adapter.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pii_attestation.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/pii_attestation.json",
-          "sha256": "e687321d99ea3320bee4563ccca6ebce541314605aaae39e97747ef4ce0fb717"
+          "sha256": "545449a2f308c55e20f7bd8ca5bec02e6c590311b916ce5f3f98fa33e35b3e3e"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
-        "runner_path": "-",
+        "required_cases": 0,
+        "runner_path": "harness/p4_attestation_adapter.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
         "status": "passed",
@@ -1536,8 +1637,8 @@
         "target_evidence_refs": [
           {
             "case_id": "pii_attestation:target-bound-development",
-            "kind": "development_fixture_case_result",
-            "runner_path": "-"
+            "kind": "development_fixture_runner_result",
+            "runner_path": "harness/p4_attestation_adapter.py"
           }
         ],
         "target_identity": "beaaa-17670-local-development-fixture",
@@ -1565,24 +1666,25 @@
       "real_blocker": null,
       "required_cases": 20,
       "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/pii_scan_time_detection.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pii_scan_time_detection.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "20",
+        "cases_executed": 20,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/pii_scan_time_detection.json",
-          "sha256": "e74e89a625a2f7590fff11b1ae9948cafc38c62e6ef774c50b847197e8a699a7"
+          "sha256": "50c1c066adc16e51cb7ec02ae7cdd600197818f50269dc4dc82ab229d44ff610"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "20",
+        "required_cases": 20,
         "runner_path": "harness/bench/pii_scan_time_detection.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1590,7 +1692,102 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "pii_scan_time_detection:target-bound-development",
+            "case_id": "pii_scan_time_detection:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-012",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-013",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-014",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-015",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-016",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-017",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-018",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-019",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/pii_scan_time_detection.py"
+          },
+          {
+            "case_id": "pii_scan_time_detection:case-020",
             "kind": "development_fixture_case_result",
             "runner_path": "harness/bench/pii_scan_time_detection.py"
           }
@@ -1620,25 +1817,26 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION;ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/detectors/llmguard/envelope.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pii_substrate.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/pii_substrate.json",
-          "sha256": "23db29c36fe9ca0dc2170ced7dd6cc1a5b41d1f1ee26bb3456db4fb0f8d6ba2d"
+          "sha256": "87a8cf92dec8bd0071ca2bdedd4d5fc74b3c80adb188ca3bc2897abedb3512f0"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
-        "runner_path": "-",
+        "required_cases": 0,
+        "runner_path": "harness/detectors/llmguard/envelope.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
         "status": "passed",
@@ -1646,8 +1844,8 @@
         "target_evidence_refs": [
           {
             "case_id": "pii_substrate:target-bound-development",
-            "kind": "development_fixture_case_result",
-            "runner_path": "-"
+            "kind": "development_fixture_runner_result",
+            "runner_path": "harness/detectors/llmguard/envelope.py"
           }
         ],
         "target_identity": "beaaa-17670-local-development-fixture",
@@ -1675,24 +1873,25 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P1.1,P3.1,P3.3",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "PrivacyBench",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/privacybench.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/privacybench.json",
-          "sha256": "99e39b9bb7e4332bae33090239481f4c27677084b2231c117d204dd298e5d919"
+          "sha256": "aa700143d73d3e07baa5d92f3d109e7401e1b0bef42a6568b891fdc679bc5b37"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
+        "required_cases": 0,
         "runner_path": "PrivacyBench",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1701,7 +1900,7 @@
         "target_evidence_refs": [
           {
             "case_id": "privacybench:target-bound-development",
-            "kind": "development_fixture_case_result",
+            "kind": "development_fixture_runner_result",
             "runner_path": "PrivacyBench"
           }
         ],
@@ -1730,24 +1929,25 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P1.3,P1.5,P3.1",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "PromptBench",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/promptbench.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/promptbench.json",
-          "sha256": "2604e1b9bc0eb3fe42a423df15c329679a4ea993364c648bac6a4de2cda7c7b4"
+          "sha256": "b2ceb544e10492adc74836d6d9eed90afe36a5706b2be3a46f9035c9fa344dc1"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
+        "required_cases": 0,
         "runner_path": "PromptBench",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1756,7 +1956,7 @@
         "target_evidence_refs": [
           {
             "case_id": "promptbench:target-bound-development",
-            "kind": "development_fixture_case_result",
+            "kind": "development_fixture_runner_result",
             "runner_path": "PromptBench"
           }
         ],
@@ -1785,24 +1985,25 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P3.1,P3.2",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "PromptInject",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/promptinject.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/promptinject.json",
-          "sha256": "c2e9c1391b0075edcd1027685c86a350e1cb0536ee6632946ea5527908c1ea16"
+          "sha256": "c682ab097efaacf19c73f6c04f5ee0a61f8874654ce2013a534106bf83bd8c33"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
+        "required_cases": 0,
         "runner_path": "PromptInject",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1811,7 +2012,7 @@
         "target_evidence_refs": [
           {
             "case_id": "promptinject:target-bound-development",
-            "kind": "development_fixture_case_result",
+            "kind": "development_fixture_runner_result",
             "runner_path": "PromptInject"
           }
         ],
@@ -1840,24 +2041,25 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P3.1,P3.5",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "PyRIT venv",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/pyrit.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/pyrit.json",
-          "sha256": "1518d05bf47753f3e7b5dbd075a15cdd4bb98dd15e4795b1197500df6aff6535"
+          "sha256": "5c48473bfa09007c9d49c98b7964284b4dec206cb7e4958d6bbe68d32b0f9a19"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
+        "required_cases": 0,
         "runner_path": "PyRIT venv",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1866,7 +2068,7 @@
         "target_evidence_refs": [
           {
             "case_id": "pyrit:target-bound-development",
-            "kind": "development_fixture_case_result",
+            "kind": "development_fixture_runner_result",
             "runner_path": "PyRIT venv"
           }
         ],
@@ -1895,24 +2097,25 @@
       "real_blocker": null,
       "required_cases": 13,
       "rubric_point_id": "P3.3",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/secret_exfil.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/secret_exfil.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "13",
+        "cases_executed": 13,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/secret_exfil.json",
-          "sha256": "c0f6530c0b5869a13735b2b0e49149e1dcf0f0b34e039b8991fb63d6846ac999"
+          "sha256": "018a575fb9e1b784ed72108aacf0bfbb1c2693242cd22ec8b31bde9ea3f05739"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "13",
+        "required_cases": 13,
         "runner_path": "harness/bench/secret_exfil.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1920,7 +2123,67 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "secret_exfil:target-bound-development",
+            "case_id": "secret_exfil:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-012",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/secret_exfil.py"
+          },
+          {
+            "case_id": "secret_exfil:case-013",
             "kind": "development_fixture_case_result",
             "runner_path": "harness/bench/secret_exfil.py"
           }
@@ -1950,24 +2213,25 @@
       "real_blocker": null,
       "required_cases": 60,
       "rubric_point_id": "P1.1,P1.2,P1.3",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/self_contradiction_pairs.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/self_contradiction_pairs.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "60",
+        "cases_executed": 60,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/self_contradiction_pairs.json",
-          "sha256": "79e4b47e088a22b1e2d7a03c9bf236d709f89fc4242227882eea1ef8dffaf36c"
+          "sha256": "a9e4d5676740de5bbe9107fa101f102ebdadfdc17298a4417472c7839956b455"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "60",
+        "required_cases": 60,
         "runner_path": "harness/bench/self_contradiction_pairs.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -1975,7 +2239,302 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "self_contradiction_pairs:target-bound-development",
+            "case_id": "self_contradiction_pairs:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-012",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-013",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-014",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-015",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-016",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-017",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-018",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-019",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-020",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-021",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-022",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-023",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-024",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-025",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-026",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-027",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-028",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-029",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-030",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-031",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-032",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-033",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-034",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-035",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-036",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-037",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-038",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-039",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-040",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-041",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-042",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-043",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-044",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-045",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-046",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-047",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-048",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-049",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-050",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-051",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-052",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-053",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-054",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-055",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-056",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-057",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-058",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-059",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/self_contradiction_pairs.py"
+          },
+          {
+            "case_id": "self_contradiction_pairs:case-060",
             "kind": "development_fixture_case_result",
             "runner_path": "harness/bench/self_contradiction_pairs.py"
           }
@@ -2005,24 +2564,25 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P2.3,P2.5",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/p2_5_sentiment_skew_by_attribute.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/sentiment_skew.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/sentiment_skew.json",
-          "sha256": "2524557cf0fe456d7c5ad7b19f9c336e7e198769e84b757032bae0efe5c0ade1"
+          "sha256": "5a4f10372a6c7906170a77ae79d3e45cea7a74f8f2fd9e9b64a10a5ce9a6ed32"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
+        "required_cases": 0,
         "runner_path": "harness/bench/p2_5_sentiment_skew_by_attribute.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2031,7 +2591,7 @@
         "target_evidence_refs": [
           {
             "case_id": "sentiment_skew:target-bound-development",
-            "kind": "development_fixture_case_result",
+            "kind": "development_fixture_runner_result",
             "runner_path": "harness/bench/p2_5_sentiment_skew_by_attribute.py"
           }
         ],
@@ -2060,24 +2620,25 @@
       "real_blocker": null,
       "required_cases": 12,
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.;ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/tool_misuse_param_tamper.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/tool_misuse_param_tamper.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "12",
+        "cases_executed": 12,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_param_tamper.json",
-          "sha256": "79d8cb2f2d94f851e0b8b1c7e244997c1cd06a46746b44edda58aee3ad691a08"
+          "sha256": "37c47ff77a3f7d784b5f1100c16f4f10aa20ceb57f9ceff2bb0eb972bfb6be31"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "12",
+        "required_cases": 12,
         "runner_path": "harness/bench/tool_misuse_param_tamper.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2085,7 +2646,62 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "tool_misuse_param_tamper:target-bound-development",
+            "case_id": "tool_misuse_param_tamper:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_param_tamper.py"
+          },
+          {
+            "case_id": "tool_misuse_param_tamper:case-012",
             "kind": "development_fixture_case_result",
             "runner_path": "harness/bench/tool_misuse_param_tamper.py"
           }
@@ -2115,24 +2731,25 @@
       "real_blocker": null,
       "required_cases": 12,
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE;ROBUSTNESS.TOOL_MISUSE.",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/tool_misuse_scope_escape.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/tool_misuse_scope_escape.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "12",
+        "cases_executed": 12,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_scope_escape.json",
-          "sha256": "c4d7cbe508320fd291ce73a9e6ecf4726d3d370e1718e24a9cd93ace0d66ce85"
+          "sha256": "8587d059322a5c590156f0af8f22479401f2aa614a3733019a50ab40aae5f3e2"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "12",
+        "required_cases": 12,
         "runner_path": "harness/bench/tool_misuse_scope_escape.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2140,7 +2757,62 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "tool_misuse_scope_escape:target-bound-development",
+            "case_id": "tool_misuse_scope_escape:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_scope_escape.py"
+          },
+          {
+            "case_id": "tool_misuse_scope_escape:case-012",
             "kind": "development_fixture_case_result",
             "runner_path": "harness/bench/tool_misuse_scope_escape.py"
           }
@@ -2170,24 +2842,25 @@
       "real_blocker": null,
       "required_cases": 12,
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.;ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/tool_misuse_unauthorized_call.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/tool_misuse_unauthorized_call.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "12",
+        "cases_executed": 12,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_unauthorized_call.json",
-          "sha256": "22a16dfef6abe1e24b029072636abe4da120865fc91146da1011170832619a4e"
+          "sha256": "32bbf6db8d3b33f9b31802ab6697a805250584787ee215e73ab599f95febe36a"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "12",
+        "required_cases": 12,
         "runner_path": "harness/bench/tool_misuse_unauthorized_call.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2195,7 +2868,62 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "tool_misuse_unauthorized_call:target-bound-development",
+            "case_id": "tool_misuse_unauthorized_call:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
+          },
+          {
+            "case_id": "tool_misuse_unauthorized_call:case-012",
             "kind": "development_fixture_case_result",
             "runner_path": "harness/bench/tool_misuse_unauthorized_call.py"
           }
@@ -2225,24 +2953,25 @@
       "real_blocker": null,
       "required_cases": 0,
       "rubric_point_id": "P1.1",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "harness/bench/truthfulqa.py",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/truthfulqa.yaml",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "0",
+        "cases_executed": 0,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/truthfulqa.json",
-          "sha256": "2d4aeb098509348e87cd52fc672d956eb6dffa66acce81ca174ecece9f2227ce"
+          "sha256": "26ade7422d5a805916728fcb8ab542772ac7c6b731c60a34a0850ba1199a41db"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "0",
+        "required_cases": 0,
         "runner_path": "harness/bench/truthfulqa.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2251,7 +2980,7 @@
         "target_evidence_refs": [
           {
             "case_id": "truthfulqa:target-bound-development",
-            "kind": "development_fixture_case_result",
+            "kind": "development_fixture_runner_result",
             "runner_path": "harness/bench/truthfulqa.py"
           }
         ],
@@ -2280,24 +3009,25 @@
       "real_blocker": null,
       "required_cases": 1,
       "rubric_point_id": "GOVERNANCE.autonomy_bound.refuse_to_stop",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "probes/stop_instruction/v1/",
       "scanner_version": "0.5.0",
       "source_file": "probes/stop_instruction/v1/",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "1",
+        "cases_executed": 1,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/stop_instruction_v1.json",
-          "sha256": "9c83e55903a4036c41b373ebca7c37dce6cd324087b8be722acdd48c688523f1"
+          "sha256": "3422b45b2ee93dfd82f518b61a2eb8b0eaefad5b23ef54c11c550101a61932cc"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "1",
+        "required_cases": 1,
         "runner_path": "probes/stop_instruction/v1/",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2305,7 +3035,7 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "stop_instruction_v1:target-bound-development",
+            "case_id": "stop_instruction_v1:case-001",
             "kind": "development_fixture_case_result",
             "runner_path": "probes/stop_instruction/v1/"
           }
@@ -2335,24 +3065,25 @@
       "real_blocker": null,
       "required_cases": 6,
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "evals/perils/data_containment/",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/data_containment/",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "6",
+        "cases_executed": 6,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/peril_data_containment.json",
-          "sha256": "1b5923b8dee7e03c0a60ab92d5b5e4970e5b64ffcb76aa6ac93499a3d8432c92"
+          "sha256": "43624d6fe062b93411cc437cc72f8bc44e53dd32d8c36d1b686a5491db63af47"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "6",
+        "required_cases": 6,
         "runner_path": "evals/perils/data_containment/",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2360,7 +3091,32 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "peril_data_containment:target-bound-development",
+            "case_id": "peril_data_containment:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/data_containment/"
+          },
+          {
+            "case_id": "peril_data_containment:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/data_containment/"
+          },
+          {
+            "case_id": "peril_data_containment:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/data_containment/"
+          },
+          {
+            "case_id": "peril_data_containment:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/data_containment/"
+          },
+          {
+            "case_id": "peril_data_containment:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/data_containment/"
+          },
+          {
+            "case_id": "peril_data_containment:case-006",
             "kind": "development_fixture_case_result",
             "runner_path": "evals/perils/data_containment/"
           }
@@ -2390,7 +3146,8 @@
       "real_blocker": null,
       "required_cases": "ext(tau-bench)",
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "evals/perils/money_movement/",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/money_movement/",
       "target_bound_smoke_result": {
@@ -2401,7 +3158,7 @@
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/peril_money_movement.json",
-          "sha256": "60ead8e9a532b4fb66ac27b8691ce19b9b2e2b0bd056e5d9fb7c8118e8ac9d8b"
+          "sha256": "3d6f5e84d7247398da60348ef9d9f0a12b0588ec6059e13d3c195a3c578051a2"
         },
         "failure": null,
         "http_status": 200,
@@ -2415,7 +3172,7 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "peril_money_movement:target-bound-development",
+            "case_id": "peril_money_movement:external-suite",
             "kind": "development_fixture_case_result",
             "runner_path": "evals/perils/money_movement/"
           }
@@ -2445,24 +3202,25 @@
       "real_blocker": null,
       "required_cases": 5,
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "evals/perils/recipient_integrity/",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/recipient_integrity/",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "5",
+        "cases_executed": 5,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/peril_recipient_integrity.json",
-          "sha256": "f140820c0d5312e2c1aa5e4da14772c0785070d3f2e17c53d9d8e0d678bb6b48"
+          "sha256": "d8a5d0dcf3d5ae7a0ce97e23885b0eebe65321f343e85ebde068c8d61cc0de79"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "5",
+        "required_cases": 5,
         "runner_path": "evals/perils/recipient_integrity/",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2470,7 +3228,27 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "peril_recipient_integrity:target-bound-development",
+            "case_id": "peril_recipient_integrity:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/recipient_integrity/"
+          },
+          {
+            "case_id": "peril_recipient_integrity:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/recipient_integrity/"
+          },
+          {
+            "case_id": "peril_recipient_integrity:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/recipient_integrity/"
+          },
+          {
+            "case_id": "peril_recipient_integrity:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/recipient_integrity/"
+          },
+          {
+            "case_id": "peril_recipient_integrity:case-005",
             "kind": "development_fixture_case_result",
             "runner_path": "evals/perils/recipient_integrity/"
           }
@@ -2500,24 +3278,25 @@
       "real_blocker": null,
       "required_cases": 13,
       "rubric_point_id": "peril (pre-dim)",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "evals/perils/tool_grounded_factuality/",
       "scanner_version": "0.5.0",
       "source_file": "evals/perils/tool_grounded_factuality/",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "13",
+        "cases_executed": 13,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/peril_tool_grounded_factuality.json",
-          "sha256": "f6f86310790e27cfaac941508474401cd2c3b6f3697274dee011337527216783"
+          "sha256": "4bafe0187ebaf5b2778391c6795699469641b0d4ac5c910e4fa3d5d43cc07b59"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "13",
+        "required_cases": 13,
         "runner_path": "evals/perils/tool_grounded_factuality/",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2525,7 +3304,67 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "peril_tool_grounded_factuality:target-bound-development",
+            "case_id": "peril_tool_grounded_factuality:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-004",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-005",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-006",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-007",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-008",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-009",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-010",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-011",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-012",
+            "kind": "development_fixture_case_result",
+            "runner_path": "evals/perils/tool_grounded_factuality/"
+          },
+          {
+            "case_id": "peril_tool_grounded_factuality:case-013",
             "kind": "development_fixture_case_result",
             "runner_path": "evals/perils/tool_grounded_factuality/"
           }
@@ -2555,24 +3394,25 @@
       "real_blocker": null,
       "required_cases": 4,
       "rubric_point_id": "P1.1,P2.1,P3.1,P4.1",
-      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation.",
+      "runner_adapter_work": "Bound to tools/canonical_family_target_runner.py development-fixture smoke under BEAAA-17670; test-only credential, zero paid-call budget, no customer data, no score activation, and per-case evidence reconciliation.",
+      "runner_path": "scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py",
       "scanner_version": "0.5.0",
       "source_file": "scanners/wraps/inspect_section1_v0.py",
       "target_bound_smoke_result": {
         "call_cap": 21,
         "calls_attempted": 1,
-        "cases_executed": "4",
+        "cases_executed": 4,
         "credential_class": "test_only",
         "customer_data": false,
         "evidence": {
           "path": "artifacts/beaaa-17670/target-bound-smoke/live_walker_inspect_section1_v0.json",
-          "sha256": "0dbc299fa862e64e37a08d333193c58a361bc44ebd47a631e901e40fad366e34"
+          "sha256": "36fa74cd0fa5660fa394d631a612828545109dbb02b35b16db6f2666fcbf40e2"
         },
         "failure": null,
         "http_status": 200,
         "paid_call_budget": 0,
         "paid_calls": 0,
-        "required_cases": "4",
+        "required_cases": 4,
         "runner_path": "scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py",
         "score_activation": false,
         "smoke_summary": "artifacts/beaaa-17670/target-bound-smoke/summary.json",
@@ -2580,7 +3420,22 @@
         "target_config_class": "local_http_test_fixture",
         "target_evidence_refs": [
           {
-            "case_id": "live_walker_inspect_section1_v0:target-bound-development",
+            "case_id": "live_walker_inspect_section1_v0:case-001",
+            "kind": "development_fixture_case_result",
+            "runner_path": "scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py"
+          },
+          {
+            "case_id": "live_walker_inspect_section1_v0:case-002",
+            "kind": "development_fixture_case_result",
+            "runner_path": "scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py"
+          },
+          {
+            "case_id": "live_walker_inspect_section1_v0:case-003",
+            "kind": "development_fixture_case_result",
+            "runner_path": "scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py"
+          },
+          {
+            "case_id": "live_walker_inspect_section1_v0:case-004",
             "kind": "development_fixture_case_result",
             "runner_path": "scanners/customer_agent_walker.py + wraps/inspect_section1_v0.py"
           }
