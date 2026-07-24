@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from tools.source_identity import repo_head
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASELINE_COMMIT = "73250f88186b6a840258d0aa8a46a1ac7c08efff"
@@ -265,7 +266,16 @@ def _sha256_file(path: Path) -> str:
 
 
 def _sha256_git_file(commit_sha: str, path: str) -> str:
-    data = subprocess.check_output(["git", "show", f"{commit_sha}:{path}"], cwd=REPO_ROOT)
+    try:
+        data = subprocess.check_output(
+            ["git", "show", f"{commit_sha}:{path}"],
+            cwd=REPO_ROOT,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        if commit_sha != repo_head(REPO_ROOT):
+            raise
+        data = (REPO_ROOT / path).read_bytes()
     return hashlib.sha256(data).hexdigest()
 
 

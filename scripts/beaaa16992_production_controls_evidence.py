@@ -27,6 +27,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from api import production_controls
+from tools.source_identity import repo_head
 
 OUT_DIR = REPO / "artifacts" / "beaaa-16992"
 AUTHORIZATION_FIXTURE = (
@@ -60,6 +61,10 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _git(*args: str) -> str:
+    if args == ("rev-parse", "HEAD"):
+        return repo_head(REPO)
+    if args == ("status", "--porcelain") and not (REPO / ".git").exists():
+        return ""
     return subprocess.check_output(["git", *args], cwd=REPO, text=True).strip()
 
 
@@ -449,24 +454,27 @@ def _rollback_drill(
         )
         fake_engine = tmp / "fake-container-engine.py"
         _write_fake_container_engine(fake_engine, state_path)
+        secrets_env = tmp / "secrets.env"
+        secrets_env.write_text("ARE_TEST_SECRET=redacted\n", encoding="utf-8")
         env = {
             **os.environ,
             "ARE_CONTAINER_ENGINE": str(fake_engine),
             "ARE_CONTAINER_NAME": "are-scanner-edge",
-            "ARE_SECRETS_ENV": "",
+            "ARE_SECRETS_ENV": str(secrets_env),
             "ARE_BIND": "127.0.0.1:18080",
         }
         if not omit_state_mount:
             env["ARE_STATE_DIR"] = str(state_dir)
         start = time.monotonic()
+        rollback_helper = REPO / "scripts" / "deploy" / "history" / "box_deploy.sh"
         current_before = subprocess.check_output(
-            [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "current"],
+            [str(rollback_helper), "current"],
             cwd=REPO,
             env=env,
             text=True,
         ).strip()
         rollback_proc = subprocess.run(
-            [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "rollback", previous_ref],
+            [str(rollback_helper), "rollback", previous_ref],
             cwd=REPO,
             env=env,
             text=True,
@@ -483,7 +491,7 @@ def _rollback_drill(
             )
         elapsed_s = time.monotonic() - start
         current_after = subprocess.check_output(
-            [str(REPO / "scripts" / "deploy" / "box_deploy.sh"), "current"],
+            [str(rollback_helper), "current"],
             cwd=REPO,
             env=env,
             text=True,
@@ -512,7 +520,7 @@ def _rollback_drill(
         "measured_active_executable_before": source.get("active_executable_before"),
         "measured_active_executable_after": source.get("active_executable_after"),
         "source_matches_measured_drill": source_matches,
-        "canonical_rollback_command": "scripts/deploy/box_deploy.sh rollback <previous_ref>",
+        "canonical_rollback_command": "scripts/deploy/history/box_deploy.sh rollback <previous_ref>",
         "current_ref_before": current_before,
         "previous_ref": previous_ref,
         "current_ref_after": current_after,
@@ -547,7 +555,7 @@ def _security_findings_result(findings: Iterable[dict[str, Any]] | None = None) 
         "kind": "api.production_controls.repo_security_findings",
         "source_path": "api/production_controls.py",
         "source_sha256": _sha256_file(REPO / "api" / "production_controls.py"),
-        "scanned_paths": ["scripts/deploy/box_deploy.sh"],
+        "scanned_paths": ["scripts/deploy/scanner-deploy.sh"],
     }
     return result
 
@@ -848,7 +856,7 @@ def build_packet(candidate_commit_sha: str | None = None) -> dict[str, Any]:
             bool(rollback_drill["pass"] and rollback_drill["source_matches_measured_drill"]),
             [
                 "feature-flag rollback proves 340 active executable rows return to 305",
-                "canonical box_deploy rollback restarts the prior retained image ref",
+                "canonical historical rollback helper restarts the prior retained image ref",
                 "retained historical evidence hash is unchanged across rollback",
             ],
             rollback_drill,

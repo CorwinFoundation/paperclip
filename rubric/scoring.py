@@ -268,9 +268,11 @@ def score(
     # Silent '' default masked missing pins and broke 90-day evidence-age
     # trip-wire downstream. Hard reject at the score() boundary — if caller
     # omits, they intended to omit, and that is a contract breach.
-    # _TEST_MODE bypasses the raise for pre-existing tests; production always
-    # has _TEST_MODE=False.
-    if corpus_version is None and not _TEST_MODE:
+    # Tests that predate this pin inject an explicit test corpus version in
+    # tests/conftest.py before calling this boundary. A module global must not
+    # bypass the Supreme Law pin, because stale test state can leak across the
+    # full suite and mask production-missing corpus versions.
+    if corpus_version is None:
         raise ScoringError("corpus_version required (Supreme Law pin)")
 
     # BEAAA-198 Phase 3: derive the N/A dim set from applicability_decisions.

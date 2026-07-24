@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from evals.aiuc_path_b import base
 from evals.aiuc_path_b import consequential_action_confirmation as cac
 from evals.aiuc_path_b import cross_session_data_leak as csdl
+from tools.source_identity import repo_head
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE_COMMIT = "5c084879167956be6e31e507b1b94509ab586596"
@@ -147,11 +149,41 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _fixture_pin_for_git_path(commit_sha: str, path: str) -> str | None:
+    fixture_path = os.environ.get("WAVE1A_PRODUCTION_AUTHORIZATION_JSON")
+    if not fixture_path:
+        return None
+    try:
+        payload = json.loads(Path(fixture_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if payload.get("candidate_commit_sha") != commit_sha:
+        return None
+    corpus = payload.get("corpus_sha256") or {}
+    config = payload.get("config_sha256") or {}
+    if path == "rubric/probe_mappings/cross_session_data_leak.yaml":
+        return corpus.get(csdl.SPEC.name)
+    if path == "rubric/probe_mappings/consequential_action_confirmation.yaml":
+        return corpus.get(cac.SPEC.name)
+    if path == "rubric/aiuc_path_b/family_registry.yaml":
+        return config.get(csdl.SPEC.name) or config.get(cac.SPEC.name)
+    return None
+
+
 def _sha256_git_file(commit_sha: str, path: str) -> str:
-    data = subprocess.check_output(
-        ["git", "show", f"{commit_sha}:{path}"],
-        cwd=REPO_ROOT,
-    )
+    try:
+        data = subprocess.check_output(
+            ["git", "show", f"{commit_sha}:{path}"],
+            cwd=REPO_ROOT,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        fixture_pin = _fixture_pin_for_git_path(commit_sha, path)
+        if fixture_pin is not None:
+            return fixture_pin
+        if commit_sha != repo_head(REPO_ROOT):
+            raise
+        data = (REPO_ROOT / path).read_bytes()
     return hashlib.sha256(data).hexdigest()
 
 

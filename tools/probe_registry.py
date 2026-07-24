@@ -14,6 +14,7 @@ from tools.active_test_registry import (
     _is_countable_active_executable,
     build_registry as build_active_test_registry,
 )
+from tools.source_identity import repo_head
 
 
 REPO_DEFAULT = Path.cwd()
@@ -52,10 +53,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def _repo_head(repo: Path) -> str:
-    return subprocess.check_output(
-        ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        text=True,
-    ).strip()
+    return repo_head(repo)
 
 
 def _stable_key(row: dict[str, Any]) -> str:

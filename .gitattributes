@@ -3,6 +3,7 @@
 # Content-addressed Wave 0 JSONL must keep its manifest byte hash on every OS.
 artifacts/beaaa-15688/*.jsonl text eol=lf
 corpus/wave0/*.jsonl text eol=lf
+.backbond-source-commit export-subst
 
 # Linux runtime and service files must remain LF in Windows checkouts.
 *.sh text eol=lf

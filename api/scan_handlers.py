@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import logging
 import re
 import threading
 import time
@@ -50,6 +51,7 @@ from api.ci_scan_ext import (
     ci_plugin_result,
     compute_probe_set_hash,
     gate_disposition,
+    resolve_gate_threshold,
 )
 from api.config import ApiConfig
 from api.bundle import sign_manifest
@@ -88,6 +90,8 @@ from scanners.live_probe_orchestrator import (
     ScanRequest,
     ScanResult,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
@@ -275,6 +279,10 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
 ScoreEnvelopeFactory = Callable[[ScanResult, str, str], dict[str, Any]]
 FullSuiteManifestUriFactory = Callable[[str | None, str], str]
 ProductionSecurityFindingsSource = Callable[[], Iterable[dict[str, Any]]]
+_NON_TERMINAL_INCOMPLETE_REASONS: frozenset[str] = frozenset(
+    {"full_scan_registry_lease_busy"}
+)
+_NON_TERMINAL_STATUSES: frozenset[str] = frozenset({"queued", "running"})
 
 
 class ScanRuntime:
@@ -310,6 +318,7 @@ class ScanRuntime:
             Callable[[ScanRequest, str], Mapping[str, FrameworkWorker]] | None
         ) = None,
         full_scan_job_store: FullScanJobStore | None = None,
+        webhook_outbox: "WebhookOutbox | None" = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
@@ -354,6 +363,8 @@ class ScanRuntime:
         self._full_scan_workers_factory = full_scan_workers_factory
         self._full_scan_job_store = full_scan_job_store or FullScanJobStore()
         self._full_scan_job_ids: dict[str, str] = {}
+        self._webhook_outbox = webhook_outbox
+        self._webhook_cfgs: dict[str, dict[str, str]] = {}
         self._state_lock = threading.RLock()
         self._full_scan_semaphore = threading.BoundedSemaphore(value=1)
         self._background_threads: dict[str, threading.Thread] = {}
@@ -385,6 +396,10 @@ class ScanRuntime:
 
     def _now(self) -> float:
         return float(self._monotonic_clock())
+
+    def attach_webhook_outbox(self, webhook_outbox: "WebhookOutbox | None") -> None:
+        """Attach the process-wide terminal webhook outbox."""
+        self._webhook_outbox = webhook_outbox
 
     def _purge_expired_in_memory_state(self) -> None:
         cutoff = self._now() - self._in_memory_state_ttl_seconds
@@ -419,6 +434,8 @@ class ScanRuntime:
         *,
         agent_id: str | None = None,
         scanner_invocation_context: dict[str, Any] | None = None,
+        webhook_cfg: dict[str, str] | None = None,
+        on_terminal: Callable[[], None] | None = None,
     ) -> ScanResult:
         """Run the scan now; record the result by scan_id.
 
@@ -444,6 +461,8 @@ class ScanRuntime:
             self._scan_invocation_contexts[scan_request.scan_id] = dict(
                 scanner_invocation_context
             )
+        if webhook_cfg is not None:
+            self._webhook_cfgs[scan_request.scan_id] = dict(webhook_cfg)
 
         security_findings = self._production_security_findings()
 
@@ -471,32 +490,38 @@ class ScanRuntime:
                     "scan_request": scan_request,
                     "secret": secret,
                     "agent_id": agent_id,
+                    "on_terminal": on_terminal,
                 },
                 name=f"are-full-scan-{scan_request.scan_id[:8]}",
                 daemon=True,
             )
             self._background_threads[scan_request.scan_id] = thread
-            thread.start()
+            try:
+                thread.start()
+            except BaseException:
+                self._background_threads.pop(scan_request.scan_id, None)
+                if on_terminal is not None:
+                    on_terminal()
+                raise
             return queued
 
-        result = self._run_scan_fn(scan_request, secret)
-        result = self._apply_registry_dispatch_guard(
-            scan_request,
-            result,
-            agent_id=agent_id,
-            secret=secret,
-        )
-        result = self._apply_full_suite_manifest_guard(
-            scan_request,
-            result,
-            agent_id=agent_id,
-        )
-        return self._record_completed_result(
-            scan_request,
-            result,
-            agent_id=agent_id,
-            production_security_findings=security_findings,
-        )
+        try:
+            result = self._run_scan_fn(scan_request, secret)
+            result = self._apply_registry_dispatch_guard(
+                scan_request, result, agent_id=agent_id, secret=secret
+            )
+            result = self._apply_full_suite_manifest_guard(
+                scan_request, result, agent_id=agent_id
+            )
+            return self._record_completed_result(
+                scan_request,
+                result,
+                agent_id=agent_id,
+                production_security_findings=security_findings,
+            )
+        finally:
+            if on_terminal is not None:
+                on_terminal()
 
     def _run_full_scan_background(
         self,
@@ -504,6 +529,7 @@ class ScanRuntime:
         scan_request: ScanRequest,
         secret: str,
         agent_id: str | None,
+        on_terminal: Callable[[], None] | None = None,
     ) -> None:
         try:
             with self._full_scan_semaphore:
@@ -530,6 +556,11 @@ class ScanRuntime:
                     production_security_findings=self._production_security_findings(),
                 )
         except Exception as exc:  # never expose credential or response bodies
+            LOGGER.error(
+                "full_scan_background_worker_error scan_id=%s error_type=%s",
+                scan_request.scan_id,
+                type(exc).__name__,
+            )
             failed = ScanResult(
                 scan_id=scan_request.scan_id,
                 status="failed",
@@ -545,6 +576,8 @@ class ScanRuntime:
                 self._scan_state_created_at[scan_request.scan_id] = self._now()
         finally:
             self._background_threads.pop(scan_request.scan_id, None)
+            if on_terminal is not None:
+                on_terminal()
 
     def _record_completed_result(
         self,
@@ -603,7 +636,24 @@ class ScanRuntime:
             agent_id=agent_id,
             production_security_findings=production_security_findings,
         )
+        self._maybe_deliver_terminal_webhook(scan_request.scan_id, result)
         return result
+
+    def _maybe_deliver_terminal_webhook(
+        self, scan_id: str, result: ScanResult
+    ) -> None:
+        if self._webhook_outbox is None:
+            return
+        webhook_cfg = self._webhook_cfgs.get(scan_id)
+        if webhook_cfg is None or not _scan_reached_terminal(result):
+            return
+        self._webhook_cfgs.pop(scan_id, None)
+        _deliver_terminal_webhook(
+            outbox=self._webhook_outbox,
+            webhook_cfg=webhook_cfg,
+            scan_id=scan_id,
+            payload=_customer_result_response(scan_id, result, self),
+        )
 
     def _production_security_findings(self) -> dict[str, Any] | None:
         if self._production_security_findings_source is None:
@@ -697,6 +747,7 @@ class ScanRuntime:
         if worker_metadata.get("execution_budget"):
             model_versions["execution_budget"] = worker_metadata["execution_budget"]
         registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
+        webhook_cfg = self._webhook_cfgs.get(scan_request.scan_id)
         job = self._full_scan_job_store.submit(
             agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
             scanner_version=str(scan_request.scanner_version),
@@ -705,8 +756,30 @@ class ScanRuntime:
             seed=scan_request.seed,
             registry_cases=registry_cases,
             idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
+            terminal_webhook=(
+                {
+                    "webhook_cfg": dict(webhook_cfg),
+                    "response_base": {
+                        "scan_id": scan_request.scan_id,
+                        "status": "accepted",
+                        "partial_completion": False,
+                        "confidence_below_adjudication_threshold": False,
+                    },
+                }
+                if webhook_cfg is not None
+                else None
+            ),
         )
         self._full_scan_job_ids[scan_request.scan_id] = job.job_id
+        if self._full_scan_workers_factory is None:
+            return replace(
+                result,
+                status="accepted",
+                rows_emitted=0,
+                full_suite_manifest=None,
+                incomplete=False,
+                incomplete_reason=None,
+            )
         lease = self._full_scan_job_store.lease(job.job_id)
         attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
         if not isinstance(attempt_id, str) or not attempt_id:
@@ -790,7 +863,28 @@ class ScanRuntime:
 
     def fetch(self, scan_id: str) -> ScanResult | None:
         self._purge_expired_in_memory_state()
-        return self._results.get(scan_id)
+        result = self._results.get(scan_id)
+        job_id = self._full_scan_job_ids.get(scan_id)
+        if result is not None and job_id is not None:
+            job = self._full_scan_job_store.status(job_id)
+            if job.status in {"complete", "incomplete", "failed", "cancelled"}:
+                refreshed = replace(
+                    result,
+                    status=job.status,
+                    rows_emitted=len(job.evidence_rows),
+                    incomplete=job.status != "complete",
+                    incomplete_reason=(
+                        None
+                        if job.status == "complete"
+                        else "full_scan_registry_incomplete"
+                    ),
+                    full_suite_manifest=job.final_manifest,
+                )
+                with self._state_lock:
+                    self._results[scan_id] = refreshed
+                    self._scan_state_created_at[scan_id] = self._now()
+                return refreshed
+        return result
 
     # ----- BEAAA-1265 (WS1) agent-scan-log shim -----
     def register_prior_scan(self, agent_id: str) -> None:
@@ -1276,6 +1370,7 @@ def _kickoff_live_probe_scan(
     scanner_invocation_context: dict[str, Any] | None = None,
     webhook_secret_resolver: "Callable[[str], str | bytes | None] | None" = None,
     webhook_http_poster: "Callable[[str, dict, bytes], None] | None" = None,
+    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Shared body-validation + ScanRequest build + runtime.kickoff path.
 
@@ -1402,6 +1497,8 @@ def _kickoff_live_probe_scan(
             credential_secret,
             agent_id=agent_id,
             scanner_invocation_context=scanner_invocation_context,
+            webhook_cfg=_webhook_cfg,
+            on_terminal=on_terminal,
         )
     except CorpusSnapshotMismatchError as exc:
         raise HandlerError(422, "corpus_snapshot_mismatch") from exc
@@ -1443,17 +1540,33 @@ def _kickoff_live_probe_scan(
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
 
-    # BEAAA-11726 item 2 — fire webhook delivery if configured (best-effort;
-    # delivery failure NEVER blocks the 202 — the scan is already complete).
-    if _webhook_cfg is not None and webhook_http_poster is not None:
-        _fire_webhook(
-            webhook_cfg=_webhook_cfg,
-            payload=dict(response),
-            resolver=webhook_secret_resolver,
-            http_poster=webhook_http_poster,
-        )
-
     return 202, response
+
+
+def _scan_reached_terminal(result: ScanResult) -> bool:
+    if result.status in _NON_TERMINAL_STATUSES:
+        return False
+    if not result.incomplete:
+        return True
+    return (result.incomplete_reason or "") not in _NON_TERMINAL_INCOMPLETE_REASONS
+
+
+def _deliver_terminal_webhook(
+    *,
+    outbox: "WebhookOutbox",
+    webhook_cfg: dict[str, str],
+    scan_id: str,
+    payload: dict[str, Any],
+) -> None:
+    try:
+        outbox.enqueue(
+            idempotency_key=scan_id,
+            url=webhook_cfg["url"],
+            secret_ref=webhook_cfg["secret_ref"],
+            payload=payload,
+        )
+    except Exception:
+        pass
 
 
 def _fire_webhook(
@@ -1492,6 +1605,7 @@ def scan_handler(
     scan_id_factory: Callable[[], str] | None = None,
     webhook_secret_resolver: "Callable[[str], str | bytes | None] | None" = None,
     webhook_http_poster: "Callable[[str, dict, bytes], None] | None" = None,
+    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scan handler.
 
@@ -1524,6 +1638,7 @@ def scan_handler(
         agent_id=agent_id_for_chain,
         webhook_secret_resolver=webhook_secret_resolver,
         webhook_http_poster=webhook_http_poster,
+        on_terminal=on_terminal,
     )
 
 
@@ -1536,6 +1651,7 @@ def rescan_handler(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
     clock: Clock | None = None,
+    on_terminal: Callable[[], None] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """POST /scanner/v1/rescans handler (measured path).
 
@@ -1604,6 +1720,7 @@ def rescan_handler(
         # factory closure can read it and stamp ``purpose`` on the §2.2
         # envelope without changing the ScoreEnvelopeFactory typedef.
         scanner_invocation_context=invocation_context,
+        on_terminal=on_terminal,
     )
 
     elapsed_seconds = max(0.0, sla_clock.now() - start)
@@ -1765,6 +1882,7 @@ def scan_status_handler(
             scan_id,
             result,
             runtime,
+            authenticated_tenant_id=authenticated_tenant_id,
             ci_threshold_lookup=ci_threshold_lookup,
             dashboard_base_url=dashboard_base_url,
         )
@@ -1776,6 +1894,7 @@ def _ci_plugin_payload(
     result: ScanResult,
     runtime: ScanRuntime,
     *,
+    authenticated_tenant_id: str | None,
     ci_threshold_lookup: "Callable[[str], tuple[str | None, float | None]] | None",
     dashboard_base_url: str,
 ) -> dict[str, Any]:
@@ -1804,10 +1923,11 @@ def _ci_plugin_payload(
     if scan_completed and ci_threshold_lookup is not None and are_total is not None:
         try:
             _contracted_band, fail_below = ci_threshold_lookup(
-                result.scan_id if hasattr(result, "scan_id") else scan_id
+                authenticated_tenant_id or ""
             )
-            if fail_below is not None and isinstance(are_total, (int, float)):
-                gate_passed = float(are_total) >= float(fail_below)
+            threshold = resolve_gate_threshold(_contracted_band, fail_below)
+            if threshold is not None and isinstance(are_total, (int, float)):
+                gate_passed = float(are_total) >= float(threshold)
         except Exception:
             gate_passed = None
 
@@ -1869,6 +1989,23 @@ def _resolve_surface_seed(raw: Any, scan_id: str) -> int | None:
         return None
     digest = hashlib.sha256(scan_id.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big")
+
+
+# Backward-compatible facade: the extracted modules own these implementations.
+from api import scan_request_validation as _request_validation
+from api import scan_response_envelopes as _response_envelopes
+from api import scan_side_effects as _side_effects
+
+_require = _request_validation.require
+_validate_scan_mode = _request_validation.validate_scan_mode
+_validate_k_replicates = _request_validation.validate_k_replicates
+_validate_credential_ref = _request_validation.validate_credential_ref
+_validate_corpus_snapshot_hash = _request_validation.validate_corpus_snapshot_hash
+_validate_agent_endpoint = _request_validation.validate_agent_endpoint
+_fire_webhook = _side_effects.fire_webhook
+_scan_result_to_dict = _response_envelopes.scan_result_to_dict
+_uw_payload = _response_envelopes.uw_payload
+_customer_payload = _response_envelopes.customer_payload
 
 
 __all__ = [

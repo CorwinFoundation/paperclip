@@ -81,36 +81,45 @@ def repo_security_findings(repo: Path) -> list[dict[str, Any]]:
     """
 
     findings: list[dict[str, Any]] = []
-    box_deploy = repo / "scripts" / "deploy" / "box_deploy.sh"
-    text = box_deploy.read_text(encoding="utf-8")
+    deploy_helper = repo / "scripts" / "deploy" / "scanner-deploy.sh"
+    text = deploy_helper.read_text(encoding="utf-8")
     executable_text = "\n".join(
         line for line in text.splitlines() if not line.lstrip().startswith("#")
     )
     if "docker pull" in executable_text or "podman pull" in executable_text:
         findings.append(
             {
-                "id": "box-egress-pull-command",
+                "id": "edge-egress-pull-command",
                 "severity": "critical",
-                "source": str(box_deploy.relative_to(repo)),
-                "detail": "box deploy path must not originate image pulls",
+                "source": str(deploy_helper.relative_to(repo)),
+                "detail": "edge deploy path must not originate image pulls",
             }
         )
-    if "/var/lib/are-scanner" not in text:
+    if "LOCAL_TAG_REPO=\"backbond-scanner-live\"" not in text:
         findings.append(
             {
-                "id": "missing-mounted-state-dir",
+                "id": "missing-local-live-tag",
                 "severity": "high",
-                "source": str(box_deploy.relative_to(repo)),
-                "detail": "Scanner state must be host-mounted at /var/lib/are-scanner",
+                "source": str(deploy_helper.relative_to(repo)),
+                "detail": "Scanner image must bind to a local live tag",
             }
         )
-    if "--env-file" not in text:
+    if "SCANNER_EDGE_IMAGE=" not in text or "install -m 0600" not in text:
         findings.append(
             {
-                "id": "missing-secrets-env-file",
+                "id": "missing-env-file-secret-mode",
                 "severity": "high",
-                "source": str(box_deploy.relative_to(repo)),
-                "detail": "Scanner secrets must stay outside the image",
+                "source": str(deploy_helper.relative_to(repo)),
+                "detail": "Scanner env mutation must preserve external secret file mode",
+            }
+        )
+    if "/openapi.json" not in text:
+        findings.append(
+            {
+                "id": "missing-openapi-readiness-check",
+                "severity": "high",
+                "source": str(deploy_helper.relative_to(repo)),
+                "detail": "Scanner deploy must verify local OpenAPI readiness",
             }
         )
     return findings

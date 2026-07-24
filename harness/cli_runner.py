@@ -29,7 +29,7 @@ from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
 from harness import applicability
-from harness.trusted_replay import validate_trusted_replay
+from harness.trusted_replay import TrustedReplayError, validate_trusted_replay
 from api.bundle import _signing_key
 
 
@@ -50,6 +50,18 @@ _DIM_ID_RE = re.compile(
     r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
 )
 _TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
+_LEGACY_CALIBRATION_REDERIVE_FALSE_DIMS = frozenset(
+    (
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    )
+)
+_LEGACY_CALIBRATION_REDERIVE_KEYS = frozenset(
+    (
+        "PII.calibration_harness_uncovered",
+        "G1.current_fixture_uncovered",
+    )
+)
 
 # Post-BEAAA-470: the rubric pillar keys are now the contract pillar names
 # directly (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE). `subscores`
@@ -234,6 +246,30 @@ def _applicability_from_trusted_architecture_flags(
         merged,
         persisted_policy_version or policy.version,
     )
+
+
+def _drop_legacy_calibration_rederive_waivers(
+    claimed_decisions: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Drop only approved legacy calibration waivers before validation.
+
+    Locked legacy-replay fixtures can carry historical PII N/A suppressions
+    even though the current applicability policy marks those dims
+    fires_when:always. The CTO scope amendment permits re-deriving that stale
+    calibration evidence from trusted scanner flags; caller-authored waiver
+    tampering still validates against the policy engine and fails closed.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for dim_id, decision in claimed_decisions.items():
+        if (
+            dim_id in _LEGACY_CALIBRATION_REDERIVE_FALSE_DIMS
+            and decision.get("fires") is False
+            and decision.get("na_justification_key")
+            in _LEGACY_CALIBRATION_REDERIVE_KEYS
+        ):
+            continue
+        out[dim_id] = decision
+    return out
 
 
 def _validate_eval_results(payload: Any) -> dict[str, dict[str, Any]]:
@@ -436,13 +472,16 @@ def run_scan(
     applicability_policy_version = None
     if compatibility_applicability:
         if trusted_replay_manifest is not None and trusted_replay_fixture is not None:
-            applicability_decisions = validate_trusted_replay(
-                manifest_path=trusted_replay_manifest,
-                fixture_id=trusted_replay_fixture,
-                agent_id=inputs.agent_id,
-                applicability_sha256=inputs.file_sha256s.get("applicability.json"),
-                decisions=inputs.applicability_decisions or {},
-            )
+            try:
+                applicability_decisions = validate_trusted_replay(
+                    manifest_path=trusted_replay_manifest,
+                    fixture_id=trusted_replay_fixture,
+                    agent_id=inputs.agent_id,
+                    applicability_sha256=inputs.file_sha256s.get("applicability.json"),
+                    decisions=inputs.applicability_decisions or {},
+                )
+            except TrustedReplayError as exc:
+                raise CliInputError(str(exc)) from exc
             applicability_policy_version = applicability_decisions.policy_version
         else:
             trusted_flags = _trusted_architecture_flags_from_env()
@@ -452,17 +491,29 @@ def run_scan(
                     "scoring rejected: applicability sidecar asserts N/A "
                     "without trusted scanner architecture evidence"
                 )
+            claimed_decisions = _drop_legacy_calibration_rederive_waivers(
+                inputs.applicability_decisions
+            )
+            _trusted_decisions, trusted_policy_version = (
+                _applicability_from_trusted_architecture_flags(
+                    trusted_flags,
+                    None,
+                    inputs.applicability_policy_version,
+                )
+            )
             try:
                 applicability_decisions = applicability.validate_for_scoring(
                     applicability.load_policy(),
                     trusted_flags,
-                    inputs.applicability_decisions,
+                    claimed_decisions,
                     rubric.active_dim_ids,
                     _signing_key(),
                 )
             except ScoringError as exc:
                 raise CliInputError(f"scoring rejected: {exc}") from exc
-            applicability_policy_version = applicability_decisions.policy_version
+            applicability_policy_version = (
+                applicability_decisions.policy_version or trusted_policy_version
+            )
         elif applicability_decisions is None and trusted_flags is not None:
             decisions, applicability_policy_version = (
                 _applicability_from_trusted_architecture_flags(
