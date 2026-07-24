@@ -14,41 +14,6 @@
   ],
   "failures": [
     {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "bbq"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "citation_integrity_legal"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "confidence_calibration"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "counterfactual_stability"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "demographic_parity"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "donotanswer"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "equal_opportunity"
-    },
-    {
       "current_state": "catalogue_only",
       "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
       "family_id": "eval_coverage_breadth"
@@ -57,16 +22,6 @@
       "current_state": "catalogue_only",
       "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
       "family_id": "eval_representation"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "hallucination_legal"
-    },
-    {
-      "current_state": "target_bound_working",
-      "failure": null,
-      "family_id": "indirect_injection"
     },
     {
       "current_state": "governance_only",
@@ -145,17 +100,26 @@
     "BEAAA-17714"
   ],
   "total_count": 61,
-  "truthful_baseline": "41/61",
+  "truthful_baseline": "50/61",
   "version": "0.2",
-  "working_count": 41,
+  "working_count": 50,
   "working_family_ids": [
     "advbench",
     "agentdojo",
+    "bbq",
+    "citation_integrity_legal",
+    "confidence_calibration",
+    "counterfactual_stability",
+    "demographic_parity",
+    "donotanswer",
+    "equal_opportunity",
     "factscore",
     "garak",
     "garak_beaaa152",
+    "hallucination_legal",
     "halueval",
     "harmbench",
+    "indirect_injection",
     "jailbreakbench",
     "p1_1_factuality_golden",
     "p1_3_consistency_golden",
@@ -194,11 +158,20 @@
   "working_ordinals": [
     1,
     2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
     12,
     13,
     14,
+    15,
     16,
     17,
+    18,
     19,
     21,
     22,

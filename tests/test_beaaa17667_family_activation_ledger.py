@@ -56,7 +56,7 @@ def test_beaaa17670_batch_c_ordinals_are_target_bound_working() -> None:
     assert len(rows) == 21
     baseline = build_baseline(payload)
     assert baseline["working_ordinals"][-21:] == list(range(41, 62))
-    assert baseline["truthful_baseline"] == "41/61"
+    assert baseline["truthful_baseline"] == "50/61"
     assert all(family_is_working(row) for row in rows)
     assert all(row["real_blocker"] is None for row in rows)
     assert all(row["target_bound_smoke_result"]["paid_calls"] == 0 for row in rows)

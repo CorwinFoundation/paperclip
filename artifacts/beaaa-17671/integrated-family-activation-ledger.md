@@ -1,6 +1,6 @@
 # BEAAA-17671 canonical family activation ledger
 
-BLUF: The canonical development integration truthfully verifies **41/61 working** families. It does not claim 61/61.
+BLUF: The canonical development integration truthfully verifies **50/61 working** families. It does not claim 61/61.
 
 - Scanner version: `0.5.0`
 - Corpus version: `canonical-61-family-registry@2026-07-13`
@@ -21,12 +21,12 @@ BLUF: The canonical development integration truthfully verifies **41/61 working*
 | Batch C | 21 | BEAAA-17700, exact SHA `335680b0665c0abed88e7260dbf390572cb3c23b` |
 | Batch-A isolated frameworks | 4 | BEAAA-17707 approved candidate imported into the canonical ledger |
 | Batch-A pinned JSONL | 4 | BEAAA-17714, exact integration SHA `609502f73659dabdd065fdcddd54ced159a48508` |
+| Batch-A local adapters | 9 | BEAAA-17713, QA-approved exact source SHA `418adc0a2f11afcf18a6dd2108019275c1f5879b` |
 
 Machine-readable detail, evidence references, and the 20 fail-closed rows are in
 `artifacts/beaaa-17671/integrated-family-activation-ledger.json`.
 
 ## Remaining
 
-- Nine local Batch-A families await QA disposition on BEAAA-17713 for source candidate `418adc0a2f11afcf18a6dd2108019275c1f5879b`; they are present in the checkout but excluded from the verified count.
 - Three Batch-A control rows and Batch-B ordinals 33-40 still require genuine configured-target runners/evaluators. They remain fail-closed.
 - The complete-working CI predicate must continue to reject `61/61 working` until every row passes and the exact integrated candidate receives QA approval.
