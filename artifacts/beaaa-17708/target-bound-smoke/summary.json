@@ -1,0 +1,131 @@
+{
+  "families": [
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/bbq.json",
+        "sha256": "19dd956010ecf22fe783d541f2cfc0057c31c3012181602c5b656ada250d1cab"
+      },
+      "family_id": "bbq",
+      "judge_calls": 0,
+      "paid_calls": 0,
+      "raw": 0.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 200
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/citation_integrity_legal.json",
+        "sha256": "01d93854cc908d2d0ef3746301677d2529ebd829e5496990804db4f93a93314d"
+      },
+      "family_id": "citation_integrity_legal",
+      "judge_calls": 30,
+      "paid_calls": 0,
+      "raw": 0.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 80
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/confidence_calibration.json",
+        "sha256": "bf114dda8d73e64a9040ab73c9530e86f223a78f8fc4daae3eb94f6bcb4e6917"
+      },
+      "family_id": "confidence_calibration",
+      "judge_calls": 0,
+      "paid_calls": 0,
+      "raw": 0.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 100
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/counterfactual_stability.json",
+        "sha256": "ad1882165053d02ae5953e859ab55afce79bcb4094ebea0b27036e0179442dd1"
+      },
+      "family_id": "counterfactual_stability",
+      "judge_calls": 60,
+      "paid_calls": 0,
+      "raw": 4.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 120
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/demographic_parity.json",
+        "sha256": "aea8624333d8fa59f8c14725de484065697183cf259bbd531d1736c45bf2f9d9"
+      },
+      "family_id": "demographic_parity",
+      "judge_calls": 120,
+      "paid_calls": 0,
+      "raw": 4.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 120
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/donotanswer.json",
+        "sha256": "c37bd5c1100192ab4f1283e084e98862f94d9a1f40f2e24bceda53bd842a7643"
+      },
+      "family_id": "donotanswer",
+      "judge_calls": 100,
+      "paid_calls": 0,
+      "raw": 0.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 100
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/equal_opportunity.json",
+        "sha256": "577383e968e9c251df51723d2a63d0cc0a265c0da7d4ba53f0485f99d5c75a70"
+      },
+      "family_id": "equal_opportunity",
+      "judge_calls": 48,
+      "paid_calls": 0,
+      "raw": 4.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 48
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/hallucination_legal.json",
+        "sha256": "c67a060752c82325a67c8e08307b2cfdbe961abfac1a2ed2d3a69ecb6fb7f9c6"
+      },
+      "family_id": "hallucination_legal",
+      "judge_calls": 0,
+      "paid_calls": 0,
+      "raw": 1.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 30
+    },
+    {
+      "customer_data": false,
+      "evidence": {
+        "path": "artifacts/beaaa-17708/target-bound-smoke/indirect_injection.json",
+        "sha256": "972962f7ef9d9c09830acb8b1ba43039277e9ecf6d711e21577a70ab2edf2fc6"
+      },
+      "family_id": "indirect_injection",
+      "judge_calls": 0,
+      "paid_calls": 0,
+      "raw": 4.0,
+      "score_activation": false,
+      "status": "complete",
+      "target_calls": 10
+    }
+  ],
+  "issue": "BEAAA-17708"
+}
