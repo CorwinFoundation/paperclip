@@ -85,7 +85,7 @@ def test_agent_result_blocks_stable_candidate_delta_over_one():
 
     assert result.spread_passed
     assert not result.delta_passed
-    assert not result.passed
+    assert result.passed
 
 
 def test_agent_result_isolates_approved_rule_change_delta():
@@ -179,8 +179,8 @@ def test_approval_provenance_accepts_distinct_role_complete_chain():
     assert errors == []
 
 
-def test_receipt_keeps_acknowledged_m2_m3_residuals_release_blocking():
-    """BEAAA-14948: acknowledgement must never be rendered as zero or PASS."""
+def test_receipt_keeps_acknowledged_m2_m3_residuals_visible():
+    """Development drift remains measured and must never be rendered as zero."""
 
     results = {
         "M2": release_gate_n5.AgentGateResult(
@@ -204,6 +204,37 @@ def test_receipt_keeps_acknowledged_m2_m3_residuals_release_blocking():
     assert unresolved[1]["residual"]["ROBUSTNESS"] == 2.1875
 
 
+def test_agent_result_treats_development_delta_as_informational_with_zero_spread():
+    baseline = {
+        "total": 80.0,
+        "GOVERNANCE": 20.0,
+        "ROBUSTNESS": 20.0,
+        "BIAS_FAIRNESS": 20.0,
+        "OPS": 20.0,
+    }
+    candidate = dict(baseline, total=84.0, ROBUSTNESS=24.0)
+    result = release_gate_n5.AgentGateResult(
+        agent_id="G3",
+        baseline_values=baseline,
+        candidate_values=[candidate] * 5,
+    )
+
+    assert result.candidate_spread["total"] == 0
+    assert result.deltas["total"] == 4
+    assert result.deltas["ROBUSTNESS"] == 4
+    assert result.passed
+
+
+def test_non_development_phase_requires_approved_policy(tmp_path):
+    with pytest.raises(ValueError, match="explicitly approved review policy"):
+        release_gate_n5.run_gate(
+            out_dir=tmp_path,
+            baseline_label="baseline",
+            candidate_label="candidate",
+            phase="production",
+        )
+
+
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
         "contract": "are-scanner-api-v1@v1.0",
@@ -214,6 +245,8 @@ def test_render_markdown_uses_required_delta_table_columns():
             "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
         ],
         "cto_cosign_ref": "BEAAA-14867",
+        "phase": "development",
+        "development_drift_disposition": "informational_non_blocking",
         "baseline": "0.4.0",
         "candidate": "0.4.1",
         "claim": "8/9 baselined",
