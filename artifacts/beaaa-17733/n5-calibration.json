@@ -1,0 +1,21 @@
+{
+  "ticket_ref": "BEAAA-17733",
+  "baseline_sha": "ffbd30c0c6b7ce5615a1a36fcdab4d2b9550a082",
+  "classification": "rule-execution",
+  "scanner_version": "0.5.0",
+  "corpus_version": "canonical-61-family-registry@2026-07-13",
+  "probe-set-version": "p3_5_multiturn_jailbreak@0.1.0,p3_6_output_attack@0.1.0",
+  "rubric_point_id": ["P3.5", "P3.6"],
+  "score_activation": false,
+  "seeds": [0, 1, 2, 3, 4],
+  "delta_by_seed": {
+    "0": {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPERATIONS": 0.0},
+    "1": {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPERATIONS": 0.0},
+    "2": {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPERATIONS": 0.0},
+    "3": {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPERATIONS": 0.0},
+    "4": {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPERATIONS": 0.0}
+  },
+  "max_absolute_delta": 0.0,
+  "within_plus_minus_one": true,
+  "method": "Both mappings remain reported_not_scored with weight 0.0; candidate changes execution and evidence plumbing only."
+}
