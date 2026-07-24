@@ -78,24 +78,46 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            requirements-runtime.txt
-            requirements-dev.txt
-            requirements-eval-inspect.txt
+             locks/core-py312.lock
 
       - name: Install strict-resolvable test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-runtime.txt -r requirements-dev.txt -r requirements-eval-inspect.txt
+          python -m pip install --require-hashes -r locks/core-py312.lock
+          python -m pip check
+
+      - name: Ruff critical scoring module
+        run: python -m ruff check rubric/scoring.py
+
+      - name: Type-check critical scoring module
+        run: python -m mypy --ignore-missing-imports rubric/scoring.py
+
+      - name: Report high-confidence dead code
+        run: python -m vulture rubric/scoring.py --min-confidence 90
+
+      - name: Enforce critical scoring coverage
+        run: |
+          python -m coverage run --source=rubric.scoring -m pytest -q \
+            tests/test_scoring.py \
+            tests/test_beaaa198_phase3_scoring.py \
+            tests/test_golden_agents.py
+           python -m coverage report --fail-under=80
 
       - name: Prove pytest discovers integration regressions
         run: |
-          python -m pytest --collect-only -q tests | tee pytest-collection.txt
+          python -m pytest --collect-only -q tests \
+            --ignore=tests/test_inspect_runner.py \
+            --ignore=tests/unit/test_inspect_provenance_pin.py \
+            | tee pytest-collection.txt
           grep -F "tests/integration/test_customer_runner_egress.py::TestCustomerRunnerRefusesLoopbackRedirect::test_runner_refuses_loopback_pivot_via_redirect" pytest-collection.txt
           grep -F "tests/integration/test_invocation_context_e2e.py::test_rescans_includes_invocation_context_in_score_inputs" pytest-collection.txt
           grep -F "tests/integration/test_walker_customer_agent_v0_3.py::TestAGB1WalkerRoundTrip::test_walker_yields_rows_against_echo_server" pytest-collection.txt
 
       - name: Run tests
-        run: python -m pytest -v -ra tests
+        run: |
+          python -m pytest -v -ra tests \
+            --ignore=tests/test_inspect_runner.py \
+            --ignore=tests/unit/test_inspect_provenance_pin.py
 
   eval-framework-venvs:
     name: eval venv (${{ matrix.framework }})
@@ -138,19 +160,23 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            requirements-eval-garak.txt
-            requirements-eval-pyrit.txt
-            requirements-eval-agentdojo.txt
-            requirements-eval-inspect.txt
+             locks/garak-py312.lock
+            locks/pyrit-py312.lock
+            locks/agentdojo-py312.lock
+             locks/inspect-py312.lock
 
       - name: Restore eval venv cache
         uses: actions/cache@v4
         with:
           path: ${{ env.ARE_EVAL_VENVS_DIR }}/${{ matrix.framework }}-venv
-          key: eval-venv-${{ runner.os }}-py312-${{ matrix.framework }}-${{ hashFiles('requirements-eval-*.txt', 'scripts/build_eval_framework_venvs.sh', 'scanners/eval_framework_venv.py') }}
+          key: eval-venv-${{ runner.os }}-py312-${{ matrix.framework }}-${{ hashFiles('locks/*-py312.lock', 'scripts/build_eval_framework_venvs.sh', 'scanners/eval_framework_venv.py') }}
 
       - name: Build and verify pinned eval venv
         run: scripts/build_eval_framework_venvs.sh "$EVAL_FRAMEWORK"
+
+       - name: Verify isolated dependency graph
+        run: |
+           "$ARE_EVAL_VENVS_DIR/$EVAL_FRAMEWORK-venv/bin/python" -m pip check
 
       - name: Verify resolver sees pinned framework
         run: |
@@ -190,6 +216,13 @@ jobs:
               )
           print(f"{framework}: imported {import_name}=={version}")
           PY
+
+       - name: Run Inspect-specific tests in pinned Inspect environment
+        if: matrix.framework == 'inspect'
+        run: |
+          "$ARE_EVAL_VENVS_DIR/inspect-venv/bin/python" -m pytest -v -ra \
+            tests/test_inspect_runner.py \
+             tests/unit/test_inspect_provenance_pin.py
 
       - name: Report datasets resolver split
         if: matrix.framework == 'garak' || matrix.framework == 'pyrit'
