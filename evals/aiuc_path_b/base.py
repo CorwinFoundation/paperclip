@@ -28,7 +28,7 @@ from typing import Any, Callable
 # Candidate metadata, pinned per BEAAA-16272 (baseline 0.4.1 -> candidate 0.5.0).
 SCANNER_VERSION = "0.5.0"
 CORPUS_VERSION_TEMPLATE = "{family}@0.1.0"
-CONTRACT = "are-scanner-api-v1@v1.0"
+CONTRACT = "are-scanner-api-v1@v1.3.0"
 REPLICATION_K = 5
 
 # Verdict vocabulary. reported-not-scored: these are evidence verdicts, never a
