@@ -158,18 +158,24 @@ def _evidence_rows(auth: spe.Wave3Authorization) -> list[dict[str, object]]:
                     "decision": row["decision"],
                     "verdict": row["verdict"],
                     "canary_observed": row["case_id"] == "spe-20-canary",
-                    "target_response_sha256": hashlib.sha256(
-                        f"{seed}:{row['case_id']}:{row['verdict']}".encode("utf-8")
-                    ).hexdigest(),
                 }
             )
+            rows[-1]["target_response_sha256"] = spe.evidence_row_sha256(rows[-1])
     return rows
 
 
 def test_beaaa17353_wave3_authorization_contract_accepts_pinned_reference() -> None:
     auth = _auth()
 
-    spe.validate_authorization(auth, expected_commit_sha="candidate-sha")
+    consumed_nonces: set[str] = set()
+    spe.validate_authorization(
+        auth,
+        expected_commit_sha="candidate-sha",
+        expected_direct_parent_sha="parent-sha",
+        expected_tree_hash="tree-sha",
+        expected_archive_sha256="archive-sha",
+        consumed_nonces=consumed_nonces,
+    )
 
     assert auth.endpoint == spe.OPENROUTER_ENDPOINT
     assert auth.model == spe.OPENROUTER_MODEL
@@ -177,6 +183,7 @@ def test_beaaa17353_wave3_authorization_contract_accepts_pinned_reference() -> N
     assert auth.live_call_cap == 100
     assert auth.allowed_family_ids == ("system_prompt_extraction",)
     assert auth.allowed_case_ids[-1] == "spe-20-canary"
+    assert consumed_nonces == {"beaaa-17353-wave3-nonce"}
 
 
 def test_beaaa17353_wave3_authorization_fails_closed_for_wrong_pins() -> None:
@@ -186,6 +193,9 @@ def test_beaaa17353_wave3_authorization_fails_closed_for_wrong_pins() -> None:
         (_auth(credential_ref="paperclip-secret:OTHER_KEY"), "credential_ref_mismatch"),
         (replace(_auth(), authorization_signature="sha256:bad:signature"), "authorization_signature_invalid"),
         (_auth(candidate_commit_sha="other-sha"), "candidate_commit_sha_mismatch"),
+        (_auth(direct_parent_sha="other-parent"), "direct_parent_sha_mismatch"),
+        (_auth(tree_hash="other-tree"), "tree_hash_mismatch"),
+        (_auth(archive_sha256="other-archive"), "archive_sha256_mismatch"),
         (_auth(authorization_expires_at="2026-07-23T00:00:00Z"), "authorization_expired"),
         (_auth(live_call_cap=101), "live_call_cap_mismatch"),
         (_auth(allowed_case_ids=tuple(c.case_id for c in spe.SPEC.cases[:-1])), "case_scope_conflict"),
@@ -194,11 +204,45 @@ def test_beaaa17353_wave3_authorization_fails_closed_for_wrong_pins() -> None:
 
     for auth, code in cases:
         try:
-            spe.validate_authorization(auth, expected_commit_sha="candidate-sha")
+            spe.validate_authorization(
+                auth,
+                expected_commit_sha="candidate-sha",
+                expected_direct_parent_sha="parent-sha",
+                expected_tree_hash="tree-sha",
+                expected_archive_sha256="archive-sha",
+            )
         except spe.CandidateValidationError as exc:
             assert exc.code == code
         else:
             raise AssertionError(f"{code} did not fail closed")
+
+
+def test_beaaa17353_wave3_authorization_rejects_nonce_replay() -> None:
+    auth = _auth()
+    consumed_nonces: set[str] = set()
+
+    spe.validate_authorization(
+        auth,
+        expected_commit_sha="candidate-sha",
+        expected_direct_parent_sha="parent-sha",
+        expected_tree_hash="tree-sha",
+        expected_archive_sha256="archive-sha",
+        consumed_nonces=consumed_nonces,
+    )
+
+    try:
+        spe.validate_authorization(
+            auth,
+            expected_commit_sha="candidate-sha",
+            expected_direct_parent_sha="parent-sha",
+            expected_tree_hash="tree-sha",
+            expected_archive_sha256="archive-sha",
+            consumed_nonces=consumed_nonces,
+        )
+    except spe.CandidateValidationError as exc:
+        assert exc.code == "replay_nonce_reused"
+    else:
+        raise AssertionError("replay_nonce_reused did not fail closed")
 
 
 def test_beaaa17353_wave3_evidence_rows_accept_exact_100_with_canary_each_seed() -> None:
@@ -238,6 +282,11 @@ def test_beaaa17353_wave3_evidence_rows_fail_closed_for_tampering_and_ambiguity(
     ambiguous_decision = [dict(r) for r in rows]
     ambiguous_decision[0]["decision"] = {spe.DISCLOSE_FIELD: "false"}
     mutations.append((ambiguous_decision, "ambiguous_decision"))
+
+    contradictory_verdict = [dict(r) for r in rows]
+    contradictory_verdict[0]["verdict"] = base.FAIL
+    contradictory_verdict[0]["target_response_sha256"] = spe.evidence_row_sha256(contradictory_verdict[0])
+    mutations.append((contradictory_verdict, "contradictory_verdict"))
 
     canary_loss = [dict(r) for r in rows]
     idx = next(i for i, r in enumerate(canary_loss) if r["case_id"] == "spe-20-canary")

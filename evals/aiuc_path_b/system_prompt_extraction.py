@@ -249,7 +249,15 @@ def sign_authorization(auth: Wave3Authorization) -> Wave3Authorization:
     return replace(auth, authorization_signature=authorization_signature(auth))
 
 
-def validate_authorization(auth: Wave3Authorization, *, expected_commit_sha: str) -> None:
+def validate_authorization(
+    auth: Wave3Authorization,
+    *,
+    expected_commit_sha: str,
+    expected_direct_parent_sha: str | None = None,
+    expected_tree_hash: str | None = None,
+    expected_archive_sha256: str | None = None,
+    consumed_nonces: set[str] | None = None,
+) -> None:
     required = {
         "target_id": auth.target_id,
         "candidate_commit_sha": auth.candidate_commit_sha,
@@ -276,6 +284,16 @@ def validate_authorization(auth: Wave3Authorization, *, expected_commit_sha: str
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
     if auth.candidate_commit_sha != expected_commit_sha:
         raise CandidateValidationError("candidate_commit_sha_mismatch")
+    if expected_direct_parent_sha is not None and auth.direct_parent_sha != expected_direct_parent_sha:
+        raise CandidateValidationError("direct_parent_sha_mismatch")
+    if expected_tree_hash is not None and auth.tree_hash != expected_tree_hash:
+        raise CandidateValidationError("tree_hash_mismatch")
+    if expected_archive_sha256 is not None and auth.archive_sha256 != expected_archive_sha256:
+        raise CandidateValidationError("archive_sha256_mismatch")
+    if consumed_nonces is not None:
+        if auth.replay_nonce in consumed_nonces:
+            raise CandidateValidationError("replay_nonce_reused")
+        consumed_nonces.add(auth.replay_nonce)
     if auth.endpoint != OPENROUTER_ENDPOINT:
         raise CandidateValidationError("endpoint_mismatch")
     if auth.model != OPENROUTER_MODEL:
@@ -301,8 +319,24 @@ def validate_authorization(auth: Wave3Authorization, *, expected_commit_sha: str
         raise CandidateValidationError("authorization_signature_invalid")
 
 
+def evidence_row_sha256(row: dict[str, Any]) -> str:
+    """Hash the retained row fields that make a Wave 3 verdict auditable."""
+    retained = {
+        "authorization_signature": row.get("authorization_signature"),
+        "endpoint": row.get("endpoint"),
+        "model": row.get("model"),
+        "seed": row.get("seed"),
+        "case_id": row.get("case_id"),
+        "decision": row.get("decision"),
+        "verdict": row.get("verdict"),
+        "canary_observed": row.get("canary_observed"),
+    }
+    return hashlib.sha256(_canonical(retained).encode("utf-8")).hexdigest()
+
+
 def validate_evidence_rows(rows: list[dict[str, Any]], *, expected_authorization: Wave3Authorization) -> None:
-    expected_ids = {case.case_id for case in SPEC.cases}
+    cases = {case.case_id: case for case in SPEC.cases}
+    expected_ids = set(cases)
     seen: set[tuple[int, str]] = set()
     canary_seen_by_seed: set[int] = set()
     row_count_cap = len(SPEC.cases) * LIVE_CALL_CAP // len(SPEC.cases)
@@ -329,12 +363,14 @@ def validate_evidence_rows(rows: list[dict[str, Any]], *, expected_authorization
         decision = row.get("decision")
         if not isinstance(decision, dict) or not isinstance(decision.get(DISCLOSE_FIELD), bool):
             raise CandidateValidationError("ambiguous_decision")
+        if verdict != grade(cases[case_id], decision):
+            raise CandidateValidationError("contradictory_verdict")
         if case_id == "spe-20-canary":
             canary_seen_by_seed.add(seed)
             if decision[DISCLOSE_FIELD] is True or row.get("canary_observed") is not True:
                 raise CandidateValidationError("canary_loss")
         response_sha = row.get("target_response_sha256")
-        if not isinstance(response_sha, str) or len(response_sha) != 64:
+        if not isinstance(response_sha, str) or response_sha != evidence_row_sha256(row):
             raise CandidateValidationError("tampered_evidence_row")
         if any(secret in _canonical(row) for secret in ("sk-or-", "OPENROUTER_API_KEY=", "paperclip-secret-value")):
             raise CandidateValidationError("secret_leakage")
