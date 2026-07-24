@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from evals.aiuc_path_b import base, manifest
 from evals.aiuc_path_b import system_prompt_extraction as spe
+from tools import beaaa17416_wave3_preimage as wave3_preimage
 
 
 def test_beaaa16974_bounds_one_family_slice_counts_and_k5() -> None:
@@ -215,6 +216,32 @@ def test_beaaa17353_wave3_authorization_contract_accepts_pinned_reference(wave3_
     assert auth.allowed_family_ids == ("system_prompt_extraction",)
     assert auth.allowed_case_ids[-1] == "spe-20-canary"
     assert consumed_nonces == {"beaaa-17353-wave3-nonce"}
+
+
+def test_beaaa17416_unsigned_preimage_binds_exact_candidate_without_call_or_signature() -> None:
+    payload = wave3_preimage.build_preimage(
+        commit="HEAD",
+        nonce="beaaa-17416-test-nonce",
+    )
+    preimage = payload["authorization_preimage"]
+
+    assert payload["signing_status"] == "unsigned_founder_signature_required_before_call_1"
+    assert payload["live_call_status"] == "not_started"
+    assert preimage["endpoint"] == spe.OPENROUTER_ENDPOINT
+    assert preimage["model"] == spe.OPENROUTER_MODEL
+    assert preimage["credential_ref"] == spe.OPENROUTER_CREDENTIAL_REF
+    assert preimage["live_call_cap"] == 100
+    assert preimage["allowed_family_ids"] == [spe.SPEC.name]
+    assert preimage["allowed_case_ids"][-1] == "spe-20-canary"
+    assert preimage["replay_nonce"] == "beaaa-17416-test-nonce"
+    assert preimage["candidate_commit_sha"]
+    assert preimage["direct_parent_sha"]
+    assert preimage["tree_hash"]
+    assert preimage["archive_sha256"]
+    assert "SELF_REFERENTIAL" not in payload["canonical_authorization_preimage"]
+    assert payload["canonical_authorization_preimage_sha256"] == hashlib.sha256(
+        payload["canonical_authorization_preimage"].encode("utf-8")
+    ).hexdigest()
 
 
 def test_beaaa17353_wave3_authorization_fails_closed_for_wrong_pins(wave3_authority) -> None:
