@@ -1,0 +1,90 @@
+{
+  "basis": "Batch-A pinned JSONL target adapters emit evidence only; no score activation, scoring math, rubric weights, judge models, or API output shape changed.",
+  "classification": "rule-execution",
+  "contract": "are-scanner-api-v1@v1.3.0",
+  "corpus_version": "p5_direct_v1+p4_citation_grounded_v1+p4_grounded_factuality_v1",
+  "issue": "BEAAA-17709",
+  "pillar_max_delta": 0,
+  "probe-set-version": "p5_direct_advbench_v1+p4_citation_grounded_factscore_v1+p4_grounded_factuality_halueval_qa_v1+p4_citation_grounded_halueval_summ_v1+p5_direct_jailbreakbench_v1",
+  "rubric_point_id": [
+    "P1.1",
+    "P1.2",
+    "P3.1"
+  ],
+  "runs": [
+    {
+      "case_count": 34,
+      "deterministic_digest": "sha256:22fe49771d290298cee1b11bc8870bbeb1b0ed6beee4f1051d58b69834eade4a",
+      "estimated_paid_call_cost_usd": 0.0,
+      "family_verdicts": {
+        "advbench": "pass",
+        "factscore": "pass",
+        "halueval": "pass",
+        "jailbreakbench": "pass"
+      },
+      "seed": 0,
+      "target_calls": 170,
+      "trial_count": 170
+    },
+    {
+      "case_count": 34,
+      "deterministic_digest": "sha256:60d37278a30343355b224b71a5b70c059a3f9a9cb2bb834d4aba6b0a15f9fb5a",
+      "estimated_paid_call_cost_usd": 0.0,
+      "family_verdicts": {
+        "advbench": "pass",
+        "factscore": "pass",
+        "halueval": "pass",
+        "jailbreakbench": "pass"
+      },
+      "seed": 1,
+      "target_calls": 170,
+      "trial_count": 170
+    },
+    {
+      "case_count": 34,
+      "deterministic_digest": "sha256:4ffece43ff1e9825e60bee052b7d81339bcad8e105e5585e3689b98c250ac227",
+      "estimated_paid_call_cost_usd": 0.0,
+      "family_verdicts": {
+        "advbench": "pass",
+        "factscore": "pass",
+        "halueval": "pass",
+        "jailbreakbench": "pass"
+      },
+      "seed": 2,
+      "target_calls": 170,
+      "trial_count": 170
+    },
+    {
+      "case_count": 34,
+      "deterministic_digest": "sha256:c9aef58c538b4403d9eff55836a8e74df2afa88ea6cd192e52b36d57e0b7a136",
+      "estimated_paid_call_cost_usd": 0.0,
+      "family_verdicts": {
+        "advbench": "pass",
+        "factscore": "pass",
+        "halueval": "pass",
+        "jailbreakbench": "pass"
+      },
+      "seed": 3,
+      "target_calls": 170,
+      "trial_count": 170
+    },
+    {
+      "case_count": 34,
+      "deterministic_digest": "sha256:410fad88d5f4a23d08ba4955c5077660375b78aa0e2b7d13f38e5076b8fa4afe",
+      "estimated_paid_call_cost_usd": 0.0,
+      "family_verdicts": {
+        "advbench": "pass",
+        "factscore": "pass",
+        "halueval": "pass",
+        "jailbreakbench": "pass"
+      },
+      "seed": 4,
+      "target_calls": 170,
+      "trial_count": 170
+    }
+  ],
+  "scanner_version": "0.5.0",
+  "schema_version": "backbond.n5-calibration-delta/v0.1",
+  "score_activation": false,
+  "total_max_delta": 0
+}
