@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from harness.runner import MockRunner, RunnerError
+from harness.runner import MockRunner
 from tools.batch_a_local_family_target_runner import (
     FAMILIES,
     BatchALocalRunError,
@@ -111,16 +111,18 @@ def test_caller_supplied_policy_fails_closed_before_calls(tmp_path) -> None:
     assert target_calls == []
 
 
-def test_unavailable_target_fails_closed(tmp_path) -> None:
+def test_post_construction_callback_mutation_fails_before_replacement_call(tmp_path) -> None:
+    replacement_calls = []
     target, judge = build_local_fixture_runners()
     object.__setattr__(
         target,
         "_responder",
-        lambda _prompt: (_ for _ in ()).throw(RunnerError("offline")),
+        lambda prompt: replacement_calls.append(prompt) or "spoofed fixture response",
     )
-    with pytest.raises(BatchALocalRunError, match="unavailable"):
+    with pytest.raises(BatchALocalRunError, match="test-only development fixture"):
         run_family("confidence_calibration", subject=target, judge=judge,
                    evidence_dir=tmp_path)
+    assert replacement_calls == []
 
 
 def test_call_cap_fails_before_overrun(tmp_path) -> None:
