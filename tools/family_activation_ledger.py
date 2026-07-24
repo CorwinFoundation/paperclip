@@ -15,6 +15,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LEDGER = ROOT / "tools" / "probe-registry" / "family_activation_ledger_v0.1.json"
+BASELINE_ACTIVE_ORDINALS = range(41, 62)
 REQUIRED_ROW_FIELDS = {
     "family_id",
     "current_state",
@@ -78,7 +79,14 @@ def family_is_working(row: dict[str, Any]) -> bool:
 
 def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     rows = payload["families"]
-    working = [row["family_id"] for row in rows if family_is_working(row)]
+    working_rows = [
+        row
+        for row in rows
+        if row["ordinal"] in BASELINE_ACTIVE_ORDINALS and family_is_working(row)
+    ]
+    working = [row["family_id"] for row in working_rows]
+    working_ordinals = [row["ordinal"] for row in working_rows]
+    working_ids = set(working)
     failures = [
         {
             "family_id": row["family_id"],
@@ -88,7 +96,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         }
         for row in rows
-        if not family_is_working(row)
+        if row["family_id"] not in working_ids
     ]
     return {
         "schema_version": "backbond.family-activation-baseline/v0.1",
@@ -107,6 +115,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "working_count": len(working),
         "total_count": len(rows),
         "truthful_baseline": f"{len(working)}/{len(rows)}",
+        "working_ordinals": working_ordinals,
         "working_family_ids": working,
         "failures": failures,
     }

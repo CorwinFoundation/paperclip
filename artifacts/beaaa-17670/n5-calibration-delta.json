@@ -1,12 +1,30 @@
 {
   "artifact_type": "n5_calibration_delta",
+  "brand_backbone_sha256": "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090",
+  "brand_backbone_verified": true,
+  "brand_backbone_version": "v1.6",
   "canonical_terms_only": true,
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
   "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
   "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "escalations_noted": [
+    "No CTO co-sign required: rule-execution smoke-test bug fix with score_activation=false."
+  ],
+  "focus_claim": "BEAAA-17670 preserves BackBond Scanner calibration by keeping batch C development-fixture activation outside scoring.",
   "issue": "BEAAA-17670",
   "n": 5,
+  "owner": "scanner_engineer",
+  "persona_audience": "internal",
   "phase": 1,
+  "prior_version": "artifacts/beaaa-17670/n5-calibration-delta.json@0.1",
   "probe-set-version": "family-activation-ledger/v0.1",
+  "proof_points_cited": [
+    "tools/canonical_family_target_runner.py",
+    "tests/test_beaaa17671_canonical_family_target_runner.py"
+  ],
   "rubric_point_id": "ledger ordinals 41-61; no score activation",
   "scanner_version": "0.5.0",
   "score_activation": false,
@@ -15,5 +33,10 @@
   "pillar_max_delta": 0,
   "basis": "BEAAA-17670 updates development-fixture activation ledger rows and smoke evidence only. The configured-target smoke path is explicitly score_activation=false and does not enter scanner scoring, band cuts, judge selection, or contract output shape.",
   "golden_set_result": "No golden-agent score run was invoked because no scoring code path changed; N=5 delta is recorded as 0 by construction for this non-scoring rule-execution activation.",
-  "self_audit_passed": true
+  "self_audit_passed": true,
+  "ticket_refs": [
+    "BEAAA-17670",
+    "BEAAA-17700"
+  ],
+  "version": 0.2
 }

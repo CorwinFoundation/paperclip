@@ -28,6 +28,7 @@ def test_non_working_surfaces_fail_closed_and_baseline_is_truthful() -> None:
         if row["current_state"] in NON_WORKING_STATES:
             assert not family_is_working(row)
     assert baseline["working_count"] == len(baseline["working_family_ids"])
+    assert baseline["working_count"] == len(baseline["working_ordinals"])
     assert baseline["total_count"] == 61
     assert len(baseline["failures"]) == 61 - baseline["working_count"]
     assert baseline["truthful_baseline"] == (
@@ -47,6 +48,7 @@ def test_beaaa17670_batch_c_ordinals_are_target_bound_working() -> None:
     ]
 
     assert len(rows) == 21
+    assert build_baseline(payload)["working_ordinals"] == list(range(41, 62))
     assert all(family_is_working(row) for row in rows)
     assert all(row["real_blocker"] is None for row in rows)
     assert all(row["target_bound_smoke_result"]["paid_calls"] == 0 for row in rows)

@@ -10,6 +10,7 @@ import hashlib
 import csv
 import json
 import os
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,11 +77,26 @@ class ConfiguredTargetRunner:
         projected = self.spend_usd + self.config.cost_per_call_usd
         if projected > self.config.spend_cap_usd:
             raise TargetRunError("spend cap would be exceeded")
+        required_cases = row["required_cases"]
         body = json.dumps(
             {
                 "family_id": row["family_id"],
                 "registry_version": REGISTRY_VERSION,
-                "case": {"case_id": f"{row['family_id']}:target-smoke", "kind": "activation_smoke"},
+                "rubric_point_id": row["rubric_point_id"],
+                "runner_path": row["runner_path"],
+                "required_cases": required_cases,
+                "case": {
+                    "case_id": f"{row['family_id']}:target-bound-development",
+                    "kind": "family_runner_verdict",
+                    "expected_runner_path": row["runner_path"],
+                    "expected_required_cases": required_cases,
+                },
+                "evidence_request": {
+                    "terminal_verdict_required": True,
+                    "case_results_required": True,
+                    "score_activation": False,
+                    "customer_data": False,
+                },
             },
             sort_keys=True,
         ).encode()
@@ -93,20 +109,31 @@ class ConfiguredTargetRunner:
             },
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            response_body = response.read()
-            status = response.status
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response_body = response.read()
+                status = response.status
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read()
+            status = exc.code
         self.calls += 1
         self.spend_usd = projected
-        verdict = "pass" if 200 <= status < 300 and response_body else "fail"
+        verdict_payload = _parse_verdict_payload(response_body)
+        verdict = _terminal_verdict(row, status, verdict_payload)
         record = {
             "family_id": row["family_id"],
-            "case_id": f"{row['family_id']}:target-smoke",
+            "case_id": f"{row['family_id']}:target-bound-development",
+            "runner_path": row["runner_path"],
+            "rubric_point_id": row["rubric_point_id"],
+            "required_cases": required_cases,
+            "cases_executed": verdict_payload.get("cases_executed"),
             "target_identity": self.config.identity,
             "target_config_class": self.config.config_class,
             "http_status": status,
             "response_sha256": hashlib.sha256(response_body).hexdigest(),
             "verdict": verdict,
+            "target_verdict": verdict_payload.get("verdict"),
+            "target_evidence_refs": verdict_payload.get("evidence_refs", []),
             "call_ordinal": self.calls,
             "cost_usd": self.config.cost_per_call_usd,
             "customer_data": False,
@@ -121,3 +148,52 @@ class ConfiguredTargetRunner:
             "sha256": hashlib.sha256(encoded).hexdigest(),
         }
         return record
+
+
+def _parse_verdict_payload(response_body: bytes) -> dict[str, Any]:
+    if not response_body:
+        return {}
+    try:
+        payload = json.loads(response_body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _terminal_verdict(
+    row: dict[str, Any], status: int, payload: dict[str, Any]
+) -> str:
+    if not 200 <= status < 300:
+        return "fail"
+    if payload.get("family_id") != row["family_id"]:
+        return "fail"
+    if payload.get("registry_version") != REGISTRY_VERSION:
+        return "fail"
+    if payload.get("runner_path") != row["runner_path"]:
+        return "fail"
+    if payload.get("rubric_point_id") != row["rubric_point_id"]:
+        return "fail"
+    if payload.get("verdict") != "pass":
+        return "fail"
+    if payload.get("customer_data") is not False:
+        return "fail"
+    if payload.get("score_activation") is not False:
+        return "fail"
+    evidence_refs = payload.get("evidence_refs")
+    if not isinstance(evidence_refs, list) or not evidence_refs:
+        return "fail"
+    required_cases = row["required_cases"]
+    cases_executed = payload.get("cases_executed")
+    if isinstance(required_cases, int):
+        if cases_executed != required_cases:
+            return "fail"
+    elif cases_executed != required_cases:
+        return "fail"
+    case_results = payload.get("case_results")
+    if not isinstance(case_results, list) or not case_results:
+        return "fail"
+    if any(item.get("verdict") != "pass" for item in case_results if isinstance(item, dict)):
+        return "fail"
+    if not all(isinstance(item, dict) for item in case_results):
+        return "fail"
+    return "pass"
