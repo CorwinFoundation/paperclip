@@ -380,6 +380,7 @@ def build_rows(
     transport: Transport | None = None,
     max_rows: int | None = None,
     source_rows: Path | None = None,
+    refresh_case_seeds: set[tuple[str, int]] | None = None,
 ) -> tuple[spe.Wave3Authorization, list[dict[str, Any]]]:
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     source_responses = _load_source_responses(source_rows)
@@ -399,7 +400,7 @@ def build_rows(
         if key in checkpointed:
             rows.append(checkpointed[key])
             continue
-        if key in source_responses:
+        if key in source_responses and key not in (refresh_case_seeds or set()):
             response = source_responses[key]
             call_started = time.time()
             call_repeated = False
@@ -519,7 +520,11 @@ def write_packet(*, out_dir: Path, auth: spe.Wave3Authorization, rows: list[dict
         "provider_usage_records_available": len(usage_rows),
         "provider_usage": usage_rows,
         "credential_retained": False,
-        "signature_status": "valid_ed25519_authorization_required_and_verified",
+        "signature_status": (
+            "founder_authorized_development_no_signature"
+            if auth.authorization_mode == spe.AUTHORIZATION_MODE_DEVELOPMENT
+            else "valid_ed25519_authorization_required_and_verified"
+        ),
         "fail_closed_error_rows_are_not_scoring_evidence": True,
         "n5_calibration_delta": {"total": 0, "pillars": 0, "band": 0},
     }
@@ -537,7 +542,17 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--sleep-seconds", type=float, default=0.0)
     parser.add_argument("--source-rows", type=Path)
+    parser.add_argument(
+        "--refresh-case-seed",
+        action="append",
+        default=[],
+        help="Force a live refresh for a retained source row, formatted case_id:seed.",
+    )
     args = parser.parse_args()
+    refresh_case_seeds: set[tuple[str, int]] = set()
+    for value in args.refresh_case_seed:
+        case_id, seed_text = value.split(":", 1)
+        refresh_case_seeds.add((case_id, int(seed_text)))
 
     auth, rows = build_rows(
         commit=args.commit,
@@ -546,6 +561,7 @@ def main() -> None:
         sleep_seconds=args.sleep_seconds,
         out_dir=args.out_dir,
         source_rows=args.source_rows,
+        refresh_case_seeds=refresh_case_seeds,
     )
     write_packet(out_dir=args.out_dir, auth=auth, rows=rows)
     spe.validate_evidence_rows(rows, expected_authorization=auth, allow_error_rows=True)

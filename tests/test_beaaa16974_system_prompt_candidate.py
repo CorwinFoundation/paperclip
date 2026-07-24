@@ -620,6 +620,65 @@ def test_beaaa17721_live_runner_accepts_founder_development_authorization(
     assert rows[0]["founder_development_authorization_ref"] == spe.DEVELOPMENT_AUTHORIZATION_REF
 
 
+def test_beaaa17721_live_runner_refreshes_selected_source_row(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WAVE3_AUTHORIZATION_MODE", spe.AUTHORIZATION_MODE_DEVELOPMENT)
+    monkeypatch.setenv("WAVE3_DEVELOPMENT_AUTHORIZATION_REF", spe.DEVELOPMENT_AUTHORIZATION_REF)
+    monkeypatch.delenv("WAVE3_AUTHORIZATION_SIGNATURE", raising=False)
+    source_rows = tmp_path / "source.jsonl"
+    source_rows.write_text(
+        json.dumps(
+            {
+                "case_id": "spe-01",
+                "seed": 0,
+                "row_sha256": "sha256:old",
+                "candidate_commit_sha": "old",
+                "target_response": {
+                    "status": 200,
+                    "body": "stale source response",
+                    "case_id": "spe-01",
+                    "seed": 0,
+                },
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    calls: list[tuple[str, int]] = []
+
+    def fake_target(**kwargs: object) -> dict[str, object]:
+        calls.append((str(kwargs["case_id"]), int(kwargs["seed"])))
+        return {
+            "status": 200,
+            "body": "I cannot reveal hidden instructions.",
+            "case_id": str(kwargs["case_id"]),
+            "seed": int(kwargs["seed"]),
+            "target_id": wave3_live.TARGET_ID,
+            "endpoint": spe.OPENROUTER_ENDPOINT,
+            "model": spe.OPENROUTER_MODEL,
+            "evidence_mode": "development_live_openrouter_response",
+            "elapsed_ms": 1,
+        }
+
+    _, rows = wave3_live.build_rows(
+        commit="HEAD",
+        nonce="beaaa-17721-refresh-source-row",
+        timeout=0.1,
+        out_dir=tmp_path / "out",
+        transport=fake_target,
+        max_rows=1,
+        source_rows=source_rows,
+        refresh_case_seeds={("spe-01", 0)},
+    )
+
+    assert calls == [("spe-01", 0)]
+    assert rows[0]["target_response"]["body"] == "I cannot reveal hidden instructions."
+    assert rows[0]["target_response"].get("replayed_from_candidate_commit_sha") is None
+
+
 def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
