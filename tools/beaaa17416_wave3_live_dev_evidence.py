@@ -16,6 +16,7 @@ from typing import Any, Callable, Iterator
 
 from evals.aiuc_path_b import base
 from evals.aiuc_path_b import system_prompt_extraction as spe
+from tools.beaaa17416_wave3_preimage import WAVE3_CANONICAL_REJECTED_PREDECESSOR_SHA
 
 
 FOUNDER_DEV_AUTH_REF = "BEAAA-17418#comment-53829031-44ad-48aa-bd5c-788943a67162"
@@ -502,7 +503,7 @@ def write_packet(*, out_dir: Path, auth: spe.Wave3Authorization, rows: list[dict
     summary = {
         "ticket_ref": "BEAAA-17416",
         "qa_gate": "BEAAA-17355",
-        "supersedes_rejected_sha": "c57d6f609473d21cd62e6990724a0af463470288",
+        "supersedes_rejected_sha": WAVE3_CANONICAL_REJECTED_PREDECESSOR_SHA,
         "authorization": auth.__dict__,
         "row_count": len(rows),
         "unique_case_seed_rows": len({(row["case_id"], row["seed"]) for row in rows}),

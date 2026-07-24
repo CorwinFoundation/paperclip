@@ -275,6 +275,35 @@ def test_beaaa17416_unsigned_preimage_binds_exact_candidate_without_call_or_sign
     ).hexdigest()
 
 
+def test_beaaa17725_wave3_preimage_binds_canonical_rejected_predecessor() -> None:
+    payload = wave3_preimage.build_preimage(
+        commit="HEAD",
+        nonce="beaaa-17725-predecessor-binding",
+    )
+
+    assert (
+        payload["supersedes_rejected_sha"]
+        == wave3_preimage.WAVE3_CANONICAL_REJECTED_PREDECESSOR_SHA
+        == "877e07b41fc8400a3ff10b8409a4fca90acc655d"
+    )
+    assert payload["supersedes_rejected_sha"] != "c57d6f609473d21cd62e6990724a0af463470288"
+
+
+def test_beaaa17725_wave3_live_packet_binds_canonical_rejected_predecessor(tmp_path) -> None:
+    auth = _auth()
+    rows = _evidence_rows(auth)
+
+    wave3_live.write_packet(out_dir=tmp_path, auth=auth, rows=rows)
+    identity = json.loads((tmp_path / "candidate-identity.json").read_text(encoding="utf-8"))
+
+    assert (
+        identity["supersedes_rejected_sha"]
+        == wave3_preimage.WAVE3_CANONICAL_REJECTED_PREDECESSOR_SHA
+        == "877e07b41fc8400a3ff10b8409a4fca90acc655d"
+    )
+    assert identity["supersedes_rejected_sha"] != "c57d6f609473d21cd62e6990724a0af463470288"
+
+
 def test_beaaa17353_wave3_authorization_fails_closed_for_wrong_pins(wave3_authority) -> None:
     cases = [
         (_sign(wave3_authority, _auth(endpoint="https://api.openai.com/v1/chat/completions")), "endpoint_mismatch"),

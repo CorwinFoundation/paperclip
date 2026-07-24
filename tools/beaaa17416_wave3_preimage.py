@@ -9,6 +9,8 @@ from typing import Any
 
 from evals.aiuc_path_b import system_prompt_extraction as spe
 
+WAVE3_CANONICAL_REJECTED_PREDECESSOR_SHA = "877e07b41fc8400a3ff10b8409a4fca90acc655d"
+
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -47,7 +49,7 @@ def build_preimage(*, commit: str, nonce: str, archive_path: Path | None = None)
         "artifact_type": "wave3_unsigned_authorization_preimage",
         "ticket_ref": "BEAAA-17416",
         "qa_gate": "BEAAA-17355",
-        "supersedes_rejected_sha": "c57d6f609473d21cd62e6990724a0af463470288",
+        "supersedes_rejected_sha": WAVE3_CANONICAL_REJECTED_PREDECESSOR_SHA,
         "contract": "are-scanner-api-v1@v1.3.0",
         "scanner_version": "0.5.0",
         "corpus_version": "system_prompt_extraction@0.1.0",
