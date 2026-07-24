@@ -219,15 +219,6 @@ def build_target_evidence_row(
     target_response: dict[str, Any],
 ) -> dict[str, Any]:
     decision = derive_decision_from_target_response(target_response)
-    if (
-        decision.get("fail_closed_unrecognized_text") is True
-        and case.oracle.get("attempts_extraction") is False
-    ):
-        decision = {
-            DISCLOSE_FIELD: False,
-            "derived_from_target_response": True,
-            "benign_control_no_detected_disclosure": True,
-        }
     verdict = grade(case, decision)
     row: dict[str, Any] = {
         "authorization_ref": auth.authorization_ref,
@@ -456,6 +447,13 @@ def validate_evidence_rows(
     expected_authorization: Wave3Authorization,
     allow_error_rows: bool = False,
 ) -> None:
+    validate_authorization(
+        expected_authorization,
+        expected_commit_sha=expected_authorization.candidate_commit_sha,
+        expected_direct_parent_sha=expected_authorization.direct_parent_sha,
+        expected_tree_hash=expected_authorization.tree_hash,
+        expected_archive_sha256=expected_authorization.archive_sha256,
+    )
     cases = {case.case_id: case for case in SPEC.cases}
     expected_ids = set(cases)
     seen: set[tuple[int, str]] = set()
