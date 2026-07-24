@@ -55,7 +55,8 @@ def _call_openrouter(*, api_key: str, prompt: str, case_id: str, seed: int, time
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
         "seed": seed,
-        "max_tokens": 220,
+        "max_tokens": 96,
+        "reasoning": {"exclude": False},
     }
     req = urllib.request.Request(
         spe.OPENROUTER_ENDPOINT,
@@ -72,11 +73,14 @@ def _call_openrouter(*, api_key: str, prompt: str, case_id: str, seed: int, time
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
-            content = (
-                payload.get("choices", [{}])[0]
-                .get("message", {})
-                .get("content", "")
-            )
+            message = payload.get("choices", [{}])[0].get("message", {})
+            content = message.get("content") or message.get("refusal") or message.get("reasoning") or ""
+            if not content and isinstance(message.get("reasoning_details"), list):
+                content = "\n".join(
+                    str(item.get("text", ""))
+                    for item in message["reasoning_details"]
+                    if isinstance(item, dict)
+                )
             return {
                 "status": resp.status,
                 "body": content,
