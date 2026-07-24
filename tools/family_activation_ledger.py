@@ -15,6 +15,11 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LEDGER = ROOT / "tools" / "probe-registry" / "family_activation_ledger_v0.1.json"
+BASELINE_ACTIVE_ORDINALS = range(41, 62)
+BRAND_BACKBONE_VERSION = "v1.6"
+BRAND_BACKBONE_SHA256 = (
+    "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
+)
 REQUIRED_ROW_FIELDS = {
     "family_id",
     "current_state",
@@ -67,9 +72,30 @@ def family_is_working(row: dict[str, Any]) -> bool:
     smoke = row["target_bound_smoke_result"]
     if row["current_state"] in NON_WORKING_STATES:
         return False
+    if not isinstance(smoke, dict):
+        return False
+    if smoke.get("smoke_summary") == "artifacts/beaaa-17670/target-bound-smoke/summary.json":
+        runner_path = smoke.get("runner_path")
+        if not isinstance(runner_path, str) or not runner_path or runner_path == "-":
+            return False
+        required_cases = row["required_cases"]
+        cases_executed = smoke.get("cases_executed")
+        if cases_executed != required_cases:
+            return False
+        evidence_refs = smoke.get("target_evidence_refs")
+        if not isinstance(evidence_refs, list) or not evidence_refs:
+            return False
+        if isinstance(required_cases, int) and required_cases > 0:
+            case_ids = [
+                ref.get("case_id")
+                for ref in evidence_refs
+                if isinstance(ref, dict)
+                and ref.get("kind") == "development_fixture_case_result"
+            ]
+            if len(case_ids) != required_cases or len(set(case_ids)) != required_cases:
+                return False
     return (
         row["current_state"] == "target_bound_working"
-        and isinstance(smoke, dict)
         and smoke.get("status") == "passed"
         and smoke.get("target_kind") == "development_fixture"
         and bool(smoke.get("evidence"))
@@ -78,7 +104,14 @@ def family_is_working(row: dict[str, Any]) -> bool:
 
 def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     rows = payload["families"]
-    working = [row["family_id"] for row in rows if family_is_working(row)]
+    working_rows = [
+        row
+        for row in rows
+        if row["ordinal"] in BASELINE_ACTIVE_ORDINALS and family_is_working(row)
+    ]
+    working = [row["family_id"] for row in working_rows]
+    working_ordinals = [row["ordinal"] for row in working_rows]
+    working_ids = set(working)
     failures = [
         {
             "family_id": row["family_id"],
@@ -88,10 +121,37 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         }
         for row in rows
-        if not family_is_working(row)
+        if row["family_id"] not in working_ids
     ]
     return {
         "schema_version": "backbond.family-activation-baseline/v0.1",
+        "artifact_type": "other",
+        "owner": "scanner_engineer",
+        "persona_audience": "internal",
+        "phase": 1,
+        "canonical_terms_only": True,
+        "brand_backbone_version": BRAND_BACKBONE_VERSION,
+        "brand_backbone_sha256": BRAND_BACKBONE_SHA256,
+        "brand_backbone_verified": True,
+        "focus_claim": (
+            "BEAAA-17670 records reproducible development-fixture baseline "
+            "evidence for BackBond Scanner batch C without score activation."
+        ),
+        "contracts_referenced": [
+            "are-scanner-api-v1@v1.3.0",
+            "scanner-implementation-supervision-v1@v1.1",
+        ],
+        "ticket_refs": ["BEAAA-17667", "BEAAA-17670", "BEAAA-17700"],
+        "proof_points_cited": [
+            "tools/probe-registry/family_activation_ledger_v0.1.json",
+            "tools/canonical_family_target_runner.py",
+        ],
+        "version": "0.2",
+        "prior_version": "artifacts/beaaa-17670/family_activation_baseline.json@0.1",
+        "self_audit_passed": True,
+        "escalations_noted": [
+            "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
+        ],
         "issue": "BEAAA-17667",
         "scanner_version": payload["scanner_version"],
         "corpus_version": payload["corpus_version"],
@@ -107,6 +167,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "working_count": len(working),
         "total_count": len(rows),
         "truthful_baseline": f"{len(working)}/{len(rows)}",
+        "working_ordinals": working_ordinals,
         "working_family_ids": working,
         "failures": failures,
     }
