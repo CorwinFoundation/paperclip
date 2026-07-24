@@ -23,6 +23,9 @@ def _manifest() -> dict:
 def test_every_version_surface_resolves_to_release_authority() -> None:
     manifest = _manifest()
     rubric = yaml.safe_load((ROOT / "rubric" / "rubric.yaml").read_text(encoding="utf-8"))
+    framework_registry = json.loads(
+        (ROOT / manifest["framework_registry"]["path"]).read_text(encoding="utf-8")
+    )
     contract = (ROOT / "contracts" / "are-scanner-api-v1.md").read_text(encoding="utf-8")
     contract_version = re.search(r'^version: "(v[^"]+)"$', contract, flags=re.MULTILINE)
 
@@ -31,6 +34,21 @@ def test_every_version_surface_resolves_to_release_authority() -> None:
     assert rubric["version"] == manifest["rubric_version"]
     assert contract_version is not None
     assert f"are-scanner-api-v1@{contract_version.group(1)}" == manifest["contract_version"]
+    assert manifest["release_gate_corpus_version"] == "0.2.0"
+    assert (
+        framework_registry["registry_version"]
+        == manifest["framework_registry"]["registry_version"]
+    )
+    assert (
+        framework_registry["frameworks"][0]["mapping_version"]
+        == manifest["framework_registry"]["mapping_version"]
+    )
+    assert manifest["approved_source_commits"] == {
+        "wave_1a_live_lineage": "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e",
+        "release_truth": "30de03e90f5377d051cc99a6f348be5057c67639",
+        "production_controls": "876a6daf9aefcac94f58657a64f3dd9cd4ce04d5",
+        "assessment_envelope": "35419f819737a5e38865a114898ff1590e1419f3",
+    }
 
     assert retell.CORPUS_VERSION == manifest["corpus_profiles"]["retell_grade_card"]["corpus_version"]
     assert retell.PROBE_SET_VERSION == manifest["corpus_profiles"]["retell_grade_card"]["probe_set_version"]

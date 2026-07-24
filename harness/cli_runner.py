@@ -29,6 +29,8 @@ from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
 from harness import applicability
+from harness.trusted_replay import validate_trusted_replay
+from api.bundle import _signing_key
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -407,6 +409,8 @@ def run_scan(
     corpus_version: str | None,
     rubric_path: Path,
     scored_at: datetime | None = None,
+    trusted_replay_manifest: Path | None = None,
+    trusted_replay_fixture: str | None = None,
 ) -> dict[str, Any]:
     """Top-level entry point. Returns the contract-shaped output dict.
 
@@ -431,19 +435,49 @@ def run_scan(
     applicability_decisions = None
     applicability_policy_version = None
     if compatibility_applicability:
-        trusted_flags = _trusted_architecture_flags_from_env()
-        if trusted_flags is not None:
-            (
-                applicability_decisions,
-                applicability_policy_version,
-            ) = _applicability_from_trusted_architecture_flags(
-                trusted_flags,
-                inputs.applicability_decisions,
-                inputs.applicability_policy_version,
+        if trusted_replay_manifest is not None and trusted_replay_fixture is not None:
+            applicability_decisions = validate_trusted_replay(
+                manifest_path=trusted_replay_manifest,
+                fixture_id=trusted_replay_fixture,
+                agent_id=inputs.agent_id,
+                applicability_sha256=inputs.file_sha256s.get("applicability.json"),
+                decisions=inputs.applicability_decisions or {},
             )
+            applicability_policy_version = applicability_decisions.policy_version
         else:
-            applicability_decisions = inputs.applicability_decisions
-            applicability_policy_version = inputs.applicability_policy_version
+            trusted_flags = _trusted_architecture_flags_from_env()
+        if applicability_decisions is None and inputs.applicability_decisions:
+            if trusted_flags is None:
+                raise CliInputError(
+                    "scoring rejected: applicability sidecar asserts N/A "
+                    "without trusted scanner architecture evidence"
+                )
+            try:
+                applicability_decisions = applicability.validate_for_scoring(
+                    applicability.load_policy(),
+                    trusted_flags,
+                    inputs.applicability_decisions,
+                    rubric.active_dim_ids,
+                    _signing_key(),
+                )
+            except ScoringError as exc:
+                raise CliInputError(f"scoring rejected: {exc}") from exc
+            applicability_policy_version = applicability_decisions.policy_version
+        elif applicability_decisions is None and trusted_flags is not None:
+            decisions, applicability_policy_version = (
+                _applicability_from_trusted_architecture_flags(
+                    trusted_flags,
+                    None,
+                    inputs.applicability_policy_version,
+                )
+            )
+            applicability_decisions = applicability.validate_for_scoring(
+                applicability.load_policy(),
+                trusted_flags,
+                decisions,
+                rubric.active_dim_ids,
+                _signing_key(),
+            )
 
     try:
         score_result = score(
@@ -464,6 +498,27 @@ def run_scan(
         # to "your inputs are inconsistent with the rubric", not internal
         # bugs. Examples: missing dim, raw out of [0,4].
         raise CliInputError(f"scoring rejected: {exc}") from exc
+
+    if inputs.applicability_decisions and not compatibility_applicability:
+        dropped = sorted(
+            did
+            for did, decision in inputs.applicability_decisions.items()
+            if isinstance(decision, dict) and decision.get("fires") is False
+        )
+        if dropped:
+            score_result.setdefault("diagnostics", []).append(
+                {
+                    "code": "applicability_sidecar_ignored",
+                    "detail": {
+                        "dropped_decision_count": len(dropped),
+                        "dropped_dims": dropped,
+                        "reason": (
+                            "caller applicability sidecar was not honored "
+                            "outside non-binding legacy replay"
+                        ),
+                    },
+                }
+            )
 
     return to_contract_output(
         inputs=inputs,

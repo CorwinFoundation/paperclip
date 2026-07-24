@@ -8,7 +8,7 @@ its approved target model returned 404 through the approved provider path
 before score output. The v1 claim is therefore 8/9 baselined, not a
 nine-golden frozen-roster claim.
 The gate validates the contract envelope fields required by
-are-scanner-api-v1@v1.0 and writes the standing calibration-delta markdown
+are-scanner-api-v1@v1.3.0 and writes the standing calibration-delta markdown
 table under tools/calibration-deltas/.
 """
 from __future__ import annotations

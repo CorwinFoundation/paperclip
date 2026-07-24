@@ -32,6 +32,7 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import re
 import threading
 import time
@@ -39,6 +40,7 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping
+from urllib.parse import urlsplit
 
 # Verbatim T7 / BEAAA-546 alias — no fork, no copy.
 from api.ci_scan_ext import (
@@ -931,6 +933,50 @@ def _validate_corpus_snapshot_hash(value: Any) -> str:
     return value
 
 
+def _is_private_only_literal(
+    ip: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> bool:
+    return (
+        ip.is_private
+        and not ip.is_loopback
+        and not ip.is_link_local
+        and not ip.is_multicast
+        and not ip.is_unspecified
+        and not ip.is_reserved
+    )
+
+
+def _validate_https_url_or_host_safety(
+    value: str,
+    *,
+    error_code: str,
+    allow_private_ip_literals: bool = False,
+    require_https_url: bool = False,
+) -> str:
+    """Validate literal URL/host boundaries without resolving DNS."""
+    host = value
+    if "://" in value or require_https_url:
+        try:
+            parsed = urlsplit(value)
+            if parsed.scheme != "https" or not parsed.hostname:
+                raise HandlerError(422, error_code)
+            if parsed.username is not None or parsed.password is not None:
+                raise HandlerError(422, error_code)
+            host = parsed.hostname
+        except ValueError as exc:
+            raise HandlerError(422, error_code) from exc
+
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    if allow_private_ip_literals and _is_private_only_literal(ip):
+        return host
+    if egress._is_forbidden_resolved_ip(str(ip)):
+        raise HandlerError(422, error_code)
+    return host
+
+
 def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, str]:
     """Validate ``agent_endpoint`` shape: requires ``host`` (string,
     syntactically-valid hostname). Optional ``transport`` field passes through.
@@ -940,6 +986,11 @@ def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, str]:
     host = agent_endpoint.get("host")
     if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
         raise HandlerError(422, "agent_endpoint_host_invalid")
+    _validate_https_url_or_host_safety(
+        host,
+        error_code="agent_endpoint_host_forbidden",
+        allow_private_ip_literals=True,
+    )
     return {
         "host": host,
         "transport": str(agent_endpoint.get("transport", "rest")),
