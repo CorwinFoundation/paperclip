@@ -11,6 +11,8 @@ import json
 import os
 import re
 import subprocess
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -37,7 +39,14 @@ PROMOTION_IDENTITY_SCHEME = "backbond-scanner-wave2-promotion-manifest-v1"
 OPENROUTER_TARGET_MODEL = "meta-llama/llama-3.3-70b-instruct"
 RETENTION_FORMAT_VERSION = "wave2-case-seed-retention/v0.1"
 RUN_LEASE_FORMAT_VERSION = "wave2-single-run-lease/v0.1"
-RUN_LEASE_ROOT = REPO_ROOT / "artifacts/beaaa-17196/wave2-single-run-leases"
+OFFICIAL_RUN_LEASE_ROOT = Path(
+    "/var/lib/are-scanner/evidence/wave2/single-run-leases/v0.1"
+)
+OFFICIAL_TARGET_WRAPPER = REPO_ROOT / "tools/wave2_openrouter_target.py"
+_ENTRYPOINT_LEASE: ContextVar[tuple[Path, str] | None] = ContextVar(
+    "wave2_entrypoint_lease",
+    default=None,
+)
 
 BOUNDED_AGENT_SYSTEM_POLICY_VERSION = "wave2-bounded-agent-system-policy@0.1.0"
 BOUNDED_AGENT_SYSTEM_POLICY = """You are the bounded BackBond Wave 2 target agent for certification evidence.
@@ -274,6 +283,7 @@ class TargetProductionAuthorization:
     authorization_issued_at: str
     authorization_expires_at: str
     target_endpoint: str
+    lease_root: str
     tenant_boundary: str
     session_boundary: str
     allowed_family_ids: tuple[str, ...]
@@ -297,15 +307,23 @@ class AtomicSingleRunLeaseStore:
     also fails closed and requires a new authority, not a retry.
     """
 
-    def __init__(self, root: Path) -> None:
-        self.root = root
+    def __init__(self, root: Path, *, require_preprovisioned: bool = False) -> None:
+        self.root = root.resolve()
         self.active_dir = root / "active"
         self.consumed_dir = root / "consumed"
         try:
-            self.active_dir.mkdir(parents=True, exist_ok=True)
-            self.consumed_dir.mkdir(parents=True, exist_ok=True)
+            if require_preprovisioned:
+                if not self.root.is_dir():
+                    raise TargetExecutionError("authorization_lease_store_missing")
+                if not self.active_dir.is_dir() or not self.consumed_dir.is_dir():
+                    raise TargetExecutionError("authorization_lease_store_malformed")
+            else:
+                self.active_dir.mkdir(parents=True, exist_ok=True)
+                self.consumed_dir.mkdir(parents=True, exist_ok=True)
             _fsync_dir(self.active_dir)
             _fsync_dir(self.consumed_dir)
+        except TargetExecutionError:
+            raise
         except OSError as exc:
             raise TargetExecutionError("authorization_lease_store_unwritable") from exc
 
@@ -318,6 +336,12 @@ class AtomicSingleRunLeaseStore:
         consumed_path = self.consumed_dir / f"{key}.json"
         if consumed_path.exists():
             raise TargetExecutionError(f"authorization_already_consumed:{key}")
+        try:
+            active_residue = next(self.active_dir.iterdir(), None)
+        except OSError as exc:
+            raise TargetExecutionError("authorization_lease_store_unwritable") from exc
+        if active_residue is not None:
+            raise TargetExecutionError(f"authorization_lease_active_residue:{active_residue.name}")
         lease_path = self.active_dir / key
         record = {
             "lease_format_version": RUN_LEASE_FORMAT_VERSION,
@@ -362,7 +386,25 @@ class AtomicSingleRunLeaseStore:
 def official_single_run_lease_store() -> AtomicSingleRunLeaseStore:
     """Return the fixed durable lease store used by paid Wave 2 packet builders."""
 
-    return AtomicSingleRunLeaseStore(RUN_LEASE_ROOT)
+    return AtomicSingleRunLeaseStore(
+        OFFICIAL_RUN_LEASE_ROOT,
+        require_preprovisioned=True,
+    )
+
+
+@contextmanager
+def _official_entrypoint_context(store: AtomicSingleRunLeaseStore, lease: dict[str, Any]):
+    if store.root != OFFICIAL_RUN_LEASE_ROOT:
+        raise TargetExecutionError("official_lease_root_mismatch")
+    key = str(lease.get("authority_key") or "")
+    lease_path = store.active_dir / key / "lease.json"
+    if not key or not lease_path.is_file():
+        raise TargetExecutionError("authorization_lease_state_malformed")
+    token = _ENTRYPOINT_LEASE.set((store.root, key))
+    try:
+        yield
+    finally:
+        _ENTRYPOINT_LEASE.reset(token)
 
 
 def single_run_authority_preimage(
@@ -380,6 +422,7 @@ def single_run_authority_preimage(
         "target_endpoint": auth.target_endpoint,
         "target_id": auth.target_id,
         "authorization_ref": auth.authorization_ref,
+        "lease_root": auth.lease_root,
     }
 
 
@@ -394,6 +437,7 @@ def authorization_preimage(auth: TargetProductionAuthorization) -> dict[str, Any
         "authorization_issued_at": auth.authorization_issued_at,
         "authorization_expires_at": auth.authorization_expires_at,
         "target_endpoint": auth.target_endpoint,
+        "lease_root": auth.lease_root,
         "tenant_boundary": auth.tenant_boundary,
         "session_boundary": auth.session_boundary,
         "allowed_family_ids": list(auth.allowed_family_ids),
@@ -410,6 +454,7 @@ def reference_authorization(*, commit_sha: str, parent_sha: str | None = None) -
         authorization_issued_at="2026-07-23T00:00:00Z",
         authorization_expires_at="2026-12-31T23:59:59Z",
         target_endpoint="",
+        lease_root=str(OFFICIAL_RUN_LEASE_ROOT),
         tenant_boundary="single authorized tenant; no cross-tenant context reuse",
         session_boundary="fresh target session per case and seed",
         allowed_family_ids=tuple(sorted(SPECS)),
@@ -432,6 +477,7 @@ def verify_authorization(
         "authorization_issued_at": auth.authorization_issued_at,
         "authorization_expires_at": auth.authorization_expires_at,
         "target_endpoint": auth.target_endpoint,
+        "lease_root": auth.lease_root,
         "tenant_boundary": auth.tenant_boundary,
         "session_boundary": auth.session_boundary,
         "signature": auth.signature,
@@ -447,6 +493,8 @@ def verify_authorization(
         raise TargetExecutionError("authorized_family_scope_mismatch")
     if not auth.evidence_immutable:
         raise TargetExecutionError("mutable_evidence")
+    if Path(auth.lease_root).resolve() != OFFICIAL_RUN_LEASE_ROOT:
+        raise TargetExecutionError("authorization_lease_root_mismatch")
     if auth.target_endpoint.startswith("local://"):
         raise TargetExecutionError("target_endpoint_local_forbidden")
     if not auth.target_endpoint.startswith("exec://"):
@@ -475,18 +523,49 @@ def verify_authorization(
         raise TargetExecutionError("authorization_signature_invalid") from exc
 
 
-def _execute_target_command(auth: TargetProductionAuthorization, request: dict[str, Any]) -> dict[str, Any]:
-    command = auth.target_endpoint.removeprefix("exec://")
-    if not command:
+def _authorized_target_command(auth: TargetProductionAuthorization) -> Path:
+    if not auth.target_endpoint.startswith("exec://"):
+        raise TargetExecutionError("target_endpoint_scheme_unsupported")
+    raw_command = auth.target_endpoint.removeprefix("exec://")
+    if not raw_command:
         raise TargetExecutionError("target_endpoint_missing")
+    return Path(raw_command).expanduser().resolve()
+
+
+def verify_official_target_wrapper(auth: TargetProductionAuthorization) -> None:
+    """Fail closed unless promotion evidence uses the official target wrapper."""
+
+    try:
+        expected = OFFICIAL_TARGET_WRAPPER.resolve(strict=True)
+        command = _authorized_target_command(auth)
+    except OSError as exc:
+        raise TargetExecutionError("official_target_wrapper_unavailable") from exc
+    if command != expected:
+        raise TargetExecutionError("custom_target_wrapper_forbidden")
+
+
+def _execute_target_command(auth: TargetProductionAuthorization, request: dict[str, Any]) -> dict[str, Any]:
+    entrypoint_lease = _ENTRYPOINT_LEASE.get()
+    if entrypoint_lease is None:
+        raise TargetExecutionError("official_entrypoint_required")
+    lease_root, authority_key = entrypoint_lease
+    if lease_root != OFFICIAL_RUN_LEASE_ROOT:
+        raise TargetExecutionError("official_lease_root_mismatch")
+    command = _authorized_target_command(auth)
+    env = {
+        **os.environ,
+        "BACKBOND_WAVE2_OFFICIAL_LEASE_ROOT": str(lease_root),
+        "BACKBOND_WAVE2_AUTHORITY_KEY": authority_key,
+    }
     proc = subprocess.run(
-        [command],
+        [str(command)],
         input=json.dumps(request, sort_keys=True),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
         timeout=10,
+        env=env,
     )
     if proc.returncode != 0:
         raise TargetExecutionError("target_execution_failed")
@@ -901,6 +980,7 @@ def build_target_evidence_packet(
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
+    verify_official_target_wrapper(auth)
     single_run_lease_store = official_single_run_lease_store()
     lease = single_run_lease_store.acquire(
         single_run_authority_preimage(
@@ -913,11 +993,12 @@ def build_target_evidence_packet(
     terminal_status = "error"
     terminal_reason = None
     try:
-        evidence_by_family = {
-            family: replicate_authorized_target(family, auth=auth, record_store=record_store)
-            for family in sorted(SPECS)
-        }
-        terminal_status = "all_pass"
+        with _official_entrypoint_context(single_run_lease_store, lease):
+            evidence_by_family = {
+                family: replicate_authorized_target(family, auth=auth, record_store=record_store)
+                for family in sorted(SPECS)
+            }
+            terminal_status = "all_pass"
     except TargetExecutionError as exc:
         terminal_reason = exc.code
         raise
@@ -987,6 +1068,7 @@ def build_unsigned_target_evidence_packet(
 ) -> dict[str, Any]:
     auth = auth or reference_authorization(commit_sha=commit_sha, parent_sha=parent_sha)
     verify_authorization(auth, commit_sha=commit_sha, parent_sha=parent_sha)
+    verify_official_target_wrapper(auth)
     single_run_lease_store = official_single_run_lease_store()
     lease = single_run_lease_store.acquire(
         single_run_authority_preimage(
@@ -999,11 +1081,12 @@ def build_unsigned_target_evidence_packet(
     terminal_status = "error"
     terminal_reason = None
     try:
-        evidence_by_family = {
-            family: replicate_authorized_target(family, auth=auth, record_store=record_store)
-            for family in sorted(SPECS)
-        }
-        terminal_status = "all_pass"
+        with _official_entrypoint_context(single_run_lease_store, lease):
+            evidence_by_family = {
+                family: replicate_authorized_target(family, auth=auth, record_store=record_store)
+                for family in sorted(SPECS)
+            }
+            terminal_status = "all_pass"
     except TargetExecutionError as exc:
         terminal_reason = exc.code
         raise

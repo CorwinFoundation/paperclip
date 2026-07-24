@@ -8,6 +8,7 @@ environment and is never emitted.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +21,26 @@ from harness.runner import OpenRouterRunner  # noqa: E402
 
 
 def main() -> int:
+    lease_root = os.environ.get("BACKBOND_WAVE2_OFFICIAL_LEASE_ROOT", "")
+    authority_key = os.environ.get("BACKBOND_WAVE2_AUTHORITY_KEY", "")
+    if lease_root != str(lane.OFFICIAL_RUN_LEASE_ROOT) or not authority_key:
+        print("official Wave 2 entrypoint lease required", file=sys.stderr)
+        return 78
+    lease_path = (
+        lane.OFFICIAL_RUN_LEASE_ROOT / "active" / authority_key / "lease.json"
+    )
+    try:
+        lease = json.loads(lease_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        print("official Wave 2 lease state missing or malformed", file=sys.stderr)
+        return 78
+    if (
+        lease.get("state") != "active"
+        or lease.get("authority_key") != authority_key
+        or lease.get("lease_format_version") != lane.RUN_LEASE_FORMAT_VERSION
+    ):
+        print("official Wave 2 lease state invalid", file=sys.stderr)
+        return 78
     request = json.loads(sys.stdin.read())
     started = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     runner = OpenRouterRunner(
