@@ -39,6 +39,10 @@ AUTHORIZATION_SIGNER_PUBLIC_KEY_B64URL = "_Q4FP9o7QelQKBjSzUUkmPMH8Vm1wFXiuh3DMH
 AUTHORIZATION_ISSUED_AT = "2026-07-24T00:00:00Z"
 AUTHORIZATION_EXPIRES_AT = "2026-07-31T00:00:00Z"
 AUTHORIZATION_VERIFY_AT = datetime(2026, 7, 24, tzinfo=UTC)
+AUTHORIZATION_MODE_PRODUCTION = "production"
+AUTHORIZATION_MODE_DEVELOPMENT = "development"
+DEVELOPMENT_AUTHORIZATION_REF = "BEAAA-17418#comment-53829031-44ad-48aa-bd5c-788943a67162"
+TEST_ONLY_CREDENTIAL_CLASSIFICATION = "test-only"
 SESSION_BOUNDARY = "fresh OpenRouter chat completion request per case/seed; no retained conversation state"
 TENANT_BOUNDARY = "target-bound tenant id; credential ref only; no credential values retained"
 SYSTEM_POLICY_REF = "system_prompt_extraction-policy@0.1.0"
@@ -223,6 +227,7 @@ def build_target_evidence_row(
     row: dict[str, Any] = {
         "authorization_ref": auth.authorization_ref,
         "authorization_signature": auth.authorization_signature,
+        "authorization_mode": auth.authorization_mode,
         "endpoint": OPENROUTER_ENDPOINT,
         "model": OPENROUTER_MODEL,
         "target_id": auth.target_id,
@@ -275,8 +280,11 @@ class Wave3Authorization:
     credential_ref: str = OPENROUTER_CREDENTIAL_REF
     authorization_ref: str = WAVE3_TICKET_REF
     authorization_signature: str = ""
+    authorization_mode: str = AUTHORIZATION_MODE_PRODUCTION
     authorization_issued_at: str = AUTHORIZATION_ISSUED_AT
     authorization_expires_at: str = AUTHORIZATION_EXPIRES_AT
+    credential_classification: str = ""
+    customer_data: bool = False
     tenant_boundary: str = TENANT_BOUNDARY
     session_boundary: str = SESSION_BOUNDARY
     system_policy_ref: str = SYSTEM_POLICY_REF
@@ -321,8 +329,11 @@ def _authorization_preimage(auth: Wave3Authorization) -> dict[str, Any]:
         "model": auth.model,
         "credential_ref": auth.credential_ref,
         "authorization_ref": auth.authorization_ref,
+        "authorization_mode": auth.authorization_mode,
         "authorization_issued_at": auth.authorization_issued_at,
         "authorization_expires_at": auth.authorization_expires_at,
+        "credential_classification": auth.credential_classification,
+        "customer_data": auth.customer_data,
         "tenant_boundary": auth.tenant_boundary,
         "session_boundary": auth.session_boundary,
         "system_policy_ref": auth.system_policy_ref,
@@ -364,7 +375,7 @@ def validate_authorization(
         "model": auth.model,
         "credential_ref": auth.credential_ref,
         "authorization_ref": auth.authorization_ref,
-        "authorization_signature": auth.authorization_signature,
+        "authorization_mode": auth.authorization_mode,
         "authorization_issued_at": auth.authorization_issued_at,
         "authorization_expires_at": auth.authorization_expires_at,
         "tenant_boundary": auth.tenant_boundary,
@@ -375,9 +386,15 @@ def validate_authorization(
         "retention_schema": auth.retention_schema,
         "replay_nonce": auth.replay_nonce,
     }
+    if auth.authorization_mode == AUTHORIZATION_MODE_PRODUCTION:
+        required["authorization_signature"] = auth.authorization_signature
+    if auth.authorization_mode == AUTHORIZATION_MODE_DEVELOPMENT:
+        required["credential_classification"] = auth.credential_classification
     missing = [name for name, value in required.items() if not value]
     if missing:
         raise CandidateValidationError("authorization_missing:" + ",".join(sorted(missing)))
+    if auth.authorization_mode not in {AUTHORIZATION_MODE_PRODUCTION, AUTHORIZATION_MODE_DEVELOPMENT}:
+        raise CandidateValidationError("authorization_mode_invalid")
     if auth.candidate_commit_sha != expected_commit_sha:
         raise CandidateValidationError("candidate_commit_sha_mismatch")
     if expected_direct_parent_sha is not None and auth.direct_parent_sha != expected_direct_parent_sha:
@@ -400,7 +417,7 @@ def validate_authorization(
         raise CandidateValidationError("family_scope_conflict")
     if list(auth.allowed_case_ids) != [case.case_id for case in SPEC.cases]:
         raise CandidateValidationError("case_scope_conflict")
-    if auth.live_call_cap != LIVE_CALL_CAP:
+    if auth.live_call_cap > LIVE_CALL_CAP:
         raise CandidateValidationError("live_call_cap_mismatch")
     if not auth.evidence_immutable:
         raise CandidateValidationError("mutable_evidence")
@@ -410,6 +427,16 @@ def validate_authorization(
         raise CandidateValidationError("authorization_not_yet_valid")
     if expires_at <= AUTHORIZATION_VERIFY_AT:
         raise CandidateValidationError("authorization_expired")
+    if auth.authorization_mode == AUTHORIZATION_MODE_DEVELOPMENT:
+        if auth.authorization_ref != DEVELOPMENT_AUTHORIZATION_REF:
+            raise CandidateValidationError("development_authorization_ref_mismatch")
+        if auth.authorization_signature:
+            raise CandidateValidationError("development_signature_forbidden")
+        if auth.credential_classification != TEST_ONLY_CREDENTIAL_CLASSIFICATION:
+            raise CandidateValidationError("credential_classification_mismatch")
+        if auth.customer_data is not False:
+            raise CandidateValidationError("customer_data_not_allowed")
+        return
     parts = auth.authorization_signature.split(":")
     if len(parts) != 3:
         raise CandidateValidationError("authorization_signature_invalid")
@@ -463,7 +490,7 @@ def validate_evidence_rows(
     for row in rows:
         required = {
             "authorization_ref": row.get("authorization_ref"),
-            "authorization_signature": row.get("authorization_signature"),
+            "authorization_mode": row.get("authorization_mode"),
             "endpoint": row.get("endpoint"),
             "model": row.get("model"),
             "target_id": row.get("target_id"),
@@ -480,11 +507,15 @@ def validate_evidence_rows(
             "target_response_sha256": row.get("target_response_sha256"),
             "row_sha256": row.get("row_sha256"),
         }
+        if expected_authorization.authorization_mode == AUTHORIZATION_MODE_PRODUCTION:
+            required["authorization_signature"] = row.get("authorization_signature")
         missing = [name for name, value in required.items() if not value]
         if missing:
             raise CandidateValidationError("evidence_missing:" + ",".join(sorted(missing)))
         if row.get("authorization_ref") != expected_authorization.authorization_ref:
             raise CandidateValidationError("authorization_ref_mismatch")
+        if row.get("authorization_mode") != expected_authorization.authorization_mode:
+            raise CandidateValidationError("authorization_mode_mismatch")
         if row.get("authorization_signature") != expected_authorization.authorization_signature:
             raise CandidateValidationError("authorization_signature_invalid")
         if row.get("endpoint") != OPENROUTER_ENDPOINT:

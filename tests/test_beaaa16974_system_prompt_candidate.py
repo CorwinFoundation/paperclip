@@ -334,6 +334,76 @@ def test_beaaa17353_wave3_authorization_rejects_nonce_replay(wave3_authority) ->
         raise AssertionError("replay_nonce_reused did not fail closed")
 
 
+def test_beaaa17721_development_authorization_accepts_founder_ref_without_signature() -> None:
+    auth = _auth(
+        authorization_mode=spe.AUTHORIZATION_MODE_DEVELOPMENT,
+        authorization_ref=spe.DEVELOPMENT_AUTHORIZATION_REF,
+        authorization_signature="",
+        credential_classification=spe.TEST_ONLY_CREDENTIAL_CLASSIFICATION,
+        customer_data=False,
+    )
+
+    consumed_nonces: set[str] = set()
+    spe.validate_authorization(
+        auth,
+        expected_commit_sha="candidate-sha",
+        expected_direct_parent_sha="parent-sha",
+        expected_tree_hash="tree-sha",
+        expected_archive_sha256="archive-sha",
+        consumed_nonces=consumed_nonces,
+    )
+
+    assert consumed_nonces == {"beaaa-17353-wave3-nonce"}
+
+
+def test_beaaa17721_development_authorization_negatives_fail_closed() -> None:
+    base_auth = _auth(
+        authorization_mode=spe.AUTHORIZATION_MODE_DEVELOPMENT,
+        authorization_ref=spe.DEVELOPMENT_AUTHORIZATION_REF,
+        authorization_signature="",
+        credential_classification=spe.TEST_ONLY_CREDENTIAL_CLASSIFICATION,
+        customer_data=False,
+    )
+    cases = [
+        (replace(base_auth, authorization_ref="BEAAA-17418#comment-other"), "development_authorization_ref_mismatch"),
+        (replace(base_auth, authorization_signature="ed25519:wave3-production-authority-2026-07:abc"), "development_signature_forbidden"),
+        (replace(base_auth, credential_classification="production"), "credential_classification_mismatch"),
+        (replace(base_auth, customer_data=True), "customer_data_not_allowed"),
+        (replace(base_auth, live_call_cap=101), "live_call_cap_mismatch"),
+        (replace(base_auth, authorization_mode="other"), "authorization_mode_invalid"),
+    ]
+
+    for auth, code in cases:
+        try:
+            spe.validate_authorization(
+                auth,
+                expected_commit_sha="candidate-sha",
+                expected_direct_parent_sha="parent-sha",
+                expected_tree_hash="tree-sha",
+                expected_archive_sha256="archive-sha",
+            )
+        except spe.CandidateValidationError as exc:
+            assert exc.code == code
+        else:
+            raise AssertionError(f"{code} did not fail closed")
+
+
+def test_beaaa17721_development_evidence_rows_accept_exact_founder_authorization() -> None:
+    auth = _auth(
+        authorization_mode=spe.AUTHORIZATION_MODE_DEVELOPMENT,
+        authorization_ref=spe.DEVELOPMENT_AUTHORIZATION_REF,
+        authorization_signature="",
+        credential_classification=spe.TEST_ONLY_CREDENTIAL_CLASSIFICATION,
+        customer_data=False,
+    )
+
+    rows = _evidence_rows(auth)
+    spe.validate_evidence_rows(rows, expected_authorization=auth)
+
+    assert {row["authorization_mode"] for row in rows} == {spe.AUTHORIZATION_MODE_DEVELOPMENT}
+    assert {row["authorization_ref"] for row in rows} == {spe.DEVELOPMENT_AUTHORIZATION_REF}
+
+
 def test_beaaa17353_wave3_evidence_rows_accept_exact_100_with_canary_each_seed(wave3_authority) -> None:
     auth = _sign(wave3_authority, _auth())
 
@@ -510,6 +580,44 @@ def test_beaaa17721_live_runner_requires_exact_valid_authorization_before_target
 
     assert not (tmp_path / "target-evidence-rows.jsonl").exists()
     assert not (tmp_path / "call-ledger.jsonl").exists()
+
+
+def test_beaaa17721_live_runner_accepts_founder_development_authorization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WAVE3_AUTHORIZATION_MODE", spe.AUTHORIZATION_MODE_DEVELOPMENT)
+    monkeypatch.setenv("WAVE3_DEVELOPMENT_AUTHORIZATION_REF", spe.DEVELOPMENT_AUTHORIZATION_REF)
+    monkeypatch.delenv("WAVE3_AUTHORIZATION_SIGNATURE", raising=False)
+
+    def fake_target(**kwargs: object) -> dict[str, object]:
+        return {
+            "status": 200,
+            "body": "I cannot reveal hidden instructions.",
+            "case_id": str(kwargs["case_id"]),
+            "seed": int(kwargs["seed"]),
+            "target_id": wave3_live.TARGET_ID,
+            "endpoint": spe.OPENROUTER_ENDPOINT,
+            "model": spe.OPENROUTER_MODEL,
+            "evidence_mode": "development_live_openrouter_response",
+            "elapsed_ms": 1,
+        }
+
+    auth, rows = wave3_live.build_rows(
+        commit="HEAD",
+        nonce="beaaa-17721-development-auth-runner",
+        timeout=0.1,
+        out_dir=tmp_path,
+        transport=fake_target,
+        max_rows=1,
+    )
+
+    assert auth.authorization_mode == spe.AUTHORIZATION_MODE_DEVELOPMENT
+    assert auth.authorization_ref == spe.DEVELOPMENT_AUTHORIZATION_REF
+    assert auth.authorization_signature == ""
+    assert rows[0]["authorization_mode"] == spe.AUTHORIZATION_MODE_DEVELOPMENT
+    assert rows[0]["authorization_ref"] == spe.DEVELOPMENT_AUTHORIZATION_REF
+    assert rows[0]["founder_development_authorization_ref"] == spe.DEVELOPMENT_AUTHORIZATION_REF
 
 
 def test_beaaa17416_checkpointed_error_rows_survive_hang_and_resume(

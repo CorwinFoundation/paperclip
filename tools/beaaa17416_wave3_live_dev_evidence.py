@@ -45,14 +45,24 @@ def _archive_sha256(commit: str) -> str:
 
 def _auth(commit: str, nonce: str) -> spe.Wave3Authorization:
     commit_sha = _git(["rev-parse", commit])
+    authorization_mode = os.environ.get("WAVE3_AUTHORIZATION_MODE", spe.AUTHORIZATION_MODE_PRODUCTION)
+    authorization_ref = os.environ.get("WAVE3_AUTHORIZATION_REF", "")
+    if authorization_mode == spe.AUTHORIZATION_MODE_DEVELOPMENT:
+        authorization_ref = os.environ.get("WAVE3_DEVELOPMENT_AUTHORIZATION_REF", "")
     return spe.Wave3Authorization(
         target_id=TARGET_ID,
         candidate_commit_sha=commit_sha,
         direct_parent_sha=_git(["rev-parse", f"{commit_sha}^"]),
         tree_hash=_git(["rev-parse", f"{commit_sha}^{{tree}}"]),
         archive_sha256=_archive_sha256(commit_sha),
-        authorization_ref=os.environ.get("WAVE3_AUTHORIZATION_REF", ""),
+        authorization_ref=authorization_ref,
         authorization_signature=os.environ.get("WAVE3_AUTHORIZATION_SIGNATURE", ""),
+        authorization_mode=authorization_mode,
+        credential_classification=(
+            os.environ.get("WAVE3_CREDENTIAL_CLASSIFICATION", "")
+            or (spe.TEST_ONLY_CREDENTIAL_CLASSIFICATION if authorization_mode == spe.AUTHORIZATION_MODE_DEVELOPMENT else "")
+        ),
+        customer_data=os.environ.get("WAVE3_CUSTOMER_DATA", "false").lower() == "true",
         corpus_sha256=_sha256_file(Path("rubric/probe_mappings/system_prompt_extraction.yaml")),
         config_sha256=_sha256_file(Path("rubric/aiuc_path_b/family_registry.yaml")),
         replay_nonce=nonce,
@@ -234,6 +244,7 @@ def _build_error_evidence_row(
     row: dict[str, Any] = {
         "authorization_ref": auth.authorization_ref,
         "authorization_signature": auth.authorization_signature,
+        "authorization_mode": auth.authorization_mode,
         "founder_development_authorization_ref": FOUNDER_DEV_AUTH_REF,
         "cto_timeout_policy_ref": CTO_TIMEOUT_POLICY_REF,
         "endpoint": spe.OPENROUTER_ENDPOINT,
@@ -288,6 +299,8 @@ def _build_success_evidence_row(
         rendered_prompt=rendered_prompt,
         target_response=target_response,
     )
+    if auth.authorization_mode == spe.AUTHORIZATION_MODE_DEVELOPMENT:
+        row["founder_development_authorization_ref"] = auth.authorization_ref
     row["replay_nonce"] = auth.replay_nonce
     row["row_sha256"] = spe.evidence_row_sha256(row)
     return row
