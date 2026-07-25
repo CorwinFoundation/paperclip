@@ -15,25 +15,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LEDGER = ROOT / "tools" / "probe-registry" / "family_activation_ledger_v0.1.json"
-QA_VERIFIED_ORDINALS = frozenset(
-    {
-        1,
-        2,
-        *range(3, 10),
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        *range(21, 33),
-        *range(41, 62),
-    }
-)
+QA_VERIFIED_ORDINALS = frozenset(range(1, 62))
 QA_UNVERIFIED_EXCLUDED_ORDINALS = frozenset()
-FAIL_CLOSED_GAP_ORDINALS = frozenset({10, 11, 20, *range(33, 41)})
+FAIL_CLOSED_GAP_ORDINALS = frozenset()
 CANONICAL_CORPUS_VERSION = "canonical-61-family-registry@2026-07-13"
 CONTRACTS_REFERENCED = [
     "are-scanner-api-v1@v1.0",
@@ -41,7 +25,7 @@ CONTRACTS_REFERENCED = [
 ]
 SOURCE_LEDGER_REFERENCE = "tools/probe-registry/family_activation_ledger_v0.1.json"
 SOURCE_LEDGER_SHA256 = (
-    "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
+    "088aba0de33b55a3883b9fd37eec37014d437460f252a8f8d433b5b8ef55c49a"
 )
 BRAND_BACKBONE_VERSION = "v1.6"
 BRAND_BACKBONE_SHA256 = (
@@ -139,6 +123,11 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     working = [row["family_id"] for row in working_rows]
     working_ordinals = [row["ordinal"] for row in working_rows]
     working_ids = set(working)
+    complete_working_predicate = (
+        len(rows) == 61
+        and len(working_rows) == 61
+        and all(family_is_working(row) for row in rows)
+    )
     non_verified_rows = [row for row in rows if row["family_id"] not in working_ids]
     failures = []
     for row in non_verified_rows:
@@ -151,6 +140,13 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         elif ordinal in FAIL_CLOSED_GAP_ORDINALS:
             classification = "fail_closed_gap"
             failure = smoke.get("failure") or row["real_blocker"]
+        elif ordinal in QA_VERIFIED_ORDINALS:
+            classification = "fail_closed_gap"
+            failure = (
+                smoke.get("failure")
+                or row["real_blocker"]
+                or "verified row failed target-bound smoke predicate"
+            )
         else:
             raise LedgerError(
                 f"{row['family_id']}: non-verified ordinal {ordinal} is unclassified"
@@ -187,8 +183,8 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "brand_backbone_sha256": BRAND_BACKBONE_SHA256,
         "brand_backbone_verified": True,
         "focus_claim": (
-            "BEAAA-17730 records independently verified development-fixture "
-            "evidence for 50 BackBond Scanner families without score activation."
+            "BEAAA-17671 records independently verified development-fixture "
+            "evidence for all 61 BackBond Scanner families without score activation."
         ),
         "contracts_referenced": CONTRACTS_REFERENCED,
         "ticket_refs": [
@@ -200,12 +196,15 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             "BEAAA-17714",
             "BEAAA-17713",
             "BEAAA-17730",
+            "BEAAA-17732",
+            "BEAAA-17733",
+            "BEAAA-17734",
         ],
         "proof_points_cited": [
             "tools/probe-registry/family_activation_ledger_v0.1.json",
             "tools/canonical_family_target_runner.py",
         ],
-        "version": "0.3",
+        "version": "1.0",
         "prior_version": "artifacts/beaaa-17671/integrated-family-activation-ledger.json@0.2",
         "self_audit_passed": True,
         "escalations_noted": [
@@ -226,6 +225,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "working_count": len(working),
         "total_count": len(rows),
         "truthful_baseline": f"{len(working)}/{len(rows)}",
+        "complete_working_predicate": complete_working_predicate,
         "working_ordinals": working_ordinals,
         "working_family_ids": working,
         "qa_unverified_excluded_count": len(QA_UNVERIFIED_EXCLUDED_ORDINALS),
@@ -247,7 +247,7 @@ def main() -> int:
         args.write_baseline.parent.mkdir(parents=True, exist_ok=True)
         args.write_baseline.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
-    return 0 if baseline["total_count"] == 61 else 1
+    return 0 if baseline["complete_working_predicate"] else 1
 
 
 if __name__ == "__main__":

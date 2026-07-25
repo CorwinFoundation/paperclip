@@ -60,7 +60,7 @@ def test_beaaa17670_batch_c_ordinals_are_target_bound_working() -> None:
     assert len(rows) == 21
     baseline = build_baseline(payload)
     assert baseline["working_ordinals"][-21:] == list(range(41, 62))
-    assert baseline["truthful_baseline"] == "50/61"
+    assert baseline["truthful_baseline"] == "61/61"
     assert all(family_is_working(row) for row in rows)
     assert all(row["real_blocker"] is None for row in rows)
     assert all(row["target_bound_smoke_result"]["paid_calls"] == 0 for row in rows)
@@ -80,24 +80,31 @@ def test_integrated_ledger_classification_provenance_and_metadata_are_truthful()
     excluded = [row for row in rows if row["classification"] == "qa_unverified_excluded"]
     gaps = [row for row in rows if row["classification"] == "fail_closed_gap"]
 
-    assert baseline["working_count"] == 50
-    assert baseline["working_ordinals"] == [
-        *range(1, 10), 12, 13, 14, 15, 16, 17, 18, 19,
-        *range(21, 33), *range(41, 62)
-    ]
+    assert baseline["working_count"] == 61
+    assert baseline["working_ordinals"] == list(range(1, 62))
+    assert baseline["complete_working_predicate"] is True
     assert baseline["qa_unverified_excluded_count"] == 0
     assert {row["ordinal"] for row in excluded} == QA_UNVERIFIED_EXCLUDED_ORDINALS
     assert all(row["failure"] is None for row in excluded)
-    assert baseline["fail_closed_gap_count"] == 11
+    assert baseline["fail_closed_gap_count"] == 0
     assert {row["ordinal"] for row in gaps} == FAIL_CLOSED_GAP_ORDINALS
     assert all(row["failure"] for row in gaps)
-    assert len(rows) == 11
+    assert rows == []
     assert all(row["source_ledger"]["path"] for row in rows)
     assert all(len(row["source_ledger"]["sha256"]) == 64 for row in rows)
     assert all(row["evidence"]["path"] for row in excluded)
     assert all(len(row["evidence"]["sha256"]) == 64 for row in excluded)
     assert baseline["corpus_version"] == CANONICAL_CORPUS_VERSION
     assert baseline["contracts_referenced"] == CONTRACTS_REFERENCED
+
+
+def test_complete_working_predicate_fails_closed_on_missing_smoke() -> None:
+    payload = load_ledger()
+    payload["families"][0]["target_bound_smoke_result"]["evidence"] = None
+    baseline = build_baseline(payload)
+
+    assert baseline["complete_working_predicate"] is False
+    assert baseline["truthful_baseline"] == "60/61"
 
 
 def test_beaaa17709_batch_a_pinned_jsonl_rows_are_target_bound_working() -> None:
