@@ -211,6 +211,10 @@ class BundleStore:
             "evidence": evidence,
         }
         if scan_request is not None:
+            if target_endpoint_url is None:
+                raise BundleError(
+                    "live-probe bundle target_endpoint_url missing after validation"
+                )
             manifest["scan_request"] = redact_scan_request(scan_request)
             manifest["prober_version"] = prober_version
             manifest["target_endpoint_host"] = extract_target_endpoint_host(
