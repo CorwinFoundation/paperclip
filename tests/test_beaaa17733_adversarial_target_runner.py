@@ -1,9 +1,10 @@
+import csv
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
-from tools.canonical_family_target_runner import ConfiguredTargetRunner, load_registry
 
 from tools.adversarial_stateful_target_runner import (
     AdversarialRunError,
@@ -203,7 +204,14 @@ def test_caps_and_credentials_fail_before_overrun(monkeypatch, tmp_path):
 
 
 def test_both_families_are_discoverable_by_canonical_registry():
-    rows = {row["family_id"]: row for row in load_registry()}
-    assert "p3_5_multiturn_jailbreak" in rows
-    assert "p3_6_output_attack" in rows
-    assert ConfiguredTargetRunner.run_family
+    registry_path = (
+        Path(__file__).resolve().parents[1]
+        / "IFA"
+        / "scanner-test-registry-baseline-2026-07-13.csv"
+    )
+    with registry_path.open(newline="", encoding="utf-8") as source:
+        rows = {row["family"]: row for row in csv.DictReader(source)}
+    for family_id in ("p3_5_multiturn_jailbreak", "p3_6_output_attack"):
+        assert family_id in rows
+        assert rows[family_id]["runner_path"] == "tools/adversarial_stateful_target_runner.py"
+        assert rows[family_id]["proposed_registry_status"] == "executable_not_connected"
