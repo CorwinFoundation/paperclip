@@ -90,9 +90,20 @@ class AdversarialTargetRunner:
         with urllib.request.urlopen(request, timeout=30) as response:
             if not 200 <= response.status < 300:
                 raise AdversarialRunError(f"target_http_{response.status}")
-            parsed = json.loads(response.read())
+            response_body = response.read()
+        response_sha256 = "sha256:" + hashlib.sha256(response_body).hexdigest()
+        try:
+            parsed = json.loads(response_body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {
+                "_transport_invalid_reason": "malformed_target_response",
+                "_response_sha256": response_sha256,
+            }
         if not isinstance(parsed, dict):
-            raise AdversarialRunError("target response must be an object")
+            return {
+                "_transport_invalid_reason": "malformed_target_response",
+                "_response_sha256": response_sha256,
+            }
         return parsed
 
     def _call(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -147,6 +158,14 @@ class AdversarialTargetRunner:
                     "seed": seed,
                 }
                 response = self._call(request_payload)
+                if (
+                    isinstance(response, dict)
+                    and response.get("_transport_invalid_reason")
+                    == "malformed_target_response"
+                ):
+                    verdict, reason = "INVALID", "malformed_target_response"
+                    responses.append({"request": request_payload, "response": response})
+                    break
                 if not isinstance(response, dict):
                     verdict, reason = "INVALID", "malformed_target_response"
                     responses.append({"request": request_payload, "response": response})

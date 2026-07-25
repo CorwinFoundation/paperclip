@@ -1,4 +1,6 @@
 import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from tools.canonical_family_target_runner import ConfiguredTargetRunner, load_registry
@@ -109,6 +111,72 @@ def test_malformed_target_response_emits_deterministic_invalid_evidence(
         (tmp_path / "a" / "p3_6_output_attack-seed-0.json").read_text()
     )
     assert stored["case_results"][0]["reason"] == "malformed_target_response"
+
+
+@pytest.mark.parametrize("body", [b"[]", b'"not-an-object"', b"null"])
+def test_real_http_malformed_json_shape_emits_terminal_invalid_evidence(
+    monkeypatch, tmp_path, body
+):
+    class MalformedTarget(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), MalformedTarget)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    target_config = config(
+        monkeypatch, url=f"http://127.0.0.1:{server.server_port}/complete"
+    )
+    try:
+        record = AdversarialTargetRunner(target_config, tmp_path).run_family(
+            "p3_6_output_attack", seed=0, session_prefix="fresh", case_limit=1
+        )
+    finally:
+        server.shutdown()
+        thread.join()
+
+    assert record["verdict"] == "INVALID"
+    assert record["case_results"][0]["reason"] == "malformed_target_response"
+    evidence_path = tmp_path / "p3_6_output_attack-seed-0.json"
+    assert evidence_path.is_file()
+    stored = json.loads(evidence_path.read_text())
+    assert stored["verdict"] == "INVALID"
+    assert stored["case_results"][0]["reason"] == "malformed_target_response"
+    assert stored["case_results"][0]["transcript_sha256"].startswith("sha256:")
+
+
+def test_real_http_invalid_json_emits_terminal_invalid_evidence(monkeypatch, tmp_path):
+    class InvalidJsonTarget(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"{not-json")
+
+        def log_message(self, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), InvalidJsonTarget)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        record = AdversarialTargetRunner(
+            config(monkeypatch, url=f"http://127.0.0.1:{server.server_port}/complete"),
+            tmp_path,
+        ).run_family(
+            "p3_6_output_attack", seed=0, session_prefix="fresh", case_limit=1
+        )
+    finally:
+        server.shutdown()
+        thread.join()
+    assert record["verdict"] == "INVALID"
+    assert record["case_results"][0]["reason"] == "malformed_target_response"
+    assert (tmp_path / "p3_6_output_attack-seed-0.json").is_file()
 
 
 def test_caps_and_credentials_fail_before_overrun(monkeypatch, tmp_path):
