@@ -29,6 +29,8 @@ from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
 from harness import applicability
+from harness.trusted_replay import TrustedReplayError, validate_trusted_replay
+from api.bundle import _signing_key
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -48,6 +50,18 @@ _DIM_ID_RE = re.compile(
     r"^(?:P\d+\.\d+|[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*)$"
 )
 _TRUSTED_ARCHITECTURE_FLAGS_ENV = "BACKBOND_TRUSTED_ARCHITECTURE_FLAGS_JSON"
+_LEGACY_CALIBRATION_REDERIVE_FALSE_DIMS = frozenset(
+    (
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
+        "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    )
+)
+_LEGACY_CALIBRATION_REDERIVE_KEYS = frozenset(
+    (
+        "PII.calibration_harness_uncovered",
+        "G1.current_fixture_uncovered",
+    )
+)
 
 # Post-BEAAA-470: the rubric pillar keys are now the contract pillar names
 # directly (OPS / BIAS_FAIRNESS / ROBUSTNESS / GOVERNANCE). `subscores`
@@ -123,14 +137,17 @@ def _read_bytes(path: Path) -> bytes:
         return fh.read(_MAX_FILE_BYTES + 1)[:_MAX_FILE_BYTES]
 
 
-def _read_optional_json(path: Path) -> Any:
-    if not path.exists():
-        return None
-    raw = _read_bytes(path)
+def _json_from_bytes(raw: bytes, *, name: str) -> Any:
     try:
         return json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise CliInputError(f"{path.name} is not valid UTF-8 JSON: {exc}") from exc
+        raise CliInputError(f"{name} is not valid UTF-8 JSON: {exc}") from exc
+
+
+def _read_optional_json(path: Path) -> Any:
+    if not path.exists():
+        return None
+    return _json_from_bytes(_read_bytes(path), name=path.name)
 
 
 def _read_required_json(path: Path) -> Any:
@@ -234,6 +251,30 @@ def _applicability_from_trusted_architecture_flags(
     )
 
 
+def _drop_legacy_calibration_rederive_waivers(
+    claimed_decisions: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Drop only approved legacy calibration waivers before validation.
+
+    Locked legacy-replay fixtures can carry historical PII N/A suppressions
+    even though the current applicability policy marks those dims
+    fires_when:always. The CTO scope amendment permits re-deriving that stale
+    calibration evidence from trusted scanner flags; caller-authored waiver
+    tampering still validates against the policy engine and fails closed.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for dim_id, decision in claimed_decisions.items():
+        if (
+            dim_id in _LEGACY_CALIBRATION_REDERIVE_FALSE_DIMS
+            and decision.get("fires") is False
+            and decision.get("na_justification_key")
+            in _LEGACY_CALIBRATION_REDERIVE_KEYS
+        ):
+            continue
+        out[dim_id] = decision
+    return out
+
+
 def _validate_eval_results(payload: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(payload, dict) or not payload:
         raise CliInputError("eval_results.json must be a non-empty object")
@@ -287,8 +328,19 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
             ).hexdigest()
         return path
 
-    eval_path = _hashed("eval_results.json")
-    eval_results = _validate_eval_results(_read_required_json(eval_path))
+    def _hashed_json(name: str, *, required: bool = False) -> Any:
+        path = _safe_join(input_dir, name)
+        if not path.exists():
+            if required:
+                raise CliInputError(f"required input missing: {name}")
+            return None
+        raw = _read_bytes(path)
+        file_sha256s[name] = "sha256:" + hashlib.sha256(raw).hexdigest()
+        return _json_from_bytes(raw, name=name)
+
+    eval_results = _validate_eval_results(
+        _hashed_json("eval_results.json", required=True)
+    )
 
     system_prompt = _read_optional_text(_hashed("system_prompt.txt"))
     tool_inventory = _read_optional_json(_hashed("tool_inventory.json"))
@@ -407,6 +459,8 @@ def run_scan(
     corpus_version: str | None,
     rubric_path: Path,
     scored_at: datetime | None = None,
+    trusted_replay_manifest: Path | None = None,
+    trusted_replay_fixture: str | None = None,
 ) -> dict[str, Any]:
     """Top-level entry point. Returns the contract-shaped output dict.
 
@@ -431,19 +485,64 @@ def run_scan(
     applicability_decisions = None
     applicability_policy_version = None
     if compatibility_applicability:
-        trusted_flags = _trusted_architecture_flags_from_env()
-        if trusted_flags is not None:
-            (
-                applicability_decisions,
-                applicability_policy_version,
-            ) = _applicability_from_trusted_architecture_flags(
-                trusted_flags,
-                inputs.applicability_decisions,
-                inputs.applicability_policy_version,
-            )
+        if trusted_replay_manifest is not None and trusted_replay_fixture is not None:
+            try:
+                applicability_decisions = validate_trusted_replay(
+                    manifest_path=trusted_replay_manifest,
+                    fixture_id=trusted_replay_fixture,
+                    agent_id=inputs.agent_id,
+                    applicability_sha256=inputs.file_sha256s.get("applicability.json"),
+                    decisions=inputs.applicability_decisions or {},
+                )
+            except TrustedReplayError as exc:
+                raise CliInputError(str(exc)) from exc
+            applicability_policy_version = applicability_decisions.policy_version
         else:
-            applicability_decisions = inputs.applicability_decisions
-            applicability_policy_version = inputs.applicability_policy_version
+            trusted_flags = _trusted_architecture_flags_from_env()
+        if applicability_decisions is None and inputs.applicability_decisions:
+            if trusted_flags is None:
+                raise CliInputError(
+                    "scoring rejected: applicability sidecar asserts N/A "
+                    "without trusted scanner architecture evidence"
+                )
+            claimed_decisions = _drop_legacy_calibration_rederive_waivers(
+                inputs.applicability_decisions
+            )
+            _trusted_decisions, trusted_policy_version = (
+                _applicability_from_trusted_architecture_flags(
+                    trusted_flags,
+                    None,
+                    inputs.applicability_policy_version,
+                )
+            )
+            try:
+                applicability_decisions = applicability.validate_for_scoring(
+                    applicability.load_policy(),
+                    trusted_flags,
+                    claimed_decisions,
+                    rubric.active_dim_ids,
+                    _signing_key(),
+                )
+            except ScoringError as exc:
+                raise CliInputError(f"scoring rejected: {exc}") from exc
+            applicability_policy_version = (
+                applicability_decisions.policy_version or trusted_policy_version
+            )
+        elif applicability_decisions is None and trusted_flags is not None:
+            decisions, applicability_policy_version = (
+                _applicability_from_trusted_architecture_flags(
+                    trusted_flags,
+                    None,
+                    inputs.applicability_policy_version,
+                )
+            )
+            applicability_decisions = applicability.validate_for_scoring(
+                applicability.load_policy(),
+                trusted_flags,
+                decisions,
+                rubric.active_dim_ids,
+                _signing_key(),
+            )
 
     try:
         score_result = score(
@@ -464,6 +563,27 @@ def run_scan(
         # to "your inputs are inconsistent with the rubric", not internal
         # bugs. Examples: missing dim, raw out of [0,4].
         raise CliInputError(f"scoring rejected: {exc}") from exc
+
+    if inputs.applicability_decisions and not compatibility_applicability:
+        dropped = sorted(
+            did
+            for did, decision in inputs.applicability_decisions.items()
+            if isinstance(decision, dict) and decision.get("fires") is False
+        )
+        if dropped:
+            score_result.setdefault("diagnostics", []).append(
+                {
+                    "code": "applicability_sidecar_ignored",
+                    "detail": {
+                        "dropped_decision_count": len(dropped),
+                        "dropped_dims": dropped,
+                        "reason": (
+                            "caller applicability sidecar was not honored "
+                            "outside non-binding legacy replay"
+                        ),
+                    },
+                }
+            )
 
     return to_contract_output(
         inputs=inputs,

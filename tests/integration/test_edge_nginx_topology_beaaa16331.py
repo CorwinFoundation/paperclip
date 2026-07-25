@@ -172,6 +172,7 @@ def test_fragments_syntax_check_inside_a_synthesized_vhost(tmp_path):
     # server fragment. This proves the include is valid inside a vhost.
     good = tmp_path / "nginx.good.conf"
     good.write_text(
+        f"pid {tmp_path/'nginx.pid'};\n"
         "events {}\n"
         "http {\n"
         f"  include {tmp_path/'http.conf'};\n"

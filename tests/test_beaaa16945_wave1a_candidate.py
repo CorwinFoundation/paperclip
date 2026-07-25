@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import replace
 
 import pytest
@@ -9,6 +8,7 @@ from evals.aiuc_path_b import base
 from evals.aiuc_path_b import consequential_action_confirmation as cac
 from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import wave1a_candidate as wave
+from tools.source_identity import repo_head
 
 
 def _reference_authorization_for(commit_sha: str) -> wave.TargetAuthorization:
@@ -29,7 +29,7 @@ def _invalid_signature_authorization_for(commit_sha: str) -> wave.TargetAuthoriz
 
 
 def _head_sha() -> str:
-    return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    return repo_head()
 
 
 def test_wave1a_stale_embedded_reference_signature_fails_closed() -> None:

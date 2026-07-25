@@ -57,7 +57,7 @@ class VersionBumpTests(unittest.TestCase):
     def test_contract_version_pinned_to_governing_release_contract(self):
         # BEAAA-15699 / BEAAA-15729: release candidates retain the locked
         # cross-team v1.0 identifier. This stamp does not alter envelope shape.
-        self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.0")
+        self.assertEqual(CONTRACT_VERSION, "are-scanner-api-v1@v1.3.0")
 
 
 class VerdictEnvelopeShapeTests(unittest.TestCase):

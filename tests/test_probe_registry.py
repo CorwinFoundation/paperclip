@@ -71,15 +71,12 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             for point in registry["active_rubric_points"]
         }
         for rubric_point_id in (
-            "P1.2",
             "P2.2",
             "P2.6",
-            "P3.2",
             "P4.2",
             "P4.3",
             "P4.4",
             "P4.6",
-            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
             "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
             "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
         ):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -10,6 +9,7 @@ from api.production_controls import ProductionControlLedger
 from api.scan_handlers import ScanRuntime, scan_handler
 from scripts import beaaa16992_production_controls_evidence as evidence
 from scanners.live_probe_orchestrator import DimResult, OrchestratorError, ScanRequest, ScanResult
+from tools.source_identity import repo_head
 
 
 TENANT = "tenant-beaaa16992"
@@ -51,7 +51,7 @@ def _runtime_result(req: ScanRequest, _secret: str) -> ScanResult:
 
 def test_beaaa16992_packet_proves_required_controls() -> None:
     packet = evidence.build_packet()
-    head_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    head_sha = repo_head()
 
     assert packet["classification"]["value"] == "rule-execution"
     assert packet["contract"] == "are-scanner-api-v1@v1.0"
@@ -84,7 +84,7 @@ def test_beaaa16992_packet_proves_required_controls() -> None:
     assert packet["rollback_drill"]["source_matches_measured_drill"] is True
     assert (
         packet["rollback_drill"]["canonical_rollback_command"]
-        == "scripts/deploy/box_deploy.sh rollback <previous_ref>"
+        == "scripts/deploy/history/box_deploy.sh rollback <previous_ref>"
     )
     assert packet["rollback_drill"]["monitored_service_transition"] is True
     assert (
