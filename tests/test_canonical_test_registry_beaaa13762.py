@@ -48,7 +48,7 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         self.assertGreater(len(active_case_ids), 0)
         if self.registry["metadata"]["source_mode"] == "appendix_a_case_level_with_active_registry":
             self.assertEqual(self.registry["metadata"]["appendix_family_count"], 61)
-            self.assertEqual(self.registry["metadata"]["appendix_t1_embedded_case_count"], 715)
+            self.assertEqual(self.registry["metadata"]["appendix_t1_embedded_case_count"], 755)
             self.assertEqual(self.registry["metadata"]["appendix_promoted_embedded_case_count"], 0)
             self.assertEqual(
                 self.registry["metadata"]["counting_unit"],
@@ -136,8 +136,8 @@ class CanonicalTestRegistryTests(unittest.TestCase):
 
     def test_beaaa13992_disqualifies_non_evidenced_embedded_cases_at_case_level(self) -> None:
         ledger = self.registry.get("disqualification_ledger", [])
-        self.assertEqual(len(ledger), 743)
-        self.assertEqual(self.registry["metadata"]["appendix_disqualified_embedded_case_count"], 743)
+        self.assertEqual(len(ledger), 783)
+        self.assertEqual(self.registry["metadata"]["appendix_disqualified_embedded_case_count"], 783)
         for row in ledger:
             self.assertFalse(row["countable_as_active_executable"])
             self.assertTrue(row["disqualification_reason"])
