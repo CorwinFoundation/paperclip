@@ -1,0 +1,23 @@
+{
+  "batch": [
+    {
+      "id": "beaaa-17702-ingest",
+      "type": "trace-create",
+      "timestamp": "2026-07-24T00:00:00.000Z",
+      "body": {
+        "id": "beaaa-17702-synthetic-trace",
+        "name": "backbond-synthetic-journey",
+        "input": {"fixture": "synthetic", "request": "return inventory status for SKU DEMO-001"},
+        "output": {"fixture": "synthetic", "status": "available"},
+        "metadata": {
+          "data_class": "synthetic-only",
+          "ticket": "BEAAA-17702",
+          "customer_data": false,
+          "authoritative_evidence": false,
+          "evidence_sha256": "e649f2c0f093c46501820e157dac48f3b718b64f0e08fba10c4b5dc8d92a9a05"
+        },
+        "tags": ["synthetic-only", "non-production", "beaaa-17702"]
+      }
+    }
+  ]
+}
