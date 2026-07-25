@@ -20,10 +20,12 @@ import sys
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+import harness.cli_runner as cli_runner  # noqa: E402
 from harness.cli_runner import (  # noqa: E402
     CliEvidenceError,
     CliInputError,
@@ -137,6 +139,33 @@ class InputLoaderTests(unittest.TestCase):
             self.assertTrue(
                 inputs.file_sha256s["eval_results.json"].startswith("sha256:")
             )
+
+    def test_eval_results_hash_and_rows_are_bound_to_one_file_read(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._g1_dir(Path(tmpd))
+            eval_path = d / "eval_results.json"
+            with patch(
+                "harness.cli_runner._read_bytes",
+                wraps=cli_runner._read_bytes,
+            ) as read_bytes:
+                inputs = load_inputs("G1", d)
+
+        eval_reads = [
+            call
+            for call in read_bytes.call_args_list
+            if call.args and Path(call.args[0]) == eval_path
+        ]
+        self.assertEqual(
+            len(eval_reads),
+            1,
+            "eval_results.json must be hash-bound to the same byte snapshot "
+            "used for row validation",
+        )
+        expected_hash = "sha256:" + __import__("hashlib").sha256(
+            G1_EVAL.read_bytes()
+        ).hexdigest()
+        self.assertEqual(inputs.file_sha256s["eval_results.json"], expected_hash)
 
     def test_agent_id_rejects_traversal(self):
         import tempfile

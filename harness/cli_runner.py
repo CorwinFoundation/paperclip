@@ -137,14 +137,17 @@ def _read_bytes(path: Path) -> bytes:
         return fh.read(_MAX_FILE_BYTES + 1)[:_MAX_FILE_BYTES]
 
 
-def _read_optional_json(path: Path) -> Any:
-    if not path.exists():
-        return None
-    raw = _read_bytes(path)
+def _json_from_bytes(raw: bytes, *, name: str) -> Any:
     try:
         return json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise CliInputError(f"{path.name} is not valid UTF-8 JSON: {exc}") from exc
+        raise CliInputError(f"{name} is not valid UTF-8 JSON: {exc}") from exc
+
+
+def _read_optional_json(path: Path) -> Any:
+    if not path.exists():
+        return None
+    return _json_from_bytes(_read_bytes(path), name=path.name)
 
 
 def _read_required_json(path: Path) -> Any:
@@ -325,8 +328,19 @@ def load_inputs(agent_id: str, input_dir: Path) -> CliInputs:
             ).hexdigest()
         return path
 
-    eval_path = _hashed("eval_results.json")
-    eval_results = _validate_eval_results(_read_required_json(eval_path))
+    def _hashed_json(name: str, *, required: bool = False) -> Any:
+        path = _safe_join(input_dir, name)
+        if not path.exists():
+            if required:
+                raise CliInputError(f"required input missing: {name}")
+            return None
+        raw = _read_bytes(path)
+        file_sha256s[name] = "sha256:" + hashlib.sha256(raw).hexdigest()
+        return _json_from_bytes(raw, name=name)
+
+    eval_results = _validate_eval_results(
+        _hashed_json("eval_results.json", required=True)
+    )
 
     system_prompt = _read_optional_text(_hashed("system_prompt.txt"))
     tool_inventory = _read_optional_json(_hashed("tool_inventory.json"))
