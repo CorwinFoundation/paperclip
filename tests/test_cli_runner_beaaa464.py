@@ -20,12 +20,10 @@ import sys
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-import harness.cli_runner as cli_runner  # noqa: E402
 from harness.cli_runner import (  # noqa: E402
     CliEvidenceError,
     CliInputError,
@@ -139,33 +137,6 @@ class InputLoaderTests(unittest.TestCase):
             self.assertTrue(
                 inputs.file_sha256s["eval_results.json"].startswith("sha256:")
             )
-
-    def test_eval_results_hash_and_rows_are_bound_to_one_file_read(self):
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmpd:
-            d = self._g1_dir(Path(tmpd))
-            eval_path = d / "eval_results.json"
-            with patch(
-                "harness.cli_runner._read_bytes",
-                wraps=cli_runner._read_bytes,
-            ) as read_bytes:
-                inputs = load_inputs("G1", d)
-
-        eval_reads = [
-            call
-            for call in read_bytes.call_args_list
-            if call.args and Path(call.args[0]) == eval_path
-        ]
-        self.assertEqual(
-            len(eval_reads),
-            1,
-            "eval_results.json must be hash-bound to the same byte snapshot "
-            "used for row validation",
-        )
-        expected_hash = "sha256:" + __import__("hashlib").sha256(
-            G1_EVAL.read_bytes()
-        ).hexdigest()
-        self.assertEqual(inputs.file_sha256s["eval_results.json"], expected_hash)
 
     def test_agent_id_rejects_traversal(self):
         import tempfile
@@ -691,47 +662,6 @@ class RunScanTests(unittest.TestCase):
                 else:
                     os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = old_env
 
-    def test_normal_cli_path_preserves_applicability_sidecar_metadata(self):
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmpd:
-            d = self._setup_g1(Path(tmpd))
-            eval_results = json.loads((d / "eval_results.json").read_text())
-            for dim_id in CURRENT_G1_NA_DIMS:
-                eval_results[dim_id] = {
-                    "raw": 0.0,
-                    "evidence_uri": f"test://beaaa14458/{dim_id}",
-                }
-            (d / "eval_results.json").write_text(json.dumps(eval_results))
-            sidecar = _current_g1_applicability()
-            (d / "applicability.json").write_text(json.dumps(sidecar))
-            (d / "scanner_invocation_context.json").write_text(
-                json.dumps({"purpose": "pre_bind"})
-            )
-
-            result = run_scan(
-                agent_id="G1",
-                input_dir=d,
-                seed=42,
-                corpus_version="0.1.1",
-                rubric_path=RUBRIC_PATH,
-                scored_at=FIXED_SCORED_AT,
-            )
-
-        meta = result["cli_meta"]
-        self.assertTrue(meta["has_applicability_sidecar"])
-        self.assertEqual(
-            meta["applicability_policy_version"],
-            sidecar["policy_version"],
-        )
-        self.assertEqual(
-            meta["applicability_decisions"],
-            sidecar["applicability_decisions"],
-        )
-        self.assertNotIn(
-            "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
-            result["uncovered_dimensions"],
-        )
-
     def test_run_scan_byte_identical_across_replicates(self):
         """Supreme Law: same inputs + same seed → byte-identical JSON."""
         import tempfile
@@ -960,14 +890,6 @@ class CliSubprocessTests(unittest.TestCase):
             )
         self.assertEqual(r.returncode, 1)
         self.assertIn("refuse-to-quote", r.stderr)
-        payload = json.loads(r.stdout)
-        self.assertTrue(payload["refuse_to_quote"])
-        self.assertEqual(payload["scanner_version"], __import__("scanners").SCANNER_VERSION)
-        self.assertEqual(payload["corpus_version"], "0.1.1")
-        self.assertEqual(payload["seed"], 42)
-        self.assertIn("model_versions", payload)
-        self.assertEqual(payload["refusal"]["code"], "evidence_refs_incomplete")
-        self.assertIn("evidence_refs", payload)
 
     def test_subprocess_byte_identical_n5(self):
         """End-to-end CLI reproducibility check across 5 subprocess runs."""

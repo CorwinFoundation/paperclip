@@ -195,21 +195,16 @@ def _project_evidence_refs(
     return projected
 
 
-def _raise_evidence_error(
-    message: str,
-    *,
-    partial_result: dict[str, Any] | None = None,
-) -> None:
+def _raise_evidence_error(message: str) -> None:
     # Lazy import to break the cli_runner ↔ contract_envelope cycle.
     from harness.cli_runner import CliEvidenceError
-    raise CliEvidenceError(message, partial_result=partial_result)
+    raise CliEvidenceError(message)
 
 
 def _validate_scored_evidence_refs(
     evidence_refs: list[dict[str, Any]],
     *,
     scored_rubric_point_ids: set[str],
-    partial_result: dict[str, Any] | None = None,
 ) -> None:
     """Enforce are-scanner-api-v1 evidence completeness for scored points.
 
@@ -253,10 +248,7 @@ def _validate_scored_evidence_refs(
     if duplicates:
         errors.append("duplicate:" + ",".join(duplicates))
     if errors:
-        _raise_evidence_error(
-            "evidence_refs incomplete: " + "; ".join(errors),
-            partial_result=partial_result,
-        )
+        _raise_evidence_error("evidence_refs incomplete: " + "; ".join(errors))
 
 
 def _governance_attestation_refs(
@@ -396,6 +388,13 @@ def to_contract_output(
         scored_at=scored_at,
     )
 
+    # Hard guarantee #2 from the contract: every scored rubric point must
+    # have exactly one complete evidence_refs row with a reachable artifact_uri.
+    _validate_scored_evidence_refs(
+        evidence_refs,
+        scored_rubric_point_ids=scored_rubric_point_ids,
+    )
+
     # BEAAA-796 / v1.0.3 §Output promotion #4 — per-P4-dim review_state +
     # tier MUST emit on every P4 evidence_refs row. Reads review_state +
     # claimed tiers off the customer-submitted attestation fixture
@@ -461,8 +460,6 @@ def to_contract_output(
             "has_applicability_sidecar": (
                 inputs.applicability_decisions is not None
             ),
-            "applicability_policy_version": inputs.applicability_policy_version,
-            "applicability_decisions": inputs.applicability_decisions,
             "scanner_invocation_context": inputs.scanner_invocation_context,
             "pillar_naming_note": (
                 "subscores keyed by contract pillar names "
@@ -474,27 +471,6 @@ def to_contract_output(
             ),
         },
     })
-
-    try:
-        # Hard guarantee #2 from the contract: every scored rubric point must
-        # have exactly one complete evidence_refs row with a reachable artifact_uri.
-        _validate_scored_evidence_refs(
-            evidence_refs,
-            scored_rubric_point_ids=scored_rubric_point_ids,
-        )
-    except Exception as exc:
-        if exc.__class__.__name__ != "CliEvidenceError":
-            raise
-        partial_result = dict(contract_output)
-        partial_result.update({
-            "refuse_to_quote": True,
-            "refusal": {
-                "code": "evidence_refs_incomplete",
-                "message": str(exc),
-                "contract_version": CONTRACT_VERSION,
-            },
-        })
-        _raise_evidence_error(str(exc), partial_result=partial_result)
     return contract_output
 
 
