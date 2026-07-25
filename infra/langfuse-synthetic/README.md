@@ -14,7 +14,7 @@ BLUF: this stack provides a BackBond-controlled, non-production Langfuse project
 
 ## Secret handling
 
-Create the keys named in `required-secret-refs.json` in the Paperclip company secret provider. Do not paste values into git, shell history, issue comments, or receipts. Materialize the values into a root-owned mode `0400` or `0600` environment file only for Compose execution; disclose only Paperclip secret IDs on BEAAA-17702 and BEAAA-17703.
+Create the keys named in `required-secret-refs.json` in the Paperclip company secret provider. Do not paste values into git, shell history, issue comments, or receipts. Materialize the values at `/run/secrets/beaaa-17702.env` as a root-owned mode `0400` or `0600` environment file only for Compose execution; disclose only Paperclip secret IDs on BEAAA-17702 and BEAAA-17703. `deploy.sh` fails closed if either ownership or mode is wrong.
 
 Map secret keys to environment variables:
 

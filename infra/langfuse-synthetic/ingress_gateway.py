@@ -42,7 +42,18 @@ class GuardHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _proxy(self) -> None:
-        content_length = int(self.headers.get("Content-Length", "0"))
+        raw_content_length = self.headers.get("Content-Length")
+        if self.command in {"POST", "PUT", "PATCH"} and raw_content_length is None:
+            self._reject(411, "content-length is required")
+            return
+        try:
+            content_length = int(raw_content_length or "0")
+        except ValueError:
+            self._reject(400, "content-length must be an integer")
+            return
+        if content_length < 0:
+            self._reject(400, "content-length must be non-negative")
+            return
         if content_length > MAX_BODY_BYTES:
             self._reject(413, "request body exceeds synthetic ingress limit")
             return
@@ -51,6 +62,9 @@ class GuardHandler(BaseHTTPRequestHandler):
         if self.command in {"POST", "PUT", "PATCH"} and self.path.startswith(
             "/api/public/ingestion"
         ):
+            if self.headers.get_content_type() != "application/json":
+                self._reject(415, "ingestion content-type must be application/json")
+                return
             try:
                 document = json.loads(body)
             except (json.JSONDecodeError, UnicodeDecodeError):
