@@ -61,8 +61,6 @@ LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
 )
 AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
-        "backbond-output-attack-fixtures",
-        "crescendo",
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
         "system_prompt_extraction",
@@ -70,6 +68,12 @@ AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
         "human_escalation_flagging",
         "customer_defined_risk_pack",
         "mcp_tool_integrity",
+    }
+)
+REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES = frozenset(
+    {
+        "backbond-output-attack-fixtures",
+        "crescendo",
     }
 )
 AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
@@ -536,10 +540,14 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
     )
 
 
-def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
+def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
     return (
         row.get("test_id")
-        in (AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES)
+        in (
+            AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
+            | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+            | REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES
+        )
         and row.get("reporting_status") == "reported_not_scored"
         and row.get("scoring_active") is False
     )
@@ -547,7 +555,7 @@ def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
 
 def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
     return (
-        not _is_aiuc_path_b_reported_not_scored(row)
+        not _is_non_countable_reported_not_scored(row)
         and row.get("status") == "active"
         and row.get("production_runner_executable") is True
     )
@@ -556,7 +564,7 @@ def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
 def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
-    if _is_aiuc_path_b_reported_not_scored(row):
+    if _is_non_countable_reported_not_scored(row):
         return False
     return (
         row.get("status") == "active"
