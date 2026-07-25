@@ -1,0 +1,40 @@
+{
+  "schema_version": "backbond.n5-calibration-delta/v0.1",
+  "artifact_type": "calibration_delta",
+  "owner": "scanner_engineer_2",
+  "persona_audience": "internal",
+  "canonical_terms_only": true,
+  "contracts_referenced": [
+    "contracts/are-scanner-api-v1.md@v1.0",
+    "contracts/scanner-implementation-supervision-v1.md@v1.0"
+  ],
+  "ticket_refs": [
+    "BEAAA-17764"
+  ],
+  "scanner_version": "0.5.0",
+  "corpus_version": "canonical-61-family-registry@2026-07-13",
+  "probe-set-version": "family-activation-ledger/v0.1",
+  "rubric_point_id": "P1.1,P1.2,P1.3,P1.4,P1.5,P1.6,P2.1,P2.2,P2.3,P2.4,P2.5,P2.6,P3.1,P3.2,P3.3,P3.4,P3.5,P3.6,P4.1,P4.2,P4.3,P4.4,P4.5,P4.6",
+  "runs": 5,
+  "seed": 0,
+  "score_activation": false,
+  "aggregate_working_count": "61/61",
+  "combined_evidence_sha256": [
+    "413aa0f97e22294066ef5b3eae25fce8c0d1295473cfae7a480cc1eb704bb299",
+    "413aa0f97e22294066ef5b3eae25fce8c0d1295473cfae7a480cc1eb704bb299",
+    "413aa0f97e22294066ef5b3eae25fce8c0d1295473cfae7a480cc1eb704bb299",
+    "413aa0f97e22294066ef5b3eae25fce8c0d1295473cfae7a480cc1eb704bb299",
+    "413aa0f97e22294066ef5b3eae25fce8c0d1295473cfae7a480cc1eb704bb299"
+  ],
+  "unique_combined_evidence_digests": 1,
+  "n5_calibration_delta": {
+    "evidence_bytes": 0,
+    "total_score": 0,
+    "pillars": 0,
+    "band": 0
+  },
+  "invariant": "Supreme Law Layer 2: harness changes require byte-identical outputs and delta 0.0000.",
+  "verdict": "PASS",
+  "cto_cosign_ref": null,
+  "self_audit_passed": true
+}

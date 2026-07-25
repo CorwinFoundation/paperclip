@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
+
 from tools.family_activation_ledger import (
     CANONICAL_CORPUS_VERSION,
     CONTRACTS_REFERENCED,
@@ -11,6 +14,8 @@ from tools.family_activation_ledger import (
     family_is_working,
     load_ledger,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_frozen_ledger_has_exactly_61_complete_unique_family_rows() -> None:
@@ -96,6 +101,37 @@ def test_integrated_ledger_classification_provenance_and_metadata_are_truthful()
     assert all(len(row["evidence"]["sha256"]) == 64 for row in excluded)
     assert baseline["corpus_version"] == CANONICAL_CORPUS_VERSION
     assert baseline["contracts_referenced"] == CONTRACTS_REFERENCED
+
+
+def test_integrated_machine_ledger_carries_and_verifies_row_evidence() -> None:
+    baseline = build_baseline(load_ledger())
+    rows = baseline["evidence_rows"]
+
+    assert len(rows) == 61
+    assert [row["ordinal"] for row in rows] == list(range(1, 62))
+    assert all({"ordinal", "family_id", "evidence"} <= row.keys() for row in rows)
+    assert all(row["evidence"] for row in rows)
+    referenced = [reference for row in rows for reference in row["evidence"]]
+    assert referenced, "row provenance must not pass vacuously when failures=[]"
+    for reference in referenced:
+        if "path" not in reference:
+            assert len(reference["sha256"]) == 64
+            continue
+        path = ROOT / reference["path"]
+        assert path.is_file()
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == reference["sha256"]
+
+
+def test_integrated_machine_ledger_rejects_stale_evidence_digest() -> None:
+    payload = load_ledger()
+    payload["families"][9]["target_bound_smoke_result"]["evidence"]["sha256"] = "0" * 64
+
+    try:
+        build_baseline(payload)
+    except ValueError as exc:
+        assert "evidence digest mismatch" in str(exc)
+    else:
+        raise AssertionError("stale evidence digest was accepted")
 
 
 def test_complete_working_predicate_fails_closed_on_missing_smoke() -> None:

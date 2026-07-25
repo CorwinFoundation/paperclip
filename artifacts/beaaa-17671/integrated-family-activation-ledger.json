@@ -13,6 +13,622 @@
   "escalations_noted": [
     "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
   ],
+  "evidence_rows": [
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17709/target-smoke/p5_direct_advbench_v1.json",
+          "sha256": "503953e00c15217cc59b48008610805fc25ce7bccd087618c1064dded28fdb96"
+        }
+      ],
+      "family_id": "advbench",
+      "ordinal": 1
+    },
+    {
+      "evidence": [
+        {
+          "sha256": "f32abb0dc3dfd351fe4fe5261cbe768f73527429d2862c290313140bcd9b7c81",
+          "source": "BEAAA-17707 smoke agentdojo"
+        }
+      ],
+      "family_id": "agentdojo",
+      "ordinal": 2
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/bbq.json",
+          "sha256": "19dd956010ecf22fe783d541f2cfc0057c31c3012181602c5b656ada250d1cab"
+        }
+      ],
+      "family_id": "bbq",
+      "ordinal": 3
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/citation_integrity_legal.json",
+          "sha256": "fc20db89d003fe70b2a238a16258d42b01b3b773ac0391d998782eae1d68b0a7"
+        }
+      ],
+      "family_id": "citation_integrity_legal",
+      "ordinal": 4
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/confidence_calibration.json",
+          "sha256": "e463b2fb2c01051a38b96b1315c2ce51c108edcd34b1d4545c390b8124b93a80"
+        }
+      ],
+      "family_id": "confidence_calibration",
+      "ordinal": 5
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/counterfactual_stability.json",
+          "sha256": "794c5185bc642a8c25ddad35363bf515b4145a637e0955f4b91cd653b37cd643"
+        }
+      ],
+      "family_id": "counterfactual_stability",
+      "ordinal": 6
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/demographic_parity.json",
+          "sha256": "e25ebaabfa3921b5788c21a0514c5b90f3d6cd1569d02e32ab91c47e5cdabf57"
+        }
+      ],
+      "family_id": "demographic_parity",
+      "ordinal": 7
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/donotanswer.json",
+          "sha256": "c52134a74598ddc12a7192fb09ff00c5aeaff1564c07bb6d851dc37e0972a897"
+        }
+      ],
+      "family_id": "donotanswer",
+      "ordinal": 8
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/equal_opportunity.json",
+          "sha256": "f6ba4088025a47896be06bbe74296dd3b8de87d8279cf33b715e17dfe5ecda47"
+        }
+      ],
+      "family_id": "equal_opportunity",
+      "ordinal": 9
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17732/target-smoke/eval_coverage_breadth.json",
+          "sha256": "922045159aa98b9f9e7f01c56830a5c34ba0f551d97255777f4c42c3e1c60d1e"
+        }
+      ],
+      "family_id": "eval_coverage_breadth",
+      "ordinal": 10
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17732/target-smoke/eval_representation.json",
+          "sha256": "521d7375910fc601da83c7b67b892c5bbf092987b32ef52feb7a40a9a4840206"
+        }
+      ],
+      "family_id": "eval_representation",
+      "ordinal": 11
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17709/target-smoke/p4_citation_grounded_factscore_v1.json",
+          "sha256": "45828cab22e482b602f92b326aa63b3d69c865424d65ada443740da490f28659"
+        }
+      ],
+      "family_id": "factscore",
+      "ordinal": 12
+    },
+    {
+      "evidence": [
+        {
+          "sha256": "2a094a317bce98daa00176b0179e7f180a6b3d2b817d135ff7d47b36910ddf21",
+          "source": "BEAAA-17707 smoke garak"
+        }
+      ],
+      "family_id": "garak",
+      "ordinal": 13
+    },
+    {
+      "evidence": [
+        {
+          "sha256": "39fc505b605006d0026349e2c27af9a191a12ab22af0d7a26e6573586303522c",
+          "source": "BEAAA-17707 smoke garak_beaaa152"
+        }
+      ],
+      "family_id": "garak_beaaa152",
+      "ordinal": 14
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/hallucination_legal.json",
+          "sha256": "14137aaec7d1b48d866a07c136100b190d82f0350a67bde96a2fe2b9858f6e49"
+        }
+      ],
+      "family_id": "hallucination_legal",
+      "ordinal": 15
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17709/target-smoke/p4_grounded_factuality_halueval_qa_v1.json",
+          "sha256": "894fb0e968a1a271a699099140f1df306258e0bc94580629c1ec087df90dbd89"
+        },
+        {
+          "path": "artifacts/beaaa-17709/target-smoke/p4_citation_grounded_halueval_summ_v1.json",
+          "sha256": "2d83ddcc98b5eef474f655a19a0fd1b308cbfbfe922847ce07c47346c72963d4"
+        }
+      ],
+      "family_id": "halueval",
+      "ordinal": 16
+    },
+    {
+      "evidence": [
+        {
+          "sha256": "d40fd5439be528a0cf9dfc330f383bba60c3580b3b12aa90d1b2559d6a1ea93d",
+          "source": "BEAAA-17707 smoke harmbench"
+        }
+      ],
+      "family_id": "harmbench",
+      "ordinal": 17
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17708/target-bound-smoke/indirect_injection.json",
+          "sha256": "da9f5def3fde853c73e2679a23554fe56fb747c1e0fe2cfdb8ee904f59598e44"
+        }
+      ],
+      "family_id": "indirect_injection",
+      "ordinal": 18
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17709/target-smoke/p5_direct_jailbreakbench_v1.json",
+          "sha256": "43d28bc897f6652207e98b5e27cef9f41bdef410deb37955bb3aa3535b8fb738"
+        }
+      ],
+      "family_id": "jailbreakbench",
+      "ordinal": 19
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17732/target-smoke/mitigation_evidence.json",
+          "sha256": "98fdc294c46182854fec81a2374e27cbbcbfb19c75f87166d13f230d0ec690a3"
+        }
+      ],
+      "family_id": "mitigation_evidence",
+      "ordinal": 20
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
+          "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
+        }
+      ],
+      "family_id": "p1_1_factuality_golden",
+      "ordinal": 21
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
+          "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
+        }
+      ],
+      "family_id": "p1_3_consistency_golden",
+      "ordinal": 22
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
+          "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
+        }
+      ],
+      "family_id": "p1_4_refusal_golden",
+      "ordinal": 23
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/golden-target-smoke/summary.json",
+          "sha256": "2eb00fc85049c36b35b2f7290a6cd6f1822c334da612e5b6729c2d7ee2004927"
+        }
+      ],
+      "family_id": "p1_5_calibration_golden",
+      "ordinal": 24
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p2_1_demographic_parity_gap.json",
+          "sha256": "ce1e3ae169045775f7494aeb4bf1eaeaab6c94c1c223e59f37a910db4bf2ebbb"
+        }
+      ],
+      "family_id": "p2_1_demographic_parity_gap",
+      "ordinal": 25
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p2_2_equal_opportunity_gap.json",
+          "sha256": "b697c4821bfdbabd6c47b9ef1841bcbfd717b6d985c8ffa82628d2f8b4db2fbc"
+        }
+      ],
+      "family_id": "p2_2_equal_opportunity_gap",
+      "ordinal": 26
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p2_3_counterfactual_stability.json",
+          "sha256": "c4adead0088c53f40a1b31b7023583b3747c3cdac8bd7d4296c46b642b780e01"
+        }
+      ],
+      "family_id": "p2_3_counterfactual_stability",
+      "ordinal": 27
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p2_4_eval_representation.json",
+          "sha256": "8dd809facfb44e0f339cee78f213c92621d6b9f9ed4cbc643f93ec0d88ee0b9a"
+        }
+      ],
+      "family_id": "p2_4_eval_representation",
+      "ordinal": 28
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p2_5_sentiment_skew_by_attribute.json",
+          "sha256": "af8d5a671a850bc1ae962e4e62d5835694fc529ecfdcbaab1f52ab1f22698576"
+        }
+      ],
+      "family_id": "p2_5_sentiment_skew_by_attribute",
+      "ordinal": 29
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p2_6_mitigation_evidence.json",
+          "sha256": "441dddb8b057527a3fbebbcad11d0d84f8b4efe00e9f759633a3b65e66ce75d9"
+        }
+      ],
+      "family_id": "p2_6_mitigation_evidence",
+      "ordinal": 30
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p3_2_indirect_injection_rob.json",
+          "sha256": "a8abef5c5f6aefec81466c8be21eb54ff1daaac148c047f3cbbf59609bf97dee"
+        }
+      ],
+      "family_id": "p3_2_indirect_injection_rob",
+      "ordinal": 31
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17669/target-smoke/p3_3_secret_exfiltration_rob.json",
+          "sha256": "9183616c9ec30793abc0487179f193d50d37e9df19811ff155828ca3564f6e43"
+        }
+      ],
+      "family_id": "p3_3_secret_exfiltration_rob",
+      "ordinal": 32
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17733/smoke/p3_5_multiturn_jailbreak-seed-0.json",
+          "sha256": "e0d73f39d1285e4d1f179975b39a9a9ca03e1ba2c19a5a110e2d8eebf7c294f8"
+        }
+      ],
+      "family_id": "p3_5_multiturn_jailbreak",
+      "ordinal": 33
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17733/smoke/p3_6_output_attack-seed-0.json",
+          "sha256": "db340f2bd43e088c24e9dfb78fc31c9453f69b828feb6c86792efadb063b5819"
+        }
+      ],
+      "family_id": "p3_6_output_attack",
+      "ordinal": 34
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      ],
+      "family_id": "p4_audit_log",
+      "ordinal": 35
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      ],
+      "family_id": "p4_eval_cadence",
+      "ordinal": 36
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      ],
+      "family_id": "p4_incident_response",
+      "ordinal": 37
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      ],
+      "family_id": "p4_kill_switch",
+      "ordinal": 38
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      ],
+      "family_id": "p4_owner_matrix",
+      "ordinal": 39
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      ],
+      "family_id": "p4_version_control",
+      "ordinal": 40
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/perturbation_seeds.json",
+          "sha256": "6726b0a68072d9a6a2260d51f689190674f5845cd42e5520a18d4a334678a8ec"
+        }
+      ],
+      "family_id": "perturbation_seeds",
+      "ordinal": 41
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pii_attestation.json",
+          "sha256": "545449a2f308c55e20f7bd8ca5bec02e6c590311b916ce5f3f98fa33e35b3e3e"
+        }
+      ],
+      "family_id": "pii_attestation",
+      "ordinal": 42
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pii_scan_time_detection.json",
+          "sha256": "50c1c066adc16e51cb7ec02ae7cdd600197818f50269dc4dc82ab229d44ff610"
+        }
+      ],
+      "family_id": "pii_scan_time_detection",
+      "ordinal": 43
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pii_substrate.json",
+          "sha256": "87a8cf92dec8bd0071ca2bdedd4d5fc74b3c80adb188ca3bc2897abedb3512f0"
+        }
+      ],
+      "family_id": "pii_substrate",
+      "ordinal": 44
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/privacybench.json",
+          "sha256": "aa700143d73d3e07baa5d92f3d109e7401e1b0bef42a6568b891fdc679bc5b37"
+        }
+      ],
+      "family_id": "privacybench",
+      "ordinal": 45
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/promptbench.json",
+          "sha256": "b2ceb544e10492adc74836d6d9eed90afe36a5706b2be3a46f9035c9fa344dc1"
+        }
+      ],
+      "family_id": "promptbench",
+      "ordinal": 46
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/promptinject.json",
+          "sha256": "c682ab097efaacf19c73f6c04f5ee0a61f8874654ce2013a534106bf83bd8c33"
+        }
+      ],
+      "family_id": "promptinject",
+      "ordinal": 47
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/pyrit.json",
+          "sha256": "5c48473bfa09007c9d49c98b7964284b4dec206cb7e4958d6bbe68d32b0f9a19"
+        }
+      ],
+      "family_id": "pyrit",
+      "ordinal": 48
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/secret_exfil.json",
+          "sha256": "018a575fb9e1b784ed72108aacf0bfbb1c2693242cd22ec8b31bde9ea3f05739"
+        }
+      ],
+      "family_id": "secret_exfil",
+      "ordinal": 49
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/self_contradiction_pairs.json",
+          "sha256": "a9e4d5676740de5bbe9107fa101f102ebdadfdc17298a4417472c7839956b455"
+        }
+      ],
+      "family_id": "self_contradiction_pairs",
+      "ordinal": 50
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/sentiment_skew.json",
+          "sha256": "5a4f10372a6c7906170a77ae79d3e45cea7a74f8f2fd9e9b64a10a5ce9a6ed32"
+        }
+      ],
+      "family_id": "sentiment_skew",
+      "ordinal": 51
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_param_tamper.json",
+          "sha256": "37c47ff77a3f7d784b5f1100c16f4f10aa20ceb57f9ceff2bb0eb972bfb6be31"
+        }
+      ],
+      "family_id": "tool_misuse_param_tamper",
+      "ordinal": 52
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_scope_escape.json",
+          "sha256": "8587d059322a5c590156f0af8f22479401f2aa614a3733019a50ab40aae5f3e2"
+        }
+      ],
+      "family_id": "tool_misuse_scope_escape",
+      "ordinal": 53
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/tool_misuse_unauthorized_call.json",
+          "sha256": "32bbf6db8d3b33f9b31802ab6697a805250584787ee215e73ab599f95febe36a"
+        }
+      ],
+      "family_id": "tool_misuse_unauthorized_call",
+      "ordinal": 54
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/truthfulqa.json",
+          "sha256": "26ade7422d5a805916728fcb8ab542772ac7c6b731c60a34a0850ba1199a41db"
+        }
+      ],
+      "family_id": "truthfulqa",
+      "ordinal": 55
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/stop_instruction_v1.json",
+          "sha256": "3422b45b2ee93dfd82f518b61a2eb8b0eaefad5b23ef54c11c550101a61932cc"
+        }
+      ],
+      "family_id": "stop_instruction_v1",
+      "ordinal": 56
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_data_containment.json",
+          "sha256": "43624d6fe062b93411cc437cc72f8bc44e53dd32d8c36d1b686a5491db63af47"
+        }
+      ],
+      "family_id": "peril_data_containment",
+      "ordinal": 57
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_money_movement.json",
+          "sha256": "3d6f5e84d7247398da60348ef9d9f0a12b0588ec6059e13d3c195a3c578051a2"
+        }
+      ],
+      "family_id": "peril_money_movement",
+      "ordinal": 58
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_recipient_integrity.json",
+          "sha256": "d8a5d0dcf3d5ae7a0ce97e23885b0eebe65321f343e85ebde068c8d61cc0de79"
+        }
+      ],
+      "family_id": "peril_recipient_integrity",
+      "ordinal": 59
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/peril_tool_grounded_factuality.json",
+          "sha256": "4bafe0187ebaf5b2778391c6795699469641b0d4ac5c910e4fa3d5d43cc07b59"
+        }
+      ],
+      "family_id": "peril_tool_grounded_factuality",
+      "ordinal": 60
+    },
+    {
+      "evidence": [
+        {
+          "path": "artifacts/beaaa-17670/target-bound-smoke/live_walker_inspect_section1_v0.json",
+          "sha256": "36fa74cd0fa5660fa394d631a612828545109dbb02b35b16db6f2666fcbf40e2"
+        }
+      ],
+      "family_id": "live_walker_inspect_section1_v0",
+      "ordinal": 61
+    }
+  ],
   "fail_closed_gap_count": 0,
   "fail_closed_gap_ordinals": [],
   "failures": [],
@@ -51,7 +667,9 @@
     "BEAAA-17730",
     "BEAAA-17732",
     "BEAAA-17733",
-    "BEAAA-17734"
+    "BEAAA-17734",
+    "BEAAA-17762",
+    "BEAAA-17764"
   ],
   "total_count": 61,
   "truthful_baseline": "61/61",

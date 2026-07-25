@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import hashlib
+import subprocess
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,6 +20,7 @@ from tools.governance_eval_target_runner import (
     _hash_reconciliation,
     _terminal_verdict,
 )
+from tools.family_activation_ledger import build_baseline, load_ledger
 
 
 def _evidence_hash(evidence: dict[str, object]) -> str:
@@ -219,6 +222,47 @@ def test_runner_is_deterministic_for_same_seed(target_server, tmp_path, monkeypa
     second = second_runner.run_family(load_governance_eval_rows()[1], seed=2)
     assert first["hashes"] == second["hashes"]
     assert first["verdict"] == second["verdict"] == "PASS"
+
+
+def test_local_fixture_config_identity_ignores_ephemeral_port() -> None:
+    first = GovernanceEvalTargetConfig(
+        "http://127.0.0.1:10001/governance-eval",
+        "fixture",
+        "local_http_test_fixture",
+        "BACKBOND_GOV_EVAL_TEST_TOKEN",
+    )
+    second = GovernanceEvalTargetConfig(
+        "http://127.0.0.1:20002/governance-eval",
+        "fixture",
+        "local_http_test_fixture",
+        "BACKBOND_GOV_EVAL_TEST_TOKEN",
+    )
+
+    assert first.evidence_identity() == second.evidence_identity()
+    assert first.evidence_identity()["url"] == "http://127.0.0.1/governance-eval"
+
+
+def test_tracked_replay_is_byte_identical_and_aggregate_remains_61_of_61() -> None:
+    artifact_dir = Path("artifacts/beaaa-17732/target-smoke")
+    tracked = [
+        artifact_dir / "eval_coverage_breadth.json",
+        artifact_dir / "eval_representation.json",
+        artifact_dir / "mitigation_evidence.json",
+        artifact_dir / "summary.json",
+    ]
+    before = {path: path.read_bytes() for path in tracked}
+
+    subprocess.run(
+        [sys.executable, "tools/run_beaaa17732_governance_eval_smoke.py"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert {path: path.read_bytes() for path in tracked} == before
+    baseline = build_baseline(load_ledger())
+    assert baseline["complete_working_predicate"] is True
+    assert baseline["truthful_baseline"] == "61/61"
 
 
 def test_runner_rejects_production_credential_markers(tmp_path, monkeypatch) -> None:

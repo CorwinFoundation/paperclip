@@ -13,6 +13,7 @@ import math
 import os
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -66,6 +67,23 @@ class GovernanceEvalTargetConfig:
         if not value:
             raise GovernanceEvalRunError("test credential is unavailable")
         return value
+
+    def evidence_identity(self) -> dict[str, Any]:
+        """Return the stable, security-relevant config bound into evidence."""
+        identity = asdict(self)
+        if self.config_class == "local_http_test_fixture":
+            parsed = urllib.parse.urlsplit(self.url)
+            if parsed.scheme != "http" or parsed.hostname not in {
+                "127.0.0.1",
+                "localhost",
+            }:
+                raise GovernanceEvalRunError(
+                    "local_http_test_fixture must use a localhost HTTP target"
+                )
+            identity["url"] = urllib.parse.urlunsplit(
+                (parsed.scheme, parsed.hostname, parsed.path, parsed.query, "")
+            )
+        return identity
 
 
 def load_governance_eval_rows(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
@@ -158,7 +176,9 @@ class GovernanceEvalTargetRunner:
             "target_evidence": output_payload.get("evidence"),
             "hashes": {
                 "request_sha256": _sha256(request_body),
-                "config_sha256": _sha256(_canonical_bytes(asdict(self.config))),
+                "config_sha256": _sha256(
+                    _canonical_bytes(self.config.evidence_identity())
+                ),
                 "input_sha256": _sha256(_canonical_bytes(dict(row))),
                 "output_sha256": _sha256(output_body),
                 "verdict_sha256": _sha256(_canonical_bytes({"verdict": verdict})),

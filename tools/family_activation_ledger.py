@@ -8,6 +8,7 @@ be counted as working.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -24,9 +25,6 @@ CONTRACTS_REFERENCED = [
     "scanner-implementation-supervision-v1@v1.0",
 ]
 SOURCE_LEDGER_REFERENCE = "tools/probe-registry/family_activation_ledger_v0.1.json"
-SOURCE_LEDGER_SHA256 = (
-    "088aba0de33b55a3883b9fd37eec37014d437460f252a8f8d433b5b8ef55c49a"
-)
 BRAND_BACKBONE_VERSION = "v1.6"
 BRAND_BACKBONE_SHA256 = (
     "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
@@ -113,6 +111,37 @@ def family_is_working(row: dict[str, Any]) -> bool:
     )
 
 
+def immutable_evidence_references(row: dict[str, Any]) -> list[dict[str, str]]:
+    """Return and verify every file-backed evidence reference for one family."""
+    evidence = row["target_bound_smoke_result"].get("evidence")
+    candidates = evidence if isinstance(evidence, list) else [evidence]
+    references = []
+    for candidate in candidates:
+        if isinstance(candidate, str) and "sha256:" in candidate:
+            label, digest = candidate.rsplit("sha256:", 1)
+            if len(digest) != 64:
+                raise LedgerError(f"{row['family_id']}: malformed evidence digest")
+            references.append({"source": label.strip(), "sha256": digest})
+            continue
+        if not isinstance(candidate, dict):
+            continue
+        path = candidate.get("path")
+        expected = candidate.get("sha256")
+        if not isinstance(path, str) or not isinstance(expected, str):
+            continue
+        evidence_path = ROOT / path
+        if not evidence_path.is_file():
+            raise LedgerError(f"{row['family_id']}: evidence file is missing: {path}")
+        actual = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+        if len(expected) == 64 and actual != expected:
+            raise LedgerError(
+                f"{row['family_id']}: evidence digest mismatch for {path}: "
+                f"expected {expected}, got {actual}"
+            )
+        references.append({"path": path, "sha256": actual})
+    return references
+
+
 def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     rows = payload["families"]
     working_rows = [
@@ -123,6 +152,14 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
     working = [row["family_id"] for row in working_rows]
     working_ordinals = [row["ordinal"] for row in working_rows]
     working_ids = set(working)
+    evidence_rows = [
+        {
+            "ordinal": row["ordinal"],
+            "family_id": row["family_id"],
+            "evidence": immutable_evidence_references(row),
+        }
+        for row in rows
+    ]
     complete_working_predicate = (
         len(rows) == 61
         and len(working_rows) == 61
@@ -160,7 +197,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
                 "failure": failure,
                 "source_ledger": {
                     "path": SOURCE_LEDGER_REFERENCE,
-                    "sha256": SOURCE_LEDGER_SHA256,
+                    "sha256": hashlib.sha256(DEFAULT_LEDGER.read_bytes()).hexdigest(),
                 },
                 "evidence": (
                     {
@@ -199,6 +236,8 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
             "BEAAA-17732",
             "BEAAA-17733",
             "BEAAA-17734",
+            "BEAAA-17762",
+            "BEAAA-17764",
         ],
         "proof_points_cited": [
             "tools/probe-registry/family_activation_ledger_v0.1.json",
@@ -228,6 +267,7 @@ def build_baseline(payload: dict[str, Any]) -> dict[str, Any]:
         "complete_working_predicate": complete_working_predicate,
         "working_ordinals": working_ordinals,
         "working_family_ids": working,
+        "evidence_rows": evidence_rows,
         "qa_unverified_excluded_count": len(QA_UNVERIFIED_EXCLUDED_ORDINALS),
         "qa_unverified_excluded_ordinals": sorted(QA_UNVERIFIED_EXCLUDED_ORDINALS),
         "fail_closed_gap_count": len(FAIL_CLOSED_GAP_ORDINALS),

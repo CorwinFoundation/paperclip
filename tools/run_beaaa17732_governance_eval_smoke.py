@@ -23,7 +23,6 @@ from tools.governance_eval_target_runner import (  # noqa: E402
 
 ARTIFACT_DIR = ROOT / "artifacts" / "beaaa-17732" / "target-smoke"
 TOKEN_ENV = "BACKBOND_GOV_EVAL_TEST_TOKEN"
-LOCAL_PORT = 17732
 
 
 def _canonical_bytes(payload: Any) -> bytes:
@@ -120,13 +119,13 @@ class _LocalGovernanceEvalTarget(BaseHTTPRequestHandler):
 
 def main() -> int:
     os.environ.setdefault(TOKEN_ENV, "beaaa-17732-local-test-token")
-    server = ThreadingHTTPServer(("127.0.0.1", LOCAL_PORT), _LocalGovernanceEvalTarget)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _LocalGovernanceEvalTarget)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
         runner = GovernanceEvalTargetRunner(
             GovernanceEvalTargetConfig(
-                url=f"http://127.0.0.1:{LOCAL_PORT}/governance-eval",
+                url=f"http://127.0.0.1:{server.server_port}/governance-eval",
                 identity="beaaa-17732-local-http-test-target",
                 config_class="local_http_test_fixture",
                 credential_env=TOKEN_ENV,
