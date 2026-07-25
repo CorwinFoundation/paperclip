@@ -170,11 +170,11 @@ def test_fragments_syntax_check_inside_a_synthesized_vhost(tmp_path):
     # A minimal but complete nginx.conf that embeds the fragments the way the
     # runbook does: http-scope log_format + a server block that INCLUDES the
     # server fragment. This proves the include is valid inside a vhost.
-        good = tmp_path / "nginx.good.conf"
-        good.write_text(
-            f"pid {tmp_path/'nginx.pid'};\n"
-            "events {}\n"
-            "http {\n"
+    good = tmp_path / "nginx.good.conf"
+    good.write_text(
+        f"pid {tmp_path/'nginx.pid'};\n"
+        "events {}\n"
+        "http {\n"
         f"  include {tmp_path/'http.conf'};\n"
         "  server {\n"
         "    listen 8080;\n"
