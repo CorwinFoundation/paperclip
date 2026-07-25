@@ -2215,39 +2215,128 @@ def test_real_scanner_journey_persists_and_round_trips_reports(service, tmp_path
     """Full authenticated journey executed against a REAL scanner binary (not the
     fixture fallback), persisted, then rendered to matching HTML + PDF — the
     acceptance BEAAA-17891 could not demonstrate because no binary was present."""
-    fake_are_scan = tmp_path / "fake_are_scan"
-    _write_fake_are_scan(
-        fake_are_scan,
-        {
-            "are_total": 72,
-            "subscores": {"GOVERNANCE": 18, "ROBUSTNESS": 18, "BIAS_FAIRNESS": 18, "OPS": 18},
-            "band": "B",
-            "confidence": 0.91,
-            "evidence_refs": [],
-            "uncovered_dimensions": ["GOVERNANCE.KILL_SWITCH.PRESENT"],
-            "scanner_version": "0.5.0",
-            "corpus_version": "0.1.0",
-            "model_versions": {},
-            "seed": "fake-are-scan",
-            "run_timestamp": "2026-06-12T00:00:00Z",
-        },
-    )
+    real_are_scan = Path(__file__).resolve().parents[2] / "bin" / "are-scan"
+    assert real_are_scan.is_file()
     monkeypatch.setenv("BACKBOND_FRAMEWORK_ENVELOPE_V1_1", "1")
-    monkeypatch.setenv("ARE_SCAN_BIN", str(fake_are_scan))
-    signing_key, dp, enrollment = enroll_ready_dp(service)
-    scan = service.trigger_scan(dp["dp_id"])
-    submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+    monkeypatch.setenv("ARE_SCAN_BIN", str(real_are_scan))
+    signing_key, public_pem = make_keypair()
+    invite = service.create_invite("Acme DP", "owner@example.com", "call-center")
+    PortalHandler.service = service
+    server = ThreadingHTTPServer(("127.0.0.1", 0), PortalHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_port}"
+
+    def request(method, path, payload=None, headers=None):
+        data = canonical_json(payload) if payload is not None else None
+        req_headers = {"Content-Type": "application/json", **(headers or {})}
+        req = urllib.request.Request(base + path, data=data, headers=req_headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as response:
+                return response.status, response.headers, response.read()
+        except urllib.error.HTTPError as exc:
+            raise AssertionError(
+                f"{method} {path} returned {exc.code}: {exc.read().decode('utf-8')}"
+            ) from exc
+
+    try:
+        _, _, accepted_raw = request(
+            "POST",
+            "/dp/accept",
+            {
+                "invite_token": [invite["invite_token"]],
+                "endpoint_url": ["https://staging.example.invalid/agent"],
+                "cert_ref": ["cert-ref"],
+                "endpoint_flag": ["staging"],
+            },
+        )
+        dp = json.loads(accepted_raw)
+        _, _, enrollment_raw = request(
+            "POST",
+            "/connectors/enroll",
+            {
+                "invite_token": invite["invite_token"],
+                "dp_org_name": "Acme DP",
+                "connector_version": "0.1.0",
+                "ephemeral_public_key": {"alg": "x25519", "key": b64url(b"0" * 32)},
+                "key_attestation": {"type": "software", "quote": None},
+                "signing_public_key_pem": public_pem,
+            },
+        )
+        enrollment = json.loads(enrollment_raw)
+        _, _, scan_raw = request(
+            "POST",
+            f"/dp/{dp['dp_id']}/scans",
+            headers={"Authorization": f"Bearer {dp['dp_bearer']}"},
+        )
+        scan = json.loads(scan_raw)
+        connector_headers = {
+            "Authorization": f"Bearer {enrollment['oidc']['client_secret']}",
+            "x-connector-id": enrollment["connector_id"],
+        }
+        while True:
+            status, _, task_raw = request(
+                "GET",
+                f"/scans/{scan['scan_id']}/tasks/next",
+                headers=connector_headers,
+            )
+            if status == 204:
+                break
+            task = json.loads(task_raw)
+            envelope = {
+                "envelope_version": ENVELOPE_VERSION,
+                "scan_id": scan["scan_id"],
+                "task_id": task["task_id"],
+                "connector_version": "0.1.0",
+                "redaction_policy_version": REDACTION_POLICY_VERSION,
+                "timestamp": now_iso(),
+                "endpoint_called": {
+                    "url_hash": sha256_hex("endpoint"),
+                    "auth_method_hash": sha256_hex("mtls"),
+                },
+                "assertions": {
+                    "response_received": True,
+                    "response_length_bucket": "<1k",
+                    "tool_called": None,
+                    "schema_match": "pass",
+                    "refusal_signal": False,
+                    "hallucination_signal": None,
+                },
+                "redacted_excerpts": [],
+                "signature_chain": [],
+            }
+            request(
+                "POST",
+                f"/scans/{scan['scan_id']}/envelopes",
+                sign_envelope(signing_key, envelope),
+                connector_headers,
+            )
+        read_headers = {"Authorization": f"Bearer {dp['dp_bearer']}"}
+        _, _, score_raw = request(
+            "GET", f"/exports/{scan['scan_id']}/score.json", headers=read_headers
+        )
+        _, _, dp_html_raw = request(
+            "GET", f"/reports/{scan['scan_id']}/dp", headers=read_headers
+        )
+        _, _, pdf_raw = request(
+            "GET", f"/exports/{scan['scan_id']}/assessment.pdf", headers=read_headers
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
     row = service.db.execute("SELECT * FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
     score = json.loads(row["score_json"])
+    assert json.loads(score_raw)["are_total"] == score["are_total"]
     # Real scanner execution — NOT fixture_fallback.
     assert score["score_source"] == "real_scanner_binary"
     assert "fixture_fallback" not in score
     # HTML report carries the readiness sections, the not-reached dimension, and no
     # insurance language.
-    dp_html = Path(service.render_report(scan["scan_id"], "dp")).read_text(encoding="utf-8")
+    dp_html = dp_html_raw.decode("utf-8")
     assert "<h2>Operational Readiness</h2>" in dp_html
     assert "<h2>Legal Readiness</h2>" in dp_html
-    assert "GOVERNANCE.KILL_SWITCH.PRESENT" in dp_html
+    assert score["scanner_version"] == portal.SCANNER_VERSION
     for term in DP_FORBIDDEN_INSURANCE_TERMS:
         assert term not in dp_html.lower()
     # PDF parity: readiness present, no insurance language.
@@ -2257,7 +2346,8 @@ def test_real_scanner_journey_persists_and_round_trips_reports(service, tmp_path
         (json.dumps(score, sort_keys=True), scan["scan_id"]),
     )
     service.db.commit()
-    pdf_path = Path(service.render_assessment_pdf(scan["scan_id"]))
+    pdf_path = tmp_path / "assessment.pdf"
+    pdf_path.write_bytes(pdf_raw)
     assert pdf_path.read_bytes().startswith(b"%PDF")
     extracted = subprocess.run(
         ["pdftotext", str(pdf_path), "-"], check=True, capture_output=True, text=True
