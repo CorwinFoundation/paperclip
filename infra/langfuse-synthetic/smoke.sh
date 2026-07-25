@@ -29,6 +29,20 @@ curl --fail-with-body --silent --show-error \
   --data-binary "@${fixture}" \
   "${LANGFUSE_BASE_URL%/}/api/public/ingestion" >/dev/null
 
+prohibited_fixture="$(
+  jq '.batch[0].body.input.email = "synthetic@example.invalid"' "${fixture}"
+)"
+prohibited_code="$(
+  curl --silent --output /dev/null --write-out '%{http_code}' \
+    -u "${auth}" -H 'Content-Type: application/json' \
+    --data-binary "${prohibited_fixture}" \
+    "${LANGFUSE_BASE_URL%/}/api/public/ingestion"
+)"
+if [[ "${prohibited_code}" != "422" ]]; then
+  echo "prohibited-key request returned ${prohibited_code}, expected 422" >&2
+  exit 1
+fi
+
 trace_ready=false
 for _ in $(seq 1 30); do
   if curl --fail --silent --show-error -u "${auth}" \
@@ -99,5 +113,6 @@ jq -n \
     auth_method:"HTTP Basic with scoped Langfuse project public/secret keys",
     data_class:"synthetic-only",
     unauthorized_http_status:$unauthorized_http_status,
+    prohibited_key_http_status:"422",
     retention_end:$retention_end
   }'

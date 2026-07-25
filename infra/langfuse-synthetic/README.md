@@ -4,11 +4,11 @@ BLUF: this stack provides a BackBond-controlled, non-production Langfuse project
 
 ## Controls
 
-- All six images are pinned by immutable manifest digest.
-- Only the web service binds the host, on loopback `127.0.0.1:3300`; databases and object storage remain on a Docker internal network.
+- All seven images are pinned by immutable manifest digest.
+- Only the synthetic ingress guard binds the host, on loopback `127.0.0.1:3300`; Langfuse, databases, and object storage remain on a Docker internal network.
 - Upstream telemetry is disabled. Batch export is disabled.
 - Project identity is fixed as `beaaa-17702`; the data window ends `2026-07-29T23:59:59Z`.
-- No customer or production data is permitted. `smoke.sh` rejects common customer/production field names before ingest and asserts the synthetic classification on retrieval.
+- No customer or production data is permitted. The ingress guard returns HTTP 422 for prohibited JSON keys (`email`, `phone`, `customer_id`, `customer_name`, `pii`) before forwarding ingestion to Langfuse. `smoke.sh` proves this service-side rejection and asserts the synthetic classification on retrieval.
 - The synthetic trace carries and re-reads a SHA-256 evidence pointer. JSON/PDF rendering remains in the separately QA-approved BEAAA-17385 journey; this sidecar supplies trace, feedback, and hashed-evidence inputs without becoming its evidence store.
 - No score, rubric, corpus, model, Scanner API, warranty, quote, bind, price, limit, decline, or insurance-decision behavior is present.
 
