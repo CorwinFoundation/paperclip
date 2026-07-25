@@ -172,8 +172,11 @@ def registry_inventory() -> dict[str, Any]:
             "published executed count does not equal evidence-gated registry count"
         )
 
+    # This historical demo executes declared registry aliases individually.
+    # Keep that compatibility behavior local; production continues to use the
+    # registry's unique runtime identities unchanged.
     runnable = [
-        row
+        {key: value for key, value in row.items() if key != "runtime_case_identity"}
         for row in rows
         if row.get("status") == "active"
         and row.get("target_bound") is True
