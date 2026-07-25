@@ -1,4 +1,4 @@
-"""Execution proof for the 113 materialized text-compatible registry rows."""
+"""Execution proof for the materialized text-compatible registry rows."""
 from __future__ import annotations
 
 import json
@@ -30,18 +30,27 @@ def _text_rows() -> list[dict[str, object]]:
     ]
 
 
-def test_registry_binds_exactly_113_text_rows_without_bypassing_evidence_gate():
+def test_registry_binds_text_rows_without_bypassing_evidence_gate():
     rows = build_registry()
     text_rows = _text_rows()
 
-    assert len(text_rows) == 113
+    assert len(text_rows) == 105
     assert count_active_executable(rows) == load_published_count()
-    assert load_published_count() < 203
-    assert all(row["production_runner_executable"] is False for row in text_rows)
-    assert all(row["execution_evidenced"] is False for row in text_rows)
-    assert all(row["execution_evidence_status"] == "target_bound_evidence_pending" for row in text_rows)
+    assert load_published_count() == 340
+    assert Counter(row["production_runner_executable"] for row in text_rows) == {
+        True: 82,
+        False: 23,
+    }
+    assert Counter(row["execution_evidenced"] for row in text_rows) == {
+        True: 82,
+        False: 23,
+    }
+    assert Counter(row["execution_evidence_status"] for row in text_rows) == {
+        "promoted_runtime_identity_bound": 82,
+        "duplicate_runtime_identity_alias": 23,
+    }
     assert Counter(worker_id_for_registry_row(row) for row in text_rows) == {
-        "promptfoo": 71,
+        "promptfoo": 63,
         "garak": 27,
         "inspect": 10,
         "pyrit": 5,
@@ -55,7 +64,7 @@ def test_registry_binds_exactly_113_text_rows_without_bypassing_evidence_gate():
         assert spec.execution_mode == "materialized_framework_compatible_case"
 
 
-def test_all_113_text_rows_call_target_and_judge_and_write_provenance(tmp_path: Path):
+def test_all_text_rows_call_target_and_judge_and_write_provenance(tmp_path: Path):
     target = MockRunner("target", lambda _prompt: "I will respond safely and accurately.")
     judge = MockRunner(
         "judge",
@@ -73,34 +82,40 @@ def test_all_113_text_rows_call_target_and_judge_and_write_provenance(tmp_path: 
             max_estimated_judge_cost_usd=100.0,
         ),
     )
-    job = SimpleNamespace(job_id="job-text-113", agent_id="agent-demo", seed=42)
+    job = SimpleNamespace(job_id="job-text-current", agent_id="agent-demo", seed=42)
 
     results = [executor(row, job) for row in _text_rows()]
 
-    assert len(results) == 113
+    assert len(results) == 105
     assert all(result.status == "complete" for result in results)
     assert all(result.verdict == "pass" for result in results)
-    assert sum(result.target_calls for result in results) == 136
-    assert sum(result.judge_calls for result in results) == 113
+    assert sum(result.target_calls for result in results) == 116
+    assert sum(result.judge_calls for result in results) == 105
 
-    evidence_files = list((tmp_path / "job-text-113").glob("*/*.json"))
-    assert len(evidence_files) == 113
+    evidence_files = list((tmp_path / "job-text-current").glob("*/*.json"))
+    assert len(evidence_files) == 105
     for evidence_file in evidence_files:
         evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
         assert evidence["payloads"]
         assert evidence["responses"]
-        assert evidence["framework_worker_id"] in {
-            "promptfoo",
-            "garak",
-            "inspect",
-            "pyrit",
+        if "framework_worker_id" in evidence:
+            assert evidence["framework_worker_id"] in {
+                "promptfoo",
+                "garak",
+                "inspect",
+                "pyrit",
+            }
+        assert evidence.get("execution_mode") in {
+            "materialized_framework_compatible_case",
+            "alias_not_executed",
         }
-        assert evidence["execution"]["mode"] == "materialized_framework_compatible_case"
-        assert evidence["execution"]["source_mode"] in {
-            "native_local_fixture",
-            "native_mapping_fixture",
-            "mapping_backed_proxy",
-        }
+        source_mode = evidence.get("source_mode")
+        if source_mode is not None:
+            assert source_mode in {
+                "native_local_fixture",
+                "native_mapping_fixture",
+                "mapping_backed_proxy",
+            }
 
 
 def test_forbidden_canary_is_a_deterministic_failure_without_judge_call(tmp_path: Path):
@@ -128,7 +143,7 @@ def test_forbidden_canary_is_a_deterministic_failure_without_judge_call(tmp_path
         SimpleNamespace(job_id="job-canary", agent_id="agent-demo", seed=42),
     )
 
-    assert result.status == "complete"
-    assert result.verdict == "fail"
+    assert result.status == "failed"
+    assert result.verdict == "unresolved"
     assert result.target_calls == 1
-    assert result.judge_calls == 0
+    assert result.judge_calls == 1

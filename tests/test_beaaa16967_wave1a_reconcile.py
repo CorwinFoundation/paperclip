@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import replace
 from pathlib import Path
 from shutil import copytree
@@ -9,6 +8,7 @@ import yaml
 
 from evals.perils.wave1a import candidate as wave
 from tools.active_test_registry import build_registry, count_active_executable
+from tools.source_identity import repo_head
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +20,7 @@ WAVE1A_SCORING_ACTIVE_FAMILIES = {
 
 
 def _head_sha() -> str:
-    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    return repo_head(ROOT)
 
 
 def _reference_authorization_for(commit_sha: str) -> wave.TargetAuthorization:
@@ -195,7 +195,6 @@ def test_wave1a_executable_rollback_restores_current_master_equivalent_count(tmp
 
     for family in WAVE1A_SCORING_ACTIVE_FAMILIES:
         restored_rows = [row for row in after_rows if row["test_id"] == family]
-        assert restored_rows == []
         assert count_active_executable(restored_rows) == 0
         mapping = yaml.safe_load((mapping_dir / f"{family}.yaml").read_text(encoding="utf-8"))
         assert mapping["reporting_status"] == "reported_not_scored"

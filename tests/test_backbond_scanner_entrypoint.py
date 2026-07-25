@@ -79,7 +79,7 @@ def test_backbond_scanner_version_command_reports_release_pins() -> None:
     pins = json.loads(completed.stdout)
     assert pins["scanner_version"] == "0.5.0"
     assert pins["corpus_version"] == "2026.6.24"
-    assert pins["contract_version"] == "are-scanner-api-v1@v1.0"
+    assert pins["contract_version"] == "are-scanner-api-v1@v1.3.0"
 
 
 def test_backbond_scanner_rejects_confidence_above_contract_range(tmp_path: Path) -> None:

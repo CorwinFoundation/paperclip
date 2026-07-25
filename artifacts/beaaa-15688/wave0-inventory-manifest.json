@@ -1,0 +1,39 @@
+{
+  "schema": "backbond-wave0-inventory-manifest/v1",
+  "ticket_ref": "BEAAA-15688",
+  "scanner_version": "1.2.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "probe_set_version": "scanner-test-registry-baseline-2026-07-13/v0.1",
+  "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
+  "contract": "are-scanner-api-v1@v1.0",
+  "classification": "rule-execution",
+  "cto_cosign_ref": "BEAAA-15697 attachment cdf218c8-8a7f-459c-b3a1-f0d7ebd49999",
+  "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+  "source_contract": "BEAAA-15697/superseding-wave0-contract@v1.0",
+  "inventory_path": "artifacts/beaaa-15688/wave0-case-inventory.jsonl",
+  "inventory_sha256": "ac3ff731bae3801e7ef884438700690b016a6e63dcf532c4623771ecb99493fb",
+  "definitions": 715,
+  "unique_hashes": 715,
+  "duplicate_hashes": 0,
+  "stable_ids": 715,
+  "reconciled_current_behaviors": 180,
+  "quarantined_inventory_only_families": [
+    "peril_data_containment",
+    "peril_recipient_integrity",
+    "peril_tool_grounded_factuality",
+    "stop_instruction_v1",
+    "tool_misuse_param_tamper",
+    "tool_misuse_scope_escape"
+  ],
+  "n5_calibration_delta": "not_applicable_inventory_only_no_score_path_change",
+  "no_target_or_judge_calls": true,
+  "live_coverage_claim": false,
+  "promotion_authorized": false,
+  "signature": {
+    "type": "sha256-content-addressed-inventory",
+    "signed_field": "inventory_sha256",
+    "value": "ac3ff731bae3801e7ef884438700690b016a6e63dcf532c4623771ecb99493fb",
+    "signer": "scanner_engineer",
+    "ticket_ref": "BEAAA-15688"
+  }
+}

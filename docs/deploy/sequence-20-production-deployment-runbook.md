@@ -14,13 +14,13 @@ proof_points_cited:
   - "Signed image provenance (offline archive, NOT re-pulled): tar sha256 d9f7203b79d42a77e17bfa292781250c7575d31f011ee03d79f9accbfbaf29ac, local RepoTag backbond-scanner-live:b1c577c74a127c1342617230689eb6f0ef9be6d2, org.opencontainers.image.revision=b1c577c…; GHCR provenance ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda… (recorded, not inspected offline)"
   - "Deployable edge fragments: infra/edge/nginx/backbond-scanner-edge.http.conf + backbond-scanner-edge.server.conf.template"
   - "Live vhost integrated in place: /etc/nginx/sites-available/scanner.backbond.ai (sites-enabled symlink)"
-  - "Live service/container/env contract: service backbond-scanner-live.service, container backbond-scanner-live-edge, env-file /etc/backbond/scanner-edge.env (NOT are-scanner-edge / /etc/are-scanner/secrets.env)"
+  - "Live service/container/env contract: service backbond-scanner-live.service, container backbond-scanner-live-edge, env-file /etc/backbond/scanner-edge.env (not the legacy scanner service/env defaults)"
 version: 1.6
 prior_version: "1.5 (docs/deploy/sequence-20-production-deployment-runbook.md@727447c — image/credential/rollback identity reconciled, but the live-vhost mutation was still an interactive `$EDITOR` step: non-deterministic and not automation-runnable)"
 self_audit_passed: true
 escalations_noted:
   - "v1.3 assumed a standalone /etc/nginx/conf.d/backbond-scanner-edge.conf server block. The live topology is ONE TLS vhost at /etc/nginx/sites-available/scanner.backbond.ai; installing a second server block would create a conflicting listener. The Sequence 20 operator stop (BEAAA-16232 962f9417) caught this. v1.4 integrates into the live vhost."
-  - "v1.5 reconciles image/credential/rollback identity to the operator's fail-closed read-back (BEAAA-16331 local-board comments 2026-07-21): (a) /usr/local/sbin/box_deploy is ABSENT and its GHCR-RepoDigest re-verify cannot run after an offline `docker load` (Docker archives do not preserve the GHCR RepoDigest), so image identity is verified by tar sha256 + loaded local RepoTag + org.opencontainers.image.revision, with the GHCR digest retained as provenance only; (b) the live service/container/env names are backbond-scanner-live.service / backbond-scanner-live-edge / /etc/backbond/scanner-edge.env, not the older are-scanner defaults; (c) rollback identity is the read-back image ID sha256:7c4ff251… (revision 37192e2b…), not a remembered tag; (d) two DISTINCT active non-customer/non-vapi Tenant A/B scoped credentials are NOT staged in /var/lib/are-scanner/edge/keys.json and must be provisioned fail-closed at mode 0600 before the tenant preflight can pass."
+  - "v1.5 reconciles image/credential/rollback identity to the operator's fail-closed read-back (BEAAA-16331 local-board comments 2026-07-21): (a) the retired on-box deploy helper is absent and its GHCR-RepoDigest re-verify cannot run after an offline `docker load` (Docker archives do not preserve the GHCR RepoDigest), so image identity is verified by tar sha256 + loaded local RepoTag + org.opencontainers.image.revision, with the GHCR digest retained as provenance only; (b) the live service/container/env names are backbond-scanner-live.service / backbond-scanner-live-edge / /etc/backbond/scanner-edge.env, not the older scanner defaults; (c) rollback identity is the read-back image ID sha256:7c4ff251… (revision 37192e2b…), not a remembered tag; (d) two DISTINCT active non-customer/non-vapi Tenant A/B scoped credentials are NOT staged in /var/lib/are-scanner/edge/keys.json and must be provisioned fail-closed at mode 0600 before the tenant preflight can pass."
   - "The deployable nginx surface changed (standalone template -> two fragments) AND this runbook is now v1.6, so the release manifest (artifacts/beaaa-16257/sequence-20-release-manifest.json) MUST bind the two fragment SHA-256 values + this runbook's v1.6 SHA-256, then be RE-SIGNED. The re-input manifest now records the two fragment hashes and the v1.6 runbook SHA-256 (artifacts/beaaa-16331/revised-release-manifest.input.json also binds the offline archive tar sha256 + local tag/revision + rollback identity), but it is UNSIGNED (manifest_signature.status=NOT_PRODUCED) — re-signing is a CTO/Founder action; this task does NOT claim a signature it cannot produce. promotion_authorized stays false."
   - "v1.6 removes the interactive `$EDITOR` from the live-vhost mutation (BEAAA-16331 local-board 911fcd68 item 5): the vhost include is now applied by a deterministic, idempotent, hash-guarded transform (Step 2) that fail-closes unless the staged copy matches the operator-recorded pre-image hash LIVE_VHOST_SHA256, removes the scanner proxy location blocks, inserts exactly one include, emits the exact unified diff to the receipt, and records vhost_pre/vhost_post SHA-256. Re-running the transform logic is a no-op. This makes the mutation fully automation-runnable and reviewable before execution."
   - "Production/public promotion requires exact-build QA APPROVED naming this runbook commit SHA and separate Founder sign-off under BEAAA-15373. v4 Founder confirmation authorized the prior identity only and does NOT carry to this changed deployable surface. No production mutation is performed by this task."
@@ -57,8 +57,8 @@ identity from remembered values. The operator's fail-closed read-back on
 `srv1749248` (BEAAA-16331 local-board, 2026-07-21, **no mutation**) proved four
 things v1.4 could not execute against:
 
-1. **No `box_deploy`, no GHCR-digest re-verify offline.** `/usr/local/sbin/box_deploy`
-   is **absent**; the only installed helpers are `backbond-ensure-docker-networking`,
+1. **No retired deploy helper, no GHCR-digest re-verify offline.** The legacy
+   on-box deploy helper is **absent**; the only installed helpers are `backbond-ensure-docker-networking`,
    `backbond-scanner-live-wait`, and firewall/bind helpers. The signed image
    arrives as an **offline Docker archive** — and `docker load` does **not** restore
    the GHCR `RepoDigest`, so `docker image inspect ghcr.io/…@sha256:0b565dda…`
@@ -67,7 +67,7 @@ things v1.4 could not execute against:
    as provenance only (Step 4).
 2. **Live service/container/env names.** service `backbond-scanner-live.service`,
    container `backbond-scanner-live-edge`, env-file `/etc/backbond/scanner-edge.env`
-   — the older `are-scanner-edge` / `/etc/are-scanner/secrets.env` defaults are wrong.
+   — the older scanner service/env defaults are wrong.
 3. **Rollback identity is a read-back, not a tag.** The running container is image
    ID `sha256:7c4ff251…` (revision `37192e2b…`); `/etc/backbond/scanner-edge.env`
    binds `SCANNER_EDGE_IMAGE=sha256:7c4ff251…`; the container `Config.Image` is that
@@ -520,11 +520,11 @@ listener or duplicate `location` would fail here); reload and `is-active` exit
 `0`; the journal shows no reload error. Any failure triggers the rollback below
 **before** proceeding.
 
-## 4. Confirm the scanner image identity (offline, no registry, no `box_deploy`)
+## 4. Confirm the scanner image identity (offline, no registry, no retired deploy helper)
 
 The app container is **not swapped** by this edge fix; this step only *proves the
 running image identity* by read-back so rollback (Step 7) is anchored to a real
-value. The box runs default-deny egress, `/usr/local/sbin/box_deploy` is absent,
+value. The box runs default-deny egress, the retired on-box deploy helper is absent,
 and an offline `docker load` does **not** restore the GHCR `RepoDigest` — so
 identity is verified by **image ID + `org.opencontainers.image.revision`**, never
 `docker image inspect ghcr.io/…@sha256:0b565dda…` (that reference will not exist

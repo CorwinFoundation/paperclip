@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "release_id": "backbond-scanner-0.5.0-rubric-1.3.0",
+  "baseline_sha": "fb58d5e5cf7d132afd55c177f4a385ba5b29c76a",
+  "python_version": "3.12",
+  "scanner_version": "0.5.0",
+  "rubric_version": "1.3.0",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "release_gate_corpus_version": "0.2.0",
+  "golden_probe_set_version": "golden_agents_v1",
+  "framework_registry": {
+    "path": "rubric/framework_registry.v1.json",
+    "registry_version": "1.0.0",
+    "mapping_version": "backbond-aiuc-1-crosswalk@1.0.0"
+  },
+  "approved_source_commits": {
+    "wave_1a_live_lineage": "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e",
+    "release_truth": "30de03e90f5377d051cc99a6f348be5057c67639",
+    "production_controls": "876a6daf9aefcac94f58657a64f3dd9cd4ce04d5",
+    "assessment_envelope": "35419f819737a5e38865a114898ff1590e1419f3"
+  },
+  "corpus_profiles": {
+    "golden_fixtures": {
+      "B1": "",
+      "G1": "path_a_v2_1@2026-05-15",
+      "G2": "path_a_v2_1@2026-05-15",
+      "M1": "bias-pack-v0.1",
+      "M2": "path_b_v2_1@2026-05-15+bias-pack-v0.1",
+      "M3": "path_a_v2_1@2026-05-15"
+    },
+    "retell_grade_card": {
+      "corpus_version": "retell-consolidated-full-coverage@2026-06-24",
+      "probe_set_version": "retell-consolidated-probe-set@2026-06-24"
+    },
+    "rasa_grade_card": {
+      "corpus_version": "rasa-consolidated-red-battery@2026-06-24",
+      "probe_set_version": "rasa-red-battery-detector-harness@2026-06-24"
+    }
+  },
+  "framework_versions": {
+    "garak": "0.10.0",
+    "agentdojo": "0.1.35",
+    "pyrit": "0.6.0",
+    "inspect-ai": "0.3.220"
+  },
+  "locks": {
+    "core": {
+      "path": "locks/core-py312.lock",
+      "sha256": "51aa45314103e32446f826e85862cfd568706666213ab8903e3e99c903cf64d4"
+    },
+    "garak": {
+      "path": "locks/garak-py312.lock",
+      "sha256": "013a9cee92bb695edba875e4e903f3b5262113de5611f2aa5535338d6ce4a763"
+    },
+    "agentdojo": {
+      "path": "locks/agentdojo-py312.lock",
+      "sha256": "8869c553b9713f16f97e9984f529b4fc7e3e75edbb46c9a0bdf2ac6eaa860ae2"
+    },
+    "pyrit": {
+      "path": "locks/pyrit-py312.lock",
+      "sha256": "fc1abec4de7900b972f38b39d7f04c41217332d1382addb76fadd8c0d23b93b2"
+    },
+    "inspect": {
+      "path": "locks/inspect-py312.lock",
+      "sha256": "24b30f393092284cb052f33a2901ba475739dea02bef2146aef7cb931b731217"
+    }
+  }
+}

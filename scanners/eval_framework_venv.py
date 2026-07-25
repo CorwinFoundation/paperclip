@@ -176,8 +176,8 @@ def resolve_framework(
       is the no-op path (unconfigured CI host) and is byte-identical to the
       runners' historical ``except ImportError`` branch, so nothing downstream
       changes.
-    * If the venv is present, subprocess-probe it for
-      ``<import_name>.__version__``. On success → ``(True, version)``. On any
+    * If the venv is present, subprocess-probe its import and installed
+      distribution metadata. On success → ``(True, version)``. On any
       failure (broken venv, import error, timeout) → ``(False, "not-installed")``
       so a half-built venv degrades to "framework unavailable" rather than
       raising through the harness import path.
@@ -189,11 +189,9 @@ def resolve_framework(
     if not py.exists():
         return (False, "not-installed")
     code = (
-        "import importlib, importlib.metadata, sys; "
-        f"_m=importlib.import_module({spec.import_name!r}); "
-        f"_v=getattr(_m, '__version__', None) or "
-        f"importlib.metadata.version({spec.distribution_name!r}); "
-        "sys.stdout.write(str(_v))"
+        f"import {spec.import_name}; import sys; "
+        f"from importlib.metadata import version; "
+        f"sys.stdout.write(version({spec.distribution_name!r}))"
     )
     try:
         proc = subprocess.run(
@@ -254,13 +252,14 @@ def resolve_or_import(framework: str, module: object | None) -> tuple[bool, str]
     venv probe.
     """
     if module is not None:
-        version = getattr(module, "__version__", None)
-        if version:
-            return (True, str(version))
-        spec = _require_known(framework)
+        module_version = getattr(module, "__version__", None)
+        if module_version is not None:
+            return (True, str(module_version))
         try:
-            return (True, metadata.version(spec.distribution_name))
-        except metadata.PackageNotFoundError:
+            from importlib.metadata import version
+
+            return (True, version(_require_known(framework).distribution_name))
+        except Exception:
             return (True, "unknown")
     return resolve_framework(framework)
 

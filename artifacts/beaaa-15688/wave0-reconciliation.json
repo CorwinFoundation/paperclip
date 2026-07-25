@@ -1,0 +1,28 @@
+{
+  "schema": "backbond-wave0-reconciliation/v1",
+  "ticket_ref": "BEAAA-15688",
+  "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+  "source_extractor": "tools.active_test_registry.build_registry plus RegisteredCaseExecutor materialization paths",
+  "target_bound_rows_total": 204,
+  "governance_attestations_excluded": 1,
+  "model_target_rows": 203,
+  "oracle_aware_exact_hash_groups": 185,
+  "semantic_overlap_merges_with_distinct_hash": 5,
+  "distinct_current_behaviors": 180,
+  "accounted_current_behaviors": 180,
+  "alias_rows_not_counted": 23,
+  "classification_contract": {
+    "exact_overlap": "same canonical prompt/action and complete expected/oracle preimage",
+    "semantic_overlap_with_distinct_hash": "same normalized prompt/action behavior but a distinct source oracle hash; counted once as a behavior and retained in reconciliation provenance",
+    "gap": "no existing target-bound behavior; candidate inventory definition only"
+  },
+  "classification_summary": {
+    "current_behavior_groups_accounted": 180,
+    "exact_hash_groups_before_semantic_merge": 185,
+    "semantic_group_merges": 5,
+    "unaccounted": 0
+  },
+  "no_target_or_judge_calls": true,
+  "live_coverage_claim": false,
+  "superseding_contract_attachment": "cdf218c8-8a7f-459c-b3a1-f0d7ebd49999"
+}

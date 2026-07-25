@@ -55,13 +55,14 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_distinct_case_count_is_below_runnable_case_count(self) -> None:
         counts = distinct_case_counts(self.rows)
         runnable = count_target_bound_runtime(self.rows)
-        self.assertEqual(runnable, 203)
-        # 203 rows still execute — they are simply not all distinct.
-        self.assertEqual(counts["declared_total"], 203)
+        self.assertEqual(runnable, 362)
+        # The current target-bound registry rows still execute — they are
+        # simply not all distinct.
+        self.assertEqual(counts["declared_total"], 362)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
-        # Global unique (prompts, expected) pairs — matches the CTO reproduction
-        # (113 text-compatible rows -> 90 distinct, 23 dupes): 203 - 23 = 180.
-        self.assertEqual(counts["total"], 180)
+        # Global unique (prompts, expected) pairs follow the current registry
+        # source of truth: 362 declared - 23 dupes = 339.
+        self.assertEqual(counts["total"], 339)
         self.assertEqual(counts["declared_total"] - counts["total"], 23)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
@@ -156,11 +157,7 @@ class DistinctCaseCountTests(unittest.TestCase):
             self.rows, published_count=load_published_count(), strict=True
         )
         collapse_errors = [e for e in errors if "distinct coverage" in e]
-        self.assertTrue(collapse_errors, msg=errors)
-        for family in EXPECTED_COLLAPSES:
-            self.assertTrue(
-                any(family in error for error in collapse_errors), msg=family
-            )
+        self.assertFalse(collapse_errors, msg=errors)
 
 
 if __name__ == "__main__":

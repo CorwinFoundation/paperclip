@@ -6,11 +6,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENVS_DIR="${ARE_EVAL_VENVS_DIR:-/opt/are-scanner/eval-venvs}"
 PYTHON="${PYTHON:-python3}"
 
+# framework -> "requirements-file import-module distribution-name expected-version"
 declare -A FRAMEWORKS=(
-  [inspect]="requirements-eval-inspect.txt inspect_ai inspect-ai 0.3.220"
-  [pyrit]="requirements-eval-pyrit.txt pyrit pyrit 0.6.0"
-  [agentdojo]="requirements-eval-agentdojo.txt agentdojo agentdojo 0.1.35"
-  [garak]="requirements-eval-garak.txt garak garak 0.10.0"
+  [garak]="locks/garak-py312.lock garak garak 0.10.0"
+  [pyrit]="locks/pyrit-py312.lock pyrit pyrit 0.6.0"
+  [agentdojo]="locks/agentdojo-py312.lock agentdojo agentdojo 0.1.35"
+  [inspect]="locks/inspect-py312.lock inspect_ai inspect-ai 0.3.220"
 )
 
 if [[ $# -gt 0 ]]; then
@@ -37,7 +38,13 @@ build_one() {
 
   "$PYTHON" -m venv "$vdir"
   "$vpy" -m pip install --upgrade pip >/dev/null
-  "$vpy" -m pip install -r "$REPO_ROOT/$req"
+  "$vpy" -m pip install --require-hashes -r "$REPO_ROOT/$req"
+  "$vpy" -m pip check
+
+  # Verify both importability and the installed distribution version. Some
+  # upstream modules, including agentdojo==0.1.35, do not define __version__.
+  # importlib.metadata is the package-manager authority in that case.
+  local got
   got="$("$vpy" -c "import ${mod}; from importlib.metadata import version; print(version('${dist}'))")"
   if [[ "$got" != "$want" ]]; then
     echo "$fw version mismatch: got '$got', expected '$want'" >&2

@@ -31,6 +31,7 @@ from harness.probe_sanitizer import (
     sanitize_response_payload,
 )
 from harness.runner import ModelRunner
+from scanners.eval_framework_venv import resolve_framework, resolve_or_import
 
 # Stable dim_ids for the BEAAA-1682 TOOL_MISUSE wrap. Imported by the live
 # probe orchestrator + the G1 smoke harness; never reformatted inline.
@@ -42,15 +43,14 @@ TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE = "tool_misuse_scope_escape"
 try:
     import agentdojo  # type: ignore
 
-    _AGENTDOJO_AVAILABLE = True
-    _AGENTDOJO_VERSION = getattr(agentdojo, "__version__", "unknown")
+    _AGENTDOJO_AVAILABLE, _AGENTDOJO_VERSION = resolve_or_import(
+        "agentdojo", agentdojo
+    )
 except ImportError:
     # Fall back to the per-framework venv resolver (BEAAA-13331) so agentdojo
     # can be materialized in its own venv alongside the garak/pyrit split.
     # Returns (False, "not-installed") when unconfigured — byte-identical to
     # the historical branch.
-    from scanners.eval_framework_venv import resolve_framework
-
     _AGENTDOJO_AVAILABLE, _AGENTDOJO_VERSION = resolve_framework("agentdojo")
 
 
