@@ -2153,3 +2153,116 @@ def test_underwriting_rollup_endpoint_returns_canonical_shape(tmp_path, monkeypa
             server.server_close()
     finally:
         service.close()
+
+
+# ---------------------------------------------------------------------------
+# BEAAA-17900 — unified-candidate E2E acceptance gaps found by BEAAA-17891.
+# DP (customer-facing) report output-language gate + separate operational/legal
+# readiness + a full authenticated journey proven against a real scanner binary.
+# ---------------------------------------------------------------------------
+
+# Insurance / underwriting-decision terms that must never appear in the
+# customer-facing DP report (explicit output-language gate), plus legacy
+# product wording that predates the canonical "BackBond Scanner" name.
+DP_FORBIDDEN_INSURANCE_TERMS = (
+    "insurance",
+    "underwriting",
+    "underwrite",
+    "policy",
+    "binder",
+    "premium",
+    "quote",
+)
+DP_FORBIDDEN_LEGACY_WORDING = ("ARE Assessment", "ARE Reports")
+
+
+def _score_a_scan(service):
+    signing_key, dp, enrollment = enroll_ready_dp(service)
+    scan = service.trigger_scan(dp["dp_id"])
+    submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+    return dp, scan
+
+
+def test_dp_report_output_language_gate_excludes_insurance_and_legacy_wording(service):
+    _dp, scan = _score_a_scan(service)
+    dp_html = Path(service.render_report(scan["scan_id"], "dp")).read_text(encoding="utf-8")
+    lowered = dp_html.lower()
+    for term in DP_FORBIDDEN_INSURANCE_TERMS:
+        assert term not in lowered, f"DP report leaks insurance/underwriting term: {term!r}"
+    for legacy in DP_FORBIDDEN_LEGACY_WORDING:
+        assert legacy not in dp_html, f"DP report carries legacy product wording: {legacy!r}"
+    # The specific line-22 disclaimer flagged by BEAAA-17891 must be gone.
+    assert "Assessment result, not bound insurance coverage" not in dp_html
+    # Canonical product name is present.
+    assert "BackBond Scanner Assessment" in dp_html
+
+
+def test_dp_report_separately_renders_operational_and_legal_readiness(service):
+    _dp, scan = _score_a_scan(service)
+    dp_html = Path(service.render_report(scan["scan_id"], "dp")).read_text(encoding="utf-8")
+    assert "<h2>Operational Readiness</h2>" in dp_html
+    assert "<h2>Legal Readiness</h2>" in dp_html
+    # Operational Readiness precedes Legal Readiness and both are distinct sections.
+    assert dp_html.index("Operational Readiness") < dp_html.index("Legal Readiness")
+    for area in portal.PortalService.OPERATIONAL_CONTROL_AREAS:
+        assert area in dp_html, f"operational control area missing: {area!r}"
+    # Legal Readiness states the non-commercial technical-assessment posture.
+    assert "technical assessment of measured agent behavior" in dp_html.lower()
+    assert "does not constitute a certification" in dp_html
+
+
+def test_real_scanner_journey_persists_and_round_trips_reports(service, tmp_path, monkeypatch):
+    """Full authenticated journey executed against a REAL scanner binary (not the
+    fixture fallback), persisted, then rendered to matching HTML + PDF — the
+    acceptance BEAAA-17891 could not demonstrate because no binary was present."""
+    fake_are_scan = tmp_path / "fake_are_scan"
+    _write_fake_are_scan(
+        fake_are_scan,
+        {
+            "are_total": 72,
+            "subscores": {"GOVERNANCE": 18, "ROBUSTNESS": 18, "BIAS_FAIRNESS": 18, "OPS": 18},
+            "band": "B",
+            "confidence": 0.91,
+            "evidence_refs": [],
+            "uncovered_dimensions": ["GOVERNANCE.KILL_SWITCH.PRESENT"],
+            "scanner_version": "0.5.0",
+            "corpus_version": "0.1.0",
+            "model_versions": {},
+            "seed": "fake-are-scan",
+            "run_timestamp": "2026-06-12T00:00:00Z",
+        },
+    )
+    monkeypatch.setenv("BACKBOND_FRAMEWORK_ENVELOPE_V1_1", "1")
+    monkeypatch.setenv("ARE_SCAN_BIN", str(fake_are_scan))
+    signing_key, dp, enrollment = enroll_ready_dp(service)
+    scan = service.trigger_scan(dp["dp_id"])
+    submit_all_tasks(service, signing_key, scan, enrollment["connector_id"])
+    row = service.db.execute("SELECT * FROM scans WHERE id = ?", (scan["scan_id"],)).fetchone()
+    score = json.loads(row["score_json"])
+    # Real scanner execution — NOT fixture_fallback.
+    assert score["score_source"] == "real_scanner_binary"
+    assert "fixture_fallback" not in score
+    # HTML report carries the readiness sections, the not-reached dimension, and no
+    # insurance language.
+    dp_html = Path(service.render_report(scan["scan_id"], "dp")).read_text(encoding="utf-8")
+    assert "<h2>Operational Readiness</h2>" in dp_html
+    assert "<h2>Legal Readiness</h2>" in dp_html
+    assert "GOVERNANCE.KILL_SWITCH.PRESENT" in dp_html
+    for term in DP_FORBIDDEN_INSURANCE_TERMS:
+        assert term not in dp_html.lower()
+    # PDF parity: readiness present, no insurance language.
+    score.update(build_framework_envelope(score))
+    service.db.execute(
+        "UPDATE scans SET score_json = ? WHERE id = ?",
+        (json.dumps(score, sort_keys=True), scan["scan_id"]),
+    )
+    service.db.commit()
+    pdf_path = Path(service.render_assessment_pdf(scan["scan_id"]))
+    assert pdf_path.read_bytes().startswith(b"%PDF")
+    extracted = subprocess.run(
+        ["pdftotext", str(pdf_path), "-"], check=True, capture_output=True, text=True
+    ).stdout
+    assert "Operational Readiness" in extracted
+    assert "Legal Readiness" in extracted
+    for term in DP_FORBIDDEN_INSURANCE_TERMS:
+        assert term not in extracted.lower()

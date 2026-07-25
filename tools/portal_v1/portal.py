@@ -1384,7 +1384,7 @@ class PortalService:
         scan_dir.mkdir(parents=True, exist_ok=True)
         path = scan_dir / f"{variant}.html"
         title = {
-            "dp": "ARE Assessment - Design Partner Report",
+            "dp": "BackBond Scanner Assessment - Design Partner Report",
             "internal_uw": "ARE Assessment - Internal UW Report",
             "evidence_appendix": "ARE Assessment - Evidence Appendix",
         }[variant]
@@ -1428,9 +1428,53 @@ button{{padding:9px 12px}}
 <tr><td>Tool authority breadth</td><td>Signal present</td></tr>
 <tr><td>Data leakage signal</td><td>No signal detected</td></tr>
 <tr><td>Audit log gaps</td><td>Signal present</td></tr></table>
-<p><strong>Assessment result, not bound insurance coverage.</strong> No policy, binder, or quote is offered or implied. ARE Reports are produced under contract are-scanner-api-v1@v1.0.</p>
+{self._render_readiness_sections(score)}
 """
         return self._render_page(title, body)
+
+    # Operational/organizational control areas that a behavioral technical scan
+    # cannot directly verify; they are owner-attested and reported separately from
+    # the measured technical assessment. BEAAA-17900 (E2E acceptance gap).
+    OPERATIONAL_CONTROL_AREAS = (
+        "Change-management attestation",
+        "Audit-log retention SLA",
+        "Human approval workflow",
+        "Kill-switch / emergency stop",
+    )
+
+    def _render_readiness_sections(self, score: dict[str, Any]) -> str:
+        """BEAAA-17900 — customer-facing Operational Readiness and Legal Readiness.
+
+        Presentation-only over the persisted score. Reads no score field in a way
+        that could imply mutation and emits no insurance/underwriting-decision or
+        legacy product wording (explicit output-language gate). Operational rows are
+        the owner-attested control areas plus any dimensions the scan did not reach;
+        Legal Readiness is a fixed non-commercial technical-assessment posture.
+        """
+        op_rows = "".join(
+            f"<tr><td>{html.escape(area)}</td>"
+            "<td>Owner-attested - outside technical scan scope</td></tr>"
+            for area in self.OPERATIONAL_CONTROL_AREAS
+        )
+        for dim in score.get("uncovered_dimensions", []) or []:
+            op_rows += (
+                f"<tr><td>{html.escape(str(dim))}</td>"
+                "<td>Not reached by scan - reported separately</td></tr>"
+            )
+        return (
+            "<h2>Operational Readiness</h2>"
+            "<p class='muted'>Operational and organizational controls are assessed "
+            "separately from the technical scan. Areas without reachable scan evidence "
+            "are reported here as owner-attested, not measured by this scan.</p>"
+            "<table><tr><th>Operational control area</th><th>Status</th></tr>"
+            f"{op_rows}</table>"
+            "<h2>Legal Readiness</h2>"
+            "<p class='muted'>This document is a technical assessment of measured agent "
+            "behavior. It does not constitute a certification, warranty, guarantee, or "
+            "contractual commitment, and makes no commercial or eligibility "
+            "determination. Produced under BackBond Scanner API contract "
+            "are-scanner-api-v1 v1.0.</p>"
+        )
 
     def _render_internal_report(self, title: str, scan: sqlite3.Row, dp: sqlite3.Row, score: dict[str, Any], mask_dp: bool) -> str:
         dp_name = "MASKED" if mask_dp else dp["dp_name"]
@@ -1567,6 +1611,22 @@ button{{padding:9px 12px}}
             ]
         )
         append_refs("BackBond Extensions evidence", extensions)
+        # BEAAA-17900 — Operational/Legal readiness parity with the DP HTML report.
+        lines.append("Operational Readiness")
+        lines.append(
+            "Operational and organizational controls are assessed separately from "
+            "the technical scan (owner-attested, not measured by this scan)."
+        )
+        for area in self.OPERATIONAL_CONTROL_AREAS:
+            lines.append(f"{area}: owner-attested - outside technical scan scope")
+        for dim in score.get("uncovered_dimensions", []) or []:
+            lines.append(f"{dim}: not reached by scan - reported separately")
+        lines.append("Legal Readiness")
+        lines.append(
+            "Technical assessment of measured agent behavior. Not a certification, "
+            "warranty, guarantee, or contractual commitment; no commercial or "
+            "eligibility determination. Contract are-scanner-api-v1 v1.0."
+        )
         for line in lines:
             if y < 56:
                 pdf.showPage()
