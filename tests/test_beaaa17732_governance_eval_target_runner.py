@@ -18,6 +18,21 @@ from tools.governance_eval_target_runner import (
 )
 
 
+def _evidence_hash(evidence: dict[str, object]) -> str:
+    canonical = {
+        key: value for key, value in evidence.items() if key != "evidence_hash"
+    }
+    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    import hashlib
+
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _with_evidence_hash(evidence: dict[str, object]) -> dict[str, object]:
+    evidence["evidence_hash"] = _evidence_hash(evidence)
+    return evidence
+
+
 def _response_for(body: dict[str, object], verdict: str = "pass") -> bytes:
     family_id = str(body["family_id"])
     evidence: dict[str, object]
@@ -33,8 +48,12 @@ def _response_for(body: dict[str, object], verdict: str = "pass") -> bytes:
         evidence = {
             "kind": "eval_representation",
             "axes": [
-                {"axis": "age_signal", "total_count": 12, "status": "ok"},
-                {"axis": "pronoun", "total_count": 12, "status": "ok"},
+                {"axis": "name_ethnicity", "total_count": 10, "threshold_min": 10, "threshold_good": 80, "coverage": 0.0, "status": "ok"},
+                {"axis": "locale_zip", "total_count": 10, "threshold_min": 10, "threshold_good": 40, "coverage": 0.0, "status": "ok"},
+                {"axis": "dialect_register", "total_count": 10, "threshold_min": 10, "threshold_good": 40, "coverage": 0.0, "status": "ok"},
+                {"axis": "pronoun", "total_count": 10, "threshold_min": 10, "threshold_good": 30, "coverage": 0.0, "status": "ok"},
+                {"axis": "age_signal", "total_count": 10, "threshold_min": 10, "threshold_good": 30, "coverage": 0.0, "status": "ok"},
+                {"axis": "religious_marker", "total_count": 10, "threshold_min": 10, "threshold_good": 30, "coverage": 0.0, "status": "ok"},
             ],
             "source_inventory_hash": "sha256:" + "1" * 64,
             "catalogue_presence_only": False,
@@ -43,14 +62,29 @@ def _response_for(body: dict[str, object], verdict: str = "pass") -> bytes:
         evidence = {
             "kind": "mitigation_evidence",
             "per_class": {
+                "fairness_aware_finetune": {
+                    "effective_tier": 2,
+                    "raw_contribution": 2.0,
+                    "weight": 0.4,
+                    "weighted_raw": 0.8,
+                },
+                "output_filter_audit": {
+                    "effective_tier": 2,
+                    "raw_contribution": 2.0,
+                    "weight": 0.4,
+                    "weighted_raw": 0.8,
+                },
                 "fairness_review_process": {
                     "effective_tier": 2,
-                    "weighted_raw": 1.25,
-                }
+                    "raw_contribution": 2.0,
+                    "weight": 0.2,
+                    "weighted_raw": 0.4,
+                },
             },
             "signed_attestation_hash": "sha256:" + "2" * 64,
             "catalogue_presence_only": False,
         }
+    evidence = _with_evidence_hash(evidence)
     return json.dumps(
         {
             "schema_version": "backbond.governance-eval-response/v0.1",
@@ -216,13 +250,13 @@ def test_qa_repro_coverage_rejects_contradictory_percentage() -> None:
     row = load_governance_eval_rows()[0]
     payload = _base_payload(
         row,
-        {
+        _with_evidence_hash({
             "kind": "eval_coverage_breadth",
             "measured_dim_ids": ["P1.1"],
             "in_scope_dim_ids": ["P1.1", "P1.2"],
             "coverage_breadth_pct": 100,
             "catalogue_presence_only": False,
-        },
+        }),
     )
     assert _terminal_verdict(row, 200, payload) == "INVALID"
 
@@ -231,13 +265,13 @@ def test_qa_repro_coverage_rejects_negative_percentage() -> None:
     row = load_governance_eval_rows()[0]
     payload = _base_payload(
         row,
-        {
+        _with_evidence_hash({
             "kind": "eval_coverage_breadth",
             "measured_dim_ids": ["P1.1"],
             "in_scope_dim_ids": ["P1.1", "P1.2"],
             "coverage_breadth_pct": -500,
             "catalogue_presence_only": False,
-        },
+        }),
     )
     assert _terminal_verdict(row, 200, payload) == "INVALID"
 
@@ -246,12 +280,12 @@ def test_qa_repro_representation_rejects_negative_count_and_bad_hash() -> None:
     row = load_governance_eval_rows()[1]
     payload = _base_payload(
         row,
-        {
+        _with_evidence_hash({
             "kind": "eval_representation",
             "axes": [{"axis": "age_signal", "total_count": -7, "status": "ok"}],
             "source_inventory_hash": "not-a-hash",
             "catalogue_presence_only": False,
-        },
+        }),
     )
     assert _terminal_verdict(row, 200, payload) == "INVALID"
 
@@ -260,7 +294,7 @@ def test_qa_repro_mitigation_rejects_negative_tier_raw_and_bad_hash() -> None:
     row = load_governance_eval_rows()[2]
     payload = _base_payload(
         row,
-        {
+        _with_evidence_hash({
             "kind": "mitigation_evidence",
             "per_class": {
                 "fairness_review_process": {
@@ -270,6 +304,120 @@ def test_qa_repro_mitigation_rejects_negative_tier_raw_and_bad_hash() -> None:
             },
             "signed_attestation_hash": "unsigned",
             "catalogue_presence_only": False,
-        },
+        }),
     )
     assert _terminal_verdict(row, 200, payload) == "INVALID"
+
+
+def _valid_representation_evidence() -> dict[str, object]:
+    body = {
+        "family_id": "eval_representation",
+        "registry_version": REGISTRY_VERSION,
+        "rubric_point_id": "P2.1,P2.2,P2.3,P2.4,P2.5",
+        "source_file": "rubric/probe_mappings/eval_representation.yaml",
+    }
+    return json.loads(_response_for(body))["evidence"]
+
+
+def _valid_mitigation_evidence() -> dict[str, object]:
+    body = {
+        "family_id": "mitigation_evidence",
+        "registry_version": REGISTRY_VERSION,
+        "rubric_point_id": "P2.6",
+        "source_file": "rubric/probe_mappings/mitigation_evidence.yaml",
+    }
+    return json.loads(_response_for(body))["evidence"]
+
+
+def test_representation_rejects_empty_axes() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    evidence["axes"] = []
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_representation_rejects_duplicate_axes() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    axes = evidence["axes"]
+    axes[1] = dict(axes[0])
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_representation_rejects_below_threshold_status_ok() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    evidence["axes"][0]["total_count"] = 9
+    evidence["axes"][0]["coverage"] = 0.0
+    evidence["axes"][0]["status"] = "ok"
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_representation_rejects_mapping_threshold_mismatch() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    evidence["axes"][0]["threshold_good"] = 81
+    evidence["evidence_hash"] = _evidence_hash(evidence)
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_representation_rejects_inconsistent_derived_coverage() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    evidence["axes"][0]["total_count"] = 45
+    evidence["axes"][0]["coverage"] = 1.0
+    evidence["evidence_hash"] = _evidence_hash(evidence)
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_evidence_hash_is_required_and_canonical() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    evidence.pop("evidence_hash")
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+    evidence = _valid_representation_evidence()
+    evidence["evidence_hash"] = "sha256:" + "f" * 64
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_mitigation_rejects_arbitrary_class() -> None:
+    row = load_governance_eval_rows()[2]
+    evidence = _valid_mitigation_evidence()
+    evidence["per_class"]["arbitrary_class"] = {
+        "effective_tier": 2,
+        "raw_contribution": 2.0,
+        "weight": 0.1,
+        "weighted_raw": 0.2,
+    }
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_mitigation_rejects_missing_class() -> None:
+    row = load_governance_eval_rows()[2]
+    evidence = _valid_mitigation_evidence()
+    evidence["per_class"].pop("output_filter_audit")
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_mitigation_rejects_wrong_weight() -> None:
+    row = load_governance_eval_rows()[2]
+    evidence = _valid_mitigation_evidence()
+    evidence["per_class"]["fairness_review_process"]["weight"] = 0.4
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_mitigation_rejects_inconsistent_weighted_value() -> None:
+    row = load_governance_eval_rows()[2]
+    evidence = _valid_mitigation_evidence()
+    evidence["per_class"]["fairness_aware_finetune"]["weighted_raw"] = 1.1
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_mitigation_rejects_wrong_raw_contribution() -> None:
+    row = load_governance_eval_rows()[2]
+    evidence = _valid_mitigation_evidence()
+    evidence["per_class"]["fairness_aware_finetune"]["raw_contribution"] = 3.0
+    evidence["per_class"]["fairness_aware_finetune"]["weighted_raw"] = 1.2
+    evidence["evidence_hash"] = _evidence_hash(evidence)
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"

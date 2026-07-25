@@ -18,7 +18,7 @@ escalations_noted: ["Rule-execution implementation: existing rubric_point_id fam
 
 BLUF: Implemented the canonical governance/eval target runner for ordinals 10, 11, and 20. The runner invokes one configured non-customer target path per family and accepts PASS only from semantically valid target-produced evidence, not catalogue presence.
 
-Supersession: `0e3fcea` was rejected by QA because contradictory target evidence could still return `PASS`. The corrected candidate adds semantic fail-closed validation for measured/total coverage reconciliation, bounded percentages/counts/tiers/raw values, and content-addressed SHA-256 fields.
+Supersession: `0e3fcea` was rejected by QA because contradictory target evidence could still return `PASS`. Candidate `1e5a75c` added first-pass semantic validation. The current corrected candidate additionally binds `eval_representation` and `mitigation_evidence` to their exact signed mapping files after the 2026-07-25 00:28Z heartbeat correction.
 
 Deliverable: This is a target-runner implementation for the CTO that closes the ordinals 10/11/20 execution gap inside the existing BEAAA-17667 family activation ledger scope within the 8-hour, 30-call, $5 budget.
 
@@ -34,11 +34,13 @@ Implementation:
 - Verdicts: explicit `PASS`, `FAIL`, `INVALID`.
 - Evidence hashes: request/config/input/output/verdict hashes plus content-addressed evidence record SHA-256.
 - Semantic fail-closed validation: coverage percentages reconcile to measured/total dimensions; percentages are bounded 0-100; representation counts are nonnegative; optional representation coverage is bounded 0-1; mitigation tiers are bounded 0-4; raw/weighted values are bounded; `sha256:<64 lowercase hex>` references are required where target evidence claims content-addressed inputs.
+- Mapping-bound validation: `eval_representation` requires the exact six signed axis IDs and matching `threshold_min`/`threshold_good` from `rubric/probe_mappings/eval_representation.yaml`; `mitigation_evidence` requires the exact three signed artifact classes, weights `0.4/0.4/0.2`, tier raw contributions from `rubric/probe_mappings/mitigation_evidence.yaml`, and `weighted_raw = raw_contribution * weight`.
 
 Verification:
 - `pytest -q tests/test_beaaa17732_governance_eval_target_runner.py tests/test_beaaa17667_family_activation_ledger.py`
-- Result after QA correction: `17 passed in 3.53s`.
+- Result after mapping-bound correction: `24 passed in 3.70s`.
 - Added deterministic regressions for QA's four invalid payloads: contradictory coverage percentage, negative coverage percentage, negative representation count plus malformed hash, and negative mitigation tier/raw plus malformed hash.
+- Added deterministic regressions for the heartbeat correction cases: empty axes, duplicate axes, below-threshold `status=ok`, arbitrary mitigation class, missing mitigation class, wrong weight, and inconsistent weighted value.
 
 Bounded target smoke:
 - Target config class: `local_http_test_fixture`.
@@ -50,7 +52,7 @@ Bounded target smoke:
 - Production credentials: `false`.
 - Score activation: `false`.
 - Summary: `artifacts/beaaa-17732/target-smoke/summary.json`.
-- Summary SHA-256 after QA correction: `aef6ea108a065f7fb29481594757f1b160b17b1c07264073498ff429458180fa`.
+- Summary SHA-256 after mapping-bound correction: `78227fed25d7dc83783d72ebbe6b3f1cd9105e894c57f9445d1234a7b9019fc4`.
 
 N=5 calibration delta:
 - Status: not run as score-bearing calibration because this change does not enter a score-bearing path and the smoke has `score_activation=false`.

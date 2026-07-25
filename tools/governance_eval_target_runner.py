@@ -18,9 +18,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "IFA" / "scanner-test-registry-baseline-2026-07-13.csv"
+EVAL_REPRESENTATION_MAPPING_PATH = (
+    ROOT / "rubric" / "probe_mappings" / "eval_representation.yaml"
+)
+MITIGATION_EVIDENCE_MAPPING_PATH = (
+    ROOT / "rubric" / "probe_mappings" / "mitigation_evidence.yaml"
+)
 REGISTRY_VERSION = "canonical-61-family-registry@2026-07-13"
 SCANNER_VERSION = "0.5.0"
 PROBE_SET_VERSION = "family-activation-ledger/v0.1"
@@ -32,6 +40,7 @@ FAMILY_KINDS = {
 }
 SHA256_REF_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 COVERAGE_RECONCILIATION_TOLERANCE = 0.01
+FLOAT_RECONCILIATION_TOLERANCE = 0.000001
 
 
 class GovernanceEvalRunError(RuntimeError):
@@ -254,6 +263,8 @@ def _valid_family_evidence(family_id: str, evidence: Any) -> bool:
         return False
     if evidence.get("catalogue_presence_only") is True:
         return False
+    if not _valid_evidence_hash(evidence):
+        return False
     if family_id == "eval_coverage_breadth":
         measured = evidence.get("measured_dim_ids")
         in_scope = evidence.get("in_scope_dim_ids")
@@ -272,49 +283,123 @@ def _valid_family_evidence(family_id: str, evidence: Any) -> bool:
         return abs(float(pct) - expected_pct) <= COVERAGE_RECONCILIATION_TOLERANCE
     if family_id == "eval_representation":
         axes = evidence.get("axes")
+        thresholds = _eval_representation_thresholds()
+        expected_axes = set(thresholds)
+        if not isinstance(axes, list) or not axes:
+            return False
+        axis_ids = [axis.get("axis") for axis in axes if isinstance(axis, dict)]
+        if set(axis_ids) != expected_axes or len(axis_ids) != len(expected_axes):
+            return False
         return (
-            isinstance(axes, list)
-            and bool(axes)
-            and all(
-                isinstance(axis, dict)
-                and isinstance(axis.get("axis"), str)
-                and isinstance(axis.get("total_count"), int)
-                and axis["total_count"] >= 0
-                and axis.get("status") in {"ok", "below_min", "no_threshold"}
-                and (
-                    "coverage" not in axis
-                    or axis["coverage"] is None
-                    or _bounded_number(axis["coverage"], minimum=0.0, maximum=1.0)
-                )
-                for axis in axes
-            )
+            all(_valid_representation_axis(axis, thresholds) for axis in axes)
             and _valid_sha256_ref(evidence.get("source_inventory_hash"))
         )
     if family_id == "mitigation_evidence":
         per_class = evidence.get("per_class")
+        class_weights, tier_raw = _mitigation_evidence_mapping()
+        if not isinstance(per_class, dict) or set(per_class) != set(class_weights):
+            return False
         return (
-            isinstance(per_class, dict)
-            and bool(per_class)
-            and all(
-                isinstance(item, dict)
-                and isinstance(item.get("effective_tier"), int)
-                and 0 <= item["effective_tier"] <= 4
-                and _bounded_number(item.get("weighted_raw"), minimum=0.0, maximum=4.0)
-                and (
-                    "raw_contribution" not in item
-                    or _bounded_number(
-                        item["raw_contribution"], minimum=0.0, maximum=4.0
-                    )
-                )
-                and (
-                    "weight" not in item
-                    or _bounded_number(item["weight"], minimum=0.0, maximum=1.0)
-                )
-                for item in per_class.values()
+            all(
+                _valid_mitigation_class(class_id, item, class_weights, tier_raw)
+                for class_id, item in per_class.items()
             )
             and _valid_sha256_ref(evidence.get("signed_attestation_hash"))
         )
     return False
+
+
+def _eval_representation_thresholds() -> dict[str, dict[str, int]]:
+    mapping = yaml.safe_load(
+        EVAL_REPRESENTATION_MAPPING_PATH.read_text(encoding="utf-8")
+    )
+    thresholds: dict[str, dict[str, int]] = {}
+    for axis, row in mapping["coverage_thresholds"].items():
+        if row.get("uw_review_status") != "signed":
+            raise GovernanceEvalRunError(
+                f"{axis}: eval_representation threshold is unsigned"
+            )
+        thresholds[axis] = {"min": int(row["min"]), "good": int(row["good"])}
+    return thresholds
+
+
+def _mitigation_evidence_mapping() -> tuple[dict[str, float], dict[int, float]]:
+    mapping = yaml.safe_load(
+        MITIGATION_EVIDENCE_MAPPING_PATH.read_text(encoding="utf-8")
+    )
+    class_weights = {
+        class_id: float(row["weight"])
+        for class_id, row in mapping["artifact_classes"].items()
+    }
+    tier_raw = {
+        int(tier): float(row["raw_contribution"])
+        for tier, row in mapping["evidence_tiers"].items()
+    }
+    return class_weights, tier_raw
+
+
+def _valid_representation_axis(
+    axis: Any, thresholds: dict[str, dict[str, int]]
+) -> bool:
+    if not isinstance(axis, dict):
+        return False
+    axis_id = axis.get("axis")
+    if not isinstance(axis_id, str) or axis_id not in thresholds:
+        return False
+    count = axis.get("total_count")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        return False
+    threshold = thresholds[axis_id]
+    if axis.get("threshold_min") != threshold["min"]:
+        return False
+    if axis.get("threshold_good") != threshold["good"]:
+        return False
+    status = axis.get("status")
+    if count < threshold["min"]:
+        if status != "below_min":
+            return False
+    elif status != "ok":
+        return False
+    coverage = axis.get("coverage")
+    if not _bounded_number(coverage, minimum=0.0, maximum=1.0):
+        return False
+    return _numbers_close(float(coverage), _axis_coverage(count, threshold))
+
+
+def _axis_coverage(count: int, threshold: dict[str, int]) -> float:
+    minimum = threshold["min"]
+    good = threshold["good"]
+    if count < minimum:
+        return 0.0
+    if count >= good:
+        return 1.0
+    return (count - minimum) / max(1, good - minimum)
+
+
+def _valid_mitigation_class(
+    class_id: str,
+    item: Any,
+    class_weights: dict[str, float],
+    tier_raw: dict[int, float],
+) -> bool:
+    if not isinstance(item, dict):
+        return False
+    tier = item.get("effective_tier")
+    if not isinstance(tier, int) or isinstance(tier, bool) or tier not in tier_raw:
+        return False
+    expected_weight = class_weights[class_id]
+    expected_raw = tier_raw[tier]
+    if not _bounded_number(item.get("weight"), minimum=0.0, maximum=1.0):
+        return False
+    if not _bounded_number(item.get("raw_contribution"), minimum=0.0, maximum=4.0):
+        return False
+    if not _bounded_number(item.get("weighted_raw"), minimum=0.0, maximum=4.0):
+        return False
+    return (
+        _numbers_close(float(item["weight"]), expected_weight)
+        and _numbers_close(float(item["raw_contribution"]), expected_raw)
+        and _numbers_close(float(item["weighted_raw"]), expected_raw * expected_weight)
+    )
 
 
 def _all_unique_strings(values: list[Any]) -> bool:
@@ -335,6 +420,21 @@ def _bounded_number(value: Any, *, minimum: float, maximum: float) -> bool:
 
 def _valid_sha256_ref(value: Any) -> bool:
     return isinstance(value, str) and SHA256_REF_PATTERN.fullmatch(value) is not None
+
+
+def _valid_evidence_hash(evidence: Mapping[str, Any]) -> bool:
+    digest = evidence.get("evidence_hash")
+    if not _valid_sha256_ref(digest):
+        return False
+    canonical_evidence = {
+        key: value for key, value in evidence.items() if key != "evidence_hash"
+    }
+    expected = "sha256:" + _sha256(_canonical_bytes(canonical_evidence))
+    return digest == expected
+
+
+def _numbers_close(left: float, right: float) -> bool:
+    return abs(left - right) <= FLOAT_RECONCILIATION_TOLERANCE
 
 
 def _parse_json_object(raw: bytes) -> dict[str, Any]:
