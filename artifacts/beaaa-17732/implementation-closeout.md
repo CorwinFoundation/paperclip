@@ -39,7 +39,7 @@ Implementation:
 
 Verification:
 - `pytest -q tests/test_beaaa17732_governance_eval_target_runner.py tests/test_beaaa17667_family_activation_ledger.py`
-- Result after self-replay smoke correction: `33 passed in 3.63s`.
+- Result after self-replay smoke correction: `33 passed in 3.68s`.
 - Added deterministic regressions for QA's four invalid payloads: contradictory coverage percentage, negative coverage percentage, negative representation count plus malformed hash, and negative mitigation tier/raw plus malformed hash.
 - Added deterministic regressions for the heartbeat correction cases: empty axes, duplicate axes, below-threshold `status=ok`, arbitrary mitigation class, missing mitigation class, wrong weight, and inconsistent weighted value.
 - Added deterministic hash regressions for missing, stale, mismatched, and duplicated evidence hashes. Summary-level `hash_reconciliation.passed` must be true before the target-bound smoke can report `PASS`.
@@ -60,7 +60,7 @@ Bounded target smoke:
   - `eval_representation`: `sha256:6612cef66cc3d3a536539592ef326528c0ba3fb4571c7ad6cd8aeef8e7e54cfa`
   - `mitigation_evidence`: `sha256:e0f9bc4bbd76e3e3f51681da5eb29485e15440f560d9b3fb10d33c2b60b253f2`
 - Summary `hash_reconciliation.passed`: `true`.
-- Summary SHA-256 after self-replay smoke correction: `9881eca82df185798b56f4e060f3e463c8df2eb879d905ed3585909014278197`.
+- Summary SHA-256 after self-replay smoke correction: `46b16e8944723ea5dce09c9e5f37de2ab774fd933225dc9de366424c44066bc5`.
 
 N=5 calibration delta:
 - Status: not run as score-bearing calibration because this change does not enter a score-bearing path and the smoke has `score_activation=false`.

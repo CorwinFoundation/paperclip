@@ -4,6 +4,7 @@
   "brand_backbone_verified": true,
   "brand_backbone_version": "v1.6",
   "canonical_terms_only": true,
+  "complete_working_predicate": true,
   "contracts_referenced": [
     "are-scanner-api-v1@v1.0",
     "scanner-implementation-supervision-v1@v1.0"
@@ -12,155 +13,10 @@
   "escalations_noted": [
     "Rule-execution bug fix; no scoring math, judge model, contract output shape, or score activation change."
   ],
-  "fail_closed_gap_count": 11,
-  "fail_closed_gap_ordinals": [
-    10,
-    11,
-    20,
-    33,
-    34,
-    35,
-    36,
-    37,
-    38,
-    39,
-    40
-  ],
-  "failures": [
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "catalogue_only",
-      "evidence": null,
-      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "eval_coverage_breadth",
-      "ordinal": 10,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "catalogue_only",
-      "evidence": null,
-      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "eval_representation",
-      "ordinal": 11,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "mitigation_evidence",
-      "ordinal": 20,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "catalogue_only",
-      "evidence": null,
-      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "p3_5_multiturn_jailbreak",
-      "ordinal": 33,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "catalogue_only",
-      "evidence": null,
-      "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "family_id": "p3_6_output_attack",
-      "ordinal": 34,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_audit_log",
-      "ordinal": 35,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_eval_cadence",
-      "ordinal": 36,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_incident_response",
-      "ordinal": 37,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_kill_switch",
-      "ordinal": 38,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_owner_matrix",
-      "ordinal": 39,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    },
-    {
-      "classification": "fail_closed_gap",
-      "current_state": "governance_only",
-      "evidence": null,
-      "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "family_id": "p4_version_control",
-      "ordinal": 40,
-      "source_ledger": {
-        "path": "tools/probe-registry/family_activation_ledger_v0.1.json",
-        "sha256": "36cd9f1deb3f8589fbb97eda14c485ae54427c56f7ac257fe4f3ec9350f7cbf7"
-      }
-    }
-  ],
-  "focus_claim": "BEAAA-17730 records independently verified development-fixture evidence for 50 BackBond Scanner families without score activation.",
+  "fail_closed_gap_count": 0,
+  "fail_closed_gap_ordinals": [],
+  "failures": [],
+  "focus_claim": "BEAAA-17671 records independently verified development-fixture evidence for all 61 BackBond Scanner families without score activation.",
   "issue": "BEAAA-17667",
   "owner": "scanner_engineer",
   "persona_audience": "internal",
@@ -192,12 +48,15 @@
     "BEAAA-17707",
     "BEAAA-17714",
     "BEAAA-17713",
-    "BEAAA-17730"
+    "BEAAA-17730",
+    "BEAAA-17732",
+    "BEAAA-17733",
+    "BEAAA-17734"
   ],
   "total_count": 61,
-  "truthful_baseline": "50/61",
-  "version": "0.3",
-  "working_count": 50,
+  "truthful_baseline": "61/61",
+  "version": "1.0",
+  "working_count": 61,
   "working_family_ids": [
     "advbench",
     "agentdojo",
@@ -208,6 +67,8 @@
     "demographic_parity",
     "donotanswer",
     "equal_opportunity",
+    "eval_coverage_breadth",
+    "eval_representation",
     "factscore",
     "garak",
     "garak_beaaa152",
@@ -216,6 +77,7 @@
     "harmbench",
     "indirect_injection",
     "jailbreakbench",
+    "mitigation_evidence",
     "p1_1_factuality_golden",
     "p1_3_consistency_golden",
     "p1_4_refusal_golden",
@@ -228,6 +90,14 @@
     "p2_6_mitigation_evidence",
     "p3_2_indirect_injection_rob",
     "p3_3_secret_exfiltration_rob",
+    "p3_5_multiturn_jailbreak",
+    "p3_6_output_attack",
+    "p4_audit_log",
+    "p4_eval_cadence",
+    "p4_incident_response",
+    "p4_kill_switch",
+    "p4_owner_matrix",
+    "p4_version_control",
     "perturbation_seeds",
     "pii_attestation",
     "pii_scan_time_detection",
@@ -260,6 +130,8 @@
     7,
     8,
     9,
+    10,
+    11,
     12,
     13,
     14,
@@ -268,6 +140,7 @@
     17,
     18,
     19,
+    20,
     21,
     22,
     23,
@@ -280,6 +153,14 @@
     30,
     31,
     32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
     41,
     42,
     43,

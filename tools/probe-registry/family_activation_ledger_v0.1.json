@@ -337,30 +337,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17732_governance_eval_target_runner.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "catalogue_only",
+      "current_state": "target_bound_working",
       "family_id": "eval_coverage_breadth",
       "ordinal": 10,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 1,
       "rubric_point_id": "P1.1,P1.2,P1.3,P1.4,P1.5,P1.6,P2.1,P2.2,P2.3,P2.4,P2.5,P2.6,P3.1,P3.2,P3.3,P3.4,P3.5,P3.6,P4.1,P4.2,P4.3,P4.4,P4.5,P4.6",
-      "runner_adapter_work": "Bind - to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Complete: tools/governance_eval_target_runner.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17732.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/eval_coverage_breadth.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17732-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 30,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17732/target-smoke/eval_coverage_breadth.json",
+          "sha256": "ea73ca4865ba86955257b9a9426fa46d2d6ddbefb41081a57b790e7995605ae9"
+        }
+      },
+      "runner_path": "tools/governance_eval_target_runner.py"
     },
     {
       "acceptance_criteria": [
@@ -368,30 +380,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17732_governance_eval_target_runner.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "catalogue_only",
+      "current_state": "target_bound_working",
       "family_id": "eval_representation",
       "ordinal": 11,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Registry/catalogue metadata is not an executable target-bound probe.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 1,
       "rubric_point_id": "P2.1,P2.2,P2.3,P2.4,P2.5",
-      "runner_adapter_work": "Bind - to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Complete: tools/governance_eval_target_runner.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17732.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/eval_representation.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17732-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 30,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17732/target-smoke/eval_representation.json",
+          "sha256": "feb255c0b72933da1902167dd5556c5f37275975162292eee1b8cd2f35e0db70"
+        }
+      },
+      "runner_path": "tools/governance_eval_target_runner.py"
     },
     {
       "acceptance_criteria": [
@@ -700,30 +724,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17732_governance_eval_target_runner.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "mitigation_evidence",
       "ordinal": 20,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Governance or attestation evidence is not a target-bound behavioral runner.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 1,
       "rubric_point_id": "P2.6",
-      "runner_adapter_work": "Bind - to the normal development target runner, enforce test-only credentials and bounded calls, and record terminal evidence.",
+      "runner_adapter_work": "Complete: tools/governance_eval_target_runner.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17732.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/mitigation_evidence.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17732-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 30,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17732/target-smoke/mitigation_evidence.json",
+          "sha256": "d91edf0df0bcdc98e6ba845b3444c616b7c3ab85ba8fb4baf500924703df1220"
+        }
+      },
+      "runner_path": "tools/governance_eval_target_runner.py"
     },
     {
       "acceptance_criteria": [
@@ -1247,30 +1283,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17733_adversarial_target_runner.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "catalogue_only",
+      "current_state": "target_bound_working",
       "family_id": "p3_5_multiturn_jailbreak",
       "ordinal": 33,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; separate rule-change must define cases and a multi-turn/output-attack runner.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 10,
       "rubric_point_id": "P3.1,P3.5",
-      "runner_adapter_work": "No batch-B activation authorized; route separate CTO-scoped rule-change.",
+      "runner_adapter_work": "Complete: tools/adversarial_stateful_target_runner.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17733.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p3_5_multiturn_jailbreak.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17733-configured-test-target",
+        "calls_attempted": 40,
+        "call_cap": 60,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17733/smoke/p3_5_multiturn_jailbreak-seed-0.json",
+          "sha256": "e0d73f39d1285e4d1f179975b39a9a9ca03e1ba2c19a5a110e2d8eebf7c294f8"
+        }
+      },
+      "runner_path": "tools/adversarial_stateful_target_runner.py"
     },
     {
       "acceptance_criteria": [
@@ -1278,30 +1326,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17733_adversarial_target_runner.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "catalogue_only",
+      "current_state": "target_bound_working",
       "family_id": "p3_6_output_attack",
       "ordinal": 34,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; separate rule-change must define cases and a multi-turn/output-attack runner.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 20,
       "rubric_point_id": "P3.6",
-      "runner_adapter_work": "No batch-B activation authorized; route separate CTO-scoped rule-change.",
+      "runner_adapter_work": "Complete: tools/adversarial_stateful_target_runner.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17733.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p3_6_output_attack.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Registry/catalogue metadata is not an executable target-bound probe.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17733-configured-test-target",
+        "calls_attempted": 20,
+        "call_cap": 60,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17733/smoke/p3_6_output_attack-seed-0.json",
+          "sha256": "db340f2bd43e088c24e9dfb78fc31c9453f69b828feb6c86792efadb063b5819"
+        }
+      },
+      "runner_path": "tools/adversarial_stateful_target_runner.py"
     },
     {
       "acceptance_criteria": [
@@ -1309,30 +1369,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17734_ops_control_target.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "p4_audit_log",
       "ordinal": 35,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; requires typed governance evidence-ingest evaluation.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 7,
       "rubric_point_id": "P1.6,P4.1",
-      "runner_adapter_work": "No behavioral target activation authorized; route typed governance evidence-ingest lane with tamper-resistant tiers.",
+      "runner_adapter_work": "Complete: harness/ops_control_target.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17734.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p4_audit_log.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17734-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 40,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      },
+      "runner_path": "harness/ops_control_target.py"
     },
     {
       "acceptance_criteria": [
@@ -1340,30 +1412,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17734_ops_control_target.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "p4_eval_cadence",
       "ordinal": 36,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; requires typed governance evidence-ingest evaluation.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 7,
       "rubric_point_id": "P1.6,P4.5",
-      "runner_adapter_work": "No behavioral target activation authorized; route typed governance evidence-ingest lane with tamper-resistant tiers.",
+      "runner_adapter_work": "Complete: harness/ops_control_target.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17734.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p4_eval_cadence.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17734-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 40,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      },
+      "runner_path": "harness/ops_control_target.py"
     },
     {
       "acceptance_criteria": [
@@ -1371,30 +1455,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17734_ops_control_target.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "p4_incident_response",
       "ordinal": 37,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; requires typed governance evidence-ingest evaluation.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 7,
       "rubric_point_id": "P4.4",
-      "runner_adapter_work": "No behavioral target activation authorized; route typed governance evidence-ingest lane with tamper-resistant tiers.",
+      "runner_adapter_work": "Complete: harness/ops_control_target.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17734.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p4_incident_response.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17734-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 40,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      },
+      "runner_path": "harness/ops_control_target.py"
     },
     {
       "acceptance_criteria": [
@@ -1402,30 +1498,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17734_ops_control_target.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "p4_kill_switch",
       "ordinal": 38,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; requires typed governance evidence-ingest evaluation.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 7,
       "rubric_point_id": "P4.3",
-      "runner_adapter_work": "No behavioral target activation authorized; route typed governance evidence-ingest lane with tamper-resistant tiers.",
+      "runner_adapter_work": "Complete: harness/ops_control_target.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17734.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p4_kill_switch.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17734-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 40,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      },
+      "runner_path": "harness/ops_control_target.py"
     },
     {
       "acceptance_criteria": [
@@ -1433,30 +1541,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17734_ops_control_target.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "p4_owner_matrix",
       "ordinal": 39,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; requires typed governance evidence-ingest evaluation.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 7,
       "rubric_point_id": "P4.6",
-      "runner_adapter_work": "No behavioral target activation authorized; route typed governance evidence-ingest lane with tamper-resistant tiers.",
+      "runner_adapter_work": "Complete: harness/ops_control_target.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17734.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p4_owner_matrix.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17734-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 40,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      },
+      "runner_path": "harness/ops_control_target.py"
     },
     {
       "acceptance_criteria": [
@@ -1464,30 +1584,42 @@
         "Automated tests prove deterministic pass/fail behavior and fail closed on unavailable evidence.",
         "Development-fixture smoke uses test credentials only, bounded call caps, no customer data, and no score activation."
       ],
-      "automated_tests": [],
+      "automated_tests": [
+        "tests/test_beaaa17734_ops_control_target.py",
+        "tests/test_beaaa17667_family_activation_ledger.py"
+      ],
       "corpus_version": "scanner-test-registry-baseline-2026-07-13",
-      "current_state": "governance_only",
+      "current_state": "target_bound_working",
       "family_id": "p4_version_control",
       "ordinal": 40,
       "owner": "Scanner Engineer",
       "probe-set-version": "family-activation-ledger/v0.1",
-      "real_blocker": "Excluded from BEAAA-17669 behavioral target lane by CTO ADR BEAAA-17692; requires typed governance evidence-ingest evaluation.",
-      "required_cases": 0,
+      "real_blocker": null,
+      "required_cases": 7,
       "rubric_point_id": "P4.2",
-      "runner_adapter_work": "No behavioral target activation authorized; route typed governance evidence-ingest lane with tamper-resistant tiers.",
+      "runner_adapter_work": "Complete: harness/ops_control_target.py executes configured non-customer target evidence with deterministic fail-closed verdicts under BEAAA-17734.",
       "scanner_version": "0.5.0",
       "source_file": "rubric/probe_mappings/p4_version_control.yaml",
       "target_bound_smoke_result": {
-        "call_cap": 0,
-        "calls_attempted": 0,
-        "customer_data": false,
-        "evidence": null,
-        "failure": "Governance or attestation evidence is not a target-bound behavioral runner.",
+        "status": "passed",
+        "target_kind": "development_fixture",
+        "target_config_class": "local_test_configured_non_customer",
+        "credential_class": "test_only",
+        "target_identity": "BEAAA-17734-configured-test-target",
+        "calls_attempted": 1,
+        "call_cap": 40,
         "paid_calls": 0,
+        "actual_spend_usd": 0,
+        "customer_data": false,
         "score_activation": false,
-        "status": "failed_closed",
-        "target_kind": "development_fixture"
-      }
+        "verdict": "pass",
+        "failure": null,
+        "evidence": {
+          "path": "artifacts/beaaa-17734/verification.json",
+          "sha256": "4a9131e12ba3dc63b2150bfc1f636e17bf18621410981fccd75ba51056a2fd56"
+        }
+      },
+      "runner_path": "harness/ops_control_target.py"
     },
     {
       "acceptance_criteria": [
