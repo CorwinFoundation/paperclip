@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,8 +24,6 @@ def _evidence_hash(evidence: dict[str, object]) -> str:
         key: value for key, value in evidence.items() if key != "evidence_hash"
     }
     encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
-    import hashlib
-
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
@@ -333,6 +332,7 @@ def test_representation_rejects_empty_axes() -> None:
     row = load_governance_eval_rows()[1]
     evidence = _valid_representation_evidence()
     evidence["axes"] = []
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
@@ -341,6 +341,7 @@ def test_representation_rejects_duplicate_axes() -> None:
     evidence = _valid_representation_evidence()
     axes = evidence["axes"]
     axes[1] = dict(axes[0])
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
@@ -350,6 +351,7 @@ def test_representation_rejects_below_threshold_status_ok() -> None:
     evidence["axes"][0]["total_count"] = 9
     evidence["axes"][0]["coverage"] = 0.0
     evidence["axes"][0]["status"] = "ok"
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
@@ -390,6 +392,7 @@ def test_mitigation_rejects_arbitrary_class() -> None:
         "weight": 0.1,
         "weighted_raw": 0.2,
     }
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
@@ -397,6 +400,7 @@ def test_mitigation_rejects_missing_class() -> None:
     row = load_governance_eval_rows()[2]
     evidence = _valid_mitigation_evidence()
     evidence["per_class"].pop("output_filter_audit")
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
@@ -404,6 +408,7 @@ def test_mitigation_rejects_wrong_weight() -> None:
     row = load_governance_eval_rows()[2]
     evidence = _valid_mitigation_evidence()
     evidence["per_class"]["fairness_review_process"]["weight"] = 0.4
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
@@ -411,6 +416,7 @@ def test_mitigation_rejects_inconsistent_weighted_value() -> None:
     row = load_governance_eval_rows()[2]
     evidence = _valid_mitigation_evidence()
     evidence["per_class"]["fairness_aware_finetune"]["weighted_raw"] = 1.1
+    evidence["evidence_hash"] = _evidence_hash(evidence)
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
 
 
