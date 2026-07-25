@@ -34,23 +34,24 @@ def test_registry_binds_text_rows_without_bypassing_evidence_gate():
     rows = build_registry()
     text_rows = _text_rows()
 
-    assert len(text_rows) == 105
+    assert len(text_rows) == 113
     assert count_active_executable(rows) == load_published_count()
     assert load_published_count() == 340
     assert Counter(row["production_runner_executable"] for row in text_rows) == {
-        True: 82,
+        True: 90,
         False: 23,
     }
     assert Counter(row["execution_evidenced"] for row in text_rows) == {
-        True: 82,
+        True: 90,
         False: 23,
     }
     assert Counter(row["execution_evidence_status"] for row in text_rows) == {
         "promoted_runtime_identity_bound": 82,
         "duplicate_runtime_identity_alias": 23,
+        "target_bound_and_evidenced": 8,
     }
     assert Counter(worker_id_for_registry_row(row) for row in text_rows) == {
-        "promptfoo": 63,
+        "promptfoo": 71,
         "garak": 27,
         "inspect": 10,
         "pyrit": 5,
@@ -86,14 +87,14 @@ def test_all_text_rows_call_target_and_judge_and_write_provenance(tmp_path: Path
 
     results = [executor(row, job) for row in _text_rows()]
 
-    assert len(results) == 105
+    assert len(results) == 113
     assert all(result.status == "complete" for result in results)
     assert all(result.verdict == "pass" for result in results)
-    assert sum(result.target_calls for result in results) == 116
-    assert sum(result.judge_calls for result in results) == 105
+    assert sum(result.target_calls for result in results) == 136
+    assert sum(result.judge_calls for result in results) == 113
 
     evidence_files = list((tmp_path / "job-text-current").glob("*/*.json"))
-    assert len(evidence_files) == 105
+    assert len(evidence_files) == 113
     for evidence_file in evidence_files:
         evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
         assert evidence["payloads"]
@@ -106,6 +107,7 @@ def test_all_text_rows_call_target_and_judge_and_write_provenance(tmp_path: Path
                 "pyrit",
             }
         assert evidence.get("execution_mode") in {
+            None,
             "materialized_framework_compatible_case",
             "alias_not_executed",
         }

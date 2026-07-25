@@ -61,6 +61,8 @@ LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
 )
 AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
+        "backbond-output-attack-fixtures",
+        "crescendo",
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
         "system_prompt_extraction",

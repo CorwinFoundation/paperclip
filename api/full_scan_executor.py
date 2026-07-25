@@ -848,7 +848,7 @@ def registry_cases_from_rows(
             continue
         if row.get(execution_flag) is not True:
             continue
-        case_id = _case_id_from_row(row)
+        case_id = _case_id_from_row(row, execution_flag=execution_flag)
         rubric_point_id = str(row.get("risk_or_rubric_id") or row.get("rubric_point_id") or "")
         if not case_id or not rubric_point_id:
             raise FullScanExecutorError("registry row missing case_id or rubric id")
@@ -887,7 +887,7 @@ def dispatch_registry_attempt(
             continue
         if registry_row.get(execution_flag) is not True:
             continue
-        case_id = _case_id_from_row(registry_row)
+        case_id = _case_id_from_row(registry_row, execution_flag=execution_flag)
         if case_id not in expected_case_ids:
             continue
 
@@ -1008,13 +1008,19 @@ def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
         raise FullScanExecutorError("non-complete evidence row requires incomplete_reason")
 
 
-def _case_id_from_row(row: Mapping[str, Any]) -> str:
-    return str(
-        row.get("runtime_case_identity")
-        or row.get("case_id")
-        or row.get("case_id_or_probe_id")
-        or ""
+def _case_id_from_row(
+    row: Mapping[str, Any],
+    *,
+    execution_flag: str = "production_runner_executable",
+) -> str:
+    declared_case_id = str(
+        row.get("case_id") or row.get("case_id_or_probe_id") or ""
     )
+    if execution_flag == "target_bound":
+        # Evidence-generation plans execute every declared row even when
+        # normalized payload hashes collapse for distinct-coverage reporting.
+        return declared_case_id
+    return str(row.get("runtime_case_identity") or declared_case_id)
 
 
 def _row_has_evidence(row: Mapping[str, Any]) -> bool:
