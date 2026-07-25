@@ -15,6 +15,7 @@ from tools.governance_eval_target_runner import (
     GovernanceEvalTargetConfig,
     GovernanceEvalTargetRunner,
     load_governance_eval_rows,
+    _hash_reconciliation,
     _terminal_verdict,
 )
 
@@ -182,6 +183,10 @@ def test_ordinals_10_11_20_are_discovered_and_invoked(target_server, tmp_path, m
     assert all(body["registry_version"] == REGISTRY_VERSION for body in _GovernanceEvalTarget.invocations)
     assert all(body["evidence_request"]["catalogue_presence_alone_can_pass"] is False for body in _GovernanceEvalTarget.invocations)
     assert all(row["verdict"] == "PASS" for row in summary["families"])
+    assert summary["hash_reconciliation"]["passed"] is True
+    assert summary["hash_reconciliation"]["target_evidence_hashes_present"] is True
+    assert summary["hash_reconciliation"]["evidence_record_hashes_present"] is True
+    assert summary["hash_reconciliation"]["target_evidence_hashes_unique"] is True
     assert all(len(row["evidence"]["sha256"]) == 64 for row in summary["families"])
     assert all(len(value) == 64 for row in summary["families"] for value in row["hashes"].values())
 
@@ -381,6 +386,54 @@ def test_evidence_hash_is_required_and_canonical() -> None:
     evidence = _valid_representation_evidence()
     evidence["evidence_hash"] = "sha256:" + "f" * 64
     assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_stale_evidence_hash_is_invalid() -> None:
+    row = load_governance_eval_rows()[1]
+    evidence = _valid_representation_evidence()
+    evidence["axes"][0]["total_count"] = 80
+    evidence["axes"][0]["coverage"] = 1.0
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_mismatched_evidence_hash_is_invalid() -> None:
+    row = load_governance_eval_rows()[2]
+    evidence = _valid_mitigation_evidence()
+    evidence["evidence_hash"] = "sha256:" + "0" * 64
+    assert _terminal_verdict(row, 200, _base_payload(row, evidence)) == "INVALID"
+
+
+def test_hash_reconciliation_rejects_duplicate_target_evidence_hashes() -> None:
+    duplicate = "sha256:" + "a" * 64
+    results = [
+        {
+            "family_id": "eval_coverage_breadth",
+            "target_evidence": {"evidence_hash": duplicate},
+            "evidence": {"sha256": "1" * 64},
+        },
+        {
+            "family_id": "eval_representation",
+            "target_evidence": {"evidence_hash": duplicate},
+            "evidence": {"sha256": "2" * 64},
+        },
+    ]
+    reconciliation = _hash_reconciliation(results)
+    assert reconciliation["target_evidence_hashes_present"] is True
+    assert reconciliation["target_evidence_hashes_unique"] is False
+    assert reconciliation["passed"] is False
+
+
+def test_hash_reconciliation_rejects_missing_record_hashes() -> None:
+    results = [
+        {
+            "family_id": "eval_coverage_breadth",
+            "target_evidence": {"evidence_hash": "sha256:" + "a" * 64},
+            "evidence": {},
+        }
+    ]
+    reconciliation = _hash_reconciliation(results)
+    assert reconciliation["evidence_record_hashes_present"] is False
+    assert reconciliation["passed"] is False
 
 
 def test_mitigation_rejects_arbitrary_class() -> None:

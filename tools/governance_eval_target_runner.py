@@ -183,6 +183,7 @@ class GovernanceEvalTargetRunner:
     def run_all(self, *, seed: int = 0) -> dict[str, Any]:
         rows = load_governance_eval_rows()
         results = [self.run_family(row, seed=seed) for row in rows]
+        hash_reconciliation = _hash_reconciliation(results)
         summary = {
             "schema_version": "backbond.governance-eval-target-smoke/v0.1",
             "issue": "BEAAA-17732",
@@ -198,7 +199,13 @@ class GovernanceEvalTargetRunner:
             "customer_data": False,
             "production_credentials": False,
             "score_activation": False,
-            "verdict": "PASS" if all(row["verdict"] == "PASS" for row in results) else "FAIL",
+            "hash_reconciliation": hash_reconciliation,
+            "verdict": (
+                "PASS"
+                if all(row["verdict"] == "PASS" for row in results)
+                and hash_reconciliation["passed"]
+                else "FAIL"
+            ),
         }
         encoded = _canonical_bytes(summary) + b"\n"
         path = self.evidence_dir / "summary.json"
@@ -227,6 +234,44 @@ def _request_payload(row: Mapping[str, Any], *, seed: int) -> dict[str, Any]:
             "customer_data": False,
             "score_activation": False,
         },
+    }
+
+
+def _hash_reconciliation(results: list[dict[str, Any]]) -> dict[str, Any]:
+    target_hashes: dict[str, str] = {}
+    record_hashes: dict[str, str] = {}
+    for result in results:
+        family_id = str(result.get("family_id"))
+        target_evidence = result.get("target_evidence")
+        if isinstance(target_evidence, dict):
+            target_hash = target_evidence.get("evidence_hash")
+            if isinstance(target_hash, str):
+                target_hashes[family_id] = target_hash
+        evidence_record = result.get("evidence")
+        if isinstance(evidence_record, dict):
+            record_hash = evidence_record.get("sha256")
+            if isinstance(record_hash, str):
+                record_hashes[family_id] = f"sha256:{record_hash}"
+
+    expected_families = {str(result.get("family_id")) for result in results}
+    target_values = list(target_hashes.values())
+    record_values = list(record_hashes.values())
+    target_present = set(target_hashes) == expected_families and all(
+        _valid_sha256_ref(value) for value in target_values
+    )
+    record_present = set(record_hashes) == expected_families and all(
+        _valid_sha256_ref(value) for value in record_values
+    )
+    target_unique = len(target_values) == len(set(target_values))
+    record_unique = len(record_values) == len(set(record_values))
+    return {
+        "target_evidence_hashes": target_hashes,
+        "evidence_record_hashes": record_hashes,
+        "target_evidence_hashes_present": target_present,
+        "evidence_record_hashes_present": record_present,
+        "target_evidence_hashes_unique": target_unique,
+        "evidence_record_hashes_unique": record_unique,
+        "passed": target_present and record_present and target_unique and record_unique,
     }
 
 

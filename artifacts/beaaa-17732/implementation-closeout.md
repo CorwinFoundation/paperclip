@@ -18,7 +18,7 @@ escalations_noted: ["Rule-execution implementation: existing rubric_point_id fam
 
 BLUF: Implemented the canonical governance/eval target runner for ordinals 10, 11, and 20. The runner invokes one configured non-customer target path per family and accepts PASS only from semantically valid target-produced evidence, not catalogue presence.
 
-Supersession: `0e3fcea` was rejected by QA because contradictory target evidence could still return `PASS`. Candidate `1e5a75c` added first-pass semantic validation. The current corrected candidate additionally binds `eval_representation` and `mitigation_evidence` to their exact signed mapping files after the 2026-07-25 00:28Z heartbeat correction.
+Supersession: `0e3fcea` was rejected by QA because contradictory target evidence could still return `PASS`. Candidate `1e5a75c` added first-pass semantic validation. Candidate `65531a46ae99bd03fe17b8ab34e3e5cd1c361493` was rejected because persisted target-bound smoke artifacts still omitted required evidence hashes. The current corrected candidate regenerates target-bound smoke from the hash-enforcing runner and adds aggregate hash reconciliation.
 
 Deliverable: This is a target-runner implementation for the CTO that closes the ordinals 10/11/20 execution gap inside the existing BEAAA-17667 family activation ledger scope within the 8-hour, 30-call, $5 budget.
 
@@ -32,15 +32,16 @@ Implementation:
 - Families: `eval_coverage_breadth`, `eval_representation`, `mitigation_evidence`.
 - Immutable pins: `scanner_version=0.5.0`, `corpus_version=canonical-61-family-registry@2026-07-13`, `probe-set-version=family-activation-ledger/v0.1`.
 - Verdicts: explicit `PASS`, `FAIL`, `INVALID`.
-- Evidence hashes: request/config/input/output/verdict hashes plus content-addressed evidence record SHA-256.
+- Evidence hashes: request/config/input/output/verdict hashes, target-authored `target_evidence.evidence_hash`, content-addressed evidence record SHA-256, and aggregate summary reconciliation across all family hashes.
 - Semantic fail-closed validation: coverage percentages reconcile to measured/total dimensions; percentages are bounded 0-100; representation counts are nonnegative; optional representation coverage is bounded 0-1; mitigation tiers are bounded 0-4; raw/weighted values are bounded; `sha256:<64 lowercase hex>` references are required where target evidence claims content-addressed inputs.
 - Mapping-bound validation: `eval_representation` requires the exact six signed axis IDs and matching `threshold_min`/`threshold_good` from `rubric/probe_mappings/eval_representation.yaml`; `mitigation_evidence` requires the exact three signed artifact classes, weights `0.4/0.4/0.2`, tier raw contributions from `rubric/probe_mappings/mitigation_evidence.yaml`, and `weighted_raw = raw_contribution * weight`.
 
 Verification:
 - `pytest -q tests/test_beaaa17732_governance_eval_target_runner.py tests/test_beaaa17667_family_activation_ledger.py`
-- Result after mapping-bound correction: `24 passed in 3.70s`.
+- Result after hash-artifact correction: `32 passed in 3.67s`.
 - Added deterministic regressions for QA's four invalid payloads: contradictory coverage percentage, negative coverage percentage, negative representation count plus malformed hash, and negative mitigation tier/raw plus malformed hash.
 - Added deterministic regressions for the heartbeat correction cases: empty axes, duplicate axes, below-threshold `status=ok`, arbitrary mitigation class, missing mitigation class, wrong weight, and inconsistent weighted value.
+- Added deterministic hash regressions for missing, stale, mismatched, and duplicated evidence hashes. Summary-level `hash_reconciliation.passed` must be true before the target-bound smoke can report `PASS`.
 
 Bounded target smoke:
 - Target config class: `local_http_test_fixture`.
@@ -52,7 +53,12 @@ Bounded target smoke:
 - Production credentials: `false`.
 - Score activation: `false`.
 - Summary: `artifacts/beaaa-17732/target-smoke/summary.json`.
-- Summary SHA-256 after mapping-bound correction: `78227fed25d7dc83783d72ebbe6b3f1cd9105e894c57f9445d1234a7b9019fc4`.
+- Per-family target evidence hashes:
+  - `eval_coverage_breadth`: `sha256:0a12c4d2b0e4e33f6c6b8e9dbf0287d6f56d837dabe7f877b4bdd1e84d4c6be5`
+  - `eval_representation`: `sha256:a9f10191991c804a2c267a5e4fc935f76aab14eca6b038a937f9d0c02d2b840a`
+  - `mitigation_evidence`: `sha256:26824ded2f25612c603451ebd4e5d04112d83cbee687e54c0093702c42a03771`
+- Summary `hash_reconciliation.passed`: `true`.
+- Summary SHA-256 after hash-artifact correction: `67740c268829ff39ede91b1638bcc18668e9ec0003e01b3033916f98f1846afe`.
 
 N=5 calibration delta:
 - Status: not run as score-bearing calibration because this change does not enter a score-bearing path and the smoke has `score_activation=false`.
@@ -61,7 +67,7 @@ N=5 calibration delta:
 
 QA gate:
 - Required before reporting these rows working: QA Engineer exact-SHA `APPROVED` on the canonical QA child for BEAAA-17732.
-- Current status after QA correction: return same QA child BEAAA-17737 with `SUPERSEDED: 0e3fcea -> <corrected SHA>`.
+- Current status after QA correction: return same QA child BEAAA-17737 with `SUPERSEDED: 65531a46ae99bd03fe17b8ab34e3e5cd1c361493 -> <corrected SHA>`.
 
 Self-audit:
 - Read required canon and Scanner contract files this turn.
