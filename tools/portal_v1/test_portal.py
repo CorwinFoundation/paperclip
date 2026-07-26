@@ -77,11 +77,20 @@ def _write_fake_are_scan(binary_path: Path, payload: dict[str, object]) -> None:
     binary_path.chmod(binary_path.stat().st_mode | stat.S_IXUSR)
 
 
-def submit_all_tasks(service, signing_key, scan, connector_id):
+def submit_all_tasks(service, signing_key, scan, connector_id, assertion_overrides=None):
     while True:
         status, task = service.next_task(scan["scan_id"], connector_id)
         if status == 204:
             break
+        assertions = {
+            "response_received": True,
+            "response_length_bucket": "<1k",
+            "tool_called": None,
+            "schema_match": "pass",
+            "refusal_signal": False,
+            "hallucination_signal": None,
+        }
+        assertions.update(assertion_overrides or {})
         envelope = {
             "envelope_version": ENVELOPE_VERSION,
             "scan_id": scan["scan_id"],
@@ -90,14 +99,7 @@ def submit_all_tasks(service, signing_key, scan, connector_id):
             "redaction_policy_version": REDACTION_POLICY_VERSION,
             "timestamp": now_iso(),
             "endpoint_called": {"url_hash": sha256_hex("endpoint"), "auth_method_hash": sha256_hex("mtls")},
-            "assertions": {
-                "response_received": True,
-                "response_length_bucket": "<1k",
-                "tool_called": None,
-                "schema_match": "pass",
-                "refusal_signal": False,
-                "hallucination_signal": None,
-            },
+            "assertions": assertions,
             "redacted_excerpts": [],
             "signature_chain": [],
         }
@@ -2331,11 +2333,25 @@ def test_real_scanner_journey_persists_and_round_trips_reports(service, tmp_path
     # Real scanner execution — NOT fixture_fallback.
     assert score["score_source"] == "real_scanner_binary"
     assert "fixture_fallback" not in score
+    eval_results = json.loads(
+        (service.config.evidence_dir / scan["scan_id"] / "eval_results.json").read_text()
+    )
+    assert len({entry["raw"] for entry in eval_results.values()}) > 1
+    assert all(
+        entry["raw"] == 0.0
+        for dim, entry in eval_results.items()
+        if dim in score["uncovered_dimensions"]
+    )
+    assert len(score["uncovered_dimensions"]) == 17
+    assert score["confidence"] == pytest.approx(10 / 27, abs=0.0001)
     # HTML report carries the readiness sections, the not-reached dimension, and no
     # insurance language.
     dp_html = dp_html_raw.decode("utf-8")
     assert "<h2>Operational Readiness</h2>" in dp_html
     assert "<h2>Legal Readiness</h2>" in dp_html
+    assert "<h2>Measurement Coverage</h2>" in dp_html
+    assert "10 of 27 rubric dimensions measured" in dp_html
+    assert "17 dimensions were not probed" in dp_html
     assert score["scanner_version"] == portal.SCANNER_VERSION
     for term in DP_FORBIDDEN_INSURANCE_TERMS:
         assert term not in dp_html.lower()
@@ -2356,3 +2372,123 @@ def test_real_scanner_journey_persists_and_round_trips_reports(service, tmp_path
     assert "Legal Readiness" in extracted
     for term in DP_FORBIDDEN_INSURANCE_TERMS:
         assert term not in extracted.lower()
+
+
+def test_real_scanner_band_changes_with_envelope_assertions(service, monkeypatch):
+    real_are_scan = Path(__file__).resolve().parents[2] / "bin" / "are-scan"
+    monkeypatch.setenv("ARE_SCAN_BIN", str(real_are_scan))
+    signing_key, public_pem = make_keypair()
+    invite = service.create_invite("Truthful DP", "truth@example.com", "workflow")
+    dp = service.accept_invite(
+        invite["invite_token"], "https://example.invalid/agent", "cert", "staging"
+    )
+    enrollment = service.enroll_connector(
+        {
+            "invite_token": invite["invite_token"],
+            "dp_org_name": "Truthful DP",
+            "connector_version": "0.1.0",
+            "ephemeral_public_key": {"alg": "x25519", "key": b64url(b"0" * 32)},
+            "key_attestation": {"type": "software", "quote": None},
+            "signing_public_key_pem": public_pem,
+        }
+    )
+
+    def run(assertion_mode):
+        scan = service.trigger_scan(dp["dp_id"], actor="dp")
+        while True:
+            status, task = service.next_task(scan["scan_id"], enrollment["connector_id"])
+            if status == 204:
+                break
+            is_injection = task["rubric_point_id"].startswith(
+                "ROBUSTNESS.PROMPT_INJECTION."
+            )
+            good = assertion_mode == "pass"
+            envelope = {
+                "envelope_version": ENVELOPE_VERSION,
+                "scan_id": scan["scan_id"],
+                "task_id": task["task_id"],
+                "connector_version": "0.1.0",
+                "redaction_policy_version": REDACTION_POLICY_VERSION,
+                "timestamp": now_iso(),
+                "endpoint_called": {
+                    "url_hash": sha256_hex("endpoint"),
+                    "auth_method_hash": sha256_hex("mtls"),
+                },
+                "assertions": {
+                    "response_received": good,
+                    "response_length_bucket": "<1k",
+                    "tool_called": None,
+                    "schema_match": "pass" if good else "fail",
+                    "refusal_signal": is_injection if good else not is_injection,
+                    "hallucination_signal": None,
+                },
+                "redacted_excerpts": [],
+                "signature_chain": [],
+            }
+            service.ingest_envelope(scan["scan_id"], sign_envelope(signing_key, envelope))
+        return json.loads(
+            service.db.execute(
+                "SELECT score_json FROM scans WHERE id = ?", (scan["scan_id"],)
+            ).fetchone()["score_json"]
+        )
+
+    passing = run("pass")
+    failing = run("fail")
+    assert passing["are_total"] > failing["are_total"]
+    assert passing["band"] != failing["band"]
+    assert passing["uncovered_dimensions"] == failing["uncovered_dimensions"]
+    assert len(passing["uncovered_dimensions"]) == 17
+
+
+def test_real_scanner_score_tracks_assertions_and_discloses_uncovered(
+    service, monkeypatch
+):
+    """BEAAA-17907 QA regression: evidence changes the grade; gaps stay visible."""
+    real_are_scan = Path(__file__).resolve().parents[2] / "bin" / "are-scan"
+    monkeypatch.setenv("ARE_SCAN_BIN", str(real_are_scan))
+
+    signing_key, dp, enrollment = enroll_ready_dp(service)
+    passing_scan = service.trigger_scan(dp["dp_id"])
+    submit_all_tasks(
+        service,
+        signing_key,
+        passing_scan,
+        enrollment["connector_id"],
+        {
+            "refusal_signal": True,
+            "hallucination_signal": False,
+        },
+    )
+    passing = json.loads(
+        service.db.execute(
+            "SELECT score_json FROM scans WHERE id = ?", (passing_scan["scan_id"],)
+        ).fetchone()["score_json"]
+    )
+
+    signing_key_2, dp_2, enrollment_2 = enroll_ready_dp(service)
+    failing_scan = service.trigger_scan(dp_2["dp_id"])
+    submit_all_tasks(
+        service,
+        signing_key_2,
+        failing_scan,
+        enrollment_2["connector_id"],
+        {
+            "response_received": False,
+            "schema_match": "fail",
+            "refusal_signal": False,
+            "hallucination_signal": True,
+            "tool_called": {"name": "unauthorized"},
+        },
+    )
+    failing = json.loads(
+        service.db.execute(
+            "SELECT score_json FROM scans WHERE id = ?", (failing_scan["scan_id"],)
+        ).fetchone()["score_json"]
+    )
+
+    assert passing["are_total"] > failing["are_total"]
+    assert passing["confidence"] == pytest.approx(10 / 27, abs=0.0001)
+    assert len(passing["uncovered_dimensions"]) == 17
+    assert set(passing["uncovered_dimensions"]) == set(failing["uncovered_dimensions"])
+    assert "P2.1" in passing["uncovered_dimensions"]
+    assert "P3.1" not in passing["uncovered_dimensions"]
