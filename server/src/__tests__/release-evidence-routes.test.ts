@@ -168,6 +168,50 @@ describe("release evidence routes", () => {
     expect(mockReleaseEvidenceIngressService.exchange).toHaveBeenCalledWith(validClaims, exchangeBody());
   });
 
+  it("allows GitHub OIDC through local trusted ingress implicit board context", async () => {
+    const verifyOidcToken = vi.fn(async () => validClaims);
+    mockReleaseEvidenceIngressService.exchange.mockResolvedValue({
+      sessionId,
+      capability: "pcrel_secret",
+      uploadUrl: `/api/release-evidence/v1/sessions/${sessionId}/attachment`,
+      expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+    });
+
+    const res = await request(createApp({
+      actor: {
+        type: "board",
+        source: "local_implicit",
+        userId: "local-board",
+        isInstanceAdmin: true,
+      },
+      verifyOidcToken,
+    }))
+      .post("/api/release-evidence/v1/exchange")
+      .set("Authorization", "Bearer github.oidc.jwt")
+      .send(exchangeBody());
+
+    expect(res.status).toBe(201);
+    expect(verifyOidcToken).toHaveBeenCalledWith("github.oidc.jwt", now);
+    expect(mockReleaseEvidenceIngressService.exchange).toHaveBeenCalledWith(validClaims, exchangeBody());
+  });
+
+  it("rejects explicit board credentials at exchange", async () => {
+    const verifyOidcToken = vi.fn(async () => validClaims);
+
+    const res = await request(createApp({
+      actor: { type: "board", source: "board_key", userId: "local-board", isInstanceAdmin: true },
+      verifyOidcToken,
+    }))
+      .post("/api/release-evidence/v1/exchange")
+      .set("Authorization", "Bearer board_key")
+      .send(exchangeBody());
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("oidc_required");
+    expect(verifyOidcToken).not.toHaveBeenCalled();
+    expect(mockReleaseEvidenceIngressService.exchange).not.toHaveBeenCalled();
+  });
+
   it("audits each bound exchange denial without storing an attachment", async () => {
     const table = [
       ["repository", { ...validClaims, repository: "Other/repo" }, new HttpError(403, "Release evidence exchange denied", { code: "repository_mismatch" })],

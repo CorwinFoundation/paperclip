@@ -202,12 +202,12 @@ export function releaseEvidenceRoutes(
   });
 
   router.post("/release-evidence/v1/exchange", validate(exchangeSchema), async (req, res) => {
-    if (req.actor.type === "agent" || req.actor.type === "board") {
+    const token = readBearerToken(req);
+    if (!token) {
       await svc.auditDenied("release_evidence.exchange", "oidc_required", { request: req.body });
       throw unauthorized("oidc_required");
     }
-    const token = readBearerToken(req);
-    if (!token) {
+    if (req.actor.type === "agent" || (req.actor.type === "board" && req.actor.source !== "local_implicit")) {
       await svc.auditDenied("release_evidence.exchange", "oidc_required", { request: req.body });
       throw unauthorized("oidc_required");
     }
