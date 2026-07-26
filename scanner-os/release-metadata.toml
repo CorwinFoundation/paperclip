@@ -2,13 +2,14 @@
 scanner_version = "0.5.0"
 corpus_version = "2026.6.24"
 probe_set_version = "retell-consolidated-probe-set@2026-06-24"
-rubric_version = "1.2.0"
-contract = "are-scanner-api-v1@v1.3.0"
-release_metadata_version = "0.3"
-candidate_commit = "f56065843df869829ddbfe2e8620f126c8138e9f"
-release_manifest_path = "artifacts/beaaa-8225/release_manifest.json"
-release_notes_path = "artifacts/beaaa-8225/consolidated_grade_card_closeout.md"
-candidate_packet_glob = "artifacts/beaaa-8225/consolidated_envelope_seed{0..4}.json"
+rubric_version = "1.3.0"
+contract = "are-scanner-api-v1@v1.0"
+release_metadata_version = "0.4"
+authority_issue = "BEAAA-17963"
+authorized_canonical_base = "7b75463d1ed0b158b742efe6f4890f913f02e50b"
+release_manifest_path = "release/backbond-scanner-release.json"
+release_notes_path = "artifacts/beaaa-17963/closeout.md"
+candidate_packet_glob = "tests/fixtures/golden_agents/*/expected_score.json"
 seeds = [0, 1, 2, 3, 4]
 
 [scanner.model_versions]

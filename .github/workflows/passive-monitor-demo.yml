@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: |
             requirements-dev.txt
@@ -59,8 +59,7 @@ jobs:
             tools/log-tracker/pyproject.toml
       - name: Install focused demo dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
+          python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e tools/post-bind-ingest -e tools/log-tracker
           npm install --no-save --ignore-scripts playwright@1.61.1
       - name: Run passive monitor and demo tests

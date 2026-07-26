@@ -38,11 +38,11 @@ PINNED_FILES = {
     "tests/probe_sets/p5_direct_advbench_v1.jsonl":
         "a0fcf4dfad27760679d0fe7811ba4c15c8827f77eef0a21dc18ae79d2ef8c0a9",
     "requirements-eval-agentdojo.txt":
-        "57029d0a1515ee0b211b7f1203f3eb4f4b53adf41268211e481605e99d4e3d7a",
+        "46fac543e2fd58573e8c1acb6538fd96de97f3ee9b5b22690c3519a0a5b9ff0b",
     "tests/probe_sets/p4_citation_grounded_factscore_v1.jsonl":
         "1b0e0808bb6f9f2bb4196343c95b510418ec4b2f54d9ceb7bac0f5a8578d74ac",
     "requirements-eval-garak.txt":
-        "75d06ed7b390411af383806cffdf72363c0c5a30b6e75e27876821a7855afc64",
+        "a4a18428de2c894c3ee2d1e00daa533cbc0ff1f019019eb1654e80713cfa087a",
     "rubric/probe_mappings/garak.yaml":
         "c432a404896c13d24145cfe8964cadd52f87073668860f80edc13d848eddfed0",
     "rubric/probe_mappings/garak_beaaa152.yaml":

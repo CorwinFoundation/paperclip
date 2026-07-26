@@ -10,7 +10,7 @@
     "posture": "Standard"
   },
   "bmi": 80,
-  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
   "corpus_version": "path_a_v2_1@2026-05-15",
   "diagnostics": [
     {

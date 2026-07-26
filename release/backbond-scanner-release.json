@@ -1,13 +1,28 @@
 {
   "schema_version": 1,
-  "release_id": "backbond-scanner-0.5.0-rubric-1.3.0",
-  "baseline_sha": "fb58d5e5cf7d132afd55c177f4a385ba5b29c76a",
-  "python_version": "3.12",
+  "release_id": "backbond-scanner-0.5.0-july31",
+  "authority_issue": "BEAAA-17963",
+  "authorized_canonical_base": "7b75463d1ed0b158b742efe6f4890f913f02e50b",
+  "python_version": "3.11",
   "scanner_version": "0.5.0",
   "rubric_version": "1.3.0",
-  "contract_version": "are-scanner-api-v1@v1.3.0",
-  "release_gate_corpus_version": "0.2.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "release_gate_corpus_version": "2026.6.24",
   "golden_probe_set_version": "golden_agents_v1",
+  "authority_surfaces": {
+    "rubric": "rubric/rubric.yaml",
+    "contract": "contracts/are-scanner-api-v1.md",
+    "reports": [
+      "report_card",
+      "tools/portal_v1"
+    ],
+    "fixtures": [
+      "fixtures",
+      "tests/fixtures"
+    ],
+    "goldens": "tests/fixtures/golden_agents",
+    "acceptance_bundle": "artifacts/beaaa-17962/beaaa-17386-acceptance-evidence-bundle.json"
+  },
   "framework_registry": {
     "path": "rubric/framework_registry.v1.json",
     "registry_version": "1.0.0",
@@ -44,25 +59,26 @@
     "inspect-ai": "0.3.220"
   },
   "locks": {
-    "core": {
-      "path": "locks/core-py312.lock",
-      "sha256": "51aa45314103e32446f826e85862cfd568706666213ab8903e3e99c903cf64d4"
+    "runtime": {
+      "path": "requirements-runtime.txt"
+    },
+    "development": {
+      "path": "requirements-dev.txt"
+    },
+    "regression": {
+      "path": "requirements-scanner-regression.txt"
     },
     "garak": {
-      "path": "locks/garak-py312.lock",
-      "sha256": "013a9cee92bb695edba875e4e903f3b5262113de5611f2aa5535338d6ce4a763"
+      "path": "requirements-eval-garak.txt"
     },
     "agentdojo": {
-      "path": "locks/agentdojo-py312.lock",
-      "sha256": "8869c553b9713f16f97e9984f529b4fc7e3e75edbb46c9a0bdf2ac6eaa860ae2"
+      "path": "requirements-eval-agentdojo.txt"
     },
     "pyrit": {
-      "path": "locks/pyrit-py312.lock",
-      "sha256": "fc1abec4de7900b972f38b39d7f04c41217332d1382addb76fadd8c0d23b93b2"
+      "path": "requirements-eval-pyrit.txt"
     },
     "inspect": {
-      "path": "locks/inspect-py312.lock",
-      "sha256": "24b30f393092284cb052f33a2901ba475739dea02bef2146aef7cb931b731217"
+      "path": "requirements-eval-inspect.txt"
     }
   }
 }

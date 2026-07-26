@@ -31,14 +31,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements-scanner-regression.txt
 
       - name: Install pinned scanner-regression dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-scanner-regression.txt
+          python -m pip install --require-hashes -r requirements-scanner-regression.txt
 
       - name: Run deterministic golden regression tests
         run: |

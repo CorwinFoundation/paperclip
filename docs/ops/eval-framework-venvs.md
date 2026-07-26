@@ -9,7 +9,7 @@ venv via `scanners/eval_framework_venv.py`. This is offline-calibration / CI
 substrate only — it does **not** touch the production runtime slice
 (BEAAA-13329) or any scoring / rubric / corpus.
 
-Contract: `are-scanner-api-v1@v1.3.0`. Classification: rule-execution (wiring;
+Contract: `are-scanner-api-v1@v1.0`. Classification: rule-execution (wiring;
 the runners already soft-import and guard on `_AVAILABLE`). No CTO co-sign is
 required to run it, but the PR is gated to CTO per the ticket.
 
@@ -52,12 +52,15 @@ scripts/build_eval_framework_venvs.sh garak pyrit
 # custom root (e.g. a CI cache dir)
 ARE_EVAL_VENVS_DIR=/tmp/eval-venvs scripts/build_eval_framework_venvs.sh
 
-# also emit a pip-freeze lock per venv for reproducibility auditing
-FREEZE=1 scripts/build_eval_framework_venvs.sh
+# verify every lock is pinned, hashed, duplicate-free, and isolated
+python scripts/verify_python_locks.py
 ```
 
-The script creates each venv, installs its slice, and **verifies** the import
-reports the pinned version (fails loudly on drift). Confirm a built box with:
+The script creates each venv, installs its hash-locked slice with
+`pip --require-hashes`, verifies the import reports the pinned version, and
+records install plus `pip check` transcripts under
+`$ARE_EVAL_VENVS_DIR/transcripts` (fails loudly on drift or conflicts).
+Confirm a built box with:
 
 ```bash
 ARE_EVAL_VENVS_DIR=/opt/are-scanner/eval-venvs python -m scanners.eval_framework_venv
