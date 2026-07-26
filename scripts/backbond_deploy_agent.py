@@ -136,6 +136,18 @@ class DeployConfig:
     state_dir: Path
     service_env_path: Path = Path("/etc/backbond/scanner-edge.env")
     service_name: str = "backbond-scanner-live"
+    version_url: str = "http://127.0.0.1:8000/version"
+
+
+RELEASE_IDENTITY_SCHEMA = "backbond-scanner-release-identity@1"
+RELEASE_IDENTITY_FIELDS = (
+    "configured_image",
+    "running_container_revision",
+    "internal_version_sha",
+    "current_version",
+    "last_activated_sequence",
+    "terminal_receipt_sha256",
+)
 
 
 class Activator(Protocol):
@@ -181,6 +193,7 @@ class SystemdDockerActivator:
         loaded_image_id = verify_loaded_image_matches_archive(target, candidate, loaded_images[0])
         env_file = self.config.service_env_path
         current_env = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
+        self._write_identity_pending(candidate, status="activating")
         _atomic_write_text(
             env_file,
             _replace_env_assignment(current_env, "SCANNER_EDGE_IMAGE", loaded_image_id),
@@ -212,6 +225,164 @@ class SystemdDockerActivator:
         subprocess.run(["systemctl", "restart", self.config.service_name], check=True)
         _atomic_write_text(self.config.state_dir / "current_version", str(previous_version["version"]), default_mode=0o600)
         return "rolled_back"
+
+    def commit_release_identity(
+        self,
+        *,
+        candidate: Candidate,
+        activated_version: str,
+        terminal_receipt_sha256: str,
+        status: str,
+    ) -> dict[str, Any]:
+        identity = self.collect_release_identity(
+            candidate=candidate,
+            activated_version=activated_version,
+            terminal_receipt_sha256=terminal_receipt_sha256,
+            status=status,
+        )
+        validate_release_identity(identity)
+        current = self.config.state_dir / "release_identity.json"
+        if current.exists():
+            _atomic_write_json(self.config.state_dir / "previous_release_identity.json", self._read_json(current))
+        _atomic_write_json(current, identity)
+        _atomic_write_text(self.config.state_dir / "current_version", str(identity["current_version"]), default_mode=0o600)
+        _atomic_write_text(
+            self.config.state_dir / "last_activated_sequence",
+            str(identity["last_activated_sequence"]),
+            default_mode=0o600,
+        )
+        _atomic_unlink(self.config.state_dir / "release_identity.pending.json")
+        return identity
+
+    def recover_pending_release_identity(self) -> dict[str, Any] | None:
+        pending_path = self.config.state_dir / "release_identity.pending.json"
+        if not pending_path.exists():
+            return None
+        pending = self._read_json(pending_path)
+        if pending.get("schema_version") != RELEASE_IDENTITY_SCHEMA:
+            raise DeployRejected("release identity pending marker has invalid schema")
+        candidate = Candidate.from_mapping(
+            {
+                "candidate_id": pending.get("candidate_id"),
+                "commit_sha": pending.get("commit_sha"),
+                "image_digest": pending.get("image_digest"),
+                "tarball_url": "file:///dev/null",
+                "tarball_sha256": "0" * 64,
+                "sequence": pending.get("last_activated_sequence"),
+                "expires_at": "2099-01-01T00:00:00Z",
+                "environment": pending.get("environment"),
+                "host": pending.get("host"),
+                "signature_ref": "file:///dev/null",
+                "signature_sha256": "0" * 64,
+                "approval_interaction_id": pending.get("approval_interaction_id", "pending-recovery"),
+                "deploy_token_scope": pending.get(
+                    "deploy_token_scope",
+                    f"scanner:deploy:{pending.get('environment')}:{pending.get('host')}:{pending.get('candidate_id')}",
+                ),
+            }
+        )
+        terminal_receipt_sha256 = str(pending.get("terminal_receipt_sha256") or "sha256:" + "0" * 64)
+        identity = self.collect_release_identity(
+            candidate=candidate,
+            activated_version=str(pending.get("commit_sha", "")),
+            terminal_receipt_sha256=terminal_receipt_sha256,
+            status="recovered",
+        )
+        validate_release_identity(identity)
+        _atomic_write_json(self.config.state_dir / "release_identity.json", identity)
+        _atomic_unlink(pending_path)
+        return identity
+
+    def collect_release_identity(
+        self,
+        *,
+        candidate: Candidate,
+        activated_version: str,
+        terminal_receipt_sha256: str,
+        status: str,
+    ) -> dict[str, Any]:
+        return {
+            "schema_version": RELEASE_IDENTITY_SCHEMA,
+            "environment": self.config.environment,
+            "host": self.config.host,
+            "candidate_id": candidate.candidate_id,
+            "commit_sha": activated_version,
+            "image_digest": self._configured_image() or candidate.image_digest,
+            "configured_image": self._configured_image(),
+            "running_container_revision": self._running_container_revision(),
+            "internal_version_sha": self._internal_version_sha(),
+            "current_version": self._read_text(self.config.state_dir / "current_version"),
+            "last_activated_sequence": candidate.sequence,
+            "terminal_receipt_sha256": terminal_receipt_sha256,
+            "status": status,
+            "recorded_at": dt.datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        }
+
+    def _write_identity_pending(self, candidate: Candidate, *, status: str) -> None:
+        _atomic_write_json(
+            self.config.state_dir / "release_identity.pending.json",
+            {
+                "schema_version": RELEASE_IDENTITY_SCHEMA,
+                "environment": self.config.environment,
+                "host": self.config.host,
+                "candidate_id": candidate.candidate_id,
+                "commit_sha": candidate.commit_sha,
+                "image_digest": candidate.image_digest,
+                "last_activated_sequence": candidate.sequence,
+                "approval_interaction_id": candidate.approval_interaction_id,
+                "deploy_token_scope": candidate.deploy_token_scope,
+                "status": status,
+                "recorded_at": dt.datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            },
+        )
+
+    def _read_json(self, path: Path) -> dict[str, Any]:
+        if not path.exists():
+            return {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise DeployRejected(f"{path.name} must contain a JSON object")
+        return payload
+
+    def _read_text(self, path: Path) -> str:
+        return path.read_text(encoding="utf-8").strip() if path.exists() else ""
+
+    def _configured_image(self) -> str:
+        if not self.config.service_env_path.exists():
+            return ""
+        for line in self.config.service_env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("SCANNER_EDGE_IMAGE="):
+                return line.split("=", 1)[1].strip()
+        return ""
+
+    def _running_container_revision(self) -> str:
+        completed = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                self.config.service_name,
+                "--format",
+                "{{ index .Config.Labels \"org.opencontainers.image.revision\" }}",
+            ],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        return completed.stdout.strip() if completed.returncode == 0 else ""
+
+    def _internal_version_sha(self) -> str:
+        try:
+            with urllib.request.urlopen(self.config.version_url, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except Exception:
+            return ""
+        if not isinstance(payload, dict):
+            return ""
+        for key in ("commit_sha", "commitSha", "git_sha", "sha", "version"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return ""
 
 
 class PaperclipClient:
@@ -432,6 +603,8 @@ def to_paperclip_deploy_record(
             "onBoxReverificationResult": record.get("on_box_reverification_result"),
             "rollbackStatus": record.get("rollback_status"),
             "activatedServiceVersion": record.get("activated_service_version"),
+            "terminalReceiptSha256": record.get("terminal_receipt_sha256"),
+            "releaseIdentity": record.get("release_identity"),
         },
     }
 
@@ -502,6 +675,29 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def canonical_json_sha256(payload: dict[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def validate_release_identity(identity: dict[str, Any]) -> None:
+    missing = [field for field in RELEASE_IDENTITY_FIELDS if not identity.get(field)]
+    if missing:
+        raise DeployRejected(f"release identity missing field(s): {', '.join(missing)}")
+    commit_sha = str(identity.get("commit_sha", ""))
+    image_digest = str(identity.get("image_digest", ""))
+    if identity["configured_image"] != image_digest:
+        raise DeployRejected("release identity mismatch: configured_image != image_digest")
+    for field in ("running_container_revision", "internal_version_sha", "current_version"):
+        if identity[field] != commit_sha:
+            raise DeployRejected(f"release identity mismatch: {field} != commit_sha")
+    sequence = identity.get("last_activated_sequence")
+    if isinstance(sequence, bool) or not isinstance(sequence, int):
+        raise DeployRejected("release identity last_activated_sequence must be an integer")
+    if not str(identity["terminal_receipt_sha256"]).startswith("sha256:"):
+        raise DeployRejected("release identity terminal_receipt_sha256 must be sha256-prefixed")
 
 
 def _sha256_stream(handle: Any) -> str:
@@ -834,6 +1030,14 @@ def run_once(
                     rollback_status="not_needed",
                     activated_service_version=activated,
                 )
+                record["terminal_receipt_sha256"] = canonical_json_sha256(record)
+                if hasattr(activator, "commit_release_identity"):
+                    record["release_identity"] = activator.commit_release_identity(
+                        candidate=candidate,
+                        activated_version=activated,
+                        terminal_receipt_sha256=record["terminal_receipt_sha256"],
+                        status="activated",
+                    )
                 _atomic_write_json(spool_path, _spool_entry(lease, candidate, record))
             except Exception as exc:
                 try:
@@ -843,6 +1047,18 @@ def run_once(
                     rollback_status = "rollback_failed"
                     failure_reason = f"{exc}; rollback failed: {rollback_exc}"
                 record = build_record(candidate=candidate, lease=lease, operator_run_identity=operator_run_identity, status="failed", signature_verification_result="passed", on_box_reverification_result="passed", acceptance_result=locals().get("acceptance"), rollback_status=rollback_status, activated_service_version=(previous_version or {}).get("version") if isinstance(previous_version, dict) else previous_version, failure_reason=failure_reason)
+                record["terminal_receipt_sha256"] = canonical_json_sha256(record)
+                if rollback_status == "rolled_back" and hasattr(activator, "commit_release_identity"):
+                    try:
+                        record["release_identity"] = activator.commit_release_identity(
+                            candidate=candidate,
+                            activated_version=str((previous_version or {}).get("version") if isinstance(previous_version, dict) else previous_version),
+                            terminal_receipt_sha256=record["terminal_receipt_sha256"],
+                            status="rolled_back",
+                        )
+                    except DeployRejected as identity_exc:
+                        record["rollback_status"] = "failed_closed"
+                        record["failure_reason"] = f"{record['failure_reason']}; release identity rollback failed: {identity_exc}"
                 _atomic_write_json(spool_path, _spool_entry(lease, candidate, record))
     except Exception as exc:
         record = build_record(
@@ -859,6 +1075,7 @@ def run_once(
         )
         if not isinstance(exc, DeployRejected):
             record["status"] = "failed"
+        record["terminal_receipt_sha256"] = canonical_json_sha256(record)
         _atomic_write_json(spool_path, _spool_entry(lease, candidate, record))
     if post_record:
         try:
@@ -952,6 +1169,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = DeployConfig(environment=args.environment, host=args.host, state_dir=args.state_dir)
+    activator: SystemdDockerActivator | None = None
     credential_path = args.deploy_token_credential
     client: PaperclipClient | None = None
     deploy_token = credential_path.read_text(encoding="utf-8").splitlines()[0] if credential_path else None
@@ -980,6 +1198,8 @@ def main(argv: list[str] | None = None) -> int:
             deploy_authorization_token=deploy_token,
         )
         if not args.dry_run:
+            activator = SystemdDockerActivator(config)
+            activator.recover_pending_release_identity()
             retry_spooled_records(config, client)
         lease, candidate = client.poll_approved_lease(config.host, config.environment)
 
@@ -996,7 +1216,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(record, indent=2, sort_keys=True))
         return 0 if record["status"] == "verified" else 2
 
-    activator = SystemdDockerActivator(config)
+    activator = activator or SystemdDockerActivator(config)
     post_record = None if client is None else client.post_deploy_record
     record = run_once(
         candidate=candidate,

@@ -13,6 +13,7 @@ from urllib.error import HTTPError
 from urllib.request import Request
 
 from scripts import backbond_deploy_agent as agent
+from scripts import check_release_identity
 
 
 COMMIT_SHA = "a" * 40
@@ -28,6 +29,8 @@ class FakeActivator:
         self.acceptance_result = acceptance_result
         self.activated = False
         self.rolled_back = False
+        self.identities: list[dict] = []
+        self.identity_overrides: dict = {}
 
     def snapshot_current(self) -> str:
         return "previous-sha"
@@ -45,6 +48,37 @@ class FakeActivator:
         self.rolled_back = True
         assert previous_version == "previous-sha"
         return "rolled_back"
+
+    def commit_release_identity(
+        self,
+        *,
+        candidate: agent.Candidate,
+        activated_version: str,
+        terminal_receipt_sha256: str,
+        status: str,
+    ) -> dict:
+        commit_sha = COMMIT_SHA if status == "activated" else str(activated_version)
+        image_digest = candidate.image_digest
+        identity = {
+            "schema_version": agent.RELEASE_IDENTITY_SCHEMA,
+            "environment": "production",
+            "host": "srv1749248",
+            "candidate_id": candidate.candidate_id,
+            "commit_sha": commit_sha,
+            "image_digest": image_digest,
+            "configured_image": image_digest,
+            "running_container_revision": commit_sha,
+            "internal_version_sha": commit_sha,
+            "current_version": commit_sha,
+            "last_activated_sequence": candidate.sequence,
+            "terminal_receipt_sha256": terminal_receipt_sha256,
+            "status": status,
+            "recorded_at": "2026-07-13T20:00:00Z",
+        }
+        identity.update(self.identity_overrides)
+        agent.validate_release_identity(identity)
+        self.identities.append(identity)
+        return identity
 
 
 def _write_tarball(tmp_path: Path, body: bytes = b"image") -> Path:
@@ -272,6 +306,24 @@ def test_complete_terminal_acceptance_record_contains_required_fields(tmp_path: 
     assert acceptance["scan_log_pins"]["snapshot_hash"].startswith("sha256:")
     assert acceptance["customer_envelope"]["scan_id"] == "scan-cand-1"
     assert all(component["passed"] is True for component in acceptance["components"])
+    assert record["terminal_receipt_sha256"].startswith("sha256:")
+    assert record["release_identity"]["configured_image"] == record["image_digest"]
+    assert record["release_identity"]["running_container_revision"] == record["commit_sha"]
+    assert record["release_identity"]["internal_version_sha"] == record["commit_sha"]
+    assert record["release_identity"]["current_version"] == record["commit_sha"]
+    assert record["release_identity"]["last_activated_sequence"] == 7
+
+
+def test_release_identity_mismatch_rolls_back_without_terminal_success(tmp_path: Path) -> None:
+    activator = FakeActivator()
+    activator.identity_overrides = {"internal_version_sha": "wrong-sha"}
+    record = _run(tmp_path, _candidate(tmp_path), _lease(), activator)
+
+    assert record["status"] == "failed"
+    assert record["rollback_status"] == "failed_closed"
+    assert "release identity mismatch" in record["failure_reason"]
+    assert activator.rolled_back is True
+    assert not any(identity["status"] == "activated" for identity in activator.identities)
 
 
 def test_partial_terminal_acceptance_can_activate_when_evidence_components_pass(tmp_path: Path) -> None:
@@ -866,6 +918,114 @@ def test_activation_pending_spool_blocks_retry_and_is_not_posted(tmp_path: Path)
         raise AssertionError("expected unresolved activation to block retry")
     assert posted == []
     assert pending_path.exists()
+
+
+def _identity(commit_sha: str = COMMIT_SHA, *, sequence: int = 7) -> dict:
+    image_digest = "sha256:" + "f" * 64
+    return {
+        "schema_version": agent.RELEASE_IDENTITY_SCHEMA,
+        "environment": "production",
+        "host": "srv1749248",
+        "candidate_id": "cand-1",
+        "commit_sha": commit_sha,
+        "image_digest": image_digest,
+        "configured_image": image_digest,
+        "running_container_revision": commit_sha,
+        "internal_version_sha": commit_sha,
+        "current_version": commit_sha,
+        "last_activated_sequence": sequence,
+        "terminal_receipt_sha256": "sha256:" + "1" * 64,
+        "status": "activated",
+        "recorded_at": "2026-07-13T20:00:00Z",
+    }
+
+
+def test_pending_release_identity_recovers_only_matching_observed_state(monkeypatch, tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    identity = _identity()
+    agent._atomic_write_json(tmp_path / "release_identity.pending.json", identity)
+    config.service_env_path.write_text(f"SCANNER_EDGE_IMAGE={identity['configured_image']}\n", encoding="utf-8")
+    (tmp_path / "current_version").write_text(COMMIT_SHA, encoding="utf-8")
+
+    def fake_run(argv, **_kwargs):
+        return subprocess.CompletedProcess(argv, 0, stdout=COMMIT_SHA)
+
+    class VersionResponse:
+        def __enter__(self): return self
+        def __exit__(self, *_exc): return False
+        def read(self): return json.dumps({"git_sha": COMMIT_SHA}).encode("utf-8")
+
+    monkeypatch.setattr(agent.subprocess, "run", fake_run)
+    monkeypatch.setattr(agent.urllib.request, "urlopen", lambda *_args, **_kwargs: VersionResponse())
+
+    recovered = agent.SystemdDockerActivator(config).recover_pending_release_identity()
+
+    assert recovered is not None
+    assert recovered["status"] == "recovered"
+    assert not (tmp_path / "release_identity.pending.json").exists()
+    assert json.loads((tmp_path / "release_identity.json").read_text(encoding="utf-8"))["commit_sha"] == COMMIT_SHA
+
+
+def test_pending_release_identity_fails_closed_on_observed_mismatch(monkeypatch, tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    identity = _identity()
+    agent._atomic_write_json(tmp_path / "release_identity.pending.json", identity)
+    config.service_env_path.write_text(f"SCANNER_EDGE_IMAGE={identity['configured_image']}\n", encoding="utf-8")
+    (tmp_path / "current_version").write_text("b" * 40, encoding="utf-8")
+    monkeypatch.setattr(agent.subprocess, "run", lambda argv, **_kwargs: subprocess.CompletedProcess(argv, 0, stdout=COMMIT_SHA))
+
+    class VersionResponse:
+        def __enter__(self): return self
+        def __exit__(self, *_exc): return False
+        def read(self): return json.dumps({"git_sha": COMMIT_SHA}).encode("utf-8")
+
+    monkeypatch.setattr(agent.urllib.request, "urlopen", lambda *_args, **_kwargs: VersionResponse())
+
+    try:
+        agent.SystemdDockerActivator(config).recover_pending_release_identity()
+    except agent.DeployRejected as exc:
+        assert "current_version" in str(exc)
+    else:
+        raise AssertionError("expected fail-closed pending recovery")
+    assert (tmp_path / "release_identity.pending.json").exists()
+
+
+def test_check_release_identity_passes_matching_state_and_fails_each_source(tmp_path: Path, capsys) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    identity = _identity()
+    identity_path = state_dir / "release_identity.json"
+    identity_path.write_text(json.dumps(identity), encoding="utf-8")
+    (state_dir / "scanner-edge.env").write_text(f"SCANNER_EDGE_IMAGE={identity['configured_image']}\n", encoding="utf-8")
+    (state_dir / "current_version").write_text(identity["current_version"], encoding="utf-8")
+    (state_dir / "last_activated_sequence").write_text(str(identity["last_activated_sequence"]), encoding="utf-8")
+
+    base_args = [
+        "--state-dir", str(state_dir),
+        "--identity", str(identity_path),
+        "--running-container-revision", identity["running_container_revision"],
+        "--internal-version-sha", identity["internal_version_sha"],
+    ]
+    assert check_release_identity.main(base_args) == 0
+    capsys.readouterr()
+
+    def _set_arg(args: list[str], flag: str, value: str) -> None:
+        args[args.index(flag) + 1] = value
+
+    cases = (
+        lambda args: (state_dir / "scanner-edge.env").write_text("SCANNER_EDGE_IMAGE=sha256:" + "0" * 64 + "\n", encoding="utf-8"),
+        lambda args: _set_arg(args, "--running-container-revision", "b" * 40),
+        lambda args: _set_arg(args, "--internal-version-sha", "c" * 40),
+        lambda args: (state_dir / "current_version").write_text("d" * 40, encoding="utf-8"),
+        lambda args: (state_dir / "last_activated_sequence").write_text("8", encoding="utf-8"),
+    )
+    for mutate in cases:
+        (state_dir / "scanner-edge.env").write_text(f"SCANNER_EDGE_IMAGE={identity['configured_image']}\n", encoding="utf-8")
+        (state_dir / "current_version").write_text(identity["current_version"], encoding="utf-8")
+        (state_dir / "last_activated_sequence").write_text(str(identity["last_activated_sequence"]), encoding="utf-8")
+        args = list(base_args)
+        mutate(args)
+        assert check_release_identity.main(args) == 2
 def test_rejects_receipt_path_not_bound_to_authorization_before_activation(tmp_path: Path) -> None:
     activator = FakeActivator()
     record = _run(

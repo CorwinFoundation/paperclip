@@ -38,6 +38,7 @@ from .runtime_guards import (
     current_runtime_profile,
     validate_runtime_environment,
 )
+from .release_identity import ReleaseIdentityError, read_release_identity
 from .scan_handlers import (
     RESCAN_PURPOSES,
     ScanRuntime,
@@ -521,6 +522,13 @@ def create_app(
         # the SLA registry the rescan handler is feeding. Returns the empty
         # registry shape ``{}`` before the first /rescans call.
         return app.state.sla_registry.snapshot()
+
+    @app.get("/scanner/v1/release-identity")
+    async def get_release_identity() -> Any:
+        try:
+            return read_release_identity()
+        except ReleaseIdentityError as exc:
+            raise _http_error(503, exc.code) from exc
 
     @app.get("/scan/{scan_id}")
     async def get_scan(request: Request, scan_id: str, audience: str = "customer") -> Any:

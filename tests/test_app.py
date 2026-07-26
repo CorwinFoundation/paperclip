@@ -1,6 +1,7 @@
 """End-to-end tests for the FastAPI app (smoke + red-line wiring)."""
 from __future__ import annotations
 
+import json
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -145,6 +146,41 @@ class AppTests(unittest.TestCase):
             headers={"X-Tenant-Id": TENANT},
         )
         self.assertEqual(r.status_code, 404)
+
+    def test_release_identity_route_returns_public_immutable_fields(self):
+        identity = {
+            "schema_version": "backbond-scanner-release-identity@1",
+            "environment": "production",
+            "host": "srv1749248",
+            "candidate_id": "cand-1",
+            "commit_sha": "a" * 40,
+            "image_digest": "sha256:" + "b" * 64,
+            "configured_image": "sha256:" + "b" * 64,
+            "running_container_revision": "a" * 40,
+            "internal_version_sha": "a" * 40,
+            "current_version": "a" * 40,
+            "last_activated_sequence": 7,
+            "terminal_receipt_sha256": "sha256:" + "c" * 64,
+            "status": "activated",
+            "recorded_at": "2026-07-13T20:00:00Z",
+            "deploy_token_scope": "scanner:deploy:production:srv1749248:cand-1",
+            "authorization_token": "secret-token",
+            "service_env_path": "/etc/backbond/scanner-edge.env",
+        }
+        path = REPO / ".tmp-release-identity-test.json"
+        path.write_text(json.dumps(identity), encoding="utf-8")
+        try:
+            with mock.patch.dict("os.environ", {"BACKBOND_RELEASE_IDENTITY_PATH": str(path)}, clear=False):
+                response = self.client.get("/scanner/v1/release-identity")
+        finally:
+            path.unlink(missing_ok=True)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body["commit_sha"], "a" * 40)
+        self.assertNotIn("deploy_token_scope", body)
+        self.assertNotIn("authorization_token", body)
+        self.assertNotIn("service_env_path", body)
 
     def test_auth_token_required_when_token_map_configured(self):
         with mock.patch.dict(
