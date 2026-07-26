@@ -82,9 +82,10 @@ jobs:
           DEMO_GITHUB_RUN_ID: ${{ github.run_id }}
           DEMO_GITHUB_REPOSITORY: ${{ github.repository }}
           DEMO_ACCESS_TOKEN: 12345678901234567890123456789012
+          DEMO_RUN_QUOTA: "100"
         run: |
           docker run -d --name passive-demo-ci -p 127.0.0.1:8765:8765 \
-            -e DEMO_GIT_SHA -e DEMO_GIT_REF -e DEMO_GITHUB_RUN_ID -e DEMO_GITHUB_REPOSITORY -e DEMO_ACCESS_TOKEN \
+            -e DEMO_GIT_SHA -e DEMO_GIT_REF -e DEMO_GITHUB_RUN_ID -e DEMO_GITHUB_REPOSITORY -e DEMO_ACCESS_TOKEN -e DEMO_RUN_QUOTA \
             backbond/passive-monitor-demo:${{ github.sha }}
           for attempt in $(seq 1 40); do
             curl --fail --silent http://127.0.0.1:8765/api/health && break

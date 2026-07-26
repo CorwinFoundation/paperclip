@@ -34,7 +34,7 @@ container_args() {
     --mount "source=${RUN_VOLUME},target=/data/runs" \
     -e "DEMO_ENVIRONMENT=public-demo" \
     -e "DEMO_ACCESS_TOKEN=${DEMO_ACCESS_TOKEN}" \
-    -e "DEMO_RUN_MAX_REQUESTS=${DEMO_RUN_MAX_REQUESTS:-5}" \
+    -e "DEMO_RUN_QUOTA=${DEMO_RUN_QUOTA:-100}" \
     -e "DEMO_RUN_WINDOW_SECONDS=${DEMO_RUN_WINDOW_SECONDS:-3600}" \
     -e "DEMO_WORKFLOW=${DEMO_WORKFLOW:-Passive Monitor Demo}" \
     -e "DEMO_GIT_SHA=${DEMO_GIT_SHA}" \
