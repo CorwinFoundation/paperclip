@@ -9,7 +9,7 @@ probe-set-version: portal-evidence-assembly@0.2.0
 rubric_point_id: [P1.1-P1.6, P2.1-P2.6, P3.1-P3.3, ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL, ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER, ROBUSTNESS.PII.SCAN_TIME_DETECTION, P3.5-P3.6, P4.1-P4.6, GOVERNANCE.PII.HANDLING_ATTESTATION]
 n5_calibration_delta: max_total=0; max_pillar=0; 8/9 baselined; B2 excluded per BEAAA-10199
 cto_cosign_ref: not-required-rule-execution
-contract: are-scanner-api-v1@v1.3.0
+contract: are-scanner-api-v1@v1.0
 parent_issue: BEAAA-17907
 -->
 
@@ -70,4 +70,4 @@ Rollback is a revert of the BEAAA-17907 implementation commit.
 
 Focus: pass - this is internal Scanner implementation evidence.
 Alignment: pass - no external promise or protection-language change.
-Linkage: pass - cites ADR-17905 and `are-scanner-api-v1@v1.3.0`.
+Linkage: pass - cites ADR-17905 and `are-scanner-api-v1@v1.0`.

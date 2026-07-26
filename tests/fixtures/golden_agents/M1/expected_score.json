@@ -10,7 +10,7 @@
     "posture": "Surplus (remediation endorsement)"
   },
   "bmi": 58,
-  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "contract_version": "are-scanner-api-v1@v1.0",
   "corpus_version": "bias-pack-v0.1",
   "diagnostics": [
     {
