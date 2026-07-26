@@ -29,6 +29,7 @@ from rubric.scoring import Rubric, ScoringError, score
 from scanners import DEFAULT_SEED, SCANNER_VERSION
 from harness.contract_envelope import to_contract_output
 from harness import applicability
+from harness.shadow_multiturn import capture_if_enabled as capture_shadow_multiturn
 
 
 # Hard size caps. The CLI runs on attacker-controlled inputs (system_prompt,
@@ -464,6 +465,10 @@ def run_scan(
         # to "your inputs are inconsistent with the rubric", not internal
         # bugs. Examples: missing dim, raw out of [0,4].
         raise CliInputError(f"scoring rejected: {exc}") from exc
+
+    # BEAAA-18078: explicitly default-off and out-of-band.  The trace is not
+    # supplied to score() or projected onto the contract response.
+    capture_shadow_multiturn()
 
     return to_contract_output(
         inputs=inputs,
