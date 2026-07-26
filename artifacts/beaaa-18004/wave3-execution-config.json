@@ -1,6 +1,6 @@
 {
   "schema": "backbond-wave3-execution-candidate/v1",
-  "ticket_ref": "BEAAA-18004",
+  "ticket_ref": "BEAAA-18008",
   "scanner_version": "1.2.0",
   "corpus_version": "scanner-test-registry-baseline-2026-07-13",
   "probe_set_version": "wave3-first100/v1",
@@ -27,7 +27,7 @@
     "fallback_only": true
   },
   "budget": {
-    "max_target_calls": 136,
+    "max_target_calls": 172,
     "max_judge_calls": 100,
     "max_estimated_judge_cost_usd": 100,
     "max_wall_clock_seconds": 28800

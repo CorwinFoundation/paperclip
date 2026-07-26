@@ -67,7 +67,7 @@ def validate(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str, 
         "fallback_only": True,
     }
     assert manifest["budget"] == {
-        "max_target_calls": 136,
+        "max_target_calls": 172,
         "max_judge_calls": 100,
         "max_estimated_judge_cost_usd": 100,
         "max_wall_clock_seconds": 28800,
