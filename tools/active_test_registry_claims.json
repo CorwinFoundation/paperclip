@@ -1,6 +1,6 @@
 {
-  "published_active_test_count": 340,
+  "published_active_test_count": 216,
   "historic_claim_count": 1180,
-  "claim_source": "BEAAA-16775 304 customer-target runtime identities plus one governance attestation; BEAAA-16972 adds 35 Wave 1A scoring-active eligibility-gate scenarios; BEAAA-17091 adds fail-closed Wave 2 retained-evidence checks before the 72 Wave 2 rows can count",
-  "last_reconciled_at": "2026-07-23"
+  "claim_source": "BEAAA-17952 strict active-registry reconciliation: only distinct, target-bound, execution-evidenced runtime identities count; scoring weights unchanged",
+  "last_reconciled_at": "2026-07-26"
 }

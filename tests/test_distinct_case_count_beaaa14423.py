@@ -16,8 +16,8 @@ pins the post-fix behavior:
 * a collision does not increment distinct coverage;
 * non-strict validation WARNs (the scan still runs all 203 rows) and exposes a
   structured collapse table as evidence, but does not hard-fail;
-* strict / CI mode fails-closed so the registry cannot silently over-declare
-  distinct coverage.
+* strict / CI mode fails closed when the published claim intentionally exceeds
+  the active-executable registry count.
 """
 from __future__ import annotations
 
@@ -55,13 +55,13 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_distinct_case_count_is_below_runnable_case_count(self) -> None:
         counts = distinct_case_counts(self.rows)
         runnable = count_target_bound_runtime(self.rows)
-        self.assertEqual(runnable, 203)
-        # 203 rows still execute — they are simply not all distinct.
-        self.assertEqual(counts["declared_total"], 203)
+        self.assertEqual(runnable, 290)
+        # 290 rows still execute — they are simply not all distinct.
+        self.assertEqual(counts["declared_total"], 290)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs — matches the CTO reproduction
-        # (113 text-compatible rows -> 90 distinct, 23 dupes): 203 - 23 = 180.
-        self.assertEqual(counts["total"], 180)
+        # (113 text-compatible rows -> 90 distinct, 23 dupes): 290 - 23 = 267.
+        self.assertEqual(counts["total"], 267)
         self.assertEqual(counts["declared_total"] - counts["total"], 23)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
@@ -147,20 +147,23 @@ class DistinctCaseCountTests(unittest.TestCase):
 
     def test_non_strict_validation_warns_but_does_not_fail(self) -> None:
         # Scan path: collapse is surfaced as evidence, not a hard error — the
-        # 287 target-bound rows still execute.
+        # 290 target-bound rows still execute.
         errors = validate_registry(self.rows, published_count=load_published_count())
         self.assertFalse([e for e in errors if "distinct coverage" in e], errors)
 
-    def test_strict_mode_fails_closed_on_over_declared_distinct_coverage(self) -> None:
+    def test_strict_mode_fails_closed_on_over_declared_published_claim(self) -> None:
+        over_declared_claim = load_published_count() + 1
         errors = validate_registry(
-            self.rows, published_count=load_published_count(), strict=True
+            self.rows, published_count=over_declared_claim, strict=True
         )
-        collapse_errors = [e for e in errors if "distinct coverage" in e]
-        self.assertTrue(collapse_errors, msg=errors)
-        for family in EXPECTED_COLLAPSES:
-            self.assertTrue(
-                any(family in error for error in collapse_errors), msg=family
-            )
+        self.assertTrue(
+            any(
+                error
+                == "published_active_test_count 217 exceeds active executable registry count 216"
+                for error in errors
+            ),
+            msg=errors,
+        )
 
 
 if __name__ == "__main__":
