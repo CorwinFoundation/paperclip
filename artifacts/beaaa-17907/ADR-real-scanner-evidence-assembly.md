@@ -58,9 +58,11 @@ different totals while the same 17 gaps remain disclosed.
 The E2E test uses authenticated HTTP for invite acceptance, connector enrollment,
 DP scan trigger, task reads and submissions, and JSON/HTML/PDF exports. It points
 `ARE_SCAN_BIN` to the repository executable and contains no fake scanner helper.
-The N=5 development replay is recorded at
-`tools/calibration-deltas/2026-07-25-2663f51d-vs-real-wiring-n5.md`: all measured
-golden total and pillar deltas are zero.
+The accurately named golden N=5 development replay is recorded at
+`tools/calibration-deltas/2026-07-26-2663f51d-vs-6a81629-golden-n5.md`: all
+measured golden total and pillar deltas are zero. Portal-journey behavior is
+separately verified by the assertion-contrast regression test; the golden replay
+is not presented as a portal-artifact comparison.
 
 Rollback is a revert of the BEAAA-17907 implementation commit.
 
