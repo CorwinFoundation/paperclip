@@ -1,0 +1,303 @@
+{
+  "schema": "backbond.acceptance_evidence_bundle.v1",
+  "metadata": {
+    "artifact_type": "provenance_manifest",
+    "owner": "scanner_engineer",
+    "persona_audience": "internal",
+    "phase": 1,
+    "canonical_terms_only": true,
+    "focus_claim": "This bundle gives the canonical QA gate one explicit evidence index for the July 31 BackBond Scanner candidate without making certification, production, pricing, or coverage claims.",
+    "contracts_referenced": [
+      "are-scanner-api-v1@v1.0",
+      "scanner-implementation-supervision-v1@v1.1"
+    ],
+    "ticket_refs": [
+      "BEAAA-17962",
+      "BEAAA-17386",
+      "BEAAA-17387",
+      "BEAAA-17956",
+      "BEAAA-17963",
+      "BEAAA-17383",
+      "BEAAA-16992",
+      "BEAAA-17795"
+    ],
+    "version": "0.1",
+    "prior_version": null,
+    "self_audit_passed": true,
+    "escalations_noted": [
+      "Rule-execution per scanner-implementation-supervision-v1@v1.1 table row for smoke test / existing-operation evidence assembly; no rubric, judge, scoring math, output-shape, tamper-resistance, or production promotion change.",
+      "Production-only monitoring, backup, restore, and rollback assessment rows are not-evaluated and owned by BEAAA-17387 under Founder development mode."
+    ]
+  },
+  "release_context": {
+    "scanner_version": "0.5.0",
+    "corpus_version": "2026.6.24",
+    "contract": "are-scanner-api-v1@v1.0",
+    "probe_set_version": "acceptance-evidence-bundle@0.1",
+    "rubric_point_id": "not-applicable: evidence bundle only",
+    "n5_calibration_delta": "not-applicable: no score path changed",
+    "cto_cosign_ref": "not required: rule-execution",
+    "candidate_sha": null,
+    "candidate_sha_late_bound_required": true,
+    "candidate_sha_owner_issue": "BEAAA-17963",
+    "allowed_assessment_states": [
+      "passed",
+      "failed",
+      "not-evaluated",
+      "not-applicable"
+    ]
+  },
+  "claim_boundary": {
+    "aiuc_wording": "AIUC-1-mapped technical assessment",
+    "forbidden_claims": [
+      "AIUC-certified",
+      "AIUC-compliant",
+      "official AIUC score",
+      "certification"
+    ],
+    "backbond_extensions_separate": true,
+    "certification_claimed": false,
+    "insurance_decision_claimed": false,
+    "production_promotion_claimed": false
+  },
+  "acceptance_rows": [
+    {
+      "row_id": "REL.IDENTITY.CANDIDATE_SHA",
+      "area": "release_identity",
+      "scope_label": "core_release_ops",
+      "assessment_label": "immutable candidate SHA binding",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17963",
+      "assessment_basis": "This bundle declares the candidate SHA as a required late-bound field. BEAAA-17963 owns integration onto canonical master and exact immutable SHA proof.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    },
+    {
+      "row_id": "REL.MANIFEST.AUTHORITY",
+      "area": "release_identity",
+      "scope_label": "core_release_ops",
+      "assessment_label": "single release authority manifest",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17963",
+      "assessment_basis": "The integration child must establish the single release manifest after it combines this bundle with lock and candidate SHAs.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    },
+    {
+      "row_id": "CI.UBUNTU.ZERO_FAILURES",
+      "area": "ci",
+      "scope_label": "core_release_ops",
+      "assessment_label": "clean Ubuntu CI zero failures",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17963",
+      "assessment_basis": "Full-tree Ubuntu CI must be rerun on the integrated candidate SHA; this child does not fabricate that evidence.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    },
+    {
+      "row_id": "CI.LOCKS.PIP_CHECK",
+      "area": "ci",
+      "scope_label": "core_release_ops",
+      "assessment_label": "hash-frozen locks and isolated pip-check proofs",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17963",
+      "assessment_basis": "The integration child owns proof that all isolated framework environments install from frozen locks and return zero pip-check conflicts.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    },
+    {
+      "row_id": "AIUC.MAPPING.REGISTRY",
+      "area": "aiuc_mapping",
+      "scope_label": "aiuc_1_mapped",
+      "assessment_label": "AIUC-1-mapped coverage ledger, no certification claim",
+      "state": "passed",
+      "owner_issue": "BEAAA-17383",
+      "assessment_basis": "The ledger freezes a BackBond-owned AIUC-1-mapped row roster and separately labels BackBond Extensions. It explicitly states this is not AIUC certification, official crosswalk, or equivalence.",
+      "commands": [
+        "sha256sum artifacts/beaaa-17383/aiuc-mapped-coverage-ledger-v0.1.md"
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/beaaa-17383/aiuc-mapped-coverage-ledger-v0.1.md",
+          "sha256": "sha256:388e93f49d1e0c62f3f22d83b0c3ab02171dd75cb99323440e5ea5ea800d36de"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "BBX.REGISTRY.SEPARATION",
+      "area": "backbond_extensions",
+      "scope_label": "backbond_extension",
+      "assessment_label": "BackBond Extensions separated from mapped assessment rows",
+      "state": "passed",
+      "owner_issue": "BEAAA-17383",
+      "assessment_basis": "The same ledger defines a distinct BackBond Extensions registry and forbids including extensions in mapped-test subtotals.",
+      "commands": [
+        "sha256sum artifacts/beaaa-17383/aiuc-mapped-coverage-ledger-v0.1.md"
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/beaaa-17383/aiuc-mapped-coverage-ledger-v0.1.md",
+          "sha256": "sha256:388e93f49d1e0c62f3f22d83b0c3ab02171dd75cb99323440e5ea5ea800d36de"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "API.PORTAL.JSON_PDF.PARITY",
+      "area": "design_partner_run",
+      "scope_label": "backbond_scanner",
+      "assessment_label": "API, portal, JSON/PDF parity, and design-partner run evidence",
+      "state": "passed",
+      "owner_issue": "BEAAA-16992",
+      "assessment_basis": "The production-controls evidence packet reports authorized end-to-end design-partner scan, candidate identity match, and accepted API/portal/JSON/PDF evidence for the development candidate.",
+      "commands": [
+        "python3 -m json.tool artifacts/beaaa-16992/production-controls-evidence.json >/dev/null",
+        "sha256sum artifacts/beaaa-16992/production-controls-evidence.json"
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/beaaa-16992/production-controls-evidence.json",
+          "sha256": "sha256:7df179bcb3dbda21299ed2fd1c04fdc1e27d21b2b4e3ced967d897e1e755e2e5"
+        },
+        {
+          "path": "artifacts/beaaa-16992/production-controls-closeout.md",
+          "sha256": "sha256:ff5dd3c529d895f568a4b18bc29f0be539ca10e659d90aded916861ac034a8af"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "EVIDENCE.INTEGRITY.TAMPER",
+      "area": "evidence_integrity",
+      "scope_label": "backbond_scanner",
+      "assessment_label": "evidence integrity and tamper fail-closed checks",
+      "state": "passed",
+      "owner_issue": "BEAAA-17795",
+      "assessment_basis": "The Wave 2 authority packet verification proves canonical preimage hash verification, candidate/parent exactness, zero paid calls, and unsigned authority packet integrity. The production-controls packet also reports fail-closed signature checks.",
+      "commands": [
+        "python3 -m json.tool artifacts/beaaa-17795-r9-bddafe24/verification.json >/dev/null",
+        "sha256sum artifacts/beaaa-17795-r9-bddafe24/verification.json artifacts/beaaa-17795-r9-bddafe24/packet-hash-index.json"
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/beaaa-17795-r9-bddafe24/verification.json",
+          "sha256": "sha256:346aa74627c5d728fa980565f95d25cd0f0632771394ceaa032b426a3fd4546c"
+        },
+        {
+          "path": "artifacts/beaaa-17795-r9-bddafe24/packet-hash-index.json",
+          "sha256": "sha256:b5467b5ed3b254d5ac5826f18a59123135b4cb1f6f9a33eda4d4446161cb5b14"
+        },
+        {
+          "path": "artifacts/beaaa-16992/production-controls-evidence.json",
+          "sha256": "sha256:7df179bcb3dbda21299ed2fd1c04fdc1e27d21b2b4e3ced967d897e1e755e2e5"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "CLAIM.BOUNDARY",
+      "area": "claim_boundary",
+      "scope_label": "core_release_ops",
+      "assessment_label": "claim boundary and no insurance-decision language",
+      "state": "passed",
+      "owner_issue": "BEAAA-17962",
+      "assessment_basis": "This bundle sets certification_claimed, insurance_decision_claimed, and production_promotion_claimed to false; labels AIUC coverage as mapped technical assessment only; and separates BackBond Extensions.",
+      "commands": [
+        "python3 tools/validate_beaaa17962_acceptance_bundle.py artifacts/beaaa-17962/beaaa-17386-acceptance-evidence-bundle.json",
+        "python3 -m pytest -q tests/test_beaaa17962_acceptance_bundle.py"
+      ],
+      "artifacts": [
+        {
+          "path": "tools/validate_beaaa17962_acceptance_bundle.py",
+          "sha256": "sha256:6e8868dc59efbd965bb2a5f02f7b0551600abafc84d51044e117b28a718fc748"
+        },
+        {
+          "path": "tests/test_beaaa17962_acceptance_bundle.py",
+          "sha256": "sha256:ebde5e2e7a3a0e0179b33c51b37f5839245569930c40ece2fad53b44601db554"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "TENANT.ISOLATION.RETENTION",
+      "area": "tenant_isolation",
+      "scope_label": "backbond_scanner",
+      "assessment_label": "tenant isolation, authorization, retention, and rate-limit evidence",
+      "state": "passed",
+      "owner_issue": "BEAAA-16992",
+      "assessment_basis": "The development evidence packet records tenant isolation, retention, edge authorization, and security checks as passed for the named development candidate.",
+      "commands": [
+        "python3 -m json.tool artifacts/beaaa-16992/production-controls-evidence.json >/dev/null",
+        "sha256sum artifacts/beaaa-16992/production-controls-evidence.json"
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/beaaa-16992/production-controls-evidence.json",
+          "sha256": "sha256:7df179bcb3dbda21299ed2fd1c04fdc1e27d21b2b4e3ced967d897e1e755e2e5"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "SECURITY.CRITICAL_HIGH",
+      "area": "security",
+      "scope_label": "backbond_scanner",
+      "assessment_label": "critical/high security findings absent in development evidence",
+      "state": "passed",
+      "owner_issue": "BEAAA-16992",
+      "assessment_basis": "The development evidence packet records critical/high security findings absent for the candidate under review. QA still owns independent verification on the final integrated SHA.",
+      "commands": [
+        "python3 -m json.tool artifacts/beaaa-16992/production-controls-evidence.json >/dev/null",
+        "sha256sum artifacts/beaaa-16992/production-controls-evidence.json"
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/beaaa-16992/production-controls-evidence.json",
+          "sha256": "sha256:7df179bcb3dbda21299ed2fd1c04fdc1e27d21b2b4e3ced967d897e1e755e2e5"
+        }
+      ],
+      "certification_claim": false
+    },
+    {
+      "row_id": "MONITORING.PRODUCTION_ONLY",
+      "area": "monitoring",
+      "scope_label": "production_only",
+      "assessment_label": "production monitoring and alerting",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17387",
+      "assessment_basis": "Founder development mode defers promotion ceremony. Production monitoring must be assessed only after the unified QA-approved candidate is promoted into the limited design-partner production canary.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    },
+    {
+      "row_id": "BACKUP_RESTORE.PRODUCTION_ONLY",
+      "area": "backup_restore",
+      "scope_label": "production_only",
+      "assessment_label": "production backup and restore RPO/RTO",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17387",
+      "assessment_basis": "Development dry-run evidence exists, but this canonical QA row is production-only. BEAAA-17387 owns the production canary restore proof.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    },
+    {
+      "row_id": "ROLLBACK.PRODUCTION_ONLY",
+      "area": "rollback",
+      "scope_label": "production_only",
+      "assessment_label": "production rollback under 30 minutes",
+      "state": "not-evaluated",
+      "owner_issue": "BEAAA-17387",
+      "assessment_basis": "Founder development mode defers promotion ceremony. BEAAA-17387 owns rollback timing against the promoted immutable image.",
+      "commands": [],
+      "artifacts": [],
+      "certification_claim": false
+    }
+  ]
+}
