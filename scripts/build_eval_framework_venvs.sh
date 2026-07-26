@@ -23,17 +23,17 @@
 #   scripts/build_eval_framework_venvs.sh                 # build all four
 #   scripts/build_eval_framework_venvs.sh garak pyrit     # build a subset
 #   ARE_EVAL_VENVS_DIR=/tmp/eval-venvs scripts/build_eval_framework_venvs.sh
-#   FREEZE=1 scripts/build_eval_framework_venvs.sh        # emit pip-freeze locks
 #
 # Env:
 #   ARE_EVAL_VENVS_DIR  root for the venvs (default /opt/are-scanner/eval-venvs)
 #   PYTHON              base interpreter used to create venvs (default python3)
-#   FREEZE              when set, write <root>/<fw>-venv.lock.txt after install
+#   TRANSCRIPT_DIR      write per-framework install and pip-check transcripts
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENVS_DIR="${ARE_EVAL_VENVS_DIR:-/opt/are-scanner/eval-venvs}"
 PYTHON="${PYTHON:-python3}"
+TRANSCRIPT_DIR="${TRANSCRIPT_DIR:-$VENVS_DIR/transcripts}"
 
 # framework -> "requirements-file import-module distribution-name expected-version"
 declare -A FRAMEWORKS=(
@@ -54,6 +54,7 @@ echo "   repo:   $REPO_ROOT"
 echo "   root:   $VENVS_DIR"
 echo "   python: $($PYTHON --version 2>&1)"
 mkdir -p "$VENVS_DIR"
+mkdir -p "$TRANSCRIPT_DIR"
 
 build_one() {
   local fw="$1"
@@ -73,9 +74,9 @@ build_one() {
   echo "   slice:  $req"
   echo "   venv:   $vdir"
 
-  "$PYTHON" -m venv "$vdir"
-  "$vpy" -m pip install --upgrade pip >/dev/null
-  "$vpy" -m pip install -r "$REPO_ROOT/$req"
+  "$PYTHON" -m venv --clear "$vdir"
+  "$vpy" -m pip install --require-hashes -r "$REPO_ROOT/$req" \
+    2>&1 | tee "$TRANSCRIPT_DIR/${fw}-install.log"
 
   # Verify both importability and the installed distribution version. Some
   # upstream modules, including agentdojo==0.1.35, do not define __version__.
@@ -88,11 +89,7 @@ build_one() {
   fi
   echo "   verified: ${mod} ${got}"
 
-  if [[ -n "${FREEZE:-}" ]]; then
-    local lock="$VENVS_DIR/${fw}-venv.lock.txt"
-    "$vpy" -m pip freeze > "$lock"
-    echo "   froze:   $lock"
-  fi
+  "$vpy" -m pip check 2>&1 | tee "$TRANSCRIPT_DIR/${fw}-pip-check.log"
 }
 
 rc=0

@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - name: Install dev requirements
@@ -30,7 +30,7 @@ jobs:
         # under test are stdlib-only, so requirements-dev.txt (which the working
         # pr-unit-tests workflow installs) is sufficient. Without this step the
         # next line dies with ModuleNotFoundError before a single row runs.
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Run the 6-row exit-code matrix (mock scanner harness)
         run: python -m pytest tests/test_ci_plugin_beaaa11729.py -v
       - name: Build the plugin container (context = repo root)
