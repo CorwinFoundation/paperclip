@@ -40,6 +40,7 @@ from api.webhook_outbox import (
     InMemoryOutboxStore,
     WebhookOutbox,
     env_webhook_secret_resolver,
+    httpx_http_poster,
     stable_delivery_id,
 )
 from scanners.live_probe_orchestrator import (
@@ -252,6 +253,85 @@ def _webhook_body(**overrides) -> dict:
     }
     base.update(overrides)
     return base
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://hooks.vendor.example/x",
+        "https://127.0.0.1/hook",
+        "https://[::1]/hook",
+        "https://169.254.169.254/latest/meta-data",
+        "https://10.0.0.5/hook",
+        "https://192.168.1.10/hook",
+        "https://user:pass@hooks.vendor.example/x",
+    ],
+)
+def test_webhook_intake_rejects_unsafe_delivery_targets(
+    tmp_path, monkeypatch, url
+) -> None:
+    from api.handlers import HandlerError
+
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "on")
+    monkeypatch.setattr(
+        "api.scan_handlers._verify_live_egress_fail_closed",
+        lambda **_kwargs: None,
+    )
+    runtime = _persisting_runtime(_synthetic_result("scan-unsafe"), tmp_path)
+
+    with pytest.raises(HandlerError) as exc_info:
+        scan_handler(
+            _webhook_body(webhook={"url": url, "secret_ref": "vendor-x"}),
+            tenant_header="tenant-001",
+            runtime=runtime,
+            scan_id_factory=lambda: "scan-unsafe",
+        )
+
+    assert exc_info.value.status == 422
+    assert exc_info.value.code == "webhook_url_forbidden"
+
+
+def test_webhook_intake_accepts_https_public_hostname_and_stores_url(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("ARE_SCAN_WEBHOOK", "on")
+    monkeypatch.setattr(
+        "api.scan_handlers._verify_live_egress_fail_closed",
+        lambda **_kwargs: None,
+    )
+    runtime = _persisting_runtime(_synthetic_result("scan-safe"), tmp_path)
+    url = "https://hooks.vendor.example/x"
+
+    status, _ = scan_handler(
+        _webhook_body(webhook={"url": url, "secret_ref": "vendor-x"}),
+        tenant_header="tenant-001",
+        runtime=runtime,
+        scan_id_factory=lambda: "scan-safe",
+    )
+
+    assert status == 202
+    assert runtime._webhook_cfgs["scan-safe"]["url"] == url
+
+
+def test_httpx_poster_rejects_redirect_without_following(monkeypatch) -> None:
+    calls = []
+
+    class _RedirectResponse:
+        is_redirect = True
+
+        def raise_for_status(self) -> None:
+            return None
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return _RedirectResponse()
+
+    monkeypatch.setattr("httpx.post", fake_post)
+
+    with pytest.raises(RuntimeError, match="redirect"):
+        httpx_http_poster("https://hooks.vendor.example/x", {}, b"{}")
+
+    assert calls[0][1]["follow_redirects"] is False
 
 
 def test_terminal_webhook_delivered_not_queue_time_payload(tmp_path) -> None:
