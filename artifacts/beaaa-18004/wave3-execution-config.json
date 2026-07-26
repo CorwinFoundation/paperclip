@@ -1,0 +1,46 @@
+{
+  "schema": "backbond-wave3-execution-candidate/v1",
+  "ticket_ref": "BEAAA-18004",
+  "scanner_version": "1.2.0",
+  "corpus_version": "scanner-test-registry-baseline-2026-07-13",
+  "probe_set_version": "wave3-first100/v1",
+  "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
+  "contract": "are-scanner-api-v1@v1.0",
+  "classification": "rule-execution",
+  "selection": {
+    "inventory": "artifacts/beaaa-15688/wave0-case-inventory.jsonl",
+    "inventory_count": 715,
+    "excluded_reconciled_behaviors": 180,
+    "ordering": "stable_case_id ascending over explicit Wave-0 gap families",
+    "count": 100,
+    "selection_sha256": "b99b85063a319210b16abec6785a66262ad220f0070a6816ba90407119a12279"
+  },
+  "target": {
+    "adapter": "syllable:apichat@authenticated-v1",
+    "mock": false
+  },
+  "judge": {
+    "model": "anthropic:claude-haiku-4-5-20251001",
+    "temperature": 0,
+    "seed": 42,
+    "rubric_version": "v1.3.0",
+    "fallback_only": true
+  },
+  "budget": {
+    "max_target_calls": 136,
+    "max_judge_calls": 100,
+    "max_estimated_judge_cost_usd": 100,
+    "max_wall_clock_seconds": 28800
+  },
+  "evidence_retention": {
+    "mode": "append_only",
+    "retention_years": 7,
+    "pii_scrub_before_write": true,
+    "excluded_fields": ["proprietary_prompt", "customer_weights"],
+    "retained": ["redacted_evidence", "redacted_evidence_sha256"]
+  },
+  "n5_calibration_delta": "0 (selection/execution candidate only; no scoring path or live calls)",
+  "cto_cosign_ref": null,
+  "no_target_or_judge_calls": true,
+  "promotion_authorized": false
+}
