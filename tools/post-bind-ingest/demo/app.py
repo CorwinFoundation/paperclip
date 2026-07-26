@@ -553,23 +553,9 @@ class DemoHandler(BaseHTTPRequestHandler):
         expected = self._session_cookie_value()
         return bool(session and expected and hmac.compare_digest(session.value, expected))
 
-    def _request_token(self, parsed) -> str:
-        authorization = self.headers.get("Authorization", "")
-        scheme, _, candidate = authorization.partition(" ")
-        if scheme.lower() == "bearer" and candidate:
-            return candidate.strip()
-        header_token = self.headers.get("X-Demo-Access-Token", "")
-        if header_token:
-            return header_token.strip()
-        return parse_qs(parsed.query).get("token", [""])[0].strip()
-
     def _authorized_for_run(self, parsed) -> bool:
-        if hasattr(self, "_is_authorized") and self._is_authorized():
-            return True
-        token = os.environ.get("DEMO_ACCESS_TOKEN", "").strip()
-        if not token:
-            return True
-        return hmac.compare_digest(self._request_token(parsed), token)
+        del parsed
+        return self._is_authorized()
 
     def _send_access_page(self, invalid: bool = False) -> None:
         message = "That access token was not accepted." if invalid else "Enter the partner-demo access token to continue."

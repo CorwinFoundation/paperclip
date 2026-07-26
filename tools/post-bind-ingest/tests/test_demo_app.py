@@ -32,17 +32,27 @@ def test_deployment_metadata_contains_only_public_build_facts(monkeypatch) -> No
     assert not any("token" in key.lower() or "secret" in key.lower() for key in metadata)
 
 
-def test_run_start_requires_demo_token_when_configured(monkeypatch) -> None:
+def test_run_start_uses_handler_token_and_rejects_query_tokens(monkeypatch) -> None:
     class HandlerStub:
-        headers = {"X-Demo-Access-Token": "wrong"}
+        access_token = "handler-token-with-at-least-32-characters"
+        headers: dict[str, str] = {}
 
-        def _request_token(self, parsed) -> str:
-            return DemoHandler._request_token(self, parsed)
+        def _session_cookie_value(self) -> str | None:
+            return DemoHandler._session_cookie_value(self)
 
-    monkeypatch.setenv("DEMO_ACCESS_TOKEN", "abcdefghijklmnopqrstuvwxyz123456")
-    assert not DemoHandler._authorized_for_run(HandlerStub(), type("Parsed", (), {"query": ""})())
-    HandlerStub.headers = {"Authorization": "Bearer abcdefghijklmnopqrstuvwxyz123456"}
-    assert DemoHandler._authorized_for_run(HandlerStub(), type("Parsed", (), {"query": ""})())
+        def _is_authorized(self) -> bool:
+            return DemoHandler._is_authorized(self)
+
+    parsed = type("Parsed", (), {"query": f"token={HandlerStub.access_token}"})()
+    monkeypatch.delenv("DEMO_ACCESS_TOKEN", raising=False)
+    assert not DemoHandler._authorized_for_run(HandlerStub(), parsed)
+
+    HandlerStub.headers = {"Authorization": f"Bearer {HandlerStub.access_token}"}
+    assert DemoHandler._authorized_for_run(HandlerStub(), parsed)
+
+    HandlerStub.headers = {"Authorization": "Bearer wrong"}
+    monkeypatch.setenv("DEMO_ACCESS_TOKEN", "wrong")
+    assert not DemoHandler._authorized_for_run(HandlerStub(), parsed)
 
 
 def test_root_preserves_3d_demo_and_detailed_lifecycle_route_is_stable() -> None:

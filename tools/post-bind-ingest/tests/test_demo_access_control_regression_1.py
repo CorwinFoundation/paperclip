@@ -75,7 +75,7 @@ def test_run_quota_is_enforced_per_client_and_resets() -> None:
 
 
 def test_run_quota_is_enabled_only_for_public_demo(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DEMO_RUN_MAX_REQUESTS", "2")
+    monkeypatch.setenv("DEMO_RUN_QUOTA", "2")
     monkeypatch.setenv("DEMO_RUN_WINDOW_SECONDS", "60")
 
     assert _run_quota_from_env("local") is None
