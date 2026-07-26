@@ -1437,6 +1437,11 @@ def _kickoff_live_probe_scan(
                 raise HandlerError(422, "webhook_url_required")
             if not isinstance(_wh_ref, str) or not _wh_ref:
                 raise HandlerError(422, "webhook_secret_ref_required")
+            _validate_https_url_or_host_safety(
+                _wh_url,
+                error_code="webhook_url_forbidden",
+                require_https_url=True,
+            )
             _webhook_cfg = {"url": _wh_url, "secret_ref": _wh_ref}
 
     scan_mode = body.get("scan_mode", "live_probe")

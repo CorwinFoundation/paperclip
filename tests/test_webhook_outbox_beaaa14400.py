@@ -288,7 +288,7 @@ def test_webhook_intake_rejects_unsafe_delivery_targets(
         )
 
     assert exc_info.value.status == 422
-    assert exc_info.value.code == "webhook_url_forbidden"
+    assert exc_info.value.message == "webhook_url_forbidden"
 
 
 def test_webhook_intake_accepts_https_public_hostname_and_stores_url(

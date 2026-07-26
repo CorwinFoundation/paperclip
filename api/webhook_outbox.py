@@ -308,7 +308,15 @@ def httpx_http_poster(
     """
     import httpx
 
-    response = httpx.post(url, content=body_bytes, headers=dict(headers), timeout=timeout)
+    response = httpx.post(
+        url,
+        content=body_bytes,
+        headers=dict(headers),
+        timeout=timeout,
+        follow_redirects=False,
+    )
+    if response.is_redirect:
+        raise RuntimeError("webhook redirect response forbidden")
     response.raise_for_status()
 
 
