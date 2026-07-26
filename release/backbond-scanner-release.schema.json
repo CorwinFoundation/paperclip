@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backbond.ai/schemas/backbond-scanner-release-v2.json",
+  "title": "BackBond Scanner release identity",
+  "type": "object",
+  "required": ["schema_version", "scanner_version", "corpus_version", "rubric_version", "contract_version", "api_app_version", "build_sha", "release_tag"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "scanner_version": { "$ref": "#/$defs/semver" },
+    "corpus_version": { "$ref": "#/$defs/semver" },
+    "rubric_version": { "$ref": "#/$defs/semver" },
+    "contract_version": { "type": "string", "pattern": "^are-scanner-api-v1@v[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "api_app_version": { "$ref": "#/$defs/semver" },
+    "build_sha": { "anyOf": [{ "type": "null" }, { "type": "string", "pattern": "^[0-9a-f]{40}$" }] },
+    "release_tag": { "anyOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] }
+  },
+  "$defs": {
+    "semver": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+  }
+}

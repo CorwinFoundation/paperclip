@@ -21,6 +21,11 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Iterator, Protocol
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from release_identity import release_identity_evidence
 
 UTC = dt.timezone.utc
 DEFAULT_APPROVED_LEASE_PATH_TEMPLATE = (
@@ -1179,6 +1184,7 @@ def main(argv: list[str] | None = None) -> int:
         raise DeployRejected("--candidate-json and --lease-json must be provided together")
     if args.candidate_json and args.lease_json:
         candidate = Candidate.from_mapping(json.loads(args.candidate_json.read_text(encoding="utf-8")))
+        release_identity_evidence(REPO_ROOT, build_sha=candidate.commit_sha)
         lease = DeployLease.from_mapping(json.loads(args.lease_json.read_text(encoding="utf-8")))
         if not args.dry_run:
             raise DeployRejected("local candidate/lease JSON inputs are verification-only and require --dry-run")
@@ -1202,6 +1208,7 @@ def main(argv: list[str] | None = None) -> int:
             activator.recover_pending_release_identity()
             retry_spooled_records(config, client)
         lease, candidate = client.poll_approved_lease(config.host, config.environment)
+        release_identity_evidence(REPO_ROOT, build_sha=candidate.commit_sha)
 
     opener = client.download_staged if client is not None else None
     if args.dry_run:

@@ -1,12 +1,16 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "release_id": "backbond-scanner-0.5.0-july31",
   "authority_issue": "BEAAA-17963",
   "authorized_canonical_base": "7b75463d1ed0b158b742efe6f4890f913f02e50b",
   "python_version": "3.11",
   "scanner_version": "0.5.0",
+  "corpus_version": "0.1.0",
   "rubric_version": "1.3.0",
   "contract_version": "are-scanner-api-v1@v1.3.0",
+  "api_app_version": "1.1.0",
+  "build_sha": null,
+  "release_tag": null,
   "release_gate_corpus_version": "2026.6.24",
   "golden_probe_set_version": "golden_agents_v1",
   "authority_surfaces": {

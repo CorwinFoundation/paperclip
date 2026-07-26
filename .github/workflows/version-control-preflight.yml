@@ -17,6 +17,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-identity:
+    name: canonical release identity and drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate all release identity consumers
+        run: python -m unittest -v tests.test_release_identity_beaaa17967
+      - name: Emit exact-SHA release identity evidence
+        run: python scripts/release_identity_ci.py --build-sha "${GITHUB_SHA}" --output release/release-identity-evidence.json
+      - name: Upload release identity evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-identity-${{ github.sha }}
+          path: release/release-identity-evidence.json
+
   policy:
     name: required policy test
     runs-on: ubuntu-latest

@@ -40,6 +40,7 @@ from harness.cli_runner import (  # noqa: E402
     CliInputError,
     run_scan,
 )
+from release_identity import RELEASE_IDENTITY  # noqa: E402
 from scanners import SCANNER_VERSION  # noqa: E402
 
 DEFAULT_RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
@@ -82,7 +83,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Agent identifier. Must match ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
     )
     parser.add_argument(
-        "--version", default=SCANNER_VERSION,
+        "--version", default=RELEASE_IDENTITY.scanner_version,
         help=(
             "Scanner build version asserted by the caller. Compared "
             "against the live scanner version; mismatch → exit 2. "

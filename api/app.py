@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from api.webhook_outbox import WebhookOutbox
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from release_identity import RELEASE_IDENTITY
 from fastapi.responses import JSONResponse
 
 from pricing.quote import Rates
@@ -260,7 +261,10 @@ def create_app(
     # BEAAA-12021 — build + validate the typed config once at startup.
     config = ApiConfig.from_env()
     config.require_production_signing_key()
-    app = FastAPI(title="ARE Scanner ⇄ Underwriter API", version="1.1.0")
+    app = FastAPI(
+        title="ARE Scanner ⇄ Underwriter API",
+        version=RELEASE_IDENTITY.api_app_version,
+    )
 
     @app.get("/version", include_in_schema=False)
     def deployed_version() -> dict[str, str]:

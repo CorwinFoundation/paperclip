@@ -74,6 +74,10 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Resolve canonical release manifest digest
+        id: release_identity
+        run: echo "manifest_sha256=$(sha256sum release/backbond-scanner-release.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
       - name: Login to GHCR for candidate builds
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -94,10 +98,12 @@ jobs:
             ${{ env.IMAGE_REF }}
           build-args: |
             GIT_SHA=${{ github.sha }}
+            BACKBOND_RELEASE_MANIFEST_SHA256=${{ steps.release_identity.outputs.manifest_sha256 }}
 
       - name: Verify image metadata
         run: |
           test "$(docker image inspect "$LOCAL_IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "${{ github.sha }}"
+          test "$(docker image inspect "$LOCAL_IMAGE_TAG" --format '{{ index .Config.Labels "ai.backbond.release.manifest-sha256" }}')" = "${{ steps.release_identity.outputs.manifest_sha256 }}"
 
       - name: Re-run import closure inside built image
         run: docker run --rm --entrypoint python "$LOCAL_IMAGE_TAG" scripts/verify_runtime_import_closure.py

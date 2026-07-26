@@ -13,10 +13,12 @@ BEAAA-106.
 # scoring rules. Conflating them re-creates the d1832a66 retraction failure
 # mode (repo-tag-vs-contract-version drift). Bump in lockstep with the API
 # contract minor version per api-contract-v0 §9.5.
-SCANNER_VERSION = "0.5.0"
+from release_identity import RELEASE_IDENTITY
+
+SCANNER_VERSION = RELEASE_IDENTITY.scanner_version
 # Design-partner invocation pin. This is release metadata only; corpus bytes and
 # scoring behavior remain owned by their existing manifests.
-CORPUS_VERSION = "0.1.0"
+CORPUS_VERSION = RELEASE_IDENTITY.corpus_version
 
 # v0.2.3 additive — default RNG seed when ScoreRequest.seed is omitted.
 # Stamped into ScoreResponse.seed so byte-identical replay works for any
@@ -27,7 +29,7 @@ DEFAULT_SEED = 42
 # the score is being computed against. Stamped on every ScoreResponse so the
 # LOI-stage caveat block can name the contract version that the customer's
 # downstream binder will eventually pin to. Format: "<contract-file>@<version>".
-# Candidate identity is governed by scanner-os/release-metadata.toml. The
-# repository contract document can retain later implementation history, but it
-# cannot silently supersede the locked cross-team release identifier.
-CONTRACT_VERSION = "are-scanner-api-v1@v1.3.0"
+# Candidate identity is governed by release/backbond-scanner-release.json.
+# The repository contract document can retain later implementation history, but
+# it cannot silently supersede the locked cross-team release identifier.
+CONTRACT_VERSION = RELEASE_IDENTITY.contract_version

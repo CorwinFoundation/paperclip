@@ -47,7 +47,9 @@ from framework_assessment import (
     enabled as framework_envelope_enabled,
 )
 
-from scanners import CORPUS_VERSION, SCANNER_VERSION
+from release_identity import RELEASE_IDENTITY
+SCANNER_VERSION = RELEASE_IDENTITY.scanner_version
+CORPUS_VERSION = RELEASE_IDENTITY.corpus_version
 
 # BEAAA-4919: BackBond governance questionnaire v0.1 schema (from BEAAA-4902). BackBond canon migration per BEAAA-5743.
 try:

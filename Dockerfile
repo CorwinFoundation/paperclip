@@ -21,6 +21,7 @@ RUN /opt/venv/bin/python scripts/verify_runtime_import_closure.py
 FROM python:${PYTHON_VERSION} AS runtime
 
 ARG GIT_SHA=unknown
+ARG BACKBOND_RELEASE_MANIFEST_SHA256=unknown
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -30,7 +31,8 @@ ENV PATH="/opt/venv/bin:${PATH}" \
 
 LABEL org.opencontainers.image.title="BackBond Scanner live edge" \
       org.opencontainers.image.description="FastAPI live scanner edge image; state and secrets are host-mounted." \
-      org.opencontainers.image.revision="${GIT_SHA}"
+      org.opencontainers.image.revision="${GIT_SHA}" \
+      ai.backbond.release.manifest-sha256="${BACKBOND_RELEASE_MANIFEST_SHA256}"
 
 WORKDIR /app
 
