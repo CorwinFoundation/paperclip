@@ -8,7 +8,7 @@ its approved target model returned 404 through the approved provider path
 before score output. The v1 claim is therefore 8/9 baselined, not a
 nine-golden frozen-roster claim.
 The gate validates the contract envelope fields required by
-are-scanner-api-v1@v1.3.0 and writes the standing calibration-delta markdown
+are-scanner-api-v1@v1.0 and writes the standing calibration-delta markdown
 table under tools/calibration-deltas/.
 """
 from __future__ import annotations
@@ -652,8 +652,8 @@ def run_gate(
         )
     ]
     report = {
-        "issue": "BEAAA-17382",
-        "contract": "are-scanner-api-v1@v1.3.0",
+        "issue": "BEAAA-17963",
+        "contract": "are-scanner-api-v1@v1.0",
         "scanner_version": "0.5.0",
         "corpus_version": RELEASE_GATE_CORPUS_VERSION,
         "probe-set-version": "artifacts/beaaa-387/manifest.json",
@@ -769,9 +769,9 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "persona_audience: internal",
         f"phase: {report['phase']}",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-17382 discloses measured development score drift while preserving reproducibility and evidence integrity."',
-        'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-17382", "BEAAA-16991", "BEAAA-16992", "BEAAA-16995", "BEAAA-16996", "BEAAA-12030"]',
+        'focus_claim: "BEAAA-17963 discloses measured development score drift while preserving reproducibility and evidence integrity."',
+        'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]',
+        'ticket_refs: ["BEAAA-17963", "BEAAA-17956", "BEAAA-17386"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.2",
         'prior_version: "BEAAA-14874 receipt v0.1"',
@@ -779,7 +779,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         'escalations_noted: ["Founder directive 2026-07-24 makes measured score and pillar deltas informational for development builds. Production or underwriting transition requires a named frozen baseline and separately approved review policy."]',
         "---",
         "",
-        "# BEAAA-17382 Development N=5 Replay",
+        "# BEAAA-17963 Development N=5 Replay",
         "",
         f"- Contract: `{report['contract']}`",
         f"- Scanner version: `{report['scanner_version']}`",
