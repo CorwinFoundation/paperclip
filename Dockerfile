@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG PYTHON_VERSION=3.12-slim
+ARG PYTHON_VERSION=3.11-slim
 
 FROM python:${PYTHON_VERSION} AS build
 
@@ -13,8 +13,7 @@ WORKDIR /app
 
 COPY requirements-runtime.txt ./
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/python -m pip install --upgrade pip \
-    && /opt/venv/bin/python -m pip install -r requirements-runtime.txt
+    && /opt/venv/bin/python -m pip install --require-hashes -r requirements-runtime.txt
 
 COPY . .
 RUN /opt/venv/bin/python scripts/verify_runtime_import_closure.py

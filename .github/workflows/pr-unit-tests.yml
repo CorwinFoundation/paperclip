@@ -14,11 +14,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - name: Install dev requirements
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Run brain unit tests
         run: python -m pytest tests/test_r2_bias_families.py tests/test_r2_rob_families.py -q
 
@@ -28,13 +28,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - name: Install PDF text extraction dependency
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Install dev requirements
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Run portal and fixture unit tests
         run: |
           python -m pytest tools/portal_v1 -q
@@ -55,14 +55,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: |
             requirements-dev.txt
             engineering/probe-sdk/pyproject.toml
       - name: Install probe SDK and dev requirements
         run: |
-          python -m pip install -r requirements-dev.txt
+          python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e engineering/probe-sdk
       - name: Run probe SDK unit tests
         run: python -m pytest engineering/probe-sdk/tests -q
@@ -73,14 +73,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: |
             requirements-dev.txt
             tools/are-connector/pyproject.toml
       - name: Install connector and dev requirements
         run: |
-          python -m pip install -r requirements-dev.txt
+          python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e tools/are-connector
       - name: Run connector unit tests
         run: python -m pytest tools/are-connector/tests -q
@@ -112,15 +112,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements-runtime.txt
       - name: Build the production runtime venv from the slice only
         run: |
-          python -m pip install --upgrade pip
           # Install the runtime slice ONLY — no requirements.txt, no dev deps.
           # A clean resolve here IS the "no datasets conflict" acceptance proof.
-          python -m pip install -r requirements-runtime.txt
+          python -m pip install --require-hashes -r requirements-runtime.txt
           # pytest is the only test-runner dep we add on top of the slice.
           python -m pip install "pytest==9.0.3"
       - name: Assert the four eval frameworks are absent from the slice
