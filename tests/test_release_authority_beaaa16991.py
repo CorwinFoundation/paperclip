@@ -81,7 +81,7 @@ def test_hash_locked_environments_match_release_authority() -> None:
         expected = manifest["framework_versions"][distribution]
         requirement = path.read_text(encoding="utf-8")
         assert re.search(
-            rf"^{re.escape(distribution)}=={re.escape(expected)}$",
+            rf"^{re.escape(distribution)}=={re.escape(expected)}\s*\\?$",
             requirement,
             flags=re.MULTILINE,
         )
