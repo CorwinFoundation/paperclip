@@ -134,7 +134,7 @@ def _run_quota_from_env(environment: str) -> RunQuota | None:
     if environment != "public-demo":
         return None
     return RunQuota(
-        max_requests=int(os.environ.get("DEMO_RUN_MAX_REQUESTS", "5")),
+        max_requests=int(os.environ.get("DEMO_RUN_QUOTA", "100")),
         window_seconds=float(os.environ.get("DEMO_RUN_WINDOW_SECONDS", "3600")),
     )
 
@@ -553,6 +553,24 @@ class DemoHandler(BaseHTTPRequestHandler):
         expected = self._session_cookie_value()
         return bool(session and expected and hmac.compare_digest(session.value, expected))
 
+    def _request_token(self, parsed) -> str:
+        authorization = self.headers.get("Authorization", "")
+        scheme, _, candidate = authorization.partition(" ")
+        if scheme.lower() == "bearer" and candidate:
+            return candidate.strip()
+        header_token = self.headers.get("X-Demo-Access-Token", "")
+        if header_token:
+            return header_token.strip()
+        return parse_qs(parsed.query).get("token", [""])[0].strip()
+
+    def _authorized_for_run(self, parsed) -> bool:
+        if hasattr(self, "_is_authorized") and self._is_authorized():
+            return True
+        token = os.environ.get("DEMO_ACCESS_TOKEN", "").strip()
+        if not token:
+            return True
+        return hmac.compare_digest(self._request_token(parsed), token)
+
     def _send_access_page(self, invalid: bool = False) -> None:
         message = "That access token was not accepted." if invalid else "Enter the partner-demo access token to continue."
         body = f'''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BackBond demo access</title><style>body{{margin:0;background:#08111d;color:#edf5ff;font:16px system-ui;display:grid;min-height:100vh;place-items:center}}main{{width:min(420px,calc(100% - 40px));padding:32px;border:1px solid #29435d;border-radius:18px;background:#101d2c}}h1{{margin-top:0}}label,input,button{{display:block;width:100%;box-sizing:border-box}}input,button{{margin-top:10px;padding:12px;border-radius:8px}}button{{background:#58d6b4;border:0;font-weight:700}}</style><main><h1>BackBond lifecycle demo</h1><p>{message}</p><form method="post" action="/access"><label>Access token<input name="token" type="password" required autocomplete="current-password"></label><button type="submit">Open demo</button></form></main></html>'''.encode("utf-8")
@@ -660,15 +678,16 @@ class DemoHandler(BaseHTTPRequestHandler):
         self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path.rstrip("/")
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
         if path == "/access":
             self._handle_access()
             return
         if path != "/api/runs":
             self._send_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             return
-        if not self._require_authorized(path):
-
+        if not self._authorized_for_run(parsed):
+            self._send_json({"error": "authentication_required"}, HTTPStatus.UNAUTHORIZED)
             return
         try:
             content_length = _bounded_content_length(self.headers.get("Content-Length"))
@@ -688,7 +707,19 @@ class DemoHandler(BaseHTTPRequestHandler):
             client = self._client_key()
             allowed, retry_after = self.run_quota.allow(client)
             if not allowed:
-                self._send_json({"error": "run_quota_exceeded", "retry_after_seconds": retry_after}, HTTPStatus.TOO_MANY_REQUESTS)
+                self._send_json(
+                    {
+                        "error": "run_quota_exceeded",
+                        "quota": self.run_quota.max_requests,
+                        "quota_scope": "visitor",
+                        "retry_after_seconds": retry_after,
+                        "message": (
+                            "This demo has reached its visitor run limit. "
+                            "Please contact your BackBond partner manager to continue."
+                        ),
+                    },
+                    HTTPStatus.TOO_MANY_REQUESTS,
+                )
                 return
 
         job = self.manager.start(scenario=scenario)

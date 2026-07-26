@@ -407,7 +407,10 @@ def run_preproduction(
     run_tests: Callable[[], dict[str, Any]],
     *,
     evidence_store_path: Path | None = None,
+    scenario: str = "happy",
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    if scenario not in {"happy", "bind_reject", "cicd_regression"}:
+        raise ValueError(f"unsupported demo scenario: {scenario}")
     output_dir.mkdir(parents=True, exist_ok=False)
     now = datetime.now(UTC).replace(microsecond=0)
 
@@ -442,7 +445,12 @@ def run_preproduction(
     emit("stage", "Registry and evidence-store projection completed", stage="scan", state="passed")
 
     emit("stage", "Underwriting admittance and bind started", stage="bind", state="running")
-    bind = {"status": "NOT_AVAILABLE", "real_policy_bound": False, "scan_id": initial_scan_id}
+    bind = {
+        "status": "NOT_AVAILABLE",
+        "admittance_class": "CONSTRAINED_BIND",
+        "real_policy_bound": False,
+        "scan_id": initial_scan_id,
+    }
     _write_json(output_dir / "bind-record.json", {"decision": None, "bind": bind})
     emit("bind", "N/A · no rating or bind decision issued", stage="bind", bind=bind)
     emit("stage", "Bind step withheld pending a contract-valid score", stage="bind", state="passed")
@@ -487,6 +495,7 @@ def run_preproduction(
     emit("stage", "Certificate signature verified and ready to view", stage="certificate", state="passed")
 
     lifecycle = {
+        "scenario": scenario,
         "initial_scan": initial_summary,
         "updated_scan": updated_summary,
         "bind": bind,
