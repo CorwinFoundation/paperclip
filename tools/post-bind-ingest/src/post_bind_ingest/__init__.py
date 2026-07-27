@@ -20,6 +20,11 @@ from .continuity_gate import (
     evaluate_attach_renew_continuity,
 )
 from .detector_input import normalize_tool_name
+from .evidence_chain_trace import (
+    EvidenceChainTrace,
+    EvidenceChainTraceError,
+    build_evidence_chain_trace,
+)
 from .p5_detector import detect_p5_events
 from .receiver import (
     ReceiverEnvelope,
@@ -52,6 +57,9 @@ __all__ = [
     "compute_gap_state",
     "evaluate_attach_renew_continuity",
     "normalize_tool_name",
+    "EvidenceChainTrace",
+    "EvidenceChainTraceError",
+    "build_evidence_chain_trace",
     "normalize_receiver_events",
     "validate_manifest_schema",
     "normalize_manifest",
