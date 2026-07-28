@@ -63,3 +63,12 @@ def test_deploy_does_not_print_or_pass_credentials_in_argv() -> None:
     assert "SCANNER_EDGE_DEPLOY_SSH_KNOWN_HOSTS" not in script
     assert "${{ secrets." not in script
     assert "password" not in script.lower()
+
+
+def test_deploy_uses_operator_approved_hostname_without_runtime_keyscan() -> None:
+    text, workflow = _workflow()
+    job = workflow["jobs"]["image-build"]
+    deploy = next(step for step in job["steps"] if step.get("name") == "Deploy exact master image tar to live edge")
+    assert job["env"]["TARGET_HOST"] == "srv1749248.hstgr.cloud"
+    assert deploy["env"]["DEPLOY_TARGET"] == "are-deploy@srv1749248.hstgr.cloud"
+    assert "ssh-keyscan" not in text

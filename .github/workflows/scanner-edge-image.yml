@@ -36,7 +36,7 @@ on:
   workflow_dispatch:
     inputs:
       sequence:
-        description: "Release-candidate sequence for srv1749248 production"
+        description: "Release-candidate sequence for srv1749248.hstgr.cloud production"
         required: true
         type: string
 
@@ -52,7 +52,7 @@ jobs:
     env:
       IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:${{ github.sha }}-${{ github.run_id }}
       LOCAL_IMAGE_TAG: backbond-scanner-live:${{ github.sha }}
-      TARGET_HOST: srv1749248
+      TARGET_HOST: srv1749248.hstgr.cloud
       TARGET_ENVIRONMENT: production
       SOURCE_ISSUE_ID: 90ee9468-5480-4db8-a3c2-36654392ba7c
       RELEASE_EVIDENCE_GRANT_ID: ${{ vars.SCANNER_EDGE_RELEASE_EVIDENCE_GRANT_ID }}
@@ -329,7 +329,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SCANNER_EDGE_DEPLOY_SSH_PRIVATE_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.SCANNER_EDGE_DEPLOY_SSH_KNOWN_HOSTS }}
-          DEPLOY_TARGET: are-deploy@srv1749248
+          DEPLOY_TARGET: are-deploy@srv1749248.hstgr.cloud
         run: |
           set -euo pipefail
           case "$GITHUB_SHA" in
