@@ -66,6 +66,11 @@ export { feedbackExports } from "./feedback_exports.js";
 export { issueReadStates } from "./issue_read_states.js";
 export { assets } from "./assets.js";
 export {
+  releaseCandidates,
+  releaseDeployAuthorizations,
+  releaseCandidateAuditEvents,
+} from "./release_candidates.js";
+export {
   releaseEvidenceAuditEvents,
   releaseEvidenceGrants,
   releaseEvidenceSessions,

@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APPROVED_SHA="0830f14e5d5330b006ee404f93e1a23a519e5c48"
+QA_ISSUE_ID="69134657-cb0f-4561-8a5d-779293ee9fda"
+QA_COMMENT_ID="454d2990-c329-4882-84cd-687daae3246b"
+QA_AGENT_ID="cd1e82a0-d1cf-4b44-a8ea-a8b312120baa"
+SCANNER_REPO_DEFAULT="/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner"
+TARGET_ENVIRONMENT="production"
+TARGET_HOST="srv1749248"
+DEPLOY_AGENT_SERVICE="backbond-deploy-agent.service"
+
+sha="$APPROVED_SHA"
+scanner_repo="${SCANNER_SHIP_REPO:-$SCANNER_REPO_DEFAULT}"
+api_url="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
+paperclip_token="${PAPERCLIP_API_KEY:-}"
+run_id="${PAPERCLIP_RUN_ID:-}"
+authorization_id="${SCANNER_SHIP_AUTHORIZATION_ID:-${BACKBOND_DEPLOY_AUTHORIZATION_ID:-}}"
+deploy_token="${SCANNER_SHIP_DEPLOY_TOKEN:-}"
+deploy_token_file="${SCANNER_SHIP_DEPLOY_TOKEN_FILE:-}"
+execute=false
+print_contract=false
+check_lease=false
+
+usage() {
+  cat <<EOF
+Usage:
+  scanner-ship [--sha $APPROVED_SHA] [--repo PATH] [--authorization-id UUID]
+               [--deploy-token-file PATH | env SCANNER_SHIP_DEPLOY_TOKEN=...] [--check-lease]
+               [--execute | --print-contract]
+
+Default behavior validates the approved Scanner master SHA and QA approval without
+deploying. --execute starts ${DEPLOY_AGENT_SERVICE} only after all fail-closed
+checks pass. Secrets must come from environment or files; they are never printed.
+EOF
+}
+
+die() {
+  printf '[scanner-ship] ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+log() {
+  printf '[scanner-ship] %s\n' "$*" >&2
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --sha)
+      shift
+      [ "$#" -gt 0 ] || die "--sha requires a value"
+      sha="$1"
+      ;;
+    --repo)
+      shift
+      [ "$#" -gt 0 ] || die "--repo requires a value"
+      scanner_repo="$1"
+      ;;
+    --authorization-id)
+      shift
+      [ "$#" -gt 0 ] || die "--authorization-id requires a value"
+      authorization_id="$1"
+      ;;
+    --deploy-token-file)
+      shift
+      [ "$#" -gt 0 ] || die "--deploy-token-file requires a value"
+      deploy_token_file="$1"
+      ;;
+    --check-lease)
+      check_lease=true
+      ;;
+    --execute)
+      execute=true
+      check_lease=true
+      ;;
+    --print-contract)
+      print_contract=true
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unexpected argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[ "$sha" = "$APPROVED_SHA" ] || die "only approved SHA $APPROVED_SHA is accepted, got $sha"
+[ -d "$scanner_repo/.git" ] || die "Scanner repo not found at $scanner_repo"
+[ -n "$paperclip_token" ] || die "PAPERCLIP_API_KEY is required to verify the QA approval through Paperclip"
+
+if [ -n "$deploy_token_file" ]; then
+  [ -r "$deploy_token_file" ] || die "deploy token file is not readable"
+  deploy_token="$(tr -d '\r\n' < "$deploy_token_file")"
+fi
+
+log "fetching origin/master in $scanner_repo"
+git -C "$scanner_repo" fetch origin master --quiet
+origin_master="$(git -C "$scanner_repo" rev-parse origin/master)"
+[ "$origin_master" = "$sha" ] || die "origin/master is $origin_master, expected approved SHA $sha"
+
+tmp_comments="$(mktemp)"
+cleanup() {
+  rm -f "$tmp_comments" "${tmp_lease:-}"
+}
+trap cleanup EXIT
+
+curl_args=(-fsS -H "Authorization: Bearer $paperclip_token")
+if [ -n "$run_id" ]; then
+  curl_args+=(-H "X-Paperclip-Run-Id: $run_id")
+fi
+curl "${curl_args[@]}" "$api_url/api/issues/$QA_ISSUE_ID/comments" > "$tmp_comments"
+
+python3 - "$tmp_comments" "$QA_COMMENT_ID" "$QA_AGENT_ID" "$sha" <<'PY'
+import json
+import sys
+
+path, comment_id, qa_agent_id, sha = sys.argv[1:5]
+comments = json.load(open(path, encoding="utf-8"))
+for comment in comments:
+    if (
+        comment.get("id") == comment_id
+        and comment.get("authorAgentId") == qa_agent_id
+        and "APPROVED" in str(comment.get("body", ""))
+        and sha in str(comment.get("body", ""))
+        and comment.get("deletedAt") is None
+    ):
+        sys.exit(0)
+raise SystemExit("QA approval comment not found or not bound to the approved SHA")
+PY
+
+if [ "$check_lease" = true ]; then
+  [ -n "$authorization_id" ] || die "--authorization-id or SCANNER_SHIP_AUTHORIZATION_ID is required for lease checks"
+  [ -n "$deploy_token" ] || die "deploy token is required via --deploy-token-file or SCANNER_SHIP_DEPLOY_TOKEN"
+  tmp_lease="$(mktemp)"
+  curl "${curl_args[@]}" \
+    -H "X-Paperclip-Deploy-Token: $deploy_token" \
+    "$api_url/api/release-candidates/approved-lease?authorizationId=$authorization_id" > "$tmp_lease"
+  python3 - "$tmp_lease" "$authorization_id" "$sha" "$TARGET_ENVIRONMENT" "$TARGET_HOST" <<'PY'
+import json
+import sys
+
+path, authorization_id, sha, environment, host = sys.argv[1:6]
+payload = json.load(open(path, encoding="utf-8"))
+errors = []
+checks = {
+    "authorizationId": authorization_id,
+    "commitSha": sha,
+    "environment": environment,
+    "targetHost": host,
+}
+for key, expected in checks.items():
+    if payload.get(key) != expected:
+        errors.append(f"{key}={payload.get(key)!r}, expected {expected!r}")
+for key in ("stagedArtifactPath", "stagedArtifactSha256", "stagedSignatureBundlePath", "stagedSignatureBundleSha256", "approvalInteractionId"):
+    if not payload.get(key):
+        errors.append(f"missing {key}")
+if errors:
+    raise SystemExit("approved lease is not deployable for this SHA: " + "; ".join(errors))
+PY
+fi
+
+if [ "$print_contract" = true ] || [ "$execute" = false ]; then
+  cat <<EOF
+scanner-ship contract:
+- launcher: scanner-ship
+- approved_sha: $APPROVED_SHA
+- scanner_repo: $scanner_repo
+- qa_gate: /BEAAA/issues/BEAAA-18575#comment-$QA_COMMENT_ID
+- deploy_lease_check: scanner-ship --authorization-id <uuid> --deploy-token-file <credential-file> --check-lease
+- production_invocation: scanner-ship --authorization-id <uuid> --deploy-token-file <credential-file> --execute
+- live_delegation: sudo systemctl start $DEPLOY_AGENT_SERVICE
+- rollback/readiness: owned by the deploy agent and on-box Scanner deploy helper
+EOF
+  exit 0
+fi
+
+command -v systemctl >/dev/null || die "systemctl is required for --execute on the live deployment host"
+log "starting $DEPLOY_AGENT_SERVICE for approved SHA $sha"
+sudo systemctl start "$DEPLOY_AGENT_SERVICE"
+log "delegated to $DEPLOY_AGENT_SERVICE"

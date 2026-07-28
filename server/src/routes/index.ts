@@ -5,6 +5,7 @@ export { teamsCatalogRoutes } from "./teams-catalog.js";
 export { agentRoutes } from "./agents.js";
 export { projectRoutes } from "./projects.js";
 export { issueRoutes } from "./issues.js";
+export { releaseCandidateRoutes } from "./release-candidates.js";
 export { releaseEvidenceRoutes } from "./release-evidence.js";
 export { issueTreeControlRoutes } from "./issue-tree-control.js";
 export { fileResourceRoutes, createFileResourceLimiter } from "./file-resources.js";
