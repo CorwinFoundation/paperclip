@@ -9,7 +9,7 @@
     "posture": "Surplus (remediation endorsement)"
   },
   "bmi": 55,
-  "contract_version": "are-scanner-api-v1@v1.0",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "path_a_v2_1@2026-05-15",
   "forensic_bundle_uri": "https://golden.local/M3",
   "model_versions": {

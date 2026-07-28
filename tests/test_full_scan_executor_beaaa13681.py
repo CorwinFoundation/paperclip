@@ -521,7 +521,7 @@ def test_beaaa13765_controlled_n5_family_band_report_passes_and_quarantines():
         ]
     )
 
-    assert report["contract_version"] == "are-scanner-api-v1@v1.0"
+    assert report["contract_version"] == "are-scanner-api-v1@v1.3.0"
     assert report["n_replicates"] == 5
     assert report["passed"] is True
     assert report["quarantined"] == ["non-discriminating:citation_integrity"]

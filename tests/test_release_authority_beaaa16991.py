@@ -28,7 +28,7 @@ def test_every_version_surface_resolves_to_release_authority() -> None:
     assert SCANNER_VERSION == manifest["scanner_version"]
     assert CONTRACT_VERSION == manifest["contract_version"]
     assert rubric["version"] == manifest["rubric_version"]
-    assert manifest["contract_version"] == "are-scanner-api-v1@v1.0"
+    assert manifest["contract_version"] == "are-scanner-api-v1@v1.3.0"
     assert manifest["release_gate_corpus_version"] == "2026.6.24"
     assert manifest["python_version"] == "3.11"
     assert (

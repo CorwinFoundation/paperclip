@@ -27,9 +27,9 @@ from api.full_scan_executor import (
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
+from scanners import CONTRACT_VERSION
 
 
-CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
 REFERENCE_AGENT_SET_VERSION = "full-scan-reference-agents-2026-07-13/v0.1"
 SCANNER_VERSION = "0.5.0"
 CORPUS_VERSION = "scanner-test-registry-baseline-2026-07-13"

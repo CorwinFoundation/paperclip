@@ -30,4 +30,4 @@ DEFAULT_SEED = 42
 # Candidate identity is governed by scanner-os/release-metadata.toml. The
 # repository contract document can retain later implementation history, but it
 # cannot silently supersede the locked cross-team release identifier.
-CONTRACT_VERSION = "are-scanner-api-v1@v1.0"
+CONTRACT_VERSION = "are-scanner-api-v1@v1.3.0"

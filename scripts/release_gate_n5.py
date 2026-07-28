@@ -8,7 +8,7 @@ its approved target model returned 404 through the approved provider path
 before score output. The v1 claim is therefore 8/9 baselined, not a
 nine-golden frozen-roster claim.
 The gate validates the contract envelope fields required by
-are-scanner-api-v1@v1.0 and writes the standing calibration-delta markdown
+are-scanner-api-v1@v1.3.0 and writes the standing calibration-delta markdown
 table under tools/calibration-deltas/.
 """
 from __future__ import annotations
@@ -653,7 +653,7 @@ def run_gate(
     ]
     report = {
         "issue": "BEAAA-17963",
-        "contract": "are-scanner-api-v1@v1.0",
+        "contract": "are-scanner-api-v1@v1.3.0",
         "scanner_version": "0.5.0",
         "corpus_version": RELEASE_GATE_CORPUS_VERSION,
         "probe-set-version": "artifacts/beaaa-387/manifest.json",
@@ -770,7 +770,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"phase: {report['phase']}",
         "canonical_terms_only: true",
         'focus_claim: "BEAAA-17963 discloses measured development score drift while preserving reproducibility and evidence integrity."',
-        'contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]',
+        'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
         'ticket_refs: ["BEAAA-17963", "BEAAA-17956", "BEAAA-17386"]',
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.2",

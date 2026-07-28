@@ -27,6 +27,7 @@ from tools.framework_worker_registry import WORKERS, worker_id_for_registry_row
 from tools.framework_workers import build_default_framework_workers
 from tools.active_test_registry import _is_countable_active_executable
 from rubric.bands import assign_band
+from scanners import CONTRACT_VERSION
 
 
 ASYNC_FULL_SCAN_API_VERSION = "scanner-full-scan-async/v0.1"
@@ -703,7 +704,7 @@ def build_controlled_validation_report(
 
     return {
         "report_version": "controlled-full-scan-validation/v0.1",
-        "contract_version": "are-scanner-api-v1@v1.0",
+        "contract_version": CONTRACT_VERSION,
         "n_replicates": 5,
         "rows": rows,
         "quarantined": quarantined,
@@ -808,7 +809,7 @@ def validate_full_scan_release_gate(
 
     return {
         "report_version": "full-scan-ci-vanish-gate/v0.1",
-        "contract_version": "are-scanner-api-v1@v1.0",
+        "contract_version": CONTRACT_VERSION,
         "active_case_count": len(active_case_ids),
         "expected_case_count": len(expected_case_ids),
         "attempted_case_count": len(attempted_case_ids),
