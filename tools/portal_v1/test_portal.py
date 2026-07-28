@@ -30,7 +30,7 @@ from connector_sim import ConnectorSimConfig, run_connector_flow
 
 @pytest.fixture
 def service(tmp_path):
-    svc = build_service(tmp_path)
+    svc = build_service(tmp_path, lifecycle_mode="production")
     yield svc
     svc.close()
 
@@ -601,6 +601,60 @@ def test_scheduled_scan_completes_and_renders_comparable_scan_diff(service):
     advanced_at = datetime.fromisoformat(schedule_row["next_run_at"].replace("Z", "+00:00"))
     original_at = datetime.fromisoformat(next_run_at.replace("Z", "+00:00"))
     assert (advanced_at - original_at).total_seconds() == 30 * 24 * 60 * 60
+
+
+def test_development_mode_preserves_history_without_comparison(tmp_path):
+    service = build_service(tmp_path, lifecycle_mode="development")
+    try:
+        signing_key, dp, enrollment = enroll_ready_dp(service)
+        first = service.trigger_scan(dp["dp_id"])
+        submit_all_tasks(service, signing_key, first, enrollment["connector_id"])
+        second = service.trigger_scan(dp["dp_id"])
+        submit_all_tasks(service, signing_key, second, enrollment["connector_id"])
+
+        rows = service.db.execute(
+            "SELECT id, score_json FROM scans WHERE dp_id = ? ORDER BY created_at",
+            (dp["dp_id"],),
+        ).fetchall()
+        assert len(rows) == 2
+        assert all(row["score_json"] for row in rows)
+        assert service.db.execute("SELECT COUNT(*) FROM scan_diffs").fetchone()[0] == 0
+        assert service.db.execute(
+            "SELECT COUNT(*) FROM score_comparison_baselines"
+        ).fetchone()[0] == 0
+        assert service.verify_audit_chain() is True
+    finally:
+        service.close()
+
+
+def test_production_baseline_is_first_delivery_and_is_immutable(tmp_path):
+    service = build_service(tmp_path, lifecycle_mode="production")
+    try:
+        signing_key, dp, enrollment = enroll_ready_dp(service)
+        first = service.trigger_scan(dp["dp_id"])
+        submit_all_tasks(service, signing_key, first, enrollment["connector_id"])
+
+        baseline = service.db.execute(
+            "SELECT scan_id FROM score_comparison_baselines WHERE dp_id = ?",
+            (dp["dp_id"],),
+        ).fetchone()
+        assert baseline["scan_id"] == first["scan_id"]
+        assert service.db.execute("SELECT COUNT(*) FROM scan_diffs").fetchone()[0] == 0
+
+        second = service.trigger_scan(dp["dp_id"])
+        submit_all_tasks(service, signing_key, second, enrollment["connector_id"])
+        diff = service.get_scan_diff(second["scan_id"])
+        assert diff["baseline_scan_id"] == first["scan_id"]
+        assert service.db.execute(
+            "SELECT scan_id FROM score_comparison_baselines WHERE dp_id = ?",
+            (dp["dp_id"],),
+        ).fetchone()["scan_id"] == first["scan_id"]
+        assert service.db.execute(
+            "SELECT COUNT(*) FROM scans WHERE dp_id = ?",
+            (dp["dp_id"],),
+        ).fetchone()[0] == 2
+    finally:
+        service.close()
 
 
 def test_scan_diff_incomparable_on_pin_mismatch(service):

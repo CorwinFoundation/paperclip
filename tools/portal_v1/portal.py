@@ -470,6 +470,11 @@ def form_value(data: dict[str, list[str]], key: str, default: str = "") -> str:
 @dataclasses.dataclass
 class PortalConfig:
     data_dir: Path
+    lifecycle_mode: str = "development"
+
+    def __post_init__(self) -> None:
+        if self.lifecycle_mode not in {"development", "production"}:
+            raise ValueError("lifecycle_mode must be 'development' or 'production'")
 
     @property
     def db_path(self) -> Path:
@@ -607,6 +612,11 @@ class PortalService:
               portal_signature TEXT NOT NULL,
               produced_at TEXT NOT NULL,
               scan_diff_version TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS score_comparison_baselines (
+              dp_id TEXT PRIMARY KEY,
+              scan_id TEXT NOT NULL UNIQUE,
+              recorded_at TEXT NOT NULL
             );
             -- BEAAA-4919: BackBond governance questionnaire v0.1 submissions + evidence.
             CREATE TABLE IF NOT EXISTS questionnaire_submissions (
@@ -2909,10 +2919,16 @@ class PortalHandler(BaseHTTPRequestHandler):
             self._handle_error(err)
 
 
-def build_service(data_dir: Path | None = None) -> PortalService:
+def build_service(
+    data_dir: Path | None = None,
+    *,
+    lifecycle_mode: str | None = None,
+) -> PortalService:
     if data_dir is None:
         data_dir = Path(os.environ.get("PORTAL_V1_DATA_DIR", Path(__file__).with_name(".portal_data")))
-    return PortalService(PortalConfig(data_dir=data_dir))
+    if lifecycle_mode is None:
+        lifecycle_mode = os.environ.get("BACKBOND_LIFECYCLE_MODE", "development")
+    return PortalService(PortalConfig(data_dir=data_dir, lifecycle_mode=lifecycle_mode))
 
 
 def run_server(args: argparse.Namespace) -> None:

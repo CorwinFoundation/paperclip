@@ -250,25 +250,48 @@ def create_scheduled_scan(self: PortalService, connector_id: str, schedule_windo
 
 
 def _maybe_render_scan_diff(self: PortalService, candidate_scan_id: str, dp_id: str) -> dict[str, Any] | None:
-    existing = self.db.execute(
-        "SELECT * FROM scan_diffs WHERE candidate_scan_id = ?", (candidate_scan_id,)
-    ).fetchone()
-    if existing:
-        return None
-    baseline_row = self.db.execute(
-        "SELECT * FROM scans WHERE dp_id = ? AND status = 'complete' AND id != ? "
-        "ORDER BY completed_at DESC LIMIT 1",
-        (dp_id, candidate_scan_id),
-    ).fetchone()
-    if not baseline_row:
+    if self.config.lifecycle_mode == "development":
         self.audit(
             "portal",
             "scan_diff_skipped",
             "scan_diff",
             candidate_scan_id,
-            {"reason": "no_baseline", "dp_id": dp_id},
+            {"reason": "development_mode", "dp_id": dp_id},
         )
         return None
+    existing = self.db.execute(
+        "SELECT * FROM scan_diffs WHERE candidate_scan_id = ?", (candidate_scan_id,)
+    ).fetchone()
+    if existing:
+        return None
+    baseline_ref = self.db.execute(
+        "SELECT scan_id FROM score_comparison_baselines WHERE dp_id = ?",
+        (dp_id,),
+    ).fetchone()
+    if not baseline_ref:
+        candidate_row = self.db.execute(
+            "SELECT * FROM scans WHERE id = ? AND dp_id = ? AND status = 'complete'",
+            (candidate_scan_id, dp_id),
+        ).fetchone()
+        if not candidate_row or not candidate_row["score_json"]:
+            return None
+        self.db.execute(
+            "INSERT INTO score_comparison_baselines (dp_id, scan_id, recorded_at) VALUES (?, ?, ?)",
+            (dp_id, candidate_scan_id, now_iso()),
+        )
+        self.db.commit()
+        self.audit(
+            "portal",
+            "scan_diff_skipped",
+            "scan_diff",
+            candidate_scan_id,
+            {"reason": "production_baseline_recorded", "dp_id": dp_id},
+        )
+        return None
+    baseline_row = self.db.execute(
+        "SELECT * FROM scans WHERE id = ?",
+        (baseline_ref["scan_id"],),
+    ).fetchone()
     candidate_row = self.db.execute("SELECT * FROM scans WHERE id = ?", (candidate_scan_id,)).fetchone()
     if not candidate_row or not candidate_row["score_json"] or not baseline_row["score_json"]:
         return None

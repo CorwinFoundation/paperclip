@@ -76,6 +76,50 @@ class ReproducibilityComputeTests(unittest.TestCase):
         for key in ("median", "p2_5", "p97_5", "stdev", "min", "max"):
             self.assertIn(key, sample)
 
+
+class ScoreComparisonLifecycleTests(unittest.TestCase):
+    def test_development_mode_suppresses_report_comparison(self):
+        current, rubric = _baseline_with_rubric()
+        prior = _baseline_score(seed_offset=-0.2)
+
+        html = render(
+            current,
+            rubric,
+            prior_score_response=prior,
+            lifecycle_mode="development",
+        )
+
+        self.assertNotIn("Change Since Last Scan", html)
+        self.assertNotIn("dim-delta-pill", html)
+
+    def test_production_without_baseline_suppresses_report_comparison(self):
+        current, rubric = _baseline_with_rubric()
+        prior = _baseline_score(seed_offset=-0.2)
+
+        html = render(
+            current,
+            rubric,
+            prior_score_response=prior,
+            lifecycle_mode="production",
+            comparison_baseline_exists=False,
+        )
+
+        self.assertNotIn("Change Since Last Scan", html)
+
+    def test_production_with_baseline_renders_report_comparison(self):
+        current, rubric = _baseline_with_rubric()
+        prior = _baseline_score(seed_offset=-0.2)
+
+        html = render(
+            current,
+            rubric,
+            prior_score_response=prior,
+            lifecycle_mode="production",
+            comparison_baseline_exists=True,
+        )
+
+        self.assertIn("Change Since Last Scan", html)
+
     def test_high_noise_dims_capped_at_three(self):
         rep = [
             _baseline_score(),

@@ -670,6 +670,8 @@ def render(
     probe_records: dict[str, list[dict[str, Any]]] | None = None,
     reproducibility: dict[str, Any] | None = None,
     prior_score_response: dict[str, Any] | None = None,
+    lifecycle_mode: str = "production",
+    comparison_baseline_exists: bool = True,
     remediation_threshold: float = 2.5,
     display_pillar_weights: dict[str, int] | None = None,
     admittance_decision: dict[str, Any] | None = None,
@@ -738,8 +740,14 @@ def render(
     # in the caveat always match the audit trail at the foot of the card.
     caveat_html = _caveat_block(score_response)
     rubric_source_html = _rubric_source_block(rubric)
+    if lifecycle_mode not in {"development", "production"}:
+        raise ValueError("lifecycle_mode must be 'development' or 'production'")
     diff = None
-    if prior_score_response is not None:
+    if (
+        lifecycle_mode == "production"
+        and comparison_baseline_exists
+        and prior_score_response is not None
+    ):
         from report_card.diff import compute_diff
         diff = compute_diff(score_response, prior_score_response)
     pillar_cards_html = "".join(
