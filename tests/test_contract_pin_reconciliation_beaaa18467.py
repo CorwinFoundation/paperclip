@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import tomllib
 from pathlib import Path
 
 import yaml
 
+from release_identity import RELEASE_IDENTITY
 from scanners import CONTRACT_VERSION
 
 
@@ -19,14 +19,10 @@ def test_active_release_surfaces_share_v1_3_0_contract_pin() -> None:
     release = json.loads(
         (REPO / "release" / "backbond-scanner-release.json").read_text(encoding="utf-8")
     )
-    metadata = tomllib.loads(
-        (REPO / "scanner-os" / "release-metadata.toml").read_text(encoding="utf-8")
-    )
-
     assert f"are-scanner-api-v1@{frontmatter['version']}" == EXPECTED_CONTRACT
     assert CONTRACT_VERSION == EXPECTED_CONTRACT
     assert release["contract_version"] == EXPECTED_CONTRACT
-    assert metadata["scanner"]["contract"] == EXPECTED_CONTRACT
+    assert RELEASE_IDENTITY.contract_version == EXPECTED_CONTRACT
 
 
 def test_active_golden_fixtures_and_n5_report_share_v1_3_0_contract_pin() -> None:
