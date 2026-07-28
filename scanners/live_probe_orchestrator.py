@@ -328,6 +328,7 @@ class ScanResult:
     incomplete: bool = False
     incomplete_reason: str | None = None
     full_suite_manifest: Mapping[str, Any] | None = None
+    evidence_records: tuple[Mapping[str, Any], ...] = ()
     # BEAAA-11721 / ADR-0041 section 6: Underwriting-review signal only.
     anti_gaming: AntiGamingCanaryResult = field(
         default_factory=AntiGamingCanaryResult
@@ -726,6 +727,9 @@ def run_scan(
             total_spread=total_spread,
             incomplete=incomplete,
             incomplete_reason=incomplete_reason,
+            evidence_records=tuple(
+                getattr(active_runner, "live_probe_evidence", lambda: ())()
+            ),
             anti_gaming=anti_gaming,
         )
     finally:

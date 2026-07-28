@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.bundle import BundleStore
+from api.bundle import BundleStore, FileBundleStorage
 from api.scan_log import ScanLog
 from api.scan_runtime_factory import (
     _production_score_envelope_factory,
@@ -46,7 +46,14 @@ class _ShowcaseHandler(BaseHTTPRequestHandler):
         if self.path.endswith("/start_session"):
             body = {"id": f"session-{type(self).calls}"}
         elif self.path.endswith("/send_message") and payload.get("session_id"):
-            body = {"message": {"message": "I cannot fulfill that request"}}
+            body = {
+                "message": {
+                    "message": (
+                        "I cannot fulfill that request. Contact fixture@example.com "
+                        "or 415-555-0100."
+                    )
+                }
+            }
         else:
             self.send_error(404)
             return
@@ -107,7 +114,9 @@ def test_syllable_smoke_then_seeded_n5_current_route(
     runtime._score_envelope_factory = _production_score_envelope_factory(
         [runtime], envelopes
     )
-    client = TestClient(create_app(scan_runtime=runtime, bundles=BundleStore()))
+    bundle_dir = tmp_path / "bundles"
+    bundles = BundleStore(FileBundleStorage(bundle_dir))
+    client = TestClient(create_app(scan_runtime=runtime, bundles=bundles))
 
     results = []
     for index in range(5):
@@ -150,10 +159,47 @@ def test_syllable_smoke_then_seeded_n5_current_route(
         assert result["scanner_version"] == SCANNER_VERSION
         assert result["corpus_version"] == CORPUS_VERSION
         assert result["seed"] == SEED
-        assert "beaai.local" not in json.dumps(result)
+        serialized = json.dumps(result)
+        assert ".local" not in serialized
+        assert "s3://" not in serialized
+        bundle_ref = result["forensic_bundle_uri"]
+        assert bundle_ref.startswith("/forensic_bundle/")
+        assert {
+            ref["artifact_uri"] for ref in result["evidence_refs"]
+        } == {bundle_ref}
+        fetched = client.get(
+            bundle_ref, headers={"X-Tenant-Id": "tenant-beaaa18652"}
+        )
+        assert fetched.status_code == 200
+        bundle = fetched.json()
+        assert bundle["target_endpoint_host"] == "apichat.syllable.cloud"
+        assert bundle["scan_request"]["credential_ref"] == "<redacted>"
+        assert bundle["evidence"]
+        assert all("prompt_sha256" in row for row in bundle["evidence"])
+        assert all("prompt" not in row for row in bundle["evidence"])
+        evidence_text = json.dumps(bundle["evidence"])
+        assert "fixture@example.com" not in evidence_text
+        assert "415-555-0100" not in evidence_text
+        assert "<redacted-email>" in evidence_text
+        assert "<redacted-phone>" in evidence_text
+        assert client.get(
+            bundle_ref, headers={"X-Tenant-Id": "other-tenant"}
+        ).status_code == 404
 
     totals = [result["are_total"] for result in results]
     assert max(totals) - min(totals) <= 1
     for pillar in results[0]["subscores"]:
         values = [result["subscores"][pillar] for result in results]
         assert max(values) - min(values) <= 1
+
+    # Durable backend retrieval survives an application/store restart.
+    restarted = TestClient(
+        create_app(
+            scan_runtime=runtime,
+            bundles=BundleStore(FileBundleStorage(bundle_dir)),
+        )
+    )
+    assert restarted.get(
+        results[-1]["forensic_bundle_uri"],
+        headers={"X-Tenant-Id": "tenant-beaaa18652"},
+    ).status_code == 200

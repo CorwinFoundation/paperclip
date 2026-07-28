@@ -10,6 +10,7 @@ Each adapter must implement `complete(prompt) -> str` and `model_id()`.
 from __future__ import annotations
 
 import json as _json
+import hashlib
 import os
 import secrets
 import time
@@ -681,9 +682,18 @@ class SyllableRunner(ModelRunner):
         self._label = label or f"syllable:{client_id_key[:8]}"
         self._timeout_s = timeout_s
         self._scan_deadline_monotonic: float | None = None
+        self._live_probe_evidence: list[dict[str, Any]] = []
 
     def model_id(self) -> str:
         return self._label
+
+    def live_probe_evidence(self) -> tuple[dict[str, Any], ...]:
+        """Return secret-free transcript material for the forensic bundle.
+
+        Probe text is proprietary and is represented only by its digest.
+        The public showcase response is retained as the measured material.
+        """
+        return tuple(dict(row) for row in self._live_probe_evidence)
 
     def set_scan_deadline(self, deadline_monotonic: float) -> None:
         """Set the earliest scan-wide deadline for transient retries.
@@ -844,6 +854,16 @@ class SyllableRunner(ModelRunner):
         if isinstance(msg, dict):
             text = msg.get("message")
             if isinstance(text, str):
+                self._live_probe_evidence.append(
+                    {
+                        "kind": "syllable_live_probe_transcript",
+                        "prompt_sha256": "sha256:"
+                        + hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+                        "response": text,
+                        "response_sha256": "sha256:"
+                        + hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                    }
+                )
                 return text
         return ""
 
