@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json as _json
 import os
+import random
 from typing import Any
 from urllib.parse import urlparse
 
@@ -277,7 +278,10 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
 
     TRANSIENT_STATUS_CODES = frozenset({502, 503, 522})
     MAX_TRANSIENT_ATTEMPTS = 3
-    RETRY_BACKOFF_SECONDS = (0.5, 1.0)
+    RETRY_BACKOFF_BASE_SECONDS = 1.0
+    RETRY_JITTER_MIN = 0.5
+    RETRY_JITTER_MAX = 1.5
+    DEFAULT_TIMEOUT_SECONDS = 180.0
 
     def __init__(
         self,
@@ -287,7 +291,9 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
         host_key: str,
         origin: str = "https://webchat.syllable.cloud",
         label: str = "syllable:apichat",
-        timeout_s: float = _REQUEST_TIMEOUT_SECONDS,
+        timeout_s: float = DEFAULT_TIMEOUT_SECONDS,
+        http_attempt_observer: Callable[[dict[str, Any]], None] | None = None,
+        jitter_fn: Callable[[float, float], float] = random.uniform,
     ) -> None:
         super().__init__(
             client_id_key=client_id_key,
@@ -298,6 +304,28 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
             timeout_s=timeout_s,
         )
         self._base_url = base_url.rstrip("/")
+        self._http_attempt_observer = http_attempt_observer
+        self._jitter_fn = jitter_fn
+
+    def _retry_delay(self, completed_attempt: int) -> float:
+        """Return exponential backoff with bounded multiplicative jitter."""
+        base = self.RETRY_BACKOFF_BASE_SECONDS * (2**completed_attempt)
+        return base * self._jitter_fn(
+            self.RETRY_JITTER_MIN,
+            self.RETRY_JITTER_MAX,
+        )
+
+    def _observe_http_attempt(
+        self, *, phase: str, attempt: int, timeout_s: float
+    ) -> None:
+        if self._http_attempt_observer is not None:
+            self._http_attempt_observer(
+                {
+                    "phase": phase,
+                    "attempt": attempt + 1,
+                    "timeout_s": timeout_s,
+                }
+            )
 
     def _headers(self) -> dict[str, str]:
         return {**super()._headers(), "Accept-Encoding": "identity"}
@@ -319,12 +347,18 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
 
         for attempt in range(self.MAX_TRANSIENT_ATTEMPTS):
             try:
+                timeout_s = self._request_timeout_for_deadline()
+                self._observe_http_attempt(
+                    phase=phase,
+                    attempt=attempt,
+                    timeout_s=timeout_s,
+                )
                 with ScopedEgressAllowlist(
                     self._base_url,
                     live_bind_scope_id=egress_session_id,
                 ) as scope:
                     with scope.client(
-                        timeout=self._request_timeout_for_deadline(),
+                        timeout=timeout_s,
                         follow_redirects=False,
                         session_id=egress_session_id,
                     ) as client:
@@ -343,9 +377,7 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
                                 resp.status_code in self.TRANSIENT_STATUS_CODES
                                 and attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
                             ):
-                                self._sleep_with_deadline(
-                                    self.RETRY_BACKOFF_SECONDS[attempt]
-                                )
+                                self._sleep_with_deadline(self._retry_delay(attempt))
                                 continue
                             if resp.status_code >= 400:
                                 raise RunnerError(
@@ -383,7 +415,7 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
                     attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
                     and self._is_transient_transport_error(exc)
                 ):
-                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
+                    self._sleep_with_deadline(self._retry_delay(attempt))
                     continue
                 raise RunnerError(
                     f"syllable {phase} request failed: {exc}"
@@ -394,7 +426,7 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
                     attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
                     and self._is_transient_transport_error(exc)
                 ):
-                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
+                    self._sleep_with_deadline(self._retry_delay(attempt))
                     continue
                 raise RunnerError(
                     f"syllable {phase} request failed: {exc}"
@@ -405,7 +437,7 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
                     attempt < self.MAX_TRANSIENT_ATTEMPTS - 1
                     and self._is_transient_transport_error(exc)
                 ):
-                    self._sleep_with_deadline(self.RETRY_BACKOFF_SECONDS[attempt])
+                    self._sleep_with_deadline(self._retry_delay(attempt))
                     continue
                 raise RunnerError(
                     f"syllable {phase} request failed: {exc}"

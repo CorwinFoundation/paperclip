@@ -200,6 +200,42 @@ def test_apichat_retries_transient_proxy_status(monkeypatch) -> None:
     assert len(session_ids) == 1
 
 
+def test_apichat_uses_180_second_attempt_timeout_and_jittered_backoff(
+    monkeypatch,
+) -> None:
+    sleeps: list[float] = []
+    attempts: list[dict[str, Any]] = []
+    monkeypatch.setattr("time.sleep", sleeps.append)
+
+    def responder(_url, _call, calls):
+        if len(calls) < 3:
+            return _Response(503, {}, reason_phrase="Unavailable")
+        return _Response(200, {"id": "session"})
+
+    calls = _install_fake_scope(monkeypatch, responder)
+    from harness.customer_runner import _SyllableCustomerAgentRunner
+
+    runner = _SyllableCustomerAgentRunner(
+        base_url="https://apichat.syllable.cloud",
+        client_id_key="client",
+        host_key="host",
+        jitter_fn=lambda _low, _high: 1.25,
+        http_attempt_observer=attempts.append,
+    )
+    response = runner._syllable_post(
+        "/api/v1/chats/start_session",
+        phase="start_session",
+        headers=runner._headers(),
+        payload={},
+        egress_session_id="scope",
+    )
+
+    assert response.json() == {"id": "session"}
+    assert [call["timeout"] for call in calls] == [180.0, 180.0, 180.0]
+    assert sleeps == [1.25, 2.5]
+    assert [item["attempt"] for item in attempts] == [1, 2, 3]
+
+
 def test_apichat_retries_transient_proxy_exception(monkeypatch) -> None:
     monkeypatch.setenv("SYLLABLE_CLIENT_ID_KEY", "client-key-fixture")
     monkeypatch.setenv("SYLLABLE_HOST_KEY", "https://syllable.example")
