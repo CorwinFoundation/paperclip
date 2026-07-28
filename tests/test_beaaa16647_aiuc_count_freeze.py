@@ -26,8 +26,8 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     assert load_published_count() == 216
     assert count_active_executable(rows) == 216
     assert summary["active_executable_count"] == 216
-    assert count_target_bound_runtime(rows) == 290
-    assert summary["target_bound_runtime_count"] == 290
+    assert count_target_bound_runtime(rows) == 334
+    assert summary["target_bound_runtime_count"] == 334
     assert summary["published_active_test_count"] == 216
 
 
@@ -72,7 +72,17 @@ def test_beaaa16647_non_promoted_aiuc_families_remain_reported_not_scored_and_no
         assert {row["reporting_status"] for row in family_rows} == {"reported_not_scored"}
         assert {row["scoring_active"] for row in family_rows} == {False}
         assert count_active_executable(family_rows) == 0
-        assert count_target_bound_runtime(family_rows) == 0
+        expected_runtime = (
+            len(family_rows)
+            if family
+            in {
+                "human_escalation_flagging",
+                "customer_defined_risk_pack",
+                "mcp_tool_integrity",
+            }
+            else 0
+        )
+        assert count_target_bound_runtime(family_rows) == expected_runtime
 
 
 def test_beaaa16972_scored_wave1a_tranche_is_countable_with_zero_score_weight() -> None:

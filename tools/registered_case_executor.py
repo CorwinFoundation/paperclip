@@ -252,12 +252,14 @@ class RegisteredCaseExecutor:
         judge: ModelRunner,
         evidence_store: EvidenceStore,
         budget: ScanBudget,
+        target_capabilities: Mapping[str, Any] | None = None,
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
         self.budget = budget
         self.subject = _BudgetedRunner(subject, self.ledger, role="target")
         self.judge = _BudgetedRunner(judge, self.ledger, role="judge")
         self.evidence_store = evidence_store
+        self.target_capabilities = dict(target_capabilities or {})
 
     def manifest_metadata(self) -> dict[str, Any]:
         return {
@@ -309,7 +311,12 @@ class RegisteredCaseExecutor:
         reason: str | None = None
         verdict: str | None = None
         try:
-            outcome = self._execute_case(test_id, case_id, registry_row)
+            outcome = self._execute_case(
+                test_id,
+                case_id,
+                registry_row,
+                surface_seed=int(getattr(job, "surface_seed", job.seed)),
+            )
             evidence.update(outcome)
             verdict = str(outcome.get("verdict") or "unresolved")
         except BudgetExceeded as exc:
@@ -366,6 +373,8 @@ class RegisteredCaseExecutor:
         test_id: str,
         case_id: str,
         registry_row: Mapping[str, Any],
+        *,
+        surface_seed: int = 0,
     ) -> dict[str, Any]:
         source = REPO_ROOT / str(registry_row["source_pack"])
         if test_id == "p1_1_factuality_golden":
@@ -485,6 +494,15 @@ class RegisteredCaseExecutor:
                 verdict_override=None,
             )
 
+        if test_id in {
+            "human_escalation_flagging",
+            "customer_defined_risk_pack",
+            "mcp_tool_integrity",
+        }:
+            return self._execute_aiuc_lane_c_case(
+                test_id, case_id, surface_seed=surface_seed
+            )
+
         from tools.text_case_materializer import (
             is_text_compatible_test,
             materialize_text_case,
@@ -517,6 +535,57 @@ class RegisteredCaseExecutor:
             )
 
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
+
+    def _execute_aiuc_lane_c_case(
+        self, test_id: str, case_id: str, *, surface_seed: int
+    ) -> dict[str, Any]:
+        from evals.aiuc_path_b import base
+        from evals.aiuc_path_b.manifest import FAMILY_MODULES
+
+        module = FAMILY_MODULES[test_id]
+        spec = module.SPEC
+        case = next((item for item in spec.cases if item.case_id == case_id), None)
+        if case is None:
+            raise KeyError(f"case not found in AIUC family: {test_id}:{case_id}")
+
+        if test_id == "mcp_tool_integrity" and not _declares_mcp_or_a2a(
+            self.target_capabilities
+        ):
+            return _case_outcome(
+                payloads=[],
+                responses=[],
+                judge={
+                    "type": "deterministic_applicability_gate",
+                    "applicable": False,
+                    "reason": "target_did_not_declare_mcp_or_a2a",
+                },
+                score=None,
+                expected=dict(case.oracle),
+                verdict="not_applicable",
+            )
+
+        prompt = base.surface_seed_phrasing(case, surface_seed)
+        decision_prompt = (
+            f"{prompt}\n\nReturn only a JSON object containing the boolean field "
+            f"{_aiuc_decision_field(test_id)!r} and a short rationale."
+        )
+        raw = self.subject.complete(decision_prompt)
+        decision = _parse_json_object(raw)
+        verdict = str(spec.grader(case, decision)).lower()
+        score = 1.0 if verdict == "pass" else 0.0
+        return _case_outcome(
+            payloads=[decision_prompt],
+            responses=[raw],
+            judge={
+                "type": "deterministic_aiuc_lane_c_grader",
+                "decision": decision,
+                "applicable": True,
+                "surface_seed": surface_seed,
+            },
+            score=score,
+            expected=dict(case.oracle),
+            verdict=verdict,
+        )
 
 
 def default_judge_runner() -> ModelRunner:
@@ -573,6 +642,7 @@ def build_registered_case_workers(
         judge=judge_builder(),
         evidence_store=EvidenceStore(root),
         budget=budget or ScanBudget.from_env(),
+        target_capabilities=_target_capabilities(scan_request),
     )
     return {worker_id: executor for worker_id in WORKERS}
 
@@ -596,6 +666,41 @@ def _insecure_code_generation_applicable(registry_row: Mapping[str, Any]) -> boo
     if isinstance(gate, Mapping):
         return bool(gate.get("applicable"))
     return False
+
+
+def _target_capabilities(scan_request: Any) -> dict[str, Any]:
+    context = getattr(scan_request, "invocation_context", None)
+    if not isinstance(context, Mapping):
+        return {}
+    for key in ("target_capabilities", "architecture_flags", "capabilities"):
+        value = context.get(key)
+        if isinstance(value, Mapping):
+            return dict(value)
+    return {}
+
+
+def _declares_mcp_or_a2a(capabilities: Mapping[str, Any]) -> bool:
+    return any(
+        capabilities.get(key) is True
+        for key in (
+            "has_mcp_tool_integration",
+            "has_a2a_tool_integration",
+            "declares_mcp",
+            "declares_a2a",
+        )
+    )
+
+
+def _aiuc_decision_field(test_id: str) -> str:
+    from evals.aiuc_path_b import customer_defined_risk_pack as risk_pack
+    from evals.aiuc_path_b import human_escalation_flagging as escalation
+    from evals.aiuc_path_b import mcp_tool_integrity as mcp
+
+    return {
+        "human_escalation_flagging": escalation.ESCALATE_FIELD,
+        "customer_defined_risk_pack": risk_pack.FLAG_FIELD,
+        "mcp_tool_integrity": mcp.REJECT_FIELD,
+    }[test_id]
 
 
 def _judge_materialized_text_case(

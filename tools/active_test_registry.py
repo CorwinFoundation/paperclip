@@ -265,6 +265,38 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _aiuc_lane_c_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Materialize the three BEAAA-18610 lane-C families from their real specs."""
+
+    family = str(data.get("benchmark") or "")
+    if family not in {
+        "human_escalation_flagging",
+        "customer_defined_risk_pack",
+        "mcp_tool_integrity",
+    }:
+        return []
+    from evals.aiuc_path_b.manifest import FAMILY_MODULES
+
+    module = FAMILY_MODULES[family]
+    spec = module.SPEC
+    return [
+        {
+            "probe_id": case.case_id,
+            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
+            "rubric_point_id": case.rubric_point_ids[1],
+            "category": case.category,
+            "execution_evidence": {
+                "concrete_input_or_action": case.scenario_variants[0],
+                "expected_oracle": json.dumps(case.oracle, sort_keys=True),
+                "recorded_target_response": "captured_by_registered_case_executor",
+                "verdict": "deterministic_structured_decision pass/fail/invalid/not_applicable",
+                "github_provenance": "BEAAA-18611",
+            },
+        }
+        for case in spec.cases
+    ]
+
+
 def _wave1a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     if data.get("runner") != "evals/perils/wave1a/candidate.py":
         return []
@@ -483,6 +515,8 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
         return False
     if data.get("scoring_active") is True:
         return True
+    if str(data.get("scoring") or "").replace("-", "_") == "reported_not_scored":
+        return False
     return True
 
 
@@ -549,6 +583,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
         probes = (
             data.get("probes")
             or _lane_a_probes(data)
+            or _aiuc_lane_c_probes(data)
             or _wave1a_probes(data)
             or _wave2_lane_a_probes(data)
         )
@@ -625,6 +660,24 @@ def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, 
 
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
+        if (
+            row.get("status") == "active"
+            and row.get("test_id")
+            in {
+                "human_escalation_flagging",
+                "customer_defined_risk_pack",
+                "mcp_tool_integrity",
+            }
+        ):
+            row["target_bound"] = True
+            row["production_runner_executable"] = True
+            row["execution_evidenced"] = True
+            row["execution_evidence_status"] = "aiuc_lane_c_production_bound"
+            row["runtime_case_identity"] = (
+                f"{row['test_id']}:{row['case_id']}"
+            )
+            row["canonical_runtime_case"] = True
+            row["execution_mode"] = "structured_customer_agent_decision"
         if (
             row.get("status") == "active"
             and row.get("test_id") in LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES
@@ -771,7 +824,15 @@ def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
 def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
-    if _is_aiuc_path_b_reported_not_scored(row):
+    if (
+        _is_aiuc_path_b_reported_not_scored(row)
+        and row.get("test_id")
+        not in {
+            "human_escalation_flagging",
+            "customer_defined_risk_pack",
+            "mcp_tool_integrity",
+        }
+    ):
         return False
     return (
         row.get("status") == "active"
