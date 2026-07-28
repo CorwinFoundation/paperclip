@@ -221,6 +221,9 @@ def create_app(
         from .scan_runtime_factory import make_default_production_scan_runtime
         scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
+    bundle_binder = getattr(app.state.scan_runtime, "bind_bundle_store", None)
+    if callable(bundle_binder):
+        bundle_binder(app.state.bundles)
     validate_runtime_environment(
         profile=runtime_profile,
         bundles=app.state.bundles,

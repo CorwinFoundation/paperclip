@@ -60,6 +60,7 @@ from api.full_scan_executor import (
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
 from api.handlers import HandlerError, verify_tenant_isolation
 from api import production_controls
+from api.bundle import BundleStore, new_opaque_bundle_id
 from api.scan_log import ScanLog
 from api.sla import (
     Clock,
@@ -85,9 +86,28 @@ from scanners.live_probe_orchestrator import (
 
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
+_EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+_PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}(?!\d)")
 _HOSTNAME_RE = re.compile(
     r"^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$"
 )
+
+
+def _scrub_live_probe_evidence(
+    records: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Redact common direct identifiers without retaining proprietary prompts."""
+
+    def scrub(value: Any) -> Any:
+        if isinstance(value, str):
+            return _PHONE_RE.sub("<redacted-phone>", _EMAIL_RE.sub("<redacted-email>", value))
+        if isinstance(value, Mapping):
+            return {str(key): scrub(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [scrub(item) for item in value]
+        return value
+
+    return [scrub(dict(record)) for record in records]
 _CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
@@ -307,6 +327,7 @@ class ScanRuntime:
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
         score_envelope_factory: ScoreEnvelopeFactory | None = None,
+        bundle_store: BundleStore | None = None,
         production_control_ledger: production_controls.ProductionControlLedger | None = None,
         production_security_findings_source: ProductionSecurityFindingsSource | None = None,
         in_memory_state_ttl_seconds: float = DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS,
@@ -356,6 +377,7 @@ class ScanRuntime:
             forensic_bundle_uri_factory or _default_forensic_bundle_uri
         )
         self._score_envelope_factory = score_envelope_factory
+        self._bundle_store = bundle_store
         self._production_control_ledger = production_control_ledger
         self._production_security_findings_source = production_security_findings_source
         # Tracks the (agent_id, run_timestamp) of the current kickoff so the
@@ -379,6 +401,10 @@ class ScanRuntime:
 
     def _now(self) -> float:
         return float(self._monotonic_clock())
+
+    def bind_bundle_store(self, bundle_store: BundleStore) -> None:
+        """Bind the API-owned evidence store before accepting live scans."""
+        self._bundle_store = bundle_store
 
     def _purge_expired_in_memory_state(self) -> None:
         cutoff = self._now() - self._in_memory_state_ttl_seconds
@@ -558,12 +584,44 @@ class ScanRuntime:
                 and self._score_envelope_factory is not None
             ):
                 run_timestamp = self._run_timestamp_factory()
-                forensic_bundle_uri = self._forensic_bundle_uri_factory(
-                    agent_id, scan_request.scan_id
-                )
                 score_envelope = self._score_envelope_factory(
                     result, agent_id, run_timestamp
                 )
+                forensic_bundle_uri = self._forensic_bundle_uri_factory(
+                    agent_id, scan_request.scan_id
+                )
+                if self._bundle_store is not None and result.evidence_records:
+                    bundle_id = new_opaque_bundle_id()
+                    forensic_bundle_uri = f"/forensic_bundle/{bundle_id}"
+                    evidence = _scrub_live_probe_evidence(result.evidence_records)
+                    self._bundle_store.build(
+                        bundle_id=bundle_id,
+                        tenant_id=scan_request.tenant_id,
+                        snapshot_hash=scan_request.corpus_snapshot_hash,
+                        evidence=evidence,
+                        scan_request={
+                            "scan_id": scan_request.scan_id,
+                            "tenant_id": scan_request.tenant_id,
+                            "credential_ref": scan_request.credential_ref,
+                            "scanner_version": scan_request.scanner_version,
+                            "corpus_version": scan_request.corpus_version,
+                            "seed": scan_request.seed,
+                        },
+                        prober_version=result.scanner_version,
+                        target_endpoint_url=scan_request.agent_endpoint,
+                    )
+                    if (
+                        self._bundle_store.get(
+                            bundle_id, tenant_id=scan_request.tenant_id
+                        )
+                        is None
+                    ):
+                        raise OrchestratorError(
+                            "live_probe_evidence_readback_failed"
+                        )
+                    for ref in score_envelope.get("evidence_refs", []):
+                        if isinstance(ref, dict):
+                            ref["artifact_uri"] = forensic_bundle_uri
                 # BEAAA-11726 item 4 — compute probe_set_hash from the
                 # dim_ids that ran and persist it write-once with the row.
                 _psh = (
