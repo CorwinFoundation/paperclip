@@ -30,6 +30,7 @@ class ReleaseIdentity:
     rubric_version: str
     contract_version: str
     api_app_version: str
+    model_versions: dict[str, Any]
     build_sha: str | None
     release_tag: str | None
 
@@ -47,7 +48,7 @@ def _read_manifest(path: Path) -> tuple[dict[str, Any], bytes]:
 
 def load_release_identity(path: Path = MANIFEST_PATH) -> ReleaseIdentity:
     value, _ = _read_manifest(path)
-    required = ("scanner_version", "corpus_version", "rubric_version", "contract_version", "api_app_version", "build_sha", "release_tag")
+    required = ("scanner_version", "corpus_version", "rubric_version", "contract_version", "api_app_version", "model_versions", "build_sha", "release_tag")
     missing = [field for field in required if field not in value]
     if value.get("schema_version") != 2 or missing:
         raise ReleaseManifestError(f"schema_version must be 2; missing fields: {missing}")
@@ -56,6 +57,16 @@ def load_release_identity(path: Path = MANIFEST_PATH) -> ReleaseIdentity:
             raise ReleaseManifestError(f"{field} must be X.Y.Z")
     if not isinstance(value["contract_version"], str) or not CONTRACT_RE.fullmatch(value["contract_version"]):
         raise ReleaseManifestError("contract_version is invalid")
+    model_versions = value["model_versions"]
+    if (
+        not isinstance(model_versions, dict)
+        or not isinstance(model_versions.get("primary"), str)
+        or not model_versions["primary"]
+        or not isinstance(model_versions.get("judges"), list)
+        or not model_versions["judges"]
+        or not all(isinstance(judge, str) and judge for judge in model_versions["judges"])
+    ):
+        raise ReleaseManifestError("model_versions must include primary and non-empty judges")
     if value["build_sha"] is not None and (
         not isinstance(value["build_sha"], str) or not SHA_RE.fullmatch(value["build_sha"])
     ):
@@ -98,6 +109,10 @@ def validate_repository(root: Path, *, build_sha: str, tag: str | None = None) -
         "runtime": (root / "scanners" / "__init__.py", "from release_identity import RELEASE_IDENTITY"),
         "api": (root / "api" / "app.py", "RELEASE_IDENTITY.api_app_version"),
         "cli": (root / "bin" / "are-scan", "RELEASE_IDENTITY.scanner_version"),
+        "fixture_entrypoint": (
+            root / "tools" / "backbond-scanner",
+            "RELEASE_IDENTITY.model_versions",
+        ),
         "portal": (root / "tools" / "portal_v1" / "portal.py", "from release_identity import RELEASE_IDENTITY"),
         "container": (root / "Dockerfile", "ai.backbond.release.manifest-sha256"),
         "deploy": (
@@ -121,6 +136,7 @@ def release_identity_evidence(root: Path, *, build_sha: str, tag: str | None = N
         "rubric_version": identity.rubric_version,
         "contract_version": identity.contract_version,
         "api_app_version": identity.api_app_version,
+        "model_versions": identity.model_versions,
         "build_sha": build_sha,
         "release_tag": tag if tag is not None else identity.release_tag,
         "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),

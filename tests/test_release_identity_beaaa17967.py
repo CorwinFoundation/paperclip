@@ -26,6 +26,10 @@ class ReleaseIdentityTest(unittest.TestCase):
         self.assertEqual(evidence["rubric_version"], "1.3.0")
         self.assertEqual(evidence["contract_version"], "are-scanner-api-v1@v1.3.0")
         self.assertEqual(evidence["api_app_version"], "1.1.0")
+        self.assertEqual(
+            evidence["model_versions"]["primary"],
+            "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0",
+        )
         self.assertEqual(evidence["build_sha"], SHA)
         self.assertIsNone(evidence["release_tag"])
         self.assertRegex(evidence["manifest_sha256"], r"^[0-9a-f]{64}$")
@@ -52,6 +56,7 @@ class ReleaseIdentityTest(unittest.TestCase):
             "scanners/__init__.py",
             "api/app.py",
             "bin/are-scan",
+            "tools/backbond-scanner",
             "tools/portal_v1/portal.py",
             "Dockerfile",
             "scripts/backbond_deploy_agent.py",
@@ -67,6 +72,11 @@ class ReleaseIdentityTest(unittest.TestCase):
             "runtime": ("scanners/__init__.py", "from release_identity import RELEASE_IDENTITY", "# drift"),
             "api": ("api/app.py", "RELEASE_IDENTITY.api_app_version", '"1.1.0"'),
             "cli": ("bin/are-scan", "RELEASE_IDENTITY.scanner_version", '"0.5.0"'),
+            "fixture_entrypoint": (
+                "tools/backbond-scanner",
+                "RELEASE_IDENTITY.model_versions",
+                '{"primary": "drift", "judges": ["drift"]}',
+            ),
             "portal": ("tools/portal_v1/portal.py", "from release_identity import RELEASE_IDENTITY", "# drift"),
             "container": ("Dockerfile", "ai.backbond.release.manifest-sha256", "drift.label"),
             "deploy": (

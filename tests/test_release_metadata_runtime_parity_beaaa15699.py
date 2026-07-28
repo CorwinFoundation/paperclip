@@ -4,15 +4,14 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
+from release_identity import RELEASE_IDENTITY
 from scanners import CONTRACT_VERSION, SCANNER_VERSION
 from scripts.beaaa6190_v05_rc_n5 import CONTRACT_REFERENCES
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE_METADATA = ROOT / "scanner-os" / "release-metadata.toml"
 ENTRYPOINT = ROOT / "tools" / "backbond-scanner"
 FIXTURE = ROOT / "tools" / "backbond-scanner-fixtures" / "sample_agent_fixture.json"
 GOLDEN_ROOT = ROOT / "tests" / "fixtures" / "golden_agents"
@@ -20,7 +19,12 @@ N5_REPORT = ROOT / "tools" / "calibration-deltas" / "2026-06-22-beaaa6190-v05-rc
 
 
 def _manifest() -> dict:
-    return tomllib.loads(RELEASE_METADATA.read_text(encoding="utf-8"))["scanner"]
+    return {
+        "scanner_version": RELEASE_IDENTITY.scanner_version,
+        "corpus_version": RELEASE_IDENTITY.corpus_version,
+        "contract": RELEASE_IDENTITY.contract_version,
+        "model_versions": RELEASE_IDENTITY.model_versions,
+    }
 
 
 def test_runtime_constants_match_immutable_release_manifest() -> None:

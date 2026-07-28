@@ -17,17 +17,14 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python <3.11 is unsupported here.
-    tomllib = None
-
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from release_identity import RELEASE_IDENTITY
+
 DEFAULT_FIXTURE = ROOT / "tools" / "backbond-scanner-fixtures" / "sample_agent_fixture.json"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "backbond-scanner-sample-score.json"
 DEFAULT_EVIDENCE_STORE = ROOT / "tools" / "evidence-store" / "production"
-RELEASE_METADATA = ROOT / "scanner-os" / "release-metadata.toml"
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
 REQUIRED_EVIDENCE_FIELDS = ("rubric_point_id", "test_id", "artifact_uri", "verdict", "weight")
 SCORE_INTEGRITY_EXTENSION_VERSION = "v1.6.0"
@@ -143,23 +140,12 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _load_release_metadata() -> dict:
-    if tomllib is None:
-        raise EntrypointError("Python 3.11+ is required because tomllib is unavailable")
-    if not RELEASE_METADATA.is_file():
-        raise EntrypointError(f"release metadata not found: {RELEASE_METADATA}")
-    metadata = tomllib.loads(RELEASE_METADATA.read_text(encoding="utf-8"))
-    scanner = metadata.get("scanner")
-    if not isinstance(scanner, dict):
-        raise EntrypointError("release metadata missing [scanner] table")
-    for key in ("scanner_version", "corpus_version", "contract", "model_versions"):
-        if key not in scanner:
-            raise EntrypointError(f"release metadata missing scanner.{key}")
-    model_versions = scanner["model_versions"]
-    if not isinstance(model_versions, dict) or "primary" not in model_versions or "judges" not in model_versions:
-        raise EntrypointError("release metadata scanner.model_versions must include primary and judges")
-    if not isinstance(model_versions["judges"], list):
-        raise EntrypointError("release metadata scanner.model_versions.judges must be a list")
-    return scanner
+    return {
+        "scanner_version": RELEASE_IDENTITY.scanner_version,
+        "corpus_version": RELEASE_IDENTITY.corpus_version,
+        "contract": RELEASE_IDENTITY.contract_version,
+        "model_versions": RELEASE_IDENTITY.model_versions,
+    }
 
 
 def _load_fixture(path: Path) -> dict:

@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from release_identity import RELEASE_IDENTITY
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "tools" / "backbond-scanner"
@@ -49,8 +50,8 @@ def test_backbond_scanner_entrypoint_writes_v1_contract_shape(tmp_path: Path) ->
     assert score["are_total"] == 59.0
     assert score["band"] == "C"
     assert set(score["subscores"]) == {"GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS"}
-    assert score["scanner_version"] == "0.5.0"
-    assert score["corpus_version"] == "2026.6.24"
+    assert score["scanner_version"] == RELEASE_IDENTITY.scanner_version
+    assert score["corpus_version"] == RELEASE_IDENTITY.corpus_version
     assert score["model_versions"]["primary"]
     assert isinstance(score["model_versions"]["judges"], list)
     assert score["seed"] == 0
@@ -77,9 +78,9 @@ def test_backbond_scanner_version_command_reports_release_pins() -> None:
     )
     assert completed.returncode == 0, completed.stderr
     pins = json.loads(completed.stdout)
-    assert pins["scanner_version"] == "0.5.0"
-    assert pins["corpus_version"] == "2026.6.24"
-    assert pins["contract_version"] == "are-scanner-api-v1@v1.3.0"
+    assert pins["scanner_version"] == RELEASE_IDENTITY.scanner_version
+    assert pins["corpus_version"] == RELEASE_IDENTITY.corpus_version
+    assert pins["contract_version"] == RELEASE_IDENTITY.contract_version
 
 
 def test_backbond_scanner_rejects_confidence_above_contract_range(tmp_path: Path) -> None:
