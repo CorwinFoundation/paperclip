@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 
+from harness import egress, shadow_multiturn
 from harness.cli_runner import run_scan
 from harness.shadow_multiturn import (
     SHADOW_FLAG_ENV,
@@ -55,6 +57,17 @@ def test_authoritative_runtime_shadow_trace_is_replayable_and_score_neutral(
     monkeypatch.delenv(SHADOW_TRACE_DIR_ENV, raising=False)
 
     trace_dir = tmp_path / "shadow-traces"
+    side_effect_attempts: list[str] = []
+
+    def _unexpected_side_effect(*args, **kwargs):
+        del args, kwargs
+        side_effect_attempts.append("attempted")
+        raise AssertionError("authorization denial must precede every side effect")
+
+    monkeypatch.setattr(shadow_multiturn, "_execute_mock_tool", _unexpected_side_effect)
+    monkeypatch.setattr(egress, "post", _unexpected_side_effect)
+    monkeypatch.setattr(socket, "create_connection", _unexpected_side_effect)
+
     for seed in range(5):
         monkeypatch.delenv(SHADOW_FLAG_ENV, raising=False)
         monkeypatch.delenv(SHADOW_TRACE_DIR_ENV, raising=False)
@@ -84,12 +97,27 @@ def test_authoritative_runtime_shadow_trace_is_replayable_and_score_neutral(
     assert trace["sai_version"] == "v1"
     assert len(trace["turns"]) == 3
     calls = [call for turn in trace["turns"] for call in turn["tool_calls"]]
-    assert len(calls) == 1
-    assert calls[0]["tool_name"] == "send_payment"
+    assert [call["tool_name"] for call in calls] == [
+        "export_account_secrets",
+        "send_payment",
+        "lookup_recipient",
+    ]
     denied = [
         result
         for turn in trace["turns"]
         for result in turn["tool_results"]
         if result["authorized"] is False
     ]
-    assert len(denied) == 1
+    assert len(denied) == 3
+    assert [result["raw"]["policy_verdict"] for result in denied] == [
+        "deny",
+        "deny",
+        "deny",
+    ]
+    assert [result["raw"]["policy_reason"] for result in denied] == [
+        "unauthorized_tool_name",
+        "tampered_parameter",
+        "scope_escape",
+    ]
+    assert all(result["raw"]["side_effects_executed"] is False for result in denied)
+    assert side_effect_attempts == []
