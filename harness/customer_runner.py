@@ -42,13 +42,11 @@ from __future__ import annotations
 
 import json as _json
 import os
-import secrets
-import time
 from typing import Any
 from urllib.parse import urlparse
 
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
-from harness.runner import ModelRunner, RunnerError
+from harness.runner import ModelRunner, RunnerError, SyllableRunner
 
 
 _MAX_RESPONSE_BYTES: int = 256 * 1024
@@ -268,7 +266,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         return text
 
 
-class _SyllableCustomerAgentRunner(ModelRunner):
+class _SyllableCustomerAgentRunner(SyllableRunner):
     """Hardened customer-path runner for Syllable apichat.
 
     Syllable's public apichat surface requires public Syllable headers and a
@@ -291,87 +289,32 @@ class _SyllableCustomerAgentRunner(ModelRunner):
         label: str = "syllable:apichat",
         timeout_s: float = _REQUEST_TIMEOUT_SECONDS,
     ) -> None:
-        if not client_id_key or not host_key:
-            raise RunnerError("Syllable customer runner requires Syllable headers")
-        self._base_url = base_url.rstrip("/")
-        self._client_id_key = client_id_key
-        self._host_key = host_key
-        self._origin = origin
-        self._label = label
-        self._timeout_s = timeout_s
-        self._scan_deadline_monotonic: float | None = None
-
-    def model_id(self) -> str:
-        return self._label
-
-    def set_scan_deadline(self, deadline_monotonic: float) -> None:
-        if self._scan_deadline_monotonic is None:
-            self._scan_deadline_monotonic = deadline_monotonic
-            return
-        self._scan_deadline_monotonic = min(
-            self._scan_deadline_monotonic,
-            deadline_monotonic,
+        super().__init__(
+            client_id_key=client_id_key,
+            host_key=host_key,
+            base_url=base_url,
+            origin=origin,
+            label=label,
+            timeout_s=timeout_s,
         )
+        self._base_url = base_url.rstrip("/")
 
     def _headers(self) -> dict[str, str]:
-        return {
-            "Content-Type": "application/json",
-            "Accept-Encoding": "identity",
-            "Syllable-Client-Id-Key": self._client_id_key,
-            "Syllable-Host-Key": self._host_key,
-            "Origin": self._origin,
-        }
+        return {**super()._headers(), "Accept-Encoding": "identity"}
 
-    @staticmethod
-    def _is_transient_transport_error(exc: Exception) -> bool:
-        message = str(exc).lower()
-        return any(
-            token in message
-            for token in (
-                "522",
-                "502",
-                "503",
-                "unexpected_eof",
-                "eof occurred in violation of protocol",
-                "connection reset",
-                "readtimeout",
-                "connecttimeout",
-                "pooltimeout",
-                "timed out",
-                "timeout",
-            )
-        )
-
-    def _request_timeout_for_deadline(self) -> float:
-        if self._scan_deadline_monotonic is None:
-            return self._timeout_s
-        remaining = self._scan_deadline_monotonic - time.monotonic()
-        if remaining <= 0:
-            raise RunnerError("syllable scan deadline exceeded")
-        return max(0.1, min(self._timeout_s, remaining))
-
-    def _sleep_with_deadline(self, seconds: float) -> None:
-        if self._scan_deadline_monotonic is None:
-            time.sleep(seconds)
-            return
-        remaining = self._scan_deadline_monotonic - time.monotonic()
-        if remaining <= 0:
-            raise RunnerError("syllable scan deadline exceeded")
-        time.sleep(min(seconds, remaining))
-
-    def _post_json(
+    def _syllable_post(
         self,
         path: str,
         *,
         phase: str,
+        headers: dict[str, str],
         payload: dict[str, Any],
         egress_session_id: str,
-    ) -> dict[str, Any]:
+    ) -> Any:
         import httpx  # type: ignore
 
         url = f"{self._base_url}{path}"
         body_bytes = _json.dumps(payload).encode("utf-8")
-        headers = self._headers()
         last_exc: Exception | None = None
 
         for attempt in range(self.MAX_TRANSIENT_ATTEMPTS):
@@ -468,48 +411,22 @@ class _SyllableCustomerAgentRunner(ModelRunner):
                     f"syllable {phase} request failed: {exc}"
                 ) from exc
 
-            text = raw.decode("utf-8", errors="replace")
-            try:
-                parsed = _json.loads(text)
-            except _json.JSONDecodeError as exc:
-                raise RunnerError(
-                    f"syllable {phase} response not JSON: {text[:300]}"
-                ) from exc
-            if not isinstance(parsed, dict):
-                raise RunnerError(
-                    f"syllable {phase} response not JSON object: {text[:300]}"
-                )
-            return parsed
+            return _BufferedResponse(resp.status_code, raw)
 
         if last_exc is not None:
             raise RunnerError(f"syllable {phase} request failed: {last_exc}") from last_exc
         raise RunnerError(f"syllable {phase} request failed without response")
 
-    def complete(self, prompt: str) -> str:
-        egress_session_id = secrets.token_hex(8)
-        session = self._post_json(
-            "/api/v1/chats/start_session",
-            phase="start_session",
-            payload={},
-            egress_session_id=egress_session_id,
-        )
-        session_id = session.get("id")
-        if not session_id:
-            raise RunnerError(
-                f"syllable start_session missing id: {str(session)[:300]}"
-            )
-        body = self._post_json(
-            "/api/v1/chats/send_message",
-            phase="send_message",
-            payload={"session_id": session_id, "message": prompt},
-            egress_session_id=egress_session_id,
-        )
-        msg = body.get("message")
-        if isinstance(msg, dict):
-            text = msg.get("message")
-            if isinstance(text, str):
-                return text
-        return ""
+class _BufferedResponse:
+    """Small response facade consumed by the retained SyllableRunner."""
+
+    def __init__(self, status_code: int, raw: bytes) -> None:
+        self.status_code = status_code
+        self._raw = raw
+        self.text = raw.decode("utf-8", errors="replace")
+
+    def json(self) -> Any:
+        return _json.loads(self.text)
 
 
 def customer_agent_http_runner_factory(
