@@ -288,9 +288,19 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
-def collect_live(evidence_dir: Path, ledger: CheckpointLedger) -> dict[tuple[int, str], dict[str, Any]]:
+def collect_live(
+    evidence_dir: Path,
+    ledger: CheckpointLedger,
+    max_seconds: float | None = None,
+) -> dict[tuple[int, str], dict[str, Any]]:
+    """Execute unfinalized family-seeds. If ``max_seconds`` is set, stop
+    cleanly at a family-seed BOUNDARY once the soft budget is exceeded — never
+    mid-family — so an interrupted heartbeat wastes zero unmanifested HTTP
+    attempts. The caller resumes finalized family-seeds on the next run.
+    """
     import importlib
 
+    started = time.time()
     families = load_family_probes()
 
     # Resume baseline: target calls already spent by finalized family-seeds.
@@ -312,6 +322,11 @@ def collect_live(evidence_dir: Path, ledger: CheckpointLedger) -> dict[tuple[int
             if fs_path.exists():  # resume: finalized, skip (no re-run, no reuse)
                 results[(seed, test_id)] = json.loads(fs_path.read_text())
                 continue
+            # Soft per-invocation budget: stop at this clean boundary if the
+            # budget is spent (checked only BEFORE starting an unfinalized
+            # family-seed, so no partial family-seed is ever abandoned).
+            if max_seconds is not None and (time.time() - started) >= max_seconds:
+                return results
             # Guard target-call budget before starting this family-seed.
             need = EXPECTED_CASE_COUNTS[test_id] * TARGET_CALLS_PER_CASE[test_id]
             if subject.target_calls + need > CAP_TARGET_CALLS:
@@ -510,6 +525,13 @@ def main() -> int:
         default=str(REPO / "artifacts" / "beaaa-18671" / "n5_run"),
     )
     ap.add_argument("--iso-timestamp", default=None, help="scored_at ISO-8601 (UTC)")
+    ap.add_argument(
+        "--max-seconds",
+        type=float,
+        default=None,
+        help="soft per-invocation budget (live); stop at family-seed boundary "
+        "and exit resumable if not all 20 are finalized",
+    )
     args = ap.parse_args()
 
     out_dir = Path(args.out)
@@ -534,8 +556,27 @@ def main() -> int:
             max_http_attempts=CAP_HTTP_ATTEMPTS,
             max_wall_seconds=CAP_WALL_SECONDS,
         )
-        results = collect_live(evidence_dir, ledger)
+        results = collect_live(evidence_dir, ledger, max_seconds=args.max_seconds)
         http_attempts = ledger.state.get("http_attempts", 0)
+        # Only score+publish once ALL 20 family-seeds are finalized. Otherwise
+        # this was a bounded resumable slice — report progress and exit cleanly.
+        finalized = len(results)
+        total = len(SEEDS) * len(FAMILIES)
+        if finalized < total:
+            print(json.dumps({
+                "mode": "live",
+                "phase": "incomplete_resumable",
+                "finalized_family_seeds": finalized,
+                "total_family_seeds": total,
+                "http_attempts_used": http_attempts,
+                "target_calls_spent_est": sum(
+                    r["case_count"] * TARGET_CALLS_PER_CASE[r["test_id"]]
+                    for r in results.values()
+                ),
+                "elapsed_seconds": round(time.time() - t0, 2),
+                "out": str(out_dir),
+            }, indent=2, sort_keys=True))
+            return 0
     else:
         results = collect_synthetic(evidence_dir)
         http_attempts = 0
