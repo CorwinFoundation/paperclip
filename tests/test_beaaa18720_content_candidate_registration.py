@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 import copy
 import json
+import subprocess
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -31,6 +32,15 @@ from tools.registered_case_executor import (
     RegisteredCaseExecutor,
     ScanBudget,
 )
+
+
+def _candidate_sha() -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
 
 def test_accepted_inventory_fails_closed_on_count_hash_and_uniqueness() -> None:
@@ -130,7 +140,7 @@ def test_candidate_adapter_calls_target_and_pinned_judge(tmp_path: Path) -> None
 def test_allowlisted_candidate_executes_n5_measured_observation(
     tmp_path: Path, monkeypatch
 ) -> None:
-    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    sha = _candidate_sha()
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
     row = next(
@@ -178,7 +188,7 @@ def test_allowlisted_candidate_executes_n5_measured_observation(
 def test_production_worker_call_persists_isolated_observation(
     tmp_path: Path, monkeypatch
 ) -> None:
-    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    sha = _candidate_sha()
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
     row = next(
@@ -259,7 +269,7 @@ def test_production_worker_call_persists_isolated_observation(
 def test_nonallowlisted_candidate_cannot_forge_measured_permission(
     tmp_path: Path, monkeypatch
 ) -> None:
-    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    sha = _candidate_sha()
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
     row = next(
@@ -300,7 +310,7 @@ def test_nonallowlisted_candidate_cannot_forge_measured_permission(
 def test_divergent_n5_is_incomplete_not_min_aggregated(
     tmp_path: Path, monkeypatch
 ) -> None:
-    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    sha = _candidate_sha()
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
     row = next(
@@ -344,7 +354,7 @@ def test_divergent_n5_is_incomplete_not_min_aggregated(
 def test_missing_capability_manifest_is_na_before_any_model_call(
     tmp_path: Path, monkeypatch
 ) -> None:
-    sha = "5541d9b34e7efa7e570b45c80b7fbc0098b45517"
+    sha = _candidate_sha()
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
     row = next(
