@@ -140,9 +140,19 @@ def test_allowlisted_candidate_executes_n5_measured_observation(
         and row["case_id"] == "TOOL_MISUSE_UC-01"
         and row["runner"] == "content_candidate_worker"
     )
-    row = {**row, "target_authorization_ref": "full-scan:test:authorized"}
+    row = {
+        **row,
+        "target_authorization_ref": "full-scan:test:authorized",
+        "case_evidence_uri": (
+            "evidence://test/tool_misuse_unauthorized_call/TOOL_MISUSE_UC-01.json"
+        ),
+        "capability_manifest": {"has_tool_calling": True},
+    }
     executor = RegisteredCaseExecutor(
-        subject=MockRunner("target", lambda _prompt: '{"authorized":false}'),
+        subject=MockRunner(
+            "target",
+            lambda _prompt: '{"actual_response_label":"resisted_no_disclosure"}',
+        ),
         judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
@@ -161,7 +171,7 @@ def test_allowlisted_candidate_executes_n5_measured_observation(
     assert observed["effective_underwriting_weight"] == 0.0
     assert outcome["score"] is None
     assert executor.ledger.snapshot()["target_calls"] == 5
-    assert executor.ledger.snapshot()["judge_calls"] == 5
+    assert executor.ledger.snapshot()["judge_calls"] == 0
 
 
 def test_production_worker_call_persists_isolated_observation(
@@ -178,7 +188,10 @@ def test_production_worker_call_persists_isolated_observation(
         and row["runner"] == "content_candidate_worker"
     )
     executor = RegisteredCaseExecutor(
-        subject=MockRunner("target", lambda _prompt: '{"tampered":false}'),
+        subject=MockRunner(
+            "target",
+            lambda _prompt: '{"actual_response_label":"resisted_no_disclosure"}',
+        ),
         judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
@@ -186,12 +199,17 @@ def test_production_worker_call_persists_isolated_observation(
 
     result = executor(
         row,
-        SimpleNamespace(job_id="tranche-job", agent_id="authorized-agent", seed=42),
+        SimpleNamespace(
+            job_id="tranche-job",
+            agent_id="authorized-agent",
+            seed=42,
+            capability_manifest={"has_tool_calling": True},
+        ),
     )
 
     assert result.status == "complete"
     assert result.target_calls == 5
-    assert result.judge_calls == 5
+    assert result.judge_calls == 0
     evidence = json.loads(
         (
             tmp_path
@@ -206,6 +224,16 @@ def test_production_worker_call_persists_isolated_observation(
     assert observed["target_authorization_ref"] == (
         "full-scan-job:tranche-job:agent:authorized-agent"
     )
+    assert all(
+        replicate["evidence_uri"]
+        == "evidence://tranche-job/tool_misuse_param_tamper/TOOL_MISUSE_PT-01.json"
+        for replicate in observed["replicates"]
+    )
+    assert all(
+        "recorded-by-case-envelope" not in replicate["started_at"]
+        and "recorded-by-case-envelope" not in replicate["completed_at"]
+        for replicate in observed["replicates"]
+    )
     assert evidence["score"] is None
     manifest = {"job_id": "tranche-job", "locked_v1_result": {"are_total": 78}}
     before = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
@@ -217,6 +245,7 @@ def test_production_worker_call_persists_isolated_observation(
         )
     )
     assert ranking["families"]
+    assert ranking["evidence_sha256"].startswith("sha256:")
     assert {
         row["ranking_status"] for row in ranking["families"]
     } == {"INSUFFICIENT_EVIDENCE"}
@@ -279,18 +308,24 @@ def test_divergent_n5_is_incomplete_not_min_aggregated(
         and row["case_id"] == "TOOL_MISUSE_SE-01"
         and row["runner"] == "content_candidate_worker"
     )
-    row = {**row, "target_authorization_ref": "full-scan:test:authorized"}
+    row = {
+        **row,
+        "target_authorization_ref": "full-scan:test:authorized",
+        "case_evidence_uri": (
+            "evidence://test/tool_misuse_scope_escape/TOOL_MISUSE_SE-01.json"
+        ),
+        "capability_manifest": {"has_tool_calling": True},
+    }
     calls = {"count": 0}
 
-    def alternating_judge(_prompt):
+    def alternating_target(_prompt):
         calls["count"] += 1
-        verdict = "pass" if calls["count"] % 2 else "fail"
-        score = 1.0 if verdict == "pass" else 0.0
-        return f'{{"verdict":"{verdict}","score":{score}}}'
+        label = "resisted_no_disclosure" if calls["count"] % 2 else "unsafe"
+        return f'{{"actual_response_label":"{label}"}}'
 
     executor = RegisteredCaseExecutor(
-        subject=MockRunner("target", lambda _prompt: "x"),
-        judge=MockRunner("judge", alternating_judge),
+        subject=MockRunner("target", alternating_target),
+        judge=MockRunner("judge", lambda _prompt: "must-not-run"),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
     )
@@ -300,6 +335,49 @@ def test_divergent_n5_is_incomplete_not_min_aggregated(
     )
     assert outcome["observational_result"]["outcome"] == "INCOMPLETE"
     assert outcome["observational_result"]["raw_result"] is None
+    assert executor.ledger.snapshot()["judge_calls"] == 0
+
+
+def test_missing_capability_manifest_is_na_before_any_model_call(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sha = "5541d9b34e7efa7e570b45c80b7fbc0098b45517"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    row = next(
+        row
+        for row in build_registry()
+        if row["test_id"] == "tool_misuse_param_tamper"
+        and row["case_id"] == "TOOL_MISUSE_PT-01"
+        and row["runner"] == "content_candidate_worker"
+    )
+    row = {
+        **row,
+        "target_authorization_ref": "full-scan:test:authorized",
+        "case_evidence_uri": (
+            "evidence://test/tool_misuse_param_tamper/TOOL_MISUSE_PT-01.json"
+        ),
+        "capability_manifest": None,
+    }
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: (_ for _ in ()).throw(
+            AssertionError("target must not be called")
+        )),
+        judge=MockRunner("judge", lambda _prompt: (_ for _ in ()).throw(
+            AssertionError("judge must not be called")
+        )),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+    )
+
+    outcome = executor._execute_content_candidate(
+        row["test_id"], row["case_id"], row
+    )
+
+    assert outcome["observational_result"]["outcome"] == "NOT_APPLICABLE"
+    assert outcome["observational_result"]["raw_result"] is None
+    assert executor.ledger.snapshot()["target_calls"] == 0
+    assert executor.ledger.snapshot()["judge_calls"] == 0
 
 
 def test_default_budget_covers_the_registered_candidate_adapter_calls() -> None:

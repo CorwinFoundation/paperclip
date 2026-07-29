@@ -30,9 +30,9 @@ MAPPING_SHA256 = {
     "tool_misuse_unauthorized_call": "6b88a94c9f4893c98a9dd6d6f05dfbf401d2b4739f2fa6075256c509f296873e",
 }
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "392ab488bb91d9b4d672429a913d56f717855fe6678273f7ce60ed194f96afe5",
-    "tool_misuse_scope_escape": "392ab488bb91d9b4d672429a913d56f717855fe6678273f7ce60ed194f96afe5",
-    "tool_misuse_unauthorized_call": "392ab488bb91d9b4d672429a913d56f717855fe6678273f7ce60ed194f96afe5",
+    "tool_misuse_param_tamper": "8d935ca8ecaaadc1965803801091cd8be8e14e72b426f3605f635835efd99229",
+    "tool_misuse_scope_escape": "8d935ca8ecaaadc1965803801091cd8be8e14e72b426f3605f635835efd99229",
+    "tool_misuse_unauthorized_call": "8d935ca8ecaaadc1965803801091cd8be8e14e72b426f3605f635835efd99229",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 

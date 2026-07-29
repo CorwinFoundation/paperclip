@@ -17,6 +17,7 @@ import threading
 import time
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -301,13 +302,25 @@ class RegisteredCaseExecutor:
                 for key in sorted(self._observational_records)
             ]
         ranking = rank_families(records)
+        ranking_payload = {
+            "contract_version": ENVELOPE_VERSION,
+            "disclosure": DISCLOSURE,
+            "families": ranking,
+        }
+        ranking_payload["evidence_sha256"] = (
+            "sha256:"
+            + hashlib.sha256(
+                json.dumps(
+                    ranking_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ).hexdigest()
+        )
         self.evidence_store.write_observational_ranking(
             job_id=job_id,
-            payload={
-                "contract_version": ENVELOPE_VERSION,
-                "disclosure": DISCLOSURE,
-                "families": ranking,
-            },
+            payload=ranking_payload,
         )
         evidence_ref, _ = self.evidence_store.write_manifest(
             job_id=job_id,
@@ -349,6 +362,13 @@ class RegisteredCaseExecutor:
             execution_row = dict(registry_row)
             execution_row["target_authorization_ref"] = (
                 f"full-scan-job:{job.job_id}:agent:{job.agent_id}"
+            )
+            execution_row["case_evidence_uri"] = (
+                f"evidence://{job.job_id}/{_safe_segment(test_id)}/"
+                f"{_safe_segment(case_id)}.json"
+            )
+            execution_row["capability_manifest"] = getattr(
+                job, "capability_manifest", None
             )
             outcome = self._execute_case(test_id, case_id, execution_row)
             observed = outcome.get("observational_result")
@@ -592,6 +612,13 @@ class RegisteredCaseExecutor:
                 )
             else:
                 observational = True
+        if observational:
+            return self._execute_tranche1_structured_case(
+                test_id=test_id,
+                case_id=case_id,
+                registry_row=registry_row,
+                spec=spec,
+            )
         repeat_count = 5 if observational else 1
         delivered_prompts: list[str] = []
         responses: list[str] = []
@@ -737,6 +764,143 @@ class RegisteredCaseExecutor:
             outcome["observational_rejection"] = observational_rejection
             outcome["score"] = None
         return outcome
+
+    def _execute_tranche1_structured_case(
+        self,
+        *,
+        test_id: str,
+        case_id: str,
+        registry_row: Mapping[str, Any],
+        spec: Any,
+    ) -> dict[str, Any]:
+        """Evaluate the structured invariant deterministically without an LLM judge."""
+
+        from harness.bench.r2_rob_common import load_probes, score_min_formula
+        from tools.tranche1_observational import (
+            CONFIG_SHA256,
+            EVALUATOR_SHA256,
+            INVENTORY_SHA256,
+            MAPPING_SHA256,
+            build_case_record,
+            require_runtime_commit_pin,
+        )
+
+        started_at = datetime.now(timezone.utc).isoformat()
+        capability = registry_row.get("capability_manifest")
+        disposition: str | None = None
+        if capability is None:
+            disposition = "NOT_APPLICABLE"
+        elif not isinstance(capability, Mapping):
+            disposition = "INVALID"
+        elif capability.get("has_tool_calling") is False:
+            disposition = "NOT_APPLICABLE"
+        elif capability.get("has_tool_calling") is not True:
+            disposition = "INVALID"
+
+        mapping_path = (
+            REPO_ROOT / "rubric" / "probe_mappings" / f"{test_id}.yaml"
+        )
+        probe = next(
+            (candidate for candidate in load_probes(mapping_path) if candidate.id == case_id),
+            None,
+        )
+        if probe is None:
+            disposition = "INVALID"
+
+        responses: list[str] = []
+        delivered_prompts: list[str] = []
+        raw_results: list[int] = []
+        invalid_response = False
+        if disposition is None:
+            for _replicate_index in range(5):
+                prompt = str(spec.prompts[0])
+                response = self.subject.complete(prompt)
+                delivered_prompts.append(prompt)
+                responses.append(response)
+                try:
+                    decoded = json.loads(response)
+                    actual_label = decoded["actual_response_label"]
+                    if not isinstance(actual_label, str):
+                        raise ValueError("actual_response_label must be a string")
+                except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                    invalid_response = True
+                    break
+                scoring = score_min_formula(
+                    [probe],
+                    {case_id: actual_label},
+                    test_id,
+                )
+                raw_results.append(int(scoring["raw"]))
+            if invalid_response:
+                disposition = "INVALID"
+            elif len(set(raw_results)) != 1:
+                disposition = "INCOMPLETE"
+
+        completed_at = datetime.now(timezone.utc).isoformat()
+        response_hash = _content_hash(responses or [json.dumps(capability, sort_keys=True)])
+        evidence_uri = str(registry_row.get("case_evidence_uri") or "")
+        replicates = []
+        for replicate_index in range(5):
+            raw_result = (
+                raw_results[replicate_index]
+                if disposition is None and replicate_index < len(raw_results)
+                else None
+            )
+            replicates.append(
+                {
+                    "replicate_index": replicate_index,
+                    "seed": f"{registry_row.get('version_pin')}|{case_id}|{replicate_index}",
+                    "raw_result": raw_result,
+                    "disposition": disposition,
+                    "evidence_uri": evidence_uri,
+                    "evidence_sha256": response_hash,
+                    "started_at": started_at,
+                    "completed_at": completed_at,
+                }
+            )
+        try:
+            runtime_commit = require_runtime_commit_pin()
+            observed = build_case_record(
+                family_id=test_id,
+                case_id=case_id,
+                replicates=replicates,
+                pins={
+                    "inventory_sha256": INVENTORY_SHA256,
+                    "mapping_sha256": MAPPING_SHA256[test_id],
+                    "evaluator_sha256": EVALUATOR_SHA256[test_id],
+                    "configuration_sha256": CONFIG_SHA256,
+                    "corpus_sha256": INVENTORY_SHA256,
+                    "commit_sha256": runtime_commit,
+                },
+                target_authorization_ref=str(
+                    registry_row.get("target_authorization_ref") or ""
+                ),
+            )
+        except Exception as exc:
+            return {
+                "payloads": delivered_prompts,
+                "responses": responses,
+                "judge": {"type": "structured_invariant", "llm_judge_calls": 0},
+                "score": None,
+                "verdict": "unresolved",
+                "observational_rejection": (
+                    f"observational_fail_closed:{type(exc).__name__}"
+                ),
+            }
+        return {
+            "payloads": delivered_prompts,
+            "responses": responses,
+            "judge": {
+                "type": "structured_invariant",
+                "llm_judge_calls": 0,
+                "expected_response_label": (
+                    probe.expected_response_label if probe is not None else None
+                ),
+            },
+            "score": None,
+            "verdict": observed["outcome"].lower(),
+            "observational_result": observed,
+        }
 
 
 def default_judge_runner() -> ModelRunner:
