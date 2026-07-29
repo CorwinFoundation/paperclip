@@ -139,6 +139,15 @@ def test_release_identity_gate_accepts_cosign_v3_output_with_empty_optional_clai
     assert report["signatureWorkflowRef"] == release_identity_gate.EXPECTED_WORKFLOW_REF
 
 
+# BEAAA-18854 reconciliation: `test_workflow_hard_codes_master_certificate_identity` was retired.
+# It asserted the cosign certificate-identity wiring inside `.github/workflows/scanner-edge-image.yml`.
+# Canonical master commit a1069cc ("Stop legacy deploy ceremony in development mode") converted that
+# workflow into the dev-image builder and SUSPENDED the production signing ceremony (now pinned absent
+# by tests/test_scanner_edge_dev_mode_artifact.py::test_suspended_production_ceremony_is_absent). The
+# release_identity_gate.py gate logic itself remains covered by the tests above and below because the
+# script is retained for the production release lane when it is re-established.
+
+
 def test_release_identity_gate_cli_exits_nonzero_for_source_revision_drift(tmp_path: Path):
     candidate = tmp_path / "candidate.json"
     cosign = tmp_path / "cosign.json"

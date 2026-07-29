@@ -1,5 +1,13 @@
 from pathlib import Path
 
+# BEAAA-18854 reconciliation: `test_current_release_workflow_emits_offline_verifiable_sigstore_bundle`
+# was retired here. It asserted the cosign/sigstore/release-candidate ceremony inside
+# `.github/workflows/scanner-edge-image.yml`. Canonical master commit a1069cc
+# ("Stop legacy deploy ceremony in development mode", authored by CorwinFoundation) converted
+# that workflow into the dev-image builder and SUSPENDED the production release ceremony; the
+# new dev-mode contract is now pinned by tests/test_scanner_edge_dev_mode_artifact.py
+# (test_suspended_production_ceremony_is_absent). The deploy-side systemd credential-handoff
+# controls below survive because infra/live-edge/* still exist and remain valid.
 
 ROOT = Path(__file__).resolve().parents[1]
 UNIT = ROOT / "infra" / "live-edge" / "backbond-deploy-agent.service"
