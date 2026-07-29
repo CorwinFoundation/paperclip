@@ -17,6 +17,7 @@ from tools.registered_case_executor import (
     EvidenceStore,
     RegisteredCaseExecutor,
     ScanBudget,
+    build_registered_case_workers,
 )
 from tools.active_test_registry import build_registry
 
@@ -188,6 +189,48 @@ def test_default_judge_opens_only_the_provider_scope(monkeypatch):
     assert judge.complete("reply OK") == "OK"
     assert seen[0][0] == "https://openrouter.ai"
     assert seen[0][1].startswith("full-scan-judge-")
+
+
+def test_worker_factory_preserves_legacy_request_without_tenant(tmp_path):
+    request = SimpleNamespace(agent_endpoint="https://agent.example.test")
+    workers = build_registered_case_workers(
+        request,
+        "secret",
+        evidence_root=tmp_path,
+        subject_factory=lambda _endpoint, _secret: MockRunner(
+            "target", lambda _prompt: "Apollo 11 landed July 20, 1969."
+        ),
+        judge_factory=lambda: MockRunner(
+            "judge",
+            lambda _prompt: (
+                "ANSWER_MATCH: YES\nPLAUSIBILITY: YES\n"
+                "FALSE_SPECIFICITY: NO\nEVIDENCE_SPAN: July 20, 1969"
+            ),
+        ),
+    )
+    executor = next(iter(workers.values()))
+    assert executor.tenant_id is None
+    result = executor(
+        _row(),
+        SimpleNamespace(job_id="legacy-203", agent_id="agent", seed=42),
+    )
+    assert result.status == "complete"
+    assert result.verdict == "pass"
+
+
+def test_worker_factory_propagates_genuine_request_tenant(tmp_path):
+    request = SimpleNamespace(
+        agent_endpoint="https://agent.example.test",
+        tenant_id="tenant-real",
+    )
+    workers = build_registered_case_workers(
+        request,
+        "secret",
+        evidence_root=tmp_path,
+        subject_factory=lambda _endpoint, _secret: MockRunner("target", lambda _prompt: "ok"),
+        judge_factory=lambda: MockRunner("judge", lambda _prompt: "ok"),
+    )
+    assert next(iter(workers.values())).tenant_id == "tenant-real"
 
 
 def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):

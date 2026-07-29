@@ -22,7 +22,9 @@ COPY tools/active_test_registry_claims.json /app/tools/active_test_registry_clai
 COPY tools/framework_worker_registry.py /app/tools/framework_worker_registry.py
 COPY tools/framework_workers.py /app/tools/framework_workers.py
 COPY tools/registered_case_executor.py /app/tools/registered_case_executor.py
+COPY tools/tranche1_observational.py /app/tools/tranche1_observational.py
 COPY tools/text_case_materializer.py /app/tools/text_case_materializer.py
+COPY config/tranche1_zero_weight_observational.json /app/config/tranche1_zero_weight_observational.json
 COPY demo-real-agent /app/demo-real-agent
 
 RUN python -m pip install --no-cache-dir PyYAML==6.0.2 httpx==0.27.2 anthropic==0.84.0 \

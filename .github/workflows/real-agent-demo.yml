@@ -19,7 +19,9 @@ on:
       - "tools/active_test_registry.py"
       - "tools/active_test_registry_claims.json"
       - "tools/registered_case_executor.py"
+      - "tools/tranche1_observational.py"
       - "tools/text_case_materializer.py"
+      - "config/tranche1_zero_weight_observational.json"
       - ".github/workflows/real-agent-demo.yml"
   push:
     branches: [master]
@@ -39,7 +41,9 @@ on:
       - "tools/active_test_registry.py"
       - "tools/active_test_registry_claims.json"
       - "tools/registered_case_executor.py"
+      - "tools/tranche1_observational.py"
       - "tools/text_case_materializer.py"
+      - "config/tranche1_zero_weight_observational.json"
       - ".github/workflows/real-agent-demo.yml"
   workflow_dispatch:
 

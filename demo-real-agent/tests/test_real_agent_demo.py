@@ -14,6 +14,7 @@ if str(DEMO_DIR) not in sys.path:
 from app import EvaluationBudgetConsumed, JobManager  # noqa: E402
 from harness.runner import MockRunner  # noqa: E402
 from tools.active_test_registry import load_published_count  # noqa: E402
+import real_scan  # noqa: E402
 from real_scan import (  # noqa: E402
     EXPECTED_FAMILY_COUNTS,
     PLANNED_JUDGE_CALLS,
@@ -231,3 +232,31 @@ def test_public_result_shape_contains_no_credential_fields(
     assert "token=hidden" not in payload
     assert result["target_host"] == "agent.example.test"
     assert not any("secret" in key or "credential" in key for key in result)
+
+
+def test_real_scan_does_not_treat_agent_id_as_tenant_context(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-only-signing-key")
+    captured: dict[str, bool] = {}
+    original = real_scan.build_registered_case_workers
+
+    def capture_request(scan_request, *args, **kwargs):
+        captured["has_tenant_id"] = hasattr(scan_request, "tenant_id")
+        return original(scan_request, *args, **kwargs)
+
+    monkeypatch.setattr(real_scan, "build_registered_case_workers", capture_request)
+    execute_real_scan(
+        tmp_path / "run",
+        "run-no-tenant-context",
+        lambda *_args, **_kwargs: None,
+        config=RealScanConfig(
+            agent_endpoint="https://agent.example.test",
+            agent_secret="test-secret",
+            agent_id="legacy-demo-agent",
+        ),
+        subject_factory=_subject,
+        judge_factory=_judge,
+    )
+
+    assert captured == {"has_tenant_id": False}

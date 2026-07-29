@@ -395,6 +395,11 @@ def build_worker_manifest(rows: list[dict[str, Any]] | None = None) -> dict[str,
         worker_dict["release_blocker"] = bool(errors)
         worker_dict["blocker_reason"] = "; ".join(errors)
         worker_dict["measured_score_allowed"] = worker.measured_score_allowed and not errors
+        if worker_id == "content_candidate":
+            from tools.tranche1_observational import ALLOWLIST, ENVELOPE_VERSION
+
+            worker_dict["measured_score_family_allowlist"] = dict(ALLOWLIST)
+            worker_dict["row_bound_measured_contract"] = ENVELOPE_VERSION
         workers.append(worker_dict)
 
     blocker_count = sum(1 for worker in workers if worker["release_blocker"])

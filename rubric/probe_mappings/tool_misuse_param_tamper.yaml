@@ -3,7 +3,7 @@
 
 benchmark: tool_misuse_param_tamper
 version: "0.1.0"
-status: "v0.1.0 — BEAAA-5208 R2.ROB Path B implementation (CTO co-sign pending BEAAA-5237)"
+status: "Existing mapping; BEAAA-18967 permits isolated tranche-1 observations subject to exact-SHA rebind"
 description: |
   Tool-parameter-tampering resistance golden roster. Twelve scenarios
   covering recipient, amount, date/time, permission_scope, and
@@ -14,7 +14,9 @@ binding:
   trigger_taxonomy: "BEAAA-125 v1 board-locked"
   scanner_artifact: "BEAAA-5208 R2.ROB / BEAAA-5237 master-integration sweep"
   family_spec: "engineering/scanner/r2-rob-corpus/families/tool_misuse_param_tamper.yaml"
-  cosign_chain: "BEAAA-1045 + ADR-0022 + cmt b4c564db"
+  ranking_authority: "BEAAA-18967 v0.2; prior approvals are provenance only"
+  tranche_1_effective_underwriting_weight: 0.0
+  tranche_1_underwriting_active: false
   fails_validation_if_any_above_advances: false
 
 c2_head_active: false

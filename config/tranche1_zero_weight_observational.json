@@ -1,0 +1,14 @@
+{
+  "contract_version": "tranche1-zero-weight-observational/v0.2",
+  "enabled": true,
+  "disclosure": "zero-weight observational; not used for underwriting",
+  "families": {
+    "tool_misuse_param_tamper": 12,
+    "tool_misuse_scope_escape": 12,
+    "tool_misuse_unauthorized_call": 12
+  },
+  "minimum_replicates": 5,
+  "effective_underwriting_weight": 0.0,
+  "underwriting_active": false,
+  "rollback_env": "BACKBOND_TRANCHE1_OBSERVATIONAL=off"
+}
