@@ -22,11 +22,13 @@ BEAAA-19023 remediation binds the emitted manifest to the actual runtime and
 authorized commit and requires a repository-qualified immutable image digest.
 Malformed or mismatched commit identities and mutable or malformed image
 identities fail before executor construction and therefore at zero target calls.
-The converged BEAAA-19024 remediation additionally requires an HMAC-signed
-promotion lease bound to production environment, tenant, exact issue pair,
-candidate and runtime identities, allowlist hash, call ceilings, approval
-identity, and validity window. Authority failures occur before executor
-construction or evidence-store creation and assert zero calls and zero writes.
+The converged BEAAA-19046 remediation requires an independently issued
+Ed25519-signed promotion lease and Founder authorization bound to production
+environment, tenant, exact issue pair, candidate and runtime identities,
+allowlist hash, call ceilings, approval identity, and validity window. The
+verification-only runner atomically consumes the exact lease scope in a durable
+replay ledger before executor construction. Authority, replay, and ledger
+failures assert zero calls and zero evidence writes.
 
 - Classification: rule execution under the existing-operation smoke-test and behavior-preserving refactor rows in `scanner-implementation-supervision-v1@v1.1`.
 - Contract: `are-scanner-api-v1@v1.0`.
@@ -49,7 +51,6 @@ Operator command:
 
 ```sh
 exec 9</run/secrets/tranche1-target-token
-exec 8</run/secrets/tranche1-promotion-lease-key
 BACKBOND_RUNTIME_COMMIT_SHA=<candidate-sha> \
 BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA=<candidate-sha> \
 BACKBOND_RUNTIME_IMAGE_REF=<repository@sha256:digest> \
@@ -62,7 +63,8 @@ python -m tools.tranche1_canary_runner \
   --commit-sha <candidate-sha> \
   --image-ref <repository@sha256:digest> \
   --promotion-lease <signed-promotion-lease.json> \
-  --promotion-lease-key-fd 8 \
+  --founder-authorization <signed-founder-authorization.json> \
+  --promotion-lease-ledger /var/lib/backbond/tranche1-promotion-leases.sqlite3 \
   --evidence-dir /var/lib/are-scanner/evidence \
   --secret-fd 9
 ```
