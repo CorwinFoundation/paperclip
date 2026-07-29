@@ -32,6 +32,7 @@ from tools.tranche1_observational import (
 )
 
 EXACT_TARGET_CALLS = 36 * 5
+API_CONTRACT = "are-scanner-api-v1@v1.0"
 _FULL_LOWER_SHA = re.compile(r"[0-9a-f]{40}")
 _IMMUTABLE_IMAGE_REF = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
 _ED25519_SIGNATURE = re.compile(r"ed25519:[A-Za-z0-9_-]{86}")
@@ -404,7 +405,7 @@ def run_tranche1_canary(
         "ticket": "BEAAA-19021",
         "job_id": job_id,
         "scanner_version": "0.5.0",
-        "api_contract": "are-scanner-api-v1@v1.3.0",
+        "api_contract": API_CONTRACT,
         "envelope": ENVELOPE_VERSION,
         "authorization_ref": authorization_ref,
         "promotion_authority": {

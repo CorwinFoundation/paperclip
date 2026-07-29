@@ -5,8 +5,8 @@ persona_audience: internal
 canonical_terms_only: true
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
 ticket_refs: ["BEAAA-19024", "BEAAA-18995"]
-version: 0.2
-prior_version: 0.1
+version: 0.3
+prior_version: 0.2
 self_audit_passed: true
 ---
 
@@ -18,6 +18,8 @@ BLUF: PR #166 now accepts only independently issued Ed25519 authority and atomic
 - Authority: the runner contains verification-only Ed25519 public material. No caller-supplied signing secret or minting path exists.
 - Consumption: the unique scope binds `lease_id`, signature, commit, immutable image, tenant, and production environment. `BEGIN IMMEDIATE` plus a primary-key insert prevents concurrent double-spend; WAL and `synchronous=FULL` provide durable replay state.
 - Failure posture: replay, concurrent replay, unknown/revoked issuer, forged lease, forged Founder authority, and ledger failure all fail closed. Rejected attempts make zero target calls and create zero evidence records.
+- Contract pin: the runtime manifest emits exactly `are-scanner-api-v1@v1.0`, with an exact top-level key-set assertion guarding response-shape stability.
+- Canary-runner/content pins: `d22b7ad8f230706cf3b1aa410bec395535645dee3632a7829353f173c6c6a672` / `972e7fd61553ab4548105bce2e0d5495e564fdb8bc733156969618d9288f9e28`.
 - Scanner version: `0.5.0`.
 - Corpus version: `fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988`.
 - Probe-set version: three tranche-1 `tool_misuse_*@0.1.0` families.

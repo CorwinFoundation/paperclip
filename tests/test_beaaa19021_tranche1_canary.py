@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import threading
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from api.full_scan_executor import FullScanJob
 from harness.runner import MockRunner
 from tools.active_test_registry import build_registry
 from tools.tranche1_canary_runner import (
+    API_CONTRACT,
     ALLOWLIST_SHA256,
     EXACT_SELECTION_SHA256,
     EXACT_TARGET_CALLS,
@@ -316,6 +318,21 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
 
     assert report["budget"]["target_calls"] == EXACT_TARGET_CALLS == 180
     assert report["budget"]["judge_calls"] == 0
+    assert report["api_contract"] == API_CONTRACT == "are-scanner-api-v1@v1.0"
+    assert set(report) == {
+        "ticket",
+        "job_id",
+        "scanner_version",
+        "api_contract",
+        "envelope",
+        "authorization_ref",
+        "promotion_authority",
+        "capability_manifest",
+        "pins",
+        "budget",
+        "families",
+        "zero_weight_invariants",
+    }
     assert report["capability_manifest"] == {"has_tool_calling": True}
     assert report["authorization_ref"] == "root-custody:lease-7"
     assert report["zero_weight_invariants"]["absolute_delta"] == {
@@ -337,6 +354,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     assert secret not in materialized
     manifest = json.loads((tmp_path / "canary" / "manifest.json").read_text())
     assert manifest["pins"]["commit"] == commit
+    canonical_manifest = json.dumps(
+        manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    assert hashlib.sha256(canonical_manifest).hexdigest() == (
+        "972e7fd61553ab4548105bce2e0d5495e564fdb8bc733156969618d9288f9e28"
+    )
 
 
 def test_valid_lease_replay_is_zero_call_zero_evidence_write(tmp_path, monkeypatch):
