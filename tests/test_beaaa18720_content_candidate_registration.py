@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from collections import Counter
+import copy
+import json
+from types import SimpleNamespace
 from pathlib import Path
 
 from harness.runner import MockRunner
@@ -124,6 +127,165 @@ def test_candidate_adapter_calls_target_and_pinned_judge(tmp_path: Path) -> None
     assert worker_id_for_registry_row(row) == "content_candidate"
 
 
+def test_allowlisted_candidate_executes_n5_measured_observation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    row = next(
+        row
+        for row in build_registry()
+        if row["test_id"] == "tool_misuse_unauthorized_call"
+        and row["case_id"] == "TOOL_MISUSE_UC-01"
+        and row["runner"] == "content_candidate_worker"
+    )
+    row = {**row, "target_authorization_ref": "full-scan:test:authorized"}
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: '{"authorized":false}'),
+        judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+    )
+
+    outcome = executor._execute_content_candidate(
+        row["test_id"], row["case_id"], row
+    )
+
+    observed = outcome["observational_result"]
+    assert observed["outcome"] == "PASS"
+    assert observed["raw_result"] == 4
+    assert observed["replicate_count"] == 5
+    assert observed["pins"]["commit_sha256"] == sha
+    assert observed["underwriting_active"] is False
+    assert observed["effective_underwriting_weight"] == 0.0
+    assert outcome["score"] is None
+    assert executor.ledger.snapshot()["target_calls"] == 5
+    assert executor.ledger.snapshot()["judge_calls"] == 5
+
+
+def test_production_worker_call_persists_isolated_observation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    row = next(
+        row
+        for row in build_registry()
+        if row["test_id"] == "tool_misuse_param_tamper"
+        and row["case_id"] == "TOOL_MISUSE_PT-01"
+        and row["runner"] == "content_candidate_worker"
+    )
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: '{"tampered":false}'),
+        judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+    )
+
+    result = executor(
+        row,
+        SimpleNamespace(job_id="tranche-job", agent_id="authorized-agent", seed=42),
+    )
+
+    assert result.status == "complete"
+    assert result.target_calls == 5
+    assert result.judge_calls == 5
+    evidence = json.loads(
+        (
+            tmp_path
+            / "tranche-job"
+            / "tool_misuse_param_tamper"
+            / "TOOL_MISUSE_PT-01.json"
+        ).read_text(encoding="utf-8")
+    )
+    observed = evidence["observational_result"]
+    assert observed["outcome"] == "PASS"
+    assert observed["raw_result"] == 4
+    assert observed["target_authorization_ref"] == (
+        "full-scan-job:tranche-job:agent:authorized-agent"
+    )
+    assert evidence["score"] is None
+
+
+def test_nonallowlisted_candidate_cannot_forge_measured_permission(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    row = next(
+        row
+        for row in build_registry()
+        if row["test_id"] == "human_escalation_flagging"
+        and row["runner"] == "content_candidate_worker"
+    )
+    forged = copy.deepcopy(row)
+    forged.update(
+        {
+            "scoring_active": True,
+            "underwriting_active": False,
+            "effective_underwriting_weight": 0.0,
+            "observational_contract_version": "tranche1-zero-weight-observational/v0.2",
+            "observational_disclosure": "zero-weight observational; not used for underwriting",
+            "k_replicates": 5,
+            "target_authorization_ref": "full-scan:test:authorized",
+        }
+    )
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: "x"),
+        judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+    )
+
+    outcome = executor._execute_content_candidate(
+        forged["test_id"], forged["case_id"], forged
+    )
+    assert "observational_result" not in outcome
+    assert outcome["observational_rejection"] == (
+        "content-candidate measured output is not row-authorized"
+    )
+    assert outcome["score"] is None
+
+
+def test_divergent_n5_is_incomplete_not_min_aggregated(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sha = "14625eecf8f4845e99a18feddf02d5280e041fc5"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    row = next(
+        row
+        for row in build_registry()
+        if row["test_id"] == "tool_misuse_scope_escape"
+        and row["case_id"] == "TOOL_MISUSE_SE-01"
+        and row["runner"] == "content_candidate_worker"
+    )
+    row = {**row, "target_authorization_ref": "full-scan:test:authorized"}
+    calls = {"count": 0}
+
+    def alternating_judge(_prompt):
+        calls["count"] += 1
+        verdict = "pass" if calls["count"] % 2 else "fail"
+        score = 1.0 if verdict == "pass" else 0.0
+        return f'{{"verdict":"{verdict}","score":{score}}}'
+
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: "x"),
+        judge=MockRunner("judge", alternating_judge),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+    )
+
+    outcome = executor._execute_content_candidate(
+        row["test_id"], row["case_id"], row
+    )
+    assert outcome["observational_result"]["outcome"] == "INCOMPLETE"
+    assert outcome["observational_result"]["raw_result"] is None
+
+
 def test_default_budget_covers_the_registered_candidate_adapter_calls() -> None:
     rows = [
         row
@@ -144,7 +306,7 @@ def test_default_budget_covers_the_registered_candidate_adapter_calls() -> None:
     assert candidate_judge_calls < budget.max_judge_calls
 
 
-def test_candidate_worker_is_pinned_and_never_measured_score_allowed() -> None:
+def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> None:
     manifest = build_worker_manifest(build_registry())
     worker = next(
         worker
@@ -156,4 +318,13 @@ def test_candidate_worker_is_pinned_and_never_measured_score_allowed() -> None:
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True
+    assert worker["measured_score_family_allowlist"] == {
+        "tool_misuse_param_tamper": 12,
+        "tool_misuse_scope_escape": 12,
+        "tool_misuse_unauthorized_call": 12,
+    }
+    assert (
+        worker["row_bound_measured_contract"]
+        == "tranche1-zero-weight-observational/v0.2"
+    )
     assert worker["release_blocker"] is False

@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
+from api.handlers import quote_handler
+from pricing.quote import Rates
+from rubric.bands import assign_band, band_to_dict
+from underwriting import admittance
 from tools.active_test_registry import build_registry
+from tools.content_candidate_inventory import load_candidate_inventory
 from tools.tranche1_observational import (
     ALLOWLIST,
     CONFIG_SHA256,
@@ -96,20 +103,36 @@ def test_single_config_rollback_restores_only_36(monkeypatch):
     }
 
 
-def test_n5_minimum_aggregation_and_ranking_ties():
+def test_n5_minimum_aggregation_and_complete_roster_ranking(monkeypatch):
+    monkeypatch.setenv(
+        "BACKBOND_RUNTIME_COMMIT_SHA",
+        "e06cb09df3d0a490816eace227b083b97665949d",
+    )
+    monkeypatch.setenv(
+        "BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA",
+        "e06cb09df3d0a490816eace227b083b97665949d",
+    )
     family_a, family_b, family_c = sorted(ALLOWLIST)
-    records = [
-        _record(family_a, "a-pass", 4),
-        _record(family_a, "a-fail", 2),
-        _record(family_b, "b-pass", 3),
-        _record(family_b, "b-fail", 0),
-        _record(family_c, "c-na", disposition="NOT_APPLICABLE"),
-    ]
+    rosters = {
+        family: sorted(
+            str(row["stable_case_id"])
+            for row in load_candidate_inventory()
+            if row["family_id"] == family
+        )
+        for family in ALLOWLIST
+    }
+    records = []
+    for case_id in rosters[family_a]:
+        records.append(_record(family_a, case_id, 4))
+    for case_id in rosters[family_b]:
+        records.append(_record(family_b, case_id, 3))
+    for case_id in rosters[family_c]:
+        records.append(_record(family_c, case_id, disposition="NOT_APPLICABLE"))
     ranked = rank_families(records)
     assert [row["family_id"] for row in ranked] == [family_a, family_b, family_c]
     assert [row["rank"] for row in ranked] == [1, 2, None]
     assert ranked[2]["success_rate"] is None
-    assert ranked[2]["counts"]["NOT_APPLICABLE"] == 1
+    assert ranked[2]["counts"]["NOT_APPLICABLE"] == 12
     with pytest.raises(ObservationalContractError):
         build_case_record(
             family_id=family_a,
@@ -120,21 +143,99 @@ def test_n5_minimum_aggregation_and_ranking_ties():
         )
 
 
-def test_observational_mutation_cannot_change_legacy_bytes():
-    legacy = {
-        "are_total": 88,
-        "pillar_scores": {"ROBUSTNESS": 22},
-        "band": "A",
-        "eligibility": "eligible",
-        "premium": 10,
-        "published_countable_total": 2201,
+def test_partial_or_duplicate_family_is_insufficient_evidence(monkeypatch):
+    monkeypatch.setenv(
+        "BACKBOND_RUNTIME_COMMIT_SHA",
+        "e06cb09df3d0a490816eace227b083b97665949d",
+    )
+    monkeypatch.setenv(
+        "BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA",
+        "e06cb09df3d0a490816eace227b083b97665949d",
+    )
+    family = sorted(ALLOWLIST)[0]
+    result = rank_families([_record(family, "partial", 4)])
+    assert len(result) == 3
+    assert {row["ranking_status"] for row in result} == {"INSUFFICIENT_EVIDENCE"}
+    assert {row["rank"] for row in result} == {None}
+
+
+def test_observational_mutation_is_byte_isolated_from_production_consumers(monkeypatch):
+    monkeypatch.setenv(
+        "BACKBOND_RUNTIME_COMMIT_SHA",
+        "e06cb09df3d0a490816eace227b083b97665949d",
+    )
+    monkeypatch.setenv(
+        "BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA",
+        "e06cb09df3d0a490816eace227b083b97665949d",
+    )
+    score = {
+        "bmi": 78,
+        "are_total": 78,
+        "band": band_to_dict(assign_band(78)),
+        "applicability_record": {
+            "measured_dims": ["P2.1", "P2.3", "P2.4", "P2.5", "P2.6", "P3.1"],
+            "na_dims": [],
+        },
+        "system_prompt_kind": "hardened",
     }
-    before = json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode()
+    customer = {
+        "sector": "ENT_SAAS",
+        "annual_revenue_usd": 500_000_000,
+        "limit": {"per_claim_usd": 2_000_000, "aggregate_usd": 5_000_000},
+    }
+    rates = Rates.load(Path(__file__).resolve().parents[1] / "pricing" / "rates.yaml")
+    quoted_at = datetime(2026, 7, 29, tzinfo=timezone.utc)
+    score_bytes = json.dumps(score, sort_keys=True, separators=(",", ":")).encode()
+    admittance_bytes = json.dumps(
+        admittance.evaluate(score).to_dict(),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    quote_bytes = json.dumps(
+        quote_handler(
+            {"score": score, "customer": customer},
+            rates=rates,
+            quoted_at=quoted_at,
+        )[1],
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode()
     for raw in range(5):
         rank_families([_record(sorted(ALLOWLIST)[0], f"case-{raw}", raw)])
-        assert json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode() == before
+        assert json.dumps(score, sort_keys=True, separators=(",", ":")).encode() == score_bytes
+        assert json.dumps(
+            admittance.evaluate(score).to_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode() == admittance_bytes
+        assert json.dumps(
+            quote_handler(
+                {"score": score, "customer": customer},
+                rates=rates,
+                quoted_at=quoted_at,
+            )[1],
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode() == quote_bytes
     for disposition in ("NOT_APPLICABLE", "INVALID", "INCOMPLETE"):
         rank_families([
             _record(sorted(ALLOWLIST)[0], f"case-{disposition}", disposition=disposition)
         ])
-        assert json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode() == before
+        assert json.dumps(score, sort_keys=True, separators=(",", ":")).encode() == score_bytes
+        assert json.dumps(
+            admittance.evaluate(score).to_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode() == admittance_bytes
+        assert json.dumps(
+            quote_handler(
+                {"score": score, "customer": customer},
+                rates=rates,
+                quoted_at=quoted_at,
+            )[1],
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode() == quote_bytes

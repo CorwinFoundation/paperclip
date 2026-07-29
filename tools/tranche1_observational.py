@@ -30,9 +30,9 @@ MAPPING_SHA256 = {
     "tool_misuse_unauthorized_call": "6b88a94c9f4893c98a9dd6d6f05dfbf401d2b4739f2fa6075256c509f296873e",
 }
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "defb9c9ecad5b22032ba5ffb71d4b12372478cde3c8a2432a7f7c88afab24d02",
-    "tool_misuse_scope_escape": "492a2668a9ef36d3bdeaf6b8392f911ec679572e945c2e6aba95cf851967a81e",
-    "tool_misuse_unauthorized_call": "1cab33e251c9351c018f6ccbac39310e5ac55ffdbdc3a171c5d21be9042ca986",
+    "tool_misuse_param_tamper": "437ff4c18a8a0e5b774f8c47344a20858fca6622fd43a6b3c0f7f59629019000",
+    "tool_misuse_scope_escape": "437ff4c18a8a0e5b774f8c47344a20858fca6622fd43a6b3c0f7f59629019000",
+    "tool_misuse_unauthorized_call": "437ff4c18a8a0e5b774f8c47344a20858fca6622fd43a6b3c0f7f59629019000",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 
@@ -60,6 +60,19 @@ def load_config() -> dict[str, Any]:
     for key, value in expected.items():
         if config.get(key) != value:
             raise ObservationalContractError(f"configuration mismatch: {key}")
+    inventory_path = (
+        REPO_ROOT / "artifacts" / "beaaa-18720" / "unified-probe-inventory.jsonl"
+    )
+    if sha256_file(inventory_path) != INVENTORY_SHA256:
+        raise ObservationalContractError("inventory sha256 mismatch")
+    evaluator_path = REPO_ROOT / "tools" / "registered_case_executor.py"
+    observed_evaluator = sha256_file(evaluator_path)
+    if set(EVALUATOR_SHA256.values()) != {observed_evaluator}:
+        raise ObservationalContractError("evaluator sha256 mismatch")
+    for family, expected_hash in MAPPING_SHA256.items():
+        mapping_path = REPO_ROOT / "rubric" / "probe_mappings" / f"{family}.yaml"
+        if sha256_file(mapping_path) != expected_hash:
+            raise ObservationalContractError(f"mapping sha256 mismatch: {family}")
     return config
 
 
@@ -69,6 +82,41 @@ def enabled() -> bool:
     if override not in {"", "on", "off"}:
         raise ObservationalContractError("invalid rollback override")
     return bool(config["enabled"]) and override != "off"
+
+
+def measured_output_allowed(row: Mapping[str, Any]) -> bool:
+    """Row-bound permission; the content-candidate worker stays globally false."""
+
+    if not enabled():
+        return False
+    family = str(row.get("test_id") or "")
+    return (
+        row.get("runner") == "content_candidate_worker"
+        and family in ALLOWLIST
+        and row.get("scoring_active") is True
+        and row.get("underwriting_active") is False
+        and row.get("effective_underwriting_weight") == 0.0
+        and row.get("observational_contract_version") == ENVELOPE_VERSION
+        and row.get("observational_disclosure") == DISCLOSURE
+        and row.get("k_replicates") == 5
+    )
+
+
+def require_runtime_commit_pin() -> str:
+    """Bind measurement to the exact authorized runtime artifact."""
+
+    runtime = os.environ.get("BACKBOND_RUNTIME_COMMIT_SHA", "")
+    authorized = os.environ.get("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "")
+    if (
+        len(runtime) != 40
+        or len(authorized) != 40
+        or any(character not in "0123456789abcdef" for character in runtime + authorized)
+        or runtime != authorized
+    ):
+        raise ObservationalContractError(
+            "runtime commit does not match exact authorized tranche-1 commit"
+        )
+    return runtime
 
 
 def activate_registry_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -146,8 +194,8 @@ def build_case_record(
     }
     if any(pins[key] != value for key, value in expected_pins.items()):
         raise ObservationalContractError("inventory/mapping/evaluator/configuration pin mismatch")
-    if len(str(pins["commit_sha256"])) not in (40, 64):
-        raise ObservationalContractError("commit pin is not a full Git or SHA-256 identity")
+    if pins["commit_sha256"] != require_runtime_commit_pin():
+        raise ObservationalContractError("case commit pin does not match runtime artifact")
     if not target_authorization_ref:
         raise ObservationalContractError("target authorization is required")
     required_run_fields = {
@@ -191,7 +239,9 @@ def build_case_record(
 
 
 def rank_families(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    grouped: dict[str, list[Mapping[str, Any]]] = {}
+    grouped: dict[str, list[Mapping[str, Any]]] = {
+        family: [] for family in ALLOWLIST
+    }
     for record in records:
         family = str(record.get("family_id"))
         if family not in ALLOWLIST or record.get("disclosure") != DISCLOSURE:
@@ -204,9 +254,22 @@ def rank_families(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     aggregates = []
     for family in sorted(grouped):
         rows = grouped[family]
+        from tools.content_candidate_inventory import load_candidate_inventory
+
+        expected_case_ids = {
+            str(candidate["stable_case_id"])
+            for candidate in load_candidate_inventory()
+            if candidate["family_id"] == family
+        }
+        observed_case_ids = [str(row.get("case_id") or "") for row in rows]
+        complete_roster = (
+            len(expected_case_ids) == ALLOWLIST[family]
+            and len(observed_case_ids) == len(set(observed_case_ids))
+            and set(observed_case_ids) == expected_case_ids
+        )
         counts = Counter(str(row["outcome"]) for row in rows)
         denominator = sum(counts[name] for name in ("PASS", "FAIL", "INVALID", "INCOMPLETE"))
-        unranked = denominator == 0
+        unranked = denominator == 0 or not complete_roster
         success = None if unranked else counts["PASS"] / denominator
         severe = (
             None if unranked else
@@ -224,7 +287,11 @@ def rank_families(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 "success_rate": success,
                 "raw_0_1_failure_rate": severe,
                 "invalid_incomplete_rate": invalid_incomplete,
-                "ranking_status": "UNRANKED" if unranked else "RANKED",
+                "ranking_status": (
+                    "INSUFFICIENT_EVIDENCE"
+                    if not complete_roster
+                    else "UNRANKED" if unranked else "RANKED"
+                ),
                 "effective_underwriting_weight": 0.0,
                 "underwriting_active": False,
                 "disclosure": DISCLOSURE,
@@ -243,7 +310,7 @@ def rank_families(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     for position, row in enumerate(ranked, start=1):
         row["rank"] = position
     unranked = sorted(
-        (row for row in aggregates if row["ranking_status"] == "UNRANKED"),
+        (row for row in aggregates if row["ranking_status"] != "RANKED"),
         key=lambda row: row["family_id"],
     )
     for row in unranked:
