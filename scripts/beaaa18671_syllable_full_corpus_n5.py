@@ -346,17 +346,19 @@ def collect_live(
                 scanner_version=SCANNER_VERSION,
             )
             raw = scored.get("raw")
-            if raw is None:
-                raise RunGuardError(
-                    f"{test_id}/seed{seed}: frozen scorer returned raw=None "
-                    "(inconclusive-ceiling breach); cannot emit a score"
-                )
             trace = scored.get("trace", [])
             if len(trace) != EXPECTED_CASE_COUNTS[test_id]:
                 raise RunGuardError(
                     f"{test_id}/seed{seed}: trace rows {len(trace)} != "
                     f"{EXPECTED_CASE_COUNTS[test_id]}"
                 )
+            # raw=None is the frozen scorer's deliberate signal that the dim is
+            # inconclusive for this subject (e.g. P1.5 confidence unparseable on
+            # >inconclusive_ceiling of cases). Record it as a manifested,
+            # inconclusive family-seed and continue — do NOT crash the run. The
+            # score phase treats an inconclusive in-scope dim as fail-closed
+            # (no BackBond Score), consistent with production "missing raw -> N/A".
+            inconclusive = raw is None
             evidence_ref = f"evidence://beaaa-18671-n5/{test_id}/seed{seed}.json"
             record = {
                 "schema": "backbond.beaaa18671.family-seed-evidence/v1",
@@ -364,6 +366,12 @@ def collect_live(
                 "dim_id": dim_id,
                 "seed": seed,
                 "raw": raw,
+                "inconclusive": inconclusive,
+                "inconclusive_reason": scored.get("inconclusive_reason"),
+                "inconclusive_rate": scored.get("inconclusive_rate"),
+                "inconclusive_ceiling": scored.get("inconclusive_ceiling"),
+                "n_inconclusive": scored.get("n_inconclusive"),
+                "n_unparseable_confidence": scored.get("n_unparseable_confidence"),
                 "pass_rate": scored.get("pass_rate"),
                 "subject_model_id": subject.model_id(),
                 "judge_model_id": judge.model_id(),
@@ -407,9 +415,15 @@ def score_seed_envelope(
     work_dir: Path,
     scored_at: datetime,
 ) -> dict[str, Any]:
+    # Include only dims with a numeric raw. An inconclusive dim (raw=None) is
+    # omitted here and marked N/A by the production applicability helper below,
+    # matching the production "missing raw -> N/A" path. The manifest records
+    # the omission and forces score_emittable=false so no BackBond Score ships.
     eval_results: dict[str, dict[str, Any]] = {}
     for _test_id, _mod, dim_id in FAMILIES:
         rec = results[(seed, _test_id)]
+        if rec.get("raw") is None:
+            continue
         eval_results[dim_id] = {
             "raw": float(rec["raw"]),
             "evidence_uri": rec["evidence_ref"],
@@ -594,6 +608,26 @@ def main() -> int:
     recon = reconcile(results)
     elapsed = time.time() - t0
 
+    # An in-scope dim whose frozen scorer returned raw=None is inconclusive for
+    # this subject — the corpus was NOT cleanly scored, so no BackBond Score can
+    # ship (prior Syllable score stays authoritative). This is a first-class
+    # execution finding, distinct from the 188 out-of-scope excluded rows.
+    inconclusive = [
+        {
+            "dim_id": results[(seed, t)]["dim_id"],
+            "seed": seed,
+            "reason": results[(seed, t)].get("inconclusive_reason"),
+            "inconclusive_rate": results[(seed, t)].get("inconclusive_rate"),
+            "n_inconclusive": results[(seed, t)].get("n_inconclusive"),
+            "n_unparseable_confidence": results[(seed, t)].get(
+                "n_unparseable_confidence"
+            ),
+        }
+        for seed in SEEDS
+        for t, _m, _d in FAMILIES
+        if results[(seed, t)].get("raw") is None
+    ]
+
     manifest = {
         "schema": "backbond.beaaa18671.full-suite-manifest/v1",
         "issue": "BEAAA-18844",
@@ -629,7 +663,10 @@ def main() -> int:
             for seed in SEEDS
         },
         "are_total_by_seed": spread["are_total_by_seed"],
-        "score_emittable": bool(spread["within_band"] and recon["reconciled"]),
+        "inconclusive_dims": inconclusive,
+        "score_emittable": bool(
+            spread["within_band"] and recon["reconciled"] and not inconclusive
+        ),
         "selection_manifest_ref": "selection_manifest.json",
     }
     (out_dir / "full_suite_manifest.json").write_text(
@@ -643,6 +680,7 @@ def main() -> int:
         "score_emittable": manifest["score_emittable"],
         "are_total_by_seed": spread["are_total_by_seed"],
         "are_total_spread": spread["are_total_spread"],
+        "inconclusive_dims": sorted({d["dim_id"] for d in inconclusive}),
         "http_attempts_used": http_attempts,
         "elapsed_seconds": manifest["elapsed_seconds"],
         "out": str(out_dir),
