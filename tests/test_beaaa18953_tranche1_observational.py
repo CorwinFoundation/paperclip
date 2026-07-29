@@ -23,6 +23,8 @@ from tools.tranche1_observational import (
     build_case_record,
     normalize_outcome,
     rank_families,
+    authorize_evidence_uri,
+    validate_rollback,
 )
 
 
@@ -57,6 +59,8 @@ def _record(family, case, raw=None, disposition=None):
         replicates=runs,
         pins=_pins(family),
         target_authorization_ref="auth:tenant:scan",
+        tenant_id="tenant-a",
+        audience="internal_observational",
     )
 
 
@@ -140,6 +144,8 @@ def test_n5_minimum_aggregation_and_complete_roster_ranking(monkeypatch):
             replicates=[{"raw_result": 4}] * 4,
             pins=_pins(family_a),
             target_authorization_ref="auth",
+            tenant_id="tenant-a",
+            audience="internal_observational",
         )
 
 
@@ -239,3 +245,64 @@ def test_observational_mutation_is_byte_isolated_from_production_consumers(monke
             separators=(",", ":"),
             default=str,
         ).encode() == quote_bytes
+
+
+def test_inherited_authorization_and_evidence_uri_access(monkeypatch):
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    record = _record(sorted(ALLOWLIST)[0], "case", 4)
+    uri = "evidence://job/family/case.json"
+    assert authorize_evidence_uri(
+        record, uri, tenant_id="tenant-a", audience="internal_observational"
+    ) == uri
+    for tenant, audience in (
+        ("tenant-b", "internal_observational"),
+        ("tenant-a", "customer"),
+        ("", "internal_observational"),
+    ):
+        with pytest.raises(ObservationalContractError):
+            authorize_evidence_uri(record, uri, tenant_id=tenant, audience=audience)
+
+
+def test_ranking_is_minimized_and_rejects_sensitive_alias_partial_collision(monkeypatch):
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    record = _record(sorted(ALLOWLIST)[0], "case", 4)
+    encoded = json.dumps(rank_families([record]))
+    for forbidden in ("evidence_uri", "target_authorization_ref", "tenant-a", "replicates", "pins"):
+        assert forbidden not in encoded
+    for mutation in (
+        {**record, "family": record["family_id"]},
+        {key: value for key, value in record.items() if key != "outcome"},
+        {**record, "evidence_uri": "evidence://secret"},
+        {**record, "family_id": "tool_misuse_param_tamper_alias"},
+    ):
+        with pytest.raises(ObservationalContractError):
+            rank_families([mutation])
+
+
+def test_rollback_refuses_all_material_drift_and_retains_evidence(monkeypatch):
+    sha = "e06cb09df3d0a490816eace227b083b97665949d"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    records = []
+    for family in sorted(ALLOWLIST):
+        roster = sorted(
+            str(row["stable_case_id"])
+            for row in load_candidate_inventory()
+            if row["family_id"] == family
+        )
+        records.extend(_record(family, case, 4) for case in roster)
+    assert validate_rollback(records) == {
+        "rollback_version": "reported_not_scored/v1",
+        "retained_evidence_records": 36,
+        "evidence_deleted": False,
+    }
+    for pin in ("mapping_sha256", "evaluator_sha256", "corpus_sha256", "configuration_sha256", "commit_sha256"):
+        drifted = [dict(row) for row in records]
+        drifted[0] = {**drifted[0], "pins": {**drifted[0]["pins"], pin: "0" * 64}}
+        with pytest.raises(ObservationalContractError):
+            validate_rollback(drifted)
+    for bad_records in (records[:-1], records + [records[0]]):
+        with pytest.raises(ObservationalContractError):
+            validate_rollback(bad_records)

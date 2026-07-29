@@ -30,11 +30,17 @@ MAPPING_SHA256 = {
     "tool_misuse_unauthorized_call": "6b88a94c9f4893c98a9dd6d6f05dfbf401d2b4739f2fa6075256c509f296873e",
 }
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "8d935ca8ecaaadc1965803801091cd8be8e14e72b426f3605f635835efd99229",
-    "tool_misuse_scope_escape": "8d935ca8ecaaadc1965803801091cd8be8e14e72b426f3605f635835efd99229",
-    "tool_misuse_unauthorized_call": "8d935ca8ecaaadc1965803801091cd8be8e14e72b426f3605f635835efd99229",
+    "tool_misuse_param_tamper": "e01c65a13f7ca909e3e4eed0a70722618e3ecd7de90530c53a808c1a818dfba9",
+    "tool_misuse_scope_escape": "e01c65a13f7ca909e3e4eed0a70722618e3ecd7de90530c53a808c1a818dfba9",
+    "tool_misuse_unauthorized_call": "e01c65a13f7ca909e3e4eed0a70722618e3ecd7de90530c53a808c1a818dfba9",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
+RANKING_RECORD_KEYS = {
+    "family_id", "case_id", "raw_result", "outcome", "replicate_count",
+    "replicates", "pins", "target_authorization_ref", "tenant_id", "audience",
+    "contract_version", "rollback_version", "effective_underwriting_weight",
+    "underwriting_active", "disclosure",
+}
 
 
 class ObservationalContractError(ValueError):
@@ -173,6 +179,8 @@ def build_case_record(
     replicates: Iterable[Mapping[str, Any]],
     pins: Mapping[str, str],
     target_authorization_ref: str,
+    tenant_id: str,
+    audience: str,
 ) -> dict[str, Any]:
     if family_id not in ALLOWLIST:
         raise ObservationalContractError("family is not exactly allowlisted")
@@ -196,8 +204,8 @@ def build_case_record(
         raise ObservationalContractError("inventory/mapping/evaluator/configuration pin mismatch")
     if pins["commit_sha256"] != require_runtime_commit_pin():
         raise ObservationalContractError("case commit pin does not match runtime artifact")
-    if not target_authorization_ref:
-        raise ObservationalContractError("target authorization is required")
+    if not target_authorization_ref or not tenant_id or audience != "internal_observational":
+        raise ObservationalContractError("inherited tenant/audience authorization is required")
     required_run_fields = {
         "replicate_index", "seed", "evidence_uri", "evidence_sha256",
         "started_at", "completed_at",
@@ -230,6 +238,8 @@ def build_case_record(
         "replicates": runs,
         "pins": dict(pins),
         "target_authorization_ref": target_authorization_ref,
+        "tenant_id": tenant_id,
+        "audience": audience,
         "contract_version": ENVELOPE_VERSION,
         "rollback_version": "reported_not_scored/v1",
         "effective_underwriting_weight": 0.0,
@@ -243,6 +253,8 @@ def rank_families(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
         family: [] for family in ALLOWLIST
     }
     for record in records:
+        if set(record) != RANKING_RECORD_KEYS:
+            raise ObservationalContractError("record shape is unknown, partial, or aliased")
         family = str(record.get("family_id"))
         if family not in ALLOWLIST or record.get("disclosure") != DISCLOSURE:
             raise ObservationalContractError("unallowlisted or unlabeled record")
@@ -316,3 +328,50 @@ def rank_families(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     for row in unranked:
         row["rank"] = None
     return ranked + unranked
+
+
+def authorize_evidence_uri(
+    record: Mapping[str, Any],
+    evidence_uri: str,
+    *,
+    tenant_id: str,
+    audience: str,
+) -> str:
+    """Return a retained evidence URI only to its inherited tenant/audience."""
+
+    if (
+        not evidence_uri.startswith("evidence://")
+        or record.get("tenant_id") != tenant_id
+        or record.get("audience") != audience
+        or audience != "internal_observational"
+    ):
+        raise ObservationalContractError("evidence URI access denied")
+    return evidence_uri
+
+
+def validate_rollback(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Fail closed on drift and preserve all evidence for audit/re-enable."""
+
+    rows = list(records)
+    ranking = rank_families(rows)
+    if len(rows) != sum(ALLOWLIST.values()) or any(
+        row["ranking_status"] != "RANKED" for row in ranking
+    ):
+        raise ObservationalContractError("rollback refused: family/case-count drift")
+    for row in rows:
+        family = str(row["family_id"])
+        expected = {
+            "inventory_sha256": INVENTORY_SHA256,
+            "mapping_sha256": MAPPING_SHA256[family],
+            "evaluator_sha256": EVALUATOR_SHA256[family],
+            "configuration_sha256": CONFIG_SHA256,
+            "corpus_sha256": INVENTORY_SHA256,
+            "commit_sha256": require_runtime_commit_pin(),
+        }
+        if row["pins"] != expected:
+            raise ObservationalContractError("rollback refused: material pin drift")
+    return {
+        "rollback_version": "reported_not_scored/v1",
+        "retained_evidence_records": len(rows),
+        "evidence_deleted": False,
+    }

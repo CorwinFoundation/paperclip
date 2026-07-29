@@ -268,12 +268,16 @@ class RegisteredCaseExecutor:
         judge: ModelRunner,
         evidence_store: EvidenceStore,
         budget: ScanBudget,
+        tenant_id: str = "legacy-internal-test",
+        audience: str = "internal_observational",
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
         self.budget = budget
         self.subject = _BudgetedRunner(subject, self.ledger, role="target")
         self.judge = _BudgetedRunner(judge, self.ledger, role="judge")
         self.evidence_store = evidence_store
+        self.tenant_id = tenant_id
+        self.audience = audience
         self._observational_lock = threading.RLock()
         self._observational_records: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -363,6 +367,8 @@ class RegisteredCaseExecutor:
             execution_row["target_authorization_ref"] = (
                 f"full-scan-job:{job.job_id}:agent:{job.agent_id}"
             )
+            execution_row["tenant_id"] = self.tenant_id
+            execution_row["audience"] = self.audience
             execution_row["case_evidence_uri"] = (
                 f"evidence://{job.job_id}/{_safe_segment(test_id)}/"
                 f"{_safe_segment(case_id)}.json"
@@ -756,6 +762,8 @@ class RegisteredCaseExecutor:
                     target_authorization_ref=str(
                         registry_row.get("target_authorization_ref") or ""
                     ),
+                    tenant_id=str(registry_row.get("tenant_id") or self.tenant_id),
+                    audience=str(registry_row.get("audience") or self.audience),
                 )
             except Exception as exc:
                 observational_rejection = f"observational_fail_closed:{type(exc).__name__}"
@@ -875,6 +883,8 @@ class RegisteredCaseExecutor:
                 target_authorization_ref=str(
                     registry_row.get("target_authorization_ref") or ""
                 ),
+                tenant_id=str(registry_row.get("tenant_id") or self.tenant_id),
+                audience=str(registry_row.get("audience") or self.audience),
             )
         except Exception as exc:
             return {
@@ -957,6 +967,8 @@ def build_registered_case_workers(
         judge=judge_builder(),
         evidence_store=EvidenceStore(root),
         budget=budget or ScanBudget.from_env(),
+        tenant_id=str(scan_request.tenant_id),
+        audience="internal_observational",
     )
     return {worker_id: executor for worker_id in WORKERS}
 
