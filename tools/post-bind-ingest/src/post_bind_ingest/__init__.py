@@ -20,6 +20,10 @@ from .continuity_gate import (
     evaluate_attach_renew_continuity,
 )
 from .detector_input import normalize_tool_name
+from .breach_chain import (
+    BreachChainInputError,
+    evaluate_breach_chain_semantics,
+)
 from .evidence_chain_trace import (
     EvidenceChainTrace,
     EvidenceChainTraceError,
@@ -57,6 +61,8 @@ __all__ = [
     "compute_gap_state",
     "evaluate_attach_renew_continuity",
     "normalize_tool_name",
+    "BreachChainInputError",
+    "evaluate_breach_chain_semantics",
     "EvidenceChainTrace",
     "EvidenceChainTraceError",
     "build_evidence_chain_trace",
