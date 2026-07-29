@@ -256,6 +256,33 @@ class EvidenceStore:
         temp.replace(target)
         return f"evidence://{job_id}/observational-ranking.json", target
 
+    def read_observational_evidence(
+        self,
+        evidence_uri: str,
+        *,
+        record: Mapping[str, Any],
+        tenant_id: str,
+        audience: str,
+    ) -> dict[str, Any]:
+        """Resolve an evidence reference only after tenant/audience authorization."""
+
+        from tools.tranche1_observational import authorize_evidence_uri
+
+        authorized = authorize_evidence_uri(
+            record,
+            evidence_uri,
+            tenant_id=tenant_id,
+            audience=audience,
+        )
+        relative = authorized.removeprefix("evidence://")
+        parts = relative.split("/")
+        if not parts or any(part in {"", ".", ".."} for part in parts):
+            raise ValueError("invalid evidence URI")
+        target = self.root.joinpath(*(_safe_segment(part) for part in parts))
+        if target.suffix != ".json":
+            target = target.with_suffix(".json")
+        return json.loads(target.read_text(encoding="utf-8"))
+
 
 
 class RegisteredCaseExecutor:

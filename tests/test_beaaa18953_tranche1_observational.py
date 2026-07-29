@@ -10,6 +10,8 @@ from api.handlers import quote_handler
 from pricing.quote import Rates
 from rubric.bands import assign_band, band_to_dict
 from underwriting import admittance
+from underwriting.automatic_decision import canonical_decision_bytes, decide
+from tools.registered_case_executor import EvidenceStore
 from tools.active_test_registry import build_registry
 from tools.content_candidate_inventory import load_candidate_inventory
 from tools.tranche1_observational import (
@@ -264,12 +266,36 @@ def test_inherited_authorization_and_evidence_uri_access(monkeypatch):
             authorize_evidence_uri(record, uri, tenant_id=tenant, audience=audience)
 
 
+def test_evidence_store_read_is_tenant_and_audience_gated(tmp_path, monkeypatch):
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    record = _record(sorted(ALLOWLIST)[0], "case", 4)
+    store = EvidenceStore(tmp_path)
+    uri, _ = store.write(job_id="job", test_id="family", case_id="case", payload={"ok": True})
+    assert store.read_observational_evidence(
+        uri, record=record, tenant_id="tenant-a", audience="internal_observational"
+    )["ok"] is True
+    with pytest.raises(ObservationalContractError):
+        store.read_observational_evidence(
+            uri, record=record, tenant_id="tenant-b", audience="internal_observational"
+        )
+
+
 def test_ranking_is_minimized_and_rejects_sensitive_alias_partial_collision(monkeypatch):
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
     record = _record(sorted(ALLOWLIST)[0], "case", 4)
+    record["replicates"][0].update({
+        "prompt": "SECRET PROMPT",
+        "tool_arguments": {"password": "hunter2"},
+        "response": "customer@example.test",
+        "confidential_artifact": "PRIVATE",
+    })
     encoded = json.dumps(rank_families([record]))
-    for forbidden in ("evidence_uri", "target_authorization_ref", "tenant-a", "replicates", "pins"):
+    for forbidden in (
+        "evidence_uri", "target_authorization_ref", "tenant-a", "replicates", "pins",
+        "SECRET PROMPT", "hunter2", "customer@example.test", "PRIVATE",
+    ):
         assert forbidden not in encoded
     for mutation in (
         {**record, "family": record["family_id"]},
@@ -306,3 +332,66 @@ def test_rollback_refuses_all_material_drift_and_retains_evidence(monkeypatch):
     for bad_records in (records[:-1], records + [records[0]]):
         with pytest.raises(ObservationalContractError):
             validate_rollback(bad_records)
+
+
+def test_complete_downstream_matrix_canonical_hash_isolation(monkeypatch):
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
+    envelope = json.loads(
+        (Path(__file__).resolve().parents[1] / "artifacts" / "beaaa-8225" /
+         "consolidated_envelope_seed0.json").read_text(encoding="utf-8")
+    )
+    envelope.setdefault("subscores", {
+        "GOVERNANCE": 22.0, "ROBUSTNESS": 22.0,
+        "BIAS_FAIRNESS": 22.0, "OPS": 22.0,
+    })
+    envelope["applicability_record"] = {
+        "measured_dims_count": 22, "na_dims_count": 1, "pillars_with_all_na": [],
+    }
+    envelope["uncovered_dimensions"] = []
+    envelope["coverage_fraction"] = {"overall": 0.92, "by_peril": {
+        key: 0.90 for key in (
+            "wrong_recipient", "unauthorized_commitment", "data_leak",
+            "hallucination", "prompt_injection", "regulatory_response",
+        )
+    }}
+    envelope["governance_evidence"] = {"eval_ledger_p4_5": "present"}
+    envelope["peril_findings"] = []
+    envelope["rate_context"] = {
+        "state": "NY", "class": "contact_center_agent", "limit": 50000,
+        "deductible": 5000, "annual_agent_actions": 1000000,
+        "product_tier": "Silver", "filed_rate_available": True,
+    }
+    envelope["appetite"] = {"prohibited_use_case": False}
+    envelope["scan_mode"] = "offline_replay"
+    envelope["spread_per_dim_worst"] = 0.0
+
+    def matrix() -> dict:
+        decision = decide(envelope)
+        return {
+            "locked_v1_response": envelope,
+            "score_pillars_dimensions_band_published_totals": {
+                key: envelope.get(key) for key in (
+                    "are_total", "subscores", "dim_scores", "band",
+                    "published_weighted_total", "published_countable_total",
+                )
+            },
+            "applicability_coverage_completeness_variance_behavioral": {
+                key: envelope.get(key) for key in (
+                    "applicability_record", "coverage_fraction", "diagnostics",
+                    "scan_incomplete", "high_variance", "behavioral_integrity",
+                )
+            },
+            "admittance": admittance.evaluate(envelope).to_dict(),
+            "eligibility_policy_bind_referral_customer_decision": decision.to_dict(),
+            "policy_decision_canonical_bytes": canonical_decision_bytes(decision).decode(),
+        }
+
+    baseline = json.dumps(matrix(), sort_keys=True, separators=(",", ":"), default=str).encode()
+    for outcome in ("PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"):
+        rank_families([_record(sorted(ALLOWLIST)[0], f"case-{outcome}",
+                               raw=4 if outcome == "PASS" else 0 if outcome == "FAIL" else None,
+                               disposition=None if outcome in {"PASS", "FAIL"} else outcome)])
+        assert json.dumps(
+            matrix(), sort_keys=True, separators=(",", ":"), default=str
+        ).encode() == baseline

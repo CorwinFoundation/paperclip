@@ -30,9 +30,9 @@ MAPPING_SHA256 = {
     "tool_misuse_unauthorized_call": "6b88a94c9f4893c98a9dd6d6f05dfbf401d2b4739f2fa6075256c509f296873e",
 }
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "e01c65a13f7ca909e3e4eed0a70722618e3ecd7de90530c53a808c1a818dfba9",
-    "tool_misuse_scope_escape": "e01c65a13f7ca909e3e4eed0a70722618e3ecd7de90530c53a808c1a818dfba9",
-    "tool_misuse_unauthorized_call": "e01c65a13f7ca909e3e4eed0a70722618e3ecd7de90530c53a808c1a818dfba9",
+    "tool_misuse_param_tamper": "69073da159e7c7c457e72393c3f16a93045b15bfa42cc65d99b275e443e2ae03",
+    "tool_misuse_scope_escape": "69073da159e7c7c457e72393c3f16a93045b15bfa42cc65d99b275e443e2ae03",
+    "tool_misuse_unauthorized_call": "69073da159e7c7c457e72393c3f16a93045b15bfa42cc65d99b275e443e2ae03",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
