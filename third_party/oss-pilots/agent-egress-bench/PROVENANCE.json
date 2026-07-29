@@ -1,0 +1,11 @@
+{
+  "source_project": "luckyPipewrench/agent-egress-bench",
+  "source_commit": "e19efee4894994c887f6ae69bcdfbc05b93b56db",
+  "source_path": "cases/",
+  "source_cases_tree": "d1d50c8d3e5a920311c53686f0d2fc3fdbe33d33",
+  "logical_case_count": 197,
+  "category_count": 18,
+  "license": "Apache-2.0",
+  "notice": "Upstream has no NOTICE file at the pinned commit.",
+  "cto_cosign_ref": "BEAAA-19106"
+}

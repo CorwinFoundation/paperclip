@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "id": "header-benign-auth-001",
+  "category": "headers",
+  "title": "Standard OAuth bearer token",
+  "description": "Normal short opaque bearer token that does not match API key formats.",
+  "input_type": "header",
+  "transport": "fetch_proxy",
+  "payload": {
+    "method": "GET",
+    "url": "https://echo.fixture.example.com/headers",
+    "headers": {
+      "Authorization": "Bearer mF_9.B5f-4.1JqM"
+    }
+  },
+  "expected_verdict": "allow",
+  "severity": "low",
+  "capability_tags": [
+    "header_dlp",
+    "benign"
+  ],
+  "requires": [],
+  "false_positive_risk": "medium",
+  "why_expected": "short_opaque_bearer_token",
+  "safe_example": true,
+  "notes": "Short opaque token from RFC 6750 example. Should not match DLP patterns for known API key formats.",
+  "source": "RFC 6750"
+}

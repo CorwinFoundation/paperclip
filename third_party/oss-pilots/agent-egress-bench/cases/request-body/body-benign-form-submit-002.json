@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "id": "body-benign-form-submit-002",
+  "category": "request_body",
+  "title": "Standard HTML form submission",
+  "description": "Normal search form POST body.",
+  "input_type": "request_body",
+  "transport": "http_proxy",
+  "payload": {
+    "method": "POST",
+    "url": "https://echo.fixture.example.com/search",
+    "content_type": "application/x-www-form-urlencoded",
+    "body": "q=golang+http+proxy+tutorial&category=programming&sort=relevance"
+  },
+  "expected_verdict": "allow",
+  "severity": "low",
+  "capability_tags": [
+    "request_body_dlp",
+    "benign"
+  ],
+  "requires": [],
+  "false_positive_risk": "low",
+  "why_expected": "normal_form_submission",
+  "safe_example": true,
+  "notes": "Standard search form submission.",
+  "source": "Synthetic benign traffic pattern"
+}

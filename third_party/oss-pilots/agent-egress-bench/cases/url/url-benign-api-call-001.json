@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "id": "url-benign-api-call-001",
+  "category": "url",
+  "title": "Normal GitHub API call",
+  "description": "Standard API request with typical query parameters.",
+  "input_type": "url",
+  "transport": "fetch_proxy",
+  "payload": {
+    "method": "GET",
+    "url": "https://api.fixture.example.com/repos/golang/go/issues?state=open&page=2&per_page=30&sort=updated"
+  },
+  "expected_verdict": "allow",
+  "severity": "low",
+  "capability_tags": [
+    "url_dlp",
+    "benign"
+  ],
+  "requires": [],
+  "false_positive_risk": "low",
+  "why_expected": "standard_api_query_parameters",
+  "safe_example": true,
+  "notes": "Normal API call with standard pagination and sort params.",
+  "source": "Synthetic benign traffic pattern"
+}

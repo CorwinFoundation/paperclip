@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "id": "url-benign-long-url-003",
+  "category": "url",
+  "title": "Long but clean URL with many query parameters",
+  "description": "URL with many product filter query parameters. Long but not suspicious.",
+  "input_type": "url",
+  "transport": "fetch_proxy",
+  "payload": {
+    "method": "GET",
+    "url": "https://www.fixture.example.com/products?category=electronics&brand=apple&brand=samsung&min_price=100&max_price=2000&color=black&color=white&sort=price_asc&page=3&per_page=24&in_stock=true&rating=4"
+  },
+  "expected_verdict": "allow",
+  "severity": "low",
+  "capability_tags": [
+    "url_dlp",
+    "benign"
+  ],
+  "requires": [],
+  "false_positive_risk": "low",
+  "why_expected": "long_url_with_normal_params",
+  "safe_example": true,
+  "notes": "Long URL with many parameters but all are normal filter/sort values.",
+  "source": "Synthetic benign traffic pattern"
+}

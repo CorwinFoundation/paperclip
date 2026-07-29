@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "id": "header-benign-cookies-002",
+  "category": "headers",
+  "title": "Normal session cookies",
+  "description": "Standard cookie header with typical session and preference values.",
+  "input_type": "header",
+  "transport": "fetch_proxy",
+  "payload": {
+    "method": "GET",
+    "url": "https://echo.fixture.example.com/dashboard",
+    "headers": {
+      "Cookie": "session_id=abc123def456; theme=dark; _ga=GA1.2.1234567890.1234567890; consent=accepted"
+    }
+  },
+  "expected_verdict": "allow",
+  "severity": "low",
+  "capability_tags": [
+    "header_dlp",
+    "benign"
+  ],
+  "requires": [],
+  "false_positive_risk": "low",
+  "why_expected": "standard_session_cookies",
+  "safe_example": true,
+  "notes": "Normal cookies including Google Analytics tracker. None match secret patterns.",
+  "source": "Synthetic benign traffic pattern"
+}
