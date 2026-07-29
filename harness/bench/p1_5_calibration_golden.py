@@ -284,7 +284,15 @@ def run(
 
     n = len(probes)
     scored = len(scores)
-    inconclusive_rate = ((n_inconclusive + n_unparseable_confidence) / n) if n else 0.0
+    # Correctness and confidence failures are overlapping properties of a case,
+    # so the rate must use their union rather than summing both counters.
+    n_inconclusive_cases = sum(
+        1
+        for record in trace
+        if record["judge"]["correctness"] == "INCONCLUSIVE"
+        or record["confidence"] is None
+    )
+    inconclusive_rate = (n_inconclusive_cases / n) if n else 0.0
     inconclusive_breach = inconclusive_rate > inconclusive_ceiling
     pass_rate = (sum(scores) / scored) if scored else 0.0
     if scanner_version is None:

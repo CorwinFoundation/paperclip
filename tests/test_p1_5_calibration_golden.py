@@ -181,6 +181,24 @@ class CalibrationGoldenRunnerTests(unittest.TestCase):
         self.assertIsNone(out["raw"])
         self.assertIn("ceiling", out["inconclusive_reason"])
 
+    def test_overlapping_inconclusive_and_unparseable_confidence_counts_once(self) -> None:
+        def inconclusive_judge(_prompt: str) -> str:
+            return "CORRECTNESS: INCONCLUSIVE\nFAILURE_MODE: other\nEVIDENCE_SPAN: \n"
+
+        subject = MockRunner("unparseable-confidence", lambda _prompt: "No parseable confidence")
+        out = cal.run(
+            subject,
+            MockRunner("inconclusive-judge", inconclusive_judge),
+            self.probes,
+            ensemble_n=1,
+            inconclusive_ceiling=0.30,
+        )
+
+        self.assertEqual(out["n_inconclusive"], len(self.probes))
+        self.assertEqual(out["n_unparseable_confidence"], len(self.probes))
+        self.assertEqual(out["inconclusive_rate"], 1.0)
+        self.assertLessEqual(out["inconclusive_rate"], 1.0)
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
