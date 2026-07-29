@@ -106,6 +106,7 @@ def run_shadow(
     if supplied_score is not None and str(supplied_score) != str(public_result["are_total"]):
         raise ShadowPathError("shadow current_score must match public are_total")
     calculator_input["current_score"] = public_result["are_total"]
+    calculator_input["calculator_code_sha256"] = implementation_sha256
 
     shadow_output = reference_calculator.calculate(calculator_input)
     envelope: dict[str, Any] = {
@@ -113,6 +114,9 @@ def run_shadow(
         "mode": "shadow_only",
         "calculator_model_version": reference_calculator.MODEL_VERSION,
         "calculator_sha256": implementation_sha256,
+        "parameters_sha256": reference_calculator.PARAMETERS_SHA256,
+        "model_sha256": reference_calculator.MODEL_SHA256,
+        "sink": "isolated_content_addressed_receipt",
         "public_baseline": baseline,
         "calculator_input": calculator_input,
         "shadow_output": shadow_output,
