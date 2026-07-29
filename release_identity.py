@@ -82,8 +82,9 @@ def validate_tag(tag: str | None, identity: ReleaseIdentity, build_sha: str) -> 
     stable = STABLE_TAG_RE.fullmatch(tag)
     rc = RC_TAG_RE.fullmatch(tag)
     deploy = DEPLOY_TAG_RE.fullmatch(tag)
-    if stable or rc:
-        if (stable or rc).group(1) != identity.scanner_version:
+    version_match = stable or rc
+    if version_match is not None:
+        if version_match.group(1) != identity.scanner_version:
             raise ReleaseManifestError("release tag version disagrees with manifest")
         return
     if deploy:
@@ -100,7 +101,10 @@ def validate_repository(root: Path, *, build_sha: str, tag: str | None = None) -
     if identity.build_sha is not None and identity.build_sha != build_sha:
         raise ReleaseManifestError("authored build_sha disagrees with candidate SHA")
     validate_tag(tag if tag is not None else identity.release_tag, identity, build_sha)
-    contract_version = CONTRACT_RE.fullmatch(identity.contract_version).group(1)
+    contract_match = CONTRACT_RE.fullmatch(identity.contract_version)
+    if contract_match is None:
+        raise ReleaseManifestError("contract_version is invalid")
+    contract_version = contract_match.group(1)
     if f'version: "v{contract_version}"' not in (root / "contracts" / "are-scanner-api-v1.md").read_text():
         raise ReleaseManifestError("contract reference does not exist")
     if f'version: "{identity.rubric_version}"' not in (root / "rubric" / "rubric.yaml").read_text():
