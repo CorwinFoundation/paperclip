@@ -114,7 +114,7 @@ jobs:
   deploy:
     name: deploy and verify
     needs: validate
-    if: vars.PASSIVE_DEMO_CD_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: vars.PASSIVE_DEMO_CD_ENABLED == 'true' && vars.PASSIVE_DEMO_DEPLOY_HOLD == 'inactive' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: passive-monitor-demo
