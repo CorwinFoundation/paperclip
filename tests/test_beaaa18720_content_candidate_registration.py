@@ -57,10 +57,13 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
         "bench_wrapper": 218,
     }
     assert all(row["production_runner_executable"] is True for row in candidates)
-    assert all(
-        row["candidate_registration_status"] == "registered_reported_not_scored"
-        for row in candidates
+    registration_statuses = Counter(
+        row["candidate_registration_status"] for row in candidates
     )
+    assert registration_statuses == {
+        "registered_reported_not_scored": 1_964,
+        "registered_zero_weight_observational": 36,
+    }
 
 
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
