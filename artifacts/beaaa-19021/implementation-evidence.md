@@ -7,9 +7,9 @@ canonical_terms_only: true
 focus_claim: "BEAAA-19021 adds a fail-closed exact-allowlist production canary entrypoint for 36 tranche-1 cases at N=5 without changing weighted Scanner state."
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
 ticket_refs: ["BEAAA-19021", "BEAAA-19023", "BEAAA-19020"]
-proof_points_cited: ["55 focused tests passed", "invalid authority and identity inputs rejected at 0 target calls and 0 evidence writes", "180 target calls", "0 judge calls", "N=5 delta 0"]
-version: 0.4
-prior_version: 0.3
+proof_points_cited: ["63 focused tests passed", "invalid authority and identity inputs rejected at 0 target calls and 0 evidence writes", "180 target calls", "0 judge calls", "N=5 delta 0"]
+version: 0.5
+prior_version: 0.4
 self_audit_passed: true
 escalations_noted: ["Promotion requires exact-SHA QA APPROVED, Compliance approval, Underwriting approval, and Founder sign-off."]
 ---
@@ -46,8 +46,8 @@ failures assert zero calls and zero evidence writes.
 Verification:
 
 ```text
-pytest -q tests/test_beaaa19021_tranche1_canary.py tests/test_beaaa18953_tranche1_observational.py
-55 passed
+python3 -m pytest -q tests/test_beaaa19021_tranche1_canary.py tests/test_beaaa19052_shared_lease_authority.py tests/test_beaaa18953_tranche1_observational.py
+63 passed
 ```
 
 Operator command:
@@ -58,6 +58,10 @@ BACKBOND_RUNTIME_COMMIT_SHA=<candidate-sha> \
 BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA=<candidate-sha> \
 BACKBOND_RUNTIME_IMAGE_REF=<repository@sha256:digest> \
 BACKBOND_RUNTIME_ENVIRONMENT=production \
+BACKBOND_RUNTIME_TENANT_ID=<tenant-id> \
+BACKBOND_PROMOTION_LEASE_AUTHORITY_DSN=<production-authority-dsn> \
+BACKBOND_PROMOTION_LEASE_STORAGE_IDENTITY=<production-authority-storage-identity> \
+BACKBOND_PROMOTION_LEASE_CONTINUITY_EPOCH=<production-authority-continuity-epoch> \
 python -m tools.tranche1_canary_runner \
   --agent-endpoint <production-local-endpoint> \
   --tenant-id <tenant-id> \
@@ -67,7 +71,6 @@ python -m tools.tranche1_canary_runner \
   --image-ref <repository@sha256:digest> \
   --promotion-lease <signed-promotion-lease.json> \
   --founder-authorization <signed-founder-authorization.json> \
-  --promotion-lease-ledger /var/lib/backbond/tranche1-promotion-leases.sqlite3 \
   --evidence-dir /var/lib/are-scanner/evidence \
   --secret-fd 9
 ```
