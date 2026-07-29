@@ -55,6 +55,7 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import sys
 import time
 from datetime import datetime, timezone
@@ -66,7 +67,7 @@ sys.path.insert(0, str(REPO))
 
 from harness import cli_runner  # noqa: E402
 from harness.contract_envelope import to_contract_output  # noqa: E402
-from harness.runner import ModelRunner, OpenRouterRunner  # noqa: E402
+from harness.runner import ModelRunner, OpenRouterRunner, RunnerError  # noqa: E402
 from rubric.scoring import Rubric, score  # noqa: E402
 from scanners import SCANNER_VERSION as SCORER_SCANNER_VERSION  # noqa: E402
 from scanners.score_runtime import _build_synthetic_applicability  # noqa: E402
@@ -114,6 +115,17 @@ CAP_TARGET_CALLS = 550
 CAP_HTTP_ATTEMPTS = 1300  # 550 x 2 posts + ~200 retry headroom
 CAP_WALL_SECONDS = 48 * 60 * 60
 SPREAD_BAND = 1.0  # ±1 reproducibility band (are_total and every subscore)
+
+# Driver-side transport reliability against the Syllable public showcase. The
+# QA-approved BEAAA-18687 seam retries only HTTP 502/503/522 (not connection
+# refusals), and AC#1 forbids changing the seam. So the driver adds bounded
+# retry-on-connection-error + light inter-call pacing here. Pacing costs only
+# wall-clock (we have 48h); retries fire extra HTTP posts counted by the ledger
+# and fail-closed at CAP_HTTP_ATTEMPTS. Each logical target call is counted once.
+INTER_CALL_PACING_SECONDS = float(os.environ.get("BEAAA18671_PACING_S", "1.5"))
+MAX_DRIVER_RETRIES = int(os.environ.get("BEAAA18671_MAX_RETRIES", "5"))
+RETRY_BACKOFF_BASE_SECONDS = 2.0
+_TRANSIENT_MARKERS = ("connection refused", "failed", "timed out", "timeout", "reset")
 
 
 class RunGuardError(RuntimeError):
@@ -213,17 +225,38 @@ class _CappedSubject(ModelRunner):
     def __init__(self, inner: ModelRunner, *, baseline_target_calls: int) -> None:
         self._inner = inner
         self.target_calls = baseline_target_calls
+        self.driver_retries = 0
 
     def model_id(self) -> str:
         return self._inner.model_id()
+
+    @staticmethod
+    def _is_transient(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return isinstance(exc, RunnerError) and any(
+            m in msg for m in _TRANSIENT_MARKERS
+        )
 
     def complete(self, prompt: str) -> str:
         if self.target_calls >= CAP_TARGET_CALLS:
             raise ExecutionCapReached(
                 f"{CAP_TARGET_CALLS} target-call cap reached"
             )
-        self.target_calls += 1
-        return self._inner.complete(prompt)
+        self.target_calls += 1  # one logical target call, retries excluded
+        if INTER_CALL_PACING_SECONDS > 0:
+            time.sleep(INTER_CALL_PACING_SECONDS)
+        last: Exception | None = None
+        for attempt in range(MAX_DRIVER_RETRIES + 1):
+            try:
+                return self._inner.complete(prompt)
+            except Exception as exc:  # noqa: BLE001 - bounded transient retry
+                if not self._is_transient(exc) or attempt == MAX_DRIVER_RETRIES:
+                    raise
+                last = exc
+                self.driver_retries += 1
+                delay = RETRY_BACKOFF_BASE_SECONDS * (2**attempt)
+                time.sleep(delay + random.uniform(0.0, delay * 0.25))
+        raise last  # pragma: no cover
 
 
 def build_live_subject(ledger: CheckpointLedger, baseline_target_calls: int) -> _CappedSubject:
