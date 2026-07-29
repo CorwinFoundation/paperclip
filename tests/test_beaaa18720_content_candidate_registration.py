@@ -207,6 +207,22 @@ def test_production_worker_call_persists_isolated_observation(
         "full-scan-job:tranche-job:agent:authorized-agent"
     )
     assert evidence["score"] is None
+    manifest = {"job_id": "tranche-job", "locked_v1_result": {"are_total": 78}}
+    before = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+    executor.write_manifest(manifest)
+    assert json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode() == before
+    ranking = json.loads(
+        (tmp_path / "tranche-job" / "observational-ranking.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert ranking["families"]
+    assert {
+        row["ranking_status"] for row in ranking["families"]
+    } == {"INSUFFICIENT_EVIDENCE"}
+    assert (
+        tmp_path / "tranche-job" / "manifest.json"
+    ).read_text(encoding="utf-8")
 
 
 def test_nonallowlisted_candidate_cannot_forge_measured_permission(

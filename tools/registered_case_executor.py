@@ -241,6 +241,20 @@ class EvidenceStore:
         temp.replace(target)
         return f"evidence://{job_id}/manifest.json", target
 
+    def write_observational_ranking(
+        self,
+        *,
+        job_id: str,
+        payload: Mapping[str, Any],
+    ) -> tuple[str, Path]:
+        target = self.root / _safe_segment(job_id) / "observational-ranking.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        encoded = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(encoded, encoding="utf-8")
+        temp.replace(target)
+        return f"evidence://{job_id}/observational-ranking.json", target
+
 
 
 class RegisteredCaseExecutor:
@@ -259,6 +273,8 @@ class RegisteredCaseExecutor:
         self.subject = _BudgetedRunner(subject, self.ledger, role="target")
         self.judge = _BudgetedRunner(judge, self.ledger, role="judge")
         self.evidence_store = evidence_store
+        self._observational_lock = threading.RLock()
+        self._observational_records: dict[tuple[str, str], dict[str, Any]] = {}
 
     def manifest_metadata(self) -> dict[str, Any]:
         return {
@@ -273,6 +289,26 @@ class RegisteredCaseExecutor:
         job_id = str(manifest.get("job_id") or "")
         if not job_id:
             raise ValueError("manifest missing job_id")
+        from tools.tranche1_observational import (
+            DISCLOSURE,
+            ENVELOPE_VERSION,
+            rank_families,
+        )
+
+        with self._observational_lock:
+            records = [
+                self._observational_records[key]
+                for key in sorted(self._observational_records)
+            ]
+        ranking = rank_families(records)
+        self.evidence_store.write_observational_ranking(
+            job_id=job_id,
+            payload={
+                "contract_version": ENVELOPE_VERSION,
+                "disclosure": DISCLOSURE,
+                "families": ranking,
+            },
+        )
         evidence_ref, _ = self.evidence_store.write_manifest(
             job_id=job_id,
             payload=manifest,
@@ -315,6 +351,10 @@ class RegisteredCaseExecutor:
                 f"full-scan-job:{job.job_id}:agent:{job.agent_id}"
             )
             outcome = self._execute_case(test_id, case_id, execution_row)
+            observed = outcome.get("observational_result")
+            if isinstance(observed, dict):
+                with self._observational_lock:
+                    self._observational_records[(test_id, case_id)] = observed
             evidence.update(outcome)
             verdict = str(outcome.get("verdict") or "unresolved")
         except BudgetExceeded as exc:
