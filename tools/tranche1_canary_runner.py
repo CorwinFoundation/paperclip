@@ -12,7 +12,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -40,6 +40,7 @@ PROMOTION_LEASE_VERSION = "tranche1-promotion-lease/v2"
 FOUNDER_AUTHORIZATION_VERSION = "founder-production-authorization/v1"
 PROMOTION_ISSUES = ["BEAAA-19023", "BEAAA-19024"]
 LEASE_LEDGER_PATH = Path("/var/lib/backbond/tranche1-promotion-leases.sqlite3")
+LEASE_AUTHORITY_SCHEMA_VERSION = 1
 TRUSTED_PROMOTION_ISSUERS = {
     # Private material is not present in this repository or accepted from callers.
     "backbond-production-authority-2026-07":
@@ -288,6 +289,114 @@ def consume_promotion_lease(
     return scope_sha256
 
 
+def consume_promotion_lease_postgres(
+    *,
+    authority: Mapping[str, Any],
+    dsn: str,
+    expected_storage_identity: str,
+    expected_continuity_epoch: str,
+    connect: Callable[..., Any] | None = None,
+    consumed_at: datetime | None = None,
+) -> str:
+    """Consume a lease in the shared production authority.
+
+    The authority is deliberately *not* bootstrapped here.  Its schema and
+    identity row are provisioned out of band and survive application
+    replacement.  Every replica must present the same expected identity and
+    recovery epoch; a new cluster, restored snapshot, read replica, missing
+    schema, or unavailable primary therefore fails before target construction.
+    """
+    if not dsn or not expected_storage_identity or not expected_continuity_epoch:
+        raise Tranche1CanaryError(
+            "shared promotion lease authority binding is incomplete"
+        )
+    if connect is None:
+        try:
+            import psycopg  # type: ignore
+        except ImportError as exc:
+            raise Tranche1CanaryError(
+                "shared promotion lease authority driver is unavailable"
+            ) from exc
+        connect = psycopg.connect
+    scope = {
+        field: authority[field]
+        for field in (
+            "lease_id",
+            "signature",
+            "commit_sha",
+            "image_ref",
+            "tenant_id",
+            "environment",
+        )
+    }
+    scope_sha256 = hashlib.sha256(_canonical_json(scope)).hexdigest()
+    connection = None
+    try:
+        connection = connect(dsn, connect_timeout=5)
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT storage_identity, continuity_epoch, schema_version
+                    FROM backbond_promotion_lease_authority_identity
+                    WHERE singleton = TRUE
+                    FOR SHARE
+                    """
+                )
+                identity = cursor.fetchone()
+                if identity != (
+                    expected_storage_identity,
+                    expected_continuity_epoch,
+                    LEASE_AUTHORITY_SCHEMA_VERSION,
+                ):
+                    raise Tranche1CanaryError(
+                        "shared promotion lease authority identity or continuity mismatch"
+                    )
+                cursor.execute(
+                    "SELECT pg_is_in_recovery(), current_setting('transaction_read_only')"
+                )
+                health = cursor.fetchone()
+                if health != (False, "off"):
+                    raise Tranche1CanaryError(
+                        "shared promotion lease authority is not a writable primary"
+                    )
+                cursor.execute(
+                    """
+                    INSERT INTO backbond_promotion_lease_consumptions
+                    (scope_sha256, lease_id, signature, commit_sha, image_ref,
+                     tenant_id, environment, consumed_at, continuity_epoch)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    RETURNING scope_sha256
+                    """,
+                    (
+                        scope_sha256,
+                        scope["lease_id"],
+                        scope["signature"],
+                        scope["commit_sha"],
+                        scope["image_ref"],
+                        scope["tenant_id"],
+                        scope["environment"],
+                        consumed_at or datetime.now(timezone.utc),
+                        expected_continuity_epoch,
+                    ),
+                )
+                if cursor.fetchone() != (scope_sha256,):
+                    raise Tranche1CanaryError(
+                        "promotion lease has already been consumed"
+                    )
+    except Tranche1CanaryError:
+        raise
+    except Exception as exc:
+        raise Tranche1CanaryError(
+            "shared promotion lease authority failed closed"
+        ) from exc
+    finally:
+        if connection is not None:
+            connection.close()
+    return scope_sha256
+
+
 def select_exact_tranche(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     from tools.content_candidate_inventory import load_candidate_inventory
 
@@ -342,6 +451,7 @@ def run_tranche1_canary(
     promotion_lease: Mapping[str, Any],
     founder_authorization: Mapping[str, Any],
     promotion_lease_ledger: Path,
+    lease_consumer: Callable[..., str] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     if not authorization_ref or not tenant_id:
@@ -356,11 +466,14 @@ def run_tranche1_canary(
         now=now,
     )
     rows = select_exact_tranche(registry_rows)
-    lease_scope_sha256 = consume_promotion_lease(
-        authority=authority,
-        ledger_path=promotion_lease_ledger,
-        consumed_at=now,
-    )
+    if lease_consumer is None:
+        lease_scope_sha256 = consume_promotion_lease(
+            authority=authority,
+            ledger_path=promotion_lease_ledger,
+            consumed_at=now,
+        )
+    else:
+        lease_scope_sha256 = lease_consumer(authority=authority, consumed_at=now)
 
     executor = RegisteredCaseExecutor(
         subject=subject,
@@ -502,6 +615,16 @@ def main() -> int:
         promotion_lease=promotion_lease,
         founder_authorization=founder_authorization,
         promotion_lease_ledger=LEASE_LEDGER_PATH,
+        lease_consumer=lambda **kwargs: consume_promotion_lease_postgres(
+            **kwargs,
+            dsn=os.environ.get("BACKBOND_PROMOTION_LEASE_AUTHORITY_DSN", ""),
+            expected_storage_identity=os.environ.get(
+                "BACKBOND_PROMOTION_LEASE_STORAGE_IDENTITY", ""
+            ),
+            expected_continuity_epoch=os.environ.get(
+                "BACKBOND_PROMOTION_LEASE_CONTINUITY_EPOCH", ""
+            ),
+        ),
     )
     print(json.dumps({
         "job_id": report["job_id"],
