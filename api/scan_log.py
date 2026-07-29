@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS scan_log (
     forensic_bundle_uri   TEXT,
     snapshot_hash         TEXT,
     probe_set_hash        TEXT,
+    evidence_receipt      TEXT,
     PRIMARY KEY (agent_id, run_timestamp)
 );
 
@@ -88,6 +89,16 @@ BEGIN
     SELECT RAISE(ABORT, 'probe_set_hash_write_once');
 END;
 
+-- BEAAA-19084: a BackBond-issued receipt may be attached once after the
+-- terminal row exists. It is never overwritten or deleted with the scan row.
+CREATE TRIGGER IF NOT EXISTS trg_scan_log_evidence_receipt_write_once
+BEFORE UPDATE OF evidence_receipt ON scan_log
+FOR EACH ROW
+WHEN OLD.evidence_receipt IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'evidence_receipt_write_once');
+END;
+
 -- ADR-0009 §4: append-only. No row delete on a row that has been pinned.
 CREATE TRIGGER IF NOT EXISTS trg_scan_log_append_only
 BEFORE DELETE ON scan_log
@@ -115,6 +126,7 @@ _ADDITIVE_COLUMNS: tuple[tuple[str, str], ...] = (
     # BEAAA-11726 item 4 — probe subset identity, write-once (trigger in
     # _SCHEMA_SQL). Present in fresh-DB DDL above; migrated in for older DBs.
     ("probe_set_hash", "TEXT"),
+    ("evidence_receipt", "TEXT"),
 )
 
 
@@ -404,6 +416,45 @@ class ScanLog:
                 raise
             return snapshot_hash
 
+    def attach_evidence_receipt(
+        self,
+        *,
+        agent_id: str,
+        run_timestamp: str,
+        receipt: dict[str, Any],
+    ) -> None:
+        """Persist one schema-validated receipt on an existing kickoff row.
+
+        Receipt issuance and immutable object retention remain owned by the
+        BackBond receipt service. This nullable, write-once projection column
+        is the exact source consumed by ``_customer_result_response()``.
+        """
+        from api.evidence_receipt import is_valid_receipt
+
+        if not is_valid_receipt(receipt):
+            raise ValueError("evidence_receipt_v1 schema invalid")
+        with self._write_lock:
+            row = self.get(agent_id, run_timestamp)
+            if row is None:
+                raise ScanRowNotFound(
+                    f"scan_log row ({agent_id!r}, {run_timestamp!r}) does not exist"
+                )
+            if row.get("evidence_receipt") is not None:
+                raise ScanLogAppendOnly("evidence_receipt is write-once")
+            try:
+                self._conn.execute(
+                    "UPDATE scan_log SET evidence_receipt = ? "
+                    "WHERE agent_id = ? AND run_timestamp = ?",
+                    (
+                        canonicalize(receipt).decode(),
+                        agent_id,
+                        run_timestamp,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                _raise_for_trigger(exc)
+                raise
+
     def close(self) -> None:
         with self._write_lock:
             self._conn.close()
@@ -424,6 +475,8 @@ class ScanLog:
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
     out["score_json"] = json.loads(out["score_json"])
+    if out.get("evidence_receipt") is not None:
+        out["evidence_receipt"] = json.loads(out["evidence_receipt"])
     return out
 
 

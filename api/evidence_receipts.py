@@ -104,6 +104,16 @@ class AuditSink(Protocol):
     def emit(self, event: Mapping[str, str]) -> None: ...
 
 
+class ReceiptProjectionStore(Protocol):
+    def attach_evidence_receipt(
+        self,
+        *,
+        agent_id: str,
+        run_timestamp: str,
+        receipt: dict[str, Any],
+    ) -> None: ...
+
+
 @dataclass(frozen=True)
 class ReceiptSubmission:
     version: str
@@ -272,6 +282,27 @@ class ReceiptService:
         )
 
 
+def issue_and_persist(
+    raw: Mapping[str, Any],
+    *,
+    identity: ScannerIdentity,
+    service: ReceiptService,
+    projection_store: ReceiptProjectionStore,
+    agent_id: str,
+    run_timestamp: str,
+) -> dict[str, Any]:
+    """Issue one receipt and attach the exact object to its kickoff row."""
+    import json
+
+    receipt = json.loads(service.issue(raw, identity=identity))
+    projection_store.attach_evidence_receipt(
+        agent_id=agent_id,
+        run_timestamp=run_timestamp,
+        receipt=receipt,
+    )
+    return receipt
+
+
 def verify_receipt(
     receipt_bytes: bytes,
     *,
@@ -403,4 +434,5 @@ __all__ = [
     "SigningUnavailable",
     "signing_body",
     "verify_receipt",
+    "issue_and_persist",
 ]
