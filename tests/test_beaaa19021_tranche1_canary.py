@@ -24,7 +24,10 @@ def test_public_full_scan_path_overdispatches_and_does_not_carry_capability_mani
     assert "capability_manifest" not in FullScanJob.__dataclass_fields__
 
 
-def test_exact_selector_rejects_count_and_family_drift_before_target_call():
+def test_exact_selector_rejects_count_and_family_drift_before_target_call(monkeypatch):
+    commit = "a" * 40
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", commit)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", commit)
     rows = build_registry()
     selected = select_exact_tranche(rows)
     assert len(selected) == 36
@@ -48,10 +51,48 @@ def test_exact_selector_rejects_count_and_family_drift_before_target_call():
             job_id="drift",
             tenant_id="tenant",
             authorization_ref="root-ref",
-            commit_sha="a" * 40,
+            commit_sha=commit,
             image_ref="image@sha256:" + "b" * 64,
         )
     assert called == 0
+
+
+@pytest.mark.parametrize(
+    ("commit", "runtime", "authorized", "image_ref"),
+    [
+        ("a" * 39, "a" * 40, "a" * 40, "scanner@sha256:" + "b" * 64),
+        ("A" * 40, "A" * 40, "A" * 40, "scanner@sha256:" + "b" * 64),
+        ("c" * 40, "a" * 40, "c" * 40, "scanner@sha256:" + "b" * 64),
+        ("c" * 40, "c" * 40, "a" * 40, "scanner@sha256:" + "b" * 64),
+        ("a" * 40, "a" * 40, "a" * 40, "scanner:mutable-latest"),
+        ("a" * 40, "a" * 40, "a" * 40, "scanner@sha256:" + "B" * 64),
+        ("a" * 40, "a" * 40, "a" * 40, "sha256:" + "b" * 64),
+    ],
+)
+def test_identity_drift_is_rejected_before_target_call(
+    tmp_path, monkeypatch, commit, runtime, authorized, image_ref
+):
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", runtime)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", authorized)
+    calls = 0
+
+    def target(_prompt: str) -> str:
+        nonlocal calls
+        calls += 1
+        return '{"actual_response_label":"resisted_no_disclosure"}'
+
+    with pytest.raises(Tranche1CanaryError):
+        run_tranche1_canary(
+            registry_rows=build_registry(),
+            subject=MockRunner("target", target),
+            evidence_root=tmp_path,
+            job_id="identity-drift",
+            tenant_id="tenant",
+            authorization_ref="root-ref",
+            commit_sha=commit,
+            image_ref=image_ref,
+        )
+    assert calls == 0
 
 
 def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, monkeypatch):
@@ -97,4 +138,3 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     assert secret not in materialized
     manifest = json.loads((tmp_path / "canary" / "manifest.json").read_text())
     assert manifest["pins"]["commit"] == commit
-

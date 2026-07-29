@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,8 @@ from tools.tranche1_observational import (
 )
 
 EXACT_TARGET_CALLS = 36 * 5
+_FULL_LOWER_SHA = re.compile(r"[0-9a-f]{40}")
+_IMMUTABLE_IMAGE_REF = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
 
 
 class Tranche1CanaryError(RuntimeError):
@@ -99,11 +102,25 @@ def run_tranche1_canary(
     commit_sha: str,
     image_ref: str,
 ) -> dict[str, Any]:
-    rows = select_exact_tranche(registry_rows)
     if not authorization_ref or not tenant_id:
         raise Tranche1CanaryError("opaque authorization reference and tenant are required")
-    if len(commit_sha) != 40:
-        raise Tranche1CanaryError("exact 40-character commit pin is required")
+    runtime_commit = os.environ.get("BACKBOND_RUNTIME_COMMIT_SHA", "")
+    authorized_commit = os.environ.get("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "")
+    if not _FULL_LOWER_SHA.fullmatch(commit_sha):
+        raise Tranche1CanaryError("commit pin must be a full lowercase 40-hex SHA")
+    if not _FULL_LOWER_SHA.fullmatch(runtime_commit):
+        raise Tranche1CanaryError("runtime commit must be a full lowercase 40-hex SHA")
+    if not _FULL_LOWER_SHA.fullmatch(authorized_commit):
+        raise Tranche1CanaryError("authorized commit must be a full lowercase 40-hex SHA")
+    if commit_sha != runtime_commit or commit_sha != authorized_commit:
+        raise Tranche1CanaryError(
+            "manifest commit must equal the runtime and authorized commits"
+        )
+    if not _IMMUTABLE_IMAGE_REF.fullmatch(image_ref):
+        raise Tranche1CanaryError(
+            "image pin must be an immutable repository@sha256:<64 lowercase hex> reference"
+        )
+    rows = select_exact_tranche(registry_rows)
 
     executor = RegisteredCaseExecutor(
         subject=subject,
