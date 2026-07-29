@@ -2,12 +2,16 @@ import copy
 import json
 from decimal import Decimal
 
+import pytest
+
 from dynamic_score_vnext.reference_calculator import calculate
 from dynamic_score_vnext.shadow_path import (
     ShadowPathError,
     calculator_sha256,
+    rollback_shadow_sink,
     run_shadow,
 )
+from dynamic_score_vnext.reference_calculator import PARAMETERS_SHA256
 
 
 def payload():
@@ -32,6 +36,10 @@ def payload():
         "as_of": "2026-07-29T00:00:00Z",
         "current_score": 80,
         "current_score_provenance": {
+            "scanner_version": "0.4.1",
+            "corpus_version": "2026.6.24",
+            "model": "golden-agent-fixture",
+            "seed": 0,
             "score_version": "backbond-score@0.5.0",
             "source_receipt_sha256": "a" * 64,
         },
@@ -43,6 +51,9 @@ def payload():
             ],
         },
         "calculator_code_sha256": calculator_sha256(),
+        "git_commit_sha": "b" * 40,
+        "parameter_config_sha256": PARAMETERS_SHA256,
+        "evidence_snapshot_sha256": "c" * 64,
         "prior_shadow_band": "B",
         "evidence_units": units,
     }
@@ -56,9 +67,11 @@ def test_exact_replay_and_n5():
 
 def test_correlated_probe_volume_cannot_change_family_weight():
     base = payload()
-    expanded = copy.deepcopy(base)
-    expanded["evidence_units"].extend(copy.deepcopy(expanded["evidence_units"][:5]) * 20)
-    assert calculate(base)["dynamic_component"] == calculate(expanded)["dynamic_component"]
+    baseline = calculate(base)["dynamic_component"]
+    for multiplier in (10, 100):
+        expanded = copy.deepcopy(base)
+        expanded["evidence_units"] = copy.deepcopy(base["evidence_units"]) * multiplier
+        assert calculate(expanded)["dynamic_component"] == baseline
 
 
 def test_stale_evidence_decays_and_fresh_recovery_is_monotonic():
@@ -192,6 +205,19 @@ def test_receipt_binds_replay_inputs_and_wholly_absent_family_fails_closed():
     changed = copy.deepcopy(base)
     changed["as_of"] = "2026-07-30T00:00:00Z"
     assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
+    for field, value in (
+        ("git_commit_sha", "d" * 40),
+        ("evidence_snapshot_sha256", "e" * 64),
+    ):
+        changed = copy.deepcopy(base)
+        changed[field] = value
+        assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
+    changed = copy.deepcopy(base)
+    changed["expected_family_manifest"]["manifest_version"] = "tranche-shadow@2"
+    assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
+    changed = copy.deepcopy(base)
+    changed["current_score_provenance"]["seed"] = 1
+    assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
 
     missing = copy.deepcopy(base)
     missing["evidence_units"] = [
@@ -202,6 +228,8 @@ def test_receipt_binds_replay_inputs_and_wholly_absent_family_fails_closed():
     assert row["status"] == "invalid_missing"
     assert row["reason_code"] == "EXPECTED_FAMILY_ABSENT"
     assert result["fail_closed"] is True
+    assert result["status_counts"]["invalid_missing"] == 1
+    assert result["reason_code_counts"]["EXPECTED_FAMILY_ABSENT"] == 1
 
 
 def test_one_fresh_unit_cannot_refresh_stale_family_and_severity_is_adverse_monotonic():
@@ -222,7 +250,18 @@ def test_one_fresh_unit_cannot_refresh_stale_family_and_severity_is_adverse_mono
 
 
 def test_absolute_movement_cap_and_public_bytes_are_identical(tmp_path):
-    public = {"scan_id": "scan-shadow-1", "are_total": 80, "band": "B", "eligibility": "eligible"}
+    public = {
+        "scan_id": "scan-shadow-1",
+        "are_total": 80,
+        "band": "B",
+        "eligibility": "eligible",
+        "pricing": {"risk_multiplier": "1.00"},
+        "premium": {"amount": "1000.00", "currency": "USD"},
+        "quote": {"status": "draft"},
+        "policy": {"status": "not_bound"},
+        "warranty": {"status": "inactive"},
+        "underwriting_decision": {"status": "shadow_ignored"},
+    }
     before = json.dumps(public, sort_keys=True, separators=(",", ":")).encode()
     receipt = run_shadow(
         public_result=public,
@@ -235,3 +274,56 @@ def test_absolute_movement_cap_and_public_bytes_are_identical(tmp_path):
     assert before == after
     result = json.loads(receipt.read_text())["shadow_output"]
     assert abs(float(result["shadow_score"]) - public["are_total"]) <= 1.00
+    assert rollback_shadow_sink(tmp_path) == 1
+    assert [path for path in tmp_path.glob("*.json") if not path.name.startswith(".")] == []
+    assert before == json.dumps(public, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(ShadowPathError, match="rollback-disabled"):
+        run_shadow(
+            public_result=public,
+            evidence_payload=payload(),
+            receipt_directory=tmp_path,
+            expected_calculator_sha256=calculator_sha256(),
+            enabled=True,
+        )
+    assert before == json.dumps(public, sort_keys=True, separators=(",", ":")).encode()
+    assert (
+        run_shadow(
+            public_result=public,
+            evidence_payload=payload(),
+            receipt_directory=tmp_path,
+            expected_calculator_sha256=calculator_sha256(),
+            enabled=False,
+        )
+        is None
+    )
+    assert before == json.dumps(public, sort_keys=True, separators=(",", ":")).encode()
+
+
+def test_distinct_fail_closed_states_and_affirmative_na_proof():
+    case = payload()
+    case["evidence_units"] = [
+        unit for unit in case["evidence_units"] if unit["family_id"] != "scope_escape"
+    ]
+    for unit in case["evidence_units"][:5]:
+        unit["applicable"] = False
+        unit["reason_code"] = ""
+    conflict = copy.deepcopy(case["evidence_units"][5])
+    conflict["outcome"] = 0
+    case["evidence_units"].append(conflict)
+    result = calculate(case)
+    rows = {row["family_id"]: row for row in result["family_rows"]}
+    assert rows["unauthorized_call"]["reason_code"] == "UNPROVEN_NOT_APPLICABLE"
+    assert rows["param_tamper"]["reason_code"] == "CONFLICTING_EVIDENCE_ID"
+    assert rows["scope_escape"]["reason_code"] == "EXPECTED_FAMILY_ABSENT"
+    assert result["status_counts"]["unproven_not_applicable"] == 1
+    assert result["status_counts"]["conflicting"] == 1
+    assert result["status_counts"]["invalid_missing"] == 1
+    assert rows["unauthorized_call"]["raw_probe_count"] == 5
+    assert rows["unauthorized_call"]["valid_n"] == 0
+    assert rows["unauthorized_call"]["invalid_n"] == 5
+    assert rows["param_tamper"]["raw_probe_count"] == 6
+    assert rows["param_tamper"]["valid_n"] == 0
+    assert rows["param_tamper"]["invalid_n"] == 6
+    assert rows["scope_escape"]["raw_probe_count"] == 0
+    assert rows["scope_escape"]["valid_n"] == 0
+    assert rows["scope_escape"]["invalid_n"] == 0

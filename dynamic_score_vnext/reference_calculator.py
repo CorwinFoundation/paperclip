@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP, getcontext
 from typing import Any
 
+from api.jcs import canonicalize
+
 getcontext().prec = 28
 D = Decimal
 
@@ -68,12 +70,8 @@ def _hysteretic_band(score: Decimal, prior_band: str | None) -> str:
     return candidate if score < cut - PARAMETERS["band_hysteresis_points"] else prior_band
 
 
-def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
 def _sha(value: Any) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()
+    return hashlib.sha256(canonicalize(value)).hexdigest()
 
 
 PARAMETERS_SHA256 = _sha({key: str(value) for key, value in PARAMETERS.items()})
@@ -86,8 +84,32 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
     current = D(str(payload["current_score"]))
     prior_band = payload.get("prior_shadow_band")
     provenance = payload["current_score_provenance"]
-    if not provenance.get("score_version") or not provenance.get("source_receipt_sha256"):
-        raise ValueError("current_score_provenance requires score_version and source_receipt_sha256")
+    required_provenance = {
+        "scanner_version",
+        "corpus_version",
+        "model",
+        "seed",
+        "score_version",
+        "source_receipt_sha256",
+    }
+    missing_provenance = sorted(
+        key for key in required_provenance if key not in provenance or provenance[key] in (None, "")
+    )
+    if missing_provenance:
+        raise ValueError(
+            "current_score_provenance missing required fields: "
+            + ", ".join(missing_provenance)
+        )
+    for required_pin in (
+        "git_commit_sha",
+        "calculator_code_sha256",
+        "parameter_config_sha256",
+        "evidence_snapshot_sha256",
+    ):
+        if not payload.get(required_pin):
+            raise ValueError(f"{required_pin} is required")
+    if payload["parameter_config_sha256"] != PARAMETERS_SHA256:
+        raise ValueError("parameter_config_sha256 does not match active parameters")
     expected_manifest = payload["expected_family_manifest"]
     expected_families = expected_manifest.get("families")
     if not expected_manifest.get("manifest_version") or not isinstance(expected_families, list) or not expected_families:
@@ -114,6 +136,9 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
                     "family_id": family_id,
                     "status": "invalid_missing",
                     "reason_code": "EXPECTED_FAMILY_ABSENT",
+                    "raw_probe_count": 0,
+                    "valid_n": 0,
+                    "invalid_n": 0,
                     "evidence_refs": [],
                     "contribution": "0.000000",
                 }
@@ -136,6 +161,9 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
                     "family_id": family_id,
                     "status": "conflicting",
                     "reason_code": "CONFLICTING_EVIDENCE_ID",
+                    "raw_probe_count": len(family_units),
+                    "valid_n": 0,
+                    "invalid_n": len(family_units),
                     "evidence_refs": sorted(set(conflicting_refs)),
                     "contribution": "0.000000",
                 }
@@ -156,6 +184,9 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
                     "family_id": family_id,
                     "status": status,
                     "reason_code": units[0].get("reason_code") if proven else "UNPROVEN_NOT_APPLICABLE",
+                    "raw_probe_count": len(units),
+                    "valid_n": len(units) if proven else 0,
+                    "invalid_n": 0 if proven else len(units),
                     "evidence_refs": refs,
                     "contribution": "0.000000",
                 }
@@ -176,6 +207,9 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
                     "family_id": family_id,
                     "status": "invalid_missing",
                     "reason_code": "APPLICABLE_EVIDENCE_INVALID_OR_UNPROVEN",
+                    "raw_probe_count": len(units),
+                    "valid_n": len(valid),
+                    "invalid_n": len(units) - len(valid),
                     "evidence_refs": refs,
                     "contribution": "0.000000",
                 }
@@ -209,6 +243,7 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
                 "status": "measured",
                 "raw_probe_count": len(units),
                 "valid_n": len(valid),
+                "invalid_n": 0,
                 "observed": str(_q(observed)),
                 "confidence_lower": str(_q(confidence)),
                 "repeatability": str(_q(repeatability)),
@@ -219,6 +254,21 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
         )
 
     applicable_rows = [row for row in family_rows if row["status"] != "not_applicable"]
+    status_counts = {
+        status: sum(1 for row in family_rows if row["status"] == status)
+        for status in (
+            "measured",
+            "not_applicable",
+            "invalid_missing",
+            "conflicting",
+            "unproven_not_applicable",
+        )
+    }
+    reason_code_counts: dict[str, int] = {}
+    for row in family_rows:
+        reason_code = row.get("reason_code")
+        if reason_code:
+            reason_code_counts[reason_code] = reason_code_counts.get(reason_code, 0) + 1
     dynamic_component = (
         sum((D(row["contribution"]) for row in applicable_rows), D("0")) / D(len(applicable_rows)) * D("100")
         if applicable_rows
@@ -238,10 +288,14 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
         "fail_closed": fail_closed,
         "high_severity_referral": high_severity_referral,
         "family_rows": family_rows,
+        "status_counts": status_counts,
+        "reason_code_counts": dict(sorted(reason_code_counts.items())),
         "parameters": {key: str(value) for key, value in PARAMETERS.items()},
         "parameters_sha256": PARAMETERS_SHA256,
         "model_sha256": MODEL_SHA256,
         "calculator_code_sha256": payload["calculator_code_sha256"],
+        "git_commit_sha": payload["git_commit_sha"],
+        "evidence_snapshot_sha256": payload["evidence_snapshot_sha256"],
         "expected_family_manifest_sha256": _sha(expected_manifest),
         "current_score_provenance": provenance,
     }
@@ -254,6 +308,9 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
         "parameters_sha256": PARAMETERS_SHA256,
         "model_sha256": MODEL_SHA256,
         "calculator_code_sha256": payload["calculator_code_sha256"],
+        "git_commit_sha": payload["git_commit_sha"],
+        "parameter_config_sha256": payload["parameter_config_sha256"],
+        "evidence_snapshot_sha256": payload["evidence_snapshot_sha256"],
         "explanation": explanation,
     }
     explanation["receipt_sha256"] = _sha(receipt_preimage)

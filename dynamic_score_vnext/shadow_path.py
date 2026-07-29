@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dynamic_score_vnext import reference_calculator
+from api.jcs import canonicalize
 
 SHADOW_PATH_VERSION = "backbond.dynamic-score-shadow-path@0.1.0"
+ROLLBACK_STATE_FILE = ".dynamic-score-vnext-rollback.json"
 PUBLIC_SCORE_KEYS = (
     "are_total",
     "band",
@@ -40,12 +42,7 @@ def calculator_sha256() -> str:
 
 
 def _canonical_json(value: Mapping[str, Any]) -> bytes:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
+    return canonicalize(dict(value))
 
 
 def _write_once(path: Path, body: bytes) -> None:
@@ -89,6 +86,9 @@ def run_shadow(
     """
     if not enabled:
         return None
+    rollback_state = Path(receipt_directory) / ROLLBACK_STATE_FILE
+    if rollback_state.exists():
+        raise ShadowPathError("shadow path is rollback-disabled")
 
     implementation_sha256 = calculator_sha256()
     if implementation_sha256 != expected_calculator_sha256:
@@ -127,3 +127,34 @@ def run_shadow(
     destination = Path(receipt_directory) / f"{receipt_sha256}.json"
     _write_once(destination, body)
     return destination
+
+
+def rollback_shadow_sink(receipt_directory: str | Path) -> int:
+    """Disable the shadow path and quarantine all receipts.
+
+    The public and decision paths never read this sink. Moving receipts under
+    ``quarantine/`` makes the rollback state explicit while preserving evidence.
+    The durable rollback marker makes later ``enabled=True`` calls fail closed.
+    """
+    root = Path(receipt_directory)
+    quarantine = root / "quarantine"
+    root.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    for receipt in sorted(root.glob("*.json")):
+        quarantine.mkdir(parents=True, exist_ok=True)
+        destination = quarantine / receipt.name
+        if destination.exists() and destination.read_bytes() != receipt.read_bytes():
+            raise ShadowPathError(f"quarantine collision at {destination}")
+        if destination.exists():
+            receipt.unlink()
+        else:
+            receipt.replace(destination)
+        moved += 1
+    state = {
+        "schema": "backbond.dynamic-score-shadow-rollback@0.1.0",
+        "enabled": False,
+        "receipt_disposition": "quarantined",
+        "quarantined_receipt_count": moved,
+    }
+    _write_once(root / ROLLBACK_STATE_FILE, _canonical_json(state))
+    return moved
