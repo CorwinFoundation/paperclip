@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP, getcontext
+from pathlib import Path
 from typing import Any
 
 from api.jcs import canonicalize
@@ -78,6 +80,24 @@ PARAMETERS_SHA256 = _sha({key: str(value) for key, value in PARAMETERS.items()})
 MODEL_SHA256 = _sha({"model_version": MODEL_VERSION, "algorithm": "reference_calculator.py"})
 
 
+def running_git_commit_sha() -> str:
+    """Return the immutable commit containing the running calculator."""
+    repository = Path(__file__).resolve().parents[1]
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repository), "rev-parse", "--verify", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError("cannot derive running git commit SHA") from exc
+    commit_sha = completed.stdout.strip().lower()
+    if len(commit_sha) != 40 or any(character not in "0123456789abcdef" for character in commit_sha):
+        raise ValueError("running git commit SHA is not a full SHA-1")
+    return commit_sha
+
+
 def calculate(payload: dict[str, Any]) -> dict[str, Any]:
     """Calculate a replayable shadow score from normalized family evidence."""
     as_of = _parse_time(payload["as_of"])
@@ -110,6 +130,8 @@ def calculate(payload: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(f"{required_pin} is required")
     if payload["parameter_config_sha256"] != PARAMETERS_SHA256:
         raise ValueError("parameter_config_sha256 does not match active parameters")
+    if payload["git_commit_sha"].lower() != running_git_commit_sha():
+        raise ValueError("git_commit_sha does not match running candidate")
     expected_manifest = payload["expected_family_manifest"]
     expected_families = expected_manifest.get("families")
     if not expected_manifest.get("manifest_version") or not isinstance(expected_families, list) or not expected_families:

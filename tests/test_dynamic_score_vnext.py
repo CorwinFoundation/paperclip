@@ -1,10 +1,11 @@
 import copy
 import json
+import threading
 from decimal import Decimal
 
 import pytest
 
-from dynamic_score_vnext.reference_calculator import calculate
+from dynamic_score_vnext.reference_calculator import calculate, running_git_commit_sha
 from dynamic_score_vnext.shadow_path import (
     ShadowPathError,
     calculator_sha256,
@@ -51,7 +52,7 @@ def payload():
             ],
         },
         "calculator_code_sha256": calculator_sha256(),
-        "git_commit_sha": "b" * 40,
+        "git_commit_sha": running_git_commit_sha(),
         "parameter_config_sha256": PARAMETERS_SHA256,
         "evidence_snapshot_sha256": "c" * 64,
         "prior_shadow_band": "B",
@@ -206,12 +207,15 @@ def test_receipt_binds_replay_inputs_and_wholly_absent_family_fails_closed():
     changed["as_of"] = "2026-07-30T00:00:00Z"
     assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
     for field, value in (
-        ("git_commit_sha", "d" * 40),
         ("evidence_snapshot_sha256", "e" * 64),
     ):
         changed = copy.deepcopy(base)
         changed[field] = value
         assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
+    changed = copy.deepcopy(base)
+    changed["git_commit_sha"] = "0" * 40
+    with pytest.raises(ValueError, match="does not match running candidate"):
+        calculate(changed)
     changed = copy.deepcopy(base)
     changed["expected_family_manifest"]["manifest_version"] = "tranche-shadow@2"
     assert calculate(changed)["receipt_sha256"] != original["receipt_sha256"]
@@ -327,3 +331,59 @@ def test_distinct_fail_closed_states_and_affirmative_na_proof():
     assert rows["scope_escape"]["raw_probe_count"] == 0
     assert rows["scope_escape"]["valid_n"] == 0
     assert rows["scope_escape"]["invalid_n"] == 0
+
+
+def test_rollback_serializes_with_in_flight_publication(tmp_path, monkeypatch):
+    public = {"are_total": 80, "band": "B"}
+    entered_calculator = threading.Event()
+    release_calculator = threading.Event()
+    original_calculate = calculate
+
+    def paused_calculate(calculator_payload):
+        entered_calculator.set()
+        assert release_calculator.wait(timeout=5)
+        return original_calculate(calculator_payload)
+
+    monkeypatch.setattr(
+        "dynamic_score_vnext.shadow_path.reference_calculator.calculate",
+        paused_calculate,
+    )
+    run_errors = []
+    rollback_result = []
+
+    def publish():
+        try:
+            run_shadow(
+                public_result=public,
+                evidence_payload=payload(),
+                receipt_directory=tmp_path,
+                expected_calculator_sha256=calculator_sha256(),
+                enabled=True,
+            )
+        except Exception as exc:  # pragma: no cover - asserted below
+            run_errors.append(exc)
+
+    publisher = threading.Thread(target=publish)
+    publisher.start()
+    assert entered_calculator.wait(timeout=5)
+    rollback = threading.Thread(
+        target=lambda: rollback_result.append(rollback_shadow_sink(tmp_path))
+    )
+    rollback.start()
+    assert rollback.is_alive()
+    release_calculator.set()
+    publisher.join(timeout=5)
+    rollback.join(timeout=5)
+
+    assert not run_errors
+    assert rollback_result == [1]
+    assert [path for path in tmp_path.glob("*.json") if not path.name.startswith(".")] == []
+    assert len(list((tmp_path / "quarantine").glob("*.json"))) == 1
+    with pytest.raises(ShadowPathError, match="rollback-disabled"):
+        run_shadow(
+            public_result=public,
+            evidence_payload=payload(),
+            receipt_directory=tmp_path,
+            expected_calculator_sha256=calculator_sha256(),
+            enabled=True,
+        )

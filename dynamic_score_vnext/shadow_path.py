@@ -10,6 +10,8 @@ import hashlib
 import json
 import os
 import tempfile
+from contextlib import contextmanager
+import fcntl
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -18,6 +20,7 @@ from api.jcs import canonicalize
 
 SHADOW_PATH_VERSION = "backbond.dynamic-score-shadow-path@0.1.0"
 ROLLBACK_STATE_FILE = ".dynamic-score-vnext-rollback.json"
+SINK_LOCK_FILE = ".dynamic-score-vnext.lock"
 PUBLIC_SCORE_KEYS = (
     "are_total",
     "band",
@@ -70,6 +73,19 @@ def _write_once(path: Path, body: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+@contextmanager
+def _exclusive_sink_lock(root: Path):
+    """Serialize receipt publication with the irreversible rollback transition."""
+    root.mkdir(parents=True, exist_ok=True)
+    lock_path = root / SINK_LOCK_FILE
+    with lock_path.open("a+b") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+
 def run_shadow(
     *,
     public_result: Mapping[str, Any],
@@ -86,47 +102,49 @@ def run_shadow(
     """
     if not enabled:
         return None
-    rollback_state = Path(receipt_directory) / ROLLBACK_STATE_FILE
-    if rollback_state.exists():
-        raise ShadowPathError("shadow path is rollback-disabled")
+    root = Path(receipt_directory)
+    with _exclusive_sink_lock(root):
+        rollback_state = root / ROLLBACK_STATE_FILE
+        if rollback_state.exists():
+            raise ShadowPathError("shadow path is rollback-disabled")
 
-    implementation_sha256 = calculator_sha256()
-    if implementation_sha256 != expected_calculator_sha256:
-        raise ShadowPathError(
-            "calculator SHA-256 mismatch: "
-            f"expected {expected_calculator_sha256}, got {implementation_sha256}"
-        )
+        implementation_sha256 = calculator_sha256()
+        if implementation_sha256 != expected_calculator_sha256:
+            raise ShadowPathError(
+                "calculator SHA-256 mismatch: "
+                f"expected {expected_calculator_sha256}, got {implementation_sha256}"
+            )
 
-    if "are_total" not in public_result:
-        raise ShadowPathError("completed public_result must contain are_total")
+        if "are_total" not in public_result:
+            raise ShadowPathError("completed public_result must contain are_total")
 
-    baseline = {key: public_result.get(key) for key in PUBLIC_SCORE_KEYS if key in public_result}
-    calculator_input = dict(evidence_payload)
-    supplied_score = calculator_input.pop("current_score", None)
-    if supplied_score is not None and str(supplied_score) != str(public_result["are_total"]):
-        raise ShadowPathError("shadow current_score must match public are_total")
-    calculator_input["current_score"] = public_result["are_total"]
-    calculator_input["calculator_code_sha256"] = implementation_sha256
+        baseline = {key: public_result.get(key) for key in PUBLIC_SCORE_KEYS if key in public_result}
+        calculator_input = dict(evidence_payload)
+        supplied_score = calculator_input.pop("current_score", None)
+        if supplied_score is not None and str(supplied_score) != str(public_result["are_total"]):
+            raise ShadowPathError("shadow current_score must match public are_total")
+        calculator_input["current_score"] = public_result["are_total"]
+        calculator_input["calculator_code_sha256"] = implementation_sha256
 
-    shadow_output = reference_calculator.calculate(calculator_input)
-    envelope: dict[str, Any] = {
-        "schema": SHADOW_PATH_VERSION,
-        "mode": "shadow_only",
-        "calculator_model_version": reference_calculator.MODEL_VERSION,
-        "calculator_sha256": implementation_sha256,
-        "parameters_sha256": reference_calculator.PARAMETERS_SHA256,
-        "model_sha256": reference_calculator.MODEL_SHA256,
-        "sink": "isolated_content_addressed_receipt",
-        "public_baseline": baseline,
-        "calculator_input": calculator_input,
-        "shadow_output": shadow_output,
-    }
-    receipt_sha256 = hashlib.sha256(_canonical_json(envelope)).hexdigest()
-    envelope["receipt_sha256"] = receipt_sha256
-    body = json.dumps(envelope, indent=2, ensure_ascii=False, sort_keys=True).encode("utf-8") + b"\n"
-    destination = Path(receipt_directory) / f"{receipt_sha256}.json"
-    _write_once(destination, body)
-    return destination
+        shadow_output = reference_calculator.calculate(calculator_input)
+        envelope: dict[str, Any] = {
+            "schema": SHADOW_PATH_VERSION,
+            "mode": "shadow_only",
+            "calculator_model_version": reference_calculator.MODEL_VERSION,
+            "calculator_sha256": implementation_sha256,
+            "parameters_sha256": reference_calculator.PARAMETERS_SHA256,
+            "model_sha256": reference_calculator.MODEL_SHA256,
+            "sink": "isolated_content_addressed_receipt",
+            "public_baseline": baseline,
+            "calculator_input": calculator_input,
+            "shadow_output": shadow_output,
+        }
+        receipt_sha256 = hashlib.sha256(_canonical_json(envelope)).hexdigest()
+        envelope["receipt_sha256"] = receipt_sha256
+        body = json.dumps(envelope, indent=2, ensure_ascii=False, sort_keys=True).encode("utf-8") + b"\n"
+        destination = root / f"{receipt_sha256}.json"
+        _write_once(destination, body)
+        return destination
 
 
 def rollback_shadow_sink(receipt_directory: str | Path) -> int:
@@ -137,24 +155,24 @@ def rollback_shadow_sink(receipt_directory: str | Path) -> int:
     The durable rollback marker makes later ``enabled=True`` calls fail closed.
     """
     root = Path(receipt_directory)
-    quarantine = root / "quarantine"
-    root.mkdir(parents=True, exist_ok=True)
-    moved = 0
-    for receipt in sorted(root.glob("*.json")):
-        quarantine.mkdir(parents=True, exist_ok=True)
-        destination = quarantine / receipt.name
-        if destination.exists() and destination.read_bytes() != receipt.read_bytes():
-            raise ShadowPathError(f"quarantine collision at {destination}")
-        if destination.exists():
-            receipt.unlink()
-        else:
-            receipt.replace(destination)
-        moved += 1
-    state = {
-        "schema": "backbond.dynamic-score-shadow-rollback@0.1.0",
-        "enabled": False,
-        "receipt_disposition": "quarantined",
-        "quarantined_receipt_count": moved,
-    }
-    _write_once(root / ROLLBACK_STATE_FILE, _canonical_json(state))
-    return moved
+    with _exclusive_sink_lock(root):
+        quarantine = root / "quarantine"
+        moved = 0
+        for receipt in sorted(root.glob("*.json")):
+            quarantine.mkdir(parents=True, exist_ok=True)
+            destination = quarantine / receipt.name
+            if destination.exists() and destination.read_bytes() != receipt.read_bytes():
+                raise ShadowPathError(f"quarantine collision at {destination}")
+            if destination.exists():
+                receipt.unlink()
+            else:
+                receipt.replace(destination)
+            moved += 1
+        state = {
+            "schema": "backbond.dynamic-score-shadow-rollback@0.1.0",
+            "enabled": False,
+            "receipt_disposition": "quarantined",
+            "quarantined_receipt_count": moved,
+        }
+        _write_once(root / ROLLBACK_STATE_FILE, _canonical_json(state))
+        return moved
