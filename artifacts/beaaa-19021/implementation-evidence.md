@@ -6,10 +6,10 @@ phase: design_partner_motion
 canonical_terms_only: true
 focus_claim: "BEAAA-19021 adds a fail-closed exact-allowlist production canary entrypoint for 36 tranche-1 cases at N=5 without changing weighted Scanner state."
 contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
-ticket_refs: ["BEAAA-19021", "BEAAA-19023", "BEAAA-19020"]
+ticket_refs: ["BEAAA-19021", "BEAAA-19023", "BEAAA-19020", "BEAAA-19052", "BEAAA-19093"]
 proof_points_cited: ["63 focused tests passed", "invalid authority and identity inputs rejected at 0 target calls and 0 evidence writes", "180 target calls", "0 judge calls", "N=5 delta 0"]
-version: 0.5
-prior_version: 0.4
+version: 0.6
+prior_version: 0.5
 self_audit_passed: true
 escalations_noted: ["Promotion requires exact-SHA QA APPROVED, Compliance approval, Underwriting approval, and Founder sign-off."]
 ---
@@ -26,15 +26,17 @@ The converged BEAAA-19046 remediation requires an independently issued
 Ed25519-signed promotion lease and Founder authorization bound to production
 environment, tenant, exact issue pair, candidate and runtime identities,
 allowlist hash, call ceilings, approval identity, and validity window. The
-verification-only runner atomically consumes the exact lease scope in a durable
-replay ledger before executor construction. Authority, replay, and ledger
-failures assert zero calls and zero evidence writes.
+verification-only runner atomically consumes the exact lease scope in a shared
+writable PostgreSQL authority before executor construction. The authority
+validates its storage identity, continuity epoch, schema, and writable-primary
+health; authority, replay, continuity, and storage failures assert zero calls
+and zero evidence writes.
 
 - Classification: rule execution under the existing-operation smoke-test and behavior-preserving refactor rows in `scanner-implementation-supervision-v1@v1.1`.
 - Contract: `are-scanner-api-v1@v1.0`.
 - Runtime manifest: `api_contract` is pinned exactly to `are-scanner-api-v1@v1.0`; a top-level key-set assertion prevents response-shape drift.
-- Canary-runner SHA-256: `d22b7ad8f230706cf3b1aa410bec395535645dee3632a7829353f173c6c6a672`.
-- Deterministic canonical manifest content SHA-256: `972e7fd61553ab4548105bce2e0d5495e564fdb8bc733156969618d9288f9e28`.
+- Canary-runner SHA-256: `4c3c15d9688c5ebc8fdb052e06194c5d6fb3efdf7923779bbb318200ea3ff959`.
+- Deterministic canonical manifest content SHA-256: `819dfc88451735899a88e025f43530a41900572473373ce0c86b07c47fb38bb2`. The pin excludes measured `budget.elapsed_seconds`.
 - Scanner version: `0.5.0`.
 - Corpus version: `fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988`.
 - Probe-set version: tranche-1 mappings pinned in the emitted manifest.
