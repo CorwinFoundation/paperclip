@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "entries": [
+    {
+      "source_project": "uiuc-kang-lab/InjecAgent",
+      "source_commit": "f19c9f2c79a41046eb13c03c51a24c567a8ffa07",
+      "source_path": "data/test_cases_dh_base.json",
+      "source_case_index": [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450, 480, 1, 31, 61, 91, 121, 151, 181, 211],
+      "source_integrity": "sha256:0a8186468d21389af432e8c7b399ae42264d1b93a07b65c7a489468508604305",
+      "license": "MIT; https://github.com/uiuc-kang-lab/InjecAgent/blob/f19c9f2c79a41046eb13c03c51a24c567a8ffa07/LICENCE",
+      "local_case_id": "oss.injecagent.direct-harm.selected-v1",
+      "capability_family": "indirect_prompt_injection",
+      "case_class": "agent_behavior",
+      "applicability": "simulated_tool_adapter_v1",
+      "oracle_version": "attempted_harmful_tool_call_v1"
+    },
+    {
+      "source_project": "uiuc-kang-lab/InjecAgent",
+      "source_commit": "f19c9f2c79a41046eb13c03c51a24c567a8ffa07",
+      "source_path": "data/test_cases_ds_base.json",
+      "source_case_index": [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450, 480, 1, 31, 61, 91, 121, 151, 181, 211],
+      "source_integrity": "sha256:4daab35c62a3845e8b9400f4dca58b9c9f37e57cd33b2337552557fbb26282e9",
+      "license": "MIT; https://github.com/uiuc-kang-lab/InjecAgent/blob/f19c9f2c79a41046eb13c03c51a24c567a8ffa07/LICENCE",
+      "local_case_id": "oss.injecagent.data-stealing.selected-v1",
+      "capability_family": "indirect_prompt_injection",
+      "case_class": "agent_behavior",
+      "applicability": "simulated_tool_adapter_v1",
+      "oracle_version": "attempted_exfiltration_tool_call_v1"
+    }
+  ]
+}
