@@ -2,17 +2,20 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
-import hmac
 import json
 import os
 import re
+import sqlite3
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from harness.customer_runner import customer_agent_http_runner_factory
 from harness.runner import ModelRunner
 from tools.active_test_registry import build_registry
@@ -31,9 +34,16 @@ from tools.tranche1_observational import (
 EXACT_TARGET_CALLS = 36 * 5
 _FULL_LOWER_SHA = re.compile(r"[0-9a-f]{40}")
 _IMMUTABLE_IMAGE_REF = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
-_HMAC_SIGNATURE = re.compile(r"hmac-sha256:[0-9a-f]{64}")
-PROMOTION_LEASE_VERSION = "tranche1-promotion-lease/v1"
+_ED25519_SIGNATURE = re.compile(r"ed25519:[A-Za-z0-9_-]{86}")
+PROMOTION_LEASE_VERSION = "tranche1-promotion-lease/v2"
+FOUNDER_AUTHORIZATION_VERSION = "founder-production-authorization/v1"
 PROMOTION_ISSUES = ["BEAAA-19023", "BEAAA-19024"]
+LEASE_LEDGER_PATH = Path("/var/lib/backbond/tranche1-promotion-leases.sqlite3")
+TRUSTED_PROMOTION_ISSUERS = {
+    # Private material is not present in this repository or accepted from callers.
+    "backbond-production-authority-2026-07":
+        "2dljRZ5Z1kmjeRiCjRylWmrvs2oERFnnp2eMSwn62Yg="
+}
 
 
 def _canonical_json(value: Mapping[str, Any]) -> bytes:
@@ -82,7 +92,7 @@ class _CanaryJob:
 def validate_tranche1_authority(
     *,
     promotion_lease: Mapping[str, Any],
-    promotion_lease_key: bytes,
+    founder_authorization: Mapping[str, Any],
     tenant_id: str,
     authorization_ref: str,
     commit_sha: str,
@@ -90,17 +100,39 @@ def validate_tranche1_authority(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Verify all authority and runtime identity before any call or evidence write."""
-    if len(promotion_lease_key) < 32:
-        raise Tranche1CanaryError("promotion lease verification key is absent or too short")
     lease = dict(promotion_lease)
     signature = lease.pop("signature", None)
-    if not isinstance(signature, str) or not _HMAC_SIGNATURE.fullmatch(signature):
+    encoded_key = TRUSTED_PROMOTION_ISSUERS.get(str(lease.get("key_id")))
+    if encoded_key is None:
+        raise Tranche1CanaryError("promotion lease issuer is unknown or revoked")
+    if not isinstance(signature, str) or not _ED25519_SIGNATURE.fullmatch(signature):
         raise Tranche1CanaryError("promotion lease signature is absent or malformed")
-    expected = "hmac-sha256:" + hmac.new(
-        promotion_lease_key, _canonical_json(lease), hashlib.sha256
-    ).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        raise Tranche1CanaryError("promotion lease signature is invalid")
+    try:
+        signature_bytes = base64.urlsafe_b64decode(signature.removeprefix("ed25519:") + "==")
+        public_key = Ed25519PublicKey.from_public_bytes(base64.b64decode(encoded_key))
+        public_key.verify(
+            signature_bytes, _canonical_json(lease)
+        )
+    except (InvalidSignature, ValueError) as exc:
+        raise Tranche1CanaryError("promotion lease signature is invalid") from exc
+
+    approval = dict(founder_authorization)
+    approval_signature = approval.pop("signature", None)
+    if (
+        not isinstance(approval_signature, str)
+        or not _ED25519_SIGNATURE.fullmatch(approval_signature)
+        or approval.get("key_id") != lease.get("key_id")
+    ):
+        raise Tranche1CanaryError("Founder authorization signature or issuer is invalid")
+    try:
+        public_key.verify(
+            base64.urlsafe_b64decode(
+                approval_signature.removeprefix("ed25519:") + "=="
+            ),
+            _canonical_json(approval),
+        )
+    except (InvalidSignature, ValueError) as exc:
+        raise Tranche1CanaryError("Founder authorization signature is invalid") from exc
 
     runtime_commit = os.environ.get("BACKBOND_RUNTIME_COMMIT_SHA", "")
     authorized_commit = os.environ.get("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "")
@@ -146,6 +178,25 @@ def validate_tranche1_authority(
             raise Tranche1CanaryError(f"promotion lease {field} binding mismatch")
     if not lease.get("lease_id") or not lease.get("approval_ref") or not lease.get("key_id"):
         raise Tranche1CanaryError("promotion lease identity and approval reference are required")
+    approval_required = {
+        "version": FOUNDER_AUTHORIZATION_VERSION,
+        "status": "accepted",
+        "authorizer_role": "Founder",
+        "approval_ref": lease["approval_ref"],
+        "key_id": lease["key_id"],
+        "environment": runtime_environment,
+        "tenant_id": tenant_id,
+        "authorization_ref": authorization_ref,
+        "commit_sha": commit_sha,
+        "image_ref": image_ref,
+        "allowlist_sha256": ALLOWLIST_SHA256,
+        "exact_selection_sha256": EXACT_SELECTION_SHA256,
+        "target_call_ceiling": EXACT_TARGET_CALLS,
+        "judge_call_ceiling": 0,
+        "issues": PROMOTION_ISSUES,
+    }
+    if any(approval.get(field) != value for field, value in approval_required.items()):
+        raise Tranche1CanaryError("Founder authorization binding mismatch")
     try:
         not_before = datetime.fromisoformat(str(lease["not_before"]).replace("Z", "+00:00"))
         expires_at = datetime.fromisoformat(str(lease["expires_at"]).replace("Z", "+00:00"))
@@ -160,7 +211,80 @@ def validate_tranche1_authority(
         or expires_at <= not_before
     ):
         raise Tranche1CanaryError("promotion lease is not currently valid")
-    return lease
+    return {**lease, "signature": signature}
+
+
+def consume_promotion_lease(
+    *,
+    authority: Mapping[str, Any],
+    ledger_path: Path,
+    consumed_at: datetime | None = None,
+) -> str:
+    """Atomically consume one exact signed authority scope before side effects."""
+    scope = {
+        field: authority[field]
+        for field in (
+            "lease_id",
+            "signature",
+            "commit_sha",
+            "image_ref",
+            "tenant_id",
+            "environment",
+        )
+    }
+    scope_sha256 = hashlib.sha256(_canonical_json(scope)).hexdigest()
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(str(ledger_path), timeout=30, isolation_level=None)
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA synchronous=FULL")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS promotion_lease_consumptions (
+                scope_sha256 TEXT NOT NULL UNIQUE,
+                lease_id TEXT PRIMARY KEY,
+                signature TEXT NOT NULL,
+                commit_sha TEXT NOT NULL,
+                image_ref TEXT NOT NULL,
+                tenant_id TEXT NOT NULL,
+                environment TEXT NOT NULL,
+                consumed_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            """
+            INSERT INTO promotion_lease_consumptions
+            (scope_sha256, lease_id, signature, commit_sha, image_ref,
+             tenant_id, environment, consumed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                scope_sha256,
+                scope["lease_id"],
+                scope["signature"],
+                scope["commit_sha"],
+                scope["image_ref"],
+                scope["tenant_id"],
+                scope["environment"],
+                (consumed_at or datetime.now(timezone.utc)).isoformat(),
+            ),
+        )
+        connection.execute("COMMIT")
+    except sqlite3.IntegrityError as exc:
+        if connection is not None:
+            connection.execute("ROLLBACK")
+        raise Tranche1CanaryError("promotion lease has already been consumed") from exc
+    except (OSError, sqlite3.Error) as exc:
+        if connection is not None and connection.in_transaction:
+            connection.execute("ROLLBACK")
+        raise Tranche1CanaryError("promotion lease replay ledger failed closed") from exc
+    finally:
+        if connection is not None:
+            connection.close()
+    return scope_sha256
 
 
 def select_exact_tranche(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -215,14 +339,15 @@ def run_tranche1_canary(
     commit_sha: str,
     image_ref: str,
     promotion_lease: Mapping[str, Any],
-    promotion_lease_key: bytes,
+    founder_authorization: Mapping[str, Any],
+    promotion_lease_ledger: Path,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     if not authorization_ref or not tenant_id:
         raise Tranche1CanaryError("opaque authorization reference and tenant are required")
     authority = validate_tranche1_authority(
         promotion_lease=promotion_lease,
-        promotion_lease_key=promotion_lease_key,
+        founder_authorization=founder_authorization,
         tenant_id=tenant_id,
         authorization_ref=authorization_ref,
         commit_sha=commit_sha,
@@ -230,6 +355,11 @@ def run_tranche1_canary(
         now=now,
     )
     rows = select_exact_tranche(registry_rows)
+    lease_scope_sha256 = consume_promotion_lease(
+        authority=authority,
+        ledger_path=promotion_lease_ledger,
+        consumed_at=now,
+    )
 
     executor = RegisteredCaseExecutor(
         subject=subject,
@@ -274,7 +404,7 @@ def run_tranche1_canary(
         "ticket": "BEAAA-19021",
         "job_id": job_id,
         "scanner_version": "0.5.0",
-        "api_contract": "are-scanner-api-v1@v1.0",
+        "api_contract": "are-scanner-api-v1@v1.3.0",
         "envelope": ENVELOPE_VERSION,
         "authorization_ref": authorization_ref,
         "promotion_authority": {
@@ -283,6 +413,7 @@ def run_tranche1_canary(
             "key_id": authority["key_id"],
             "not_before": authority["not_before"],
             "expires_at": authority["expires_at"],
+            "lease_scope_sha256": lease_scope_sha256,
         },
         "capability_manifest": {"has_tool_calling": True},
         "pins": {
@@ -336,7 +467,7 @@ def main() -> int:
     parser.add_argument("--commit-sha", required=True)
     parser.add_argument("--image-ref", required=True)
     parser.add_argument("--promotion-lease", type=Path, required=True)
-    parser.add_argument("--promotion-lease-key-fd", type=int, required=True)
+    parser.add_argument("--founder-authorization", type=Path, required=True)
     parser.add_argument("--evidence-dir", type=Path, required=True)
     secret = parser.add_mutually_exclusive_group(required=True)
     secret.add_argument("--secret-fd", type=int)
@@ -345,13 +476,14 @@ def main() -> int:
     credential = _secret_from_args(args)
     try:
         promotion_lease = json.loads(args.promotion_lease.read_text(encoding="utf-8"))
+        founder_authorization = json.loads(
+            args.founder_authorization.read_text(encoding="utf-8")
+        )
     except (OSError, json.JSONDecodeError) as exc:
         raise Tranche1CanaryError("promotion lease is unreadable") from exc
-    with os.fdopen(os.dup(args.promotion_lease_key_fd), "rb") as handle:
-        promotion_lease_key = handle.read().rstrip(b"\r\n")
     validate_tranche1_authority(
         promotion_lease=promotion_lease,
-        promotion_lease_key=promotion_lease_key,
+        founder_authorization=founder_authorization,
         tenant_id=args.tenant_id,
         authorization_ref=args.authorization_ref,
         commit_sha=args.commit_sha,
@@ -367,7 +499,8 @@ def main() -> int:
         commit_sha=args.commit_sha,
         image_ref=args.image_ref,
         promotion_lease=promotion_lease,
-        promotion_lease_key=promotion_lease_key,
+        founder_authorization=founder_authorization,
+        promotion_lease_ledger=LEASE_LEDGER_PATH,
     )
     print(json.dumps({
         "job_id": report["job_id"],
