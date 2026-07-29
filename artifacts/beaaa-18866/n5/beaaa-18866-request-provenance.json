@@ -1,0 +1,15 @@
+{
+  "artifact_type": "n5_provenance_evidence_pointer",
+  "ticket_refs": ["BEAAA-18866", "BEAAA-18869"],
+  "canonical_evidence": "artifacts/beaaa-18866/n5/2026-07-29-frozen-0.5.0-vs-beaaa-18866-request-provenance.json",
+  "candidate_implementation_sha": "62abcceaf152f194ea3ade7f087f31880c960fdc",
+  "scanner_version": "0.5.0",
+  "corpus_version": "corpus-1",
+  "probe-set-version": "beaaa-18866-request-provenance-contract@1.0.0",
+  "rubric_point_id": "not_applicable:provenance_api_plumbing",
+  "n5_calibration_delta": 0,
+  "brand_backbone_version": "v1.6",
+  "brand_backbone_sha256": "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090",
+  "brand_backbone_verified": true,
+  "result": "PASS"
+}
