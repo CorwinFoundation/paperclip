@@ -728,7 +728,9 @@ def test_connector_cron_loop_fires_scheduled_scan(tmp_path):
     )
     from portal import PortalHandler, build_service
 
-    http_service = build_service(tmp_path)
+    # This test exercises the production-only immutable-baseline comparison
+    # path, so do not inherit build_service's development-mode default.
+    http_service = build_service(tmp_path, lifecycle_mode="production")
     PortalHandler.service = http_service
     server = ThreadingHTTPServer(("127.0.0.1", 0), PortalHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
