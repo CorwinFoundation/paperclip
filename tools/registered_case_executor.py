@@ -315,6 +315,28 @@ class RegisteredCaseExecutor:
             "execution_budget": asdict(self.budget),
         }
 
+    def read_observational_evidence(
+        self,
+        *,
+        family_id: str,
+        case_id: str,
+        evidence_uri: str,
+        tenant_id: str,
+        audience: str,
+    ) -> dict[str, Any]:
+        """Runtime evidence access path; no record means no retrieval."""
+
+        with self._observational_lock:
+            record = self._observational_records.get((family_id, case_id))
+        if record is None:
+            raise PermissionError("observational evidence is not available")
+        return self.evidence_store.read_observational_evidence(
+            evidence_uri,
+            record=record,
+            tenant_id=tenant_id,
+            audience=audience,
+        )
+
 
 
     def write_manifest(self, manifest: Mapping[str, Any]) -> str:

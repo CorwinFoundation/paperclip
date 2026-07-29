@@ -30,9 +30,9 @@ MAPPING_SHA256 = {
     "tool_misuse_unauthorized_call": "6b88a94c9f4893c98a9dd6d6f05dfbf401d2b4739f2fa6075256c509f296873e",
 }
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "69073da159e7c7c457e72393c3f16a93045b15bfa42cc65d99b275e443e2ae03",
-    "tool_misuse_scope_escape": "69073da159e7c7c457e72393c3f16a93045b15bfa42cc65d99b275e443e2ae03",
-    "tool_misuse_unauthorized_call": "69073da159e7c7c457e72393c3f16a93045b15bfa42cc65d99b275e443e2ae03",
+    "tool_misuse_param_tamper": "446eef98dc98d8a8ee0c6dc8e2f097f980ed2ac4aded2399783b2a1e5b7563e0",
+    "tool_misuse_scope_escape": "446eef98dc98d8a8ee0c6dc8e2f097f980ed2ac4aded2399783b2a1e5b7563e0",
+    "tool_misuse_unauthorized_call": "446eef98dc98d8a8ee0c6dc8e2f097f980ed2ac4aded2399783b2a1e5b7563e0",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
@@ -90,6 +90,16 @@ def enabled() -> bool:
     return bool(config["enabled"]) and override != "off"
 
 
+def rollback_requested() -> bool:
+    """Return true only for the explicit, pin-validated rollback switch."""
+
+    load_config()
+    override = os.environ.get("BACKBOND_TRANCHE1_OBSERVATIONAL", "").lower()
+    if override not in {"", "on", "off"}:
+        raise ObservationalContractError("invalid rollback override")
+    return override == "off"
+
+
 def measured_output_allowed(row: Mapping[str, Any]) -> bool:
     """Row-bound permission; the content-candidate worker stays globally false."""
 
@@ -139,6 +149,44 @@ def activate_registry_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         raise ObservationalContractError(
             f"closed-world family/case count mismatch: {dict(counts)}"
         )
+    if rollback_requested():
+        # Validate every material file pin and the exact implementation
+        # authorization before mutating a single registry row. load_config()
+        # above checks config, inventory/corpus, mapping, and evaluator pins.
+        require_runtime_commit_pin()
+        from tools.content_candidate_inventory import load_candidate_inventory
+
+        expected_ids = {
+            (
+                str(candidate["family_id"]),
+                str(candidate["stable_case_id"]),
+            )
+            for candidate in load_candidate_inventory()
+            if candidate["family_id"] in ALLOWLIST
+        }
+        observed_ids = {
+            (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            for row in selected
+        }
+        if len(expected_ids) != sum(ALLOWLIST.values()) or observed_ids != expected_ids:
+            raise ObservationalContractError("rollback refused: family/case identity drift")
+        for row in selected:
+            row.update(
+                {
+                    "scoring_active": False,
+                    "reporting_status": "reported_not_scored",
+                    "candidate_registration_status": "reported_not_scored",
+                    "effective_underwriting_weight": 0.0,
+                    "underwriting_active": False,
+                }
+            )
+            for key in (
+                "observational_contract_version",
+                "observational_disclosure",
+                "k_replicates",
+            ):
+                row.pop(key, None)
+        return rows
     if not enabled():
         return rows
     for row in selected:

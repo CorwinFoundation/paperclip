@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import copy
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,8 +12,14 @@ from pricing.quote import Rates
 from rubric.bands import assign_band, band_to_dict
 from underwriting import admittance
 from underwriting.automatic_decision import canonical_decision_bytes, decide
-from tools.registered_case_executor import EvidenceStore
+from harness.runner import MockRunner
+from tools.registered_case_executor import (
+    EvidenceStore,
+    RegisteredCaseExecutor,
+    ScanBudget,
+)
 from tools.active_test_registry import build_registry
+import tools.tranche1_observational as observational
 from tools.content_candidate_inventory import load_candidate_inventory
 from tools.tranche1_observational import (
     ALLOWLIST,
@@ -26,6 +33,7 @@ from tools.tranche1_observational import (
     normalize_outcome,
     rank_families,
     authorize_evidence_uri,
+    activate_registry_rows,
     validate_rollback,
 )
 
@@ -95,8 +103,19 @@ def test_registry_promotes_exactly_36_without_count_or_worker_collateral(monkeyp
 
 
 def test_single_config_rollback_restores_only_36(monkeypatch):
-    monkeypatch.setenv("BACKBOND_TRANCHE1_OBSERVATIONAL", "off")
+    sha = "e06cb09df3d0a490816eace227b083b97665949d"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    monkeypatch.delenv("BACKBOND_TRANCHE1_OBSERVATIONAL", raising=False)
     rows = build_registry()
+    active_before = [
+        row for row in rows
+        if row.get("runner") == "content_candidate_worker"
+        and row.get("scoring_active") is True
+    ]
+    assert len(active_before) == 36
+    monkeypatch.setenv("BACKBOND_TRANCHE1_OBSERVATIONAL", "off")
+    activate_registry_rows(rows)
     candidates = [row for row in rows if row.get("content_candidate_inventory")]
     worker_candidates = [
         row for row in candidates if row.get("runner") == "content_candidate_worker"
@@ -281,6 +300,49 @@ def test_evidence_store_read_is_tenant_and_audience_gated(tmp_path, monkeypatch)
         )
 
 
+def test_runtime_executor_evidence_access_denies_cross_tenant_and_customer_audience(
+    tmp_path, monkeypatch
+):
+    sha = "e06cb09df3d0a490816eace227b083b97665949d"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    row = next(
+        row for row in build_registry()
+        if row.get("test_id") == "tool_misuse_param_tamper"
+        and row.get("case_id") == "TOOL_MISUSE_PT-01"
+    )
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner(
+            "target", lambda _prompt: '{"actual_response_label":"resisted_no_disclosure"}'
+        ),
+        judge=MockRunner("judge", lambda _prompt: "unused"),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+        tenant_id="tenant-a",
+        audience="internal_observational",
+    )
+    job = type("Job", (), {
+        "job_id": "job-authz", "agent_id": "agent-a", "seed": 42,
+        "capability_manifest": {"has_tool_calling": True},
+    })()
+    result = executor(row, job)
+    assert result.status == "complete"
+    assert executor.read_observational_evidence(
+        family_id=row["test_id"], case_id=row["case_id"],
+        evidence_uri=result.evidence_ref, tenant_id="tenant-a",
+        audience="internal_observational",
+    )["test_id"] == row["test_id"]
+    for tenant, audience in (
+        ("tenant-b", "internal_observational"),
+        ("tenant-a", "customer"),
+    ):
+        with pytest.raises(ObservationalContractError):
+            executor.read_observational_evidence(
+                family_id=row["test_id"], case_id=row["case_id"],
+                evidence_uri=result.evidence_ref, tenant_id=tenant, audience=audience,
+            )
+
+
 def test_ranking_is_minimized_and_rejects_sensitive_alias_partial_collision(monkeypatch):
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
@@ -332,6 +394,88 @@ def test_rollback_refuses_all_material_drift_and_retains_evidence(monkeypatch):
     for bad_records in (records[:-1], records + [records[0]]):
         with pytest.raises(ObservationalContractError):
             validate_rollback(bad_records)
+
+
+def test_actual_rollback_refuses_before_mutation_and_retains_files(tmp_path, monkeypatch):
+    sha = "e06cb09df3d0a490816eace227b083b97665949d"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    monkeypatch.delenv("BACKBOND_TRANCHE1_OBSERVATIONAL", raising=False)
+    active = build_registry()
+    evidence = tmp_path / "retained.json"
+    evidence.write_bytes(b"retained-evidence")
+    original_evidence = evidence.read_bytes()
+    original_rows = copy.deepcopy(active)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_OBSERVATIONAL", "off")
+
+    for runtime, authorized in (("0" * 40, sha), (sha, "1" * 40)):
+        monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", runtime)
+        monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", authorized)
+        candidate = copy.deepcopy(original_rows)
+        with pytest.raises(ObservationalContractError):
+            activate_registry_rows(candidate)
+        assert candidate == original_rows
+        assert evidence.read_bytes() == original_evidence
+
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    for mutation in ("missing", "collision"):
+        candidate = copy.deepcopy(original_rows)
+        selected = [
+            row for row in candidate
+            if row.get("runner") == "content_candidate_worker"
+            and row.get("test_id") in ALLOWLIST
+        ]
+        if mutation == "missing":
+            selected[0]["test_id"] = "unknown_family"
+        else:
+            selected[0]["case_id"] = selected[1]["case_id"]
+        before = copy.deepcopy(candidate)
+        with pytest.raises(ObservationalContractError):
+            activate_registry_rows(candidate)
+        assert candidate == before
+        assert evidence.read_bytes() == original_evidence
+
+    rolled_back = copy.deepcopy(original_rows)
+    activate_registry_rows(rolled_back)
+    disabled = [
+        row for row in rolled_back
+        if row.get("runner") == "content_candidate_worker"
+        and row.get("test_id") in ALLOWLIST
+        and row.get("scoring_active") is False
+    ]
+    assert len(disabled) == 36
+    assert evidence.read_bytes() == original_evidence
+
+
+@pytest.mark.parametrize(
+    "pin_name",
+    ("CONFIG_SHA256", "INVENTORY_SHA256", "MAPPING_SHA256", "EVALUATOR_SHA256"),
+)
+def test_actual_rollback_refuses_each_material_file_pin_before_mutation(
+    pin_name, tmp_path, monkeypatch
+):
+    sha = "e06cb09df3d0a490816eace227b083b97665949d"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    monkeypatch.delenv("BACKBOND_TRANCHE1_OBSERVATIONAL", raising=False)
+    rows = build_registry()
+    evidence = tmp_path / "retained.json"
+    evidence.write_bytes(b"retained-evidence")
+    original = copy.deepcopy(rows)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_OBSERVATIONAL", "off")
+    if pin_name in {"MAPPING_SHA256", "EVALUATOR_SHA256"}:
+        monkeypatch.setattr(
+            observational,
+            pin_name,
+            {family: "0" * 64 for family in ALLOWLIST},
+        )
+    else:
+        monkeypatch.setattr(observational, pin_name, "0" * 64)
+    with pytest.raises(ObservationalContractError):
+        activate_registry_rows(rows)
+    assert rows == original
+    assert evidence.read_bytes() == b"retained-evidence"
 
 
 def test_complete_downstream_matrix_canonical_hash_isolation(monkeypatch):
