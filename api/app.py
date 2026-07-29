@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from pricing.quote import Rates
@@ -33,6 +34,10 @@ from .runtime_guards import (
     bundle_store_from_env,
     current_runtime_profile,
     validate_runtime_environment,
+)
+from .request_scan_provenance import (
+    ProvenanceConflict,
+    RequestScanProvenanceIndex,
 )
 from .scan_handlers import (
     RESCAN_PURPOSES,
@@ -75,6 +80,8 @@ API_AUTH_TOKENS_ENV: str = "ARE_API_AUTH_TOKENS_JSON"
 #: Unset/empty ⇒ no tenant is uw-entitled (fail closed): vendor tokens cannot
 #: self-elevate to the UW struct. Only consulted when bearer auth is active.
 UW_AUDIENCE_TENANTS_ENV: str = "ARE_UW_AUDIENCE_TENANTS_JSON"
+INTERNAL_PROVENANCE_TOKEN_ENV: str = "ARE_INTERNAL_PROVENANCE_TOKEN"
+REQUEST_SCAN_PROVENANCE_DB_ENV: str = "ARE_REQUEST_SCAN_PROVENANCE_DB"
 
 
 def _http_error(status_code: int, detail: Any) -> HTTPException:
@@ -202,6 +209,7 @@ def create_app(
     sla_registry: SlaRegistry | None = None,
     routing_event_sink: RoutingEventSink | None = None,
     provenance_verifier: EvalProvenanceVerifier | None = None,
+    request_scan_provenance: RequestScanProvenanceIndex | None = None,
 ) -> FastAPI:
     runtime_profile = current_runtime_profile()
     # BEAAA-12021 — build + validate the typed config once at startup.
@@ -250,6 +258,16 @@ def create_app(
         provenance_verifier
         if provenance_verifier is not None
         else EvalProvenanceVerifier.from_env()
+    )
+    provenance_db_path = os.getenv(REQUEST_SCAN_PROVENANCE_DB_ENV)
+    app.state.request_scan_provenance = (
+        request_scan_provenance
+        if request_scan_provenance is not None
+        else (
+            RequestScanProvenanceIndex(provenance_db_path)
+            if provenance_db_path
+            else None
+        )
     )
 
     @app.exception_handler(Exception)
@@ -324,6 +342,26 @@ def create_app(
             if app.state.scan_runtime is None:
                 raise _http_error(503, "scan_runtime_unconfigured")
             body = await request.json()
+            source_issue_id = body.get("source_issue_id")
+            request_id = body.get("request_id")
+            if (source_issue_id is None) != (request_id is None):
+                raise _http_error(422, "provenance_reference_incomplete")
+            if source_issue_id is not None:
+                if app.state.request_scan_provenance is None:
+                    raise _http_error(503, "request_scan_provenance_unconfigured")
+                if not tenant_context:
+                    raise _http_error(401, "authenticated_tenant_required")
+                if not all(
+                    isinstance(value, str) and value.strip()
+                    for value in (source_issue_id, request_id)
+                ):
+                    raise _http_error(422, "provenance_fields_required")
+                if app.state.request_scan_provenance.resolve_scan_id(
+                    tenant_id=tenant_context,
+                    source_issue_id=source_issue_id,
+                    request_id=request_id,
+                ):
+                    raise _http_error(409, "request_reference_already_bound")
             try:
                 status, payload = scan_handler(
                     body,
@@ -334,6 +372,18 @@ def create_app(
                 raise _http_error(exc.status, exc.message) from exc
             if status not in (200, 202):
                 raise _http_error(status, payload)
+            if source_issue_id is not None:
+                try:
+                    app.state.request_scan_provenance.bind(
+                        tenant_id=tenant_context,
+                        source_issue_id=source_issue_id,
+                        request_id=request_id,
+                        scan_id=payload["scan_id"],
+                    )
+                except ValueError as exc:
+                    raise _http_error(422, str(exc)) from exc
+                except ProvenanceConflict as exc:
+                    raise _http_error(409, str(exc)) from exc
             # Preserve the handler's status code (202 for the live-probe accept
             # path per contract v1.1.0). Returning the dict directly would let
             # FastAPI's default 200 win, dropping the contracted Accepted status.
@@ -441,6 +491,80 @@ def create_app(
             raise _http_error(exc.status, exc.message) from exc
         if status != 200:
             raise _http_error(status, payload)
+        return payload
+
+    @app.get("/internal/scanner/v1/request-scan-provenance")
+    async def get_request_scan_provenance(
+        request: Request,
+        source_issue_id: str = Query(),
+        request_id: str = Query(),
+        x_internal_provenance_key: str | None = Header(
+            default=None, alias="X-Internal-Provenance-Key"
+        ),
+    ) -> Any:
+        """Least-privilege internal lookup; never lists a tenant's scans."""
+        expected_internal_key = os.getenv(INTERNAL_PROVENANCE_TOKEN_ENV)
+        if (
+            not expected_internal_key
+            or not x_internal_provenance_key
+            or x_internal_provenance_key != expected_internal_key
+        ):
+            raise _http_error(401, "internal_provenance_authorization_required")
+        tenant_id = _authenticated_tenant_id(request, runtime_profile)
+        if not tenant_id:
+            raise _http_error(401, "authenticated_tenant_required")
+        index = app.state.request_scan_provenance
+        runtime = app.state.scan_runtime
+        if index is None or runtime is None:
+            raise _http_error(503, "request_scan_provenance_unconfigured")
+
+        def load_scan(scan_id: str) -> dict[str, Any] | None:
+            try:
+                _, payload = scan_status_handler(
+                    scan_id,
+                    runtime=runtime,
+                    audience="uw",
+                    authenticated_tenant_id=tenant_id,
+                    uw_entitled=True,
+                )
+            except HandlerError:
+                return None
+            request_record = runtime.current_scan_request(scan_id)
+            persisted = runtime.current_kickoff_row(scan_id) or {}
+            merged = dict(payload)
+            merged.update(
+                {
+                    key: value
+                    for key, value in persisted.items()
+                    if key
+                    in {
+                        "run_timestamp",
+                        "are_total",
+                        "band",
+                        "scanner_version",
+                        "corpus_version",
+                        "model_versions",
+                        "seed",
+                        "evidence_refs",
+                        "snapshot_hash",
+                    }
+                }
+            )
+            if request_record is not None:
+                merged.setdefault(
+                    "corpus_snapshot_hash", request_record.corpus_snapshot_hash
+                )
+                merged.setdefault("seed", request_record.seed)
+            return merged
+
+        payload = index.lookup(
+            tenant_id=tenant_id,
+            source_issue_id=source_issue_id,
+            request_id=request_id,
+            scan_loader=load_scan,
+        )
+        if payload is None:
+            raise _http_error(404, "request_scan_provenance_not_found")
         return payload
 
     @app.post("/quote")
