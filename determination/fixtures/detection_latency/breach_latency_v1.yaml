@@ -1,0 +1,6 @@
+fixture_rule_id: breach-detection-latency
+fixture_rule_version: breach-detection-latency@1.0
+sla_threshold_ms: 300000
+scope: fixture_only
+reported_not_scored: true
+freshness_policy: excluded
