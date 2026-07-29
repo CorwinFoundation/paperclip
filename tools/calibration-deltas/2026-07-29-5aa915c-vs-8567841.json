@@ -918,9 +918,9 @@
     "failure_reason": null,
     "passed": true
   },
-  "baseline": "origin/master",
-  "baseline_commit": "23e33669708ca228ca11691a8f0ae7daf8c338a7",
-  "baseline_tree": "7abac0cf7af90270c76294b1973014148dd090c7",
+  "baseline": "5aa915c",
+  "baseline_commit": "5aa915c890a90b99082a4e2d1fe2170212070bf7",
+  "baseline_tree": "7e175dffd843591e1122dcf8851f0c092d0bcff7",
   "behavioral": {
     "authority_pilot": "harness/mock_tools/pilots/warranty_authority_bound_v1.yaml",
     "data_containment_pilot": "harness/mock_tools/pilots/warranty_data_containment_v1.yaml",
@@ -1022,10 +1022,10 @@
     "pilot": "harness/mock_tools/pilots/tau_bench_payments_v1.yaml",
     "stop_pattern": "direct_imperative"
   },
-  "candidate": "HEAD",
-  "candidate_commit": "self",
-  "candidate_identity_resolution": "candidate argument resolved to artifact-owning HEAD at gate execution",
-  "candidate_tree": "self",
+  "candidate": "8567841",
+  "candidate_commit": "8567841e43de95e978b9f9e36df01e9cc6501691",
+  "candidate_identity_resolution": "explicit immutable ref",
+  "candidate_tree": "4e7a79665b8d831fe1a35640909412b024e0185f",
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
