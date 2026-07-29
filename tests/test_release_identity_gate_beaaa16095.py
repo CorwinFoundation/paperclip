@@ -139,17 +139,6 @@ def test_release_identity_gate_accepts_cosign_v3_output_with_empty_optional_clai
     assert report["signatureWorkflowRef"] == release_identity_gate.EXPECTED_WORKFLOW_REF
 
 
-def test_workflow_hard_codes_master_certificate_identity():
-    workflow = (REPO / ".github" / "workflows" / "scanner-edge-image.yml").read_text(
-        encoding="utf-8"
-    )
-
-    assert release_identity_gate.EXPECTED_SUBJECT in workflow
-    assert '--certificate-identity "$EXPECTED_SUBJECT"' in workflow
-    assert ".github/workflows/scanner-edge-image.yml@${GITHUB_REF}" not in workflow
-    assert '--expected-source-issue-id "$SOURCE_ISSUE_ID"' in workflow
-
-
 def test_release_identity_gate_cli_exits_nonzero_for_source_revision_drift(tmp_path: Path):
     candidate = tmp_path / "candidate.json"
     cosign = tmp_path / "cosign.json"

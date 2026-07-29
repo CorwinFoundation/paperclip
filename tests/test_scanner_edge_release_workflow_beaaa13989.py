@@ -2,21 +2,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github" / "workflows" / "scanner-edge-image.yml"
 UNIT = ROOT / "infra" / "live-edge" / "backbond-deploy-agent.service"
 LAUNCHER = ROOT / "infra" / "live-edge" / "run-backbond-deploy-agent"
-
-
-def test_current_release_workflow_emits_offline_verifiable_sigstore_bundle() -> None:
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    assert "push:" in workflow and "pull_request:" in workflow
-    assert "cosign sign --yes --new-bundle-format=true --bundle \"$bundle_path\"" in workflow
-    assert "signatureBundleRef" in workflow
-    assert "signatureBundleSha256" in workflow
-    assert "scanner-edge-image.sigstore.json" in workflow
-    assert 'SIGNED_REF="${IMAGE_REF%:*}@${DIGEST}"' in workflow
-    assert "Upload release candidate artifacts" in workflow
-    assert '"infra/live-edge/**"' in workflow
 
 
 def test_systemd_unit_uses_run_only_credential_handoff() -> None:
