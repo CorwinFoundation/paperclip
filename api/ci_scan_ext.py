@@ -47,6 +47,7 @@ from hashlib import sha256
 from typing import Any, Callable, Mapping
 
 from api.jcs import canonicalize
+from api.evidence_receipt import project as project_evidence_receipt
 
 # ---------------------------------------------------------------------------
 # Item 2 — outbound HMAC-SHA256 completion webhook.
@@ -329,6 +330,7 @@ def ci_plugin_result(
     disposition: str,
     dashboard_base_url: str,
     dim_pass_threshold: float = DEFAULT_DIM_PASS_THRESHOLD,
+    evidence_receipt: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project a finalized result into the no-prompt ``ci_plugin`` envelope.
 
@@ -342,6 +344,13 @@ def ci_plugin_result(
     ``"Prompt Injection @ transaction boundary"``); ``dim_raws`` maps
     ``dim_id`` → the per-dimension raw. A dimension is ``failed`` when its
     raw is below ``dim_pass_threshold``.
+
+    BEAAA-18825: when the ``BACKBOND_EVIDENCE_RECEIPT_V1`` gate is on and a
+    receipt is supplied, the PII-free ``evidence_receipt`` object
+    (evidence-receipt-v1 §2 / ADR-0067) is added. The receipt is minted by the
+    BackBond receipt service (Child 2, BEAAA-18819); this projection only
+    surfaces it via the shared, allowlisted ``project_evidence_receipt`` path.
+    Gate off (or no receipt) -> byte-identical prior envelope.
     """
     passed: list[str] = []
     failed: list[str] = []
@@ -351,7 +360,7 @@ def ci_plugin_result(
             failed.append(label)
         else:
             passed.append(label)
-    return {
+    envelope: dict[str, Any] = {
         "scan_id": scan_id,
         "failed": failed,
         "passed": passed,
@@ -359,6 +368,8 @@ def ci_plugin_result(
         "disposition": disposition,
         "dashboard_url": f"{dashboard_base_url.rstrip('/')}/scans/{scan_id}",
     }
+    envelope.update(project_evidence_receipt(evidence_receipt))
+    return envelope
 
 
 # ---------------------------------------------------------------------------

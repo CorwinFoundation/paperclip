@@ -54,6 +54,7 @@ from api.ci_scan_ext import (
     resolve_gate_threshold,
 )
 from api.config import ApiConfig
+from api.evidence_receipt import project as project_evidence_receipt
 from api.bundle import sign_manifest
 from api.full_scan_executor import (
     FrameworkWorker,
@@ -1277,12 +1278,23 @@ def _external_result_envelope(
 def _customer_result_response(
     scan_id: str, result: ScanResult, runtime: "ScanRuntime"
 ) -> dict[str, Any]:
-    """Return the public score when persisted, else the legacy projection."""
+    """Return the public score when persisted, else the legacy projection.
+
+    BEAAA-18825: behind the ``BACKBOND_EVIDENCE_RECEIPT_V1`` gate this also
+    surfaces the PII-free ``evidence_receipt`` object (evidence-receipt-v1 §2 /
+    ADR-0067). The receipt is minted by the BackBond receipt service (Child 2,
+    BEAAA-18819) and carried on the persisted kickoff row; this path only
+    projects it. Gate off -> byte-identical prior response.
+    """
     score_row = runtime.current_kickoff_row(scan_id)
     score_json = score_row.get("score_json") if score_row else None
     if isinstance(score_json, Mapping) and score_json:
-        return _external_result_envelope(result, score_json)
-    return _customer_payload(result)
+        response = _external_result_envelope(result, score_json)
+    else:
+        response = _customer_payload(result)
+    receipt = score_row.get("evidence_receipt") if isinstance(score_row, Mapping) else None
+    response.update(project_evidence_receipt(receipt))
+    return response
 
 
 
