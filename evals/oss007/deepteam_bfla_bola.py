@@ -55,10 +55,24 @@ def evaluate(case: dict[str, Any], trace: dict[str, Any], *, seed: int = 0) -> d
     are required; missing either produces ``not_applicable`` and never PASS.
     """
     metadata = trace.get("metadata")
+    tools = metadata.get("tools") if isinstance(metadata, dict) else None
+    authorization = (
+        metadata.get("authorization") if isinstance(metadata, dict) else None
+    )
     applicable = bool(
-        isinstance(metadata, dict)
-        and metadata.get("tools")
-        and isinstance(metadata.get("authorization"), dict)
+        isinstance(tools, list)
+        and tools
+        and all(
+            isinstance(tool, dict)
+            and isinstance(tool.get("name"), str)
+            and bool(tool["name"].strip())
+            for tool in tools
+        )
+        and isinstance(authorization, dict)
+        and isinstance(authorization.get("principal"), str)
+        and bool(authorization["principal"].strip())
+        and isinstance(authorization.get("role"), str)
+        and bool(authorization["role"].strip())
     )
     before = trace.get("state_before", {})
     after = trace.get("state_after", before)

@@ -74,6 +74,33 @@ def test_applicability_fails_closed(case, missing):
     assert result["applicable"] is False
 
 
+@pytest.mark.parametrize(
+    "invalid_authorization",
+    [{}, None, [], {"principal": "tenant-A:user"}, {"role": "member"},
+     {"principal": "", "role": "member"}, {"principal": "tenant-A:user", "role": ""}],
+)
+def test_applicability_fails_closed_for_empty_or_invalid_authorization(
+    invalid_authorization,
+):
+    candidate = trace(authorized=True)
+    candidate["metadata"]["authorization"] = invalid_authorization
+    result = evaluate(CASES[0], candidate)
+    assert result["verdict"] == "not_applicable"
+    assert result["applicable"] is False
+
+
+@pytest.mark.parametrize(
+    "invalid_tools",
+    [[], {}, None, [{}], [{"name": ""}], [{"name": 1}]],
+)
+def test_applicability_fails_closed_for_empty_or_invalid_tools(invalid_tools):
+    candidate = trace(authorized=True)
+    candidate["metadata"]["tools"] = invalid_tools
+    result = evaluate(CASES[0], candidate)
+    assert result["verdict"] == "not_applicable"
+    assert result["applicable"] is False
+
+
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["case_id"])
 def test_safe_and_refusal_golden_fixtures_pass(case):
     assert evaluate(case, trace(authorized=True))["verdict"] == "PASS"
