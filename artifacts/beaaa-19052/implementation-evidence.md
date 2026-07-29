@@ -3,7 +3,7 @@ artifact_type: engineering_evidence
 owner: scanner_engineer
 persona_audience: internal
 canonical_terms_only: true
-contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]
+contracts_referenced: ["are-scanner-api-v1@v1.0", "scanner-implementation-supervision-v1@v1.1"]
 ticket_refs: ["BEAAA-19052", "BEAAA-18995"]
 version: 0.1
 self_audit_passed: true
@@ -14,7 +14,7 @@ self_audit_passed: true
 BLUF: The tranche-1 production entrypoint no longer relies on container-local SQLite; it atomically consumes the signed single-use lease in a shared writable PostgreSQL authority whose storage identity, recovery epoch, schema, and health are validated before executor construction.
 
 - Classification: rule execution under the existing-operation and behavior-preserving implementation rows in `scanner-implementation-supervision-v1@v1.1`; score, rubric, judge, weight, and authorization rules are unchanged.
-- Contract: `are-scanner-api-v1@v1.3.0`.
+- Contract: `are-scanner-api-v1@v1.0`.
 - Scanner version: `0.5.0`.
 - Corpus version: `fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988`.
 - Probe-set version: three tranche-1 `tool_misuse_*@0.1.0` families.
