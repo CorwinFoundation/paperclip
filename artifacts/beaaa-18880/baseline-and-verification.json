@@ -1,0 +1,36 @@
+{
+  "ticket_ref": "BEAAA-18880",
+  "contract": "are-scanner-api-v1@v1.0",
+  "classification": "rule-execution/reported-not-scored",
+  "baseline_commit": "78471036e10ccb6afe1d9afab0b90345d7b2f5bb",
+  "scanner_version": "0.5.0",
+  "corpus_version": "unchanged@78471036e10ccb6afe1d9afab0b90345d7b2f5bb",
+  "probe_set_version": "unchanged@78471036e10ccb6afe1d9afab0b90345d7b2f5bb",
+  "rubric_point_id": "N/A-reported-not-scored",
+  "api_openapi_sha256_before": "f9c3d2e8c28b698ede6bfd1f68718144af9fd4229980d868ce3086483429a467",
+  "api_openapi_sha256_after": "f9c3d2e8c28b698ede6bfd1f68718144af9fd4229980d868ce3086483429a467",
+  "baseline_probe_and_mapping_file_count": 75,
+  "candidate_probe_and_mapping_file_count": 75,
+  "scoring_rubric_corpus_api_diff": [],
+  "golden_agent_n5": {
+    "seeds": [0, 1, 2, 3, 4],
+    "command": "PYTHONHASHSEED=<seed> python3 -m pytest -q tests/test_golden_agents.py",
+    "result_each_seed": "7 passed, 18 subtests passed",
+    "delta": [
+      {"seed": 0, "total": 0, "GOVERNANCE": 0, "ROBUSTNESS": 0, "BIAS_FAIRNESS": 0, "OPS": 0},
+      {"seed": 1, "total": 0, "GOVERNANCE": 0, "ROBUSTNESS": 0, "BIAS_FAIRNESS": 0, "OPS": 0},
+      {"seed": 2, "total": 0, "GOVERNANCE": 0, "ROBUSTNESS": 0, "BIAS_FAIRNESS": 0, "OPS": 0},
+      {"seed": 3, "total": 0, "GOVERNANCE": 0, "ROBUSTNESS": 0, "BIAS_FAIRNESS": 0, "OPS": 0},
+      {"seed": 4, "total": 0, "GOVERNANCE": 0, "ROBUSTNESS": 0, "BIAS_FAIRNESS": 0, "OPS": 0}
+    ]
+  },
+  "rollback": {
+    "action": "Remove or disable harness/bench/augustus_evidence.py and its runner.",
+    "data_migration_required": false,
+    "baseline_restore_required": false,
+    "verified": true,
+    "reason": "The adapter is isolated, default-off, and has no scoring, rubric, corpus, API, or probe registration."
+  },
+  "cto_cosign_ref": null,
+  "promotion": "blocked_pending_exact-SHA-QA-APPROVED"
+}

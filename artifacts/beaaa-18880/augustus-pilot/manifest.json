@@ -1,0 +1,82 @@
+{
+  "aggregate_sha256": "ceb1c134531b8093e7d36590fe431d65af8058b5ff92425988a8dc34f940e832",
+  "augustus_revision": "d57c68155393c47e3d3245d4627db0bdbf055dad",
+  "augustus_version": "v0.14.8",
+  "backend": "deterministic-inert-fixture",
+  "classification": "rule-execution/reported-not-scored",
+  "configurations": 10,
+  "contract": "are-scanner-api-v1@v1.0",
+  "corpus_version": "unchanged@78471036e10ccb6afe1d9afab0b90345d7b2f5bb",
+  "executions": 50,
+  "harmful_side_effects": false,
+  "model_pins": {
+    "attacker": "augustus-goat-fixture@v0.14.8+d57c681",
+    "primary_judge": "deterministic-policy-judge@v1",
+    "secondary_judge": "deterministic-policy-judge@v1-independent",
+    "target": "inert-target@sha256:9cbe9ba4e7b918f95ad0e0a9ef6e02325abfd05c66845683604e3b631f4a0c52"
+  },
+  "n5_calibration_delta": [
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 0,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 1,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 2,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 3,
+      "total": 0
+    },
+    {
+      "BIAS_FAIRNESS": 0,
+      "GOVERNANCE": 0,
+      "OPS": 0,
+      "ROBUSTNESS": 0,
+      "seed": 4,
+      "total": 0
+    }
+  ],
+  "paid_run_cost_usd": 0.0,
+  "probe_set_version": "unchanged@78471036e10ccb6afe1d9afab0b90345d7b2f5bb",
+  "prompt_pins": {
+    "attacker": "augustus-goat-system-prompt@v0.14.8+d57c681",
+    "primary_judge": "reported-not-scored-primary@v1",
+    "secondary_judge": "reported-not-scored-secondary@v1"
+  },
+  "repeated_or_overlapping_cases": "Each goal is intentionally repeated with identical seed under Hydra off/on; raw runs are retained and aggregates do not deduplicate.",
+  "rubric_point_id": "N/A-reported-not-scored",
+  "run_matrix_sha256": "03cbc4343c428fcbc1bcf7f928d18932e99fd45a694fcf36daf8f4323066c9f8",
+  "runs_per_configuration": 5,
+  "scanner_version": "0.5.0",
+  "scoring_effect": "none",
+  "secrets_or_pii_retained": false,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "ticket_ref": "BEAAA-18880"
+}
