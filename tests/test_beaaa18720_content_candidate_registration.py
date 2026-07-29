@@ -156,6 +156,7 @@ def test_allowlisted_candidate_executes_n5_measured_observation(
         judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
+        tenant_id="tenant-authorized",
     )
 
     outcome = executor._execute_content_candidate(
@@ -195,6 +196,7 @@ def test_production_worker_call_persists_isolated_observation(
         judge=MockRunner("judge", lambda _prompt: '{"verdict":"pass","score":1.0}'),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
+        tenant_id="tenant-authorized",
     )
 
     result = executor(
@@ -328,6 +330,7 @@ def test_divergent_n5_is_incomplete_not_min_aggregated(
         judge=MockRunner("judge", lambda _prompt: "must-not-run"),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
+        tenant_id="tenant-authorized",
     )
 
     outcome = executor._execute_content_candidate(
@@ -368,6 +371,7 @@ def test_missing_capability_manifest_is_na_before_any_model_call(
         )),
         evidence_store=EvidenceStore(tmp_path),
         budget=ScanBudget(),
+        tenant_id="tenant-authorized",
     )
 
     outcome = executor._execute_content_candidate(

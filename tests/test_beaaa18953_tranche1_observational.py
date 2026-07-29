@@ -343,6 +343,49 @@ def test_runtime_executor_evidence_access_denies_cross_tenant_and_customer_audie
             )
 
 
+def test_missing_tenant_keeps_legacy_available_but_tranche_emission_fail_closed(
+    tmp_path, monkeypatch
+):
+    sha = "e06cb09df3d0a490816eace227b083b97665949d"
+    monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
+    monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    tranche = next(
+        row for row in build_registry()
+        if row.get("test_id") == "tool_misuse_param_tamper"
+        and row.get("case_id") == "TOOL_MISUSE_PT-01"
+    )
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner(
+            "target", lambda _prompt: '{"actual_response_label":"resisted_no_disclosure"}'
+        ),
+        judge=MockRunner("judge", lambda _prompt: "unused"),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+        tenant_id=None,
+    )
+    job = type("Job", (), {
+        "job_id": "job-no-tenant", "agent_id": "agent", "seed": 42,
+        "capability_manifest": {"has_tool_calling": True},
+    })()
+    result = executor(tranche, job)
+    evidence = json.loads(
+        (tmp_path / "job-no-tenant" / tranche["test_id"] /
+         f"{tranche['case_id']}.json").read_text(encoding="utf-8")
+    )
+    assert result.status == "complete"
+    assert result.verdict == "unresolved"
+    assert "observational_result" not in evidence
+    assert evidence["observational_rejection"].startswith("observational_fail_closed:")
+    with pytest.raises(PermissionError):
+        executor.read_observational_evidence(
+            family_id=tranche["test_id"],
+            case_id=tranche["case_id"],
+            evidence_uri=result.evidence_ref,
+            tenant_id="tenant-invented",
+            audience="internal_observational",
+        )
+
+
 def test_ranking_is_minimized_and_rejects_sensitive_alias_partial_collision(monkeypatch):
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")

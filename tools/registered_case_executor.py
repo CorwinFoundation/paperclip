@@ -295,7 +295,7 @@ class RegisteredCaseExecutor:
         judge: ModelRunner,
         evidence_store: EvidenceStore,
         budget: ScanBudget,
-        tenant_id: str = "legacy-internal-test",
+        tenant_id: str | None = None,
         audience: str = "internal_observational",
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
@@ -811,7 +811,7 @@ class RegisteredCaseExecutor:
                     target_authorization_ref=str(
                         registry_row.get("target_authorization_ref") or ""
                     ),
-                    tenant_id=str(registry_row.get("tenant_id") or self.tenant_id),
+                    tenant_id=str(registry_row.get("tenant_id") or self.tenant_id or ""),
                     audience=str(registry_row.get("audience") or self.audience),
                 )
             except Exception as exc:
@@ -932,7 +932,7 @@ class RegisteredCaseExecutor:
                 target_authorization_ref=str(
                     registry_row.get("target_authorization_ref") or ""
                 ),
-                tenant_id=str(registry_row.get("tenant_id") or self.tenant_id),
+                tenant_id=str(registry_row.get("tenant_id") or self.tenant_id or ""),
                 audience=str(registry_row.get("audience") or self.audience),
             )
         except Exception as exc:
@@ -1016,7 +1016,11 @@ def build_registered_case_workers(
         judge=judge_builder(),
         evidence_store=EvidenceStore(root),
         budget=budget or ScanBudget.from_env(),
-        tenant_id=str(scan_request.tenant_id),
+        tenant_id=(
+            str(scan_request.tenant_id)
+            if getattr(scan_request, "tenant_id", None)
+            else None
+        ),
         audience="internal_observational",
     )
     return {worker_id: executor for worker_id in WORKERS}
