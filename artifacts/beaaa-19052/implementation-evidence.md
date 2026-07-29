@@ -24,6 +24,7 @@ BLUF: The tranche-1 production entrypoint no longer relies on container-local SQ
 - Continuity: the runner requires operator-pinned `storage_identity` and `continuity_epoch`; recovery/restore must rotate the epoch. Missing schema, reinitialized storage, stale epoch, read replica, read-only primary, driver failure, or outage fails closed.
 - Verification: `45 passed` across the focused authority and existing tranche-1 canary suites. Restart/replica replay, 8-way concurrency, missing/reinitialized storage, stale restore epoch, read-only recovery, and outage all reject without a second consumption.
 - Target/judge ceiling: one lease can create at most one execution attempt; the existing burn-before-execution path retains the cumulative target-call ceiling of 180 and judge-call ceiling of 0.
+- Material manifest pin: `sha256:819dfc88451735899a88e025f43530a41900572473373ce0c86b07c47fb38bb2` after rebasing the API-contract v1.0 pin. The pin excludes measured wall-clock telemetry (`budget.elapsed_seconds`) and includes every authority, identity, selection, budget ceiling, zero-weight, and family-result field.
 - Rollback: restore the prior candidate only as a non-executable artifact; it remains rejected and must not be promoted or called.
 
 No merge, deployment, promotion, or production canary call occurred. Fresh exact-SHA CI, CTO, QA, Compliance, Underwriting, and Founder gates remain required.

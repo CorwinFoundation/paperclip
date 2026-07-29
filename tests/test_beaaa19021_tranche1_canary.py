@@ -354,11 +354,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     assert secret not in materialized
     manifest = json.loads((tmp_path / "canary" / "manifest.json").read_text())
     assert manifest["pins"]["commit"] == commit
+    pinned_manifest = json.loads(json.dumps(manifest))
+    # Wall-clock telemetry is intentionally measured, not reproducible pin input.
+    pinned_manifest["budget"].pop("elapsed_seconds")
     canonical_manifest = json.dumps(
-        manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        pinned_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "972e7fd61553ab4548105bce2e0d5495e564fdb8bc733156969618d9288f9e28"
+        "819dfc88451735899a88e025f43530a41900572473373ce0c86b07c47fb38bb2"
     )
 
 
