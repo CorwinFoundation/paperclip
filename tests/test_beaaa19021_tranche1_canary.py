@@ -13,6 +13,7 @@ from harness.runner import MockRunner
 from tools.active_test_registry import build_registry
 from tools.tranche1_canary_runner import (
     ALLOWLIST_SHA256,
+    EXACT_SELECTION_SHA256,
     EXACT_TARGET_CALLS,
     PROMOTION_ISSUES,
     PROMOTION_LEASE_VERSION,
@@ -38,6 +39,7 @@ def _lease(**overrides):
         "commit_sha": "a" * 40,
         "image_ref": "scanner@sha256:" + "b" * 64,
         "allowlist_sha256": ALLOWLIST_SHA256,
+        "exact_selection_sha256": EXACT_SELECTION_SHA256,
         "target_call_ceiling": EXACT_TARGET_CALLS,
         "judge_call_ceiling": 0,
         "issues": PROMOTION_ISSUES,
@@ -59,6 +61,7 @@ def _runtime(monkeypatch, *, commit="a" * 40, image=None, environment="productio
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", commit)
     monkeypatch.setenv("BACKBOND_RUNTIME_IMAGE_REF", image)
     monkeypatch.setenv("BACKBOND_RUNTIME_ENVIRONMENT", environment)
+    monkeypatch.setenv("BACKBOND_RUNTIME_TENANT_ID", "tenant")
 
 
 def test_public_full_scan_path_overdispatches_and_does_not_carry_capability_manifest():
@@ -158,6 +161,7 @@ def test_identity_drift_is_rejected_before_target_call(
         {"commit_sha": "c" * 40},
         {"image_ref": "scanner@sha256:" + "c" * 64},
         {"allowlist_sha256": "0" * 64},
+        {"exact_selection_sha256": "0" * 64},
         {"target_call_ceiling": 181},
         {"judge_call_ceiling": 1},
         {"issues": ["BEAAA-19023"]},
@@ -195,7 +199,9 @@ def test_promotion_lease_drift_is_zero_call_zero_write(
     assert not any(tmp_path.iterdir())
 
 
-@pytest.mark.parametrize("failure", ["absent_lease", "runtime_image", "runtime_environment"])
+@pytest.mark.parametrize(
+    "failure", ["absent_lease", "runtime_image", "runtime_environment", "runtime_tenant"]
+)
 def test_runtime_authority_absence_or_mismatch_is_zero_call_zero_write(
     tmp_path, monkeypatch, failure
 ):
@@ -206,6 +212,8 @@ def test_runtime_authority_absence_or_mismatch_is_zero_call_zero_write(
         )
     if failure == "runtime_environment":
         monkeypatch.setenv("BACKBOND_RUNTIME_ENVIRONMENT", "staging")
+    if failure == "runtime_tenant":
+        monkeypatch.setenv("BACKBOND_RUNTIME_TENANT_ID", "other-tenant")
     lease = {} if failure == "absent_lease" else _lease()
     calls = 0
 
@@ -235,6 +243,7 @@ def test_runtime_authority_absence_or_mismatch_is_zero_call_zero_write(
 def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, monkeypatch):
     commit = "a" * 40
     _runtime(monkeypatch)
+    monkeypatch.setenv("BACKBOND_RUNTIME_TENANT_ID", "tenant-a")
     secret = "never-persist-this-secret"
 
     report = run_tranche1_canary(
@@ -249,7 +258,9 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
         authorization_ref="root-custody:lease-7",
         commit_sha=commit,
         image_ref="scanner@sha256:" + "b" * 64,
-        promotion_lease=_lease(),
+        promotion_lease=_lease(
+            tenant_id="tenant-a", authorization_ref="root-custody:lease-7"
+        ),
         promotion_lease_key=LEASE_KEY,
         now=NOW,
     )

@@ -45,6 +45,20 @@ def _canonical_json(value: Mapping[str, Any]) -> bytes:
 ALLOWLIST_SHA256 = hashlib.sha256(_canonical_json(ALLOWLIST)).hexdigest()
 
 
+def _exact_selection_sha256() -> str:
+    from tools.content_candidate_inventory import load_candidate_inventory
+
+    identities = sorted(
+        [str(row["family_id"]), str(row["stable_case_id"])]
+        for row in load_candidate_inventory()
+        if row["family_id"] in ALLOWLIST
+    )
+    return hashlib.sha256(_canonical_json({"identities": identities})).hexdigest()
+
+
+EXACT_SELECTION_SHA256 = _exact_selection_sha256()
+
+
 class Tranche1CanaryError(RuntimeError):
     pass
 
@@ -92,6 +106,7 @@ def validate_tranche1_authority(
     authorized_commit = os.environ.get("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "")
     runtime_image = os.environ.get("BACKBOND_RUNTIME_IMAGE_REF", "")
     runtime_environment = os.environ.get("BACKBOND_RUNTIME_ENVIRONMENT", "")
+    runtime_tenant = os.environ.get("BACKBOND_RUNTIME_TENANT_ID", "")
     if not _FULL_LOWER_SHA.fullmatch(commit_sha):
         raise Tranche1CanaryError("commit pin must be a full lowercase 40-hex SHA")
     if not _FULL_LOWER_SHA.fullmatch(runtime_commit):
@@ -110,6 +125,8 @@ def validate_tranche1_authority(
         raise Tranche1CanaryError("image pin does not match independently observed runtime image")
     if runtime_environment != "production":
         raise Tranche1CanaryError("runtime environment must be production")
+    if runtime_tenant != tenant_id:
+        raise Tranche1CanaryError("tenant does not match independently observed runtime tenant")
 
     required = {
         "version": PROMOTION_LEASE_VERSION,
@@ -119,6 +136,7 @@ def validate_tranche1_authority(
         "commit_sha": commit_sha,
         "image_ref": image_ref,
         "allowlist_sha256": ALLOWLIST_SHA256,
+        "exact_selection_sha256": EXACT_SELECTION_SHA256,
         "target_call_ceiling": EXACT_TARGET_CALLS,
         "judge_call_ceiling": 0,
         "issues": PROMOTION_ISSUES,
