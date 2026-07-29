@@ -24,6 +24,12 @@ from app import DemoHandler  # noqa: E402
 from rubric.scoring import Rubric  # noqa: E402
 
 
+def test_container_includes_canonical_release_identity() -> None:
+    dockerfile = DOCKERFILE_PATH.read_text(encoding="utf-8")
+    assert "COPY release /app/release" in dockerfile
+    assert "COPY release_identity.py /app/release_identity.py" in dockerfile
+
+
 def test_underwriting_desk_vault_geometry_and_readout_follow_live_dimensions() -> None:
     html = DESIGN_PATH.read_text(encoding="utf-8")
     assert "24 side panels plus three individually examinable top panels" in html

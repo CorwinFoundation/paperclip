@@ -110,7 +110,7 @@ jobs:
           SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
           SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
         run: |
-          tar -czf real-agent-demo-release.tgz api harness rubric scanners tools demo-real-agent tests/probe_sets artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
+          tar -czf real-agent-demo-release.tgz api harness rubric scanners release release_identity.py tools demo-real-agent tests/probe_sets artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json artifacts/beaaa-18720/unified-probe-inventory.jsonl
           ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-real-agent-demo/releases/${GITHUB_SHA}"
           scp -i ~/.ssh/real-agent-demo real-agent-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-real-agent-demo/releases/${GITHUB_SHA}/"
           ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-real-agent-demo/releases/${GITHUB_SHA} && tar -xzf real-agent-demo-release.tgz"

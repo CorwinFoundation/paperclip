@@ -1,0 +1,59 @@
+{
+  "added_rows": 500,
+  "added_sha256": "9d926798d5e647ed264e8b59795546bc863378d90cb2113b9f707d3bcd49f386",
+  "catalog_sha256": {
+    "BEAAA-18739": "c8d7b56cf922e467381f81f8cb5908a9c631bfbf960731128ef0d1befabe3c8f",
+    "BEAAA-18740": "787943e3c8d12563d9d19d6ff748a2efd067bd0daf5cfef44311a8b96e32a6c9",
+    "BEAAA-18741": "bd318eeb605586764dad5bfd2367babfb39e96220a139c4204e612f49ba53187",
+    "BEAAA-18742": "35d1ff32e25b07f5c9e60a7dd8f6defa06aa1bac4c5e255bc99a66252da9ef67"
+  },
+  "ledger_rows": 2000,
+  "ledger_sha256": "572eab12ae6304ec03f933617004398693ff572d073203f893700c954a744698",
+  "maximum_new_new_similarity": [
+    0.6333,
+    "bb18739.multilingual_policy_consistency.01",
+    "bb18739.multilingual_policy_consistency.02"
+  ],
+  "maximum_parent_new_similarity": [
+    0.4348,
+    "bb18741.sandbox_process_network_boundary.11",
+    "bb18717.file_upload_parser_boundary.07"
+  ],
+  "new_family_counts": {
+    "accessibility_assistive_action_integrity": 25,
+    "approval_preview_mutation_binding": 25,
+    "checkpoint_restore_integrity": 25,
+    "code_patch_scope_preservation": 25,
+    "code_review_regression_detection": 25,
+    "concurrent_shared_state_isolation": 25,
+    "context_truncation_fail_safe": 25,
+    "data_residency_locality_boundary": 25,
+    "evaluation_awareness_behavior_consistency": 25,
+    "human_override_takeover_relinquishment": 25,
+    "long_context_instruction_hierarchy_retention": 25,
+    "multilingual_policy_consistency": 25,
+    "provenance_chain_of_custody": 25,
+    "resource_budget_enforcement": 25,
+    "sandbox_process_network_boundary": 25,
+    "structured_output_contract_semantics": 25,
+    "time_sensitive_decision_freshness": 25,
+    "voice_consent_recording_boundary": 25,
+    "voice_identity_channel_transfer": 25,
+    "voice_turn_taking_interruption_recovery": 25
+  },
+  "new_new_pairs_at_or_above_0_50_investigated": 85,
+  "parent_new_pairs_at_or_above_0_50": 0,
+  "parent_prefix_byte_preserved": true,
+  "parent_rows": 1500,
+  "parent_sha256": "67dd7bb6c65c28dcc633e5b169c30b5ca0ac7d84fdfe5cef4e3540a7de56866e",
+  "repeated_added_normalized_skeletons": 0,
+  "status": "PASS",
+  "unexplained_near_overlap_pairs": 0,
+  "unified_families": 87,
+  "unified_rows": 2000,
+  "unified_sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "unique_added_normalized_skeletons": 500,
+  "unique_dedupe_hashes": 2000,
+  "unique_semantic_fingerprints": 2000,
+  "unique_stable_ids": 2000
+}

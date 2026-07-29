@@ -1,0 +1,26 @@
+{
+  "artifact_type": "provenance_manifest",
+  "owner": "scanner_engineer",
+  "persona_audience": "internal",
+  "phase": 1,
+  "canonical_terms_only": true,
+  "focus_claim": "This manifest binds the validated 2,000-row unregistered content candidate to BEAAA-18738 without claiming scanner execution.",
+  "contracts_referenced": [
+    "are-scanner-api-v1.md@v1.0",
+    "scanner-implementation-supervision-v1.md@v1.0"
+  ],
+  "ticket_refs": [
+    "BEAAA-18738",
+    "BEAAA-18739",
+    "BEAAA-18740",
+    "BEAAA-18741",
+    "BEAAA-18742"
+  ],
+  "proof_points_cited": [],
+  "version": 1.0,
+  "prior_version": null,
+  "self_audit_passed": true,
+  "escalations_noted": [
+    "No rule change, contract-shape change, tamper-resistance change, external-bound asset, or promotion."
+  ]
+}

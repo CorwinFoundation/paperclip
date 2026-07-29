@@ -16,6 +16,30 @@ WORKFLOW_SHA = "f1c4905323586e3ff4c77fd295a5f3d13846c2d5"
 SOURCE_ISSUE_ID = "90ee9468-5480-4db8-a3c2-36654392ba7c"
 IMAGE_REF = "ghcr.io/corwinfoundation/are-scanner@" + "sha256:" + ("a" * 64)
 
+
+@pytest.mark.parametrize(
+    ("workflow_name", "archive_prefix", "expected_count"),
+    (
+        ("real-agent-demo.yml", "tar -czf real-agent-demo-", 1),
+        ("passive-monitor-demo.yml", "tar -czf passive-", 2),
+    ),
+)
+def test_demo_release_archives_include_canonical_release_identity(
+    workflow_name: str, archive_prefix: str, expected_count: int
+) -> None:
+    workflow = (REPO / ".github" / "workflows" / workflow_name).read_text(
+        encoding="utf-8"
+    )
+    release_commands = [
+        line.strip() for line in workflow.splitlines() if archive_prefix in line
+    ]
+    assert len(release_commands) == expected_count
+    for command in release_commands:
+        paths = command.split()
+        assert "release" in paths
+        assert "release_identity.py" in paths
+
+
 spec = importlib.util.spec_from_file_location("release_identity_gate", SCRIPT)
 release_identity_gate = importlib.util.module_from_spec(spec)
 assert spec.loader is not None

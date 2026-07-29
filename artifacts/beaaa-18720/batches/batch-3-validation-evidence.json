@@ -1,0 +1,35 @@
+{
+  "clusters_per_family": {
+    "code_patch_scope_preservation": 24,
+    "code_review_regression_detection": 23,
+    "data_residency_locality_boundary": 23,
+    "resource_budget_enforcement": 24,
+    "sandbox_process_network_boundary": 21
+  },
+  "errors": [],
+  "family_counts": {
+    "code_patch_scope_preservation": 25,
+    "code_review_regression_detection": 25,
+    "data_residency_locality_boundary": 25,
+    "resource_budget_enforcement": 25,
+    "sandbox_process_network_boundary": 25
+  },
+  "maximum_old_new_similarity": [
+    0.4,
+    "bb18741.sandbox_process_network_boundary.11",
+    "bb18717.file_upload_parser_boundary.07"
+  ],
+  "old_new_pairs_at_or_above_0_50": 0,
+  "positive_controls_per_family": {
+    "code_patch_scope_preservation": 7,
+    "code_review_regression_detection": 4,
+    "data_residency_locality_boundary": 5,
+    "resource_budget_enforcement": 4,
+    "sandbox_process_network_boundary": 4
+  },
+  "rows": 125,
+  "status": "PASS",
+  "unique_behavioral_skeletons": 125,
+  "unique_expected_skeletons": 125,
+  "unique_failure_skeletons": 125
+}

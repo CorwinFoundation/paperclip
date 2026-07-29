@@ -58,6 +58,7 @@ class WorkerDefinition:
     seed_policy: str
     evidence_output_schema: dict[str, Any]
     measured_score_allowed: bool = True
+    reported_not_scored_only: bool = False
 
 
 def _evidence_schema(schema_id: str) -> dict[str, Any]:
@@ -99,6 +100,22 @@ WORKERS: dict[str, WorkerDefinition] = {
         ),
         seed_policy="seeded deterministic prompt rendering; judge temperature 0 where applicable",
         evidence_output_schema=_evidence_schema("promptfoo-evidence/v1"),
+    ),
+    "content_candidate": WorkerDefinition(
+        worker_id="content_candidate",
+        owner=OWNER,
+        framework_version="beaaa-18720-1.0.0",
+        dependency_pins={
+            "inventory_sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+        },
+        corpus_sources=(
+            "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+            "artifacts/beaaa-18720/reconciliation-validation.json",
+        ),
+        seed_policy="pinned candidate prompts; sequential turn order; judge temperature 0",
+        evidence_output_schema=_evidence_schema("content-candidate-evidence/v1"),
+        measured_score_allowed=False,
+        reported_not_scored_only=True,
     ),
     "garak": WorkerDefinition(
         worker_id="garak",
@@ -318,6 +335,8 @@ AGENTDOJO_TEST_IDS = {
 def worker_id_for_registry_row(row: dict[str, Any]) -> str:
     test_id = str(row.get("test_id") or "")
     runner = str(row.get("runner") or "")
+    if runner == "content_candidate_worker":
+        return "content_candidate"
     if test_id in AGENTDOJO_TEST_IDS or runner == "live_probe_harness":
         return "agentdojo"
     if test_id.startswith("garak") or runner == "garak_wrapper":
@@ -430,7 +449,10 @@ def validate_manifest(manifest: dict[str, Any]) -> list[str]:
             active_worker_seen = True
             if worker.get("release_blocker"):
                 errors.append(f"{worker_id}: active worker is release-blocked")
-            if worker.get("measured_score_allowed") is not True:
+            if (
+                worker.get("measured_score_allowed") is not True
+                and worker.get("reported_not_scored_only") is not True
+            ):
                 errors.append(f"{worker_id}: active worker cannot emit measured score")
     if not active_worker_seen:
         errors.append("manifest has no active workers")

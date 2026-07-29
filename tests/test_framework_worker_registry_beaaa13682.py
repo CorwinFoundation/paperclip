@@ -26,13 +26,21 @@ def test_worker_manifest_covers_active_registry_rows_with_required_metadata():
         assert not [field for field in REQUIRED_WORKER_FIELDS if not worker.get(field)], worker
         assert worker["corpus_hash"].startswith("sha256:")
         assert worker["release_blocker"] is False
-        assert worker["measured_score_allowed"] is True
+        if worker["worker_id"] == "content_candidate":
+            assert worker["measured_score_allowed"] is False
+            assert worker["reported_not_scored_only"] is True
+        else:
+            assert worker["measured_score_allowed"] is True
 
 
 def test_unpinned_active_worker_is_release_blocker_not_measured_score():
     manifest = build_worker_manifest()
     broken = copy.deepcopy(manifest)
-    active_worker = next(w for w in broken["workers"] if w["active_registry_rows"] > 0)
+    active_worker = next(
+        w
+        for w in broken["workers"]
+        if w["active_registry_rows"] > 0 and not w["reported_not_scored_only"]
+    )
 
     active_worker["framework_version"] = "latest"
     active_worker["dependency_pins"]["promptfoo"] = "latest"

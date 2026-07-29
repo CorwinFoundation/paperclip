@@ -2,27 +2,18 @@
 
 This runbook defines what the scanner actually executes when a caller submits a `full` scan. It supersedes any use of the historic ?1,180 tests? claim as an executed-test count.
 
-## Current production inventory
+## Current registered inventory
 
-The production registry contains 280 catalog rows. Only 90 rows are active and executable because only those rows have all of the following:
+The registry contains 2,242 rows. It exposes 2,202 active executable rows, 2,213 target-bound runtime rows before identity collapse, and 2,201 distinct runtime tests.
 
-- a concrete target-agent payload;
-- a bound transport adapter;
-- a deterministic result/judge adapter;
-- a pinned source pack and runner version; and
-- per-case evidence output.
+The accepted BEAAA-18720 inventory contributes exactly 2,000 registered, `reported_not_scored` tests across 87 families:
 
-The 90 executed cases are:
+- 1,782 cases use the pinned `content_candidate` adapter;
+- 218 cases reuse an already executable family/case adapter;
+- all 2,000 retain the accepted inventory hash, oracle, applicability, and provenance metadata; and
+- no candidate changes measured score math or claims a rubric mapping.
 
-| Family | Cases | Target calls | Judge calls |
-| --- | ---: | ---: | ---: |
-| Factuality golden set | 30 | 30 | 30 |
-| Consistency under paraphrase | 20 | 40 | 20 |
-| Refusal accuracy | 20 | 20 | 20 |
-| Confidence calibration | 20 | 20 | 20 |
-| **Total** | **90** | **110** | **90** |
-
-The other 190 catalog rows include Garak, AgentDojo, PyRIT, Promptfoo, tool-misuse, PII, governance, fixtures, and attestation assets. They remain visible as `quarantined`, but do not count as tests until a production adapter can invoke them against the submitted agent and emit evidence.
+The remaining 201 distinct runtime tests come from existing registered content outside the accepted inventory. The active executable row count is a registry/published-count gate; use the 2,201 distinct-runtime figure when answering how many different tests a full scanner run performs.
 
 ## Request and execution flow
 
@@ -40,13 +31,13 @@ The legacy four-prompt walker is not run before a full registry scan and cannot 
 
 The initial evaluation authorization is enforced in code, before calls are made:
 
-- maximum target calls: `1,000`;
-- maximum judge calls: `500`;
+- maximum target calls: `6,000`;
+- maximum judge calls: `4,000`;
 - maximum estimated judge cost: `$100.00`;
 - maximum wall clock: `6 hours`;
 - maximum reserved judge output: `256 tokens` per call.
 
-The current 90-case run plans 110 target calls and 90 judge calls. Judge cost is conservatively reserved before each call. If any ceiling would be crossed, the affected case is written as `incomplete` with `budget_exceeded:<limit>`, and no over-budget call is sent.
+The 1,782 cases on the candidate adapter plan 2,805 target calls and 2,468 judge calls; reused adapters remain within the residual budget. Judge cost is conservatively reserved before each call. If any ceiling would be crossed, the affected case is written as `incomplete` with `budget_exceeded:<limit>`, and no over-budget call is sent.
 
 Environment overrides:
 

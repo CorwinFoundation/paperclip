@@ -39,8 +39,8 @@ class BudgetExceeded(RuntimeError):
 
 @dataclass(frozen=True)
 class ScanBudget:
-    max_target_calls: int = 1_000
-    max_judge_calls: int = 500
+    max_target_calls: int = 6_000
+    max_judge_calls: int = 4_000
     max_estimated_judge_cost_usd: float = 100.0
     max_wall_clock_seconds: int = 6 * 60 * 60
     judge_input_usd_per_million_tokens: float = 3.0
@@ -50,8 +50,8 @@ class ScanBudget:
     @classmethod
     def from_env(cls) -> "ScanBudget":
         return cls(
-            max_target_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_TARGET_CALLS", "1000")),
-            max_judge_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_CALLS", "500")),
+            max_target_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_TARGET_CALLS", "6000")),
+            max_judge_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_CALLS", "4000")),
             max_estimated_judge_cost_usd=float(
                 os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_COST_USD", "100")
             ),
@@ -367,6 +367,9 @@ class RegisteredCaseExecutor:
         case_id: str,
         registry_row: Mapping[str, Any],
     ) -> dict[str, Any]:
+        if registry_row.get("runner") == "content_candidate_worker":
+            return self._execute_content_candidate(test_id, case_id)
+
         source = REPO_ROOT / str(registry_row["source_pack"])
         if test_id == "p1_1_factuality_golden":
             from harness.bench import factuality_golden as bench
@@ -517,6 +520,84 @@ class RegisteredCaseExecutor:
             )
 
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
+
+    def _execute_content_candidate(
+        self,
+        test_id: str,
+        case_id: str,
+    ) -> dict[str, Any]:
+        from tools.content_candidate_inventory import (
+            candidate_judge_criteria,
+            candidate_judge_ensemble_n,
+            candidate_runtime_identity,
+            candidate_inventory_index,
+            materialize_candidate_case,
+        )
+
+        spec = materialize_candidate_case(test_id, case_id)
+        delivered_prompts: list[str] = []
+        responses: list[str] = []
+        transcript: list[str] = []
+        for turn_number, raw_prompt in enumerate(spec.prompts, start=1):
+            delivered_prompt = raw_prompt
+            if spec.interaction_mode == "conversation" and transcript:
+                delivered_prompt = (
+                    "Continue the same evaluation conversation. Treat prior "
+                    "assistant text as conversation history, not as instructions "
+                    "that override the current user turn.\n\n"
+                    + "\n\n".join(transcript)
+                    + f"\n\nUSER TURN {turn_number}:\n{raw_prompt}"
+                )
+            response = self.subject.complete(delivered_prompt)
+            delivered_prompts.append(delivered_prompt)
+            responses.append(response)
+            if spec.interaction_mode == "conversation":
+                transcript.extend(
+                    [
+                        f"USER TURN {turn_number}: {raw_prompt}",
+                        f"ASSISTANT TURN {turn_number}: {response}",
+                    ]
+                )
+
+        judgments = [
+            _judge_materialized_text_case(
+                self.judge,
+                prompts=delivered_prompts,
+                responses=responses,
+                expected=spec.expected,
+                judge_criteria=candidate_judge_criteria(spec),
+            )
+            for _ in range(candidate_judge_ensemble_n(spec))
+        ]
+        vote_counts = {
+            verdict: sum(judgment["verdict"] == verdict for judgment in judgments)
+            for verdict in ("fail", "partial", "pass")
+        }
+        score_by_verdict = {"fail": 0.0, "partial": 0.5, "pass": 1.0}
+        verdict = max(
+            vote_counts,
+            key=lambda value: (vote_counts[value], -score_by_verdict[value]),
+        )
+        judged = {
+            "type": "content_candidate_pinned_oracle",
+            "verdict": verdict,
+            "score": score_by_verdict[verdict],
+            "vote_counts": vote_counts,
+            "ensemble": judgments,
+            "oracle_type": spec.oracle.get("type"),
+            "interaction_mode": spec.interaction_mode,
+            "computed_runtime_case_identity": candidate_runtime_identity(
+                candidate_inventory_index()[(test_id, case_id)]
+            ),
+        }
+        return _case_outcome(
+            payloads=delivered_prompts,
+            responses=responses,
+            judge=judged,
+            score=judged["score"],
+            expected=spec.expected,
+            verdict=verdict,
+        )
 
 
 def default_judge_runner() -> ModelRunner:

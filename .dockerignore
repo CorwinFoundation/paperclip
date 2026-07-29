@@ -18,6 +18,9 @@ artifacts/beaaa-152/*
 !artifacts/beaaa-152/datasets/
 artifacts/beaaa-152/datasets/*
 !artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
+!artifacts/beaaa-18720/
+artifacts/beaaa-18720/*
+!artifacts/beaaa-18720/unified-probe-inventory.jsonl
 !artifacts/beaaa-15436/
 !artifacts/beaaa-15436/BackBond-logo-on-white.png
 tmp/

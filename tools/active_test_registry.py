@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Canonical BackBond Scanner active-test registry and count gate.
 
-The registry is derived from rubric/probe_mappings/*.yaml so probe/rubric
-bindings remain the single operational source. The gate only counts rows that
-are both active and production-runner executable.
+The scored registry is derived from ``rubric/probe_mappings/*.yaml``. Validated
+reported-not-scored content candidates may be merged through a pinned runtime
+adapter without implying a scoring/rubric mapping. The gate only counts rows
+that are active and production-runner executable.
 """
 from __future__ import annotations
 
@@ -289,7 +290,11 @@ def _reporting_status(data: Mapping[str, Any]) -> str:
     return "reported_not_scored" if not _scoring_active(data) else "scored"
 
 
-def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
+def build_registry(
+    mapping_dir: Path = MAPPING_DIR,
+    *,
+    include_content_candidates: bool = True,
+) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
         data = _load_yaml(path)
@@ -406,7 +411,104 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         applicability_gate=applicability_gate,
                     )
                 )
-    return _reconcile_runtime_identities([asdict(row) for row in rows])
+    reconciled = _reconcile_runtime_identities([asdict(row) for row in rows])
+    if (
+        include_content_candidates
+        and mapping_dir.resolve() == MAPPING_DIR.resolve()
+    ):
+        return _merge_content_candidate_inventory(reconciled)
+    return reconciled
+
+
+def _merge_content_candidate_inventory(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Register all accepted candidates without duplicating existing case IDs."""
+
+    from tools.content_candidate_inventory import (
+        INVENTORY_RELATIVE_PATH,
+        INVENTORY_SHA256,
+        INVENTORY_VERSION,
+        candidate_pillar,
+        candidate_runtime_identity,
+        load_candidate_inventory,
+    )
+
+    existing = {
+        (str(row.get("test_id") or ""), str(row.get("case_id") or "")): row
+        for row in rows
+    }
+    for candidate in load_candidate_inventory():
+        family_id = str(candidate["family_id"])
+        case_id = str(candidate["stable_case_id"])
+        key = (family_id, case_id)
+        candidate_metadata = {
+            "content_candidate_inventory": True,
+            "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
+            "content_candidate_inventory_sha256": INVENTORY_SHA256,
+            "candidate_dedupe_sha256": str(candidate["dedupe_sha256"]),
+            "candidate_semantic_behavior_fingerprint": str(
+                candidate["semantic_behavior_fingerprint"]
+            ),
+            "candidate_oracle_type": str(
+                candidate["deterministic_oracle"].get("type") or ""
+            ),
+            "candidate_registration_status": "registered_reported_not_scored",
+            "candidate_rubric_mapping_status": "unmapped_reported_not_scored",
+        }
+        current = existing.get(key)
+        if current is not None and current.get("production_runner_executable") is True:
+            current.update(candidate_metadata)
+            continue
+
+        runtime_identity = candidate_runtime_identity(candidate)
+        registration = {
+            "test_id": family_id,
+            "case_id": case_id,
+            "status": "active",
+            "pillar": candidate_pillar(family_id),
+            "category": family_id,
+            "risk_or_rubric_id": f"UNSCORED.CONTENT_CANDIDATE.{family_id}",
+            "source_pack": INVENTORY_RELATIVE_PATH,
+            "runner": "content_candidate_worker",
+            "underwriting_trigger": "reported_not_scored",
+            "required_or_optional": "required",
+            "version_pin": (
+                f"{family_id}@{candidate['version']};"
+                f"{INVENTORY_VERSION}@sha256:{INVENTORY_SHA256}"
+            ),
+            "expected_result": "reported-not-scored pinned-oracle verdict",
+            "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+            "owner": "scanner_engineer",
+            "last_verified_at": "2026-07-28",
+            "case_class": "content_candidate_probe",
+            "production_runner_executable": True,
+            "target_bound": True,
+            "execution_evidenced": False,
+            "execution_evidence_status": "runtime_bound_evidence_pending",
+            "scoring_active": False,
+            "reporting_status": "reported_not_scored",
+            "activation_blocker": None,
+            "k_replicates": 1,
+            "surface_seed_rotation_enabled": False,
+            "canary_registration": "",
+            "applicability_gate": dict(candidate["applicability"]),
+            "runtime_case_identity": runtime_identity,
+            "canonical_runtime_case": True,
+            "alias_of_runtime_case_identity": None,
+            "source_aliases": (),
+            "execution_mode": "content_candidate_inventory_adapter",
+            **candidate_metadata,
+        }
+        if current is None:
+            rows.append(registration)
+            existing[key] = registration
+        else:
+            # The mapping row existed but had no runnable adapter (or was an
+            # identical-payload alias). Promote that same registry identity in
+            # place so family/case uniqueness remains fail-closed.
+            current.update(registration)
+    return rows
 
 
 def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -541,6 +643,8 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
 
 
 def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
+    if row.get("content_candidate_inventory") is True:
+        return False
     return (
         row.get("test_id")
         in (
@@ -601,6 +705,10 @@ def runtime_case_identity(row: dict[str, Any]) -> str:
     the collapse.  Content is never mutated here — this only reads what the
     executor would send.
     """
+
+    bound_identity = row.get("runtime_case_identity")
+    if bound_identity:
+        return str(bound_identity)
 
     test_id = str(row.get("test_id") or "")
     case_id = str(row.get("case_id") or "")

@@ -172,12 +172,14 @@ def registry_inventory() -> dict[str, Any]:
             "published executed count does not equal evidence-gated registry count"
         )
 
-    # This historical demo executes declared registry aliases individually.
-    # Keep that compatibility behavior local; production continues to use the
-    # registry's unique runtime identities unchanged.
+    # This historical demo executes the pre-content-inventory 203-case plan.
+    # Validate the complete production registry above, but build the demo plan
+    # from the compatibility view so newly registered content candidates do not
+    # silently expand its fixed call and cost budget.
+    compatibility_rows = build_registry(include_content_candidates=False)
     runnable = [
         {key: value for key, value in row.items() if key != "runtime_case_identity"}
-        for row in rows
+        for row in compatibility_rows
         if row.get("status") == "active"
         and row.get("target_bound") is True
         and str(row.get("test_id") or "") in EXPECTED_FAMILY_COUNTS

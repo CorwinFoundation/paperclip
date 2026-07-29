@@ -13,6 +13,8 @@ COPY harness /app/harness
 COPY report_card /app/report_card
 COPY rubric /app/rubric
 COPY scanners /app/scanners
+COPY release /app/release
+COPY release_identity.py /app/release_identity.py
 COPY scripts /app/scripts
 COPY underwriting /app/underwriting
 COPY tools/portal_v1/verify_v0_2.py /app/tools/portal_v1/verify_v0_2.py

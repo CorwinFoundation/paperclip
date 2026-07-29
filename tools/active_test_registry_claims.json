@@ -1,6 +1,6 @@
 {
-  "published_active_test_count": 340,
+  "published_active_test_count": 2202,
   "historic_claim_count": 1180,
-  "claim_source": "BEAAA-16775 304 customer-target runtime identities plus one governance attestation; BEAAA-16972 adds 35 Wave 1A scoring-active eligibility-gate scenarios",
-  "last_reconciled_at": "2026-07-22"
+  "claim_source": "BEAAA-18720 registers all 2,000 accepted content candidates; 1,782 use the pinned candidate adapter and 218 reuse existing executable adapters",
+  "last_reconciled_at": "2026-07-28"
 }

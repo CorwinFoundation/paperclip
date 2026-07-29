@@ -11,8 +11,12 @@ COPY api /app/api
 COPY harness /app/harness
 COPY tests/probe_sets /app/tests/probe_sets
 COPY artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json /app/artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
+COPY artifacts/beaaa-18720/unified-probe-inventory.jsonl /app/artifacts/beaaa-18720/unified-probe-inventory.jsonl
 COPY rubric /app/rubric
 COPY scanners /app/scanners
+COPY release /app/release
+COPY release_identity.py /app/release_identity.py
+COPY tools/content_candidate_inventory.py /app/tools/content_candidate_inventory.py
 COPY tools/active_test_registry.py /app/tools/active_test_registry.py
 COPY tools/active_test_registry_claims.json /app/tools/active_test_registry_claims.json
 COPY tools/framework_worker_registry.py /app/tools/framework_worker_registry.py

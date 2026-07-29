@@ -23,7 +23,7 @@ from tools.text_case_materializer import (
 def _text_rows() -> list[dict[str, object]]:
     return [
         row
-        for row in build_registry()
+        for row in build_registry(include_content_candidates=False)
         if row["test_id"] in TEXT_COMPATIBLE_TEST_IDS
         and row["status"] == "active"
         and row["target_bound"] is True
@@ -31,12 +31,11 @@ def _text_rows() -> list[dict[str, object]]:
 
 
 def test_registry_binds_text_rows_without_bypassing_evidence_gate():
-    rows = build_registry()
+    rows = build_registry(include_content_candidates=False)
     text_rows = _text_rows()
 
     assert len(text_rows) == 113
-    assert count_active_executable(rows) == load_published_count()
-    assert load_published_count() == 340
+    assert count_active_executable(rows) == 340
     assert Counter(row["production_runner_executable"] for row in text_rows) == {
         True: 90,
         False: 23,

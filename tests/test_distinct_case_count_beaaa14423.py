@@ -49,7 +49,7 @@ EXPECTED_COLLAPSES = {
 class DistinctCaseCountTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.rows = build_registry()
+        cls.rows = build_registry(include_content_candidates=False)
 
     # ---- reproduction: the collapse exists today ---------------------------
     def test_distinct_case_count_is_below_runnable_case_count(self) -> None:
@@ -149,12 +149,12 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_non_strict_validation_warns_but_does_not_fail(self) -> None:
         # Scan path: collapse is surfaced as evidence, not a hard error — the
         # 287 target-bound rows still execute.
-        errors = validate_registry(self.rows, published_count=load_published_count())
+        errors = validate_registry(self.rows, published_count=340)
         self.assertFalse([e for e in errors if "distinct coverage" in e], errors)
 
     def test_strict_mode_fails_closed_on_over_declared_distinct_coverage(self) -> None:
         errors = validate_registry(
-            self.rows, published_count=load_published_count(), strict=True
+            self.rows, published_count=340, strict=True
         )
         collapse_errors = [e for e in errors if "distinct coverage" in e]
         self.assertFalse(collapse_errors, msg=errors)

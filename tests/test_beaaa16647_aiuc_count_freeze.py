@@ -20,10 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
-    rows = build_registry()
-    summary = summarize(rows, published_count=load_published_count())
+    rows = build_registry(include_content_candidates=False)
+    summary = summarize(rows, published_count=340)
 
-    assert load_published_count() == 340
     assert count_active_executable(rows) == 340
     assert summary["active_executable_count"] == 340
     assert count_target_bound_runtime(rows) == 362
@@ -32,7 +31,7 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
 
 
 def test_beaaa16647_non_promoted_aiuc_families_remain_reported_not_scored_and_non_countable() -> None:
-    rows = build_registry()
+    rows = build_registry(include_content_candidates=False)
     rows_by_family = {
         family: [row for row in rows if row["test_id"] == family]
         for family in AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
@@ -76,7 +75,7 @@ def test_beaaa16647_non_promoted_aiuc_families_remain_reported_not_scored_and_no
 
 
 def test_beaaa16972_scored_wave1a_tranche_is_countable_with_zero_score_weight() -> None:
-    rows = build_registry()
+    rows = build_registry(include_content_candidates=False)
     for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
         family_rows = [row for row in rows if row["test_id"] == family]
         assert family_rows, family

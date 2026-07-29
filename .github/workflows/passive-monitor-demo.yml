@@ -93,7 +93,7 @@ jobs:
           done
           python tools/post-bind-ingest/demo/smoke_test.py --url http://127.0.0.1:8765 --token "$DEMO_ACCESS_TOKEN" --timeout 180
       - name: Package immutable release
-        run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
+        run: tar -czf passive-monitor-demo-${{ github.sha }}.tgz api ci_plugin harness report_card rubric scanners release release_identity.py scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
       - name: Upload release bundle
         uses: actions/upload-artifact@v7
         with:
@@ -134,7 +134,7 @@ jobs:
           SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
           SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
         run: |
-          tar -czf passive-demo-release.tgz api ci_plugin harness report_card rubric scanners scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
+          tar -czf passive-demo-release.tgz api ci_plugin harness report_card rubric scanners release release_identity.py scripts underwriting tools/portal_v1/verify_v0_2.py tests/fixtures/golden_agents/G1/eval_outputs.json tools/post-bind-ingest tools/log-tracker
           ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-passive-demo/releases/${GITHUB_SHA}"
           scp -i ~/.ssh/passive-demo passive-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-passive-demo/releases/${GITHUB_SHA}/"
           ssh -i ~/.ssh/passive-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-passive-demo/releases/${GITHUB_SHA} && tar -xzf passive-demo-release.tgz"
