@@ -1,0 +1,39 @@
+{
+  "classification": "rule-execution",
+  "contract_ref": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "counts": {
+    "constrained_rows": 502,
+    "duplicate_target_requests": 0,
+    "executed": 502,
+    "impossible": 0,
+    "network_requests": 0,
+    "role_bearing_rows": 25,
+    "source_registry_rows": 2000,
+    "structured_rows": 477,
+    "terminal_records": 502
+  },
+  "cto_cosign_ref": null,
+  "latest_evidence_refs": [
+    "BEAAA-19283",
+    "BEAAA-19284",
+    "BEAAA-19287",
+    "BEAAA-19288"
+  ],
+  "n5_calibration_delta": "0.0000",
+  "probe_set_version": "1.4",
+  "records_sha256": "0b8377119f10f3608afd9b3584be05c0c678b8ca9dd4e9cf71fb7fa6532c5d4c",
+  "rollback": "Disable the assessment-local adapters and retain the original v1.4 execution ledger plus these terminal records; make no score claim.",
+  "rubric_point_id": "not_applicable_non_score_bearing_adapter_execution",
+  "scanner_version": "0.5.0",
+  "schema": "backbond.vapi_constrained_execution_summary/v1",
+  "seed": 42,
+  "source_sha256": "b32a1b7ec582ee55fd80e05332448c584a4237acbe792c914e5a8cf0739fc008",
+  "stop_controls": {
+    "concurrency": 1,
+    "stop_on_first_adapter_error": true,
+    "stop_on_row_count_or_identity_mismatch": true,
+    "stop_on_source_sha_mismatch": true
+  },
+  "ticket_ref": "BEAAA-19391"
+}
