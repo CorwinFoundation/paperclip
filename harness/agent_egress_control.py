@@ -12,7 +12,7 @@ import os
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, Sequence
 
 import yaml
 from cryptography.exceptions import InvalidSignature
@@ -26,37 +26,30 @@ SOURCE_PROJECT = "luckyPipewrench/agent-egress-bench"
 SOURCE_COMMIT = "e19efee4894994c887f6ae69bcdfbc05b93b56db"
 CASES_TREE = "d1d50c8d3e5a920311c53686f0d2fc3fdbe33d33"
 ORACLE_VERSION = "agent-egress-control-oracle-v1"
-RECEIPT_VERSION = "agent-egress-control-receipt-v1"
+RECEIPT_VERSION = "agent-egress-control-receipt-v2"
 SIGNATURE_ALGORITHM = "ed25519"
 OUTCOMES = ("passed", "failed", "errored", "not_applicable")
 
 
-class ControlAdapter(Protocol):
-    """Local customer-control adapter; implementations must not call models."""
-
-    def evaluate(self, case: "ControlCase") -> str:
-        """Return ``block``, ``allow``, or ``warn`` for an applicable case."""
-
-
 @dataclass(frozen=True)
 class ApplicabilityInputs:
-    control_type: str
     supported_transports: frozenset[str]
     capabilities: frozenset[str]
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "ApplicabilityInputs":
-        control_type = str(value.get("control_type", ""))
         transports = value.get("supported_transports", ())
         capabilities = value.get("capabilities", ())
-        if control_type not in {"firewall", "proxy", "dlp", "mcp_wrapper"}:
-            raise ValueError("control_type must be firewall, proxy, dlp, or mcp_wrapper")
+        if "control_type" in value:
+            raise ValueError(
+                "control_type is not an applicability input; declare transports "
+                "and capabilities supported by the control"
+            )
         if not isinstance(transports, Sequence) or isinstance(transports, (str, bytes)):
             raise ValueError("supported_transports must be a list")
         if not isinstance(capabilities, Sequence) or isinstance(capabilities, (str, bytes)):
             raise ValueError("capabilities must be a list")
         return cls(
-            control_type=control_type,
             supported_transports=frozenset(map(str, transports)),
             capabilities=frozenset(map(str, capabilities)),
         )
@@ -120,7 +113,14 @@ def applicability(case: ControlCase, inputs: ApplicabilityInputs) -> bool:
 
 
 class FixtureAdapter:
-    """Side-effect-free adapter used for local N=1 control fixtures."""
+    """Sealed, declarative adapter for local N=1 control fixtures.
+
+    ``run`` rejects every other type, including subclasses, before calling
+    adapter code. This makes the no-model/no-side-effect boundary enforceable:
+    callers supply inert verdict data rather than an executable callback.
+    """
+
+    __slots__ = ("_verdicts", "_default_to_expected", "_evaluation_count")
 
     def __init__(
         self,
@@ -128,21 +128,45 @@ class FixtureAdapter:
         *,
         default_to_expected: bool = True,
     ) -> None:
-        self.verdicts = dict(verdicts or {})
-        self.default_to_expected = default_to_expected
-        self.call_counts = {
+        normalized = dict(verdicts or {})
+        if not all(isinstance(key, str) and isinstance(value, str) for key, value in normalized.items()):
+            raise ValueError("fixture verdicts must map string case IDs to string verdicts")
+        if not isinstance(default_to_expected, bool):
+            raise ValueError("default_to_expected must be bool")
+        self._verdicts = normalized
+        self._default_to_expected = default_to_expected
+        self._evaluation_count = 0
+
+    @property
+    def call_counts(self) -> Mapping[str, int]:
+        """Observed counters emitted by the sealed execution boundary."""
+        return {
             "target": 0,
             "simulator": 0,
             "attacker": 0,
             "judge": 0,
+            "local_evaluations": self._evaluation_count,
         }
 
     def evaluate(self, case: ControlCase) -> str:
-        if case.upstream_case_id in self.verdicts:
-            return self.verdicts[case.upstream_case_id]
-        if self.default_to_expected:
-            return case.expected_verdict
-        raise RuntimeError("fixture verdict missing")
+        """Evaluate outside ``run`` for local inspection only.
+
+        The receipt-producing path deliberately does not dispatch through this
+        overridable method.
+        """
+        return _evaluate_fixture(self, case)
+
+
+def _evaluate_fixture(adapter: FixtureAdapter, case: ControlCase) -> str:
+    """Evaluate inert fixture data without invoking caller-supplied code."""
+    if type(adapter) is not FixtureAdapter:
+        raise TypeError("fixture boundary requires the exact sealed adapter type")
+    adapter._evaluation_count += 1
+    if case.upstream_case_id in adapter._verdicts:
+        return adapter._verdicts[case.upstream_case_id]
+    if adapter._default_to_expected:
+        return case.expected_verdict
+    raise RuntimeError("fixture verdict missing")
 
 
 def _canonical_bytes(value: Mapping[str, Any]) -> bytes:
@@ -152,7 +176,7 @@ def _canonical_bytes(value: Mapping[str, Any]) -> bytes:
 def run(
     cases: Sequence[ControlCase],
     inputs: ApplicabilityInputs,
-    adapter: ControlAdapter,
+    adapter: FixtureAdapter,
     *,
     evidence_uri: str,
     evidence_sha256: str,
@@ -162,6 +186,14 @@ def run(
 ) -> dict[str, Any]:
     if not enabled(env):
         raise RuntimeError(f"{FEATURE_FLAG} is disabled")
+    if type(adapter) is not FixtureAdapter:
+        raise TypeError(
+            "unverifiable adapter rejected: run requires the sealed, declarative "
+            "FixtureAdapter execution boundary"
+        )
+    telemetry_before = dict(adapter.call_counts)
+    if any(telemetry_before[role] != 0 for role in ("target", "simulator", "attacker", "judge")):
+        raise RuntimeError("model-role telemetry must be zero before execution")
     results: list[dict[str, str]] = []
     for case in cases:
         applies = applicability(case, inputs)
@@ -170,7 +202,7 @@ def run(
             actual = "not_applicable"
         else:
             try:
-                actual = adapter.evaluate(case)
+                actual = _evaluate_fixture(adapter, case)
                 if actual not in {"block", "allow", "warn"}:
                     raise ValueError("adapter returned an invalid verdict")
                 outcome = "passed" if actual == case.expected_verdict else "failed"
@@ -197,6 +229,15 @@ def run(
     counts = Counter(result["outcome"] for result in results)
     summary = {name: counts[name] for name in OUTCOMES}
     summary["applicable"] = summary["passed"] + summary["failed"] + summary["errored"]
+    telemetry_after = dict(adapter.call_counts)
+    role_counts = {
+        "target_calls": telemetry_after["target"] - telemetry_before["target"],
+        "simulator_calls": telemetry_after["simulator"] - telemetry_before["simulator"],
+        "attacker_calls": telemetry_after["attacker"] - telemetry_before["attacker"],
+        "judge_calls": telemetry_after["judge"] - telemetry_before["judge"],
+    }
+    if any(value != 0 for value in role_counts.values()):
+        raise RuntimeError("model-role call observed inside local execution boundary")
     receipt: dict[str, Any] = {
         "version": RECEIPT_VERSION,
         "namespace": "customer_controls.agent_egress",
@@ -204,7 +245,7 @@ def run(
         "source_commit": SOURCE_COMMIT,
         "source_cases_tree": CASES_TREE,
         "oracle_version": ORACLE_VERSION,
-        "adapter_version": "agent-egress-control-adapter-v1",
+        "adapter_version": "agent-egress-control-adapter-v2",
         "case_class": "customer_control",
         "license_ref": "third_party/oss-pilots/agent-egress-bench/LICENSE",
         "execution_replicates": 1,
@@ -212,12 +253,9 @@ def run(
         "evidence_sha256": evidence_sha256,
         "counts": summary,
         "results": results,
-        "telemetry": {
-            "target_calls": 0,
-            "simulator_calls": 0,
-            "attacker_calls": 0,
-            "judge_calls": 0,
-        },
+        "execution_boundary": "sealed-declarative-local-v1",
+        "telemetry_verified": True,
+        "telemetry": role_counts,
         "signing_key_id": signing_key_id,
         "signature_algorithm": SIGNATURE_ALGORITHM,
     }

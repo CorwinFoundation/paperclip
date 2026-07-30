@@ -19,7 +19,6 @@ ENV = {"BACKBOND_AGENT_EGRESS_CONTROL": "1"}
 
 def _all_applicable(cases):
     return ApplicabilityInputs(
-        control_type="proxy",
         supported_transports=frozenset(case.transport for case in cases),
         capabilities=frozenset(req for case in cases for req in case.requires),
     )
@@ -57,7 +56,12 @@ def test_summary_partition_zero_model_calls_and_receipt_tamper_detection():
     assert "agent_behavior" not in receipt["namespace"]
     assert {item["case_class"] for item in receipt["results"]} == {"customer_control"}
     assert set(receipt["telemetry"].values()) == {0}
-    assert set(adapter.call_counts.values()) == {0}
+    assert all(adapter.call_counts[role] == 0 for role in ("target", "simulator", "attacker", "judge"))
+    assert adapter.call_counts["local_evaluations"] == 197
+    assert receipt["execution_boundary"] == "sealed-declarative-local-v1"
+    assert receipt["telemetry_verified"] is True
+    assert receipt["version"] == "agent-egress-control-receipt-v2"
+    assert receipt["adapter_version"] == "agent-egress-control-adapter-v2"
     assert verify_receipt(receipt, key.public_key())
     tampered = copy.deepcopy(receipt)
     tampered["counts"]["failed"] = 0
@@ -67,7 +71,6 @@ def test_summary_partition_zero_model_calls_and_receipt_tamper_detection():
 def test_explicit_not_applicable_is_first_class_and_adapter_is_not_called():
     case = load_cases(ROOT)[0]
     inputs = ApplicabilityInputs(
-        control_type="firewall",
         supported_transports=frozenset(),
         capabilities=frozenset(),
     )
@@ -87,6 +90,126 @@ def test_explicit_not_applicable_is_first_class_and_adapter_is_not_called():
     assert receipt["results"][0]["outcome"] == "not_applicable"
     assert receipt["counts"]["not_applicable"] == 1
     assert receipt["counts"]["passed"] == 0
+
+
+def test_adversarial_executable_adapter_is_rejected_before_invocation():
+    case = load_cases(ROOT)[0]
+
+    class ModelCallingAdapter:
+        def __init__(self):
+            self.observed_target_calls = 0
+
+        def evaluate(self, case):
+            self.observed_target_calls += 1
+            return case.expected_verdict
+
+    adapter = ModelCallingAdapter()
+    key = Ed25519PrivateKey.generate()
+    try:
+        run(
+            [case],
+            _all_applicable([case]),
+            adapter,
+            evidence_uri="file:///adversarial.json",
+            evidence_sha256="sha256:" + "4" * 64,
+            signing_key=key,
+            signing_key_id="fixture-key-1",
+            env=ENV,
+        )
+    except TypeError as exc:
+        assert "unverifiable adapter rejected" in str(exc)
+    else:
+        raise AssertionError("arbitrary executable adapter must fail closed")
+    assert adapter.observed_target_calls == 0
+
+
+def test_fixture_adapter_subclass_is_rejected_before_override_invocation():
+    case = load_cases(ROOT)[0]
+
+    class SubvertedFixtureAdapter(FixtureAdapter):
+        def evaluate(self, case):
+            raise AssertionError("subclass callback must never execute")
+
+    key = Ed25519PrivateKey.generate()
+    try:
+        run(
+            [case],
+            _all_applicable([case]),
+            SubvertedFixtureAdapter(),
+            evidence_uri="file:///subclass.json",
+            evidence_sha256="sha256:" + "5" * 64,
+            signing_key=key,
+            signing_key_id="fixture-key-1",
+            env=ENV,
+        )
+    except TypeError as exc:
+        assert "unverifiable adapter rejected" in str(exc)
+    else:
+        raise AssertionError("adapter subclasses must fail closed")
+
+
+def test_receipt_path_does_not_dispatch_through_mutable_adapter_method(monkeypatch):
+    case = load_cases(ROOT)[0]
+    adapter = FixtureAdapter()
+
+    def subverted_evaluate(self, case):
+        raise AssertionError("mutable class callback must never execute")
+
+    monkeypatch.setattr(FixtureAdapter, "evaluate", subverted_evaluate)
+    key = Ed25519PrivateKey.generate()
+    receipt = run(
+        [case],
+        _all_applicable([case]),
+        adapter,
+        evidence_uri="file:///sealed.json",
+        evidence_sha256="sha256:" + "6" * 64,
+        signing_key=key,
+        signing_key_id="fixture-key-1",
+        env=ENV,
+    )
+    assert receipt["results"][0]["outcome"] == "passed"
+    assert set(receipt["telemetry"].values()) == {0}
+
+
+def test_control_type_is_rejected_as_misleading_applicability_input():
+    try:
+        ApplicabilityInputs.from_mapping(
+            {
+                "control_type": "proxy",
+                "supported_transports": ["http"],
+                "capabilities": [],
+            }
+        )
+    except ValueError as exc:
+        assert "not an applicability input" in str(exc)
+    else:
+        raise AssertionError("control_type must not imply an unsupported eligibility matrix")
+
+
+def test_applicability_uses_only_transport_and_capability_and_semantics():
+    case = load_cases(ROOT)[0]
+    assert applicability(
+        case,
+        ApplicabilityInputs(
+            supported_transports=frozenset({case.transport}),
+            capabilities=frozenset(case.requires),
+        ),
+    )
+    assert not applicability(
+        case,
+        ApplicabilityInputs(
+            supported_transports=frozenset(),
+            capabilities=frozenset(case.requires),
+        ),
+    )
+    if case.requires:
+        assert not applicability(
+            case,
+            ApplicabilityInputs(
+                supported_transports=frozenset({case.transport}),
+                capabilities=frozenset(),
+            ),
+        )
 
 
 def test_feature_is_disabled_by_default():
