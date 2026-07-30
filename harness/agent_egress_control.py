@@ -133,10 +133,10 @@ class FixtureAdapter:
             raise ValueError("fixture verdicts must map string case IDs to string verdicts")
         if not isinstance(default_to_expected, bool):
             raise ValueError("default_to_expected must be bool")
-        object.__setattr__(self, "_verdicts", tuple(sorted(normalized.items())))
-        object.__setattr__(self, "_default_to_expected", default_to_expected)
-        object.__setattr__(self, "_evaluation_count", 0)
-        object.__setattr__(self, "_sealed", True)
+        _slot_set(self, _VERDICTS_SLOT, tuple(sorted(normalized.items())))
+        _slot_set(self, _DEFAULT_TO_EXPECTED_SLOT, default_to_expected)
+        _slot_set(self, _EVALUATION_COUNT_SLOT, 0)
+        _slot_set(self, _SEALED_SLOT, True)
 
     def __setattr__(self, name: str, value: Any) -> None:
         raise AttributeError("FixtureAdapter state is immutable after construction")
@@ -144,12 +144,13 @@ class FixtureAdapter:
     @property
     def call_counts(self) -> Mapping[str, int]:
         """Observed counters emitted by the sealed execution boundary."""
+        evaluation_count = _slot_get(self, _EVALUATION_COUNT_SLOT)
         return {
             "target": 0,
             "simulator": 0,
             "attacker": 0,
             "judge": 0,
-            "local_evaluations": self._evaluation_count,
+            "local_evaluations": evaluation_count,
         }
 
     def evaluate(self, case: ControlCase) -> str:
@@ -161,28 +162,60 @@ class FixtureAdapter:
         return _evaluate_fixture(self, case)
 
 
+_VERDICTS_SLOT = FixtureAdapter.__dict__["_verdicts"]
+_DEFAULT_TO_EXPECTED_SLOT = FixtureAdapter.__dict__["_default_to_expected"]
+_EVALUATION_COUNT_SLOT = FixtureAdapter.__dict__["_evaluation_count"]
+_SEALED_SLOT = FixtureAdapter.__dict__["_sealed"]
+
+
+def _slot_get(adapter: FixtureAdapter, slot: Any) -> Any:
+    """Read the original inert slot without class attribute lookup."""
+    return slot.__get__(adapter, FixtureAdapter)
+
+
+def _slot_set(adapter: FixtureAdapter, slot: Any, value: Any) -> None:
+    """Write the original inert slot without class attribute lookup."""
+    slot.__set__(adapter, value)
+
+
+def _telemetry_snapshot(adapter: FixtureAdapter) -> dict[str, int]:
+    """Build receipt telemetry without dispatching through caller-replaceable APIs."""
+    return {
+        "target": 0,
+        "simulator": 0,
+        "attacker": 0,
+        "judge": 0,
+        "local_evaluations": _slot_get(adapter, _EVALUATION_COUNT_SLOT),
+    }
+
+
 def _evaluate_fixture(adapter: FixtureAdapter, case: ControlCase) -> str:
     """Evaluate inert fixture data without invoking caller-supplied code."""
     if type(adapter) is not FixtureAdapter:
         raise TypeError("fixture boundary requires the exact sealed adapter type")
     _validate_fixture_state(adapter)
-    object.__setattr__(adapter, "_evaluation_count", adapter._evaluation_count + 1)
-    for case_id, verdict in adapter._verdicts:
+    evaluation_count = _slot_get(adapter, _EVALUATION_COUNT_SLOT)
+    _slot_set(adapter, _EVALUATION_COUNT_SLOT, evaluation_count + 1)
+    for case_id, verdict in _slot_get(adapter, _VERDICTS_SLOT):
         if case.upstream_case_id == case_id:
             return verdict
-    if adapter._default_to_expected:
+    if _slot_get(adapter, _DEFAULT_TO_EXPECTED_SLOT):
         return case.expected_verdict
     raise RuntimeError("fixture verdict missing")
 
 
 def _validate_fixture_state(adapter: FixtureAdapter) -> None:
     """Reject replaced or executable state without invoking it."""
+    verdicts = _slot_get(adapter, _VERDICTS_SLOT)
+    default_to_expected = _slot_get(adapter, _DEFAULT_TO_EXPECTED_SLOT)
+    evaluation_count = _slot_get(adapter, _EVALUATION_COUNT_SLOT)
+    sealed = _slot_get(adapter, _SEALED_SLOT)
     if (
-        type(adapter._verdicts) is not tuple
-        or type(adapter._default_to_expected) is not bool
-        or type(adapter._evaluation_count) is not int
-        or adapter._evaluation_count < 0
-        or adapter._sealed is not True
+        type(verdicts) is not tuple
+        or type(default_to_expected) is not bool
+        or type(evaluation_count) is not int
+        or evaluation_count < 0
+        or sealed is not True
     ):
         raise TypeError("fixture adapter state is not sealed declarative data")
     if not all(
@@ -190,7 +223,7 @@ def _validate_fixture_state(adapter: FixtureAdapter) -> None:
         and len(item) == 2
         and type(item[0]) is str
         and type(item[1]) is str
-        for item in adapter._verdicts
+        for item in verdicts
     ):
         raise TypeError("fixture adapter verdict state is not sealed declarative data")
 
@@ -218,7 +251,7 @@ def run(
             "FixtureAdapter execution boundary"
         )
     _validate_fixture_state(adapter)
-    telemetry_before = dict(adapter.call_counts)
+    telemetry_before = _telemetry_snapshot(adapter)
     if any(telemetry_before[role] != 0 for role in ("target", "simulator", "attacker", "judge")):
         raise RuntimeError("model-role telemetry must be zero before execution")
     results: list[dict[str, str]] = []
@@ -256,7 +289,7 @@ def run(
     counts = Counter(result["outcome"] for result in results)
     summary = {name: counts[name] for name in OUTCOMES}
     summary["applicable"] = summary["passed"] + summary["failed"] + summary["errored"]
-    telemetry_after = dict(adapter.call_counts)
+    telemetry_after = _telemetry_snapshot(adapter)
     role_counts = {
         "target_calls": telemetry_after["target"] - telemetry_before["target"],
         "simulator_calls": telemetry_after["simulator"] - telemetry_before["simulator"],

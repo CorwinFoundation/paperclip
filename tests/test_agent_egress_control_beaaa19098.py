@@ -171,6 +171,51 @@ def test_receipt_path_does_not_dispatch_through_mutable_adapter_method(monkeypat
     assert set(receipt["telemetry"].values()) == {0}
 
 
+def test_receipt_path_ignores_caller_replaced_telemetry_descriptor(monkeypatch):
+    case = load_cases(ROOT)[0]
+    adapter = FixtureAdapter()
+    observed = {"descriptor_calls": 0}
+
+    def caller_controlled_descriptor(self):
+        observed["descriptor_calls"] += 1
+        return {
+            "target": 0,
+            "simulator": 0,
+            "attacker": 0,
+            "judge": 0,
+            "local_evaluations": 0,
+        }
+
+    monkeypatch.setattr(
+        FixtureAdapter,
+        "call_counts",
+        property(caller_controlled_descriptor),
+    )
+    key = Ed25519PrivateKey.generate()
+    receipt = run(
+        [case],
+        _all_applicable([case]),
+        adapter,
+        evidence_uri="file:///descriptor-substitution.json",
+        evidence_sha256="sha256:" + "8" * 64,
+        signing_key=key,
+        signing_key_id="fixture-key-1",
+        env=ENV,
+    )
+
+    assert observed["descriptor_calls"] == 0
+    assert receipt["results"][0]["outcome"] == "passed"
+    assert receipt["counts"]["passed"] == receipt["counts"]["applicable"] == 1
+    assert receipt["telemetry_verified"] is True
+    assert receipt["telemetry"] == {
+        "target_calls": 0,
+        "simulator_calls": 0,
+        "attacker_calls": 0,
+        "judge_calls": 0,
+    }
+    assert verify_receipt(receipt, key.public_key())
+
+
 def test_post_construction_executable_verdict_state_is_rejected_without_invocation():
     case = load_cases(ROOT)[0]
     adapter = FixtureAdapter()
