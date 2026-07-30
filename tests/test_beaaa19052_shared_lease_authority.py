@@ -1,6 +1,7 @@
 """BEAAA-19052 shared, restart-safe promotion lease authority."""
 from __future__ import annotations
 
+from pathlib import Path
 import threading
 
 import pytest
@@ -19,6 +20,16 @@ AUTHORITY = {
     "tenant_id": "tenant",
     "environment": "production",
 }
+
+
+def test_deployable_runtime_pins_and_import_checks_postgres_driver():
+    root = Path(__file__).resolve().parents[1]
+    runtime_lock = (root / "requirements-runtime.txt").read_text(encoding="utf-8")
+    dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+
+    assert "psycopg==3.2.13" in runtime_lock
+    assert "psycopg-binary==3.2.13" in runtime_lock
+    assert '/opt/venv/bin/python -c "import psycopg"' in dockerfile
 
 
 class _SharedDatabase:

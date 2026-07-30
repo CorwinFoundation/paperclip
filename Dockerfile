@@ -13,7 +13,8 @@ WORKDIR /app
 
 COPY requirements-runtime.txt ./
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/python -m pip install --require-hashes -r requirements-runtime.txt
+    && /opt/venv/bin/python -m pip install --require-hashes -r requirements-runtime.txt \
+    && /opt/venv/bin/python -c "import psycopg"
 
 COPY . .
 RUN /opt/venv/bin/python scripts/verify_runtime_import_closure.py
