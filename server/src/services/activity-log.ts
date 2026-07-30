@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "@paperclipai/db";
-import { activityLog } from "@paperclipai/db";
+import { activityLog, heartbeatRuns } from "@paperclipai/db";
+import { sql } from "drizzle-orm";
 import { PLUGIN_EVENT_TYPES, type PluginEventType } from "@paperclipai/shared";
 import type { PluginEvent } from "@paperclipai/plugin-sdk";
 import { publishLiveEvent } from "./live-events.js";
@@ -70,17 +71,31 @@ export async function logActivity(db: Db, input: LogActivityInput) {
   const redactedDetails = sanitizedDetails
     ? redactCurrentUserValue(sanitizedDetails, currentUserRedactionOptions)
     : null;
-  await db.insert(activityLog).values({
-    companyId: input.companyId,
-    actorType: input.actorType,
-    actorId: input.actorId,
-    action: input.action,
-    entityType: input.entityType,
-    entityId: input.entityId,
-    agentId: input.agentId ?? null,
-    runId: input.runId ?? null,
-    details: redactedDetails,
-  });
+  const [inserted] = await db
+    .insert(activityLog)
+    .values({
+      companyId: input.companyId,
+      actorType: input.actorType,
+      actorId: input.actorId,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      agentId: input.agentId ?? null,
+      // A minimal worktree seed intentionally omits heartbeat history. Requests
+      // forwarded from the source instance can still carry that source run id,
+      // so only retain it when the run exists in this company.
+      runId: input.runId
+        ? sql<string | null>`(
+            select ${heartbeatRuns.id}
+            from ${heartbeatRuns}
+            where ${heartbeatRuns.id} = ${input.runId}
+              and ${heartbeatRuns.companyId} = ${input.companyId}
+          )`
+        : null,
+      details: redactedDetails,
+    })
+    .returning({ runId: activityLog.runId });
+  const persistedRunId = inserted?.runId ?? null;
 
   publishLiveEvent({
     companyId: input.companyId,
@@ -92,7 +107,7 @@ export async function logActivity(db: Db, input: LogActivityInput) {
       entityType: input.entityType,
       entityId: input.entityId,
       agentId: input.agentId ?? null,
-      runId: input.runId ?? null,
+      runId: persistedRunId,
       details: redactedDetails,
     },
   });
@@ -111,7 +126,7 @@ export async function logActivity(db: Db, input: LogActivityInput) {
       payload: {
         ...redactedDetails,
         agentId: input.agentId ?? null,
-        runId: input.runId ?? null,
+        runId: persistedRunId,
       },
     };
     publishPluginDomainEvent(event);
