@@ -47,9 +47,6 @@ import {
 // from the server pod.
 const PAPERCLIP_SERVER_NAMESPACE = "paperclip";
 
-// Name of the ServiceAccount created inside each tenant namespace by ensureTenant.
-const TENANT_SERVICE_ACCOUNT = "paperclip-tenant-sa";
-
 // Resource quota defaults applied to every tenant namespace (tunable via
 // config in a future iteration).
 const DEFAULT_RESOURCE_QUOTA = {
@@ -245,6 +242,7 @@ const plugin = definePlugin({
       namespace,
       companyId: params.companyId,
       paperclipServerNamespace: PAPERCLIP_SERVER_NAMESPACE,
+      serviceAccountName: config.serviceAccountName,
       serviceAccountAnnotations: config.serviceAccountAnnotations,
       egressMode: config.egressMode,
       egressAllowFqdns: [...adapterDefaults.allowFqdns, ...config.egressAllowFqdns],
@@ -281,7 +279,7 @@ const plugin = definePlugin({
           adapterType: effectiveAdapterType,
           image,
           envSecretName: secretName,
-          serviceAccountName: TENANT_SERVICE_ACCOUNT,
+          serviceAccountName: config.serviceAccountName,
           labels,
           resources: config.defaultResources ?? {},
           runtimeClassName: config.runtimeClassName,
@@ -293,7 +291,7 @@ const plugin = definePlugin({
           adapterType: effectiveAdapterType,
           image,
           envSecretName: secretName,
-          serviceAccountName: TENANT_SERVICE_ACCOUNT,
+          serviceAccountName: config.serviceAccountName,
           labels,
           resources: config.defaultResources ?? {},
           runtimeClassName: config.runtimeClassName,

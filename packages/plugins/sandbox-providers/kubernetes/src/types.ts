@@ -3,6 +3,8 @@ import { adapterRegistrySchema } from "./adapter-registry.js";
 import { KNOWN_ADAPTER_TYPES } from "./adapter-defaults.js";
 
 const cidrRegex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
+const dns1123SubdomainRegex =
+  /^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?(?:\.[a-z0-9](?:[-a-z0-9]*[a-z0-9])?)*$/;
 
 export const kubernetesProviderConfigSchema = z
   .object({
@@ -28,6 +30,12 @@ export const kubernetesProviderConfigSchema = z
       .optional(),
 
     runtimeClassName: z.string().optional(),
+    serviceAccountName: z
+      .string()
+      .min(1)
+      .max(253)
+      .regex(dns1123SubdomainRegex, "Must be a valid Kubernetes DNS-1123 subdomain")
+      .default("paperclip-tenant-sa"),
     serviceAccountAnnotations: z.record(z.string()).default({}),
 
     jobTtlSecondsAfterFinished: z.number().int().nonnegative().default(900),
