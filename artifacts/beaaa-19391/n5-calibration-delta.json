@@ -1,0 +1,13 @@
+{
+  "ticket_ref": "BEAAA-19391",
+  "scanner_version": "0.5.0",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "probe_set_version": "1.4",
+  "rubric_point_id": "not_applicable_non_score_bearing_adapter_execution",
+  "runs": 5,
+  "command": "pytest -q tests/test_golden_agents.py tests/test_golden_set_l2_gate.py",
+  "result_per_run": "19 passed, 18 subtests passed",
+  "pillar_delta_max": 0.0,
+  "total_delta_max": 0.0,
+  "status": "PASS"
+}

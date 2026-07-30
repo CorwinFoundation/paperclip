@@ -36,6 +36,12 @@ Adapters:
 - CloudWatch Logs `FilterLogEvents`: `adapter.NewCloudWatchFilterLogEvents`
 - OTEL Collector OTLP gRPC receive: `adapter.NewOTELGRPCReceiver`
 - Deterministic fixture mode for tests and smoke runs: `adapter.AdapterFromFixture`
+- Versioned sensor boundary: `internal/source.SourceDriver` (`source-driver-v0.1`)
+- Numbat coding-agent source: `source.NumbatSourceDriver`, pinned to
+  `3d20d782d45001fd3bb200bc5690ce4b9ce0f12b` with deterministic mapping
+  `numbat-map-v0.1`. The driver only acquires and maps; Collector core owns
+  fail-closed redaction, validation, batching, signing, retry, and checkpoint
+  commit. Unknown kinds are retained as non-billable observability events.
 
 Run:
 

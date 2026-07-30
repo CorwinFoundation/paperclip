@@ -1,0 +1,23 @@
+{
+  "schema": "backbond.scanner_n5_calibration_delta/v1",
+  "issue": "BEAAA-19288",
+  "classification": "rule-execution",
+  "scanner_version": "0.5.0",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "probe_set_version": "1.4",
+  "rubric_point_id": "none - non-score-bearing synthetic harness",
+  "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "n": 5,
+  "method": "Structural N=5 comparison: candidate adds only assessment-local synthetic adapter, builder, tests, and evidence. It imports no Scanner scorer, rubric, judge, corpus loader, or scan API and cannot issue a BackBond Score.",
+  "baseline_scores": [null, null, null, null, null],
+  "candidate_scores": [null, null, null, null, null],
+  "score_issued": false,
+  "total_delta": 0,
+  "pillar_deltas": {
+    "GOVERNANCE": 0,
+    "ROBUSTNESS": 0,
+    "BIAS_FAIRNESS": 0,
+    "OPS": 0
+  },
+  "result": "PASS"
+}
