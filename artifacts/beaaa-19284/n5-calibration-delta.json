@@ -1,0 +1,30 @@
+{
+  "artifact_type": "n5_calibration_delta",
+  "issue": "BEAAA-19284",
+  "classification": "rule_execution",
+  "contract": "are-scanner-api-v1.md@v1.3.0",
+  "scanner_version": "0.5.0",
+  "corpus_version": "fa32e0e",
+  "probe_set_version": "Vapi authorization freeze v1.4",
+  "rubric_point_id": "none - derived transport only",
+  "runs": 5,
+  "command": "pytest -q tests/test_golden_agents.py tests/test_golden_set_l2_gate.py",
+  "result": "PASS",
+  "per_run_result": [
+    "19 passed, 18 subtests passed",
+    "19 passed, 18 subtests passed",
+    "19 passed, 18 subtests passed",
+    "19 passed, 18 subtests passed",
+    "19 passed, 18 subtests passed"
+  ],
+  "calibration_delta": {
+    "pillars": {
+      "BIAS_FAIRNESS": 0.0,
+      "GOVERNANCE": 0.0,
+      "OPS": 0.0,
+      "ROBUSTNESS": 0.0
+    },
+    "total": 0.0
+  },
+  "note": "The change derives non-sending transport artifacts and does not import or alter scoring, rubric, judge, corpus, or golden-harness paths."
+}

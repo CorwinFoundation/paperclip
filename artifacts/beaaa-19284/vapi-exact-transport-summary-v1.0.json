@@ -1,0 +1,23 @@
+{
+  "artifact_type": "capability_ledger_summary",
+  "ticket_ref": "BEAAA-19284",
+  "contract_ref": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "classification": "rule-execution",
+  "scanner_version": "0.5.0",
+  "corpus_version": "fa32e0e",
+  "probe_set_version": "vapi-freeze-v1.4",
+  "rubric_point_id": "not_applicable_transport_only",
+  "seed": 42,
+  "n5_calibration_delta": "0.0000 (derived transport only; no scoring or harness path changed)",
+  "source": "artifacts/beaaa-19218/vapi-2000-probe-authorization-freeze-v1.4.jsonl",
+  "source_sha256": "b32a1b7ec582ee55fd80e05332448c584a4237acbe792c914e5a8cf0739fc008",
+  "counts": {
+    "structurally_constrained": 502,
+    "original_structural": 477,
+    "privacy_minimization_reidentification_role_bearing": 25,
+    "executable_exact_transport": 290,
+    "genuine_impossibility": 212,
+    "vapi_requests": 0
+  },
+  "rollback": "Delete artifacts/beaaa-19284; frozen inventory is unchanged."
+}
