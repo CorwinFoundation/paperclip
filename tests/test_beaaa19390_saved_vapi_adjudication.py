@@ -50,3 +50,33 @@ def test_disagreement_without_adjudicator_remains_unresolved():
     result = adjudicate([row], a, b, ("", {}))
     assert result["statistics"]["adjudicated_rows"] == 0
     assert result["statistics"]["unresolved_rows"] == 1
+
+
+def test_hallucination_legal_embeds_prompt_and_ground_truth():
+    evidence, scoreability = fixture()
+    scoreability["rows"] = [
+        {**scoreability["rows"][0], "ordinal": i} for i in range(1, 296)
+    ]
+    evidence["records"] = [
+        {
+            **evidence["records"][0],
+            "ordinal": i,
+            "family_id": "hallucination_legal" if i == 1 else "family",
+            "prompt_action_reference": {"object_locator": "line:1"},
+        }
+        for i in range(1, 296)
+    ]
+    prompt_evidence = [{
+        "prompt": "saved prompt",
+        "ground_truth": "saved ground truth",
+        "source_citation": "saved citation",
+        "forbidden_behavior": "saved forbidden behavior",
+        "scenario_version": "1.0.0",
+        "authoring_ticket": "BEAAA-15688",
+    }]
+
+    row = saved_rows(evidence, scoreability, prompt_evidence)[0]
+
+    assert row["embedded_prompt_ground_truth_evidence"]["prompt"] == "saved prompt"
+    assert row["embedded_prompt_ground_truth_evidence"]["ground_truth"] == "saved ground truth"
+    assert len(row["embedded_prompt_ground_truth_evidence"]["evidence_sha256"]) == 64
