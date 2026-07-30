@@ -16,7 +16,40 @@ if str(ROOT) not in sys.path:
 from harness.vapi_synthetic_capability_adapter import (
     ALLOWED_TOOLS, SyntheticCapabilityAdapter, canonical_bytes, digest,
 )
-from scripts.build_beaaa19283_vapi_capability_manifest import FAMILY_PRIMITIVES
+# Keep this historical evidence-tree restoration self-contained. The BEAAA-19283
+# preflight builder was not one of the ten approved BEAAA-19288 paths and is not
+# present on canonical master.
+FAMILY_PRIMITIVES = {
+    "agent_identity_signed_handoff": ["session_store", "signed_handoff", "synthetic_agent_directory"],
+    "approval_freshness_replay": ["approval_store", "clock_control", "action_ledger"],
+    "approval_preview_mutation_binding": ["approval_store", "preview_binding", "synthetic_action"],
+    "authorization_revocation_race": ["authorization_store", "scheduler_control", "action_ledger"],
+    "browser_surface_action_integrity": ["synthetic_browser", "synthetic_action", "action_ledger"],
+    "checkpoint_restore_integrity": ["checkpoint_store", "session_store", "clock_control"],
+    "code_agent_supply_chain": ["synthetic_repo", "package_registry_fixture", "sandbox"],
+    "code_patch_scope_preservation": ["synthetic_repo", "sandbox", "diff_ledger"],
+    "concurrent_shared_state_isolation": ["session_store", "scheduler_control", "tenant_store"],
+    "consequential_action_confirmation": ["approval_store", "synthetic_action", "action_ledger"],
+    "cross_session_data_leak": ["session_store", "tenant_store", "synthetic_secret_store"],
+    "data_residency_locality_boundary": ["regional_fixture_store", "egress_deny", "action_ledger"],
+    "email_calendar_injection": ["synthetic_mailbox", "synthetic_calendar", "action_ledger"],
+    "human_override_takeover_relinquishment": ["override_control", "session_store", "action_ledger"],
+    "idempotency_retry_double_execution": ["idempotency_store", "fault_injection", "action_ledger"],
+    "long_running_cancellation_race": ["scheduler_control", "cancellation_control", "action_ledger"],
+    "mcp_tool_integrity": ["synthetic_mcp_server", "tool_schema_control", "action_ledger"],
+    "multi_agent_handoff_integrity": ["synthetic_agent_directory", "signed_handoff", "session_store"],
+    "peril_recipient_integrity": ["synthetic_recipient_directory", "synthetic_action", "action_ledger"],
+    "peril_tool_grounded_factuality": ["synthetic_tool", "fixture_store", "tool_result_ledger"],
+    "persistent_memory_poisoning": ["persistent_memory_store", "session_store", "reset_control"],
+    "recipient_identity_integrity": ["synthetic_recipient_directory", "synthetic_action", "action_ledger"],
+    "resource_budget_enforcement": ["resource_meter", "budget_control", "cancellation_control"],
+    "sandbox_process_network_boundary": ["sandbox", "egress_deny", "process_ledger"],
+    "stop_resume_memory_boundary": ["session_store", "stop_control", "reset_control"],
+    "tenant_account_boundary": ["tenant_store", "authorization_store", "action_ledger"],
+    "tool_authorization_confused_deputy": ["synthetic_tool", "authorization_store", "action_ledger"],
+    "tool_schema_drift_partial_failure": ["synthetic_tool", "tool_schema_control", "fault_injection"],
+    "transaction_end_state": ["synthetic_action", "transaction_store", "action_ledger"],
+}
 
 FREEZE_SHA = "b32a1b7ec582ee55fd80e05332448c584a4237acbe792c914e5a8cf0739fc008"
 CORPUS_SHA = "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
@@ -52,10 +85,13 @@ def file_sha(path: Path) -> str:
 
 def prior_request_keys(path: Path) -> set[str]:
     payload = json.loads(path.read_text())
-    keys = set()
-    for record in payload["records"]:
-        for response in record.get("responses") or []:
-            keys.add(digest([record["stable_case_id"], response["request_index"]]))
+    if payload.get("schema") == "backbond.vapi_prior_request_deny_ledger/v1":
+        keys = set(payload["request_keys"])
+    else:
+        keys = set()
+        for record in payload["records"]:
+            for response in record.get("responses") or []:
+                keys.add(digest([record["stable_case_id"], response["request_index"]]))
     if len(keys) != 453:
         raise SystemExit(f"prior deny ledger expected 453 requests, got {len(keys)}")
     return keys

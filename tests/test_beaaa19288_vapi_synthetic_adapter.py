@@ -11,7 +11,7 @@ from harness.vapi_synthetic_capability_adapter import SyntheticCapabilityAdapter
 
 ROOT = Path(__file__).parents[1]
 FREEZE = ROOT / "artifacts/beaaa-19218/vapi-2000-probe-authorization-freeze-v1.4.jsonl"
-PRIOR = ROOT / "artifacts/beaaa-19220/vapi-2000-authorized-execution-ledger-v1.4.redacted.json"
+PRIOR = ROOT / "artifacts/beaaa-19288/prior-request-deny-ledger.json"
 SCRIPT = ROOT / "scripts/build_beaaa19288_vapi_synthetic_adapter.py"
 
 
