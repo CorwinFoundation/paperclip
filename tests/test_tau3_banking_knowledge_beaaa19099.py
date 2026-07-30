@@ -40,13 +40,15 @@ def test_disabled_manifest_restores_empty_extension(upstream: Path) -> None:
 def test_deterministic_action_and_database_evidence_has_no_judge(upstream: Path) -> None:
     case = pilot.load_pinned_cases(upstream)[0]
     expected_actions = case.task["evaluation_criteria"]["actions"]
+    expected_transitions = pilot.expected_database_transitions(case)
+    expected_state = pilot.expected_final_database_state(case)
     trajectory = pilot.BankingKnowledgeTrajectory(
         local_case_id=case.local_case_id,
         upstream_task_id=case.upstream_task_id,
         seed=0,
         ordered_actions=expected_actions,
-        database_transitions=({"operation": "apply", "before": {}, "after": {"ok": True}},),
-        final_database_state={"ok": True},
+        database_transitions=expected_transitions,
+        final_database_state=expected_state,
         termination_reason="task_complete",
     )
     row = pilot.evaluate_trajectory(case, trajectory)
@@ -54,8 +56,64 @@ def test_deterministic_action_and_database_evidence_has_no_judge(upstream: Path)
     assert row["ordered_actions"] == expected_actions
     assert row["database_transitions"]
     assert row["termination_reason"] == "task_complete"
+    assert row["transition_match"] is True
+    assert row["database_match"] is True
+    assert row["termination_match"] is True
     assert "judge" not in row
     assert pilot.pass_k([row] * 5)["pass_k"] is True
+
+
+def _valid_trajectory(case: pilot.BankingKnowledgeCase) -> pilot.BankingKnowledgeTrajectory:
+    return pilot.BankingKnowledgeTrajectory(
+        local_case_id=case.local_case_id,
+        upstream_task_id=case.upstream_task_id,
+        seed=0,
+        ordered_actions=case.task["evaluation_criteria"]["actions"],
+        database_transitions=pilot.expected_database_transitions(case),
+        final_database_state=pilot.expected_final_database_state(case),
+        termination_reason="task_complete",
+    )
+
+
+def test_corrupted_database_transition_fails_closed(upstream: Path) -> None:
+    case = pilot.load_pinned_cases(upstream)[0]
+    valid = _valid_trajectory(case)
+    corrupted = list(valid.database_transitions)
+    corrupted[0] = {**corrupted[0], "action_id": "corrupted-action"}
+    row = pilot.evaluate_trajectory(
+        case,
+        pilot.BankingKnowledgeTrajectory(
+            **{**valid.__dict__, "database_transitions": tuple(corrupted)}
+        ),
+    )
+    assert row["transition_match"] is False
+    assert row["passed"] is False
+
+
+def test_corrupted_final_database_state_fails_closed(upstream: Path) -> None:
+    case = pilot.load_pinned_cases(upstream)[0]
+    valid = _valid_trajectory(case)
+    row = pilot.evaluate_trajectory(
+        case,
+        pilot.BankingKnowledgeTrajectory(
+            **{**valid.__dict__, "final_database_state": {"applied_actions": []}}
+        ),
+    )
+    assert row["database_match"] is False
+    assert row["passed"] is False
+
+
+def test_crashed_termination_fails_closed(upstream: Path) -> None:
+    case = pilot.load_pinned_cases(upstream)[0]
+    valid = _valid_trajectory(case)
+    row = pilot.evaluate_trajectory(
+        case,
+        pilot.BankingKnowledgeTrajectory(
+            **{**valid.__dict__, "termination_reason": "agent_crashed"}
+        ),
+    )
+    assert row["termination_match"] is False
+    assert row["passed"] is False
 
 
 def test_manifest_deduplication_fails_closed(upstream: Path) -> None:

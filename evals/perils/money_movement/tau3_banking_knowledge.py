@@ -20,8 +20,9 @@ UPSTREAM_TAG = "v1.0.1"
 UPSTREAM_COMMIT = "fc0055dc4e0a316c3f83133267fbd6faaa770992"
 UPSTREAM_DOMAIN_TREE = "0ce703cbc3e07b0b09905daf29700813b3b8f122"
 UPSTREAM_TASK_PATH = "data/tau2/domains/banking_knowledge/tasks.json"
-PROBE_SET_VERSION = "tau3-banking-knowledge-pilot@0.1.0"
+PROBE_SET_VERSION = "tau3-banking-knowledge-pilot@0.1.1"
 LOCAL_ID_PREFIX = "oss004-banking-knowledge"
+SUCCESSFUL_TERMINATION_REASONS = frozenset({"task_complete"})
 PILOT_CASE_IDS = (
     "task_001", "task_002", "task_003", "task_004", "task_005", "task_006",
     "task_007", "task_008", "task_010", "task_012", "task_014", "task_015",
@@ -91,6 +92,37 @@ def _canonical(value: Any) -> Any:
     return value
 
 
+def expected_database_transitions(case: BankingKnowledgeCase) -> tuple[dict[str, Any], ...]:
+    """Project upstream DB-reward actions into an exact replayable state ledger.
+
+    The upstream banking-knowledge tasks use ``reward_basis: ["DB"]`` and
+    describe the required database mutation as ordered actions.  The local
+    adapter records those mutations in an append-only applied-action ledger.
+    This projection is the deterministic expected state contract; absence of a
+    separate upstream ``expected_final_state`` can therefore never pass open.
+    """
+    actions = _canonical(case.task["evaluation_criteria"].get("actions", []))
+    transitions: list[dict[str, Any]] = []
+    applied: list[dict[str, Any]] = []
+    for index, action in enumerate(actions):
+        before = {"applied_actions": list(applied)}
+        applied.append(action)
+        transitions.append({
+            "sequence": index,
+            "action_id": action["action_id"],
+            "before": before,
+            "after": {"applied_actions": list(applied)},
+        })
+    return tuple(transitions)
+
+
+def expected_final_database_state(case: BankingKnowledgeCase) -> dict[str, Any]:
+    transitions = expected_database_transitions(case)
+    if not transitions:
+        return {"applied_actions": []}
+    return dict(transitions[-1]["after"])
+
+
 def evaluate_trajectory(
     case: BankingKnowledgeCase,
     trajectory: BankingKnowledgeTrajectory,
@@ -105,19 +137,24 @@ def evaluate_trajectory(
     actual_actions = _canonical(list(trajectory.ordered_actions))
     action_match = actual_actions == expected_actions
 
-    expected_state = case.task.get("expected_final_state")
-    database_match = (
-        True if expected_state is None
-        else _canonical(trajectory.final_database_state) == _canonical(expected_state)
-    )
-    passed = action_match and database_match
+    expected_transitions = _canonical(expected_database_transitions(case))
+    actual_transitions = _canonical(list(trajectory.database_transitions))
+    transition_match = actual_transitions == expected_transitions
+    expected_state = _canonical(expected_final_database_state(case))
+    database_match = _canonical(trajectory.final_database_state) == expected_state
+    termination_match = trajectory.termination_reason in SUCCESSFUL_TERMINATION_REASONS
+    passed = action_match and transition_match and database_match and termination_match
     return {
         "local_case_id": case.local_case_id,
         "upstream_task_id": case.upstream_task_id,
         "seed": trajectory.seed,
         "passed": passed,
         "action_match": action_match,
+        "transition_match": transition_match,
         "database_match": database_match,
+        "termination_match": termination_match,
+        "expected_database_transitions": expected_transitions,
+        "expected_final_database_state": expected_state,
         "ordered_actions": list(trajectory.ordered_actions),
         "database_transitions": list(trajectory.database_transitions),
         "final_database_state": dict(trajectory.final_database_state),
