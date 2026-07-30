@@ -1,0 +1,48 @@
+{
+  "adapter_reason_counts": {
+    "structured_fields_require_authored_semantic_adapter": 187
+  },
+  "artifact_type": "internal_scanner_transport_freeze",
+  "classification": "rule-execution",
+  "contract_ref": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "cto_cosign_ref": null,
+  "duplicate_suppression_preserved": true,
+  "freeze": {
+    "path": "artifacts/beaaa-19287/vapi-477-remediation-freeze-v1.4.jsonl",
+    "row_count": 477,
+    "sha256": "eb2fbcf84a2b100c00db4ae6a7bde2ff4381292c698f17522f442baca8f6d421"
+  },
+  "full_registry_accounting_2000": {
+    "already_authorized": 405,
+    "destructive_tool_cross_session_cross_customer": 596,
+    "faithfully_materialized_current_text_transport": 290,
+    "requires_different_capable_adapter": 187,
+    "requires_scope_expansion": 522
+  },
+  "n5_calibration_delta": "0.0000",
+  "parent_refs": [
+    "BEAAA-19286",
+    "BEAAA-19217"
+  ],
+  "probe_set_version": "vapi-remediation-freeze-v1.4",
+  "rollback": "Discard this derived v1.4 remediation freeze; retain immutable v1.3.",
+  "rubric_point_id": "not_applicable_transport_materialization",
+  "scanner_version": "0.5.0",
+  "schema": "backbond.vapi_remediation_freeze_summary/v1.4",
+  "seed": 42,
+  "source": {
+    "immutable_v1_3_verified": true,
+    "path": "artifacts/beaaa-19218/vapi-2000-probe-authorization-freeze-v1.3.jsonl",
+    "row_count": 2000,
+    "sha256": "d483a281556d9ae04a09bccc00bd3f886f27cce2f2dbde4534862c731e818319"
+  },
+  "stop_controls_preserved": true,
+  "terminal_accounting_477": {
+    "faithfully_materialized_current_text_transport": 290,
+    "requires_different_capable_adapter": 187
+  },
+  "ticket_ref": "BEAAA-19287",
+  "unique_stable_ids": 477,
+  "zero_probe_requests_emitted": true
+}

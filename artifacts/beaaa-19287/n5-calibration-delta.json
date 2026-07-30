@@ -1,0 +1,29 @@
+{
+  "artifact_type": "n5_calibration_delta",
+  "ticket_ref": "BEAAA-19287",
+  "contract_ref": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "classification": "rule-execution",
+  "scanner_version": "0.5.0",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "probe_set_version": "vapi-remediation-freeze-v1.4",
+  "rubric_point_id": "not_applicable_transport_materialization",
+  "seed": 42,
+  "replicate_count": 5,
+  "derivation_result": "byte_identical",
+  "freeze_sha256_each_replicate": [
+    "eb2fbcf84a2b100c00db4ae6a7bde2ff4381292c698f17522f442baca8f6d421",
+    "eb2fbcf84a2b100c00db4ae6a7bde2ff4381292c698f17522f442baca8f6d421",
+    "eb2fbcf84a2b100c00db4ae6a7bde2ff4381292c698f17522f442baca8f6d421",
+    "eb2fbcf84a2b100c00db4ae6a7bde2ff4381292c698f17522f442baca8f6d421",
+    "eb2fbcf84a2b100c00db4ae6a7bde2ff4381292c698f17522f442baca8f6d421"
+  ],
+  "summary_sha256_each_replicate": [
+    "1a916d26781464caf8b81b0d040725fa0db45c8fe12b82b3d0f251e4a928c77f",
+    "1a916d26781464caf8b81b0d040725fa0db45c8fe12b82b3d0f251e4a928c77f",
+    "1a916d26781464caf8b81b0d040725fa0db45c8fe12b82b3d0f251e4a928c77f",
+    "1a916d26781464caf8b81b0d040725fa0db45c8fe12b82b3d0f251e4a928c77f",
+    "1a916d26781464caf8b81b0d040725fa0db45c8fe12b82b3d0f251e4a928c77f"
+  ],
+  "maximum_band_delta": 0,
+  "probe_requests_emitted": 0
+}
