@@ -23,9 +23,24 @@ UPSTREAM_COMMIT = "fc0055dc4e0a316c3f83133267fbd6faaa770992"
 UPSTREAM_DOMAIN_TREE = "0ce703cbc3e07b0b09905daf29700813b3b8f122"
 UPSTREAM_TASK_PATH = "data/tau2/domains/banking_knowledge/tasks.json"
 UPSTREAM_DB_PATH = "data/tau2/domains/banking_knowledge/db.json"
-PROBE_SET_VERSION = "tau3-banking-knowledge-pilot@0.1.2"
+PROBE_SET_VERSION = "tau3-banking-knowledge-pilot@0.1.3"
 LOCAL_ID_PREFIX = "oss004-banking-knowledge"
 SUCCESSFUL_TERMINATION_REASONS = frozenset({"task_complete"})
+TRANSACTIONAL_TABLES = (
+    "users", "accounts", "debit_cards", "referrals",
+    "credit_card_applications", "user_discoverable_tools",
+    "user_discoverable_tool_calls", "verification_history",
+    "credit_card_transaction_history", "cash_back_disputes",
+    "bank_account_transaction_history", "credit_card_accounts",
+    "agent_discoverable_tools", "task_config", "human_transfer_requests",
+    "transaction_disputes", "credit_card_orders", "debit_card_orders",
+    "credit_card_closure_reasons", "credit_card_account_flags",
+    "credit_limit_increase_requests", "payment_history",
+    "debit_card_disputes",
+)
+REFERENCE_HASH_PATH = Path(__file__).with_name(
+    "tau3_banking_knowledge_reference_hashes.json"
+)
 PILOT_CASE_IDS = (
     "task_001", "task_002", "task_003", "task_004", "task_005", "task_006",
     "task_007", "task_008", "task_010", "task_012", "task_014", "task_015",
@@ -103,6 +118,13 @@ def database_state_hash(state: Mapping[str, Any]) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def normalize_database_state(state: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = copy.deepcopy(dict(state))
+    for table_name in TRANSACTIONAL_TABLES:
+        normalized.setdefault(table_name, {"data": {}, "notes": ""})
+    return normalized
+
+
 def _deterministic_id(seed: str, length: int = 16) -> str:
     return hashlib.sha256(seed.encode()).digest()[: length // 2].hex()
 
@@ -172,6 +194,7 @@ def _apply_action(state: dict[str, Any], action: Mapping[str, Any]) -> None:
             "transaction_date": "11/14/2025",
             "category": args["category"],
             "status": "COMPLETED",
+            "rewards_earned": f"{int(amount)} points",
         }
         return
     if name == "give_discoverable_user_tool":
@@ -190,8 +213,30 @@ def _apply_action(state: dict[str, Any], action: Mapping[str, Any]) -> None:
         _table(state, "user_discoverable_tool_calls")[record_id] = {
             "tool_name": tool_name,
             "arguments": parsed,
+            "called_at": "11/14/2025",
             "status": "CALLED",
         }
+        if tool_name == "get_referral_link":
+            referral_id = _deterministic_id(
+                f"referral_link:{parsed['user_id']}:{parsed['card_name']}"
+            )
+            _table(state, "referrals")[referral_id] = {
+                "referral_id": referral_id,
+                "referrer_id": parsed["user_id"],
+                "referred_account_type": parsed["card_name"],
+                "referral_status": "NO_PROGRESS",
+                "date": "11/14/2025",
+            }
+        elif tool_name == "submit_cash_back_dispute_0589":
+            dispute_seed = f"dispute:{parsed['user_id']}:{parsed['transaction_id']}"
+            dispute_id = f"dsp_{_deterministic_id(dispute_seed, 12)}"
+            _table(state, "cash_back_disputes")[dispute_id] = {
+                "dispute_id": dispute_id,
+                "user_id": parsed["user_id"],
+                "transaction_id": parsed["transaction_id"],
+                "submitted_at": "11/14/2025",
+                "status": "SUBMITTED",
+            }
         return
     raise ValueError(f"unsupported pinned banking action: {name}")
 
@@ -206,7 +251,7 @@ def replay_database(
     the actual banking state. Equivalent action trajectories may differ while
     still converging on the same final database hash.
     """
-    state = copy.deepcopy(dict(case.initial_database_state))
+    state = normalize_database_state(case.initial_database_state)
     transitions: list[dict[str, Any]] = []
     for index, action in enumerate(actions):
         before_hash = database_state_hash(state)
@@ -229,6 +274,15 @@ def expected_database_transitions(case: BankingKnowledgeCase) -> tuple[dict[str,
 
 def expected_final_database_state(case: BankingKnowledgeCase) -> dict[str, Any]:
     _, state = replay_database(case, case.task["evaluation_criteria"].get("actions", []))
+    reference = json.loads(REFERENCE_HASH_PATH.read_text())["final_database_hashes"][
+        case.upstream_task_id
+    ]
+    actual = database_state_hash(state)
+    if actual != reference:
+        raise ValueError(
+            f"local banking replay drift for {case.upstream_task_id}: "
+            f"{actual} != pinned upstream reference {reference}"
+        )
     return state
 
 

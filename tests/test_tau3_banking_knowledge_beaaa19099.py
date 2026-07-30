@@ -31,7 +31,11 @@ def test_pinned_twenty_cases_keep_both_identities(upstream: Path) -> None:
             case, case.task["evaluation_criteria"]["actions"]
         )
         assert len(transitions) == len(case.task["evaluation_criteria"]["actions"])
-        assert pilot.database_state_hash(final_state)
+        references = json.loads(pilot.REFERENCE_HASH_PATH.read_text())
+        assert (
+            pilot.database_state_hash(final_state)
+            == references["final_database_hashes"][case.upstream_task_id]
+        )
 
 
 def test_disabled_manifest_restores_empty_extension(upstream: Path) -> None:
