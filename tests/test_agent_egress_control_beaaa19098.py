@@ -171,6 +171,48 @@ def test_receipt_path_does_not_dispatch_through_mutable_adapter_method(monkeypat
     assert set(receipt["telemetry"].values()) == {0}
 
 
+def test_post_construction_executable_verdict_state_is_rejected_without_invocation():
+    case = load_cases(ROOT)[0]
+    adapter = FixtureAdapter()
+    observed = {"contains": 0}
+
+    class ExecutableDict(dict):
+        def __contains__(self, key):
+            observed["contains"] += 1
+            return super().__contains__(key)
+
+    try:
+        adapter._verdicts = ExecutableDict({case.upstream_case_id: case.expected_verdict})
+    except AttributeError as exc:
+        assert "immutable after construction" in str(exc)
+    else:
+        raise AssertionError("post-construction fixture payload replacement must fail closed")
+
+    # Even object.__setattr__ cannot smuggle executable state into the receipt path.
+    object.__setattr__(
+        adapter,
+        "_verdicts",
+        ExecutableDict({case.upstream_case_id: case.expected_verdict}),
+    )
+    key = Ed25519PrivateKey.generate()
+    try:
+        run(
+            [case],
+            _all_applicable([case]),
+            adapter,
+            evidence_uri="file:///post-construction-state.json",
+            evidence_sha256="sha256:" + "7" * 64,
+            signing_key=key,
+            signing_key_id="fixture-key-1",
+            env=ENV,
+        )
+    except TypeError as exc:
+        assert "not sealed declarative data" in str(exc)
+    else:
+        raise AssertionError("replaced executable fixture state must fail closed")
+    assert observed["contains"] == 0
+
+
 def test_control_type_is_rejected_as_misleading_applicability_input():
     try:
         ApplicabilityInputs.from_mapping(

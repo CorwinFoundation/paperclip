@@ -120,7 +120,7 @@ class FixtureAdapter:
     callers supply inert verdict data rather than an executable callback.
     """
 
-    __slots__ = ("_verdicts", "_default_to_expected", "_evaluation_count")
+    __slots__ = ("_verdicts", "_default_to_expected", "_evaluation_count", "_sealed")
 
     def __init__(
         self,
@@ -133,9 +133,13 @@ class FixtureAdapter:
             raise ValueError("fixture verdicts must map string case IDs to string verdicts")
         if not isinstance(default_to_expected, bool):
             raise ValueError("default_to_expected must be bool")
-        self._verdicts = normalized
-        self._default_to_expected = default_to_expected
-        self._evaluation_count = 0
+        object.__setattr__(self, "_verdicts", tuple(sorted(normalized.items())))
+        object.__setattr__(self, "_default_to_expected", default_to_expected)
+        object.__setattr__(self, "_evaluation_count", 0)
+        object.__setattr__(self, "_sealed", True)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise AttributeError("FixtureAdapter state is immutable after construction")
 
     @property
     def call_counts(self) -> Mapping[str, int]:
@@ -161,12 +165,34 @@ def _evaluate_fixture(adapter: FixtureAdapter, case: ControlCase) -> str:
     """Evaluate inert fixture data without invoking caller-supplied code."""
     if type(adapter) is not FixtureAdapter:
         raise TypeError("fixture boundary requires the exact sealed adapter type")
-    adapter._evaluation_count += 1
-    if case.upstream_case_id in adapter._verdicts:
-        return adapter._verdicts[case.upstream_case_id]
+    _validate_fixture_state(adapter)
+    object.__setattr__(adapter, "_evaluation_count", adapter._evaluation_count + 1)
+    for case_id, verdict in adapter._verdicts:
+        if case.upstream_case_id == case_id:
+            return verdict
     if adapter._default_to_expected:
         return case.expected_verdict
     raise RuntimeError("fixture verdict missing")
+
+
+def _validate_fixture_state(adapter: FixtureAdapter) -> None:
+    """Reject replaced or executable state without invoking it."""
+    if (
+        type(adapter._verdicts) is not tuple
+        or type(adapter._default_to_expected) is not bool
+        or type(adapter._evaluation_count) is not int
+        or adapter._evaluation_count < 0
+        or adapter._sealed is not True
+    ):
+        raise TypeError("fixture adapter state is not sealed declarative data")
+    if not all(
+        type(item) is tuple
+        and len(item) == 2
+        and type(item[0]) is str
+        and type(item[1]) is str
+        for item in adapter._verdicts
+    ):
+        raise TypeError("fixture adapter verdict state is not sealed declarative data")
 
 
 def _canonical_bytes(value: Mapping[str, Any]) -> bytes:
@@ -191,6 +217,7 @@ def run(
             "unverifiable adapter rejected: run requires the sealed, declarative "
             "FixtureAdapter execution boundary"
         )
+    _validate_fixture_state(adapter)
     telemetry_before = dict(adapter.call_counts)
     if any(telemetry_before[role] != 0 for role in ("target", "simulator", "attacker", "judge")):
         raise RuntimeError("model-role telemetry must be zero before execution")

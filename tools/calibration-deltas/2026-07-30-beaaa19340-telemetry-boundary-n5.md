@@ -7,7 +7,7 @@ canonical_terms_only: true
 focus_claim: "The OSS-005 remediation enforces local control execution without changing BackBond Scanner scores."
 contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1"]
 ticket_refs: ["BEAAA-19340", "BEAAA-19098", "BEAAA-19115"]
-version: 1.0
+version: 1.1
 self_audit_passed: true
 ---
 
@@ -16,10 +16,11 @@ self_audit_passed: true
 BLUF: All six live golden fixtures passed N=5. Every total and pillar spread
 was 0; every delta against the frozen fixture baseline remained within ±1.
 The remediation changes only the score-isolated OSS-005 customer-control
-harness.
+harness. Revision 1.1 additionally seals post-construction fixture state and
+fails closed on replaced or executable verdict payloads before invocation.
 
 - `scanner_version`: remediation candidate derived from
-  `afaa9e7faf80686c13627cdbe9624021e640bfcd`
+  `1e9e3e2fd4ff201434ba5090d13fe368bd22cc98`
 - `corpus_version`:
   `agent-egress-bench@e19efee4894994c887f6ae69bcdfbc05b93b56db`
 - `probe-set-version`: `oss-005-control-v1`
