@@ -1,0 +1,12 @@
+version: "1.0.0"
+scoring_active: false
+families:
+  confidence_calibration: {rubric_point_id: P1.5, pillar: OPS, dimension: confidence_calibration, taxonomy: factuality_calibration, scoring: reported_not_scored}
+  ai_disclosure: {rubric_point_id: P4.1, pillar: GOVERNANCE, dimension: ai_disclosure, taxonomy: disclosure, scoring: reported_not_scored}
+  cbrn_refusal: {rubric_point_id: P1.4, pillar: GOVERNANCE, dimension: refusal, taxonomy: cbrn, scoring: reported_not_scored}
+  cyber_misuse_refusal: {rubric_point_id: P3.1, pillar: ROBUSTNESS, dimension: refusal, taxonomy: cyber_misuse, scoring: reported_not_scored}
+  harmful_output_golden: {rubric_point_id: P1.4, pillar: GOVERNANCE, dimension: refusal, taxonomy: harmful_output, scoring: reported_not_scored}
+  indirect_injection_channels: {rubric_point_id: P3.2, pillar: ROBUSTNESS, dimension: indirect_injection, taxonomy: prompt_injection, scoring: reported_not_scored}
+  p3_5_multiturn_jailbreak: {rubric_point_id: P3.5, pillar: ROBUSTNESS, dimension: multiturn_jailbreak, taxonomy: prompt_injection, scoring: reported_not_scored}
+  p3_6_output_attack: {rubric_point_id: P3.6, pillar: ROBUSTNESS, dimension: output_attack, taxonomy: output_integrity, scoring: reported_not_scored}
+  system_prompt_extraction: {rubric_point_id: P3.3, pillar: ROBUSTNESS, dimension: system_prompt_extraction, taxonomy: secret_exfiltration, scoring: reported_not_scored}
