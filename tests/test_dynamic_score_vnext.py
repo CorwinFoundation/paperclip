@@ -5,7 +5,11 @@ from decimal import Decimal
 
 import pytest
 
-from dynamic_score_vnext.reference_calculator import calculate, running_git_commit_sha
+from dynamic_score_vnext.reference_calculator import (
+    PARAMETERS,
+    calculate,
+    running_git_commit_sha,
+)
 from dynamic_score_vnext.shadow_path import (
     ShadowPathError,
     calculator_sha256,
@@ -64,6 +68,13 @@ def test_exact_replay_and_n5():
     first = calculate(payload())
     for _ in range(4):
         assert calculate(payload()) == first
+
+
+def test_serialized_parameter_receipt_contains_only_operative_parameters():
+    result = calculate(payload())
+    assert result["parameters"] == {key: str(value) for key, value in PARAMETERS.items()}
+    assert "high_severity_cap" not in result["parameters"]
+    assert "max_family_weight" not in result["parameters"]
 
 
 def test_correlated_probe_volume_cannot_change_family_weight():

@@ -23,8 +23,6 @@ PARAMETERS = {
     "minimum_effective_n": D("5"),
     "confidence_z": D("1.96"),
     "dynamic_blend": D("0.10"),
-    "max_family_weight": D("1.00"),
-    "high_severity_cap": D("54"),
     "band_hysteresis_points": D("2"),
 }
 BANDS = ((D("85"), "A"), (D("70"), "B"), (D("55"), "C"), (D("0"), "D"))
