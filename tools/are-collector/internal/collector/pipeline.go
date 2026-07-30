@@ -10,11 +10,65 @@ import (
 	"backbond/are-collector/internal/adapter"
 	"backbond/are-collector/internal/redaction"
 	"backbond/are-collector/internal/schemav1"
+	"backbond/are-collector/internal/source"
 )
 
 type Pipeline struct {
 	Adapter adapter.LogSinkAdapter
 	Policy  redaction.Policy
+}
+
+// CollectDriver crosses the versioned SourceDriver boundary. Checkpoints advance
+// only after every acquired record has normalized, redacted, and validated.
+func (pipeline Pipeline) CollectDriver(ctx context.Context, driver source.SourceDriver, maxEvents int) ([]schemav1.Event, error) {
+	if driver == nil {
+		return nil, fmt.Errorf("source driver is required")
+	}
+	checkpoint, err := driver.Checkpoint(ctx)
+	if err != nil {
+		return nil, err
+	}
+	records, next, err := driver.Acquire(ctx, checkpoint, maxEvents)
+	if err != nil {
+		return nil, err
+	}
+	events := make([]schemav1.Event, 0, len(records))
+	for _, record := range records {
+		normalized, err := driver.Normalize(record)
+		if err != nil {
+			return nil, err
+		}
+		eventType := schemav1.EventType(normalized.Attributes["schema_event_type"].(string))
+		payload := map[string]any{
+			"operation_name":   normalized.OperationName,
+			"action_class":     normalized.ActionClass,
+			"billable":         normalized.Billable,
+			"outcome_status":   normalized.OutcomeStatus,
+			"session_id":       normalized.SessionID,
+			"agent_id":         normalized.AgentID,
+			"deployment_id":    normalized.DeploymentID,
+			"mapping_version":  normalized.MappingVersion,
+			"source_integrity": normalized.SourceIntegrity,
+			"attributes":       normalized.Attributes,
+		}
+		event := schemav1.NewEvent(normalized.SourceEventID, eventType, normalized.ObservedAt, schemav1.SourceNumbat, payload)
+		policy := redaction.Policy{}
+		for _, path := range normalized.SensitivePaths {
+			policy["attributes."+path] = redaction.Drop
+		}
+		event, err = redaction.Apply(event, policy)
+		if err != nil {
+			return nil, err
+		}
+		if err := schemav1.ValidateEvent(event); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	if err := driver.Commit(ctx, next); err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 func (pipeline Pipeline) Collect(ctx context.Context) ([]schemav1.Event, error) {
