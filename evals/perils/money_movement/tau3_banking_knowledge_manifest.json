@@ -1,0 +1,21 @@
+{
+  "enabled": false,
+  "pilot_id": "oss004-tau3-banking-knowledge",
+  "upstream": {
+    "repository": "https://github.com/sierra-research/tau2-bench.git",
+    "tag": "v1.0.1",
+    "commit": "fc0055dc4e0a316c3f83133267fbd6faaa770992",
+    "domain_tree": "0ce703cbc3e07b0b09905daf29700813b3b8f122"
+  },
+  "task_ids": [
+    "task_001", "task_002", "task_003", "task_004", "task_005",
+    "task_006", "task_007", "task_008", "task_010", "task_012",
+    "task_014", "task_015", "task_016", "task_017", "task_018",
+    "task_019", "task_020", "task_021", "task_022", "task_023"
+  ],
+  "seeds": [0, 1, 2, 3, 4],
+  "trajectory_ceiling": 100,
+  "judge": null,
+  "scoring_activation": false,
+  "deduplicates_against": "transaction_correctness"
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "policy_id": "beaaa-19099-tau3-banking-knowledge",
+  "revision": 1,
+  "allowed_paths": [
+    "evals/perils/money_movement/tau3_banking_knowledge.py",
+    "evals/perils/money_movement/tau3_banking_knowledge_manifest.json",
+    "tests/test_tau3_banking_knowledge_beaaa19099.py"
+  ]
+}
