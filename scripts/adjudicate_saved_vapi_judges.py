@@ -30,7 +30,16 @@ def load_json(path: Path) -> Any:
         return json.load(handle)
 
 
-def saved_rows(evidence: dict[str, Any], scoreability: dict[str, Any]) -> list[dict[str, Any]]:
+def load_jsonl(path: Path) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def saved_rows(
+    evidence: dict[str, Any],
+    scoreability: dict[str, Any],
+    prompt_evidence: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     blocked = {
         row["ordinal"]: row
         for row in scoreability["rows"]
@@ -38,6 +47,8 @@ def saved_rows(evidence: dict[str, Any], scoreability: dict[str, Any]) -> list[d
         in row.get("blockers", [])
     }
     evidence_by_ordinal = {row["ordinal"]: row for row in evidence["records"]}
+    prompt_evidence = prompt_evidence or []
+    prompt_by_text = {row.get("prompt"): row for row in prompt_evidence if row.get("prompt")}
     if len(blocked) != 295:
         raise ValueError(f"expected 295 legacy judge rows, found {len(blocked)}")
 
@@ -64,8 +75,7 @@ def saved_rows(evidence: dict[str, Any], scoreability: dict[str, Any]) -> list[d
             if text_sha != response["response_sha256"]:
                 raise ValueError(f"ordinal {ordinal}: saved response hash mismatch")
             response_hashes.append(response["response_sha256"])
-        output.append(
-            {
+        packet_row = {
                 "ordinal": ordinal,
                 "stable_case_id": row["stable_case_id"],
                 "family_id": row["family_id"],
@@ -86,7 +96,29 @@ def saved_rows(evidence: dict[str, Any], scoreability: dict[str, Any]) -> list[d
                 "canonical_deterministic_result": None,
                 "canonical_score_input_eligible": False,
             }
-        )
+        if row["family_id"] == "hallucination_legal":
+            prompt_turns = row.get("prompt_turn_sequence", [])
+            prompt = prompt_turns[0].get("prompt") if len(prompt_turns) == 1 else None
+            source = prompt_by_text.get(prompt)
+            locator = row.get("prompt_action_reference", {}).get("object_locator", "")
+            if source is None and locator.startswith("line:"):
+                line_number = int(locator.removeprefix("line:"))
+                if 1 <= line_number <= len(prompt_evidence):
+                    source = prompt_evidence[line_number - 1]
+            if not source:
+                raise ValueError(
+                    f"ordinal {ordinal}: hallucination_legal prompt evidence is missing"
+                )
+            packet_row["embedded_prompt_ground_truth_evidence"] = {
+                "prompt": source["prompt"],
+                "ground_truth": source["ground_truth"],
+                "source_citation": source["source_citation"],
+                "forbidden_behavior": source["forbidden_behavior"],
+                "scenario_version": source["scenario_version"],
+                "authoring_ticket": source["authoring_ticket"],
+                "evidence_sha256": canonical_sha(source),
+            }
+        output.append(packet_row)
     return output
 
 
@@ -182,13 +214,17 @@ def main() -> None:
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--scoreability", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--prompt-evidence", type=Path, required=True)
+    parser.add_argument("--cto-cosign-ref", required=True)
+    parser.add_argument("--head-of-uw-cosign-ref", required=True)
     parser.add_argument("--reviewer-a", type=Path)
     parser.add_argument("--reviewer-b", type=Path)
     parser.add_argument("--adjudicator", type=Path)
     args = parser.parse_args()
 
     evidence, scoreability = load_json(args.evidence), load_json(args.scoreability)
-    rows = saved_rows(evidence, scoreability)
+    prompt_evidence = load_jsonl(args.prompt_evidence)
+    rows = saved_rows(evidence, scoreability, prompt_evidence)
     result = adjudicate(
         rows,
         load_reviews(args.reviewer_a, "reviewer_a"),
@@ -208,11 +244,13 @@ def main() -> None:
         "seed_note": "No seed is claimed; adjudication is human-review protocol v2.",
         "source_evidence_sha256": canonical_sha(evidence),
         "source_scoreability_sha256": canonical_sha(scoreability),
+        "source_prompt_evidence_sha256": canonical_sha(prompt_evidence),
         "input_manifest_sha256": canonical_sha(rows),
         "canonical_deterministic_results_unchanged": True,
         "publication_namespace": "adjudicated_saved_llm_judge_v2",
-        "cto_cosign_ref": None,
-        "underwriter_approval_ref": None,
+        "cto_cosign_ref": args.cto_cosign_ref,
+        "head_of_uw_cosign_ref": args.head_of_uw_cosign_ref,
+        "underwriter_approval_ref": args.head_of_uw_cosign_ref,
     }
     result["review_packet"] = rows
     args.output.parent.mkdir(parents=True, exist_ok=True)
