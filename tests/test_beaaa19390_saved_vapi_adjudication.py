@@ -50,6 +50,34 @@ def test_disagreement_without_adjudicator_remains_unresolved():
     result = adjudicate([row], a, b, ("", {}))
     assert result["statistics"]["adjudicated_rows"] == 0
     assert result["statistics"]["unresolved_rows"] == 1
+    assert result["unresolved_results"][0]["adjudicated_score_input_eligible"] is False
+
+
+def test_named_adjudicator_abstention_is_preserved_row_by_row():
+    row = {"ordinal": 1, "stable_case_id": "case.1", "family_id": "family", "response_sha256": "b" * 64, "supportable": True}
+    abstain = {"ordinal": 1, "label": "abstain", "rationale": "frozen rubric excludes"}
+    result = adjudicate(
+        [row],
+        ("reviewer-a", {1: abstain}),
+        ("reviewer-b", {1: abstain}),
+        ("adjudicator", {1: abstain}),
+    )
+    assert result["statistics"]["adjudicated_rows"] == 0
+    assert result["statistics"]["unresolved_rows"] == 1
+    assert result["unresolved_results"][0]["adjudicator"]["identity"] == "adjudicator"
+
+
+def test_adjudicator_must_be_distinct_from_reviewers():
+    row = {"ordinal": 1, "stable_case_id": "case.1", "family_id": "family", "response_sha256": "b" * 64, "supportable": True}
+    pass_row = {"ordinal": 1, "label": "pass", "rationale": "x"}
+    fail_row = {"ordinal": 1, "label": "fail", "rationale": "y"}
+    with pytest.raises(ValueError, match="adjudicator identity"):
+        adjudicate(
+            [row],
+            ("reviewer-a", {1: pass_row}),
+            ("reviewer-b", {1: fail_row}),
+            ("reviewer-a", {1: pass_row}),
+        )
 
 
 def test_hallucination_legal_embeds_prompt_and_ground_truth():

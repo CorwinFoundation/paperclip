@@ -126,7 +126,10 @@ def load_reviews(path: Path | None, role: str) -> tuple[str, dict[int, dict[str,
     if path is None:
         return "", {}
     doc = load_json(path)
-    identity = doc.get("reviewer_identity", "").strip()
+    identity = (
+        doc.get("reviewer_identity")
+        or (doc.get("adjudicator_identity") if role == "adjudicator" else "")
+    ).strip()
     if not identity:
         raise ValueError(f"{role}: reviewer_identity is required")
     decisions: dict[int, dict[str, Any]] = {}
@@ -158,7 +161,9 @@ def adjudicate(
     aid, a, bid, b, cid, c = reviewer_a[0], reviewer_a[1], reviewer_b[0], reviewer_b[1], adjudicator[0], adjudicator[1]
     if aid and aid == bid:
         raise ValueError("reviewer identities must be independent")
-    results, labels_a, labels_b = [], [], []
+    if cid and cid in {aid, bid}:
+        raise ValueError("adjudicator identity must be independent from both reviewers")
+    results, unresolved_results, labels_a, labels_b = [], [], [], []
     for row in rows:
         if not row.get("supportable"):
             continue
@@ -172,6 +177,27 @@ def adjudicate(
             final, method, confidence = la, "reviewer_consensus", 1.0
         else:
             if ordinal not in c or c[ordinal]["label"] == "abstain":
+                unresolved_results.append(
+                    {
+                        "ordinal": ordinal,
+                        "stable_case_id": row["stable_case_id"],
+                        "family_id": row["family_id"],
+                        "source_response_sha256": row["response_sha256"],
+                        "reviewer_a": {"identity": aid, **a[ordinal]},
+                        "reviewer_b": {"identity": bid, **b[ordinal]},
+                        "adjudicator": (
+                            {"identity": cid, **c[ordinal]} if ordinal in c else None
+                        ),
+                        "resolution": "unresolved",
+                        "unresolved_reason": (
+                            "adjudicator_abstained_under_frozen_rubric"
+                            if ordinal in c
+                            else "adjudicator_decision_missing"
+                        ),
+                        "canonical_deterministic_result_unchanged": True,
+                        "adjudicated_score_input_eligible": False,
+                    }
+                )
                 continue
             final, method, confidence = c[ordinal]["label"], "adjudicator", 2 / 3
         results.append(
@@ -196,6 +222,7 @@ def adjudicate(
         "schema": "backbond.saved_judge_adjudication_results.v2",
         "protocol": PROTOCOL,
         "results": results,
+        "unresolved_results": unresolved_results,
         "statistics": {
             "legacy_rows": len(rows),
             "double_reviewed_rows": len(labels_a),
@@ -205,26 +232,50 @@ def adjudicate(
             "unresolved_rows": sum(bool(row.get("supportable")) for row in rows) - len(results),
             "raw_reviewer_agreement": agreement,
             "cohen_kappa": kappa(labels_a, labels_b),
+            "exact_295_reconciliation": (
+                len(results)
+                + len(unresolved_results)
+                + sum(not row.get("supportable") for row in rows)
+                == 295
+            ),
         },
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--evidence", type=Path, required=True)
-    parser.add_argument("--scoreability", type=Path, required=True)
+    parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--scoreability", type=Path)
+    parser.add_argument("--review-packet", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--prompt-evidence", type=Path, required=True)
-    parser.add_argument("--cto-cosign-ref", required=True)
-    parser.add_argument("--head-of-uw-cosign-ref", required=True)
+    parser.add_argument("--prompt-evidence", type=Path)
+    parser.add_argument("--cto-cosign-ref")
+    parser.add_argument("--head-of-uw-cosign-ref")
     parser.add_argument("--reviewer-a", type=Path)
     parser.add_argument("--reviewer-b", type=Path)
     parser.add_argument("--adjudicator", type=Path)
     args = parser.parse_args()
 
-    evidence, scoreability = load_json(args.evidence), load_json(args.scoreability)
-    prompt_evidence = load_jsonl(args.prompt_evidence)
-    rows = saved_rows(evidence, scoreability, prompt_evidence)
+    if args.review_packet:
+        packet = load_json(args.review_packet)
+        rows = packet["review_packet"]
+        source_metadata = packet["metadata"]
+    else:
+        if not (args.evidence and args.scoreability and args.prompt_evidence):
+            parser.error(
+                "--evidence, --scoreability, and --prompt-evidence are required "
+                "when --review-packet is not supplied"
+            )
+        evidence, scoreability = load_json(args.evidence), load_json(args.scoreability)
+        prompt_evidence = load_jsonl(args.prompt_evidence)
+        rows = saved_rows(evidence, scoreability, prompt_evidence)
+        source_metadata = {
+            "source_evidence_sha256": canonical_sha(evidence),
+            "source_scoreability_sha256": canonical_sha(scoreability),
+            "source_prompt_evidence_sha256": canonical_sha(prompt_evidence),
+            "cto_cosign_ref": args.cto_cosign_ref,
+            "head_of_uw_cosign_ref": args.head_of_uw_cosign_ref,
+        }
     result = adjudicate(
         rows,
         load_reviews(args.reviewer_a, "reviewer_a"),
@@ -242,15 +293,28 @@ def main() -> None:
         "temperature": 0,
         "seed": None,
         "seed_note": "No seed is claimed; adjudication is human-review protocol v2.",
-        "source_evidence_sha256": canonical_sha(evidence),
-        "source_scoreability_sha256": canonical_sha(scoreability),
-        "source_prompt_evidence_sha256": canonical_sha(prompt_evidence),
+        "source_evidence_sha256": source_metadata["source_evidence_sha256"],
+        "source_scoreability_sha256": source_metadata["source_scoreability_sha256"],
+        "source_prompt_evidence_sha256": source_metadata["source_prompt_evidence_sha256"],
         "input_manifest_sha256": canonical_sha(rows),
+        "reviewer_a_source_sha256": (
+            canonical_sha(load_json(args.reviewer_a)) if args.reviewer_a else None
+        ),
+        "reviewer_b_source_sha256": (
+            canonical_sha(load_json(args.reviewer_b)) if args.reviewer_b else None
+        ),
+        "adjudicator_source_sha256": (
+            canonical_sha(load_json(args.adjudicator)) if args.adjudicator else None
+        ),
         "canonical_deterministic_results_unchanged": True,
         "publication_namespace": "adjudicated_saved_llm_judge_v2",
-        "cto_cosign_ref": args.cto_cosign_ref,
-        "head_of_uw_cosign_ref": args.head_of_uw_cosign_ref,
-        "underwriter_approval_ref": args.head_of_uw_cosign_ref,
+        "cto_cosign_ref": args.cto_cosign_ref or source_metadata["cto_cosign_ref"],
+        "head_of_uw_cosign_ref": (
+            args.head_of_uw_cosign_ref or source_metadata["head_of_uw_cosign_ref"]
+        ),
+        "underwriter_approval_ref": (
+            args.head_of_uw_cosign_ref or source_metadata["head_of_uw_cosign_ref"]
+        ),
     }
     result["review_packet"] = rows
     args.output.parent.mkdir(parents=True, exist_ok=True)
