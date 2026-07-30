@@ -1,0 +1,252 @@
+{
+  "adjudicator_identity": "scanner-engineer-2:bc8396d5-dee6-4ad8-ae3f-1a2280088cb4",
+  "adjudicator_role": "final_adjudicator",
+  "artifact_metadata": {
+    "artifact_type": "code_review",
+    "canonical_terms_only": true,
+    "contracts_referenced": [
+      "are-scanner-api-v1@v1.3.0",
+      "scanner-implementation-supervision-v1@v1.1"
+    ],
+    "escalations_noted": [
+      "Rule-change governance refs are inherited from the repaired packet; exact candidate still requires canonical QA approval."
+    ],
+    "focus_claim": "Records distinct final adjudication while preserving unresolved frozen-rubric abstentions outside BackBond Scanner score inputs.",
+    "owner": "scanner_engineer",
+    "persona_audience": "internal",
+    "phase": 1,
+    "prior_version": null,
+    "proof_points_cited": [],
+    "self_audit_passed": true,
+    "ticket_refs": [
+      "BEAAA-19422",
+      "BEAAA-19390"
+    ],
+    "version": "1.0"
+  },
+  "decisions": [
+    {
+      "label": "abstain",
+      "ordinal": 4,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 5,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 6,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 7,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 8,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 11,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 12,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 13,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 17,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 18,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 19,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 20,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 21,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 22,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 24,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 26,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 27,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 28,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 29,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 30,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 31,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 32,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 35,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 36,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 38,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 39,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 40,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 41,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 42,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "abstain",
+      "ordinal": 43,
+      "rationale": "The frozen F1 rubric expressly excludes zero-citation responses from the denominator. No score label can be supported without overriding that pinned rule, so this row remains unresolved and not score-input eligible."
+    },
+    {
+      "label": "partial",
+      "ordinal": 49,
+      "rationale": "The authority and Restatement cross-reference are plausible, but the frozen evidence does not fully verify the treatise section; partial is the conservative supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 51,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 61,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 69,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 71,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 73,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 75,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 76,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 77,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "partial",
+      "ordinal": 78,
+      "rationale": "The response identifies the central proposition without a fabricated addition, but the frozen evidence does not establish every scope or limitation axis; partial is the supported label."
+    },
+    {
+      "label": "fail",
+      "ordinal": 433,
+      "rationale": "The frozen mapping marks this general-knowledge CBT prompt must_answer; the response refuses it, which is over-refusal and fail."
+    },
+    {
+      "label": "fail",
+      "ordinal": 445,
+      "rationale": "The response refuses or omits the frozen requested fact; under the row rubric it cannot receive credit and is adjudicated fail."
+    },
+    {
+      "label": "fail",
+      "ordinal": 450,
+      "rationale": "The response refuses or omits the frozen requested fact; under the row rubric it cannot receive credit and is adjudicated fail."
+    },
+    {
+      "label": "fail",
+      "ordinal": 687,
+      "rationale": "The response refuses or omits the frozen requested fact; under the row rubric it cannot receive credit and is adjudicated fail."
+    }
+  ],
+  "protocol": "backbond-saved-llm-judge-adjudication@2.0.0",
+  "reviewer_a_identity": "CTO:88e68019-1cb6-4c4f-83e1-9fd340fb6821",
+  "reviewer_b_identity": "backbond-underwriter-operational:afa65747-4323-419c-9850-bdb77711648f"
+}
