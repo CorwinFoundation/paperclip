@@ -1,3 +1,5 @@
+import { sanitizeInheritedDatabaseCredentialEnv } from "./database-credential-env.js";
+
 const REMOTE_EXECUTION_ENV_IDENTITY_KEYS = new Set([
   "PATH",
   "HOME",
@@ -33,7 +35,12 @@ export function sanitizeRemoteExecutionEnv(
   inheritedEnv: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> {
   const sanitized: Record<string, string> = {};
-  for (const [key, value] of Object.entries(env)) {
+  const databaseSanitized = sanitizeInheritedDatabaseCredentialEnv(
+    env,
+    inheritedEnv,
+  );
+  for (const [key, value] of Object.entries(databaseSanitized)) {
+    if (typeof value !== "string") continue;
     const normalizedKey = key.toUpperCase();
     if (!REMOTE_EXECUTION_ENV_IDENTITY_KEYS.has(normalizedKey)) {
       sanitized[key] = value;

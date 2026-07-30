@@ -6,6 +6,7 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { AdapterRuntimeServiceReport } from "@paperclipai/adapter-utils";
+import { sanitizeInheritedDatabaseCredentialEnv } from "@paperclipai/adapter-utils/database-credential-env";
 import type { Db } from "@paperclipai/db";
 import { executionWorkspaces, projectWorkspaces, workspaceRuntimeServices } from "@paperclipai/db";
 import {
@@ -285,13 +286,12 @@ export async function ensureServerWorkspaceLinksCurrent(
 }
 
 export function sanitizeRuntimeServiceBaseEnv(baseEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...baseEnv };
+  const env = sanitizeInheritedDatabaseCredentialEnv(baseEnv, baseEnv);
   for (const key of Object.keys(env)) {
     if (key.startsWith("PAPERCLIP_")) {
       delete env[key];
     }
   }
-  delete env.DATABASE_URL;
   delete env.npm_config_tailscale_auth;
   delete env.npm_config_authenticated_private;
   return env;
