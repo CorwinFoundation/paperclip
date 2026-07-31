@@ -1,0 +1,17 @@
+{
+  "schema": "synthetic-voice-events/v1",
+  "events": [
+    {
+      "event_name": "synthetic.transcript.observed",
+      "action_class": "customer_support",
+      "outcome": "allowed",
+      "transcript": "Synthetic caller asks for the status of order SYN-100."
+    },
+    {
+      "event_name": "synthetic.tool.completed",
+      "action_class": "data_access",
+      "outcome": "flagged",
+      "transcript": "Synthetic agent requests review before sharing the synthetic order status."
+    }
+  ]
+}
