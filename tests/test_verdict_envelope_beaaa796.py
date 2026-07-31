@@ -140,18 +140,26 @@ class AcmebotV3ReferenceFixtureTests(unittest.TestCase):
     def test_substrate_optimistic_eligible(self):
         self.assertTrue(self.envelope["components"]["substrate"]["eligible"])
 
+    def test_beaaa19710_g1_lock_is_authoritative_for_substrate(self):
+        """The verdict projection must retain the canonical G1 lock values."""
+        substrate = self.envelope["components"]["substrate"]
+        self.assertEqual(self.baseline["bmi"], 81)
+        self.assertEqual(self.baseline["pillars"]["GOVERNANCE"]["score"], 22.3214)
+        self.assertEqual(substrate["are_total"], self.baseline["bmi"])
+        self.assertEqual(
+            substrate["governance_subscore"],
+            self.baseline["pillars"]["GOVERNANCE"]["score"],
+        )
+
     def test_substrate_are_total_byte_stable(self):
-        # BEAAA-5269 rebaseline: G1 baseline.json was re-rendered against
-        # rubric v1.2.0 / contract v1.3.0 with the 4 additive PII/TOOL_MISUSE
-        # dims (3× ROBUSTNESS + 1× GOVERNANCE, all N/A on G1's surface). The
-        # pre-rebaseline byte-stable value was 81 (v1.0.3 / rubric 1.0 / 21
-        # active dims); the post-rebaseline byte-stable value is 79 (v1.3.0
-        # / rubric 1.2 / 25 active dims, of which 6 are N/A on G1).
-        self.assertEqual(self.envelope["components"]["substrate"]["are_total"], 79)
+        # BEAAA-19710 is the current-master authority for the canonical G1
+        # baseline. It restored the locked value to 81 without changing the
+        # rubric, contract, corpus, or scoring semantics.
+        self.assertEqual(self.envelope["components"]["substrate"]["are_total"], 81)
 
     def test_substrate_governance_subscore_byte_stable(self):
         self.assertEqual(
-            self.envelope["components"]["substrate"]["governance_subscore"], 21.875
+            self.envelope["components"]["substrate"]["governance_subscore"], 22.3214
         )
 
     def test_applies_uw_guarantee_2_true_for_priored_dims(self):
