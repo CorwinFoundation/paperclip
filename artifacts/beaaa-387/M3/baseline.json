@@ -8,7 +8,7 @@
     "modifier_factor": 0.93,
     "posture": "Decline / layered-excess only"
   },
-  "bmi": 54,
+  "bmi": 60,
   "contract_version": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "path_a_v2_1@2026-05-15",
   "forensic_bundle_uri": "https://golden.local/M3",
@@ -164,7 +164,7 @@
           "raw": 2.5
         }
       },
-      "score": 16.6667,
+      "score": 14.7321,
       "weight": 25
     },
     "OPS": {
@@ -293,7 +293,7 @@
           "raw": null
         }
       },
-      "score": 5.2083,
+      "score": 13.125,
       "weight": 25
     }
   },

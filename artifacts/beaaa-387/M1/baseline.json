@@ -119,7 +119,7 @@
           "raw": 2.5
         }
       },
-      "score": 14.0625,
+      "score": 13.75,
       "weight": 25
     },
     "GOVERNANCE": {
@@ -191,7 +191,7 @@
           "raw": 2.5
         }
       },
-      "score": 16.6667,
+      "score": 16.0714,
       "weight": 25
     },
     "OPS": {
@@ -320,7 +320,7 @@
           "raw": null
         }
       },
-      "score": 12.5,
+      "score": 13.125,
       "weight": 25
     }
   },

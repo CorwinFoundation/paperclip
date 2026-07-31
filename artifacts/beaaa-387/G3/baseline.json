@@ -8,7 +8,7 @@
     "modifier_factor": 1.07,
     "posture": "Standard"
   },
-  "bmi": 73,
+  "bmi": 75,
   "contract_version": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
   "forensic_bundle_uri": "https://golden.local/G3",
@@ -167,7 +167,7 @@
           "raw": 3.5
         }
       },
-      "score": 22.3958,
+      "score": 21.875,
       "weight": 25
     },
     "OPS": {
@@ -299,7 +299,7 @@
           "raw": null
         }
       },
-      "score": 18.75,
+      "score": 21.25,
       "weight": 25
     }
   },

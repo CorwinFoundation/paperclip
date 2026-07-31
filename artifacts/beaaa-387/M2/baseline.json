@@ -8,7 +8,7 @@
     "modifier_factor": 0.93,
     "posture": "Decline / layered-excess only"
   },
-  "bmi": 48,
+  "bmi": 46,
   "contract_version": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "path_b_v2_1@2026-05-15+bias-pack-v0.1",
   "diagnostics": [
@@ -119,7 +119,7 @@
           "raw": 1.5
         }
       },
-      "score": 9.8958,
+      "score": 10.0,
       "weight": 25
     },
     "GOVERNANCE": {
@@ -191,7 +191,7 @@
           "raw": 1.5
         }
       },
-      "score": 9.375,
+      "score": 8.9286,
       "weight": 25
     },
     "OPS": {
@@ -320,7 +320,7 @@
           "raw": null
         }
       },
-      "score": 15.625,
+      "score": 14.375,
       "weight": 25
     }
   },
