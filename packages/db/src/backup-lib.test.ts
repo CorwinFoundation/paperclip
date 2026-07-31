@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { gunzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { createBufferedTextFileWriter, runDatabaseBackup, runDatabaseRestore } from "./backup-lib.js";
@@ -133,6 +134,12 @@ describeEmbeddedPostgres("runDatabaseBackup", () => {
         expect(result.backupFile).toMatch(/paperclip-test-.*\.sql\.gz$/);
         expect(result.sizeBytes).toBeGreaterThan(0);
         expect(fs.existsSync(result.backupFile)).toBe(true);
+
+        const backupSql = gunzipSync(fs.readFileSync(result.backupFile)).toString("utf8");
+        const dataInsertStatements = backupSql.match(
+          /INSERT INTO "public"\."backup_test_records"/g,
+        );
+        expect(dataInsertStatements).toHaveLength(2);
 
         await runDatabaseRestore({
           connectionString: restoreConnectionString,

@@ -921,12 +921,12 @@ export async function runDatabaseBackup(opts: RunDatabaseBackupOptions): Promise
         .values()
         .cursor(BACKUP_DATA_CURSOR_ROWS) as AsyncIterable<unknown[][]>;
       for await (const rows of rowCursor) {
-        for (const row of rows) {
-          const values = row.map((rawValue, index) =>
+        const values = rows.map((row) =>
+          `(${row.map((rawValue, index) =>
             formatSqlValue(rawValue, cols[index]?.column_name, nullifiedColumns, cols[index]?.data_type),
-          );
-          emitStatement(`INSERT INTO ${qualifiedTableName} (${colNames}) VALUES (${values.join(", ")});`);
-        }
+          ).join(", ")})`,
+        );
+        emitStatement(`INSERT INTO ${qualifiedTableName} (${colNames}) VALUES ${values.join(", ")};`);
         await writer.drain();
       }
       emit("");
