@@ -12,7 +12,7 @@ const DEFAULT_BRIDGE_POLL_INTERVAL_MS = 100;
 const DEFAULT_BRIDGE_RESPONSE_TIMEOUT_MS = 30_000;
 const DEFAULT_BRIDGE_STOP_TIMEOUT_MS = 2_000;
 const DEFAULT_BRIDGE_MAX_QUEUE_DEPTH = 64;
-const DEFAULT_BRIDGE_MAX_BODY_BYTES = 256 * 1024;
+const DEFAULT_BRIDGE_MAX_BODY_BYTES = 25 * 1024 * 1024;
 const REMOTE_WRITE_BASE64_CHUNK_SIZE = 32 * 1024;
 const SANDBOX_CALLBACK_BRIDGE_ENTRYPOINT = "paperclip-bridge-server.mjs";
 const SANDBOX_EXEC_CHANNEL_ENV = "PAPERCLIP_SANDBOX_EXEC_CHANNEL";
@@ -66,6 +66,8 @@ export const DEFAULT_SANDBOX_CALLBACK_BRIDGE_ROUTE_ALLOWLIST: readonly SandboxCa
   { method: "POST", path: /^\/api\/issues\/[^/]+\/release$/ },
   { method: "PATCH", path: /^\/api\/issues\/[^/]+$/ },
   { method: "GET", path: /^\/api\/issues\/[^/]+\/approvals$/ },
+  { method: "GET", path: /^\/api\/issues\/[^/]+\/attachments$/ },
+  { method: "POST", path: /^\/api\/companies\/[^/]+\/issues\/[^/]+\/attachments$/ },
 
   // Issue-thread interactions (suggest tasks, ask questions, request confirmation)
   { method: "GET", path: /^\/api\/issues\/[^/]+\/interactions(?:\/[^/]+)?$/ },
@@ -110,11 +112,9 @@ export interface SandboxCallbackBridgeRequest {
   path: string;
   query: string;
   headers: Record<string, string>;
-  /**
-   * UTF-8 body contents. The bridge rejects non-JSON request bodies; binary
-   * payloads are intentionally out of scope for this queue protocol.
-   */
+  /** Request body framed for safe JSON queue transport. */
   body: string;
+  bodyEncoding?: "utf8" | "base64";
   createdAt: string;
 }
 
@@ -639,6 +639,18 @@ export async function startSandboxCallbackBridgeWorker(input: {
       return;
     }
 
+    if (request.bodyEncoding !== undefined && request.bodyEncoding !== "utf8" && request.bodyEncoding !== "base64") {
+      await writeBridgeResponse(input.client, requestPath, responsePath, {
+        id: request.id,
+        status: 400,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Invalid bridge request body encoding." }),
+        completedAt: new Date().toISOString(),
+      });
+      await input.client.remove(requestPath);
+      return;
+    }
+
     const denialReason = await authorizeRequest(request);
     if (denialReason) {
       await writeBridgeResponse(input.client, requestPath, responsePath, {
@@ -1066,7 +1078,7 @@ async function readBody(req) {
       throw new Error("Bridge request body exceeded the configured size limit.");
     }
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks);
 }
 
 async function queueDepth() {
@@ -1115,21 +1127,29 @@ const server = createServer(async (req, res) => {
 
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const contentType = typeof req.headers["content-type"] === "string" ? req.headers["content-type"] : "";
-    if (req.method && req.method !== "GET" && req.method !== "HEAD" && !/json/i.test(contentType)) {
+    if (
+      req.method &&
+      req.method !== "GET" &&
+      req.method !== "HEAD" &&
+      !/json/i.test(contentType) &&
+      !/^multipart\\/form-data(?:;|$)/i.test(contentType)
+    ) {
       res.statusCode = 415;
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ error: "Bridge only accepts JSON request bodies." }));
+      res.end(JSON.stringify({ error: "Bridge only accepts JSON or multipart form request bodies." }));
       return;
     }
     const requestId = randomUUID();
     const requestBody = await readBody(req);
+    const bodyEncoding = /^multipart\\/form-data(?:;|$)/i.test(contentType) ? "base64" : "utf8";
     const payload = {
       id: requestId,
       method: req.method || "GET",
       path: url.pathname,
       query: url.search,
       headers: normalizeHeaders(req.headers),
-      body: requestBody,
+      body: bodyEncoding === "base64" ? requestBody.toString("base64") : requestBody.toString("utf8"),
+      bodyEncoding,
       createdAt: new Date().toISOString(),
     };
     const requestPath = path.posix.join(requestsDir, \`\${requestId}.json\`);

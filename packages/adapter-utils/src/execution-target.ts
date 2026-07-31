@@ -1158,7 +1158,14 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
         const response = await fetch(buildBridgeForwardUrl(hostApiUrl, request), {
           method,
           headers,
-          ...(method === "GET" || method === "HEAD" ? {} : { body: request.body }),
+          ...(method === "GET" || method === "HEAD"
+            ? {}
+            : {
+                body:
+                  request.bodyEncoding === "base64"
+                    ? Buffer.from(request.body, "base64")
+                    : request.body,
+              }),
           signal: AbortSignal.timeout(30_000),
         });
         if (bridgeDebugEnabled) {

@@ -11984,6 +11984,17 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     });
 
     if (cancelled) {
+      // Remote/plugin executions do not have a host child process to signal.
+      // Release their lease as part of cancellation instead of waiting for the
+      // blocked execute RPC's finally block. Provider release destroys the
+      // ephemeral sandbox and therefore terminates the remote process.
+      await releaseEnvironmentLeasesForRun({
+        runId: cancelled.id,
+        companyId: cancelled.companyId,
+        agentId: cancelled.agentId,
+        status: cancelled.status,
+        failureReason: reason,
+      });
       await appendRunEvent(cancelled, 1, {
         eventType: "lifecycle",
         stream: "system",

@@ -1965,6 +1965,7 @@ export function issueRoutes(
     },
   ) {
     if (req.actor.type !== "agent") return true;
+    if (!(await assertActiveAgentRunForMutation(req, res, issue.companyId))) return false;
     const actorAgentId = req.actor.agentId;
     if (!actorAgentId) {
       res.status(403).json({ error: "Agent authentication required" });
@@ -2046,6 +2047,7 @@ export function issueRoutes(
     },
   ) {
     if (req.actor.type !== "agent") return true;
+    if (!(await assertActiveAgentRunForMutation(req, res, issue.companyId))) return false;
     const actorAgentId = req.actor.agentId;
     if (!actorAgentId) {
       res.status(403).json({ error: "Agent authentication required" });
@@ -2477,6 +2479,7 @@ export function issueRoutes(
         id: heartbeatRuns.id,
         companyId: heartbeatRuns.companyId,
         agentId: heartbeatRuns.agentId,
+        status: heartbeatRuns.status,
         contextSnapshot: heartbeatRuns.contextSnapshot,
       })
       .from(heartbeatRuns)
@@ -2484,6 +2487,22 @@ export function issueRoutes(
       .then((rows) => rows[0] ?? null);
     if (!run || run.companyId !== companyId || run.agentId !== req.actor.agentId) return null;
     return run;
+  }
+
+  async function assertActiveAgentRunForMutation(req: Request, res: Response, companyId: string) {
+    if (req.actor.type !== "agent" || !req.actor.runId?.trim()) return true;
+    const run = await loadActorRunContext(req, companyId);
+    if (!run || !["cancelled", "failed", "succeeded", "timed_out"].includes(String(run.status))) {
+      return true;
+    }
+    res.status(409).json({
+      error: "Heartbeat run is no longer active",
+      details: {
+        runId: run.id,
+        status: run.status,
+      },
+    });
+    return false;
   }
 
   async function assertCheapRecoveryIssueAssigneeProfileAllowed(
@@ -8228,6 +8247,7 @@ export function issueRoutes(
       return;
     }
     assertCompanyAccess(req, issue.companyId);
+    if (!(await assertIssueReadAllowed(req, res, issue))) return;
     const attachments = await svc.listAttachments(issueId);
     res.json(attachments.map(withContentPath));
   });

@@ -269,16 +269,21 @@ function createRunContextDb(
         companyId,
         agentId: runAgentOrRows,
         agentCompanyId: companyId,
+        status: "running",
         contextSnapshot,
       }];
-  const firstRun = runRows[0] ?? {};
+  const normalizedRunRows = runRows.map((row) => ({
+    status: "running",
+    ...row,
+  }));
+  const firstRun = normalizedRunRows[0] ?? {};
   const runAgentId = typeof firstRun.agentId === "string" ? firstRun.agentId : ownerAgentId;
   const runAgentCompanyId = typeof firstRun.agentCompanyId === "string" ? firstRun.agentCompanyId : companyId;
   const rowsForSelection = (selection: Record<string, unknown>) => {
     const keys = Object.keys(selection);
     if (keys.includes("entityId")) return [];
-    if (keys.includes("contextSnapshot")) return runRows;
-    if (keys.includes("agentCompanyId")) return runRows;
+    if (keys.includes("contextSnapshot")) return normalizedRunRows;
+    if (keys.includes("agentCompanyId")) return normalizedRunRows;
     return [{ id: runAgentId, companyId: runAgentCompanyId, permissions: {}, role: "engineer", reportsTo: null }];
   };
   const buildQuery = (selection: Record<string, unknown>) => {
@@ -940,6 +945,47 @@ describe("agent issue mutation checkout ownership", () => {
     expect(res.status, JSON.stringify(res.body)).toBe(401);
     expect(res.body.error).toBe("Agent run id required");
     expect(mockStorageService.putFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects attachment writes from a cancelled heartbeat run", async () => {
+    const app = await createApp(
+      ownerActor(),
+      createRunContextDb({}, [{
+        id: ownerRunId,
+        companyId,
+        agentId: ownerAgentId,
+        agentCompanyId: companyId,
+        status: "cancelled",
+        contextSnapshot: {},
+      }]),
+    );
+
+    const res = await request(app)
+      .post(`/api/companies/${companyId}/issues/${issueId}/attachments`)
+      .attach("file", Buffer.from("late report"), { filename: "late.txt", contentType: "text/plain" });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(409);
+    expect(res.body).toMatchObject({
+      error: "Heartbeat run is no longer active",
+      details: { runId: ownerRunId, status: "cancelled" },
+    });
+    expect(mockStorageService.putFile).not.toHaveBeenCalled();
+  });
+
+  it("applies issue read scope when an agent lists attachments", async () => {
+    mockAccessService.decide.mockImplementation(async (input: { action: string }) => ({
+      allowed: input.action !== "issue:read",
+      action: input.action,
+      reason: input.action === "issue:read" ? "deny_missing_grant" : "allow_test_default",
+      explanation: input.action === "issue:read" ? "Missing permission." : "Allowed by test default.",
+    }));
+
+    const res = await request(await createApp(peerActor()))
+      .get(`/api/issues/${issueId}/attachments`);
+
+    expect(res.status, JSON.stringify(res.body)).toBe(403);
+    expect(res.body.error).toBe("Issue is outside this actor's authorization boundary");
+    expect(mockIssueService.listAttachments).not.toHaveBeenCalled();
   });
 
   it("allows the checked-out owner with the matching run id to patch and update documents", async () => {
