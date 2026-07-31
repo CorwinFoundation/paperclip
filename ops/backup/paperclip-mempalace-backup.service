@@ -1,0 +1,22 @@
+[Unit]
+Description=Backup Paperclip and Memory Palace with logical database authority
+After=local-fs.target mnt-paperclipdata.mount
+RequiresMountsFor=/mnt/paperclipdata /var/backups
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+EnvironmentFile=-/etc/paperclip/backup-paperclip-mempalace.conf
+ExecStart=/usr/local/sbin/backup-paperclip-mempalace.sh
+TimeoutStartSec=6h
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=full

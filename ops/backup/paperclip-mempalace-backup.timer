@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily hardened Paperclip and Memory Palace backup
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 UTC
+Persistent=true
+RandomizedDelaySec=0
+Unit=paperclip-mempalace-backup.service
+
+[Install]
+WantedBy=timers.target
