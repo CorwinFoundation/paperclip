@@ -9,9 +9,11 @@ import base64
 import hashlib
 import json
 import os
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 from typing import Any, Mapping, Sequence
 
 import yaml
@@ -25,10 +27,12 @@ FEATURE_FLAG = "BACKBOND_AGENT_EGRESS_CONTROL"
 SOURCE_PROJECT = "luckyPipewrench/agent-egress-bench"
 SOURCE_COMMIT = "e19efee4894994c887f6ae69bcdfbc05b93b56db"
 CASES_TREE = "d1d50c8d3e5a920311c53686f0d2fc3fdbe33d33"
+CASES_SHA256 = "sha256:8a9a6d99c4573cad1bfd66b0f6264db9e30a3694c09587c21edb15ba2009645e"
 ORACLE_VERSION = "agent-egress-control-oracle-v1"
 RECEIPT_VERSION = "agent-egress-control-receipt-v2"
 SIGNATURE_ALGORITHM = "ed25519"
 OUTCOMES = ("passed", "failed", "errored", "not_applicable")
+_SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}\Z")
 
 
 @dataclass(frozen=True)
@@ -74,6 +78,11 @@ def enabled(env: Mapping[str, str] | None = None) -> bool:
 
 def load_cases(root: Path) -> tuple[ControlCase, ...]:
     """Resolve each logical case exactly once in stable ID order."""
+    actual_digest = corpus_sha256(root)
+    if actual_digest != CASES_SHA256:
+        raise ValueError(
+            f"pinned corpus digest mismatch: expected {CASES_SHA256}, got {actual_digest}"
+        )
     cases: list[ControlCase] = []
     paths = sorted(root.glob("*/*.json"))
     paths.extend(sorted(root.glob("mcp-drift/*/case.yaml")))
@@ -232,6 +241,25 @@ def _canonical_bytes(value: Mapping[str, Any]) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
+def _resolve_evidence(evidence_uri: str, claimed_sha256: str) -> str:
+    """Bind a receipt to readable local evidence bytes before any evaluation."""
+    if not isinstance(claimed_sha256, str) or not _SHA256_RE.fullmatch(claimed_sha256):
+        raise ValueError("evidence_sha256 must match canonical sha256:<64-lowercase-hex>")
+    parsed = urlparse(evidence_uri)
+    if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+        raise ValueError("evidence_uri must resolve to a local file")
+    path = Path(unquote(parsed.path))
+    if not path.is_file():
+        raise ValueError("evidence_uri must resolve to a readable regular file")
+    try:
+        actual = f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+    except OSError as exc:
+        raise ValueError("evidence_uri must resolve to a readable regular file") from exc
+    if actual != claimed_sha256:
+        raise ValueError("evidence_sha256 content mismatch")
+    return actual
+
+
 def run(
     cases: Sequence[ControlCase],
     inputs: ApplicabilityInputs,
@@ -245,6 +273,7 @@ def run(
 ) -> dict[str, Any]:
     if not enabled(env):
         raise RuntimeError(f"{FEATURE_FLAG} is disabled")
+    verified_evidence_sha256 = _resolve_evidence(evidence_uri, evidence_sha256)
     if type(adapter) is not FixtureAdapter:
         raise TypeError(
             "unverifiable adapter rejected: run requires the sealed, declarative "
@@ -310,7 +339,7 @@ def run(
         "license_ref": "third_party/oss-pilots/agent-egress-bench/LICENSE",
         "execution_replicates": 1,
         "evidence_uri": evidence_uri,
-        "evidence_sha256": evidence_sha256,
+        "evidence_sha256": verified_evidence_sha256,
         "counts": summary,
         "results": results,
         "execution_boundary": "sealed-declarative-local-v1",

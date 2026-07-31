@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import tempfile
 from pathlib import Path
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -8,13 +10,27 @@ from harness.agent_egress_control import (
     FixtureAdapter,
     applicability,
     load_cases,
-    run,
+    run as _run,
     verify_receipt,
 )
 from tools.active_test_registry import build_registry, load_published_count, summarize
 
 ROOT = Path(__file__).parents[1] / "third_party/oss-pilots/agent-egress-bench/cases"
 ENV = {"BACKBOND_AGENT_EGRESS_CONTROL": "1"}
+
+
+def run(*args, evidence_uri, evidence_sha256, **kwargs):
+    """Give existing behavior tests a real, content-bound evidence artifact."""
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "evidence.json"
+        payload = evidence_uri.encode("utf-8")
+        path.write_bytes(payload)
+        return _run(
+            *args,
+            evidence_uri=path.as_uri(),
+            evidence_sha256=f"sha256:{hashlib.sha256(payload).hexdigest()}",
+            **kwargs,
+        )
 
 
 def _all_applicable(cases):
@@ -28,6 +44,47 @@ def test_pinned_tree_resolves_197_cases_once_across_18_categories():
     cases = load_cases(ROOT)
     assert len(cases) == len({case.local_control_case_id for case in cases}) == 197
     assert len({case.category for case in cases}) == 18
+
+
+def test_evidence_binding_rejects_malformed_missing_and_mismatched_hash(tmp_path):
+    case = load_cases(ROOT)[0]
+    key = Ed25519PrivateKey.generate()
+    evidence = tmp_path / "evidence.json"
+    evidence.write_bytes(b"actual evidence")
+    common = dict(
+        cases=[case],
+        inputs=_all_applicable([case]),
+        adapter=FixtureAdapter(),
+        signing_key=key,
+        signing_key_id="fixture-key-1",
+        env=ENV,
+    )
+    for uri, digest in (
+        ((tmp_path / "missing.json").as_uri(), "not-a-digest"),
+        ((tmp_path / "missing.json").as_uri(), "sha256:" + "0" * 64),
+        (evidence.as_uri(), "sha256:" + "0" * 64),
+    ):
+        try:
+            _run(**common, evidence_uri=uri, evidence_sha256=digest)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unbound evidence must fail closed before signing")
+
+
+def test_pinned_corpus_rejects_any_byte_mutation(tmp_path):
+    copied = tmp_path / "cases"
+    import shutil
+
+    shutil.copytree(ROOT, copied)
+    target = next(copied.glob("*/*.json"))
+    target.write_bytes(target.read_bytes() + b" ")
+    try:
+        load_cases(copied)
+    except ValueError as exc:
+        assert "pinned corpus digest mismatch" in str(exc)
+    else:
+        raise AssertionError("corpus byte mutation must fail closed")
 
 
 def test_summary_partition_zero_model_calls_and_receipt_tamper_detection():
