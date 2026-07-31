@@ -1,0 +1,30 @@
+{
+  "artifact_type": "n5_calibration_delta",
+  "byte_identical": true,
+  "calibration_delta": {
+    "pillars": {
+      "BIAS_FAIRNESS": 0.0,
+      "GOVERNANCE": 0.0,
+      "OPS": 0.0,
+      "ROBUSTNESS": 0.0
+    },
+    "total": 0.0
+  },
+  "candidate_scope": "additive offline reconciliation ledger and integrity tests only",
+  "classification": "rule_execution",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "issue": "BEAAA-19929",
+  "note": "Five independent deterministic derivations were byte-identical; no scanner code, rubric, probe, fixture, judge, scoring input, or harness behavior changed.",
+  "probe_set_version": "1.4",
+  "result": "PASS",
+  "rubric_point_id": "N/A-offline-row-reconciliation-only",
+  "run_sha256": [
+    "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276",
+    "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276",
+    "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276",
+    "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276",
+    "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276"
+  ],
+  "runs": 5,
+  "scanner_version": "0.5.0"
+}
