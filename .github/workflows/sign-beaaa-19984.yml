@@ -28,10 +28,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assert authorized release revision is an ancestor
+      - name: Assert authorized master release context
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/master"
           git merge-base --is-ancestor "$RELEASE_REVISION" "$GITHUB_SHA"
 
       - name: Authenticate to GHCR
