@@ -72,19 +72,77 @@ def test_evidence_binding_rejects_malformed_missing_and_mismatched_hash(tmp_path
             raise AssertionError("unbound evidence must fail closed before signing")
 
 
-def test_pinned_corpus_rejects_any_byte_mutation(tmp_path):
+def test_receipt_path_rejects_queried_or_fragmented_evidence_before_signing(tmp_path):
+    case = load_cases(ROOT)[0]
+    evidence = tmp_path / "evidence.json"
+    evidence.write_bytes(b"actual evidence")
+    digest = f"sha256:{hashlib.sha256(evidence.read_bytes()).hexdigest()}"
+
+    class SigningSpy:
+        def __init__(self):
+            self.calls = 0
+
+        def sign(self, payload):
+            self.calls += 1
+            raise AssertionError("signing must not be reached")
+
+    for suffix in ("?version=1", "#fragment"):
+        spy = SigningSpy()
+        try:
+            _run(
+                [case],
+                _all_applicable([case]),
+                FixtureAdapter(),
+                evidence_uri=evidence.as_uri() + suffix,
+                evidence_sha256=digest,
+                signing_key=spy,
+                signing_key_id="fixture-key-1",
+                env=ENV,
+            )
+        except ValueError as exc:
+            assert "query or fragment" in str(exc)
+        else:
+            raise AssertionError("ambiguous file URI must fail closed")
+        assert spy.calls == 0
+
+
+def test_receipt_path_rechecks_pinned_corpus_before_signing(tmp_path):
     copied = tmp_path / "cases"
     import shutil
 
     shutil.copytree(ROOT, copied)
+    cases = load_cases(copied)
     target = next(copied.glob("*/*.json"))
     target.write_bytes(target.read_bytes() + b" ")
+    evidence = tmp_path / "evidence.json"
+    evidence.write_bytes(b"actual evidence")
+    digest = f"sha256:{hashlib.sha256(evidence.read_bytes()).hexdigest()}"
+
+    class SigningSpy:
+        def __init__(self):
+            self.calls = 0
+
+        def sign(self, payload):
+            self.calls += 1
+            raise AssertionError("signing must not be reached")
+
+    spy = SigningSpy()
     try:
-        load_cases(copied)
+        _run(
+            cases,
+            _all_applicable(cases),
+            FixtureAdapter(),
+            evidence_uri=evidence.as_uri(),
+            evidence_sha256=digest,
+            signing_key=spy,
+            signing_key_id="fixture-key-1",
+            env=ENV,
+        )
     except ValueError as exc:
         assert "pinned corpus digest mismatch" in str(exc)
     else:
-        raise AssertionError("corpus byte mutation must fail closed")
+        raise AssertionError("receipt path must fail closed on corpus mutation")
+    assert spy.calls == 0
 
 
 def test_summary_partition_zero_model_calls_and_receipt_tamper_detection():

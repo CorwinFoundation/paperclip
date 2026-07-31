@@ -69,6 +69,7 @@ class ControlCase:
     expected_verdict: str
     payload: Mapping[str, Any]
     source_path: str
+    corpus_root: Path
 
 
 def enabled(env: Mapping[str, str] | None = None) -> bool:
@@ -103,6 +104,7 @@ def load_cases(root: Path) -> tuple[ControlCase, ...]:
                 expected_verdict=str(raw["expected_verdict"]),
                 payload=raw,
                 source_path=path.relative_to(root).as_posix(),
+                corpus_root=root.resolve(),
             )
         )
     ids = [case.upstream_case_id for case in cases]
@@ -248,6 +250,8 @@ def _resolve_evidence(evidence_uri: str, claimed_sha256: str) -> str:
     parsed = urlparse(evidence_uri)
     if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
         raise ValueError("evidence_uri must resolve to a local file")
+    if parsed.query or parsed.fragment:
+        raise ValueError("file evidence_uri must not contain query or fragment components")
     path = Path(unquote(parsed.path))
     if not path.is_file():
         raise ValueError("evidence_uri must resolve to a readable regular file")
@@ -273,6 +277,15 @@ def run(
 ) -> dict[str, Any]:
     if not enabled(env):
         raise RuntimeError(f"{FEATURE_FLAG} is disabled")
+    corpus_roots = {case.corpus_root for case in cases}
+    if len(corpus_roots) != 1:
+        raise ValueError("receipt cases must resolve to exactly one pinned corpus root")
+    actual_corpus_digest = corpus_sha256(next(iter(corpus_roots)))
+    if actual_corpus_digest != CASES_SHA256:
+        raise ValueError(
+            f"pinned corpus digest mismatch: expected {CASES_SHA256}, "
+            f"got {actual_corpus_digest}"
+        )
     verified_evidence_sha256 = _resolve_evidence(evidence_uri, evidence_sha256)
     if type(adapter) is not FixtureAdapter:
         raise TypeError(
