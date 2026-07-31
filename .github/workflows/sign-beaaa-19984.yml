@@ -13,8 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RELEASE_REVISION: 0757f835c7b9226af88340b015889fab1d8ad3bb
-  IMAGE_REF: ghcr.io/corwinfoundation/are-scanner@sha256:1b4895cac835bbbf2d79bc80868297ba797f5eca3277c91ffdb0b7825631da93
+  IMAGE_REPOSITORY: ghcr.io/corwinfoundation/are-scanner
   CERTIFICATE_IDENTITY: https://github.com/CorwinFoundation/are-scanner/.github/workflows/sign-beaaa-19984.yml@refs/heads/master
   OIDC_ISSUER: https://token.actions.githubusercontent.com
 
@@ -33,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/master"
-          git merge-base --is-ancestor "$RELEASE_REVISION" "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Authenticate to GHCR
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
@@ -42,20 +41,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Assert exact OCI revision label
+      - name: Resolve exact image digest and assert OCI revision label
+        id: image
         shell: bash
         run: |
           set -euo pipefail
-          docker pull "$IMAGE_REF"
-          actual_revision="$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
-          test "$actual_revision" = "$RELEASE_REVISION"
+          image_tag="${IMAGE_REPOSITORY}:sha-${GITHUB_SHA}"
+          docker pull "$image_tag"
+          actual_revision="$(docker image inspect "$image_tag" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+          test "$actual_revision" = "$GITHUB_SHA"
+
+          repository_digest="$(docker image inspect "$image_tag" --format '{{ range .RepoDigests }}{{ println . }}{{ end }}' \
+            | awk -v repository="${IMAGE_REPOSITORY}@sha256:" 'index($0, repository) == 1 { print; exit }')"
+          test -n "$repository_digest"
+          [[ "$repository_digest" =~ ^${IMAGE_REPOSITORY}@sha256:[0-9a-f]{64}$ ]]
+
+          mkdir -p signing-evidence
+          printf '%s\n' "$GITHUB_SHA" | tee signing-evidence/github-sha.txt
+          printf '%s\n' "$image_tag" | tee signing-evidence/image-tag.txt
+          printf '%s\n' "$actual_revision" | tee signing-evidence/oci-revision.txt
+          printf '%s\n' "$repository_digest" | tee signing-evidence/image-digest.txt
+          printf 'image_ref=%s\n' "$repository_digest" >> "$GITHUB_OUTPUT"
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
 
       - name: Sign only the authorized image digest
         shell: bash
-        run: cosign sign --yes "$IMAGE_REF"
+        run: cosign sign --yes "${{ steps.image.outputs.image_ref }}"
 
       - name: Verify keyless signature and save evidence
         shell: bash
@@ -66,7 +79,7 @@ jobs:
             --certificate-identity "$CERTIFICATE_IDENTITY" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
             --output json \
-            "$IMAGE_REF" | tee signing-evidence/cosign-verify.json
+            "${{ steps.image.outputs.image_ref }}" | tee signing-evidence/cosign-verify.json
           printf '%s\n' "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             | tee signing-evidence/run-url.txt
 
