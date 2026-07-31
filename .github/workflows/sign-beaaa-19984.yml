@@ -1,0 +1,78 @@
+name: Sign exact BEAAA-19984 image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: sign-exact-beaaa-19984-image
+  cancel-in-progress: false
+
+env:
+  RELEASE_REVISION: 0757f835c7b9226af88340b015889fab1d8ad3bb
+  IMAGE_REF: ghcr.io/corwinfoundation/are-scanner@sha256:1b4895cac835bbbf2d79bc80868297ba797f5eca3277c91ffdb0b7825631da93
+  CERTIFICATE_IDENTITY: https://github.com/CorwinFoundation/are-scanner/.github/workflows/sign-beaaa-19984.yml@refs/heads/master
+  OIDC_ISSUER: https://token.actions.githubusercontent.com
+
+jobs:
+  sign:
+    name: Verify inputs, sign digest, and verify signature
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out workflow revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Assert authorized release revision is an ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$RELEASE_REVISION" "$GITHUB_SHA"
+
+      - name: Authenticate to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert exact OCI revision label
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE_REF"
+          actual_revision="$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+          test "$actual_revision" = "$RELEASE_REVISION"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+
+      - name: Sign only the authorized image digest
+        shell: bash
+        run: cosign sign --yes "$IMAGE_REF"
+
+      - name: Verify keyless signature and save evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p signing-evidence
+          cosign verify \
+            --certificate-identity "$CERTIFICATE_IDENTITY" \
+            --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --output json \
+            "$IMAGE_REF" | tee signing-evidence/cosign-verify.json
+          printf '%s\n' "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            | tee signing-evidence/run-url.txt
+
+      - name: Upload signing evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: beaaa-19984-signing-evidence
+          path: signing-evidence/
+          if-no-files-found: error
+          retention-days: 90
