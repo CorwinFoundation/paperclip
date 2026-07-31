@@ -23,7 +23,9 @@ terminal INVALID disposition rather than an inferred semantic verdict.
 - CTO co-sign ref: not required for this rule-execution candidate; CTO review is
   BEAAA-19930 and exact-SHA QA routing remains with CTO.
 - Replay artifact SHA-256:
-  `56e2f53d1a3f2751502152a4571039e74325d112e712a4a1e65178ad77762938`.
+  `ba77adde4ee92057c17d1ac30b5758a4785c8bf82a72e612e035d73c0f6370b8`.
+- Committed retained-source SHA-256:
+  `9c3b9bb8aec359e5acbe1d2f15323669ffc2c7eb5ef8665d3e454417d2722738`.
 
 ## Pinned semantics
 
@@ -52,7 +54,7 @@ terminal INVALID disposition rather than an inferred semantic verdict.
 ```sh
 python3 -m pytest -q tests/test_beaaa19930_deterministic_tranche.py
 python3 -m pytest -q tests/test_aiuc_lane_a_depth_beaaa16535.py -k reported_not_scored_n5_delta_is_exact_zero
-python3 scripts/beaaa19930_replay_tranche.py artifacts/beaaa-19220/vapi-642-deterministic-response-text-supplement-v1.0.json artifacts/beaaa-19930/verifier-tranche-v1.0.json
+python3 scripts/beaaa19930_replay_tranche.py artifacts/beaaa-19930/retained-tranche-source-v1.0.json artifacts/beaaa-19930/verifier-tranche-v1.0.json
 sha256sum artifacts/beaaa-19930/verifier-tranche-v1.0.json
 ```
 

@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -7,10 +8,12 @@ import pytest
 from evals.vapi_deterministic.tranche1 import build_results, normalize_text, verify_row
 from evals.vapi_deterministic.verifier import canonical_bytes
 
-SOURCE = Path("artifacts/beaaa-19220/vapi-642-deterministic-response-text-supplement-v1.0.json")
+SOURCE = Path("artifacts/beaaa-19930/retained-tranche-source-v1.0.json")
+SOURCE_SHA256 = "9c3b9bb8aec359e5acbe1d2f15323669ffc2c7eb5ef8665d3e454417d2722738"
 
 
 def test_all_150_rows_replay_without_unsupported_family():
+    assert hashlib.sha256(SOURCE.read_bytes()).hexdigest() == SOURCE_SHA256
     result = build_results(SOURCE)
     assert result["counts"]["total"] == 150
     assert result["counts"]["by_family"] == {
