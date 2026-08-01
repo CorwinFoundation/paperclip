@@ -95,7 +95,11 @@ def repo_security_findings(repo: Path) -> list[dict[str, Any]]:
                 "detail": "edge deploy path must not originate image pulls",
             }
         )
-    if "LOCAL_TAG_REPO=\"backbond-scanner-live\"" not in text:
+    has_local_live_tag = (
+        "LOCAL_TAG_REPO=\"backbond-scanner-live\"" in text
+        or "LOCAL_TAG=\"backbond-scanner-live:$SHA\"" in text
+    )
+    if not has_local_live_tag:
         findings.append(
             {
                 "id": "missing-local-live-tag",
@@ -104,7 +108,11 @@ def repo_security_findings(repo: Path) -> list[dict[str, Any]]:
                 "detail": "Scanner image must bind to a local live tag",
             }
         )
-    if "SCANNER_EDGE_IMAGE=" not in text or "install -m 0600" not in text:
+    has_secret_mode_env_install = "SCANNER_EDGE_IMAGE=" in text and (
+        "install -m 0600" in text
+        or 'atomic_install "$TX/env.next" "$ENV_FILE" 0600' in text
+    )
+    if not has_secret_mode_env_install:
         findings.append(
             {
                 "id": "missing-env-file-secret-mode",

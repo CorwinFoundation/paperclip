@@ -16,7 +16,7 @@ BLUF: copy this block into a design-partner connection pack so every consumer na
 ```yaml
 scanner_base_url: https://scanner.backbond.ai
 scanner_version: 0.5.0
-corpus_version: 0.1.0
+corpus_version: 0.2.0
 agent_endpoint: https://your-agent.example.com/backbond/scan
 agent_auth_token_ref: partner-secret-manager:agent/backbond-token
 ```

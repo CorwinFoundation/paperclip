@@ -32,7 +32,7 @@ escalations_noted: ["No carrier names; no competitor names; no new public proof 
 | Agent endpoint | Partner-owned HTTPS staging endpoint |
 | Agent auth | Partner-issued bearer token if the agent endpoint requires auth |
 
-**Release pins:** `scanner_version: 0.5.0`; `corpus_version: 0.1.0`.
+**Release pins:** `scanner_version: 0.5.0`; `corpus_version: 0.2.0`.
 
 ## 1. Expose a staging agent endpoint
 
