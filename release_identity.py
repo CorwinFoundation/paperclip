@@ -118,7 +118,7 @@ def validate_repository(root: Path, *, build_sha: str, tag: str | None = None) -
             "RELEASE_IDENTITY.model_versions",
         ),
         "portal": (root / "tools" / "portal_v1" / "portal.py", "from release_identity import RELEASE_IDENTITY"),
-        "container": (root / "Dockerfile", "ai.backbond.release.manifest-sha256"),
+        "container": (root / "Dockerfile", "scripts/render_release_manifest.py"),
         "deploy": (
             root / "scripts" / "backbond_deploy_agent.py",
             "release_identity_evidence(REPO_ROOT, build_sha=candidate.commit_sha)",

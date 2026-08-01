@@ -4,6 +4,8 @@ ARG PYTHON_VERSION=3.11-slim
 
 FROM python:${PYTHON_VERSION} AS build
 
+ARG GIT_SHA=unknown
+
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -17,12 +19,14 @@ RUN python -m venv /opt/venv \
     && /opt/venv/bin/python -c "import psycopg"
 
 COPY . .
+RUN /opt/venv/bin/python scripts/render_release_manifest.py \
+      --build-sha "${GIT_SHA}" \
+      --output release/backbond-scanner-release.json
 RUN /opt/venv/bin/python scripts/verify_runtime_import_closure.py
 
 FROM python:${PYTHON_VERSION} AS runtime
 
 ARG GIT_SHA=unknown
-ARG BACKBOND_RELEASE_MANIFEST_SHA256=unknown
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -32,8 +36,7 @@ ENV PATH="/opt/venv/bin:${PATH}" \
 
 LABEL org.opencontainers.image.title="BackBond Scanner live edge" \
       org.opencontainers.image.description="FastAPI live scanner edge image; state and secrets are host-mounted." \
-      org.opencontainers.image.revision="${GIT_SHA}" \
-      ai.backbond.release.manifest-sha256="${BACKBOND_RELEASE_MANIFEST_SHA256}"
+      org.opencontainers.image.revision="${GIT_SHA}"
 
 WORKDIR /app
 

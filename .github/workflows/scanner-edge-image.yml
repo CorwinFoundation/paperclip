@@ -1,63 +1,85 @@
-name: Scanner Dev Image
+name: Scanner Immutable GHCR Image
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
-  group: scanner-dev-image-${{ github.ref }}
-  cancel-in-progress: true
+  group: scanner-immutable-image-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   image-build:
-    name: build deployable scanner image tar
+    name: publish immutable scanner image
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      LOCAL_IMAGE_TAG: backbond-scanner-live:${{ github.sha }}
+      IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:sha-${{ github.sha }}
+      RELEASE_TAG: sha-${{ github.sha }}
     steps:
       - name: Check out exact commit
         uses: actions/checkout@v6
 
-      - name: Resolve release manifest digest
-        id: release_identity
-        run: echo "manifest_sha256=$(sha256sum release/backbond-scanner-release.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
-      - name: Build image tagged by git SHA
+      - name: Validate candidate SHA and immutable target
         run: |
           set -euo pipefail
-          docker build \
-            --build-arg "GIT_SHA=${GITHUB_SHA}" \
-            --build-arg "BACKBOND_RELEASE_MANIFEST_SHA256=${{ steps.release_identity.outputs.manifest_sha256 }}" \
-            --tag "$LOCAL_IMAGE_TAG" \
-            .
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$IMAGE_REF" = "ghcr.io/corwinfoundation/are-scanner:sha-${GITHUB_SHA}"
+          test "$RELEASE_TAG" = "sha-${GITHUB_SHA}"
 
-      - name: Verify image identity
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build exact candidate image
         run: |
           set -euo pipefail
-          test "$(docker image inspect "$LOCAL_IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$GITHUB_SHA"
-          test "$(docker image inspect "$LOCAL_IMAGE_TAG" --format '{{ index .Config.Labels "ai.backbond.release.manifest-sha256" }}')" = "${{ steps.release_identity.outputs.manifest_sha256 }}"
+          docker build --build-arg "GIT_SHA=${GITHUB_SHA}" --tag "$IMAGE_REF" .
+
+      - name: Verify OCI and embedded release identity before push
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$GITHUB_SHA"
+          docker run --rm --entrypoint python "$IMAGE_REF" -c '
+          import json, os, pathlib
+          manifest = json.loads(pathlib.Path("release/backbond-scanner-release.json").read_text())
+          assert manifest["scanner_version"] == "0.5.0"
+          assert manifest["corpus_version"] == "0.2.0"
+          assert manifest["build_sha"] == os.environ["BACKBOND_BUILD_SHA"]
+          assert manifest["release_tag"] == "sha-" + os.environ["BACKBOND_BUILD_SHA"]
+          '
 
       - name: Verify runtime import closure
-        run: docker run --rm --entrypoint python "$LOCAL_IMAGE_TAG" scripts/verify_runtime_import_closure.py
+        run: docker run --rm --entrypoint python "$IMAGE_REF" scripts/verify_runtime_import_closure.py
 
-      - name: Create dev deploy bundle
+      - name: Push immutable image and record repository digest
+        id: publish
         run: |
           set -euo pipefail
-          mkdir -p dev-image
-          docker save "$LOCAL_IMAGE_TAG" -o dev-image/scanner-edge-image.tar
-          sha256sum dev-image/scanner-edge-image.tar > dev-image/scanner-edge-image.tar.sha256
-          cp scripts/deploy/scanner-deploy.sh dev-image/scanner-deploy.sh
+          docker push "$IMAGE_REF"
+          digest="$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{ .Manifest.Digest }}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf '%s@%s\n' "$IMAGE_REF" "$digest" | tee scanner-edge-image.digest
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
-      - name: Upload dev deploy bundle
+      - name: Export the same immutable image archive
+        run: |
+          set -euo pipefail
+          mkdir -p immutable-image
+          docker save "$IMAGE_REF" -o immutable-image/scanner-edge-image.tar
+          mv scanner-edge-image.digest immutable-image/scanner-edge-image.digest
+          sha256sum immutable-image/scanner-edge-image.tar > immutable-image/scanner-edge-image.tar.sha256
+
+      - name: Upload immutable image archive
         uses: actions/upload-artifact@v7
         with:
-          name: scanner-dev-image-${{ github.sha }}
-          path: dev-image/
+          name: scanner-immutable-image-${{ github.sha }}
+          path: immutable-image/
           if-no-files-found: error
           retention-days: 14

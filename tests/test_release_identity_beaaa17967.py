@@ -22,7 +22,7 @@ class ReleaseIdentityTest(unittest.TestCase):
     def test_canonical_identity_and_evidence(self):
         evidence = release_identity_evidence(ROOT, build_sha=SHA)
         self.assertEqual(evidence["scanner_version"], "0.5.0")
-        self.assertEqual(evidence["corpus_version"], "0.1.0")
+        self.assertEqual(evidence["corpus_version"], "0.2.0")
         self.assertEqual(evidence["rubric_version"], "1.3.0")
         self.assertEqual(evidence["contract_version"], "are-scanner-api-v1@v1.3.0")
         self.assertEqual(evidence["api_app_version"], "1.1.0")
@@ -78,7 +78,7 @@ class ReleaseIdentityTest(unittest.TestCase):
                 '{"primary": "drift", "judges": ["drift"]}',
             ),
             "portal": ("tools/portal_v1/portal.py", "from release_identity import RELEASE_IDENTITY", "# drift"),
-            "container": ("Dockerfile", "ai.backbond.release.manifest-sha256", "drift.label"),
+            "container": ("Dockerfile", "scripts/render_release_manifest.py", "scripts/drift_release_manifest.py"),
             "deploy": (
                 "scripts/backbond_deploy_agent.py",
                 "release_identity_evidence(REPO_ROOT, build_sha=candidate.commit_sha)",
