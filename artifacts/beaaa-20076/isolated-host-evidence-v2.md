@@ -10,14 +10,14 @@ rubric_point_id: N/A-host-deployment-plumbing
 N=5_calibration_delta: 0
 ---
 
-# Isolated host activation evidence v2
+# Simulated activation harness evidence v2
 
-BLUF: The non-production harness passed 20 tests covering the complete activation and rollback state machine requested by QA; no shared or production system was contacted.
+BLUF: The simulated subprocess harness passed 20 logic tests; it does not satisfy the separate real-host systemd/Docker gate, and no shared or production system was contacted.
 
 Command: `pytest -q tests/test_scanner_deploy_beaaa16598.py`
 
 Result: `20 passed in 7.96s`.
 
-The harness substitutes isolated Docker, systemd, curl, environment, state, unit, and archive paths. It observes exact image load/tag calls, service cutover and rollback restarts, local and public gates, the unit's read-only state mount, fsynced receipts, and restored filesystem state. Negative cases cover archive bytes, OCI revision, manifest SHA, repository digest, candidate id, duplicate environment keys, modes, ownership, caller-selected archive paths, stale HTTP 200 rollback identity, ABSENT markers, present markers, rollback failure, `SIGINT`, and `SIGTERM`.
+The harness substitutes Docker, systemd, curl, environment, state, unit, and archive paths. It asserts image load/tag calls, service cutover and rollback calls, local and public gate logic, unit mount arguments, fsynced receipts, and restored filesystem state. Negative cases cover archive bytes, OCI revision, manifest SHA, repository digest, candidate id, duplicate environment keys, modes, ownership, caller-selected archive paths, stale HTTP 200 rollback identity, ABSENT markers, present markers, rollback failure, `SIGINT`, and `SIGTERM`. These are simulated observations, not claims about real systemd or Docker execution.
 
 FAL audit: PASS. The evidence focuses on exact atomic activation, aligns with the unchanged Scanner contract, and links to BEAAA-20072, BEAAA-20077, and BEAAA-19984.
