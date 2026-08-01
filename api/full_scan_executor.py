@@ -32,6 +32,9 @@ ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
 TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled"}
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
+ACQUISITION_BASES = {"target-measured", "missing", "failed"}
+UNDERWRITING_RELEVANCES = {"direct", "category-proxy", "failed"}
+EVIDENCE_DISPOSITIONS = {"report-only"}
 
 
 class FullScanExecutorError(ValueError):
@@ -725,7 +728,13 @@ def dispatch_registry_attempt(
                 duration_ms=result.duration_ms,
                 numeric_result=result.numeric_result,
                 acquisition_basis=(
-                    "target-measured" if result.status == "complete" else "missing"
+                    "target-measured"
+                    if result.status == "complete" and result.target_calls > 0
+                    else "missing"
+                    if result.status == "complete"
+                    else "failed"
+                    if result.status == "failed"
+                    else "missing"
                 ),
                 underwriting_relevance=(
                     "category-proxy"
@@ -806,8 +815,22 @@ def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
         raise FullScanExecutorError("non-complete evidence row requires incomplete_reason")
     if row.score_contribution or row.disposition != "report-only":
         raise FullScanExecutorError("registered-case evidence must remain report-only")
-    if row.status != "complete" and row.acquisition_basis == "target-measured":
-        raise FullScanExecutorError("non-complete evidence cannot be target-measured")
+    if row.acquisition_basis not in ACQUISITION_BASES:
+        raise FullScanExecutorError(
+            f"invalid acquisition_basis: {row.acquisition_basis!r}"
+        )
+    if row.underwriting_relevance not in UNDERWRITING_RELEVANCES:
+        raise FullScanExecutorError(
+            f"invalid underwriting_relevance: {row.underwriting_relevance!r}"
+        )
+    if row.disposition not in EVIDENCE_DISPOSITIONS:
+        raise FullScanExecutorError(f"invalid disposition: {row.disposition!r}")
+    if row.acquisition_basis == "target-measured" and (
+        row.status != "complete" or row.target_calls <= 0
+    ):
+        raise FullScanExecutorError(
+            "target-measured evidence requires a complete attributable target call"
+        )
 
 
 def _case_id_from_row(row: Mapping[str, Any]) -> str:
