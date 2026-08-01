@@ -1,0 +1,35 @@
+# BackBond appliance config (example). Copy to config.yaml and set reader.path.
+appliance_id: "enso-prod-appliance-1"      # unique per deployment
+evidence_tier: "log-inferred"              # BackBond-assigned; do not raise without verification
+
+reader:
+  name: "enso_engine"                       # enso_engine | codex_rollout | ndjson_log (see --help)
+  path: "/var/lib/enso/activity"            # where the engine already writes activity (READ-ONLY)
+
+rules:
+  pack: "growth_agent.cel.yaml"             # CEL packs (production): growth_agent.cel.yaml | coding_agent.cel.yaml
+  allowlist: null                           # e.g. paperclip_allowlist.cel.yaml for the fleet
+
+signing:
+  key_path: "~/.backbond/appliance.key"     # Ed25519 private key (generated on first run, 0600)
+  key_id: "enso-appliance-key-1"
+
+state_dir: "~/.backbond/state"              # chain + idempotency state
+
+ship:
+  mode: "outbox"                            # "outbox" (files) or "http"
+  outbox_dir: "~/.backbond/outbox"
+  url: ""                                    # set for mode:http; token via BACKBOND_SHIP_TOKEN env
+  max_events_per_batch: 5000                 # P0-1 windowing — split large runs into chained batches
+  gzip: true                                 # P0-4 gzip the HTTP body
+  retries: 4                                 # P0-4 bounded retries with exponential backoff
+  backoff_base_sec: 0.5
+  timeout_sec: 30
+
+producer:                                    # contract-v1.0 pin set
+  collector_version: "appliance-0.1.0"
+  evidence_profile_version: "1.0"
+  scanner_version: "na-appliance"
+  corpus_version: "na-appliance"
+  rule_pack_version: "0.1"
+  seed: 0

@@ -1,0 +1,19 @@
+# BackBond appliance CI gate (P0-5). Blocks merge unless every suite passes,
+# including the no-content invariant.
+name: appliance-ci
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run all gates (no-content invariant, e2e, loop, parity/windowing/contract)
+        run: bash run_all_tests.sh

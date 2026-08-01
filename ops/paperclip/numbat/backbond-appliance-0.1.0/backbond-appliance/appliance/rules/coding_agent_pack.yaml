@@ -1,0 +1,70 @@
+# BackBond coding-agent peril pack v0.1 (reference, monitor-only)
+# Mirrors the detections validated on the real Paperclip fleet via Numbat Phase 0
+# (BEAAA-19573/19575). Conditions run LOCALLY on the command text in the partner env;
+# only determinations (never the command) are emitted. Production target: CEL.
+version: "0.1"
+segment: coding_agent
+rules:
+  - id: coding.secret_file_read
+    title: Read of a secrets/credentials file (.env / auth.json / credentials)
+    severity: medium
+    action_class: tool_call
+    tags: [secret_file_read]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "(\\.env\\b|auth\\.json|credentials|\\.aws/|id_rsa|\\.pem\\b)"}
+
+  - id: coding.download_pipe_shell
+    title: Downloaded content piped into an interpreter
+    severity: high
+    action_class: tool_call
+    tags: [remote_code_exec]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "(curl|wget)\\b.*\\|\\s*(sh|bash|zsh|python[0-9.]*|node|ruby|perl)\\b"}
+
+  - id: coding.proc_environ_read
+    title: Read of another process environment (/proc/<pid>/environ)
+    severity: high
+    action_class: tool_call
+    tags: ["attack.t1552.001", secret_process_read]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "/proc/[0-9]+/environ"}
+
+  - id: coding.host_namespace_entry
+    title: Entry into host process namespaces (container-escape primitive)
+    severity: high
+    action_class: tool_call
+    tags: ["attack.t1611"]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "\\bnsenter\\b.*-t\\s*1\\b"}
+
+  - id: coding.sandbox_bypass
+    title: Agent runtime launched with sandbox/approval bypass
+    severity: high
+    action_class: tool_call
+    tags: [permission_bypass]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "(--dangerously-bypass-approvals-and-sandbox|--yolo|--no-sandbox)"}
+
+  - id: coding.db_credential_harvest
+    title: Database credential pulled from a process env and used to connect
+    severity: high
+    action_class: tool_call
+    tags: [secret_process_read, "attack.t1552"]
+    match: all
+    conditions:
+      - {field: _raw.command, op: regex, value: "DATABASE_URL"}
+      - {field: _raw.command, op: regex, value: "\\bpsql\\b"}
+
+  - id: coding.git_credential_helper
+    title: Git external credential helper injected on the command line
+    severity: medium
+    action_class: tool_call
+    tags: [git_config_exec]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "credential\\.helper=!"}
