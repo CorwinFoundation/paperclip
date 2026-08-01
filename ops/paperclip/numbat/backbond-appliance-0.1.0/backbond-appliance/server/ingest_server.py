@@ -22,7 +22,7 @@ Usage:
     # and run:  BACKBOND_SHIP_TOKEN=secret python3 -m appliance.main run -c config.yaml
 """
 from __future__ import annotations
-import argparse, json, os, sys, threading
+import argparse, json, os, sqlite3, sys, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -49,14 +49,23 @@ class Ledger:
 
     def enroll(self, rec: dict):
         scopes = rec.get("scopes") or []
-        allowed = frozenset((s.get("customer_id"), s.get("agent_id")) for s in scopes)
-        if not allowed or any(not customer or not agent for customer, agent in allowed) or not rec.get("ingest_token"):
+        scope_keys: dict[tuple[str, str], str] = {}
+        for item in scopes:
+            scope = (item.get("customer_id"), item.get("agent_id"))
+            key_id = item.get("encryption_key_id")
+            if not all(scope) or not key_id:
+                raise ValueError("each server-side scope requires an encryption_key_id")
+            if scope in scope_keys and scope_keys[scope] != key_id:
+                raise ValueError("mismatched encryption key binding for tenant scope")
+            scope_keys[scope] = key_id
+        allowed = frozenset(scope_keys)
+        if not allowed or not rec.get("ingest_token"):
             raise ValueError("server-side scopes and ingest_token required")
         with self.lock:
             self.keys[rec["appliance_id"]] = rec["public_key_pem"]
             self.bindings[rec["appliance_id"]] = {
                 "scopes": allowed,
-                "encryption_key_id": rec.get("encryption_key_id", "tenant-key-v1")}
+                "encryption_key_ids": scope_keys}
             self.ingest_tokens[rec["appliance_id"]] = rec["ingest_token"]
             for item in rec.get("hub_tokens", []):
                 scope = Scope(item.get("customer_id", ""), item.get("agent_id", ""))
@@ -106,20 +115,31 @@ class Ledger:
             if leaked:
                 return False, self._reject(f"content boundary violated: {leaked}", ctx)
 
-            # accept
-            self.seen.add(bh)
-            self.chain_tip[aid] = bh
-            self.accepted += 1
-            for d in batch.get("determinations", []):
-                self.findings.append({k: d.get(k) for k in
-                                      ("rule_id", "severity", "tenant_id", "agent_id", "event_id", "evidence_hash")})
+            pending_findings = [{k: d.get(k) for k in
+                                 ("rule_id", "severity", "tenant_id", "agent_id", "event_id", "evidence_hash")}
+                                for d in batch.get("determinations", [])]
+            writes = []
             for customer_id, agent_id in scopes:
                 tenant_findings = [d for d in batch.get("determinations", [])
                                    if d.get("tenant_id") == customer_id and d.get("agent_id") == agent_id]
-                self.store.append(Scope(customer_id, agent_id), bh, tenant_findings,
-                                  binding["encryption_key_id"])
-            with open(self.path, "a") as fh:
-                fh.write(json.dumps(batch) + "\n")
+                key_id = binding["encryption_key_ids"].get((customer_id, agent_id))
+                writes.append((Scope(customer_id, agent_id), tenant_findings, key_id))
+
+            # Validate every tenant before creating partitions or mutating acceptance state.
+            try:
+                for scope, tenant_findings, key_id in writes:
+                    self.store.validate_append(scope, tenant_findings, key_id)
+                for scope, tenant_findings, key_id in writes:
+                    self.store.append(scope, bh, tenant_findings, key_id)
+                with open(self.path, "a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(batch) + "\n")
+            except (OSError, sqlite3.Error, ValueError) as exc:
+                return False, self._reject(f"persistence rejected: {exc}", ctx)
+
+            self.seen.add(bh)
+            self.chain_tip[aid] = bh
+            self.accepted += 1
+            self.findings.extend(pending_findings)
             return True, f"accepted (seq {batch.get('batch_seq')})"
 
     def _scan_content(self, batch: dict):

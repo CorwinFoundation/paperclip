@@ -11,7 +11,7 @@ Proves the complete round trip on your own machine:
 Exit 0 = green.
 """
 from __future__ import annotations
-import json, os, sys, tempfile, shutil, threading, time, urllib.request
+import json, os, sqlite3, sys, tempfile, shutil, threading, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -19,7 +19,7 @@ sys.path.insert(0, ROOT)
 from appliance.batch import Signer
 from appliance import main as appliance_main
 from synthetic.gen_enso_events import main as gen_events
-from server.ingest_server import Ledger, serve
+from server.ingest_server import Ledger, Scope, serve
 
 TOKEN = "loop-test-token"
 
@@ -79,7 +79,8 @@ def main():
 
         # 1. enroll the appliance public key with the server
         pub = Signer(key_path, "loop-key").public_pem()
-        scopes = [{"customer_id": tenant, "agent_id": agent}
+        scopes = [{"customer_id": tenant, "agent_id": agent,
+                   "encryption_key_id": f"key-{tenant}-{agent}"}
                   for tenant in ("smb-alpha", "smb-beta")
                   for agent in ("community", "newsletter", "ops", "sdr", "social")]
         hub_tokens = [{"customer_id": tenant, "agent_id": agent,
@@ -88,6 +89,21 @@ def main():
         post(f"{base}/enroll", {"appliance_id": "loop-appliance", "public_key_pem": pub,
              "ingest_token": TOKEN, "scopes": scopes, "hub_tokens": hub_tokens}, TOKEN)
         print("  [1] enrolled appliance public key")
+
+        code, _ = post(f"{base}/enroll", {"appliance_id": "missing-key", "public_key_pem": pub,
+                       "ingest_token": TOKEN,
+                       "scopes": [{"customer_id": "smb-alpha", "agent_id": "ops"}]}, TOKEN)
+        if code != 422:
+            fail(f"missing per-scope encryption key returned {code}, expected 422")
+        code, _ = post(f"{base}/enroll", {"appliance_id": "mismatched-key", "public_key_pem": pub,
+                       "ingest_token": TOKEN,
+                       "scopes": [{"customer_id": "smb-alpha", "agent_id": "ops",
+                                   "encryption_key_id": "key-a"},
+                                  {"customer_id": "smb-alpha", "agent_id": "ops",
+                                   "encryption_key_id": "key-b"}]}, TOKEN)
+        if code != 422:
+            fail(f"mismatched per-scope encryption key returned {code}, expected 422")
+        print("  [1a] missing/mismatched tenant key bindings REJECTED")
 
         # 2. ship over HTTP
         os.environ["BACKBOND_SHIP_TOKEN"] = TOKEN
@@ -104,6 +120,20 @@ def main():
             fail(f"expected findings by rule, got {st['findings_by_rule']}")
         print(f"  [3] findings by rule: {st['findings_by_rule']}")
         print(f"      findings by tenant: {st['findings_by_tenant']}")
+
+        # Server-selected keys must remain distinct in their tenant partitions.
+        persisted_scopes = {(f["tenant_id"], f["agent_id"]) for f in ledger.findings}
+        key_ids_seen = set()
+        for tenant, agent in persisted_scopes:
+            with sqlite3.connect(ledger.store._path(Scope(tenant, agent))) as db:
+                key_ids = {row[0] for row in db.execute("SELECT DISTINCT encryption_key_id FROM findings")}
+            expected_key = f"key-{tenant}-{agent}"
+            if key_ids != {expected_key}:
+                fail(f"tenant partition has wrong key attribution: {key_ids}, expected {expected_key}")
+            key_ids_seen.update(key_ids)
+        if len(key_ids_seen) < 2:
+            fail(f"expected distinct tenant key attribution, got {key_ids_seen}")
+        print("  [3c] distinct tenant encryption-key attribution PASS")
 
         # Hub principals are bound to exactly one (customer, agent) scope.
         alpha = get(f"{base}/hub/summary?customer_id=smb-alpha&agent_id=ops", "hub-smb-alpha-ops")
@@ -139,6 +169,36 @@ def main():
             fail(f"re-ship not idempotent: accepted went to {st2['batches_accepted']}")
         print(f"  [4] re-ship idempotent ({resp['detail']})")
 
+        # Quota rejection must leave every authoritative state surface unchanged and retryable.
+        from appliance.batch import _canonical, _sha256
+        signer = Signer(key_path, "loop-key")
+        retry_body = {
+            "batch_id": "loop-appliance:2", "appliance_id": "loop-appliance", "batch_seq": 2,
+            "prev_batch_hash": shipped["batch_hash"], "window": {"start": "x", "end": "y"},
+            "events": [{"tenant_id": "smb-beta", "agent_id": "ops", "event_id": "quota-event",
+                        "action_class": "tool_call"}],
+            "determinations": [{"tenant_id": "smb-beta", "agent_id": "ops", "event_id": "quota-event",
+                                "rule_id": "quota.test", "severity": "low", "evidence_hash": "sha256:test"}],
+            "counts": {"events": 1}, "producer": {"collector_version": "x"},
+        }
+        payload = _canonical(retry_body)
+        retry_batch = dict(retry_body); retry_batch["batch_hash"] = _sha256(payload)
+        retry_batch["signature"] = signer.sign(payload); retry_batch["key_id"] = "loop-key"
+        before = (ledger.accepted, set(ledger.seen), dict(ledger.chain_tip), list(ledger.findings))
+        target_path = ledger.store._path(Scope("smb-beta", "ops"))
+        with sqlite3.connect(target_path) as db:
+            existing = db.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
+        ledger.store.quota_findings = existing
+        code, resp = post(f"{base}/ingest", retry_batch, TOKEN)
+        after = (ledger.accepted, set(ledger.seen), dict(ledger.chain_tip), list(ledger.findings))
+        if code == 200 or before != after:
+            fail(f"quota rejection was not atomic: code={code}, detail={resp}, before={before}, after={after}")
+        ledger.store.quota_findings = 100_000
+        code, resp = post(f"{base}/ingest", retry_batch, TOKEN)
+        if code != 200 or not resp.get("accepted"):
+            fail(f"quota-remediated retry failed: code={code}, response={resp}")
+        print("  [4a] quota rejection atomicity and remediation retry PASS")
+
         # 5. tampered batch rejected
         tampered = json.loads(json.dumps(shipped)); tampered["counts"]["events"] = 999
         code, resp = post(f"{base}/ingest", tampered, TOKEN)
@@ -149,12 +209,10 @@ def main():
         # 6. VALIDLY-SIGNED content-laden batch rejected (independent server-side no-content
         #    enforcement — proves a compromised/old appliance can't sneak content past the server
         #    even with a good signature and correct chain linkage).
-        from appliance.batch import _canonical, _sha256
-        signer = Signer(key_path, "loop-key")
         body = {
-            "batch_id": "loop-appliance:2",
-            "appliance_id": "loop-appliance", "batch_seq": 2,
-            "prev_batch_hash": shipped["batch_hash"],   # correct chain linkage
+            "batch_id": "loop-appliance:3",
+            "appliance_id": "loop-appliance", "batch_seq": 3,
+            "prev_batch_hash": retry_batch["batch_hash"],   # correct chain linkage
             "window": {"start": "x", "end": "y"},
             "events": [{"tenant_id": "smb-alpha", "agent_id": "ops", "event_id": "poison",
                         "action_class": "message", "text": "SECRET 078-05-1120"}],  # content field!
@@ -170,6 +228,20 @@ def main():
         if "content" not in resp["detail"]:
             fail(f"expected content-boundary rejection, got: {resp['detail']}")
         print(f"  [6] validly-signed content-laden batch REJECTED ({resp['detail']})")
+
+        # Retention expiry removes stale rows, while containment blocks future writes.
+        retained_scope = Scope("smb-beta", "ops")
+        with sqlite3.connect(ledger.store._path(retained_scope)) as db:
+            db.execute("UPDATE findings SET accepted_at = 0")
+        ledger.store.retention_seconds = 1
+        if ledger.store.summary(retained_scope)["findings_total"] != 0:
+            fail("retention expiry left stale tenant findings")
+        state_before_contain = (ledger.accepted, set(ledger.seen), dict(ledger.chain_tip))
+        ledger.contain("loop-appliance")
+        code, _ = post(f"{base}/ingest", poison, TOKEN)
+        if code == 200 or state_before_contain != (ledger.accepted, set(ledger.seen), dict(ledger.chain_tip)):
+            fail("containment accepted or mutated a subsequent write")
+        print("  [7] retention expiry and containment rejection PASS")
 
         print("\nLOOP: GREEN — appliance ships over HTTP; server verifies signature, chain, "
               "idempotency, and independently enforces the no-content boundary.")

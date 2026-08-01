@@ -48,13 +48,25 @@ class TenantStore:
             PRIMARY KEY(batch_hash, event_id, rule_id))""")
         return db
 
+    def validate_append(self, scope: Scope, findings: list[dict], key_id: str) -> None:
+        """Validate an append without creating or changing a tenant partition."""
+        if not key_id:
+            raise ValueError("tenant encryption key binding required")
+        path = self._path(scope)
+        current = 0
+        if os.path.exists(path):
+            db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            try:
+                current = db.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
+            finally:
+                db.close()
+        if current + len(findings) > self.quota_findings:
+            self.audit("quota_rejected", scope, {"count": len(findings)})
+            raise ValueError("tenant finding quota exceeded")
+
     def append(self, scope: Scope, batch_hash: str, findings: list[dict], key_id: str) -> None:
         now = int(time.time())
         with self.lock, self._connect(scope) as db:
-            current = db.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
-            if current + len(findings) > self.quota_findings:
-                self.audit("quota_rejected", scope, {"count": len(findings)})
-                raise ValueError("tenant finding quota exceeded")
             db.executemany(
                 "INSERT OR IGNORE INTO findings VALUES (?,?,?,?,?,?,?)",
                 [(batch_hash, str(f.get("event_id", "")), f.get("rule_id"),
@@ -94,4 +106,3 @@ class TenantStore:
                **detail}
         with self.lock, open(self.audit_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, sort_keys=True) + "\n")
-
