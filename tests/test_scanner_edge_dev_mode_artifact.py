@@ -12,32 +12,36 @@ def _workflow() -> tuple[str, dict]:
     return text, yaml.safe_load(text)
 
 
-def test_workflow_is_master_only_and_has_no_release_sequence() -> None:
+def test_workflow_is_manual_only_and_has_no_live_deploy_trigger() -> None:
     text, workflow = _workflow()
     triggers = workflow[True]
 
-    assert triggers["push"]["branches"] == ["master"]
+    assert "push" not in triggers
     assert triggers["workflow_dispatch"] is None
     assert "pull_request" not in triggers
     assert "sequence" not in text.lower()
 
 
-def test_workflow_builds_exact_sha_image_and_uploads_dev_bundle() -> None:
+def test_workflow_builds_exact_sha_image_and_uploads_immutable_archive() -> None:
     text, workflow = _workflow()
     job = workflow["jobs"]["image-build"]
     steps = job["steps"]
 
-    assert job["env"]["LOCAL_IMAGE_TAG"] == "backbond-scanner-live:${{ github.sha }}"
-    assert any(step.get("name") == "Verify image identity" for step in steps)
+    assert job["env"]["IMAGE_REF"] == "ghcr.io/corwinfoundation/are-scanner:sha-${{ github.sha }}"
+    assert job["env"]["RELEASE_TAG"] == "sha-${{ github.sha }}"
+    assert any(step.get("name") == "Validate candidate SHA and immutable target" for step in steps)
+    assert any(step.get("name") == "Verify OCI and embedded release identity before push" for step in steps)
     assert any(step.get("name") == "Verify runtime import closure" for step in steps)
-    assert any(step.get("name") == "Create dev deploy bundle" for step in steps)
-    assert any(step.get("name") == "Upload dev deploy bundle" for step in steps)
+    assert any(step.get("name") == "Push immutable image and record repository digest" for step in steps)
+    assert any(step.get("name") == "Export the same immutable image archive" for step in steps)
+    assert any(step.get("name") == "Upload immutable image archive" for step in steps)
+    assert "docker push" in text
     assert "docker save" in text
     assert "scanner-edge-image.tar.sha256" in text
-    assert "scripts/deploy/scanner-deploy.sh" in text
+    assert "scanner-edge-image.digest" in text
 
 
-def test_suspended_production_ceremony_is_absent() -> None:
+def test_registry_publish_is_unsigned_and_has_no_deploy_ceremony() -> None:
     text, workflow = _workflow()
 
     forbidden = (
@@ -47,9 +51,6 @@ def test_suspended_production_ceremony_is_absent() -> None:
         "syft",
         "sbom",
         "id-token",
-        "packages: write",
-        "docker push",
-        "ghcr.io",
         "ssh_private_key",
         "known_hosts",
         "deploy exact",
@@ -59,7 +60,7 @@ def test_suspended_production_ceremony_is_absent() -> None:
     for token in forbidden:
         assert token not in lowered
 
-    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["permissions"] == {"contents": "read", "packages": "write"}
 
 
 def test_workflow_does_not_contact_or_mutate_the_live_host() -> None:

@@ -77,7 +77,7 @@ The connector has no public inbound surface. Optional local observability binds 
 - `envelope_version`: 0.1
 - `redaction_policy_version`: 0.1
 - `scanner_version`: 0.5.0
-- `corpus_version`: 0.1.0
+- `corpus_version`: 0.2.0
 - `probe-set-version`: 1.2.0
 - Contract anchor: ARE scanner API v1.0
 
