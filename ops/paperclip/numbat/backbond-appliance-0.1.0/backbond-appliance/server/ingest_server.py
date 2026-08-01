@@ -227,12 +227,21 @@ class Ledger:
             canonical = json.dumps(tombstone, sort_keys=True, separators=(",", ":")).encode()
             tombstone["signature"] = hmac.new(
                 self._tombstone_signing_key, canonical, hashlib.sha256).hexdigest()
-            self._append_deletion_tombstone(tombstone)
+            tombstone_offset = self._append_deletion_tombstone(tombstone)
 
             # The durable tombstone is the commit point. Nothing operational is
             # erased until it has been written and fsynced successfully, so a
             # persistence failure leaves the tenant fully retryable.
-            self.store.delete(scope)
+            try:
+                self.store.delete(scope)
+            except (OSError, sqlite3.Error):
+                # The tombstone attests completed operational erasure, so it
+                # must not survive when the erase itself fails. Roll back the
+                # exact append before exposing the controlled failure; the
+                # tenant remains readable and a retry cannot duplicate the
+                # attestation.
+                self._rollback_deletion_tombstone(tombstone_offset)
+                raise
             self.findings = [
                 finding for finding in self.findings
                 if (finding.get("tenant_id"), finding.get("agent_id"))
@@ -249,7 +258,7 @@ class Ledger:
                     del self.hub_tokens[hub_token]
             self.deleted_scope_tombstones_total += 1
 
-    def _append_deletion_tombstone(self, tombstone: dict) -> None:
+    def _append_deletion_tombstone(self, tombstone: dict) -> int:
         """Append one durable record, rolling back a failed write/fsync."""
         with open(self.tombstone_path, "a+", encoding="utf-8") as fh:
             fh.seek(0, os.SEEK_END)
@@ -269,6 +278,15 @@ class Ledger:
                 except OSError:
                     pass
                 raise
+            return initial_size
+
+    def _rollback_deletion_tombstone(self, offset: int) -> None:
+        """Remove the most recent attestation after a failed operational erase."""
+        with open(self.tombstone_path, "r+", encoding="utf-8") as fh:
+            fh.seek(offset)
+            fh.truncate()
+            fh.flush()
+            os.fsync(fh.fileno())
 
     def verify_deletion_tombstone(self, tombstone: dict) -> bool:
         signature = tombstone.get("signature", "")

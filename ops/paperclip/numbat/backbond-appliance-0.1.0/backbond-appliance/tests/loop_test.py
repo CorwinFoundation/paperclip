@@ -214,6 +214,31 @@ def main():
             fail("tombstone persistence failure mutated pre-delete tenant state")
         print("  [3b-failure] tombstone failure preserves all tenant state PASS")
 
+        # Inject the next failure boundary: the tombstone append succeeds but
+        # operational erasure fails. The compensating truncate must restore the
+        # exact pre-attempt state so retry produces one attestation, not two.
+        original_store_delete = ledger.store.delete
+        def fail_store_delete(_scope):
+            raise OSError("injected partition erase failure")
+        ledger.store.delete = fail_store_delete
+        code, response = delete(
+            f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
+            old_hub_token)
+        ledger.store.delete = original_store_delete
+        if code != 503 or "persistence failed" not in response.get("error", ""):
+            fail(f"partition erase failure was not controlled: {code}, {response}")
+        if not os.path.exists(deleted_partition):
+            fail("partition erase failure removed tenant data")
+        if ledger.store.summary(deleted_scope)["findings_total"] != deleted_count:
+            fail("partition erase failure left tenant data unreadable")
+        if ledger.status()["findings_total"] != st["findings_total"]:
+            fail("partition erase failure mutated global status")
+        if os.path.exists(ledger.tombstone_path):
+            with open(ledger.tombstone_path, encoding="utf-8") as fh:
+                if fh.read():
+                    fail("partition erase failure left a deletion attestation")
+        print("  [3b-erase-failure] erase failure rolls back tombstone and remains retryable PASS")
+
         code, _ = delete(
             f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
             old_hub_token)
