@@ -1,127 +1,211 @@
 #!/usr/bin/env bash
-# BEAAA-16598 — on-box, systemd-owned Scanner deploy helper.
-#
-# Interface:  scanner-deploy.sh <git-sha> [tar]
-#
-# Runs on the live edge host (srv1749248 topology, verified against
-# 462aee92358993eb21f29d74d6f690765db3ae06). The host is EGRESS-SEALED: it has no
-# registry egress. The image arrives as a tarball via SCP and is loaded locally.
-# This helper owns the whole on-box swap under systemd:
-#
-#   1. optionally `docker load` the SCP-delivered tar,
-#   2. select the image by EXACT OCI label org.opencontainers.image.revision=<sha>
-#      (never a registry ref),
-#   3. retag it to the local live tag  backbond-scanner-live:<git-sha>,
-#   4. back up /etc/backbond/scanner-edge.env to  .pre-<sha>  BEFORE any mutation,
-#   5. repoint SCANNER_EDGE_IMAGE at the local live tag (other lines preserved),
-#   6. restart  backbond-scanner-live.service  (systemd owns the container),
-#   7. wait boundedly for  http://127.0.0.1:8077/openapi.json,
-#   8. on ANY post-backup failure: restore the backup and restart the retained
-#      prior image, then exit non-zero.
-#
-# Install to /usr/local/sbin/scanner-deploy (root:root, 0755) and whitelist:
-#
-#   are-deploy ALL=(root) NOPASSWD: /usr/local/sbin/scanner-deploy
-#
-# INVARIANTS
-#   * The image is only ever loaded from the local tar; never fetched from a
-#     registry (the host has no registry egress).
-#   * The live tag is a LOCAL tag, never a registry ref.
-#   * systemd owns the container lifecycle; this helper only restarts the unit.
-#   * The env file is backed up before it is touched; every failure after that
-#     point self-heals by restoring the backup and restarting the prior image.
-set -euo pipefail
+# BEAAA-20076 - atomic, egress-sealed activation of the frozen Scanner image.
+# Install only as /usr/local/sbin/scanner-deploy (root:root 0755).
+set -Eeuo pipefail
 
 SERVICE="${SCANNER_LIVE_SERVICE:-backbond-scanner-live.service}"
 ENV_FILE="${SCANNER_EDGE_ENV:-/etc/backbond/scanner-edge.env}"
-READINESS_URL="${SCANNER_READINESS_URL:-http://127.0.0.1:8077/openapi.json}"
+STATE_DIR="${SCANNER_STATE_DIR:-/var/lib/backbond-deploy-agent}"
+UNIT_FILE="${SCANNER_UNIT_FILE:-/etc/systemd/system/backbond-scanner-live.service}"
+LOCAL_URL="${SCANNER_READINESS_URL:-http://127.0.0.1:8077/openapi.json}"
+PUBLIC_BASE="${SCANNER_PUBLIC_BASE_URL:-https://scanner.backbond.ai}"
 DOCKER="${SCANNER_DOCKER:-docker}"
 SYSTEMCTL="${SCANNER_SYSTEMCTL:-systemctl}"
 CURL="${SCANNER_CURL:-curl}"
-READINESS_TIMEOUT="${SCANNER_READINESS_TIMEOUT:-60}"
-READINESS_INTERVAL="${SCANNER_READINESS_INTERVAL:-2}"
+TIMEOUT="${SCANNER_READINESS_TIMEOUT:-60}"
+INTERVAL="${SCANNER_READINESS_INTERVAL:-2}"
+CONTAINER="${SCANNER_CONTAINER_NAME:-backbond-scanner-live-edge}"
+EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
+EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
+ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
 
-REVISION_LABEL="org.opencontainers.image.revision"
-LOCAL_TAG_REPO="backbond-scanner-live"
+FROZEN_SHA="${SCANNER_FROZEN_SHA:-7850289333ffc1de6eebea9c2201e0f1059c4c12}"
+FROZEN_REPO_DIGEST="${SCANNER_FROZEN_REPO_DIGEST:-ghcr.io/corwinfoundation/are-scanner@sha256:e955a2812015cf7da487c2e266e0a7f3fc9478cdafc2580dc0e02df53d96df9b}"
+FROZEN_ARCHIVE_SHA="${SCANNER_FROZEN_ARCHIVE_SHA:-502a52979825fe838fdccceac08d079fc553262bce69d69d06d904c2af94f1c0}"
+FROZEN_MANIFEST_SHA="${SCANNER_FROZEN_MANIFEST_SHA:-2417a7b22c1ad82c7b3ad68eb815b03b6345be6b1c25bbcd54fc756a85957ddc}"
+FROZEN_CANDIDATE="${SCANNER_FROZEN_CANDIDATE:-BEAAA-19984}"
+REVISION_LABEL=org.opencontainers.image.revision
+MANIFEST_LABEL=ai.backbond.release.manifest-sha256
 
-log() { echo "[scanner-deploy] $*" >&2; }
+log() { printf '[scanner-deploy] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
-
-SHA="${1:-}"
-TAR="${2:-}"
-[ -n "${SHA}" ] || die "usage: scanner-deploy.sh <git-sha> [tar]"
-case "${SHA}" in
-  *[!0-9a-f]*) die "git-sha must be lowercase hex, got: ${SHA}" ;;
-esac
-
-LOCAL_TAG="${LOCAL_TAG_REPO}:${SHA}"
-BACKUP="${ENV_FILE}.pre-${SHA}"
-
-# 1. Load the SCP-delivered archive locally (egress-sealed host; no pull).
-if [ -n "${TAR}" ]; then
-  [ -f "${TAR}" ] || die "tar not found: ${TAR}"
-  log "loading image archive ${TAR}"
-  "${DOCKER}" load -i "${TAR}" >&2
-fi
-
-# 2. Select the image by EXACT revision label. Docker's label filter matches the
-#    value exactly; we still re-inspect the winner to defend against any surprise.
-IMAGE_ID="$(
-  "${DOCKER}" image ls --no-trunc \
-    --filter "label=${REVISION_LABEL}=${SHA}" \
-    --format '{{.ID}}' | awk 'NF' | sort -u | head -n1
-)"
-[ -n "${IMAGE_ID}" ] || die "no locally loaded image with ${REVISION_LABEL}=${SHA}"
-GOT_REV="$("${DOCKER}" image inspect \
-  --format "{{ index .Config.Labels \"${REVISION_LABEL}\" }}" \
-  "${IMAGE_ID}" 2>/dev/null || true)"
-[ "${GOT_REV}" = "${SHA}" ] || die "revision label mismatch on ${IMAGE_ID}: got '${GOT_REV:-<empty>}', expected ${SHA}"
-log "selected image ${IMAGE_ID} by ${REVISION_LABEL}=${SHA}"
-
-# 3. Retag locally to the systemd-referenced live tag.
-"${DOCKER}" tag "${IMAGE_ID}" "${LOCAL_TAG}"
-log "retagged ${IMAGE_ID} -> ${LOCAL_TAG}"
-
-# 4. Back up the env file BEFORE any mutation.
-[ -f "${ENV_FILE}" ] || die "env file missing: ${ENV_FILE}"
-cp -a "${ENV_FILE}" "${BACKUP}"
-log "backed up ${ENV_FILE} -> ${BACKUP}"
-
-# From here on, every failure restores the backup and restarts the prior image.
-restore() {
-  log "ROLLBACK: restoring ${BACKUP} and restarting ${SERVICE}"
-  cp -a "${BACKUP}" "${ENV_FILE}"
-  "${SYSTEMCTL}" restart "${SERVICE}" || log "rollback restart of ${SERVICE} FAILED — manual attention required"
+require_root_owned() {
+  [ -e "$1" ] || die "required path missing: $1"
+  [ "$(stat -c %u "$1")" = "$EXPECTED_OWNER_UID" ] || die "required path is not root-owned: $1"
 }
-rollback_and_die() { restore; die "$1"; }
+fsync_path() {
+  python3 - "$1" <<'PY'
+import os, sys
+p=sys.argv[1]
+fd=os.open(p, os.O_RDONLY | (os.O_DIRECTORY if os.path.isdir(p) else 0))
+try: os.fsync(fd)
+finally: os.close(fd)
+PY
+}
+atomic_install() {
+  src=$1 dst=$2 mode=$3
+  tmp="$(dirname "$dst")/.scanner-deploy.$$.tmp"
+  install -o "$EXPECTED_OWNER_UID" -g "$EXPECTED_OWNER_GID" -m "$mode" "$src" "$tmp"
+  fsync_path "$tmp"
+  mv -fT "$tmp" "$dst"
+  fsync_path "$(dirname "$dst")"
+}
+snapshot() {
+  src=$1 name=$2
+  if [ -e "$src" ]; then cp -a "$src" "$TX/$name"; else : >"$TX/$name.ABSENT"; fi
+}
+restore_snapshot() {
+  dst=$1 name=$2
+  if [ -e "$TX/$name.ABSENT" ]; then rm -f -- "$dst"; else atomic_install "$TX/$name" "$dst" "$(stat -c %a "$TX/$name")"; fi
+}
+wait_200() {
+  url=$1 out=${2:-/dev/null}; n=$((TIMEOUT / INTERVAL)); [ "$n" -gt 0 ] || n=1
+  i=0; while [ "$i" -lt "$n" ]; do
+    if [ "$("$CURL" -sS -o "$out" -w '%{http_code}' "$url" || true)" = 200 ]; then return 0; fi
+    i=$((i+1)); [ "$i" -ge "$n" ] || sleep "$INTERVAL"
+  done
+  return 1
+}
 
-# 5. Repoint SCANNER_EDGE_IMAGE at the local live tag; preserve every other line.
-tmp="$(mktemp "${ENV_FILE}.next.XXXXXX")" || rollback_and_die "mktemp failed"
-if grep -q '^SCANNER_EDGE_IMAGE=' "${ENV_FILE}"; then
-  sed "s#^SCANNER_EDGE_IMAGE=.*#SCANNER_EDGE_IMAGE=${LOCAL_TAG}#" "${ENV_FILE}" > "${tmp}"
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id>'
+SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
+case "$SHA" in (*[!0-9a-f]*|'') die 'commit must be lowercase hex';; esac
+case "$ARCHIVE_SHA" in (*[!0-9a-f]*|'') die 'archive SHA-256 must be lowercase hex';; esac
+case "$REPO_DIGEST" in (*[!a-zA-Z0-9._/@:-]*|'') die 'repository digest has invalid syntax';; esac
+case "$CANDIDATE" in (BEAAA-[0-9]*) :;; (*) die 'candidate id has invalid syntax';; esac
+[ "$SHA" = "$FROZEN_SHA" ] || die 'commit is not the frozen candidate'
+[ "$REPO_DIGEST" = "$FROZEN_REPO_DIGEST" ] || die 'repository digest is not the frozen candidate'
+[ "$ARCHIVE_SHA" = "$FROZEN_ARCHIVE_SHA" ] || die 'archive SHA argument is not the frozen candidate'
+[ "$CANDIDATE" = "$FROZEN_CANDIDATE" ] || die 'candidate id is not the frozen candidate'
+[ "$ARCHIVE" = "$ARCHIVE_DIR/backbond-scanner-$SHA.tar" ] || die 'archive path is not the fixed candidate path'
+[ -f "$ARCHIVE" ] || die 'archive not found'
+[ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" = "$ARCHIVE_SHA" ] || die 'archive checksum mismatch'
+require_root_owned "$ENV_FILE"; require_root_owned "$STATE_DIR"; require_root_owned "$UNIT_FILE"
+[ "$(stat -c %a "$STATE_DIR")" = 755 ] || die 'state directory mode must be 0755'
+[ "$(stat -c %a "$ENV_FILE")" = 600 ] || die 'environment file mode must be 0600'
+[ "$(stat -c %a "$UNIT_FILE")" = 644 ] || die 'unit file mode must be 0644'
+[ "$(grep -c '^SCANNER_EDGE_IMAGE=' "$ENV_FILE")" -le 1 ] || die 'duplicate SCANNER_EDGE_IMAGE assignment'
+[ "$(grep -c '^BACKBOND_RELEASE_IDENTITY_PATH=' "$ENV_FILE")" -le 1 ] || die 'duplicate BACKBOND_RELEASE_IDENTITY_PATH assignment'
+grep -Fq -- '--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro' "$UNIT_FILE" || die 'unit lacks exact read-only identity mount'
+
+# Loading is pre-mutation. No registry operation is permitted.
+"$DOCKER" load -i "$ARCHIVE" >/dev/null
+IMAGE_ID="$("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL=$SHA" --format '{{.ID}}' | awk 'NF' | sort -u)"
+[ "$(printf '%s\n' "$IMAGE_ID" | awk 'NF{n++} END{print n+0}')" = 1 ] || die 'expected exactly one image with frozen OCI revision'
+GOT_REV="$("$DOCKER" image inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$IMAGE_ID")"
+GOT_MANIFEST="$("$DOCKER" image inspect --format "{{ index .Config.Labels \"$MANIFEST_LABEL\" }}" "$IMAGE_ID")"
+[ "$GOT_REV" = "$FROZEN_SHA" ] || die 'OCI revision mismatch'
+[ "$GOT_MANIFEST" = "$FROZEN_MANIFEST_SHA" ] || die 'release-manifest SHA label mismatch'
+
+LOCAL_TAG="backbond-scanner-live:$SHA"
+RELEASES="$STATE_DIR/releases"; TRANSACTIONS="$STATE_DIR/transactions"; RECEIPTS="$STATE_DIR/receipts"
+install -d -o "$EXPECTED_OWNER_UID" -g "$EXPECTED_OWNER_GID" -m 0755 "$RELEASES" "$TRANSACTIONS" "$RECEIPTS"
+TX="$(mktemp -d "$TRANSACTIONS/$SHA.XXXXXXXX")"; chmod 0700 "$TX"
+CURRENT="$STATE_DIR/current_version"; IDENTITY="$RELEASES/$SHA.json"
+snapshot "$ENV_FILE" env; snapshot "$CURRENT" current_version; snapshot "$IDENTITY" candidate_identity
+OLD_IDENTITY_PATH="$(sed -n 's/^BACKBOND_RELEASE_IDENTITY_PATH=//p' "$ENV_FILE")"
+OLD_IMAGE="$(sed -n 's/^SCANNER_EDGE_IMAGE=//p' "$ENV_FILE")"
+case "$OLD_IDENTITY_PATH" in ("") :;; ("$STATE_DIR"/releases/*.json) :;; (*) die 'prior identity path escapes the release directory';; esac
+if [ -n "$OLD_IDENTITY_PATH" ]; then
+  require_root_owned "$OLD_IDENTITY_PATH"
+  [ "$(stat -c %a "$OLD_IDENTITY_PATH")" = 444 ] || die 'prior identity mode must be 0444'
+  snapshot "$OLD_IDENTITY_PATH" prior_identity
 else
-  cat "${ENV_FILE}" > "${tmp}"
-  printf 'SCANNER_EDGE_IMAGE=%s\n' "${LOCAL_TAG}" >> "${tmp}"
+  : >"$TX/prior_identity.NONE"
 fi
-grep -qF "SCANNER_EDGE_IMAGE=${LOCAL_TAG}" "${tmp}" || { rm -f "${tmp}"; rollback_and_die "failed to repoint SCANNER_EDGE_IMAGE"; }
-install -m 0600 "${tmp}" "${ENV_FILE}" || { rm -f "${tmp}"; rollback_and_die "failed to install repointed env file"; }
-rm -f "${tmp}"
-log "repointed SCANNER_EDGE_IMAGE=${LOCAL_TAG}"
+transaction_active=1
 
-# 6. Restart the systemd-owned live service.
-"${SYSTEMCTL}" restart "${SERVICE}" || rollback_and_die "systemctl restart ${SERVICE} failed"
-log "restarted ${SERVICE}"
+rollback() {
+  rc=${1:-1}; trap - ERR INT TERM; set +e
+  [ "${transaction_active:-0}" = 1 ] || exit "$rc"
+  log "ROLLBACK: restoring image, environment, markers, and identity"
+  restore_snapshot "$ENV_FILE" env
+  restore_snapshot "$CURRENT" current_version
+  restore_snapshot "$IDENTITY" candidate_identity
+  if [ ! -e "$TX/prior_identity.NONE" ]; then restore_snapshot "$OLD_IDENTITY_PATH" prior_identity; fi
+  if ! "$SYSTEMCTL" restart "$SERVICE" || ! wait_200 "$LOCAL_URL"; then
+    printf 'ROLLBACK_FAILED\n' >"$TX/ROLLBACK_FAILED"; fsync_path "$TX/ROLLBACK_FAILED"; fsync_path "$TX"
+    log "ROLLBACK_FAILED: transaction retained at $TX"; exit 90
+  fi
+  if [ -n "$OLD_IDENTITY_PATH" ] && ! wait_200 "$PUBLIC_BASE/scanner/v1/release-identity" "$TX/prior-public.json"; then
+    printf 'ROLLBACK_FAILED\n' >"$TX/ROLLBACK_FAILED"; fsync_path "$TX/ROLLBACK_FAILED"; fsync_path "$TX"
+    log "ROLLBACK_FAILED: prior public identity did not recover; transaction retained at $TX"; exit 91
+  fi
+  if [ -n "$OLD_IDENTITY_PATH" ] && ! python3 - "$TX/prior_identity" "$TX/prior-public.json" "$TX/current_version" "$OLD_IMAGE" <<'PY'
+import json,sys
+identity_path,public_path,current_path,image=sys.argv[1:]
+expected=json.load(open(identity_path)); observed=json.load(open(public_path))
+current=open(current_path).read().strip()
+required={"commit_sha":current,"current_version":current,"configured_image":image}
+for key in ("candidate_id","image_digest","running_container_revision","internal_version_sha","status"):
+    required[key]=expected.get(key)
+for key,value in required.items():
+    if value is None or observed.get(key)!=value:
+        raise SystemExit(f"rollback public identity mismatch: {key}")
+PY
+  then
+    printf 'ROLLBACK_FAILED\n' >"$TX/ROLLBACK_FAILED"; fsync_path "$TX/ROLLBACK_FAILED"; fsync_path "$TX"
+    log "ROLLBACK_FAILED: prior public identity tuple mismatch; transaction retained at $TX"; exit 92
+  fi
+  log "rollback complete; transaction retained at $TX"; exit "$rc"
+}
+trap 'rollback $?' ERR INT TERM
 
-# 7. Bounded readiness wait on the local app openapi surface.
-iters=$(( READINESS_TIMEOUT / READINESS_INTERVAL ))
-[ "${iters}" -ge 1 ] || iters=1
-ready=0
-i=0
-while [ "${i}" -lt "${iters}" ]; do
-  if "${CURL}" -fsS -o /dev/null "${READINESS_URL}"; then ready=1; break; fi
-  i=$(( i + 1 ))
-  [ "${i}" -lt "${iters}" ] && sleep "${READINESS_INTERVAL}"
-done
-[ "${ready}" -eq 1 ] || rollback_and_die "readiness timeout: ${READINESS_URL} not ready within ${READINESS_TIMEOUT}s"
+"$DOCKER" tag "$IMAGE_ID" "$LOCAL_TAG"
+RECORDED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+python3 - "$TX/identity.activating" "$SHA" "$REPO_DIGEST" "$LOCAL_TAG" "$CANDIDATE" "$RECORDED_AT" <<'PY'
+import json,sys
+p,sha,digest,image,candidate,at=sys.argv[1:]
+v={"schema_version":"backbond-scanner-release-identity@1","environment":"production","host":"srv1749248","candidate_id":candidate,"commit_sha":sha,"image_digest":digest,"configured_image":image,"running_container_revision":sha,"internal_version_sha":sha,"current_version":sha,"status":"activating","recorded_at":at}
+open(p,'w').write(json.dumps(v,sort_keys=True,separators=(',',':'))+'\n')
+PY
+python3 -m json.tool "$TX/identity.activating" >/dev/null
+atomic_install "$TX/identity.activating" "$IDENTITY" 0444
 
-log "OK: ${SERVICE} live on ${LOCAL_TAG}; ${READINESS_URL} ready"
+awk '!/^SCANNER_EDGE_IMAGE=/ && !/^BACKBOND_RELEASE_IDENTITY_PATH=/' "$ENV_FILE" >"$TX/env.next"
+printf 'SCANNER_EDGE_IMAGE=%s\nBACKBOND_RELEASE_IDENTITY_PATH=%s\n' "$LOCAL_TAG" "$IDENTITY" >>"$TX/env.next"
+[ "$(grep -c '^SCANNER_EDGE_IMAGE=' "$TX/env.next")" = 1 ]
+[ "$(grep -c '^BACKBOND_RELEASE_IDENTITY_PATH=' "$TX/env.next")" = 1 ]
+printf '%s\n' "$SHA" >"$TX/current.next"
+atomic_install "$TX/current.next" "$CURRENT" 0644
+atomic_install "$TX/env.next" "$ENV_FILE" 0600
+"$SYSTEMCTL" restart "$SERVICE"
+"$SYSTEMCTL" is-active --quiet "$SERVICE"
+wait_200 "$LOCAL_URL"
+RUNNING_REV="$("$DOCKER" inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$CONTAINER")"
+[ "$RUNNING_REV" = "$SHA" ]
+wait_200 "$PUBLIC_BASE/scanner/v1/sla"
+wait_200 "$PUBLIC_BASE/scanner/v1/release-identity" "$TX/public-activating.json"
+
+python3 - "$TX/public-activating.json" "$SHA" "$REPO_DIGEST" "$LOCAL_TAG" <<'PY'
+import json,sys
+p,sha,digest,image=sys.argv[1:]; d=json.load(open(p))
+for k,v in {"commit_sha":sha,"current_version":sha,"running_container_revision":sha,"internal_version_sha":sha,"image_digest":digest,"configured_image":image}.items():
+    if d.get(k)!=v: raise SystemExit(f"public identity mismatch: {k}")
+PY
+python3 - "$IDENTITY" <<'PY'
+import json,os,sys,tempfile
+p=sys.argv[1]; d=json.load(open(p)); d['status']='activated'
+fd,t=tempfile.mkstemp(prefix='.identity.',dir=os.path.dirname(p)); os.fchmod(fd,0o444)
+with os.fdopen(fd,'w') as f: json.dump(d,f,sort_keys=True,separators=(',',':')); f.write('\n'); f.flush(); os.fsync(f.fileno())
+os.replace(t,p); fd=os.open(os.path.dirname(p),os.O_RDONLY|os.O_DIRECTORY); os.fsync(fd); os.close(fd)
+PY
+wait_200 "$PUBLIC_BASE/scanner/v1/release-identity" "$TX/public-activated.json"
+python3 - "$IDENTITY" "$TX/public-activated.json" <<'PY'
+import json,sys
+expected=json.load(open(sys.argv[1])); observed=json.load(open(sys.argv[2]))
+for key in ("schema_version","environment","host","candidate_id","commit_sha","image_digest","configured_image","running_container_revision","internal_version_sha","current_version","status"):
+    if observed.get(key)!=expected.get(key): raise SystemExit(f"activated public identity mismatch: {key}")
+PY
+
+FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+OBSERVED_IMAGE_ID="$("$DOCKER" inspect --format '{{.Image}}' "$CONTAINER")"
+python3 - "$TX/receipt.json" "$SHA" "$REPO_DIGEST" "$ARCHIVE_SHA" "$GOT_MANIFEST" "$CANDIDATE" "$IMAGE_ID" "$OBSERVED_IMAGE_ID" "$RECORDED_AT" "$FINISHED_AT" "$TX" "$TX/public-activated.json" <<'PY'
+import hashlib,json,sys
+p,sha,digest,archive,manifest,candidate,loaded,running,started,finished,tx,response=sys.argv[1:]
+d={"schema_version":"backbond-scanner-activation-receipt@1","candidate_id":candidate,"commit_sha":sha,"repository_digest":digest,"archive_sha256":archive,"release_manifest_sha256":manifest,"loaded_image_id":loaded,"running_image_id":running,"started_at":started,"finished_at":finished,"transaction_backup_path":tx,"public_identity_response_sha256":hashlib.sha256(open(response,'rb').read()).hexdigest(),"status":"activated"}
+open(p,'w').write(json.dumps(d,sort_keys=True,separators=(',',':'))+'\n')
+PY
+atomic_install "$TX/receipt.json" "$RECEIPTS/$SHA.json" 0444
+transaction_active=0; trap - ERR INT TERM
+log "OK: exact frozen candidate activated; receipt $RECEIPTS/$SHA.json"
