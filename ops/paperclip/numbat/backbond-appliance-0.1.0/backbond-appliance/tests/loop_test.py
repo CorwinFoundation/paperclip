@@ -118,6 +118,7 @@ def main():
         # 3. findings visible server-side
         if not st["findings_by_rule"] or "growth.crm_data_misuse" not in st["findings_by_rule"]:
             fail(f"expected findings by rule, got {st['findings_by_rule']}")
+        shipped = json.loads(open(os.path.join(work, "ledger.ndjson")).readline())
         print(f"  [3] findings by rule: {st['findings_by_rule']}")
         print(f"      findings by tenant: {st['findings_by_tenant']}")
 
@@ -147,22 +148,47 @@ def main():
                 fail(f"cross-tenant hub read returned {exc.code}, expected 403")
         print("  [3a] tenant-scoped hub read PASS; cross-tenant read REJECTED")
 
-        code, _ = delete(f"{base}/hub/tenant?customer_id=smb-beta&agent_id=ops",
-                         "hub-smb-alpha-ops")
+        deleted_finding = ledger.findings[0]
+        deleted_customer = deleted_finding["tenant_id"]
+        deleted_agent = deleted_finding["agent_id"]
+        deleted_count = sum(
+            (f["tenant_id"], f["agent_id"]) == (deleted_customer, deleted_agent)
+            for f in ledger.findings
+        )
+        code, _ = delete(
+            f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
+            "hub-smb-alpha-ops" if (deleted_customer, deleted_agent) != ("smb-alpha", "ops")
+            else "hub-smb-beta-ops")
         if code != 403:
             fail(f"cross-tenant deletion returned {code}, expected 403")
-        code, _ = delete(f"{base}/hub/tenant?customer_id=smb-alpha&agent_id=ops",
-                         "hub-smb-alpha-ops")
+        code, _ = delete(
+            f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
+            f"hub-{deleted_customer}-{deleted_agent}")
         if code != 200:
             fail(f"same-tenant deletion returned {code}")
-        deleted = get(f"{base}/hub/summary?customer_id=smb-alpha&agent_id=ops",
-                      "hub-smb-alpha-ops")
+        deleted = get(
+            f"{base}/hub/summary?customer_id={deleted_customer}&agent_id={deleted_agent}",
+            f"hub-{deleted_customer}-{deleted_agent}")
         if deleted["findings_total"] != 0:
             fail("tenant deletion left findings behind")
+        reconciled = ledger.status()
+        if reconciled["findings_total"] != st["findings_total"] - deleted_count:
+            fail(f"tenant deletion left contradictory global status: {reconciled}")
+        if any((f["tenant_id"], f["agent_id"]) == (deleted_customer, deleted_agent)
+               for f in ledger.findings):
+            fail("tenant deletion left scoped in-memory findings")
+        retained_ledger = open(os.path.join(work, "ledger.ndjson")).read()
+        retained_records = [json.loads(line) for line in retained_ledger.splitlines()]
+        retained_rows = [row for record in retained_records
+                         for row in record.get("events", []) + record.get("determinations", [])]
+        if any((row.get("tenant_id"), row.get("agent_id"))
+               == (deleted_customer, deleted_agent) for row in retained_rows):
+            fail("tenant deletion retained scoped ledger rows")
+        if deleted_finding["evidence_hash"] in retained_ledger:
+            fail("tenant deletion retained scoped evidence hash")
         print("  [3b] scoped retention deletion PASS; cross-tenant deletion REJECTED")
 
         # 4. idempotent re-ship (resend the persisted batch directly)
-        shipped = json.loads(open(os.path.join(work, "ledger.ndjson")).readline())
         code, resp = post(f"{base}/ingest", shipped, TOKEN)
         st2 = get(f"{base}/status", TOKEN)
         if st2["batches_accepted"] != 1:

@@ -34,7 +34,7 @@ from server.tenant_store import Scope, TenantStore
 class Ledger:
     def __init__(self, path: str, tenant_root: str | None = None):
         self.path = path
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.keys: dict[str, str] = {}            # appliance_id -> public_key_pem
         self.chain_tip: dict[str, str] = {}       # appliance_id -> last accepted batch_hash
         self.seen: set[str] = set()               # batch_hash idempotency
@@ -180,7 +180,65 @@ class Ledger:
         if self.hub_tokens.get(token) != scope:
             self.store.audit("delete_denied", scope, {})
             raise PermissionError("not authorized for tenant scope")
-        self.store.delete(scope)
+        # Deletion is a data-erasure control, not merely a partition cleanup.  The
+        # server ledger historically retained full signed batches, so reconcile all
+        # reporting and persistence surfaces while holding the ingest lock.  A batch
+        # that touched the deleted scope is reduced to a non-attributable receipt;
+        # the original hash remains for idempotency/audit continuity, but no tenant
+        # identifier, rule, severity, event id, or evidence hash survives.
+        with self.lock:
+            self.store.delete(scope)
+            self.findings = [
+                finding for finding in self.findings
+                if (finding.get("tenant_id"), finding.get("agent_id"))
+                != (customer_id, agent_id)
+            ]
+            self._erase_tenant_from_ledger(scope)
+
+    def _erase_tenant_from_ledger(self, scope: Scope) -> None:
+        if not os.path.exists(self.path):
+            return
+        replacement = self.path + ".rewrite"
+        try:
+            with open(self.path, encoding="utf-8") as source, \
+                    open(replacement, "w", encoding="utf-8") as target:
+                for line in source:
+                    record = json.loads(line)
+                    scoped_rows = record.get("events", []) + record.get("determinations", [])
+                    touched = any(
+                        row.get("tenant_id") == scope.customer_id
+                        and row.get("agent_id") == scope.agent_id
+                        for row in scoped_rows
+                    )
+                    if touched:
+                        retained_events = [
+                            row for row in record.get("events", [])
+                            if (row.get("tenant_id"), row.get("agent_id"))
+                            != (scope.customer_id, scope.agent_id)
+                        ]
+                        retained_determinations = [
+                            row for row in record.get("determinations", [])
+                            if (row.get("tenant_id"), row.get("agent_id"))
+                            != (scope.customer_id, scope.agent_id)
+                        ]
+                        record = {
+                            "record_type": "tenant_erased_batch_receipt",
+                            "batch_hash": record.get("batch_hash"),
+                            "appliance_id": record.get("appliance_id"),
+                            "batch_seq": record.get("batch_seq"),
+                            "events": retained_events,
+                            "determinations": retained_determinations,
+                        }
+                    target.write(json.dumps(record, sort_keys=True) + "\n")
+                target.flush()
+                os.fsync(target.fileno())
+            os.replace(replacement, self.path)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            try:
+                os.remove(replacement)
+            except FileNotFoundError:
+                pass
+            raise
 
     def contain(self, appliance_id: str) -> None:
         """Incident kill switch: reject further writes without deleting evidence."""
