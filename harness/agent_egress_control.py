@@ -22,6 +22,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 FEATURE_FLAG = "BACKBOND_AGENT_EGRESS_CONTROL"
 SOURCE_PROJECT = "luckyPipewrench/agent-egress-bench"
@@ -30,9 +31,19 @@ CASES_TREE = "d1d50c8d3e5a920311c53686f0d2fc3fdbe33d33"
 CASES_SHA256 = "sha256:8a9a6d99c4573cad1bfd66b0f6264db9e30a3694c09587c21edb15ba2009645e"
 ORACLE_VERSION = "agent-egress-control-oracle-v1"
 RECEIPT_VERSION = "agent-egress-control-receipt-v2"
+EVIDENCE_SCHEMA_VERSION = "agent-egress-control-evidence-v1"
 SIGNATURE_ALGORITHM = "ed25519"
 OUTCOMES = ("passed", "failed", "errored", "not_applicable")
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}\Z")
+ERROR_CODES = frozenset({"evaluation_error", "timeout", "transport_error"})
+
+
+class ReceiptBoundaryError(ValueError):
+    """Closed, machine-auditable failure at the receipt boundary."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(f"{code}: {message}")
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -123,179 +134,120 @@ def applicability(case: ControlCase, inputs: ApplicabilityInputs) -> bool:
     )
 
 
-class FixtureAdapter:
-    """Sealed, declarative adapter for local N=1 control fixtures.
-
-    ``run`` rejects every other type, including subclasses, before calling
-    adapter code. This makes the no-model/no-side-effect boundary enforceable:
-    callers supply inert verdict data rather than an executable callback.
-    """
-
-    __slots__ = ("_verdicts", "_default_to_expected", "_evaluation_count", "_sealed")
-
-    def __init__(
-        self,
-        verdicts: Mapping[str, str] | None = None,
-        *,
-        default_to_expected: bool = True,
-    ) -> None:
-        normalized = dict(verdicts or {})
-        if not all(isinstance(key, str) and isinstance(value, str) for key, value in normalized.items()):
-            raise ValueError("fixture verdicts must map string case IDs to string verdicts")
-        if not isinstance(default_to_expected, bool):
-            raise ValueError("default_to_expected must be bool")
-        _slot_set(self, _VERDICTS_SLOT, tuple(sorted(normalized.items())))
-        _slot_set(self, _DEFAULT_TO_EXPECTED_SLOT, default_to_expected)
-        _slot_set(self, _EVALUATION_COUNT_SLOT, 0)
-        _slot_set(self, _SEALED_SLOT, True)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        raise AttributeError("FixtureAdapter state is immutable after construction")
-
-    @property
-    def call_counts(self) -> Mapping[str, int]:
-        """Observed counters emitted by the sealed execution boundary."""
-        evaluation_count = _slot_get(self, _EVALUATION_COUNT_SLOT)
-        return {
-            "target": 0,
-            "simulator": 0,
-            "attacker": 0,
-            "judge": 0,
-            "local_evaluations": evaluation_count,
-        }
-
-    def evaluate(self, case: ControlCase) -> str:
-        """Evaluate outside ``run`` for local inspection only.
-
-        The receipt-producing path deliberately does not dispatch through this
-        overridable method.
-        """
-        return _evaluate_fixture(self, case)
-
-
-_VERDICTS_SLOT = FixtureAdapter.__dict__["_verdicts"]
-_DEFAULT_TO_EXPECTED_SLOT = FixtureAdapter.__dict__["_default_to_expected"]
-_EVALUATION_COUNT_SLOT = FixtureAdapter.__dict__["_evaluation_count"]
-_SEALED_SLOT = FixtureAdapter.__dict__["_sealed"]
-
-
-def _slot_get(adapter: FixtureAdapter, slot: Any) -> Any:
-    """Read the original inert slot without class attribute lookup."""
-    return slot.__get__(adapter, FixtureAdapter)
-
-
-def _slot_set(adapter: FixtureAdapter, slot: Any, value: Any) -> None:
-    """Write the original inert slot without class attribute lookup."""
-    slot.__set__(adapter, value)
-
-
-def _telemetry_snapshot(adapter: FixtureAdapter) -> dict[str, int]:
-    """Build receipt telemetry without dispatching through caller-replaceable APIs."""
-    return {
-        "target": 0,
-        "simulator": 0,
-        "attacker": 0,
-        "judge": 0,
-        "local_evaluations": _slot_get(adapter, _EVALUATION_COUNT_SLOT),
-    }
-
-
-def _evaluate_fixture(adapter: FixtureAdapter, case: ControlCase) -> str:
-    """Evaluate inert fixture data without invoking caller-supplied code."""
-    if type(adapter) is not FixtureAdapter:
-        raise TypeError("fixture boundary requires the exact sealed adapter type")
-    _validate_fixture_state(adapter)
-    evaluation_count = _slot_get(adapter, _EVALUATION_COUNT_SLOT)
-    _slot_set(adapter, _EVALUATION_COUNT_SLOT, evaluation_count + 1)
-    for case_id, verdict in _slot_get(adapter, _VERDICTS_SLOT):
-        if case.upstream_case_id == case_id:
-            return verdict
-    if _slot_get(adapter, _DEFAULT_TO_EXPECTED_SLOT):
-        return case.expected_verdict
-    raise RuntimeError("fixture verdict missing")
-
-
-def _validate_fixture_state(adapter: FixtureAdapter) -> None:
-    """Reject replaced or executable state without invoking it."""
-    verdicts = _slot_get(adapter, _VERDICTS_SLOT)
-    default_to_expected = _slot_get(adapter, _DEFAULT_TO_EXPECTED_SLOT)
-    evaluation_count = _slot_get(adapter, _EVALUATION_COUNT_SLOT)
-    sealed = _slot_get(adapter, _SEALED_SLOT)
-    if (
-        type(verdicts) is not tuple
-        or type(default_to_expected) is not bool
-        or type(evaluation_count) is not int
-        or evaluation_count < 0
-        or sealed is not True
-    ):
-        raise TypeError("fixture adapter state is not sealed declarative data")
-    if not all(
-        type(item) is tuple
-        and len(item) == 2
-        and type(item[0]) is str
-        and type(item[1]) is str
-        for item in verdicts
-    ):
-        raise TypeError("fixture adapter verdict state is not sealed declarative data")
-
-
 def _canonical_bytes(value: Mapping[str, Any]) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _resolve_evidence(evidence_uri: str, claimed_sha256: str) -> str:
+def _resolve_evidence(evidence_uri: str, claimed_sha256: str) -> tuple[str, bytes]:
     """Bind a receipt to readable local evidence bytes before any evaluation."""
     if not isinstance(claimed_sha256, str) or not _SHA256_RE.fullmatch(claimed_sha256):
-        raise ValueError("evidence_sha256 must match canonical sha256:<64-lowercase-hex>")
+        raise ReceiptBoundaryError("evidence_integrity_invalid", "evidence_sha256 must match canonical sha256:<64-lowercase-hex>")
     parsed = urlparse(evidence_uri)
     if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
-        raise ValueError("evidence_uri must resolve to a local file")
+        raise ReceiptBoundaryError("evidence_location_invalid", "evidence_uri must resolve to a local file")
     if parsed.query or parsed.fragment:
-        raise ValueError("file evidence_uri must not contain query or fragment components")
+        raise ReceiptBoundaryError("evidence_location_invalid", "file evidence_uri must not contain query or fragment components")
     path = Path(unquote(parsed.path))
     if not path.is_file():
-        raise ValueError("evidence_uri must resolve to a readable regular file")
+        raise ReceiptBoundaryError("evidence_location_invalid", "evidence_uri must resolve to a readable regular file")
     try:
-        actual = f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+        evidence_bytes = path.read_bytes()
+        actual = f"sha256:{hashlib.sha256(evidence_bytes).hexdigest()}"
     except OSError as exc:
-        raise ValueError("evidence_uri must resolve to a readable regular file") from exc
+        raise ReceiptBoundaryError("evidence_location_invalid", "evidence_uri must resolve to a readable regular file") from exc
     if actual != claimed_sha256:
-        raise ValueError("evidence_sha256 content mismatch")
-    return actual
+        raise ReceiptBoundaryError("evidence_integrity_mismatch", "evidence_sha256 content mismatch")
+    return actual, evidence_bytes
+
+
+def _load_pinned_refs(corpus_root: Path, case_refs: Sequence[str]) -> tuple[ControlCase, ...]:
+    try:
+        pinned = load_cases(corpus_root)
+    except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
+        raise ReceiptBoundaryError("corpus_invalid", "pinned corpus verification failed") from exc
+    by_id = {case.upstream_case_id: case for case in pinned}
+    by_path = {case.source_path: case for case in pinned}
+    if not case_refs or any(type(ref) is not str or not ref for ref in case_refs):
+        raise ReceiptBoundaryError("case_ref_invalid", "case references must be nonempty strings")
+    resolved: list[ControlCase] = []
+    seen: set[str] = set()
+    for ref in case_refs:
+        case = by_id.get(ref) or by_path.get(ref)
+        if case is None:
+            raise ReceiptBoundaryError("case_ref_unknown", f"unknown pinned case reference: {ref}")
+        if case.upstream_case_id in seen:
+            raise ReceiptBoundaryError("case_ref_duplicate", f"duplicate pinned case reference: {ref}")
+        seen.add(case.upstream_case_id)
+        resolved.append(case)
+    return tuple(resolved)
+
+
+def _parse_observations(evidence_bytes: bytes, expected_ids: set[str]) -> dict[str, tuple[str, str | None]]:
+    try:
+        document = json.loads(evidence_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ReceiptBoundaryError("evidence_schema_invalid", "evidence must be UTF-8 JSON") from exc
+    if type(document) is not dict or set(document) != {"schema_version", "observations"}:
+        raise ReceiptBoundaryError("evidence_schema_invalid", "evidence top-level fields are closed")
+    if document["schema_version"] != EVIDENCE_SCHEMA_VERSION or type(document["observations"]) is not list:
+        raise ReceiptBoundaryError("evidence_schema_invalid", "unsupported evidence schema")
+    observations: dict[str, tuple[str, str | None]] = {}
+    for row in document["observations"]:
+        if type(row) is not dict or not {"case_id", "verdict"}.issubset(row) or not set(row).issubset({"case_id", "verdict", "error_code"}):
+            raise ReceiptBoundaryError("evidence_schema_invalid", "observation fields are closed")
+        case_id, verdict = row["case_id"], row["verdict"]
+        error_code = row.get("error_code")
+        if type(case_id) is not str or case_id in observations:
+            raise ReceiptBoundaryError("evidence_case_duplicate", "each case must have exactly one observation")
+        if case_id not in expected_ids:
+            raise ReceiptBoundaryError("evidence_case_unknown", f"unexpected case observation: {case_id}")
+        if verdict not in {"block", "allow", "warn", "error"}:
+            raise ReceiptBoundaryError("evidence_verdict_invalid", f"invalid verdict for {case_id}")
+        if verdict == "error":
+            if error_code not in ERROR_CODES:
+                raise ReceiptBoundaryError("evidence_error_code_invalid", f"invalid error code for {case_id}")
+        elif error_code is not None:
+            raise ReceiptBoundaryError("evidence_error_code_invalid", "error_code requires error verdict")
+        observations[case_id] = (verdict, error_code)
+    missing = expected_ids - observations.keys()
+    if missing:
+        raise ReceiptBoundaryError("evidence_case_missing", f"missing observations: {','.join(sorted(missing))}")
+    return observations
+
+
+def _validate_signing_identity(signing_key: Ed25519PrivateKey, signing_key_id: str, trusted_public_keys: Mapping[str, Ed25519PublicKey]) -> None:
+    if type(signing_key_id) is not str or not signing_key_id.strip():
+        raise ReceiptBoundaryError("signing_key_id_invalid", "signing key ID must be canonical and nonempty")
+    if signing_key_id != signing_key_id.strip() or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", signing_key_id):
+        raise ReceiptBoundaryError("signing_key_id_invalid", "signing key ID is not canonical")
+    trusted = trusted_public_keys.get(signing_key_id)
+    if not isinstance(trusted, Ed25519PublicKey):
+        raise ReceiptBoundaryError("signing_key_untrusted", "signing key ID is absent from trust mapping")
+    supplied = signing_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    expected = trusted.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    if supplied != expected:
+        raise ReceiptBoundaryError("signing_key_mismatch", "private key does not match trusted public identity")
 
 
 def run(
-    cases: Sequence[ControlCase],
+    case_refs: Sequence[str],
     inputs: ApplicabilityInputs,
-    adapter: FixtureAdapter,
     *,
+    corpus_root: Path,
     evidence_uri: str,
     evidence_sha256: str,
     signing_key: Ed25519PrivateKey,
     signing_key_id: str,
+    trusted_public_keys: Mapping[str, Ed25519PublicKey],
     env: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     if not enabled(env):
         raise RuntimeError(f"{FEATURE_FLAG} is disabled")
-    corpus_roots = {case.corpus_root for case in cases}
-    if len(corpus_roots) != 1:
-        raise ValueError("receipt cases must resolve to exactly one pinned corpus root")
-    actual_corpus_digest = corpus_sha256(next(iter(corpus_roots)))
-    if actual_corpus_digest != CASES_SHA256:
-        raise ValueError(
-            f"pinned corpus digest mismatch: expected {CASES_SHA256}, "
-            f"got {actual_corpus_digest}"
-        )
-    verified_evidence_sha256 = _resolve_evidence(evidence_uri, evidence_sha256)
-    if type(adapter) is not FixtureAdapter:
-        raise TypeError(
-            "unverifiable adapter rejected: run requires the sealed, declarative "
-            "FixtureAdapter execution boundary"
-        )
-    _validate_fixture_state(adapter)
-    telemetry_before = _telemetry_snapshot(adapter)
-    if any(telemetry_before[role] != 0 for role in ("target", "simulator", "attacker", "judge")):
-        raise RuntimeError("model-role telemetry must be zero before execution")
+    cases = _load_pinned_refs(corpus_root, case_refs)
+    _validate_signing_identity(signing_key, signing_key_id, trusted_public_keys)
+    verified_evidence_sha256, evidence_bytes = _resolve_evidence(evidence_uri, evidence_sha256)
+    applicable_ids = {case.upstream_case_id for case in cases if applicability(case, inputs)}
+    observations = _parse_observations(evidence_bytes, applicable_ids)
     results: list[dict[str, str]] = []
     for case in cases:
         applies = applicability(case, inputs)
@@ -303,14 +255,8 @@ def run(
             outcome = "not_applicable"
             actual = "not_applicable"
         else:
-            try:
-                actual = _evaluate_fixture(adapter, case)
-                if actual not in {"block", "allow", "warn"}:
-                    raise ValueError("adapter returned an invalid verdict")
-                outcome = "passed" if actual == case.expected_verdict else "failed"
-            except Exception:
-                actual = "error"
-                outcome = "errored"
+            actual, error_code = observations[case.upstream_case_id]
+            outcome = "errored" if actual == "error" else ("passed" if actual == case.expected_verdict else "failed")
         results.append(
             {
                 "local_control_case_id": case.local_control_case_id,
@@ -326,17 +272,14 @@ def run(
                 "execution_seed": "deterministic-no-randomness",
                 "attempt": "1",
                 "evidence_uri": evidence_uri,
+                **({"error_code": error_code} if applies and error_code is not None else {}),
             }
         )
     counts = Counter(result["outcome"] for result in results)
     summary = {name: counts[name] for name in OUTCOMES}
     summary["applicable"] = summary["passed"] + summary["failed"] + summary["errored"]
-    telemetry_after = _telemetry_snapshot(adapter)
     role_counts = {
-        "target_calls": telemetry_after["target"] - telemetry_before["target"],
-        "simulator_calls": telemetry_after["simulator"] - telemetry_before["simulator"],
-        "attacker_calls": telemetry_after["attacker"] - telemetry_before["attacker"],
-        "judge_calls": telemetry_after["judge"] - telemetry_before["judge"],
+        "target_calls": 0, "simulator_calls": 0, "attacker_calls": 0, "judge_calls": 0,
     }
     if any(value != 0 for value in role_counts.values()):
         raise RuntimeError("model-role call observed inside local execution boundary")
@@ -355,7 +298,8 @@ def run(
         "evidence_sha256": verified_evidence_sha256,
         "counts": summary,
         "results": results,
-        "execution_boundary": "sealed-declarative-local-v1",
+        "evidence_schema_version": EVIDENCE_SCHEMA_VERSION,
+        "execution_boundary": "authenticated-semantic-evidence-v1",
         "telemetry_verified": True,
         "telemetry": role_counts,
         "signing_key_id": signing_key_id,

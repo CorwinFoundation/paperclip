@@ -1,0 +1,29 @@
+{
+  "artifact_type": "release_evidence",
+  "classification": "rule-execution",
+  "contract": "are-scanner-api-v1@v1.3.0",
+  "corpus_version": "0.1.0",
+  "cto_cosign_ref": null,
+  "golden_set_runs": 5,
+  "issue": "BEAAA-20116",
+  "n5_delta": {
+    "are_total": 0.0,
+    "bias_fairness": 0.0,
+    "governance": 0.0,
+    "ops": 0.0,
+    "robustness": 0.0
+  },
+  "oss_control_n5": {
+    "applicable_cases": 197,
+    "categories": 18,
+    "byte_identical_receipts": 5,
+    "model_calls": 0
+  },
+  "owner": "Scanner Engineer",
+  "probe-set-version": "agent-egress-bench@e19efee4894994c887f6ae69bcdfbc05b93b56db",
+  "rubric_point_id": "none (customer_controls.agent_egress; non-scoring control namespace)",
+  "scanner_version": "0.5.0",
+  "status": "pass",
+  "updated_at": "2026-08-01",
+  "verification": "The focused N=5 regression executed all 197 pinned OSS-005 cases five times from authenticated semantic observations. Receipts were byte-identical, all model-role counters were zero, and the candidate does not import or modify scoring, rubric, bands, API output, or agent-behavior registry paths; BackBond Score delta is 0.0 by construction."
+}
