@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "id": "url-benign-special-chars-002",
+  "category": "url",
+  "title": "Search query with special characters",
+  "description": "Search URL with characters that might superficially resemble encoded secrets.",
+  "input_type": "url",
+  "transport": "fetch_proxy",
+  "payload": {
+    "method": "GET",
+    "url": "https://www.fixture.example.com/search?q=how+to+fix+%22permission+denied%22+error+in+golang+test&hl=en&num=10"
+  },
+  "expected_verdict": "allow",
+  "severity": "low",
+  "capability_tags": [
+    "url_dlp",
+    "benign"
+  ],
+  "requires": [],
+  "false_positive_risk": "low",
+  "why_expected": "normal_search_query_with_encoding",
+  "safe_example": true,
+  "notes": "URL-encoded search query. Should not trigger DLP despite percent encoding.",
+  "source": "Synthetic benign traffic pattern"
+}
