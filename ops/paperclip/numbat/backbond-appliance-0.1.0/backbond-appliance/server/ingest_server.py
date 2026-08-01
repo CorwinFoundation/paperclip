@@ -28,10 +28,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from appliance.batch import verify_batch
 from appliance.pipeline import CONTENT_FIELDS
+from server.tenant_store import Scope, TenantStore
 
 
 class Ledger:
-    def __init__(self, path: str):
+    def __init__(self, path: str, tenant_root: str | None = None):
         self.path = path
         self.lock = threading.Lock()
         self.keys: dict[str, str] = {}            # appliance_id -> public_key_pem
@@ -40,17 +41,34 @@ class Ledger:
         self.accepted = 0
         self.rejected: list[dict] = []
         self.findings: list[dict] = []
+        self.bindings: dict[str, dict] = {}
+        self.ingest_tokens: dict[str, str] = {}
+        self.hub_tokens: dict[str, Scope] = {}
+        self.store = TenantStore(tenant_root or path + ".tenants")
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 
     def enroll(self, rec: dict):
+        scopes = rec.get("scopes") or []
+        allowed = frozenset((s.get("customer_id"), s.get("agent_id")) for s in scopes)
+        if not allowed or any(not customer or not agent for customer, agent in allowed) or not rec.get("ingest_token"):
+            raise ValueError("server-side scopes and ingest_token required")
         with self.lock:
             self.keys[rec["appliance_id"]] = rec["public_key_pem"]
+            self.bindings[rec["appliance_id"]] = {
+                "scopes": allowed,
+                "encryption_key_id": rec.get("encryption_key_id", "tenant-key-v1")}
+            self.ingest_tokens[rec["appliance_id"]] = rec["ingest_token"]
+            for item in rec.get("hub_tokens", []):
+                scope = Scope(item.get("customer_id", ""), item.get("agent_id", ""))
+                if (scope.customer_id, scope.agent_id) not in allowed or not item.get("token"):
+                    raise ValueError("hub token outside enrolled scope")
+                self.hub_tokens[item["token"]] = scope
 
     def _reject(self, reason: str, ctx: dict):
         self.rejected.append({"reason": reason, **ctx})
         return reason
 
-    def ingest(self, batch: dict) -> tuple[bool, str]:
+    def ingest(self, batch: dict, token: str | None = None) -> tuple[bool, str]:
         with self.lock:
             aid = batch.get("appliance_id")
             bh = batch.get("batch_hash")
@@ -58,6 +76,14 @@ class Ledger:
 
             if aid not in self.keys:
                 return False, self._reject("unknown appliance (not enrolled)", ctx)
+            binding = self.bindings[aid]
+            scopes = {(e.get("tenant_id"), e.get("agent_id")) for e in batch.get("events", [])}
+            scopes.update((d.get("tenant_id"), d.get("agent_id")) for d in batch.get("determinations", []))
+            expected = binding["scopes"]
+            if not scopes or not scopes.issubset(expected):
+                return False, self._reject("tenant identity outside enrolled scope", ctx)
+            if token is None or token != self.ingest_tokens.get(aid):
+                return False, self._reject("token not authorized for tenant scope", ctx)
 
             # signature + batch_hash FIRST — a tampered body must never be treated as a
             # duplicate. verify_batch recomputes batch_hash from the canonical body, so any
@@ -87,6 +113,11 @@ class Ledger:
             for d in batch.get("determinations", []):
                 self.findings.append({k: d.get(k) for k in
                                       ("rule_id", "severity", "tenant_id", "agent_id", "event_id", "evidence_hash")})
+            for customer_id, agent_id in scopes:
+                tenant_findings = [d for d in batch.get("determinations", [])
+                                   if d.get("tenant_id") == customer_id and d.get("agent_id") == agent_id]
+                self.store.append(Scope(customer_id, agent_id), bh, tenant_findings,
+                                  binding["encryption_key_id"])
             with open(self.path, "a") as fh:
                 fh.write(json.dumps(batch) + "\n")
             return True, f"accepted (seq {batch.get('batch_seq')})"
@@ -117,6 +148,28 @@ class Ledger:
                 "findings_by_severity": by_sev,
             }
 
+    def hub_summary(self, token: str, customer_id: str, agent_id: str) -> dict:
+        scope = Scope(customer_id, agent_id)
+        if self.hub_tokens.get(token) != scope:
+            self.store.audit("hub_denied", scope, {})
+            raise PermissionError("not authorized for tenant scope")
+        return {"customer_id": customer_id, "agent_id": agent_id, **self.store.summary(scope)}
+
+    def delete_tenant(self, token: str, customer_id: str, agent_id: str) -> None:
+        scope = Scope(customer_id, agent_id)
+        if self.hub_tokens.get(token) != scope:
+            self.store.audit("delete_denied", scope, {})
+            raise PermissionError("not authorized for tenant scope")
+        self.store.delete(scope)
+
+    def contain(self, appliance_id: str) -> None:
+        """Incident kill switch: reject further writes without deleting evidence."""
+        with self.lock:
+            self.ingest_tokens.pop(appliance_id, None)
+            binding = self.bindings.get(appliance_id, {})
+            for scope in binding.get("scopes", []):
+                self.store.audit("appliance_contained", Scope(*scope), {"appliance_id": appliance_id})
+
 
 def make_handler(ledger: Ledger, token: str):
     class Handler(BaseHTTPRequestHandler):
@@ -128,8 +181,9 @@ def make_handler(ledger: Ledger, token: str):
             self.end_headers()
             self.wfile.write(body)
 
-        def _auth_ok(self):
-            return self.headers.get("Authorization", "") == f"Bearer {token}"
+        def _bearer(self):
+            value = self.headers.get("Authorization", "")
+            return value[7:] if value.startswith("Bearer ") else ""
 
         def _read_json(self):
             n = int(self.headers.get("Content-Length", 0))
@@ -140,23 +194,52 @@ def make_handler(ledger: Ledger, token: str):
             return json.loads(data)
 
         def do_GET(self):
-            if self.path == "/status":
+            from urllib.parse import parse_qs, urlparse
+            parsed = urlparse(self.path)
+            if parsed.path == "/hub/summary":
+                q = parse_qs(parsed.query)
+                try:
+                    out = ledger.hub_summary(self._bearer(), q.get("customer_id", [""])[0],
+                                             q.get("agent_id", [""])[0])
+                    self._send(200, out)
+                except PermissionError as exc:
+                    self._send(403, {"error": str(exc)})
+            elif self.path == "/status" and self._bearer() == token:
                 self._send(200, ledger.status())
             else:
                 self._send(404, {"error": "not found"})
 
         def do_POST(self):
             if self.path == "/enroll":
-                ledger.enroll(self._read_json())
-                self._send(200, {"ok": True})
+                if self._bearer() != token:
+                    self._send(401, {"error": "admin authorization required"}); return
+                try:
+                    ledger.enroll(self._read_json())
+                    self._send(200, {"ok": True})
+                except ValueError as exc:
+                    self._send(422, {"error": str(exc)})
                 return
             if self.path == "/ingest":
-                if not self._auth_ok():
-                    self._send(401, {"error": "bad token"}); return
-                ok, msg = ledger.ingest(self._read_json())
+                bearer = self._bearer()
+                if not bearer:
+                    self._send(401, {"error": "missing token"}); return
+                ok, msg = ledger.ingest(self._read_json(), bearer)
                 self._send(200 if ok else 422, {"accepted": ok, "detail": msg})
                 return
             self._send(404, {"error": "not found"})
+
+        def do_DELETE(self):
+            from urllib.parse import parse_qs, urlparse
+            parsed = urlparse(self.path)
+            if parsed.path != "/hub/tenant":
+                self._send(404, {"error": "not found"}); return
+            q = parse_qs(parsed.query)
+            try:
+                ledger.delete_tenant(self._bearer(), q.get("customer_id", [""])[0],
+                                     q.get("agent_id", [""])[0])
+                self._send(200, {"deleted": True})
+            except PermissionError as exc:
+                self._send(403, {"error": str(exc)})
 
         def log_message(self, *a):  # quiet
             pass
