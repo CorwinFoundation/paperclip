@@ -148,7 +148,10 @@ def main():
                 fail(f"cross-tenant hub read returned {exc.code}, expected 403")
         print("  [3a] tenant-scoped hub read PASS; cross-tenant read REJECTED")
 
-        deleted_finding = ledger.findings[0]
+        deleted_finding = next(
+            finding for finding in ledger.findings
+            if (finding["tenant_id"], finding["agent_id"]) != ("smb-beta", "ops")
+        )
         deleted_customer = deleted_finding["tenant_id"]
         deleted_agent = deleted_finding["agent_id"]
         deleted_count = sum(
@@ -161,39 +164,65 @@ def main():
             else "hub-smb-beta-ops")
         if code != 403:
             fail(f"cross-tenant deletion returned {code}, expected 403")
+        ledger_bytes_before_delete = open(os.path.join(work, "ledger.ndjson"), "rb").read()
+        deleted_scope = Scope(deleted_customer, deleted_agent)
+        deleted_partition = ledger.store._path(deleted_scope)
+        deleted_epoch = ledger.scope_epochs[deleted_scope]
+        old_hub_token = f"hub-{deleted_customer}-{deleted_agent}"
         code, _ = delete(
             f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
-            f"hub-{deleted_customer}-{deleted_agent}")
+            old_hub_token)
         if code != 200:
             fail(f"same-tenant deletion returned {code}")
-        deleted = get(
-            f"{base}/hub/summary?customer_id={deleted_customer}&agent_id={deleted_agent}",
-            f"hub-{deleted_customer}-{deleted_agent}")
-        if deleted["findings_total"] != 0:
-            fail("tenant deletion left findings behind")
+        try:
+            get(f"{base}/hub/summary?customer_id={deleted_customer}&agent_id={deleted_agent}",
+                old_hub_token)
+            fail("deleted tenant hub access remained authorized")
+        except urllib.error.HTTPError as exc:
+            if exc.code != 403:
+                fail(f"deleted tenant hub returned {exc.code}, expected 403")
         reconciled = ledger.status()
         if reconciled["findings_total"] != st["findings_total"] - deleted_count:
             fail(f"tenant deletion left contradictory global status: {reconciled}")
         if any((f["tenant_id"], f["agent_id"]) == (deleted_customer, deleted_agent)
                for f in ledger.findings):
             fail("tenant deletion left scoped in-memory findings")
-        retained_ledger = open(os.path.join(work, "ledger.ndjson")).read()
-        retained_records = [json.loads(line) for line in retained_ledger.splitlines()]
-        retained_rows = [row for record in retained_records
-                         for row in record.get("events", []) + record.get("determinations", [])]
-        if any((row.get("tenant_id"), row.get("agent_id"))
-               == (deleted_customer, deleted_agent) for row in retained_rows):
-            fail("tenant deletion retained scoped ledger rows")
-        if deleted_finding["evidence_hash"] in retained_ledger:
-            fail("tenant deletion retained scoped evidence hash")
-        print("  [3b] scoped retention deletion PASS; cross-tenant deletion REJECTED")
+        if os.path.exists(deleted_partition):
+            fail("tenant deletion left SQLite partition behind")
+        if ledger_bytes_before_delete != open(os.path.join(work, "ledger.ndjson"), "rb").read():
+            fail("tenant deletion mutated immutable signed ledger bytes")
+        tombstones = [json.loads(line) for line in open(ledger.tombstone_path, encoding="utf-8")]
+        if len(tombstones) != 1 or not ledger.verify_deletion_tombstone(tombstones[0]):
+            fail(f"expected one valid deletion tombstone, got {tombstones}")
+        forbidden = (deleted_customer, deleted_agent, deleted_finding["evidence_hash"])
+        if any(value in json.dumps(tombstones[0]) for value in forbidden):
+            fail("deletion tombstone retained raw tenant or evidence data")
+        if reconciled["ledger_records_total"] != 1 or reconciled["deleted_scope_tombstones_total"] != 1:
+            fail(f"audit-only counters are not truthful: {reconciled}")
+        print("  [3b] operational erasure + immutable ledger + signed tombstone PASS")
 
-        # 4. idempotent re-ship (resend the persisted batch directly)
+        fresh_token = f"hub-fresh-{deleted_customer}-{deleted_agent}"
+        code, _ = post(f"{base}/enroll", {
+            "appliance_id": "fresh-appliance", "public_key_pem": pub,
+            "ingest_token": "fresh-ingest",
+            "scopes": [{"customer_id": deleted_customer, "agent_id": deleted_agent,
+                        "encryption_key_id": f"fresh-key-{deleted_customer}-{deleted_agent}"}],
+            "hub_tokens": [{"customer_id": deleted_customer, "agent_id": deleted_agent,
+                            "token": fresh_token}],
+        }, TOKEN)
+        if code != 200 or ledger.scope_epochs[deleted_scope] != deleted_epoch + 1:
+            fail("tenant re-enrollment did not start a fresh epoch")
+        if get(f"{base}/hub/summary?customer_id={deleted_customer}&agent_id={deleted_agent}",
+               fresh_token)["findings_total"] != 0:
+            fail("tenant re-enrollment restored deleted findings")
+        print("  [3d] tenant re-enrollment starts fresh empty epoch PASS")
+
+        # 4. A deleted scope cannot be revived by replaying its retained signed batch.
         code, resp = post(f"{base}/ingest", shipped, TOKEN)
         st2 = get(f"{base}/status", TOKEN)
-        if st2["batches_accepted"] != 1:
-            fail(f"re-ship not idempotent: accepted went to {st2['batches_accepted']}")
-        print(f"  [4] re-ship idempotent ({resp['detail']})")
+        if code == 200 or st2["batches_accepted"] != 1:
+            fail(f"deleted-scope replay was not rejected cleanly: {code}, {resp}")
+        print(f"  [4] deleted-scope signed replay REJECTED ({resp['detail']})")
 
         # Quota rejection must leave every authoritative state surface unchanged and retryable.
         from appliance.batch import _canonical, _sha256
@@ -223,13 +252,18 @@ def main():
         code, resp = post(f"{base}/ingest", retry_batch, TOKEN)
         if code != 200 or not resp.get("accepted"):
             fail(f"quota-remediated retry failed: code={code}, response={resp}")
+        code, resp = post(f"{base}/ingest", retry_batch, TOKEN)
+        if code != 200 or "duplicate" not in resp.get("detail", ""):
+            fail(f"accepted batch replay was not idempotent: code={code}, response={resp}")
         print("  [4a] quota rejection atomicity and remediation retry PASS")
 
         # 5. tampered batch rejected
-        tampered = json.loads(json.dumps(shipped)); tampered["counts"]["events"] = 999
+        tampered = json.loads(json.dumps(retry_batch)); tampered["counts"]["events"] = 999
         code, resp = post(f"{base}/ingest", tampered, TOKEN)
         if code == 200 and resp.get("accepted"):
             fail("tampered batch was accepted")
+        if "signature" not in resp.get("detail", ""):
+            fail(f"tampered batch did not reach signature rejection: {resp}")
         print(f"  [5] tampered batch REJECTED ({resp['detail']})")
 
         # 6. VALIDLY-SIGNED content-laden batch rejected (independent server-side no-content

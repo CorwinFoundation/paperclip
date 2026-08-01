@@ -22,7 +22,7 @@ Usage:
     # and run:  BACKBOND_SHIP_TOKEN=secret python3 -m appliance.main run -c config.yaml
 """
 from __future__ import annotations
-import argparse, json, os, sqlite3, sys, threading
+import argparse, hashlib, hmac, json, os, sqlite3, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,8 +44,31 @@ class Ledger:
         self.bindings: dict[str, dict] = {}
         self.ingest_tokens: dict[str, str] = {}
         self.hub_tokens: dict[str, Scope] = {}
-        self.store = TenantStore(tenant_root or path + ".tenants")
+        self.scope_chain_tip: dict[Scope, str] = {}
+        self.scope_epochs: dict[Scope, int] = {}
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        self.tombstone_path = path + ".deletions.ndjson"
+        self._tombstone_signing_key = self._load_tombstone_signing_key(
+            path + ".deletions.key")
+        self.deleted_scope_tombstones_total = 0
+        self.store = TenantStore(tenant_root or path + ".tenants")
+
+    @staticmethod
+    def _load_tombstone_signing_key(path: str) -> bytes:
+        try:
+            with open(path, "rb") as fh:
+                key = fh.read()
+            if len(key) != 32:
+                raise ValueError("invalid deletion tombstone signing key")
+            return key
+        except FileNotFoundError:
+            key = os.urandom(32)
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(key)
+                fh.flush()
+                os.fsync(fh.fileno())
+            return key
 
     def enroll(self, rec: dict):
         scopes = rec.get("scopes") or []
@@ -62,6 +85,9 @@ class Ledger:
         if not allowed or not rec.get("ingest_token"):
             raise ValueError("server-side scopes and ingest_token required")
         with self.lock:
+            for customer_id, agent_id in allowed:
+                scope = Scope(customer_id, agent_id)
+                self.scope_epochs[scope] = self.scope_epochs.get(scope, 0) + 1
             self.keys[rec["appliance_id"]] = rec["public_key_pem"]
             self.bindings[rec["appliance_id"]] = {
                 "scopes": allowed,
@@ -140,6 +166,8 @@ class Ledger:
             self.chain_tip[aid] = bh
             self.accepted += 1
             self.findings.extend(pending_findings)
+            for customer_id, agent_id in scopes:
+                self.scope_chain_tip[Scope(customer_id, agent_id)] = bh
             return True, f"accepted (seq {batch.get('batch_seq')})"
 
     def _scan_content(self, batch: dict):
@@ -166,6 +194,8 @@ class Ledger:
                 "findings_by_rule": by_rule,
                 "findings_by_tenant": by_tenant,
                 "findings_by_severity": by_sev,
+                "ledger_records_total": self.accepted,
+                "deleted_scope_tombstones_total": self.deleted_scope_tombstones_total,
             }
 
     def hub_summary(self, token: str, customer_id: str, agent_id: str) -> dict:
@@ -180,65 +210,51 @@ class Ledger:
         if self.hub_tokens.get(token) != scope:
             self.store.audit("delete_denied", scope, {})
             raise PermissionError("not authorized for tenant scope")
-        # Deletion is a data-erasure control, not merely a partition cleanup.  The
-        # server ledger historically retained full signed batches, so reconcile all
-        # reporting and persistence surfaces while holding the ingest lock.  A batch
-        # that touched the deleted scope is reduced to a non-attributable receipt;
-        # the original hash remains for idempotency/audit continuity, but no tenant
-        # identifier, rule, severity, event id, or evidence hash survives.
         with self.lock:
+            epoch = self.scope_epochs.get(scope)
+            last_batch_hash = self.scope_chain_tip.get(scope)
             self.store.delete(scope)
             self.findings = [
                 finding for finding in self.findings
                 if (finding.get("tenant_id"), finding.get("agent_id"))
                 != (customer_id, agent_id)
             ]
-            self._erase_tenant_from_ledger(scope)
+            self.scope_chain_tip.pop(scope, None)
+            pair = (customer_id, agent_id)
+            for binding in self.bindings.values():
+                if pair in binding["scopes"]:
+                    binding["scopes"] = frozenset(s for s in binding["scopes"] if s != pair)
+                    binding["encryption_key_ids"].pop(pair, None)
+            for hub_token, bound_scope in list(self.hub_tokens.items()):
+                if bound_scope == scope:
+                    del self.hub_tokens[hub_token]
 
-    def _erase_tenant_from_ledger(self, scope: Scope) -> None:
-        if not os.path.exists(self.path):
-            return
-        replacement = self.path + ".rewrite"
-        try:
-            with open(self.path, encoding="utf-8") as source, \
-                    open(replacement, "w", encoding="utf-8") as target:
-                for line in source:
-                    record = json.loads(line)
-                    scoped_rows = record.get("events", []) + record.get("determinations", [])
-                    touched = any(
-                        row.get("tenant_id") == scope.customer_id
-                        and row.get("agent_id") == scope.agent_id
-                        for row in scoped_rows
-                    )
-                    if touched:
-                        retained_events = [
-                            row for row in record.get("events", [])
-                            if (row.get("tenant_id"), row.get("agent_id"))
-                            != (scope.customer_id, scope.agent_id)
-                        ]
-                        retained_determinations = [
-                            row for row in record.get("determinations", [])
-                            if (row.get("tenant_id"), row.get("agent_id"))
-                            != (scope.customer_id, scope.agent_id)
-                        ]
-                        record = {
-                            "record_type": "tenant_erased_batch_receipt",
-                            "batch_hash": record.get("batch_hash"),
-                            "appliance_id": record.get("appliance_id"),
-                            "batch_seq": record.get("batch_seq"),
-                            "events": retained_events,
-                            "determinations": retained_determinations,
-                        }
-                    target.write(json.dumps(record, sort_keys=True) + "\n")
-                target.flush()
-                os.fsync(target.fileno())
-            os.replace(replacement, self.path)
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
-            try:
-                os.remove(replacement)
-            except FileNotFoundError:
-                pass
-            raise
+            tombstone = {
+                "record_type": "tenant_deletion_tombstone",
+                "customer_ref": hashlib.sha256(customer_id.encode()).hexdigest(),
+                "agent_ref": hashlib.sha256(agent_id.encode()).hexdigest(),
+                "deleted_at": int(time.time()),
+                "actor_ref": hashlib.sha256(token.encode()).hexdigest(),
+                "authorization": "tenant_hub_token",
+                "reason_code": "tenant_operational_erasure",
+                "enrollment_epoch": epoch,
+                "last_retained_batch_hash": last_batch_hash,
+            }
+            canonical = json.dumps(tombstone, sort_keys=True, separators=(",", ":")).encode()
+            tombstone["signature"] = hmac.new(
+                self._tombstone_signing_key, canonical, hashlib.sha256).hexdigest()
+            with open(self.tombstone_path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(tombstone, sort_keys=True) + "\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            self.deleted_scope_tombstones_total += 1
+
+    def verify_deletion_tombstone(self, tombstone: dict) -> bool:
+        signature = tombstone.get("signature", "")
+        unsigned = {key: value for key, value in tombstone.items() if key != "signature"}
+        canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+        expected = hmac.new(self._tombstone_signing_key, canonical, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(signature, expected)
 
     def contain(self, appliance_id: str) -> None:
         """Incident kill switch: reject further writes without deleting evidence."""
