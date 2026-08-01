@@ -11,6 +11,7 @@ ExecStart=/usr/bin/docker run --rm --name backbond-scanner-live-edge \
   --env-file /etc/backbond/scanner-edge.env \
   --publish 127.0.0.1:${SCANNER_EDGE_PORT}:8077 \
   --volume /var/lib/are-scanner:/var/lib/are-scanner \
+  --volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro \
   --volume /etc/backbond/secrets.conf:/run/secrets/secrets.conf:ro \
   --read-only \
   --tmpfs /tmp \
