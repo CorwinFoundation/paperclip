@@ -1,0 +1,3 @@
+cryptography>=42
+PyYAML>=6
+cel-python>=0.1.5   # CEL rule engine (production rule packs)

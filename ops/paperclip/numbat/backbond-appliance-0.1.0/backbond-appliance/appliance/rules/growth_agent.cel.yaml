@@ -1,0 +1,41 @@
+# BackBond growth-agent peril pack — CEL (production). Parity-tested against the
+# declarative growth_agent_pack.yaml.
+version: "0.1"
+segment: growth_agent
+engine: cel
+rules:
+  - id: growth.unauthorized_spend
+    title: Agent committed spend/payment without confirmation
+    severity: high
+    tags: [unauthorized_action, financial]
+    cel: 'e.action_class == "transaction" && (e.event_type in ["payment","purchase","booking","meeting_booked"]) && (!has(e._raw.confirmed) || e._raw.confirmed != true)'
+
+  - id: growth.outreach_compliance
+    title: Outreach missing opt-out / consent markers (CAN-SPAM/GDPR)
+    severity: medium
+    tags: [compliance, outreach]
+    cel: 'e.action_class == "message" && ((has(e._raw.has_unsubscribe) && e._raw.has_unsubscribe == false) || (has(e._raw.consent) && e._raw.consent == "none"))'
+
+  - id: growth.brand_safety
+    title: Potentially off-brand or harmful public post
+    severity: high
+    tags: [brand, reputation]
+    cel: 'e.action_class == "message" && ((has(e._raw.text) && e._raw.text.matches("(?i)(guarantee|100%|risk-free|miracle|get rich)")) || has(e._raw.flagged_terms))'
+
+  - id: growth.impersonation
+    title: Agent claimed to be human / impersonated a person
+    severity: high
+    tags: [impersonation, ai_disclosure]
+    cel: 'e.action_class == "message" && has(e._raw.text) && e._raw.text.matches("(?i)(i am a real person|i.?m human|not a bot|speaking personally)")'
+
+  - id: growth.crm_data_misuse
+    title: Bulk CRM/customer-data access beyond task scope
+    severity: high
+    tags: [data_misuse, scope]
+    cel: 'e.action_class == "data_access" && (e.event_type in ["crm_update","record_read","data_access"]) && has(e._raw.record_count) && int(e._raw.record_count) > 500'
+
+  - id: growth.off_scope_channel
+    title: Agent acted on a channel outside its authorized scope
+    severity: medium
+    tags: [scope]
+    cel: 'e.action_class == "message" && has(e._raw.channel_authorized) && e._raw.channel_authorized == false'

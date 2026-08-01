@@ -1,0 +1,27 @@
+# BackBond operator allowlist — Paperclip fleet (internal use only).
+# Suppresses the benign-by-design idioms confirmed on our OWN fleet (Numbat Phase 0,
+# BEAAA-19599). Each entry is scoped TIGHTLY to the legitimate context — it does NOT
+# blanket-suppress the underlying dangerous pattern. On an INSURED customer's endpoint
+# these idioms would NOT be allowlisted; this file is fleet-specific.
+version: "0.1"
+scope: paperclip_fleet
+allowlist:
+  # Agents sourcing the Paperclip instance .env to get PAPERCLIP_API_URL etc.
+  - rule_id: coding.secret_file_read
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "\\.paperclip/instances/[^ ]*\\.env"}
+
+  # curl to our OWN Paperclip API piped to python for JSON parsing (not remote code).
+  - rule_id: coding.download_pipe_shell
+    match: all
+    conditions:
+      - {field: _raw.command, op: regex, value: "(PAPERCLIP_API_URL|127\\.0\\.0\\.1:3100|/api/agents/me|paperclip-release\\.backbond\\.ai)"}
+      - {field: _raw.command, op: regex, value: "\\|\\s*python[0-9.]*\\b"}
+
+  # The fleet's own nested-agent orchestration: codex launched under a Paperclip codex-home.
+  - rule_id: coding.sandbox_bypass
+    match: all
+    conditions:
+      - {field: _raw.command, op: regex, value: "CODEX_HOME=[^ ]*\\.paperclip/"}
+      - {field: _raw.command, op: regex, value: "\\bcodex\\b\\s+exec\\b"}

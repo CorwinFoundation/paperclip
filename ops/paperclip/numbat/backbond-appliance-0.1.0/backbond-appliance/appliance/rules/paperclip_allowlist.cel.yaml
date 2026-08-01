@@ -1,0 +1,15 @@
+# BackBond operator allowlist — Paperclip fleet — CEL (production). Parity-tested
+# against paperclip_allowlist.yaml. Suppresses ONLY the benign fleet context; does
+# NOT blanket-suppress the underlying dangerous pattern.
+version: "0.1"
+scope: paperclip_fleet
+engine: cel
+allowlist:
+  - rule_id: coding.secret_file_read
+    cel: 'has(e._raw.command) && e._raw.command.matches("\\.paperclip/instances/[^ ]*\\.env")'
+
+  - rule_id: coding.download_pipe_shell
+    cel: 'has(e._raw.command) && e._raw.command.matches("(PAPERCLIP_API_URL|127\\.0\\.0\\.1:3100|/api/agents/me|paperclip-release\\.backbond\\.ai)") && e._raw.command.matches("\\|\\s*python[0-9.]*\\b")'
+
+  - rule_id: coding.sandbox_bypass
+    cel: 'has(e._raw.command) && e._raw.command.matches("CODEX_HOME=[^ ]*\\.paperclip/") && e._raw.command.matches("\\bcodex\\b\\s+exec\\b")'

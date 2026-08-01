@@ -1,0 +1,48 @@
+# BackBond coding-agent peril pack — CEL (production). Parity-tested against the
+# declarative coding_agent_pack.yaml. Expressions run over the working event `e`
+# (incl. e._raw), sandboxed; only determinations (never the command) are emitted.
+version: "0.1"
+segment: coding_agent
+engine: cel
+rules:
+  - id: coding.secret_file_read
+    title: Read of a secrets/credentials file (.env / auth.json / credentials)
+    severity: medium
+    tags: [secret_file_read]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("(?i)(\\.env\\b|auth\\.json|credentials|\\.aws/|id_rsa|\\.pem\\b)")'
+
+  - id: coding.download_pipe_shell
+    title: Downloaded content piped into an interpreter
+    severity: high
+    tags: [remote_code_exec]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("(?i)(curl|wget)\\b.*\\|\\s*(sh|bash|zsh|python[0-9.]*|node|ruby|perl)\\b")'
+
+  - id: coding.proc_environ_read
+    title: Read of another process environment (/proc/<pid>/environ)
+    severity: high
+    tags: ["attack.t1552.001", secret_process_read]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("/proc/[0-9]+/environ")'
+
+  - id: coding.host_namespace_entry
+    title: Entry into host process namespaces (container-escape primitive)
+    severity: high
+    tags: ["attack.t1611"]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("\\bnsenter\\b.*-t\\s*1\\b")'
+
+  - id: coding.sandbox_bypass
+    title: Agent runtime launched with sandbox/approval bypass
+    severity: high
+    tags: [permission_bypass]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("(--dangerously-bypass-approvals-and-sandbox|--yolo|--no-sandbox)")'
+
+  - id: coding.db_credential_harvest
+    title: Database credential pulled from a process env and used to connect
+    severity: high
+    tags: [secret_process_read, "attack.t1552"]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("DATABASE_URL") && e._raw.command.matches("\\bpsql\\b")'
+
+  - id: coding.git_credential_helper
+    title: Git external credential helper injected on the command line
+    severity: medium
+    tags: [git_config_exec]
+    cel: 'e.action_class == "tool_call" && has(e._raw.command) && e._raw.command.matches("credential\\.helper=!")'

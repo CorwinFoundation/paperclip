@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "issue": "BEAAA-20244",
+  "retrievalRunId": "ddc7a21f-5f0c-4f67-b0eb-77059eb0b3e0",
+  "classification": "internal coordination artifact",
+  "source": {
+    "host": "AriClaw",
+    "archiveAbsolutePath": "/root/backbond-appliance-0.1.0.zip",
+    "unpackedTreeAbsolutePath": "/root/backbond-appliance",
+    "archiveMtime": "2026-08-01T21:15:20.255685983Z",
+    "gitCommit": null,
+    "gitTree": null,
+    "gitProvenanceNote": "No .git metadata is present in the delivered unpacked tree."
+  },
+  "artifact": {
+    "archiveFilename": "backbond-appliance-0.1.0.zip",
+    "archiveBytes": 50251,
+    "archiveSha256": "f8d283d0013312c61faf9d4e4100b22167710cec8b7cf6a4f7e46079e2399e80"
+  },
+  "tree": {
+    "fullOnBoxManifestFilename": "backbond-appliance-0.1.0.tree.sha256",
+    "fullOnBoxFileCount": 55,
+    "fullOnBoxManifestSha256": "44ebe1ad8584050482928c3a56f2923170a70920f1a7a238b6f625af08e298de",
+    "archiveSourceManifestFilename": "backbond-appliance-0.1.0.source-tree.sha256",
+    "archiveSourceFileCount": 38,
+    "archiveSourceManifestSha256": "b54baf7f57ed428e1343dcc8d3badf8403e8a576563ed561060eef5853697623",
+    "manifestAlgorithm": "For each regular file, from tree root: LC_ALL=C sorted relative path; sha256sum line format `<file_sha256>  ./<relative_path>\\n`; manifest SHA-256 is SHA-256 of the manifest bytes.",
+    "comparison": "All 38 archive source files match the on-box tree byte-for-byte. The on-box tree has 17 additional Python 3.12 __pycache__ files created by execution; no source file differs and the archive has no extra source file."
+  },
+  "verification": {
+    "zipCrc": "ok",
+    "zipMemberCount": 47,
+    "dockerfilePresent": true,
+    "runAllTestsPresent": true,
+    "p0EvidenceComment": "/BEAAA/issues/BEAAA-19572#comment-337a1688-1c80-4d73-9ae0-c2f7de249b66",
+    "recordsExcluded": true,
+    "rawCommandsExcluded": true,
+    "contentExcluded": true
+  }
+}

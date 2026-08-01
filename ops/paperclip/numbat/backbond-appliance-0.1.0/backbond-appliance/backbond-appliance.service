@@ -1,0 +1,21 @@
+[Unit]
+Description=BackBond drop-in insurance appliance (read-only agent activity monitor)
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Run as a low-privilege user with READ access to the substrate only.
+User=backbond
+Environment=BACKBOND_CONFIG=/etc/backbond/config.yaml
+# Optional: for ship.mode=http, provide the token out-of-band, not in the unit.
+# Environment=BACKBOND_SHIP_TOKEN=...
+ExecStart=/usr/bin/python3 -m appliance.main run -c /etc/backbond/config.yaml
+WorkingDirectory=/opt/backbond-appliance
+# Hardening: the appliance needs no write access outside its own state dir.
+ProtectSystem=strict
+ReadWritePaths=/home/backbond/.backbond
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

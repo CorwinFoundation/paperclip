@@ -1,0 +1,65 @@
+# BackBond growth-agent peril pack v0.1 (reference, monitor-only)
+# Perils for marketing/growth orchestration agents (Enso segment). Text-expressible
+# only; audio/vision perils are out of scope. Conditions evaluate LOCALLY on content
+# in the partner env; only determinations (never content) are emitted.
+# Production target: CEL. This declarative form is the safe reference.
+version: "0.1"
+segment: growth_agent
+rules:
+  - id: growth.unauthorized_spend
+    title: Agent committed spend/payment without confirmation
+    severity: high
+    action_class: transaction
+    tags: [unauthorized_action, financial]
+    match: all
+    conditions:
+      - {field: event_type, op: in, value: [payment, purchase, booking, meeting_booked]}
+      - {field: _raw.confirmed, op: ne, value: true}
+
+  - id: growth.outreach_compliance
+    title: Outreach missing opt-out / consent markers (CAN-SPAM/GDPR)
+    severity: medium
+    action_class: message
+    tags: [compliance, outreach]
+    match: any
+    conditions:
+      - {field: _raw.has_unsubscribe, op: eq, value: false}
+      - {field: _raw.consent, op: eq, value: "none"}
+
+  - id: growth.brand_safety
+    title: Potentially off-brand or harmful public post
+    severity: high
+    action_class: message
+    tags: [brand, reputation]
+    match: any
+    conditions:
+      - {field: _raw.text, op: regex, value: "(guarantee|100%|risk-free|miracle|get rich)"}
+      - {field: _raw.flagged_terms, op: exists}
+
+  - id: growth.impersonation
+    title: Agent claimed to be human / impersonated a person
+    severity: high
+    action_class: message
+    tags: [impersonation, ai_disclosure]
+    match: any
+    conditions:
+      - {field: _raw.text, op: regex, value: "(i am a real person|i'm human|not a bot|speaking personally)"}
+
+  - id: growth.crm_data_misuse
+    title: Bulk CRM/customer-data access beyond task scope
+    severity: high
+    action_class: data_access
+    tags: [data_misuse, scope]
+    match: all
+    conditions:
+      - {field: event_type, op: in, value: [crm_update, record_read, data_access]}
+      - {field: _raw.record_count, op: gt, value: 500}
+
+  - id: growth.off_scope_channel
+    title: Agent acted on a channel outside its authorized scope
+    severity: medium
+    action_class: message
+    tags: [scope]
+    match: all
+    conditions:
+      - {field: _raw.channel_authorized, op: eq, value: false}
