@@ -17,6 +17,7 @@ INTERVAL="${SCANNER_READINESS_INTERVAL:-2}"
 CONTAINER="${SCANNER_CONTAINER_NAME:-backbond-scanner-live-edge}"
 EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
 EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
+ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
 
 FROZEN_SHA="${SCANNER_FROZEN_SHA:-7850289333ffc1de6eebea9c2201e0f1059c4c12}"
 FROZEN_REPO_DIGEST="${SCANNER_FROZEN_REPO_DIGEST:-ghcr.io/corwinfoundation/are-scanner@sha256:e955a2812015cf7da487c2e266e0a7f3fc9478cdafc2580dc0e02df53d96df9b}"
@@ -76,10 +77,13 @@ case "$CANDIDATE" in (BEAAA-[0-9]*) :;; (*) die 'candidate id has invalid syntax
 [ "$REPO_DIGEST" = "$FROZEN_REPO_DIGEST" ] || die 'repository digest is not the frozen candidate'
 [ "$ARCHIVE_SHA" = "$FROZEN_ARCHIVE_SHA" ] || die 'archive SHA argument is not the frozen candidate'
 [ "$CANDIDATE" = "$FROZEN_CANDIDATE" ] || die 'candidate id is not the frozen candidate'
+[ "$ARCHIVE" = "$ARCHIVE_DIR/backbond-scanner-$SHA.tar" ] || die 'archive path is not the fixed candidate path'
 [ -f "$ARCHIVE" ] || die 'archive not found'
 [ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" = "$ARCHIVE_SHA" ] || die 'archive checksum mismatch'
 require_root_owned "$ENV_FILE"; require_root_owned "$STATE_DIR"; require_root_owned "$UNIT_FILE"
 [ "$(stat -c %a "$STATE_DIR")" = 755 ] || die 'state directory mode must be 0755'
+[ "$(stat -c %a "$ENV_FILE")" = 600 ] || die 'environment file mode must be 0600'
+[ "$(stat -c %a "$UNIT_FILE")" = 644 ] || die 'unit file mode must be 0644'
 [ "$(grep -c '^SCANNER_EDGE_IMAGE=' "$ENV_FILE")" -le 1 ] || die 'duplicate SCANNER_EDGE_IMAGE assignment'
 [ "$(grep -c '^BACKBOND_RELEASE_IDENTITY_PATH=' "$ENV_FILE")" -le 1 ] || die 'duplicate BACKBOND_RELEASE_IDENTITY_PATH assignment'
 grep -Fq -- '--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro' "$UNIT_FILE" || die 'unit lacks exact read-only identity mount'
@@ -100,7 +104,15 @@ TX="$(mktemp -d "$TRANSACTIONS/$SHA.XXXXXXXX")"; chmod 0700 "$TX"
 CURRENT="$STATE_DIR/current_version"; IDENTITY="$RELEASES/$SHA.json"
 snapshot "$ENV_FILE" env; snapshot "$CURRENT" current_version; snapshot "$IDENTITY" candidate_identity
 OLD_IDENTITY_PATH="$(sed -n 's/^BACKBOND_RELEASE_IDENTITY_PATH=//p' "$ENV_FILE")"
-if [ -n "$OLD_IDENTITY_PATH" ] && [ "$OLD_IDENTITY_PATH" != "$IDENTITY" ]; then snapshot "$OLD_IDENTITY_PATH" prior_identity; else : >"$TX/prior_identity.NONE"; fi
+OLD_IMAGE="$(sed -n 's/^SCANNER_EDGE_IMAGE=//p' "$ENV_FILE")"
+case "$OLD_IDENTITY_PATH" in ("") :;; ("$STATE_DIR"/releases/*.json) :;; (*) die 'prior identity path escapes the release directory';; esac
+if [ -n "$OLD_IDENTITY_PATH" ]; then
+  require_root_owned "$OLD_IDENTITY_PATH"
+  [ "$(stat -c %a "$OLD_IDENTITY_PATH")" = 444 ] || die 'prior identity mode must be 0444'
+  snapshot "$OLD_IDENTITY_PATH" prior_identity
+else
+  : >"$TX/prior_identity.NONE"
+fi
 transaction_active=1
 
 rollback() {
@@ -118,6 +130,22 @@ rollback() {
   if [ -n "$OLD_IDENTITY_PATH" ] && ! wait_200 "$PUBLIC_BASE/scanner/v1/release-identity" "$TX/prior-public.json"; then
     printf 'ROLLBACK_FAILED\n' >"$TX/ROLLBACK_FAILED"; fsync_path "$TX/ROLLBACK_FAILED"; fsync_path "$TX"
     log "ROLLBACK_FAILED: prior public identity did not recover; transaction retained at $TX"; exit 91
+  fi
+  if [ -n "$OLD_IDENTITY_PATH" ] && ! python3 - "$TX/prior_identity" "$TX/prior-public.json" "$TX/current_version" "$OLD_IMAGE" <<'PY'
+import json,sys
+identity_path,public_path,current_path,image=sys.argv[1:]
+expected=json.load(open(identity_path)); observed=json.load(open(public_path))
+current=open(current_path).read().strip()
+required={"commit_sha":current,"current_version":current,"configured_image":image}
+for key in ("candidate_id","image_digest","running_container_revision","internal_version_sha","status"):
+    required[key]=expected.get(key)
+for key,value in required.items():
+    if value is None or observed.get(key)!=value:
+        raise SystemExit(f"rollback public identity mismatch: {key}")
+PY
+  then
+    printf 'ROLLBACK_FAILED\n' >"$TX/ROLLBACK_FAILED"; fsync_path "$TX/ROLLBACK_FAILED"; fsync_path "$TX"
+    log "ROLLBACK_FAILED: prior public identity tuple mismatch; transaction retained at $TX"; exit 92
   fi
   log "rollback complete; transaction retained at $TX"; exit "$rc"
 }
