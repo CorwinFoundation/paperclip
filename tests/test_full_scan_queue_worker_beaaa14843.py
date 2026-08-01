@@ -11,7 +11,14 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
 )
 from api.full_scan_job_persistence import FullScanJobPersistence
-from api.full_scan_worker import FullScanQueueWorker
+from api.full_scan_worker import (
+    FullScanQueueWorker,
+    load_default_full_scan_registry_rows,
+)
+from tools.active_test_registry import (
+    count_active_executable,
+    distinct_case_counts,
+)
 
 
 class Clock:
@@ -51,6 +58,48 @@ def _worker(row, job):
         status="complete",
         evidence_ref=f"evidence://{job.job_id}/{row['case_id']}.json",
         model_version="fixture-agent-v0",
+    )
+
+
+def test_default_registry_loader_uses_live_production_registry(monkeypatch):
+    live_rows = [
+        {
+            "test_id": "candidate",
+            "case_id": "candidate.case_001",
+            "status": "active",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "content_candidate_worker",
+            "target_bound": True,
+            "runtime_case_identity": "candidate.case_001",
+        },
+        {
+            "test_id": "candidate",
+            "case_id": "candidate.inactive",
+            "status": "inactive",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "content_candidate_worker",
+            "target_bound": True,
+            "runtime_case_identity": "candidate.inactive",
+        },
+    ]
+    monkeypatch.setattr(
+        "tools.active_test_registry.build_registry",
+        lambda: live_rows,
+    )
+
+    assert load_default_full_scan_registry_rows() == (live_rows[0],)
+
+
+def test_default_registry_loader_matches_standard_production_count():
+    rows = list(load_default_full_scan_registry_rows())
+
+    assert len(rows) == count_active_executable(rows) == 2_202
+    assert distinct_case_counts(rows)["total"] == 2_201
+    assert (
+        sum(row.get("content_candidate_inventory") is True for row in rows)
+        == 2_000
     )
 
 

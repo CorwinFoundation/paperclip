@@ -200,9 +200,21 @@ class FullScanQueueWorker:
 
 
 def load_default_full_scan_registry_rows(
-    path: Path | str = DEFAULT_ACTIVE_REGISTRY_JSON,
+    path: Path | str | None = None,
 ) -> tuple[dict[str, Any], ...]:
-    """Load production-active executable rows for API enqueue and worker drain."""
+    """Load the live registry, or an explicitly requested legacy JSON snapshot."""
+    if path is None:
+        from tools import active_test_registry
+
+        live_rows = tuple(
+            dict(row)
+            for row in active_test_registry.build_registry()
+            if active_test_registry._is_countable_active_executable(row)
+        )
+        if not live_rows:
+            raise RuntimeError("live production registry has no executable rows")
+        return live_rows
+
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     rows = data.get("rows")
     if not isinstance(rows, list):
@@ -240,7 +252,7 @@ def load_default_full_scan_registry_rows(
 def build_default_full_scan_worker(
     *,
     job_store_path: str | Path | None = None,
-    registry_path: str | Path = DEFAULT_ACTIVE_REGISTRY_JSON,
+    registry_path: str | Path | None = None,
     lease_ttl_seconds: int = 300,
     worker_timeout_seconds: int = 120,
     webhook_secret_resolver: Callable[[str], str | bytes | None] | None = None,
@@ -305,7 +317,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the durable full-scan queue worker")
     parser.add_argument("command", choices=("run", "run-once"))
     parser.add_argument("--job-store-path")
-    parser.add_argument("--registry-path", default=str(DEFAULT_ACTIVE_REGISTRY_JSON))
+    parser.add_argument(
+        "--registry-path",
+        help="Legacy JSON snapshot override; default builds the live production registry",
+    )
     parser.add_argument("--lease-ttl-seconds", type=int, default=300)
     parser.add_argument("--poll-interval-seconds", type=float, default=FULL_SCAN_WORKER_POLL_INTERVAL_SECONDS)
     parser.add_argument("--worker-timeout-seconds", type=int, default=120)
