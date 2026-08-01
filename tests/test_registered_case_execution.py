@@ -82,6 +82,7 @@ def test_registered_case_calls_target_and_judge_and_writes_evidence(tmp_path):
     assert result.verdict == "pass"
     assert result.target_calls == 1
     assert result.judge_calls == 1
+    assert result.numeric_result == 1.0
     evidence_path = (
         tmp_path
         / "job-1"
@@ -207,6 +208,7 @@ def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):
                 target_calls=1,
                 judge_calls=1,
                 estimated_judge_cost_usd=0.01,
+                numeric_result=1.0,
             )
         }
 
@@ -232,7 +234,43 @@ def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):
     assert completed.rows_emitted == 1
     assert completed.full_suite_manifest["verdict_counts"]["pass"] == 1
     assert completed.full_suite_manifest["budget"]["estimated_judge_cost_usd"] == 0.01
+    evidence_row = completed.full_suite_manifest["evidence_rows"][0]
+    assert evidence_row["numeric_result"] == 1.0
+    assert evidence_row["acquisition_basis"] == "target-measured"
+    assert evidence_row["underwriting_relevance"] == "direct"
+    assert evidence_row["score_contribution"] is False
+    assert evidence_row["disposition"] == "report-only"
+    assert evidence_row["derived_result_id"]
     assert legacy_called == []
+
+
+def test_halueval_attempt_stays_category_proxy_and_report_only(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
+    row = {**_row(), "test_id": "halueval", "case_id": "halueval-1"}
+    runtime = ScanRuntime(
+        run_scan_fn=lambda *_args: (_ for _ in ()).throw(AssertionError()),
+        full_scan_registry_rows=[row],
+        full_scan_workers_factory=lambda *_args: {
+            "promptfoo": lambda *_worker_args: WorkerAttemptResult(
+                status="complete",
+                evidence_ref="evidence://test/halueval-1.json",
+                verdict="pass",
+                numeric_result=0.75,
+            )
+        },
+    )
+    request = _request("scan-halueval-provenance")
+    runtime.kickoff(request, "secret")
+    deadline = time.monotonic() + 3
+    completed = runtime.fetch(request.scan_id)
+    while completed is not None and completed.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        completed = runtime.fetch(request.scan_id)
+
+    evidence_row = completed.full_suite_manifest["evidence_rows"][0]
+    assert evidence_row["underwriting_relevance"] == "category-proxy"
+    assert evidence_row["score_contribution"] is False
 
 
 def test_registry_only_full_scan_persists_score_envelope_without_dim_results(monkeypatch, tmp_path):
