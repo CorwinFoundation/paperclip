@@ -11,7 +11,7 @@ Proves the complete round trip on your own machine:
 Exit 0 = green.
 """
 from __future__ import annotations
-import json, os, sqlite3, sys, tempfile, shutil, threading, time, urllib.request
+import copy, json, os, sqlite3, sys, tempfile, shutil, threading, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -169,6 +169,51 @@ def main():
         deleted_partition = ledger.store._path(deleted_scope)
         deleted_epoch = ledger.scope_epochs[deleted_scope]
         old_hub_token = f"hub-{deleted_customer}-{deleted_agent}"
+
+        # Inject a tombstone persistence failure before the successful delete.
+        # Every operational surface, including query access and retry/quota state,
+        # must remain exactly as it was before the attempt.
+        state_before_failed_delete = {
+            "partition_exists": os.path.exists(deleted_partition),
+            "summary": ledger.store.summary(deleted_scope),
+            "findings": copy.deepcopy(ledger.findings),
+            "bindings": copy.deepcopy(ledger.bindings),
+            "hub_tokens": dict(ledger.hub_tokens),
+            "scope_chain_tip": dict(ledger.scope_chain_tip),
+            "scope_epochs": dict(ledger.scope_epochs),
+            "seen": set(ledger.seen),
+            "chain_tip": dict(ledger.chain_tip),
+            "accepted": ledger.accepted,
+            "deleted_total": ledger.deleted_scope_tombstones_total,
+            "quota_findings": ledger.store.quota_findings,
+            "retention_seconds": ledger.store.retention_seconds,
+        }
+        os.mkdir(ledger.tombstone_path)
+        code, response = delete(
+            f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
+            old_hub_token)
+        state_after_failed_delete = {
+            "partition_exists": os.path.exists(deleted_partition),
+            "summary": ledger.store.summary(deleted_scope),
+            "findings": copy.deepcopy(ledger.findings),
+            "bindings": copy.deepcopy(ledger.bindings),
+            "hub_tokens": dict(ledger.hub_tokens),
+            "scope_chain_tip": dict(ledger.scope_chain_tip),
+            "scope_epochs": dict(ledger.scope_epochs),
+            "seen": set(ledger.seen),
+            "chain_tip": dict(ledger.chain_tip),
+            "accepted": ledger.accepted,
+            "deleted_total": ledger.deleted_scope_tombstones_total,
+            "quota_findings": ledger.store.quota_findings,
+            "retention_seconds": ledger.store.retention_seconds,
+        }
+        os.rmdir(ledger.tombstone_path)
+        if code != 503 or "persistence failed" not in response.get("error", ""):
+            fail(f"tombstone persistence failure was not controlled: {code}, {response}")
+        if state_after_failed_delete != state_before_failed_delete:
+            fail("tombstone persistence failure mutated pre-delete tenant state")
+        print("  [3b-failure] tombstone failure preserves all tenant state PASS")
+
         code, _ = delete(
             f"{base}/hub/tenant?customer_id={deleted_customer}&agent_id={deleted_agent}",
             old_hub_token)

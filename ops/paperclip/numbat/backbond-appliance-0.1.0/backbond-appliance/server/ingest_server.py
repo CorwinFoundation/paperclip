@@ -213,6 +213,25 @@ class Ledger:
         with self.lock:
             epoch = self.scope_epochs.get(scope)
             last_batch_hash = self.scope_chain_tip.get(scope)
+            tombstone = {
+                "record_type": "tenant_deletion_tombstone",
+                "customer_ref": hashlib.sha256(customer_id.encode()).hexdigest(),
+                "agent_ref": hashlib.sha256(agent_id.encode()).hexdigest(),
+                "deleted_at": int(time.time()),
+                "actor_ref": hashlib.sha256(token.encode()).hexdigest(),
+                "authorization": "tenant_hub_token",
+                "reason_code": "tenant_operational_erasure",
+                "enrollment_epoch": epoch,
+                "last_retained_batch_hash": last_batch_hash,
+            }
+            canonical = json.dumps(tombstone, sort_keys=True, separators=(",", ":")).encode()
+            tombstone["signature"] = hmac.new(
+                self._tombstone_signing_key, canonical, hashlib.sha256).hexdigest()
+            self._append_deletion_tombstone(tombstone)
+
+            # The durable tombstone is the commit point. Nothing operational is
+            # erased until it has been written and fsynced successfully, so a
+            # persistence failure leaves the tenant fully retryable.
             self.store.delete(scope)
             self.findings = [
                 finding for finding in self.findings
@@ -228,26 +247,28 @@ class Ledger:
             for hub_token, bound_scope in list(self.hub_tokens.items()):
                 if bound_scope == scope:
                     del self.hub_tokens[hub_token]
+            self.deleted_scope_tombstones_total += 1
 
-            tombstone = {
-                "record_type": "tenant_deletion_tombstone",
-                "customer_ref": hashlib.sha256(customer_id.encode()).hexdigest(),
-                "agent_ref": hashlib.sha256(agent_id.encode()).hexdigest(),
-                "deleted_at": int(time.time()),
-                "actor_ref": hashlib.sha256(token.encode()).hexdigest(),
-                "authorization": "tenant_hub_token",
-                "reason_code": "tenant_operational_erasure",
-                "enrollment_epoch": epoch,
-                "last_retained_batch_hash": last_batch_hash,
-            }
-            canonical = json.dumps(tombstone, sort_keys=True, separators=(",", ":")).encode()
-            tombstone["signature"] = hmac.new(
-                self._tombstone_signing_key, canonical, hashlib.sha256).hexdigest()
-            with open(self.tombstone_path, "a", encoding="utf-8") as fh:
+    def _append_deletion_tombstone(self, tombstone: dict) -> None:
+        """Append one durable record, rolling back a failed write/fsync."""
+        with open(self.tombstone_path, "a+", encoding="utf-8") as fh:
+            fh.seek(0, os.SEEK_END)
+            initial_size = fh.tell()
+            try:
                 fh.write(json.dumps(tombstone, sort_keys=True) + "\n")
                 fh.flush()
                 os.fsync(fh.fileno())
-            self.deleted_scope_tombstones_total += 1
+            except OSError:
+                # A failed fsync may follow a successful buffered write. Remove
+                # those bytes so a retry cannot create a duplicate tombstone.
+                fh.seek(initial_size)
+                fh.truncate()
+                fh.flush()
+                try:
+                    os.fsync(fh.fileno())
+                except OSError:
+                    pass
+                raise
 
     def verify_deletion_tombstone(self, tombstone: dict) -> bool:
         signature = tombstone.get("signature", "")
@@ -334,6 +355,8 @@ def make_handler(ledger: Ledger, token: str):
                 self._send(200, {"deleted": True})
             except PermissionError as exc:
                 self._send(403, {"error": str(exc)})
+            except (OSError, sqlite3.Error) as exc:
+                self._send(503, {"error": f"tenant deletion persistence failed: {exc}"})
 
         def log_message(self, *a):  # quiet
             pass
