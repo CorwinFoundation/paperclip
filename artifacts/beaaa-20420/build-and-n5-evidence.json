@@ -1,0 +1,44 @@
+{
+  "assertion": "Runtime evidence integration does not import or change scoring, rubric weights, bands, or judge behavior.",
+  "binary_sha256": "f45eca18c6bf8efead8760de8512079173e272491a567e5463e32f794c8bfa84",
+  "binary_size_bytes": 28168376,
+  "builder_manifest_sha256": "fb4aeedd99da4bb8c8f2712d7f91d5a9b94d276a5107905d88dd475c12408a34",
+  "classification": "rule-execution",
+  "contract_ref": "are-scanner-api-v1@v1.0",
+  "corpus_version": "frozen-0.5.0",
+  "cto_cosign_ref": null,
+  "effective_config_sha256": "1b1c2aefb3c62d5e21fa96a0ffe4ba7d3b486f6948fe6242678d2d6560c54142",
+  "generated_at": "2026-08-02T22:55:47.162691Z",
+  "issue": "BEAAA-20420",
+  "n5_calibration_delta": 0,
+  "n5_isolated_proof": [
+    {
+      "result": "..                                                                       [100%]\n2 passed in 0.18s",
+      "run": 1,
+      "score_delta": 0
+    },
+    {
+      "result": "..                                                                       [100%]\n2 passed in 0.18s",
+      "run": 2,
+      "score_delta": 0
+    },
+    {
+      "result": "..                                                                       [100%]\n2 passed in 0.19s",
+      "run": 3,
+      "score_delta": 0
+    },
+    {
+      "result": "..                                                                       [100%]\n2 passed in 0.24s",
+      "run": 4,
+      "score_delta": 0
+    },
+    {
+      "result": "..                                                                       [100%]\n2 passed in 0.22s",
+      "run": 5,
+      "score_delta": 0
+    }
+  ],
+  "probe-set-version": "not-applicable-runtime-evidence-driver",
+  "rubric_point_id": "P4.4",
+  "scanner_version": "0.5.0"
+}

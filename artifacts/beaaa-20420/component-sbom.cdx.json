@@ -1,0 +1,2207 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "cel.dev/expr",
+      "type": "library",
+      "version": "v0.25.1"
+    },
+    {
+      "name": "cloud.google.com/go/compute/metadata",
+      "type": "library",
+      "version": "v0.9.0"
+    },
+    {
+      "name": "codeberg.org/go-fonts/liberation",
+      "type": "library",
+      "version": "v0.5.0"
+    },
+    {
+      "name": "codeberg.org/go-latex/latex",
+      "type": "library",
+      "version": "v0.1.0"
+    },
+    {
+      "name": "codeberg.org/go-pdf/fpdf",
+      "type": "library",
+      "version": "v0.10.0"
+    },
+    {
+      "name": "git.sr.ht/~sbinet/gg",
+      "type": "library",
+      "version": "v0.6.0"
+    },
+    {
+      "name": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp",
+      "type": "library",
+      "version": "v1.32.0"
+    },
+    {
+      "name": "github.com/Microsoft/go-winio",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY="
+        }
+      ],
+      "type": "library",
+      "version": "v0.6.2"
+    },
+    {
+      "name": "github.com/ajstarks/svgo",
+      "type": "library",
+      "version": "v0.0.0-20211024235047-1546f124cd8b"
+    },
+    {
+      "name": "github.com/alecthomas/kingpin/v2",
+      "type": "library",
+      "version": "v2.4.0"
+    },
+    {
+      "name": "github.com/alecthomas/units",
+      "type": "library",
+      "version": "v0.0.0-20240927000941-0f3dac36c52b"
+    },
+    {
+      "name": "github.com/antihax/optional",
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/beorn7/perks",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.1"
+    },
+    {
+      "name": "github.com/campoy/embedmd",
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/cenkalti/backoff/v5",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM="
+        }
+      ],
+      "type": "library",
+      "version": "v5.0.3"
+    },
+    {
+      "name": "github.com/cenkalti/backoff/v7",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:ZP+QAaaOnVUHo+ufFpZ835hbT3x2fy+h2lecVEosZ6A="
+        }
+      ],
+      "type": "library",
+      "version": "v7.0.0"
+    },
+    {
+      "name": "github.com/cespare/xxhash/v2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs="
+        }
+      ],
+      "type": "library",
+      "version": "v2.3.0"
+    },
+    {
+      "name": "github.com/cncf/xds/go",
+      "type": "library",
+      "version": "v0.0.0-20260202195803-dba9d589def2"
+    },
+    {
+      "name": "github.com/cpuguy83/go-md2man/v2",
+      "type": "library",
+      "version": "v2.0.6"
+    },
+    {
+      "name": "github.com/davecgh/go-spew",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.1.2-0.20180830191138-d8f796af33cc"
+    },
+    {
+      "name": "github.com/ebitengine/purego",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/ISU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.10.0"
+    },
+    {
+      "name": "github.com/envoyproxy/go-control-plane",
+      "type": "library",
+      "version": "v0.14.0"
+    },
+    {
+      "name": "github.com/envoyproxy/go-control-plane/envoy",
+      "type": "library",
+      "version": "v1.37.0"
+    },
+    {
+      "name": "github.com/envoyproxy/go-control-plane/ratelimit",
+      "type": "library",
+      "version": "v0.1.0"
+    },
+    {
+      "name": "github.com/envoyproxy/protoc-gen-validate",
+      "type": "library",
+      "version": "v1.3.3"
+    },
+    {
+      "name": "github.com/felixge/httpsnoop",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.4"
+    },
+    {
+      "name": "github.com/foxboron/go-tpm-keyfiles",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RJ+BDPLSHQO7cSjKBqjPJSbi1qfk9WcsjQDtZiw3dZw="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20251226215517-609e4778396f"
+    },
+    {
+      "name": "github.com/fsnotify/fsnotify",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho="
+        }
+      ],
+      "type": "library",
+      "version": "v1.10.1"
+    },
+    {
+      "name": "github.com/go-jose/go-jose/v4",
+      "type": "library",
+      "version": "v4.1.4"
+    },
+    {
+      "name": "github.com/go-logr/logr",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI="
+        }
+      ],
+      "type": "library",
+      "version": "v1.4.3"
+    },
+    {
+      "name": "github.com/go-logr/stdr",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag="
+        }
+      ],
+      "type": "library",
+      "version": "v1.2.2"
+    },
+    {
+      "name": "github.com/go-ole/go-ole",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:/Fpf6oFPoeFik9ty7siob0G6Ke8QvQEuVcuChpwXzpY="
+        }
+      ],
+      "type": "library",
+      "version": "v1.2.6"
+    },
+    {
+      "name": "github.com/go-viper/mapstructure/v2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:vM5IJoUAy3d7zRSVtIwQgBj7BiWtMPfmPEgAXnvj1Ro="
+        }
+      ],
+      "type": "library",
+      "version": "v2.5.0"
+    },
+    {
+      "name": "github.com/gobwas/glob",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y="
+        }
+      ],
+      "type": "library",
+      "version": "v0.2.3"
+    },
+    {
+      "name": "github.com/goccmack/gocc",
+      "type": "library",
+      "version": "v1.0.2"
+    },
+    {
+      "name": "github.com/golang-jwt/jwt/v5",
+      "type": "library",
+      "version": "v5.3.1"
+    },
+    {
+      "name": "github.com/golang/freetype",
+      "type": "library",
+      "version": "v0.0.0-20170609003504-e2365dfdc4a0"
+    },
+    {
+      "name": "github.com/golang/glog",
+      "type": "library",
+      "version": "v1.2.5"
+    },
+    {
+      "name": "github.com/golang/protobuf",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek="
+        }
+      ],
+      "type": "library",
+      "version": "v1.5.4"
+    },
+    {
+      "name": "github.com/golang/snappy",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Oy607GVXHs7RtbggtPBnr2RmDArIsAefDwvrdWvRhGs="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/google/go-cmp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8="
+        }
+      ],
+      "type": "library",
+      "version": "v0.7.0"
+    },
+    {
+      "name": "github.com/google/go-configfs-tsm",
+      "type": "library",
+      "version": "v0.2.2"
+    },
+    {
+      "name": "github.com/google/go-tpm",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:slArAR9Ft+1ybZu0lBwpSmpwhRXaa85hWtMinMyRAWo="
+        }
+      ],
+      "type": "library",
+      "version": "v0.9.8"
+    },
+    {
+      "name": "github.com/google/go-tpm-tools",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:J3ycC8umYxM9A4eF73EofRZu4BxY0jjQnUnkhIBbvws="
+        }
+      ],
+      "type": "library",
+      "version": "v0.4.7"
+    },
+    {
+      "name": "github.com/google/gofuzz",
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/google/uuid",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0="
+        }
+      ],
+      "type": "library",
+      "version": "v1.6.0"
+    },
+    {
+      "name": "github.com/grpc-ecosystem/grpc-gateway/v2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk="
+        }
+      ],
+      "type": "library",
+      "version": "v2.29.0"
+    },
+    {
+      "name": "github.com/hashicorp/go-version",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:CeOIz6k+LoN3qX9Z0tyQrPtiB1DFYRPfCIBtaXPSCnA="
+        }
+      ],
+      "type": "library",
+      "version": "v1.9.0"
+    },
+    {
+      "name": "github.com/hashicorp/golang-lru/v2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k="
+        }
+      ],
+      "type": "library",
+      "version": "v2.0.7"
+    },
+    {
+      "name": "github.com/inconshreveable/mousetrap",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8="
+        }
+      ],
+      "type": "library",
+      "version": "v1.1.0"
+    },
+    {
+      "name": "github.com/jpillora/backoff",
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/json-iterator/go",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.1.12"
+    },
+    {
+      "name": "github.com/julienschmidt/httprouter",
+      "type": "library",
+      "version": "v1.3.0"
+    },
+    {
+      "name": "github.com/klauspost/compress",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:sXLILfc9jV2QYWkzFOPWStmcUVH2RHEB1JCdY2oVvCQ="
+        }
+      ],
+      "type": "library",
+      "version": "v1.19.0"
+    },
+    {
+      "name": "github.com/knadh/koanf/maps",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RBfmAW5CnZT+PJ1CVc1QSJKf4Xu9kxfQgYVQSu8hpbo="
+        }
+      ],
+      "type": "library",
+      "version": "v0.1.2"
+    },
+    {
+      "name": "github.com/knadh/koanf/providers/confmap",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:mHKLJTE7iXEys6deO5p6olAiZdG5zwp8Aebir+/EaRE="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/knadh/koanf/v2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:2dXJUYaKGm4SGYeoAtBviq9+02JZo/pxQ2ssOd60rJg="
+        }
+      ],
+      "type": "library",
+      "version": "v2.3.5"
+    },
+    {
+      "name": "github.com/kr/pretty",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE="
+        }
+      ],
+      "type": "library",
+      "version": "v0.3.1"
+    },
+    {
+      "name": "github.com/kr/text",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY="
+        }
+      ],
+      "type": "library",
+      "version": "v0.2.0"
+    },
+    {
+      "name": "github.com/kylelemons/godebug",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc="
+        }
+      ],
+      "type": "library",
+      "version": "v1.1.0"
+    },
+    {
+      "name": "github.com/lufia/plan9stats",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:PwQumkgq4/acIiZhtifTV5OUqqiP82UAl0h87xj/l9k="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20251013123823-9fd1530e3ec3"
+    },
+    {
+      "name": "github.com/mitchellh/copystructure",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw="
+        }
+      ],
+      "type": "library",
+      "version": "v1.2.0"
+    },
+    {
+      "name": "github.com/mitchellh/reflectwalk",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.2"
+    },
+    {
+      "name": "github.com/modern-go/concurrent",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20180306012644-bacd9c7ef1dd"
+    },
+    {
+      "name": "github.com/modern-go/reflect2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:W5t00kpgFdJifH4BDsTlE89Zl93FEloxaWZfGcifgq8="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.3-0.20250322232337-35a7c28c31ee"
+    },
+    {
+      "name": "github.com/munnerz/goautoneg",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20191010083416-a7dc8b61c822"
+    },
+    {
+      "name": "github.com/mwitkow/go-conntrack",
+      "type": "library",
+      "version": "v0.0.0-20190716064945-2f068394615f"
+    },
+    {
+      "name": "github.com/pierrec/lz4/v4",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:+PhzhWDrjRj89TH2sw43nE3+4+W8lSxIuQadEHZyjUk="
+        }
+      ],
+      "type": "library",
+      "version": "v4.1.27"
+    },
+    {
+      "name": "github.com/planetscale/vtprotobuf",
+      "type": "library",
+      "version": "v0.6.1-0.20240319094008-0393e58bdf10"
+    },
+    {
+      "name": "github.com/pmezard/go-difflib",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.1-0.20181226105442-5d4384ee4fb2"
+    },
+    {
+      "name": "github.com/power-devops/perfstat",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20240221224432-82ca36839d55"
+    },
+    {
+      "name": "github.com/prometheus/client_golang",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Je96obch5RDVy3FDMndoUsjAhG5Edi49h0RJWRi/o0o="
+        }
+      ],
+      "type": "library",
+      "version": "v1.23.2"
+    },
+    {
+      "name": "github.com/prometheus/client_model",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:oBsgwpGs7iVziMvrGhE53c/GrLUsZdHnqNwqPLxwZyk="
+        }
+      ],
+      "type": "library",
+      "version": "v0.6.2"
+    },
+    {
+      "name": "github.com/prometheus/common",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:bcpru3tWPVnxGnETLgOV5jbp/JRXgYEyv65CuBLAMMI="
+        }
+      ],
+      "type": "library",
+      "version": "v0.70.0"
+    },
+    {
+      "name": "github.com/prometheus/otlptranslator",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:s0LJW/iN9dkIH+EnhiD3BlkkP5QVIUVEoIwkU+A6qos="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "name": "github.com/prometheus/procfs",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Qh/e6TlBjZf+XLLqNCqFGmCU6Kj/2Bu7kj3oAc0UnXc="
+        }
+      ],
+      "type": "library",
+      "version": "v0.21.0"
+    },
+    {
+      "name": "github.com/rogpeppe/fastuuid",
+      "type": "library",
+      "version": "v1.2.0"
+    },
+    {
+      "name": "github.com/rogpeppe/go-internal",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ="
+        }
+      ],
+      "type": "library",
+      "version": "v1.14.1"
+    },
+    {
+      "name": "github.com/rs/cors",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA="
+        }
+      ],
+      "type": "library",
+      "version": "v1.11.1"
+    },
+    {
+      "name": "github.com/russross/blackfriday/v2",
+      "type": "library",
+      "version": "v2.1.0"
+    },
+    {
+      "name": "github.com/shirou/gopsutil/v4",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Mzr/npDtQC/xpeEuQKHZt8Zo9CmPvhTj8nkR8w5TLDs="
+        }
+      ],
+      "type": "library",
+      "version": "v4.26.6"
+    },
+    {
+      "name": "github.com/sirupsen/logrus",
+      "type": "library",
+      "version": "v1.9.3"
+    },
+    {
+      "name": "github.com/spf13/cobra",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU="
+        }
+      ],
+      "type": "library",
+      "version": "v1.10.2"
+    },
+    {
+      "name": "github.com/spf13/pflag",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.10"
+    },
+    {
+      "name": "github.com/spiffe/go-spiffe/v2",
+      "type": "library",
+      "version": "v2.6.0"
+    },
+    {
+      "name": "github.com/stretchr/objx",
+      "type": "library",
+      "version": "v0.5.2"
+    },
+    {
+      "name": "github.com/stretchr/testify",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U="
+        }
+      ],
+      "type": "library",
+      "version": "v1.11.1"
+    },
+    {
+      "name": "github.com/tklauser/go-sysconf",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:frioLaCQSsF5Cy1jgRBrzr6t502KIIwQ0MArYICU0nA="
+        }
+      ],
+      "type": "library",
+      "version": "v0.3.16"
+    },
+    {
+      "name": "github.com/tklauser/numcpus",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:nSTwhKH5e1dMNsCdVBukSZrURJRoHbSEQjdEbY+9RXw="
+        }
+      ],
+      "type": "library",
+      "version": "v0.11.0"
+    },
+    {
+      "name": "github.com/xhit/go-str2duration/v2",
+      "type": "library",
+      "version": "v2.1.0"
+    },
+    {
+      "name": "github.com/yusufpapurcu/wmi",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0="
+        }
+      ],
+      "type": "library",
+      "version": "v1.2.4"
+    },
+    {
+      "name": "go.opentelemetry.io/auto/sdk",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64="
+        }
+      ],
+      "type": "library",
+      "version": "v1.2.1"
+    },
+    {
+      "name": "go.opentelemetry.io/collector",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:+RLtpnbZQSWcPedeSEa02OtNVlHaMqS10tTdc0LW3ew="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/client",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:QSu/+nsQUldXh8AQz6ooJ5T62wGx9U0nx32BXJrwHrQ="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/component",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:l98ZCxfCTt/O6dYB0JVKKtewaFLe/a6N2qQe61Tbf2o="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/component/componentstatus",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:6aARK84axselDP/YGM1cKVPvg6eIyN7Bg9x8x5GzJb4="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/component/componenttest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:kTMapOVJ3YMKf5Lu2j/FdcKipn90KkIrnHkKca8uNfk="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configauth",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:ttyEAMW93tOL2G4QzNLClE2JzljkNiekZZHoYEca40Y="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configcompression",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:9fkVQZ8Ia/qHd+4vyPxSDqGuDyMI9nIZXlxSFQgd76Q="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configgrpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Pg+dvWgjFBXz5PAv44+t/9l+WFaFOasHfOWl2EMpZd0="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/confighttp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:XG0GdWPmPoB/iJdjVAkTlyiE1IdFSudUaetM90OfDZY="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configmiddleware",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:znpbS4Cno6PAjq224pH3MNbOGtdNJke8oD1esB7LixU="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/confignet",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:pQxbzx0ADfkl7lqthTXXsJju/X5ChCxh0xshh6qMABM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configopaque",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:+Xaya8m3G6Eq7E0436a3yxqHmq44kC6b341+5AwxQAI="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configoptional",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:f7cITrZl5hd/zYG2RY7nLZYnLja4EOO0nhnEb6iRbhY="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configretry",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:+rp8xKUuHbglqlcn7kQlgtihs+c92Qg6bBGQxmcTvNQ="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configtelemetry",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:6t3nxtC4uBV0ialkh3TET4Bipmko9z32TvrIS3NnPXg="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/config/configtls",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:THouqm+PdXd38NTr+nG18y1uuexZ0mrj4QPKyTtzklo="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:1THBabHoQc8t/9r6ztMsghiO1OxDPZpYtn0cuwwsxYI="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap/provider/envprovider",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:MSZDJOrGXQqgPdVa2OXwd9tDu4fFdvKYV5GdWSCw1cE="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap/provider/fileprovider",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:96T0xzThGGb4plk3Fpw3OPPCdcLHwR+0pQEi4kgctAw="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap/provider/httpprovider",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:PTNAOKzgBtxoCvIvDj28ug9I5VywiSm6xPs2VWlFYYs="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap/provider/httpsprovider",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RJHGZczJ04yDrAwbdnJyB/hHiqaubjDE96bkIr1dG0Y="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap/provider/yamlprovider",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:cyRUAUCun+K721rCehqaPzy80sBYlQK4jH7iXPMF4z4="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/confmap/xconfmap",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:jZV8p2wMQhq0ktl1/LAFGOXMCzzfMq56r80r41kKoEs="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/connector",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:XoCtmUUbJfd7RYVN+wEYM95+GDf+dJG/qI6+4D8u9+8="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/connector/connectortest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:/nc1miPop5MKkA3JEXTWVRz+FMw+re1DFoEsldp3Eg0="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/connector/xconnector",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:El04WQJ5ni4a9JkDlGqe6d5Ai3bCAjGY8EBEfGsQa/g="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/consumer",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:0eOZh0qmDg6HCJaiUqI9FAb4BD4fKJNNO+ygMV/WW0w="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/consumer/consumererror",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:ljztZISi+MgMz5DVPq0BT7tH0OX9MRCKPFXXLcm7zWc="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/consumer/consumertest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:zehAVaLn67AWLhhi/LrUY0Tv06XWx5LYCvvmu7xHXHU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/consumer/xconsumer",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:DPbDCHDwbwVa0OoikTktkbXAobN7EgC4XbYaNJIyooI="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/exporter",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:UkLIYaOSmAi1ghov2Ex7rnX9f9h+dyk2h4oAt5+33as="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/exporter/exporterhelper",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:VWetLY/iJO6DMxc7/mbRiFKkvN17+QS1xk6Qw/0vFgY="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/exporter/exportertest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:WvDEjR6Bv8H6ultrO43tthRH9eRzleDAcPZpqoW64aM="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/exporter/nopexporter",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:s9m4cfgNspAwDOFTV4F7pn3DmIPgiKFQCByJRnx6zH0="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/exporter/xexporter",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RLORXoJthjdQEnbtmzVYA0W5oFI5ClGLoAEhh+IlqkM="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:wtZXWEFo4pM5Nw/ZUTiC1JbhG0rfbX4n+4nObN1RD9Y="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/extensionauth",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:I2nUDa+r0AVO7cCDvqlKX0JI21LzdYq2SLp1hLxQ0Q8="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/extensionauth/extensionauthtest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:/vZvMCZ1XwKiz+Z2gzbsWGV7INN0p1e04/n59EZtsCU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/extensioncapabilities",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:pO+NaszFKv99W9nioopyHMkjGNSx/I3Q6fI+SgeEvpk="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/extensionmiddleware",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:uC8E0dzheaRCi1Y8WwmtPmElBfS2FfaCkjOQh4sq92Y="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/extensionmiddleware/extensionmiddlewaretest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:AoMVKVqaTLAGSMahO/Hvx9ntiJkL4ncqW9qFrCRFNEQ="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/extensiontest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:t4FCQgrBI4xWRPZDN9/8BrVu8oHs+jd4xeN5Ft4sdzE="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/xextension",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:tRWFvVGMUfPEfog4y0t2mbXz5dxc4rmp/K8J1rAAKiA="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/extension/zpagesextension",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:kA0tzqS6dINbhgHpA2WUrlD5JhuXXWBRh5kcmN+TrCI="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/featuregate",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:6EWX1C5AtmIh8hFH97DwK6R7R8Jk3fTLxAUfZPXGutY="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/internal/componentalias",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:bvVANHVkXRhoRBc92rDsbiC0OHlu9/EbRqPROD9qrPc="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/internal/fanoutconsumer",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:XZmWvCXXwYeSuhACmVf/d/AQdbciTn1eW/ApMKaL550="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/internal/sharedcomponent",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:hFJmgGIQVMhtjnDFYxlvQP+awnv5/RJpBYKHOs29O9Q="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/internal/telemetry",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:gmczR2ifOmfxP4gcbiRIXvSkADb8F4QjqqXaEBlHFyo="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/internal/testutil",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:plojUQwFC5l1ex9KUDaLmCFY/mTxEmf3zrlP7M23IEw="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/otelcol",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:nLllmfwx2S2AGMw29clu1MHyiOf2NPK35NRpFGE3rnE="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/pdata",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:fY2xSG2MnyoBwA4GUhzoogGZMuNS0qHpCoODqaKwiVQ="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/pdata/pprofile",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:YRTPhwWzdG0pfJmb8p/qpQm1EdX+JfV20qzwG3ypDqI="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/pdata/testdata",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:TEee4jvYe8b0nPPKQnOnLz3LaA/XRtv3ja8J56DWIZc="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/pdata/xpdata",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:xNZQZmQTPLEHCvGjK0QuDG9q02T8kglabWS1UJxgc/M="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/pipeline",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:D97Nb1Jsgp8Ks+74jXs24kBZVd4pPdhuKe9dVogjcEo="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/pipeline/xpipeline",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Z+HLVDAnp/pJFcPwfR8FQencUjMHt7FrAnmcjPl2A4U="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/processor",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Aj1MLNiG9TJKOMywmojjbVFe1qtTLLMjRqmViEpPHeM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/processor/batchprocessor",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:NIia9S+n5OMipZNEVlW2g8GZf/BXf6ElPeelB3zzaf4="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/processor/processortest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:dtpyoIvbB3VLqZ+cV96EAsyCCUVX3mBFg9KMPRRyhlo="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/processor/xprocessor",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:+WyLGrHwcPk3TK+qt7T8CH+oADEMY4r+U5fIMTBvrAc="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/receiver",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:/77VTVW/T2cG2HBZ5iYTjqVQmZreIaNWkGONQgEI0aI="
+        }
+      ],
+      "type": "library",
+      "version": "v1.63.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/receiver/otlpreceiver",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:6Pz57yKzzd23O4R9w3kB5tokKPDkLKyiM4djaFtqqwE="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/receiver/receiverhelper",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:yS4QyoItalinfNtk/F6stIMYU9SE8EQQhH+wiU78XyU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/receiver/receivertest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:/ggPcx7fVmBjH/iGbyf5aXEPIREUfDxeMVutB420c+s="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/receiver/xreceiver",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:mjqUE5EdVpIjG1vShhdsZ++/22fs5gpzLpbnbQfOmbY="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/service",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:QTERUF25f1C2+2g47jCGQnFZCssm7mUXTQqh4WvxIXU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/service/hostcapabilities",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:1aicsKOhmMQ2bGkrbQccDSjSHNFiuOAXjZateu3rC34="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/collector/service/telemetry/telemetrytest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:9zRZiqevxdu54mz3j/Teb3JYbXTGoAl9ZtbuG2Y6TJ0="
+        }
+      ],
+      "type": "library",
+      "version": "v0.157.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/bridges/otelzap",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:48Eq3xxFx2KlL/tF7lnl42kKJBDlhNTLRzv0h154JnM="
+        }
+      ],
+      "type": "library",
+      "version": "v0.19.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/detectors/gcp",
+      "type": "library",
+      "version": "v1.43.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:2yEATaop1/a1I4psnSLgWVPLWwCzkqWakgJy7xTDVy0="
+        }
+      ],
+      "type": "library",
+      "version": "v0.69.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:8tvICD4vSTOOsNrsI4Ljf6C+6UKvpTEH5XY3JMoyPoo="
+        }
+      ],
+      "type": "library",
+      "version": "v0.69.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/otelconf",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Vtj36YS7OrMiXR7sT95NCv4/Ua0d6a3Q1uIC/+0gD64="
+        }
+      ],
+      "type": "library",
+      "version": "v0.24.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/propagators/autoprop",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:3gzAeb5dgGzwB7hXutgJ07Xsv3v4Wc0llV8AaMc0wiQ="
+        }
+      ],
+      "type": "library",
+      "version": "v0.69.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/propagators/aws",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Rtvfd6nTbAF2csjiw41m1DfuqC5TneXs+gB84ZA3gq4="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/propagators/b3",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:1IFH4oFKK8KupzIelCl3u+bkxpGRps1oWRjQI2+TTWs="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/propagators/jaeger",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:OyzvsAMc/zHt0DRPcfstn0wgfq8ApDkeY0ABMcueweM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/propagators/ot",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:JLTPenzmPtLp5ODPntAA5JhxVu1i3pAFUvXcAORMZAk="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/contrib/zpages",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:YQC1PumJq6lUGQNrLW14ID9a0dXSBcbC/aC6VRSIARU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.69.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:JjwHmHpA4iZ3wBxluu2fbbE7j4kqlE8jXyAyPXH7HqU="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:rydZ9sxbcFdm/oWrVyfLTjHIygMgv0bEeMd+3B/BvoM="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:owlhcJ3QO3X0YTDTCcDZ4V+6aVDkWbNmBoQ5NUp7Oww="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:SUplec5dp06reu1zaXmOXdvqH398taqrDXqUl99jxSc="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RuynHbfU8JUEw7DyONgkVYg2SVtsoF28y0LGIr69jgA="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlptrace",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:4YsVu3B8+3qtWYYrsUYgn0OG78pN0rnNPRGX4SbokQI="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:qazEJlUOQzhCpzQpFETGby7EdqjI1wsd0W+6Gg1SCTU="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:lgh3PiVrRUWMLOVSkQicxzZll5NjF1r+AtsX1XRIHw0="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/prometheus",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:vkrK8PAznv2NKt2r+kdu252ccGzkEqLc2aSXbQIALYQ="
+        }
+      ],
+      "type": "library",
+      "version": "v0.66.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/stdout/stdoutlog",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:aZfdmtI6QU/DAPD4b7YZ5zuJgewxO1EW9miOZklqleU="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/stdout/stdoutmetric",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:hqxVTu/GtBF+vJ8d1fzW7fRxZFvgoDjWcxwwCaFDYpU="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/exporters/stdout/stdouttrace",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:bl2S7Ubua0Nms+D/gAmznQTd4dxxMA93aKbcpKqiTCs="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/log",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:/5i0vuHxCLWUfChWG41K9wkM0jafruPw9NU1/RCJirs="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/log/logtest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:+tsZVE15N+RWyN9lUzsRyw7hMZXNMepGu105Eim82/k="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/metric",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:1w0gILTcHdr3YI+ixLyjemwrVnsMURbTZFrSYCdDdmc="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/metric/x",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:YkCrx1zLOChi9ZcZ6euupOcsgzbVlec7D/xoEU1+cTA="
+        }
+      ],
+      "type": "library",
+      "version": "v0.66.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/sdk",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:nHYwb9lK+fJPU/dnT6s7W7Z8itMWyqrnVfbheVYrZ58="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/sdk/log",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:vM3xI7TQgKPiSghe6urZtAkyFY7SodrSpC83CffDFuY="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/sdk/log/logtest",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:OqdRZ1guyzamK3M6LlRsmGqRrjkHWw6WZOKKli5ELpg="
+        }
+      ],
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/sdk/metric",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:3LlKgI+VjbVsjNRFZJZAJ30WjXC5VkNRks6si09iEfI="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/otel/trace",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/6gtIk="
+        }
+      ],
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "name": "go.opentelemetry.io/proto/otlp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:IQRWgT5srOCYfiWnpqUYz9CVmbO8bFmKcwYxpuCSL2g="
+        }
+      ],
+      "type": "library",
+      "version": "v1.10.0"
+    },
+    {
+      "name": "go.opentelemetry.io/proto/slim/otlp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:iR97Vs/ZDR+y9TfuP9b1XBtdPWeC+OMslIBmhcLU7jM="
+        }
+      ],
+      "type": "library",
+      "version": "v1.10.0"
+    },
+    {
+      "name": "go.opentelemetry.io/proto/slim/otlp/collector/profiles/v1development",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:RUF5rO0hAlgiJt1fzQVzcVs3vZVNHIcMLgOgG4rWNcQ="
+        }
+      ],
+      "type": "library",
+      "version": "v0.3.0"
+    },
+    {
+      "name": "go.opentelemetry.io/proto/slim/otlp/profiles/v1development",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:CQvJSldHRUN6Z8jsUeYv8J0lXRvygALXIzsmAeCcZE0="
+        }
+      ],
+      "type": "library",
+      "version": "v0.3.0"
+    },
+    {
+      "name": "go.uber.org/goleak",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto="
+        }
+      ],
+      "type": "library",
+      "version": "v1.3.0"
+    },
+    {
+      "name": "go.uber.org/multierr",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0="
+        }
+      ],
+      "type": "library",
+      "version": "v1.11.0"
+    },
+    {
+      "name": "go.uber.org/zap",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:IZzaP1Fv73/T/pBMLk4VutPl36uNC+OSUh3JLG3FIjo="
+        }
+      ],
+      "type": "library",
+      "version": "v1.28.0"
+    },
+    {
+      "name": "go.yaml.in/yaml/v2",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:tuyd0P+2Ont/d6e2rl3be67goVK4R6deVxCUX5vyPaQ="
+        }
+      ],
+      "type": "library",
+      "version": "v2.4.4"
+    },
+    {
+      "name": "go.yaml.in/yaml/v3",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc="
+        }
+      ],
+      "type": "library",
+      "version": "v3.0.4"
+    },
+    {
+      "name": "golang.org/x/crypto",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw="
+        }
+      ],
+      "type": "library",
+      "version": "v0.54.0"
+    },
+    {
+      "name": "golang.org/x/exp",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:VHEvKbpgPXcPXn40t9cDTGK3JZwMikIEyF/CTrFfu7k="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20260527015227-08cc5374adb3"
+    },
+    {
+      "name": "golang.org/x/image",
+      "type": "library",
+      "version": "v0.25.0"
+    },
+    {
+      "name": "golang.org/x/mod",
+      "type": "library",
+      "version": "v0.37.0"
+    },
+    {
+      "name": "golang.org/x/net",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE="
+        }
+      ],
+      "type": "library",
+      "version": "v0.57.0"
+    },
+    {
+      "name": "golang.org/x/oauth2",
+      "type": "library",
+      "version": "v0.36.0"
+    },
+    {
+      "name": "golang.org/x/sync",
+      "type": "library",
+      "version": "v0.22.0"
+    },
+    {
+      "name": "golang.org/x/sys",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs="
+        }
+      ],
+      "type": "library",
+      "version": "v0.47.0"
+    },
+    {
+      "name": "golang.org/x/term",
+      "type": "library",
+      "version": "v0.45.0"
+    },
+    {
+      "name": "golang.org/x/text",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs="
+        }
+      ],
+      "type": "library",
+      "version": "v0.40.0"
+    },
+    {
+      "name": "golang.org/x/tools",
+      "type": "library",
+      "version": "v0.47.0"
+    },
+    {
+      "name": "golang.org/x/tools/go/expect",
+      "type": "library",
+      "version": "v0.1.1-deprecated"
+    },
+    {
+      "name": "golang.org/x/tools/go/packages/packagestest",
+      "type": "library",
+      "version": "v0.1.1-deprecated"
+    },
+    {
+      "name": "gonum.org/v1/gonum",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4="
+        }
+      ],
+      "type": "library",
+      "version": "v0.17.0"
+    },
+    {
+      "name": "gonum.org/v1/plot",
+      "type": "library",
+      "version": "v0.15.2"
+    },
+    {
+      "name": "gonum.org/v1/tools",
+      "type": "library",
+      "version": "v0.0.0-20200318103217-c168b003ce8c"
+    },
+    {
+      "name": "google.golang.org/genproto/googleapis/api",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Kjn0N0tCrDgiAFW+lGO4JZ3ck44CehvJQMAwj9QF0G8="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20260526163538-3dc84a4a5aaa"
+    },
+    {
+      "name": "google.golang.org/genproto/googleapis/rpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:mZHHdPZl0dbGHCflZgAq/Q468DWVFcU2whhB2KAo8fk="
+        }
+      ],
+      "type": "library",
+      "version": "v0.0.0-20260526163538-3dc84a4a5aaa"
+    },
+    {
+      "name": "google.golang.org/grpc",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:vguDnZUPjE26w09A63VoxZPnvPjB5Riyc0mkXPFmAIU="
+        }
+      ],
+      "type": "library",
+      "version": "v1.82.0"
+    },
+    {
+      "name": "google.golang.org/protobuf",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE="
+        }
+      ],
+      "type": "library",
+      "version": "v1.36.11"
+    },
+    {
+      "name": "gopkg.in/check.v1",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk="
+        }
+      ],
+      "type": "library",
+      "version": "v1.0.0-20201130134442-10cb98267c6c"
+    },
+    {
+      "name": "gopkg.in/yaml.v3",
+      "properties": [
+        {
+          "name": "go.module.sum",
+          "value": "h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA="
+        }
+      ],
+      "type": "library",
+      "version": "v3.0.1"
+    },
+    {
+      "name": "rsc.io/pdf",
+      "type": "library",
+      "version": "v0.1.1"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "backbond-otelcol",
+      "type": "application",
+      "version": "0.157.0"
+    }
+  },
+  "specVersion": "1.5",
+  "version": 1
+}
