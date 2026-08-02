@@ -1,24 +1,43 @@
 {
+  "artifact_metadata": {
+    "approvals": [
+      "QA Engineer APPROVED required on BEAAA-20422 for the exact candidate commit"
+    ],
+    "artifact_type": "release_evidence",
+    "claim_or_decision": "The pinned OTel Collector is reproducibly buildable from the immutable candidate source.",
+    "owner": "CTO",
+    "source_refs": [
+      "BEAAA-20423",
+      "BEAAA-20422",
+      "are-scanner-api-v1@v1.3.0",
+      "scripts/beaaa20423_build_collector.sh"
+    ],
+    "status": "review",
+    "updated_at": "2026-08-02T23:09:30.965572Z",
+    "verification": "Pinned Go toolchain build repeated twice with identical SHA-256; Collector config validation and N=5 isolated integration proof passed; independent QA approval remains pending on BEAAA-20422."
+  },
   "assertion": "Runtime evidence integration does not import or change scoring, rubric weights, bands, or judge behavior.",
-  "binary_sha256": "f45eca18c6bf8efead8760de8512079173e272491a567e5463e32f794c8bfa84",
-  "binary_size_bytes": 28168376,
+  "binary_build_command": "scripts/beaaa20423_build_collector.sh",
+  "binary_build_toolchain": "go1.25.0",
+  "binary_sha256": "db85b8af83086cee5df38967ddf686bb82e260a7922ff780f817d4321682974c",
+  "binary_size_bytes": 40526961,
   "builder_manifest_sha256": "fb4aeedd99da4bb8c8f2712d7f91d5a9b94d276a5107905d88dd475c12408a34",
   "classification": "rule-execution",
   "contract_ref": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "frozen-0.5.0",
   "cto_cosign_ref": null,
   "effective_config_sha256": "1b1c2aefb3c62d5e21fa96a0ffe4ba7d3b486f6948fe6242678d2d6560c54142",
-  "generated_at": "2026-08-02T22:58:52.219963Z",
+  "generated_at": "2026-08-02T23:09:30.965620Z",
   "issue": "BEAAA-20420",
   "n5_calibration_delta": 0,
   "n5_isolated_proof": [
     {
-      "result": "..                                                                       [100%]\n2 passed in 0.24s",
+      "result": "..                                                                       [100%]\n2 passed in 0.20s",
       "run": 1,
       "score_delta": 0
     },
     {
-      "result": "..                                                                       [100%]\n2 passed in 0.20s",
+      "result": "..                                                                       [100%]\n2 passed in 0.22s",
       "run": 2,
       "score_delta": 0
     },
@@ -33,11 +52,23 @@
       "score_delta": 0
     },
     {
-      "result": "..                                                                       [100%]\n2 passed in 0.17s",
+      "result": "..                                                                       [100%]\n2 passed in 0.22s",
       "run": 5,
       "score_delta": 0
     }
   ],
+  "pre_submission_self_audit": {
+    "anticipated_review": "Independent QA must confirm the exact candidate, build toolchain, binary/config/manifest hashes, fail-closed behavior, and N=5 result before promotion.",
+    "audience_and_next_action": "QA Engineer rebuilds, validates collector.yaml, regenerates this receipt, and reconciles identities on BEAAA-20422.",
+    "carrier_rule_check": "Passed; no carrier claim is present.",
+    "contract_change_and_n5": "No contract change; N=5 isolated proof records score delta 0.",
+    "glossary_check": "Passed; canonical BackBond and Passive Monitor terms used.",
+    "llm_judges": "None used.",
+    "rollback": "Revert the BEAAA-20423 candidate commit; ffab7a6 remains unpromoted and superseded for QA.",
+    "score_identity_fields": "No score is emitted by this artifact; scanner_version and corpus_version identify the unchanged scoring baseline.",
+    "single_purpose": "Make the pinned Collector binary reproducible from a clean immutable candidate checkout.",
+    "supreme_law": "Respected: rule-execution only, score delta 0, N=5 evidence attached, no scoring or contract change."
+  },
   "probe-set-version": "not-applicable-runtime-evidence-driver",
   "rubric_point_id": "OPS.DATA_HANDLING.LOCAL_INGEST",
   "scanner_version": "0.5.0"
