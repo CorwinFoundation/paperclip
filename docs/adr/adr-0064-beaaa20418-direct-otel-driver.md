@@ -18,15 +18,15 @@ The trust boundary is hostile telemetry arriving inside the vendor environment. 
 
 ## Build evidence
 
-`otelcol-builder.yaml` is the component manifest and minimal SBOM input. `collector.yaml` is the effective configuration input. Candidate build digest and effective-config SHA-256 are generated after the exact candidate is committed; no promotion is authorized without QA approval on that SHA.
+`otelcol-builder.yaml` is the component manifest and minimal SBOM input. `collector.yaml` is the effective configuration input. The generated receipt records binary SHA-256 `f45eca18c6bf8efead8760de8512079173e272491a567e5463e32f794c8bfa84` and effective-config SHA-256 `1b1c2aefb3c62d5e21fa96a0ffe4ba7d3b486f6948fe6242678d2d6560c54142`. No promotion is authorized without QA approval on the exact candidate SHA.
 
 ## Operational metadata
 
-- scanner_version: unchanged
-- corpus_version: unchanged
-- probe-set-version: unchanged
+- scanner_version: `0.5.0` (unchanged)
+- corpus_version: `frozen-0.5.0` (unchanged)
+- probe-set-version: `not-applicable-runtime-evidence-driver`
 - rubric_point_id: `OPS.DATA_HANDLING.LOCAL_INGEST`
-- N=5 calibration delta: pending candidate verification; expected 0 because no score path is imported
+- N=5 calibration delta: `0`; five isolated integration runs passed and no score path is imported
 - cto_cosign_ref: not required under the rule-execution classification recorded on BEAAA-20418
 
 FAL: internal engineering decision. Focus and linkage are satisfied by extending the existing Passive Monitor runtime-evidence lane; no external claim is introduced.

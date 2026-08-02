@@ -58,11 +58,11 @@ def main() -> None:
     receipt = {
         "issue": "BEAAA-20420",
         "classification": "rule-execution",
-        "contract_ref": "are-scanner-api-v1@v1.0",
+        "contract_ref": "are-scanner-api-v1@v1.3.0",
         "scanner_version": "0.5.0",
         "corpus_version": "frozen-0.5.0",
         "probe-set-version": "not-applicable-runtime-evidence-driver",
-        "rubric_point_id": "P4.4",
+        "rubric_point_id": "OPS.DATA_HANDLING.LOCAL_INGEST",
         "n5_calibration_delta": 0,
         "cto_cosign_ref": None,
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
