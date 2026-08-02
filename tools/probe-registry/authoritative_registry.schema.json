@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backbond.ai/schemas/authoritative-probe-registry-v1.json",
+  "type": "object",
+  "required": ["metadata", "overlap_semantics", "category_counts", "rows"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["source_closure_sha", "generated_from_commit", "scanner_version", "corpus_version", "probe_set_version", "generated_at", "contract"],
+      "properties": {
+        "source_closure_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "generated_from_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "generated_at": {"type": "string", "format": "date-time"},
+        "contract": {"const": "are-scanner-api-v1@v1.3.0"}
+      }
+    },
+    "overlap_semantics": {"type": "string", "minLength": 1},
+    "category_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stable_id", "framework", "case_id_or_probe_id", "rubric_point_id", "source_provenance", "categories"],
+        "properties": {
+          "stable_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_provenance": {
+            "type": "object",
+            "required": ["path", "version"],
+            "properties": {"path": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}
+          },
+          "categories": {
+            "type": "object",
+            "required": ["registered", "executable", "executable_on_default_runtime", "executed_in_latest_evidenced_run", "reported", "scoring_active", "proxy_grade", "attestation_only", "fixture_test_only", "inactive_deferred", "blocked_unsupported"],
+            "additionalProperties": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  }
+}

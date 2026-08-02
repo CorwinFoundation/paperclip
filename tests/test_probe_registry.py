@@ -37,10 +37,10 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             registry = self._emit(Path(tmp) / "registry.json")
         runnable = [
             row for row in registry["rows"]
-            if row["bucket"] == "runnable_today" and row["countable_as_executable"]
+            if row["categories"]["executable"]
         ]
         self.assertEqual(registry["unique_executable_count"], len(runnable))
-        self.assertGreaterEqual(registry["unique_executable_count"], 1)
+        self.assertGreaterEqual(registry["category_counts"]["executable"], 1)
 
     def test_every_active_rubric_point_has_executable_or_fail_closed_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -106,7 +106,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             self.assertIsNotNone(point["unavailable_reason"], rubric_point_id)
             self.assertFalse(point["runnable_entries"], rubric_point_id)
 
-    def test_bound_governance_attestation_pack_is_counted_as_executable(self) -> None:
+    def test_bound_governance_attestation_pack_is_not_default_runtime_executable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = self._emit(Path(tmp) / "registry.json")
         active_by_id = {
@@ -114,9 +114,9 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             for point in registry["active_rubric_points"]
         }
         point = active_by_id["GOVERNANCE.PII.HANDLING_ATTESTATION"]
-        self.assertEqual(point["status"], "executable")
-        self.assertIsNone(point["unavailable_reason"])
-        self.assertEqual(len(point["runnable_entries"]), 1)
+        self.assertEqual(point["status"], "fail_closed_unavailable")
+        self.assertIsNotNone(point["unavailable_reason"])
+        self.assertFalse(point["runnable_entries"])
 
     def test_cto_open_source_first_constraint_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

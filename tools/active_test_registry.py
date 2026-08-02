@@ -831,6 +831,10 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
 
 def load_published_count(path: Path = CLAIMS_PATH) -> int:
     data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("retired"):
+        authoritative = REPO_ROOT / str(data["authoritative_registry"])
+        manifest = json.loads(authoritative.read_text(encoding="utf-8"))
+        return int(manifest["category_counts"]["executable"])
     return int(data["published_active_test_count"])
 
 

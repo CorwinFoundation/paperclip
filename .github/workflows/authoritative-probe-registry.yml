@@ -1,0 +1,16 @@
+name: authoritative-probe-registry
+on:
+  pull_request:
+  push:
+    branches: [master]
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - run: python -m tools.probe_registry --repo . --check
+      - run: pytest -q tests/test_authoritative_probe_registry_beaaa20357.py

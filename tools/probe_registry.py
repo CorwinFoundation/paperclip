@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +15,6 @@ from tools.active_test_registry import (
     _is_countable_active_executable,
     build_registry as build_active_test_registry,
 )
-from tools.source_identity import repo_head
 
 
 REPO_DEFAULT = Path.cwd()
@@ -38,6 +38,8 @@ SOURCE_INPUTS = [
     "scanners/*_runner.py",
     "tests/fixtures/golden_agents/**",
 ]
+AUTHORITATIVE_PATH = "tools/probe-registry/authoritative_registry.json"
+SCHEMA_PATH = "tools/probe-registry/authoritative_registry.schema.json"
 DEDUPE_FIELDS = (
     "framework",
     "corpus_or_family",
@@ -52,8 +54,27 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _repo_head(repo: Path) -> str:
-    return repo_head(repo)
+def _generated_from_commit(repo: Path) -> str:
+    """Return the immutable parent/base commit for this one-commit change."""
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD^"], cwd=repo, text=True
+    ).strip()
+
+
+def _source_sha(repo: Path) -> str:
+    """Git-style SHA-1 over the authoritative input closure, excluding outputs."""
+    paths: set[Path] = {repo / "tools" / "probe_registry.py"}
+    for pattern in SOURCE_INPUTS:
+        paths.update(path for path in repo.glob(pattern) if path.is_file())
+    digest = hashlib.sha1()
+    for path in sorted(paths):
+        relative = path.relative_to(repo).as_posix().encode()
+        payload = path.read_bytes()
+        digest.update(len(relative).to_bytes(4, "big"))
+        digest.update(relative)
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
 
 
 def _stable_key(row: dict[str, Any]) -> str:
@@ -61,6 +82,23 @@ def _stable_key(row: dict[str, Any]) -> str:
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+
+
+def _index_unique_rows(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Index source rows and reject duplicate authority instead of hiding it."""
+    unique: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        stable_id = _stable_key(row)
+        if stable_id in unique:
+            first = unique[stable_id]
+            raise ValueError(
+                "duplicate authoritative probe stable ID "
+                f"{stable_id}: {first.get('source')} and {row.get('source')} "
+                f"for {row.get('framework')}/{row.get('case_id_or_probe_id')}"
+            )
+        row["stable_executable_key"] = stable_id
+        unique[stable_id] = row
+    return unique
 
 
 def _active_rubric_points(repo: Path) -> list[dict[str, str]]:
@@ -225,18 +263,44 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
 def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
     if getattr(yaml, "__version__", None) != PY_YAML_PIN:
         raise RuntimeError(f"PyYAML=={PY_YAML_PIN} required for deterministic registry parsing")
-    repo_head = _repo_head(repo)
+    source_sha = _source_sha(repo)
     active_points = _active_rubric_points(repo)
     rows = _runnable_today_rows(repo) + _active_test_executable_rows(repo) + _mapping_rows(repo) + _fixture_rows(repo)
-    unique: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        row["stable_executable_key"] = _stable_key(row)
-        unique.setdefault(row["stable_executable_key"], row)
+    unique = _index_unique_rows(rows)
     rows = sorted(unique.values(), key=lambda row: tuple(str(row.get(f, "")) for f in DEDUPE_FIELDS))
-    runnable = [row for row in rows if row["bucket"] == "runnable_today" and row["countable_as_executable"]]
+    # Legacy active-test rows prove registration and an adapter binding, not that
+    # the current default runtime executed or scored them. Keep those facts
+    # separate and fail closed unless a source row carries the stronger evidence.
+    for row in rows:
+        legacy_runnable = bool(row["bucket"] == "runnable_today" and row["countable_as_executable"])
+        row["categories"] = {
+            "registered": True,
+            "executable": legacy_runnable,
+            "executable_on_default_runtime": bool(row.get("default_runtime_executable", False)),
+            "executed_in_latest_evidenced_run": bool(row.get("executed_in_latest_evidenced_run", False)),
+            "reported": bool(row.get("reported", False)),
+            "scoring_active": bool(row.get("scoring_active", False)),
+            "proxy_grade": row["bucket"] == "proxy_grade_non_customer_measured",
+            "attestation_only": row["bucket"] == "attestation_only",
+            "fixture_test_only": row["bucket"] == "fixture_test_only",
+            "inactive_deferred": row["bucket"] == "inactive_deferred",
+            "blocked_unsupported": not legacy_runnable and row["bucket"] not in {"fixture_test_only", "inactive_deferred"},
+        }
+        row["stable_id"] = row.pop("stable_executable_key")
+        row["source_provenance"] = {
+            "path": row["source"],
+            "version": row.get("version_pin") or row.get("framework_version") or "unversioned",
+        }
+        row.pop("countable_as_executable", None)
+    category_names = list(rows[0]["categories"]) if rows else []
+    category_counts = {
+        name: sum(bool(row["categories"][name]) for row in rows)
+        for name in category_names
+    }
+    runnable = [row for row in rows if row["categories"]["executable_on_default_runtime"]]
     runnable_by_dim: dict[str, list[str]] = {}
     for row in runnable:
-        runnable_by_dim.setdefault(row["rubric_point_id"], []).append(row["stable_executable_key"])
+        runnable_by_dim.setdefault(row["rubric_point_id"], []).append(row["stable_id"])
     point_status = []
     for point in active_points:
         dim = point["rubric_point_id"]
@@ -246,7 +310,7 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
                 **point,
                 "runnable_entries": keys,
                 "status": "executable" if keys else "fail_closed_unavailable",
-                "unavailable_reason": None if keys else f"no current customer-true walker row in WRAP_MODULES at {repo_head[:7]}",
+                "unavailable_reason": None if keys else f"no current customer-true walker row in authoritative source closure {source_sha[:7]}",
             }
         )
     bucket_counts: dict[str, int] = {}
@@ -254,18 +318,22 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
         bucket_counts[row["bucket"]] = bucket_counts.get(row["bucket"], 0) + 1
     return {
         "metadata": {
-            "ticket_ref": "BEAAA-13678",
-            "repo": str(repo),
-            "repo_head": repo_head,
-            "contract": "are-scanner-api-v1@v1.0",
-            "scanner_version": "1.2.0",
-            "corpus_version": f"registry-baseline-{repo_head[:7]}",
-            "probe_set_version": "active-probe-registry@0.1.0",
+            "ticket_ref": "BEAAA-20991",
+            "source_closure_sha": source_sha,
+            "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
+            "generated_from_commit": _generated_from_commit(repo),
+            "generated_at": "2026-08-06T00:00:00Z",
+            "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.0; deterministic regeneration does not use wall-clock time",
+            "schema": SCHEMA_PATH,
+            "contract": "are-scanner-api-v1@v1.3.0",
+            "scanner_version": "0.5.0",
+            "corpus_version": "0.2.0",
+            "source_closure_version": f"registry-source-{source_sha[:7]}",
+            "probe_set_version": "authoritative-probe-registry@1.0.1",
             "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
             "active_rubric_point_count": len(active_points),
             "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
             "classification": "rule-execution: refactor/metadata registry that does not touch scoring behavior",
-            "remediation_ticket_ref": "BEAAA-13739",
             "parser_dependency": f"PyYAML=={PY_YAML_PIN}",
             "stdlib_dependencies": ["pathlib", "json", "csv", "hashlib"],
             "open_source_first_constraint": "Parse existing corpus/mapping/harness/scanner assets as sources; only BackBond stable key, disposition buckets, and fail-closed reasons are hand-rolled.",
@@ -273,23 +341,25 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
         "source_inputs": SOURCE_INPUTS,
         "upstream_framework_pins": dict(sorted(FRAMEWORK_PINS.items())),
         "dedupe_key_fields": list(DEDUPE_FIELDS),
+        "overlap_semantics": "Categories are non-additive sets. A stable-ID row may belong to multiple categories; never sum category counts to obtain a total.",
+        "category_counts": category_counts,
         "bucket_definitions": {
-            "runnable_today": "Customer-true walker emits the row at current HEAD; countable as executable.",
+            "runnable_today": "A registered adapter can materialize the row; this does not imply default-runtime, latest-run, reporting, or scoring activation.",
             "declared_minimum_only": "Mapping or corpus row exists, but no current full-scan execution row proves it runs.",
             "attestation_only": "Governance/operator evidence row; countable as evidence requirement, not an executable probe.",
             "proxy_grade_non_customer_measured": "Category-proxy or non-customer-measured row; visible but excluded from executable count.",
             "fixture_test_only": "Test fixture or harness corpus row; excluded from executable count.",
             "inactive_deferred": "Schema, scaffold, deferred, or inactive row; excluded from executable count.",
         },
-        "unique_executable_count": len(runnable),
+        "unique_executable_count": category_counts.get("executable", 0),
         "bucket_counts": dict(sorted(bucket_counts.items())),
         "active_rubric_points": point_status,
         "claimed_1180_disposition": {
             "claimed_count": 1180,
-            "supported_unique_executable_count": len(runnable),
+            "supported_unique_executable_count": category_counts.get("executable", 0),
             "claim_supported": False,
             "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
-            "unsupported_rows_count": sum(1 for row in rows if not row["countable_as_executable"]),
+            "unsupported_rows_count": category_counts.get("blocked_unsupported", 0),
         },
         "rows": rows,
     }
@@ -298,12 +368,21 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=str(REPO_DEFAULT))
-    parser.add_argument("--emit", required=True)
+    parser.add_argument("--emit", default=AUTHORITATIVE_PATH)
+    parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     registry = build_registry(Path(args.repo))
     output = Path(args.emit)
+    if not output.is_absolute():
+        output = Path(args.repo) / output
+    rendered = json.dumps(registry, indent=2, sort_keys=True) + "\n"
+    if args.check:
+        if not output.exists() or output.read_text(encoding="utf-8") != rendered:
+            print(f"authoritative probe registry drift: regenerate {output}", file=sys.stderr)
+            return 1
+        return 0
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(registry, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(rendered, encoding="utf-8")
     return 0
 
 
