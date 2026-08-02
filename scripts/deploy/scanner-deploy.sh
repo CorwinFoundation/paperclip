@@ -19,13 +19,12 @@ EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
 EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
 ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
 
-FROZEN_SHA="${SCANNER_FROZEN_SHA:-7850289333ffc1de6eebea9c2201e0f1059c4c12}"
-FROZEN_REPO_DIGEST="${SCANNER_FROZEN_REPO_DIGEST:-ghcr.io/corwinfoundation/are-scanner@sha256:e955a2812015cf7da487c2e266e0a7f3fc9478cdafc2580dc0e02df53d96df9b}"
-FROZEN_ARCHIVE_SHA="${SCANNER_FROZEN_ARCHIVE_SHA:-502a52979825fe838fdccceac08d079fc553262bce69d69d06d904c2af94f1c0}"
-FROZEN_MANIFEST_SHA="${SCANNER_FROZEN_MANIFEST_SHA:-2417a7b22c1ad82c7b3ad68eb815b03b6345be6b1c25bbcd54fc756a85957ddc}"
+FROZEN_SHA="${SCANNER_FROZEN_SHA:-de50ddf2a8372d7714b12cf11a4ec7adf1f02ec4}"
+FROZEN_REPO_DIGEST="${SCANNER_FROZEN_REPO_DIGEST:-ghcr.io/corwinfoundation/are-scanner@sha256:0e5889e3e0bcc82bbde0c195198211b6a7f6523d254af45b8ad0be5ff88e391b}"
+FROZEN_ARCHIVE_SHA="${SCANNER_FROZEN_ARCHIVE_SHA:-775891a2dbab7d355341e48805a8e9c3e12023692de4c2db6b647d0288856de9}"
+FROZEN_MANIFEST_SHA="${SCANNER_FROZEN_MANIFEST_SHA:-a03c52accde2c550cef8bfb8935be9f56133591fd2a3b0a946e0a523482e56e0}"
 FROZEN_CANDIDATE="${SCANNER_FROZEN_CANDIDATE:-BEAAA-19984}"
 REVISION_LABEL=org.opencontainers.image.revision
-MANIFEST_LABEL=ai.backbond.release.manifest-sha256
 
 log() { printf '[scanner-deploy] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -93,9 +92,51 @@ grep -Fq -- '--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-ag
 IMAGE_ID="$("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL=$SHA" --format '{{.ID}}' | awk 'NF' | sort -u)"
 [ "$(printf '%s\n' "$IMAGE_ID" | awk 'NF{n++} END{print n+0}')" = 1 ] || die 'expected exactly one image with frozen OCI revision'
 GOT_REV="$("$DOCKER" image inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$IMAGE_ID")"
-GOT_MANIFEST="$("$DOCKER" image inspect --format "{{ index .Config.Labels \"$MANIFEST_LABEL\" }}" "$IMAGE_ID")"
 [ "$GOT_REV" = "$FROZEN_SHA" ] || die 'OCI revision mismatch'
-[ "$GOT_MANIFEST" = "$FROZEN_MANIFEST_SHA" ] || die 'release-manifest SHA label mismatch'
+MANIFEST_CONTAINER= MANIFEST_TMP=
+cleanup_manifest_resources() {
+  cleanup_rc=0
+  if [ -n "$MANIFEST_CONTAINER" ] && ! "$DOCKER" rm -f "$MANIFEST_CONTAINER" >/dev/null 2>&1; then
+    log "ERROR: persistent manifest inspection container cleanup failure: $MANIFEST_CONTAINER"
+    cleanup_rc=1
+  fi
+  if [ -n "$MANIFEST_TMP" ] && ! rm -f -- "$MANIFEST_TMP"; then
+    log "ERROR: embedded-manifest temporary-file cleanup failure: $MANIFEST_TMP"
+    cleanup_rc=1
+  fi
+  return "$cleanup_rc"
+}
+trap 'rc=$?; trap - EXIT INT TERM; cleanup_rc=0; cleanup_manifest_resources || cleanup_rc=$?; [ "$rc" -ne 0 ] || rc=$cleanup_rc; exit "$rc"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+MANIFEST_TMP="$(mktemp)" || die 'cannot create embedded-manifest temporary file'
+MANIFEST_CONTAINER="$("$DOCKER" create --network none "$IMAGE_ID")" || die 'cannot create manifest inspection container'
+if ! "$DOCKER" cp "$MANIFEST_CONTAINER:/app/release/backbond-scanner-release.json" "$MANIFEST_TMP"; then
+  die 'cannot extract embedded release manifest'
+fi
+if ! "$DOCKER" rm -f "$MANIFEST_CONTAINER" >/dev/null; then
+  die 'cannot remove manifest inspection container'
+fi
+MANIFEST_CONTAINER=
+if ! GOT_MANIFEST="$(sha256sum "$MANIFEST_TMP" | awk '{print $1}')"; then
+  die 'cannot hash embedded release manifest'
+fi
+[ "$GOT_MANIFEST" = "$FROZEN_MANIFEST_SHA" ] || die 'embedded release-manifest SHA mismatch'
+if ! python3 - "$MANIFEST_TMP" "$FROZEN_SHA" <<'PY'
+import json,sys
+p,sha=sys.argv[1:]
+d=json.load(open(p,encoding='utf-8'))
+expected={'scanner_version':'0.5.0','corpus_version':'0.2.0','build_sha':sha,'release_tag':'sha-'+sha}
+for key,value in expected.items():
+    if d.get(key)!=value: raise SystemExit(f'embedded release identity mismatch: {key}')
+PY
+then
+  die 'embedded release identity mismatch'
+fi
+cleanup_manifest_resources || die 'manifest preflight resource cleanup failed'
+MANIFEST_TMP=
+trap - EXIT INT TERM
+case $- in (*e*) :;; (*) die 'errexit disabled after manifest preflight cleanup';; esac
 
 LOCAL_TAG="backbond-scanner-live:$SHA"
 RELEASES="$STATE_DIR/releases"; TRANSACTIONS="$STATE_DIR/transactions"; RECEIPTS="$STATE_DIR/receipts"

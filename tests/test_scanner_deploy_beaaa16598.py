@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import signal
+import shutil
 import stat
 import subprocess
 import time
@@ -36,14 +37,31 @@ def harness(tmp_path: Path, *, duplicate=False, curl_fail=False, rollback_fail=F
     archive = tmp_path / f"backbond-scanner-{SHA}.tar"; archive.write_bytes(b"approved archive")
     archive_sha = hashlib.sha256(archive.read_bytes()).hexdigest()
     bin_dir = tmp_path / "bin"; bin_dir.mkdir(); calls = tmp_path / "calls"
+    manifest_file = tmp_path / "embedded-release.json"
+    manifest_file.write_text(json.dumps({"scanner_version":"0.5.0","corpus_version":"0.2.0","build_sha":SHA,"release_tag":"sha-"+SHA},sort_keys=True,separators=(",", ":")))
+    manifest_sha = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
     _write_exe(bin_dir / "docker", f'''#!/bin/sh
 echo "docker $*" >>"{calls}"
 case "$1 $2" in
  "image ls") echo sha256:loaded;;
- "image inspect") case "$*" in *manifest-sha256*) echo "$STUB_MANIFEST";; *) echo "$STUB_SHA";; esac;;
+ "image inspect") echo "$STUB_SHA";;
  "inspect --format") case "$*" in *Labels*) echo "$STUB_SHA";; *) echo sha256:running;; esac;;
 esac
+case "$1" in
+ create) [ -z "$STUB_CREATE_FAIL" ] || exit 71; : >"$STUB_CONTAINER_STATE"; echo manifest-inspection-container;;
+ cp) [ -z "$STUB_CP_FAIL" ] || exit 72; [ -z "$STUB_PAUSE_CP" ] || sleep 30; cp "$STUB_MANIFEST_FILE" "$3";;
+ rm) n=$(grep -c '^docker rm -f manifest-inspection-container' "{calls}"); [ -z "$STUB_RM_FAIL_PERSISTENT" ] || exit 74; [ -z "$STUB_RM_FAIL_ONCE" ] || [ "$n" -gt 1 ] || exit 74; rm -f "$STUB_CONTAINER_STATE";;
+ tag) [ -z "$STUB_TAG_FAIL" ] || exit 76;;
+esac
 exit 0
+''')
+    _write_exe(bin_dir / "mktemp", f'''#!/bin/sh
+[ -z "$STUB_MKTEMP_FAIL" ] || exit 73
+exec {shutil.which("mktemp")} "$@"
+''')
+    _write_exe(bin_dir / "sha256sum", f'''#!/bin/sh
+[ -z "$STUB_HASH_FAIL" ] || [ "$1" = "$STUB_ARCHIVE_PATH" ] || exit 75
+exec {shutil.which("sha256sum")} "$@"
 ''')
     _write_exe(bin_dir / "systemctl", f'''#!/bin/sh
 echo "systemctl $*" >>"{calls}"
@@ -62,7 +80,7 @@ printf 200
     local_tag = f"backbond-scanner-live:{SHA}"
     identity = json.dumps({"commit_sha":SHA,"current_version":SHA,"running_container_revision":SHA,"internal_version_sha":SHA,"image_digest":DIGEST,"configured_image":local_tag,"schema_version":"backbond-scanner-release-identity@1","environment":"production","host":"srv1749248","candidate_id":CANDIDATE,"status":"activated","recorded_at":"ignored"},sort_keys=True,separators=(",", ":"))
     e = os.environ.copy()
-    e.update({"PATH":f"{bin_dir}:{e['PATH']}","SCANNER_EDGE_ENV":str(env_file),"SCANNER_ARCHIVE_DIR":str(tmp_path),"SCANNER_STATE_DIR":str(state),"SCANNER_UNIT_FILE":str(unit),"SCANNER_DOCKER":str(bin_dir/"docker"),"SCANNER_SYSTEMCTL":str(bin_dir/"systemctl"),"SCANNER_CURL":str(bin_dir/"curl"),"SCANNER_READINESS_TIMEOUT":"1","SCANNER_READINESS_INTERVAL":"1","SCANNER_EXPECTED_OWNER_UID":str(os.getuid()),"SCANNER_EXPECTED_OWNER_GID":str(os.getgid()),"SCANNER_FROZEN_SHA":SHA,"SCANNER_FROZEN_REPO_DIGEST":DIGEST,"SCANNER_FROZEN_ARCHIVE_SHA":archive_sha,"SCANNER_FROZEN_MANIFEST_SHA":MANIFEST,"SCANNER_FROZEN_CANDIDATE":CANDIDATE,"STUB_SHA":SHA,"STUB_MANIFEST":MANIFEST,"STUB_IDENTITY":identity,"STUB_CURL_FAIL":"1" if curl_fail else "","STUB_ROLLBACK_FAIL":"1" if rollback_fail else ""})
+    e.update({"PATH":f"{bin_dir}:{e['PATH']}","TMPDIR":str(tmp_path),"SCANNER_EDGE_ENV":str(env_file),"SCANNER_ARCHIVE_DIR":str(tmp_path),"SCANNER_STATE_DIR":str(state),"SCANNER_UNIT_FILE":str(unit),"SCANNER_DOCKER":str(bin_dir/"docker"),"SCANNER_SYSTEMCTL":str(bin_dir/"systemctl"),"SCANNER_CURL":str(bin_dir/"curl"),"SCANNER_READINESS_TIMEOUT":"1","SCANNER_READINESS_INTERVAL":"1","SCANNER_EXPECTED_OWNER_UID":str(os.getuid()),"SCANNER_EXPECTED_OWNER_GID":str(os.getgid()),"SCANNER_FROZEN_SHA":SHA,"SCANNER_FROZEN_REPO_DIGEST":DIGEST,"SCANNER_FROZEN_ARCHIVE_SHA":archive_sha,"SCANNER_FROZEN_MANIFEST_SHA":manifest_sha,"SCANNER_FROZEN_CANDIDATE":CANDIDATE,"STUB_SHA":SHA,"STUB_ARCHIVE_PATH":str(archive),"STUB_MANIFEST_FILE":str(manifest_file),"STUB_CONTAINER_STATE":str(tmp_path/"container.exists"),"STUB_IDENTITY":identity,"STUB_CURL_FAIL":"1" if curl_fail else "","STUB_ROLLBACK_FAIL":"1" if rollback_fail else ""})
     return e, env_file, state, archive, archive_sha, calls
 
 
@@ -73,6 +91,111 @@ def run(e, archive, archive_sha, *, digest=DIGEST):
 def test_shell_syntax_and_exact_read_only_mount():
     assert subprocess.run(["bash","-n",str(HELPER)]).returncode == 0
     assert "--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro" in UNIT.read_text()
+
+
+def test_frozen_defaults_bind_exact_de50_artifact_identity():
+    text = HELPER.read_text()
+    assert "de50ddf2a8372d7714b12cf11a4ec7adf1f02ec4" in text
+    assert "0e5889e3e0bcc82bbde0c195198211b6a7f6523d254af45b8ad0be5ff88e391b" in text
+    assert "775891a2dbab7d355341e48805a8e9c3e12023692de4c2db6b647d0288856de9" in text
+    assert "a03c52accde2c550cef8bfb8935be9f56133591fd2a3b0a946e0a523482e56e0" in text
+
+
+@pytest.mark.parametrize("field", ["scanner_version", "corpus_version", "build_sha", "release_tag"])
+def test_valid_manifest_hash_with_wrong_embedded_identity_fails_before_transaction(tmp_path, field):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    manifest = Path(e["STUB_MANIFEST_FILE"])
+    payload = json.loads(manifest.read_text())
+    payload[field] = "wrong"
+    manifest.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    e["SCANNER_FROZEN_MANIFEST_SHA"] = hashlib.sha256(manifest.read_bytes()).hexdigest()
+    before = env_file.read_bytes()
+    result = run(e, archive, archive_sha)
+    assert result.returncode != 0 and "embedded release identity mismatch" in result.stderr
+    assert env_file.read_bytes() == before
+    assert not (state / "transactions").exists()
+    assert not list(tmp_path.glob("tmp.*"))
+    assert "docker rm -f manifest-inspection-container" in calls.read_text()
+
+
+@pytest.mark.parametrize(
+    "failure,diagnostic,create_called,cleanup_called",
+    [
+        ("STUB_MKTEMP_FAIL", "cannot create embedded-manifest temporary file", False, False),
+        ("STUB_CREATE_FAIL", "cannot create manifest inspection container", True, False),
+        ("STUB_CP_FAIL", "cannot extract embedded release manifest", True, True),
+        ("STUB_RM_FAIL_ONCE", "cannot remove manifest inspection container", True, True),
+        ("STUB_HASH_FAIL", "cannot hash embedded release manifest", True, True),
+    ],
+)
+def test_manifest_preflight_tool_failures_leave_no_residuals(
+    tmp_path, failure, diagnostic, create_called, cleanup_called
+):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    e[failure] = "1"
+    before = env_file.read_bytes()
+    result = run(e, archive, archive_sha)
+    trace = calls.read_text()
+    assert result.returncode != 0 and diagnostic in result.stderr
+    assert env_file.read_bytes() == before
+    assert not (state / "transactions").exists()
+    assert not list(tmp_path.glob("tmp.*"))
+    assert ("docker create --network none sha256:loaded" in trace) is create_called
+    assert ("docker rm -f manifest-inspection-container" in trace) is cleanup_called
+    if failure == "STUB_RM_FAIL_ONCE":
+        assert trace.count("docker rm -f manifest-inspection-container") == 2
+        assert not Path(e["STUB_CONTAINER_STATE"]).exists()
+
+
+def test_persistent_manifest_container_removal_failure_is_explicit(tmp_path):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    e["STUB_RM_FAIL_PERSISTENT"] = "1"
+    result = run(e, archive, archive_sha)
+    assert result.returncode != 0
+    assert "cannot remove manifest inspection container" in result.stderr
+    assert "persistent manifest inspection container cleanup failure" in result.stderr
+    assert calls.read_text().count("docker rm -f manifest-inspection-container") == 2
+    assert Path(e["STUB_CONTAINER_STATE"]).exists()
+    assert not list(tmp_path.glob("tmp.*"))
+    assert not (state / "transactions").exists()
+
+
+@pytest.mark.parametrize("sig,expected_rc", [(signal.SIGINT, 130), (signal.SIGTERM, 143)])
+def test_manifest_preflight_signal_exits_nonzero_and_cleans_resources(tmp_path, sig, expected_rc):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    e["STUB_PAUSE_CP"] = "1"
+    proc = subprocess.Popen(
+        ["bash", str(HELPER), SHA, str(archive), DIGEST, archive_sha, CANDIDATE],
+        env=e,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    container_state = Path(e["STUB_CONTAINER_STATE"])
+    deadline = time.monotonic() + 5
+    while not container_state.exists() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert container_state.exists(), "inspection container was not allocated before signal"
+    os.killpg(proc.pid, sig)
+    _, stderr = proc.communicate(timeout=5)
+    assert proc.returncode == expected_rc, stderr
+    assert not container_state.exists()
+    assert not list(tmp_path.glob("tmp.*"))
+    assert not (state / "transactions").exists()
+    assert "docker rm -f manifest-inspection-container" in calls.read_text()
+
+
+def test_invalid_embedded_json_cleans_resources_before_transaction(tmp_path):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    manifest = Path(e["STUB_MANIFEST_FILE"])
+    manifest.write_text("{")
+    e["SCANNER_FROZEN_MANIFEST_SHA"] = hashlib.sha256(manifest.read_bytes()).hexdigest()
+    result = run(e, archive, archive_sha)
+    assert result.returncode != 0 and "embedded release identity mismatch" in result.stderr
+    assert not list(tmp_path.glob("tmp.*"))
+    assert not (state / "transactions").exists()
+    assert "docker rm -f manifest-inspection-container" in calls.read_text()
 
 
 def test_preflight_rejects_repository_digest_before_mutation(tmp_path):
@@ -89,17 +212,42 @@ def test_duplicate_env_rejected_before_load(tmp_path):
     assert not calls.exists()
 
 
-def test_exact_two_anchor_success_writes_activated_receipt(tmp_path):
+def test_exact_embedded_manifest_identity_success_writes_activated_receipt(tmp_path):
     e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
     result=run(e,archive,archive_sha)
     assert result.returncode == 0, result.stderr
     assert f"SCANNER_EDGE_IMAGE=backbond-scanner-live:{SHA}" in env_file.read_text()
     identity=state/"releases"/f"{SHA}.json"; receipt=state/"receipts"/f"{SHA}.json"
     assert json.loads(identity.read_text())["status"] == "activated"
-    assert json.loads(receipt.read_text())["release_manifest_sha256"] == MANIFEST
+    assert json.loads(receipt.read_text())["release_manifest_sha256"] == e["SCANNER_FROZEN_MANIFEST_SHA"]
     assert json.loads(receipt.read_text())["repository_digest"] == DIGEST
     assert stat.S_IMODE(identity.stat().st_mode) == 0o444
     assert "docker pull" not in calls.read_text()
+    assert "docker create --network none sha256:loaded" in calls.read_text()
+
+
+def test_errexit_survives_preflight_cleanup_and_first_transaction_failure_rolls_back(tmp_path):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    e["STUB_TAG_FAIL"] = "1"
+    before = env_file.read_bytes()
+    result = run(e, archive, archive_sha)
+    trace = calls.read_text()
+    assert result.returncode != 0
+    assert "ROLLBACK: restoring image, environment, markers, and identity" in result.stderr
+    assert env_file.read_bytes() == before
+    assert "docker tag sha256:loaded" in trace
+    assert "systemctl restart backbond-scanner-live.service" in trace
+    assert not (state / "current_version").exists()
+    assert not (state / "receipts" / f"{SHA}.json").exists()
+    assert list((state / "transactions").iterdir())
+
+
+def test_helper_asserts_errexit_before_transaction():
+    text = HELPER.read_text()
+    cleanup = text.index("cleanup_manifest_resources || die")
+    assertion = text.index("errexit disabled after manifest preflight cleanup")
+    transaction = text.index('LOCAL_TAG="backbond-scanner-live:$SHA"')
+    assert cleanup < assertion < transaction
 
 
 def test_200_identity_gate_rolls_back_absent_markers(tmp_path):
@@ -131,7 +279,7 @@ def test_each_frozen_anchor_mismatch_fails_closed(tmp_path, field):
     args=["bash",str(HELPER),SHA,str(archive),DIGEST,archive_sha,CANDIDATE]
     if field == "archive": archive.write_bytes(b"tampered")
     elif field == "revision": e["STUB_SHA"]="d"*40
-    elif field == "manifest": e["STUB_MANIFEST"]="e"*64
+    elif field == "manifest": Path(e["STUB_MANIFEST_FILE"]).write_text("tampered")
     else: args[-1]="BEAAA-1"
     before=env_file.read_bytes()
     result=subprocess.run(args,env=e,text=True,capture_output=True)
