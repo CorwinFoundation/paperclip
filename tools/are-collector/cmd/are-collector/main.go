@@ -32,6 +32,8 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	customerID := flags.String("customer-id", "", "BackBond customer id")
 	agentID := flags.String("agent-id", "", "BackBond agent id")
 	batchID := flags.String("batch-id", "", "batch id")
+	wireVersion := flags.String("wire-version", "post-bind-egress-wire-v1", "egress wire version")
+	prevBatchHash := flags.String("prev-batch-hash", "", "v2 predecessor batch_hash")
 	keyID := flags.String("key-id", "", "per-bind Ed25519 public key id")
 	policyJSON := flags.String("policy-json", "{}", "JSON object mapping payload paths to redaction classes")
 	privateKeyB64 := flags.String("ed25519-private-key-b64", "", "raw base64 Ed25519 private key")
@@ -63,13 +65,24 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	batch, err := egress.NewSignedBatch(*customerID, *agentID, *batchID, *keyID, time.Now().UTC(), events, privateKey)
-	if err != nil {
-		return err
-	}
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
-	return encoder.Encode(batch)
+	switch *wireVersion {
+	case "post-bind-egress-wire-v1":
+		batch, err := egress.NewSignedBatch(*customerID, *agentID, *batchID, *keyID, time.Now().UTC(), events, privateKey)
+		if err != nil {
+			return err
+		}
+		return encoder.Encode(batch)
+	case egress.WireVersionV2:
+		batch, err := egress.NewSignedChainedBatch(*customerID, *agentID, *batchID, *keyID, *prevBatchHash, time.Now().UTC(), events, privateKey)
+		if err != nil {
+			return err
+		}
+		return encoder.Encode(batch)
+	default:
+		return fmt.Errorf("unsupported wire-version %q", *wireVersion)
+	}
 }
 
 func parsePolicy(raw string) (redaction.Policy, error) {

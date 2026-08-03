@@ -21,6 +21,13 @@ from post_bind_ingest.receiver import (
     parse_receiver_payload,
 )
 from post_bind_ingest.receiver.schema import compute_batch_sha256
+from post_bind_ingest.receiver.validator import (
+    BatchChainVerifier,
+    GENESIS_BATCH_HASH,
+    ReceiverChainError,
+    WIRE_VERSION_V2,
+    compute_chained_batch_hash,
+)
 
 
 PRIVATE_KEY = ed25519.Ed25519PrivateKey.generate()
@@ -110,6 +117,69 @@ def _signed_payload_with_alias(payload: dict) -> str:
         "exp": int(datetime.now(timezone.utc).timestamp()) + 600,
     }
     return _jwt_token(claims)
+
+
+def _v2_payload(*, batch_id: str, prev_batch_hash: str) -> dict:
+    payload = _receiver_payload()
+    payload["batch_id"] = batch_id
+    payload.update({"wire_version": WIRE_VERSION_V2, "prev_batch_hash": prev_batch_hash})
+    payload["batch_hash"] = compute_chained_batch_hash(payload)
+    claims = {
+        "iss": "are-collector", "sub": payload["customer_id"], "agent": payload["agent"],
+        **{key: payload[key] for key in (
+            "schema_version", "batch_id", "batch_sha256", "event_count", "issued_at",
+            "wire_version", "prev_batch_hash", "batch_hash",
+        )},
+        "exp": int(datetime.now(timezone.utc).timestamp()) + 600,
+    }
+    payload["jwt"] = _jwt_token(claims)
+    return payload
+
+
+def test_v1_cannot_detect_batch_deletion_or_reordering() -> None:
+    first_payload = _receiver_payload()
+    first_payload["jwt"] = _signed_receiver_payload(first_payload)
+    second_payload = _receiver_payload()
+    second_payload["batch_id"] = "batch-2"
+    second_payload["jwt"] = _signed_receiver_payload(second_payload)
+    first = parse_receiver_payload(first_payload, jwt_keyring=KEYRING)
+    second = parse_receiver_payload(second_payload, jwt_keyring=KEYRING)
+    assert first.prev_batch_hash is None and second.prev_batch_hash is None
+
+
+def test_v2_chain_accepts_genesis_and_ordered_continuation() -> None:
+    verifier = BatchChainVerifier()
+    first = parse_receiver_payload(_v2_payload(batch_id="batch-1", prev_batch_hash=GENESIS_BATCH_HASH), jwt_keyring=KEYRING)
+    verifier.accept(first)
+    second = parse_receiver_payload(_v2_payload(batch_id="batch-2", prev_batch_hash=first.batch_hash), jwt_keyring=KEYRING)
+    verifier.accept(second)
+    assert verifier.head == second.batch_hash
+
+
+@pytest.mark.parametrize("case", ["deletion", "reordering", "fork"])
+def test_v2_chain_rejects_discontinuity(case: str) -> None:
+    verifier = BatchChainVerifier()
+    first = parse_receiver_payload(_v2_payload(batch_id="batch-1", prev_batch_hash=GENESIS_BATCH_HASH), jwt_keyring=KEYRING)
+    second = parse_receiver_payload(_v2_payload(batch_id="batch-2", prev_batch_hash=first.batch_hash), jwt_keyring=KEYRING)
+    third = parse_receiver_payload(_v2_payload(batch_id="batch-3", prev_batch_hash=second.batch_hash), jwt_keyring=KEYRING)
+    verifier.accept(first)
+    candidate = third if case != "fork" else parse_receiver_payload(
+        _v2_payload(batch_id="fork", prev_batch_hash=GENESIS_BATCH_HASH), jwt_keyring=KEYRING
+    )
+    with pytest.raises(ReceiverChainError):
+        verifier.accept(candidate)
+
+
+def test_v2_chain_rejects_replay_and_signed_field_tamper() -> None:
+    verifier = BatchChainVerifier()
+    payload = _v2_payload(batch_id="batch-1", prev_batch_hash=GENESIS_BATCH_HASH)
+    envelope = parse_receiver_payload(payload, jwt_keyring=KEYRING)
+    verifier.accept(envelope)
+    with pytest.raises(ReceiverReplayError):
+        verifier.accept(envelope)
+    payload["prev_batch_hash"] = "sha256:" + ("1" * 64)
+    with pytest.raises(ReceiverSchemaError, match="claim mismatch"):
+        parse_receiver_payload(payload, jwt_keyring=KEYRING)
 
 
 def test_parse_receiver_payload_accepts_valid_batch() -> None:

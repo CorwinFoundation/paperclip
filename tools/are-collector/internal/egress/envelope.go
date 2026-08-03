@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"backbond/are-collector/internal/schemav1"
@@ -22,6 +23,19 @@ type Batch struct {
 	IssuedAt      string           `json:"issued_at"`
 	Events        []schemav1.Event `json:"events"`
 	JWT           string           `json:"jwt"`
+}
+
+const (
+	WireVersionV2    = "post-bind-egress-wire-v2"
+	GenesisBatchHash = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+// ChainedBatch is the additive v2 wire envelope. Batch remains byte-locked v1.
+type ChainedBatch struct {
+	Batch
+	WireVersion   string `json:"wire_version"`
+	PrevBatchHash string `json:"prev_batch_hash"`
+	BatchHash     string `json:"batch_hash"`
 }
 
 func NewSignedBatch(customerID, agentID, batchID, keyID string, issuedAt time.Time, events []schemav1.Event, privateKey ed25519.PrivateKey) (Batch, error) {
@@ -68,6 +82,49 @@ func NewSignedBatch(customerID, agentID, batchID, keyID string, issuedAt time.Ti
 		Events:        events,
 		JWT:           jwt,
 	}, nil
+}
+
+// NewSignedChainedBatch emits v2 through the same event path as v1 while binding
+// the canonical predecessor hash into the signed claims.
+func NewSignedChainedBatch(customerID, agentID, batchID, keyID, prevBatchHash string, issuedAt time.Time, events []schemav1.Event, privateKey ed25519.PrivateKey) (ChainedBatch, error) {
+	if !validSHA256Ref(prevBatchHash) {
+		return ChainedBatch{}, fmt.Errorf("prev_batch_hash must use closed sha256:<64 lowercase hex> format")
+	}
+	base, err := NewSignedBatch(customerID, agentID, batchID, keyID, issuedAt, events, privateKey)
+	if err != nil {
+		return ChainedBatch{}, err
+	}
+	chainBody := map[string]any{
+		"customer_id": customerID, "agent": agentID, "schema_version": base.SchemaVersion,
+		"wire_version": WireVersionV2, "batch_id": batchID, "batch_sha256": base.BatchSHA256,
+		"prev_batch_hash": prevBatchHash, "event_count": len(events), "issued_at": base.IssuedAt,
+	}
+	canonical, err := schemav1.CanonicalJSON(chainBody)
+	if err != nil {
+		return ChainedBatch{}, err
+	}
+	digest := sha256.Sum256(canonical)
+	batchHash := "sha256:" + hex.EncodeToString(digest[:])
+	claims := map[string]any{
+		"iss": "are-collector", "sub": customerID, "agent": agentID, "customer_id": customerID,
+		"schema_version": base.SchemaVersion, "wire_version": WireVersionV2,
+		"batch_id": batchID, "batch_sha256": base.BatchSHA256, "prev_batch_hash": prevBatchHash, "batch_hash": batchHash,
+		"event_count": len(events), "issued_at": base.IssuedAt,
+		"exp": issuedAt.UTC().Add(10 * time.Minute).Unix(),
+	}
+	base.JWT, err = signJWT(claims, privateKey, keyID)
+	if err != nil {
+		return ChainedBatch{}, err
+	}
+	return ChainedBatch{Batch: base, WireVersion: WireVersionV2, PrevBatchHash: prevBatchHash, BatchHash: batchHash}, nil
+}
+
+func validSHA256Ref(value string) bool {
+	if len(value) != len("sha256:")+sha256.Size*2 || value[:len("sha256:")] != "sha256:" {
+		return false
+	}
+	_, err := hex.DecodeString(value[len("sha256:"):])
+	return err == nil && value == strings.ToLower(value)
 }
 
 func ComputeBatchSHA256(events []schemav1.Event) (string, error) {

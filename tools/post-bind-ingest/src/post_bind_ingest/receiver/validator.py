@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
+
+from ..invariants import canonical_dumps
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
@@ -28,6 +31,15 @@ class ReceiverSignatureError(ReceiverError):
 
 class ReceiverReplayError(ReceiverError):
     """Raised when a receiver batch is a replay."""
+
+
+class ReceiverChainError(ReceiverError):
+    """Raised when a v2 batch violates hash-chain continuity."""
+
+
+WIRE_VERSION_V2 = "post-bind-egress-wire-v2"
+GENESIS_BATCH_HASH = "sha256:" + ("0" * 64)
+_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 _JWT_PART_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -128,6 +140,49 @@ class ReceiverEnvelope:
     event_count: int
     issued_at: str
     signed: bool = True
+    wire_version: str | None = None
+    prev_batch_hash: str | None = None
+    batch_hash: str | None = None
+
+
+def compute_chained_batch_hash(payload: Mapping[str, Any]) -> str:
+    body = {
+        key: payload[key]
+        for key in (
+            "customer_id", "agent", "schema_version", "wire_version", "batch_id",
+            "batch_sha256", "prev_batch_hash", "event_count", "issued_at",
+        )
+    }
+    return "sha256:" + hashlib.sha256(canonical_dumps(body)).hexdigest()
+
+
+class BatchChainVerifier:
+    """Stateful deterministic verifier for one ordered v2 producer stream."""
+
+    def __init__(self) -> None:
+        self._head = GENESIS_BATCH_HASH
+        self._batch_ids: set[str] = set()
+        self._hashes: set[str] = set()
+        self._children: dict[str, str] = {}
+
+    @property
+    def head(self) -> str:
+        return self._head
+
+    def accept(self, envelope: ReceiverEnvelope) -> None:
+        if envelope.wire_version != WIRE_VERSION_V2 or envelope.prev_batch_hash is None or envelope.batch_hash is None:
+            raise ReceiverChainError("batch is not a complete v2 chained envelope")
+        if envelope.batch_id in self._batch_ids or envelope.batch_hash in self._hashes:
+            raise ReceiverReplayError("chained batch replay rejected")
+        prior_child = self._children.get(envelope.prev_batch_hash)
+        if prior_child is not None and prior_child != envelope.batch_hash:
+            raise ReceiverChainError("batch chain fork rejected")
+        if envelope.prev_batch_hash != self._head:
+            raise ReceiverChainError("batch chain discontinuity: deletion or reordering detected")
+        self._children[envelope.prev_batch_hash] = envelope.batch_hash
+        self._batch_ids.add(envelope.batch_id)
+        self._hashes.add(envelope.batch_hash)
+        self._head = envelope.batch_hash
 
 
 def _parse_issued_at(value: str) -> datetime:
@@ -188,6 +243,16 @@ def parse_receiver_payload(
 
     validate_batch_schema(merged)
 
+    wire_version = merged.get("wire_version")
+    prev_batch_hash = merged.get("prev_batch_hash")
+    batch_hash = merged.get("batch_hash")
+    if wire_version is not None:
+        if wire_version != WIRE_VERSION_V2:
+            raise ReceiverSchemaError(f"unsupported wire_version: {wire_version!r}")
+        for field, value in (("prev_batch_hash", prev_batch_hash), ("batch_hash", batch_hash)):
+            if not isinstance(value, str) or not _HASH_RE.fullmatch(value):
+                raise ReceiverSchemaError(f"{field} must use closed sha256:<64 lowercase hex> format")
+
     try:
         _parse_expiration(envelope_claims)
     except (TypeError, ValueError) as exc:
@@ -208,6 +273,12 @@ def parse_receiver_payload(
         "batch_sha256": envelope_claims.get("batch_sha256") if envelope_claims else None,
         "event_count": envelope_claims.get("event_count") if envelope_claims else None,
     }
+    if wire_version is not None:
+        claim_fields.update({
+            "wire_version": envelope_claims.get("wire_version") if envelope_claims else None,
+            "prev_batch_hash": envelope_claims.get("prev_batch_hash") if envelope_claims else None,
+            "batch_hash": envelope_claims.get("batch_hash") if envelope_claims else None,
+        })
     for field, claim_value in claim_fields.items():
         if claim_value is not None and claim_value != merged.get(field):
             raise ReceiverSchemaError(f"receiver payload claim mismatch for {field}")
@@ -223,6 +294,8 @@ def parse_receiver_payload(
         raise ReceiverSchemaError("batch_sha256 must use sha256 prefix format")
     if merged["batch_sha256"] != calculated:
         raise ReceiverSchemaError("batch_sha256 does not match event payload")
+    if wire_version is not None and batch_hash != compute_chained_batch_hash(merged):
+        raise ReceiverChainError("batch_hash does not match canonical chained envelope")
 
     if envelope_claims is None:
         raise ReceiverSignatureError("receiver envelope claims unavailable")
@@ -249,4 +322,7 @@ def parse_receiver_payload(
         event_count=claims_event_count,
         issued_at=_get_issued_at_field(merged),
         signed=signed,
+        wire_version=str(wire_version) if wire_version is not None else None,
+        prev_batch_hash=str(prev_batch_hash) if prev_batch_hash is not None else None,
+        batch_hash=str(batch_hash) if batch_hash is not None else None,
     )
