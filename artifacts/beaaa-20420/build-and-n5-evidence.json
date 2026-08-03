@@ -1,9 +1,12 @@
 {
   "artifact_metadata": {
     "approvals": [
-      "QA Engineer APPROVED required on BEAAA-20422 for the exact candidate commit"
+      "QA Engineer APPROVED required on BEAAA-20621 for the exact candidate commit"
     ],
     "artifact_type": "release_evidence",
+    "brand_backbone_sha256": "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090",
+    "brand_backbone_verified": true,
+    "brand_backbone_version": "v1.6",
     "claim_or_decision": "The pinned OTel Collector is reproducibly buildable from the immutable candidate source.",
     "owner": "CTO",
     "source_refs": [
@@ -14,7 +17,7 @@
     ],
     "status": "review",
     "updated_at": "2026-08-03T06:43:10.682704Z",
-    "verification": "Pinned Go toolchain build repeated twice with identical SHA-256; Collector config validation and N=5 isolated integration proof passed; independent QA approval remains pending on BEAAA-20422."
+    "verification": "Pinned Go toolchain build repeated twice with identical SHA-256; Collector config validation and N=5 isolated integration proof passed; independent QA approval remains pending on BEAAA-20621."
   },
   "assertion": "Runtime evidence integration does not import or change scoring, rubric weights, bands, or judge behavior.",
   "binary_build_command": "scripts/beaaa20423_build_collector.sh",
