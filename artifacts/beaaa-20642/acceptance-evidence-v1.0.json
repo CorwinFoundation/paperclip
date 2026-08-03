@@ -1,0 +1,38 @@
+{
+  "issue": "BEAAA-20642",
+  "classification": "rule-execution",
+  "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "scanner_version": "0.5.0",
+  "corpus_version": "frozen-0.5.0",
+  "probe-set-version": "not-applicable-runtime-evidence-compatibility",
+  "rubric_point_id": "OPS.DATA_HANDLING.LOCAL_INGEST",
+  "openllmetry": {
+    "version": "0.62.1",
+    "upstream_commit": "93429cfb9767e6b51db6cb35f6b70f758117669a",
+    "frameworks": {"crewai": "1.15.10", "langchain": "1.3.14"}
+  },
+  "digests": {
+    "requirements_lock_sha256": "2e2d037941da09d091b4bd5ac02c502ebb837982dd78139246d0e4c60ef96ec1",
+    "sbom_sha256": "49c0986cab6840152e683a94bfc124a802242eb09a29a591996305b29c71c387",
+    "effective_config_sha256": "d977e41d8e80e06babb59f751a7d5f3ba791c2b31653038c761f2547eabacb02",
+    "crewai_n5_evidence_sha256": "31b69e39ac18660454ef57c6fa1080d06da5909e9ca1ee3308342ea01063d1d4",
+    "langchain_n5_evidence_sha256": "90cb84051a25dd26db467540427d8fe370597c7dc342303feebd8337f35f4712"
+  },
+  "verification": {
+    "targeted_tests": "50 passed in 0.33s",
+    "hash_locked_clean_venv_install": "passed",
+    "instrumentor_imports": ["CrewAIInstrumentor", "LangchainInstrumentor"],
+    "n5_calibration_delta": 0,
+    "non_loopback_socket_attempts": [],
+    "content_capture": false,
+    "upstream_telemetry": false,
+    "hosted_backend": false
+  },
+  "performance": {
+    "crewai": {"samples": 1000, "p50_added_ms": 0.025543, "p95_added_ms": 0.050408, "emitted_bytes_per_event": 534},
+    "langchain": {"samples": 1000, "p50_added_ms": 0.023335, "p95_added_ms": 0.054790, "emitted_bytes_per_event": 540},
+    "score_effect": "none"
+  },
+  "promotion_authorized": false,
+  "qa_status": "not_requested_by_implementer; CTO owns canonical exact-SHA routing"
+}

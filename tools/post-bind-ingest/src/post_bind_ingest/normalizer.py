@@ -250,6 +250,7 @@ def normalize_receiver_event(
     _verify_redaction_conformance(event["payload"], redaction_paths)
 
     payload = dict(event["payload"])
+    source_provenance = _validated_source_provenance(event, idx)
     logged_at = _coerce_iso8601(event["logged_at"])
     return {
         "event_id": event["event_id"],
@@ -261,6 +262,7 @@ def normalize_receiver_event(
             "class": "backbond_receiver",
             "component": "post_bind_ingest.receiver",
             "receiver_version": "0.1.0",
+            **({"source": source_provenance} if source_provenance else {}),
         },
         "event_ingest": {
             "manifest_id": batch_id,
@@ -270,6 +272,24 @@ def normalize_receiver_event(
         },
         "redactions": redactions,
     }
+
+
+_OTEL_SOURCE_PROVENANCE = {
+    "class": "vendor_otel",
+    "component": "post_bind_ingest.otel_driver",
+    "source_driver": "otel-collector-direct-v1",
+    "evidence_tier": "vendor-local-redacted",
+}
+
+
+def _validated_source_provenance(event: dict[str, Any], idx: int) -> dict[str, str] | None:
+    """Preserve only the direct driver's exact signed source attribution."""
+    value = event.get("provenance")
+    if value is None:
+        return None
+    if value != _OTEL_SOURCE_PROVENANCE:
+        raise NormalizerError(f"receiver.events[{idx}].provenance is not an approved source attribution")
+    return dict(_OTEL_SOURCE_PROVENANCE)
 
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
