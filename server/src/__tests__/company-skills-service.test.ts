@@ -4,6 +4,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, companies, companySkills, createDb } from "@paperclipai/db";
+import { syncCodexSkills } from "@paperclipai/adapter-codex-local/server";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -136,11 +137,357 @@ describeEmbeddedPostgres("companySkillService.list", () => {
 
     await expect(svc.auditSkill(companyId, skillId)).rejects.toMatchObject({
       status: 422,
-      message: "Only local-path and catalog-managed company skills support audit.",
+      message: "Only local-path, catalog-managed, and locally materialized GitHub company skills support audit.",
     });
     await expect(svc.getById(companyId, skillId)).resolves.toMatchObject({
       metadata: { sourceKind: "github", owner: "acme", repo: "remote-skill" },
     });
+    const runtimeEntry = (await svc.listRuntimeSkillEntries(companyId, { materializeMissing: false }))
+      .find((entry) => entry.key === "github.com/acme/remote-skill");
+    expect(runtimeEntry).toMatchObject({
+      sourceStatus: "missing",
+      missingDetail: expect.not.stringContaining("https:/github.com"),
+    });
+  });
+
+  it("materializes the approved commit-pinned Impeccable subtree for Codex sync and audit", async () => {
+    const companyId = randomUUID();
+    const pinnedRef = "33b9a3752b8852c7adb7f4935a3f6c160bf3fefc";
+    const sourceUrl = `https://github.com/pbakaus/impeccable/tree/${pinnedRef}/.agents/skills/impeccable`;
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+
+    const files = new Map<string, string>([
+      [
+        ".agents/skills/impeccable/SKILL.md",
+        "---\nname: Impeccable\ndescription: Design tooling.\n---\n\n# Impeccable\n",
+      ],
+      [".agents/skills/impeccable/agents/impeccable_documenter.toml", "name = \"impeccable_documenter\"\n"],
+      [".agents/skills/impeccable/reference/audit.md", "# Audit\n\nReview the design.\n"],
+      [".agents/skills/impeccable/scripts/command-metadata.json", "{}\n"],
+      [".agents/skills/impeccable/scripts/context.mjs", "export const context = {};\n"],
+    ]);
+    const requestedUrls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string | URL) => {
+      const requestedUrl = String(url);
+      requestedUrls.push(requestedUrl);
+      if (requestedUrl === `https://api.github.com/repos/pbakaus/impeccable/git/trees/${pinnedRef}?recursive=1`) {
+        return Response.json({
+          tree: [
+            ...Array.from(files.keys(), (filePath) => ({ path: filePath, type: "blob" })),
+            { path: ".agents/skills/other/SKILL.md", type: "blob" },
+          ],
+        });
+      }
+      const rawPrefix = `https://raw.githubusercontent.com/pbakaus/impeccable/${pinnedRef}/`;
+      const fileContent = requestedUrl.startsWith(rawPrefix)
+        ? files.get(requestedUrl.slice(rawPrefix.length))
+        : undefined;
+      return fileContent === undefined
+        ? new Response("missing", { status: 404 })
+        : new Response(fileContent, { status: 200 });
+    });
+
+    try {
+      const result = await svc.importFromSource(companyId, sourceUrl);
+      const imported = result.imported[0];
+      expect(imported).toMatchObject({
+        key: "pbakaus/impeccable/impeccable",
+        sourceType: "github",
+        sourceLocator: sourceUrl,
+        sourceRef: pinnedRef,
+        fileInventory: [
+          { path: "agents/impeccable_documenter.toml", kind: "other" },
+          { path: "reference/audit.md", kind: "markdown" },
+          { path: "scripts/command-metadata.json", kind: "script" },
+          { path: "scripts/context.mjs", kind: "script" },
+          { path: "SKILL.md", kind: "skill" },
+        ],
+        trustLevel: "scripts_executables",
+      });
+      expect(imported?.metadata).toMatchObject({
+        owner: "pbakaus",
+        repo: "impeccable",
+        ref: pinnedRef,
+        repoSkillDir: ".agents/skills/impeccable",
+        originSnapshotLocator: expect.any(String),
+        originHash: expect.stringMatching(/^sha256:/),
+      });
+
+      const runtimeEntries = await svc.listRuntimeSkillEntries(companyId, { materializeMissing: false });
+      const runtimeEntry = runtimeEntries.find((entry) => entry.key === imported?.key);
+      expect(runtimeEntry).toMatchObject({ sourceStatus: "available" });
+      expect(runtimeEntry?.source).not.toContain("https:");
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "agents/impeccable_documenter.toml"), "utf8"))
+        .resolves.toBe(files.get(".agents/skills/impeccable/agents/impeccable_documenter.toml"));
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "reference/audit.md"), "utf8"))
+        .resolves.toBe(files.get(".agents/skills/impeccable/reference/audit.md"));
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "scripts/context.mjs"), "utf8"))
+        .resolves.toBe(files.get(".agents/skills/impeccable/scripts/context.mjs"));
+
+      const existingDesiredSkill = "paperclipai/paperclip/paperclip";
+      const snapshot = await syncCodexSkills({
+        agentId: "agent-1",
+        companyId,
+        adapterType: "codex_local",
+        config: {
+          paperclipSkillSync: { desiredSkills: [existingDesiredSkill, imported!.key] },
+          paperclipRuntimeSkills: runtimeEntries,
+        },
+      }, [existingDesiredSkill, imported!.key]);
+      expect(snapshot.entries.find((entry) => entry.key === imported?.key)?.state).toBe("configured");
+      expect(snapshot.entries.some((entry) => entry.key === existingDesiredSkill)).toBe(true);
+
+      const audit = await svc.auditSkill(companyId, imported!.id);
+      expect(audit).toMatchObject({
+        installedHash: imported?.metadata?.originHash,
+        originHash: imported?.metadata?.originHash,
+        verdict: "warning",
+        codes: ["other_trust", "script_trust"],
+      });
+      expect(requestedUrls.every((requestedUrl) => !requestedUrl.includes("https:/github.com"))).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    ["hostname", "https://github.example.com/pbakaus/impeccable/tree/33b9a3752b8852c7adb7f4935a3f6c160bf3fefc/.agents/skills/impeccable"],
+    ["owner", "https://github.com/other/impeccable/tree/33b9a3752b8852c7adb7f4935a3f6c160bf3fefc/.agents/skills/impeccable"],
+    ["repo", "https://github.com/pbakaus/other/tree/33b9a3752b8852c7adb7f4935a3f6c160bf3fefc/.agents/skills/impeccable"],
+    ["ref", "https://github.com/pbakaus/impeccable/tree/0123456789abcdef0123456789abcdef01234567/.agents/skills/impeccable"],
+    ["moving ref", "https://github.com/pbakaus/impeccable/tree/main/.agents/skills/impeccable"],
+    ["subtree", "https://github.com/pbakaus/impeccable/tree/33b9a3752b8852c7adb7f4935a3f6c160bf3fefc/.agents/skills/other"],
+    ["source type", "https://skills.sh/pbakaus/impeccable/impeccable"],
+  ])("rejects the executable exception when the %s differs and leaves no snapshot", async (_dimension, sourceUrl) => {
+    const companyId = randomUUID();
+    const approvedRef = "33b9a3752b8852c7adb7f4935a3f6c160bf3fefc";
+    const skillDir = sourceUrl.includes("/skills/other")
+      ? ".agents/skills/other"
+      : ".agents/skills/impeccable";
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await svc.list(companyId);
+    const skillIdsBefore = new Set(
+      (await db.select().from(companySkills))
+        .filter((row) => row.companyId === companyId)
+        .map((row) => row.id),
+    );
+
+    vi.stubGlobal("fetch", async (url: string | URL) => {
+      const requestedUrl = String(url);
+      if (requestedUrl.includes("/commits/")) return Response.json({ sha: approvedRef });
+      if (requestedUrl.includes("/git/trees/")) {
+        return Response.json({
+          tree: [
+            { path: `${skillDir}/SKILL.md`, type: "blob" },
+            { path: `${skillDir}/scripts/context.mjs`, type: "blob" },
+          ],
+        });
+      }
+      if (/\/repos\/[^/]+\/[^/]+$/.test(new URL(requestedUrl).pathname)) {
+        return Response.json({ default_branch: "main" });
+      }
+      if (requestedUrl.endsWith("/SKILL.md")) {
+        return new Response("---\nname: Impeccable\n---\n\n# Impeccable\n", { status: 200 });
+      }
+      return new Response("export const context = {};\n", { status: 200 });
+    });
+
+    try {
+      await expect(svc.importFromSource(companyId, sourceUrl)).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("contains executable scripts"),
+      });
+      expect(new Set(
+        (await db.select().from(companySkills))
+          .filter((row) => row.companyId === companyId)
+          .map((row) => row.id),
+      )).toEqual(skillIdsBefore);
+      await expect(fs.stat(path.join(
+        paperclipHome!,
+        "instances",
+        "default",
+        "skills",
+        companyId,
+        "__github__",
+      ))).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("materializes the approved commit-pinned design-taste-frontend executable subtree", async () => {
+    const companyId = randomUUID();
+    const pinnedRef = "e988add20dab0fa97d7a76781c48961c8184288e";
+    const sourceUrl = `https://github.com/leonxlnx/taste-skill/tree/${pinnedRef}/design-taste-frontend`;
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+
+    const files = new Map<string, string>([
+      ["design-taste-frontend/SKILL.md", "---\nname: Design Taste Frontend\n---\n\n# Design Taste Frontend\n"],
+      ["design-taste-frontend/LICENSE", "MIT License\n"],
+      ["design-taste-frontend/NOTICE", "Design Taste Frontend notices.\n"],
+      ["design-taste-frontend/references/style.md", "# Style reference\n"],
+      ["design-taste-frontend/scripts/review.mjs", "export const review = true;\n"],
+    ]);
+    vi.stubGlobal("fetch", async (url: string | URL) => {
+      const requestedUrl = String(url);
+      if (requestedUrl === `https://api.github.com/repos/leonxlnx/taste-skill/git/trees/${pinnedRef}?recursive=1`) {
+        return Response.json({
+          tree: Array.from(files.keys(), (filePath) => ({ path: filePath, type: "blob" })),
+        });
+      }
+      const rawPrefix = `https://raw.githubusercontent.com/leonxlnx/taste-skill/${pinnedRef}/`;
+      const fileContent = requestedUrl.startsWith(rawPrefix)
+        ? files.get(requestedUrl.slice(rawPrefix.length))
+        : undefined;
+      return fileContent === undefined
+        ? new Response("missing", { status: 404 })
+        : new Response(fileContent, { status: 200 });
+    });
+
+    try {
+      const result = await svc.importFromSource(companyId, sourceUrl);
+      const imported = result.imported[0];
+      expect(imported).toMatchObject({
+        key: "leonxlnx/taste-skill/design-taste-frontend",
+        sourceType: "github",
+        sourceLocator: sourceUrl,
+        sourceRef: pinnedRef,
+        fileInventory: [
+          { path: "LICENSE", kind: "other" },
+          { path: "NOTICE", kind: "other" },
+          { path: "references/style.md", kind: "reference" },
+          { path: "scripts/review.mjs", kind: "script" },
+          { path: "SKILL.md", kind: "skill" },
+        ],
+        trustLevel: "scripts_executables",
+      });
+      expect(imported?.metadata).toMatchObject({
+        owner: "leonxlnx",
+        repo: "taste-skill",
+        ref: pinnedRef,
+        repoSkillDir: "design-taste-frontend",
+        originSnapshotLocator: expect.any(String),
+        originHash: expect.stringMatching(/^sha256:/),
+        installedHash: expect.stringMatching(/^sha256:/),
+      });
+      const runtimeEntry = (await svc.listRuntimeSkillEntries(companyId, { materializeMissing: false }))
+        .find((entry) => entry.key === imported?.key);
+      expect(runtimeEntry).toMatchObject({ sourceStatus: "available" });
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "LICENSE"), "utf8"))
+        .resolves.toBe(files.get("design-taste-frontend/LICENSE"));
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "NOTICE"), "utf8"))
+        .resolves.toBe(files.get("design-taste-frontend/NOTICE"));
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "references/style.md"), "utf8"))
+        .resolves.toBe(files.get("design-taste-frontend/references/style.md"));
+      await expect(fs.readFile(path.join(runtimeEntry!.source, "scripts/review.mjs"), "utf8"))
+        .resolves.toBe(files.get("design-taste-frontend/scripts/review.mjs"));
+
+      const existingDesiredSkill = "paperclipai/paperclip/paperclip";
+      const snapshot = await syncCodexSkills({
+        agentId: "agent-2",
+        companyId,
+        adapterType: "codex_local",
+        config: {
+          paperclipSkillSync: { desiredSkills: [existingDesiredSkill, imported!.key] },
+          paperclipRuntimeSkills: [runtimeEntry!],
+        },
+      }, [existingDesiredSkill, imported!.key]);
+      expect(snapshot.entries.find((entry) => entry.key === imported?.key)?.state).toBe("configured");
+      expect(snapshot.entries.some((entry) => entry.key === existingDesiredSkill)).toBe(true);
+
+      const audit = await svc.auditSkill(companyId, imported!.id);
+      expect(audit).toMatchObject({
+        installedHash: imported?.metadata?.originHash,
+        originHash: imported?.metadata?.originHash,
+        verdict: "warning",
+        codes: ["other_trust", "script_trust"],
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    ["Taste hostname", "https://github.example.com/Leonxlnx/taste-skill/tree/e988add20dab0fa97d7a76781c48961c8184288e/design-taste-frontend"],
+    ["Taste owner", "https://github.com/other/taste-skill/tree/e988add20dab0fa97d7a76781c48961c8184288e/design-taste-frontend"],
+    ["Taste repo", "https://github.com/Leonxlnx/other/tree/e988add20dab0fa97d7a76781c48961c8184288e/design-taste-frontend"],
+    ["Taste ref", "https://github.com/Leonxlnx/taste-skill/tree/0123456789abcdef0123456789abcdef01234567/design-taste-frontend"],
+    ["Taste moving ref", "https://github.com/Leonxlnx/taste-skill/tree/main/design-taste-frontend"],
+    ["Taste subtree", "https://github.com/Leonxlnx/taste-skill/tree/e988add20dab0fa97d7a76781c48961c8184288e/other"],
+    ["Taste source type", "https://skills.sh/Leonxlnx/taste-skill/design-taste-frontend"],
+  ])("rejects the executable exception for the %s variant and leaves no snapshot", async (_dimension, sourceUrl) => {
+    const companyId = randomUUID();
+    const approvedRef = "e988add20dab0fa97d7a76781c48961c8184288e";
+    const skillDir = sourceUrl.endsWith("/other") ? "other" : "design-taste-frontend";
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await svc.list(companyId);
+    const skillIdsBefore = new Set(
+      (await db.select().from(companySkills))
+        .filter((row) => row.companyId === companyId)
+        .map((row) => row.id),
+    );
+
+    vi.stubGlobal("fetch", async (url: string | URL) => {
+      const requestedUrl = String(url);
+      if (requestedUrl.includes("/commits/")) return Response.json({ sha: approvedRef });
+      if (requestedUrl.includes("/git/trees/")) {
+        return Response.json({
+          tree: [
+            { path: `${skillDir}/SKILL.md`, type: "blob" },
+            { path: `${skillDir}/scripts/review.mjs`, type: "blob" },
+          ],
+        });
+      }
+      if (/\/repos\/[^/]+\/[^/]+$/.test(new URL(requestedUrl).pathname)) {
+        return Response.json({ default_branch: "main" });
+      }
+      if (requestedUrl.endsWith("/SKILL.md")) {
+        return new Response("---\nname: Design Taste Frontend\n---\n\n# Design Taste Frontend\n", { status: 200 });
+      }
+      return new Response("export const review = true;\n", { status: 200 });
+    });
+
+    try {
+      await expect(svc.importFromSource(companyId, sourceUrl)).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("contains executable scripts"),
+      });
+      expect(new Set(
+        (await db.select().from(companySkills))
+          .filter((row) => row.companyId === companyId)
+          .map((row) => row.id),
+      )).toEqual(skillIdsBefore);
+      await expect(fs.stat(path.join(
+        paperclipHome!,
+        "instances",
+        "default",
+        "skills",
+        companyId,
+        "__github__",
+      ))).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("filters store list results by category and creates version snapshots", async () => {
@@ -760,6 +1107,70 @@ describeEmbeddedPostgres("companySkillService.list", () => {
 
     const rows = await db.select().from(companySkills);
     expect(rows.some((row) => row.companyId === companyId && row.slug === "evil")).toBe(false);
+  });
+
+  it.each([
+    ["hostname", { hostname: "github.example.com" }],
+    ["owner", { repo: "other/impeccable" }],
+    ["repo", { repo: "pbakaus/other" }],
+    ["ref", { commit: "0123456789abcdef0123456789abcdef01234567" }],
+    ["subtree", { path: ".agents/skills/other" }],
+    ["source type", { kind: "url" }],
+    ["unpinned ref", { commit: "main" }],
+    ["forged approved tuple", {}],
+  ])("rejects package-supplied executable bytes for the %s case", async (_dimension, overrides) => {
+    const companyId = randomUUID();
+    const source = {
+      kind: "github-dir",
+      hostname: "github.com",
+      repo: "pbakaus/impeccable",
+      path: ".agents/skills/impeccable",
+      commit: "33b9a3752b8852c7adb7f4935a3f6c160bf3fefc",
+      ...overrides,
+    };
+    const sourceLines = source.kind === "url"
+      ? ["    - kind: url", "      url: https://github.com/pbakaus/impeccable"]
+      : [
+        "    - kind: github-dir",
+        `      hostname: ${source.hostname}`,
+        `      repo: ${source.repo}`,
+        `      path: ${source.path}`,
+        `      commit: ${source.commit}`,
+      ];
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await svc.list(companyId);
+    const skillIdsBefore = new Set(
+      (await db.select().from(companySkills))
+        .filter((row) => row.companyId === companyId)
+        .map((row) => row.id),
+    );
+
+    await expect(svc.importPackageFiles(companyId, {
+      "skills/impeccable/SKILL.md": [
+        "---",
+        "name: Impeccable",
+        "slug: impeccable",
+        "metadata:",
+        "  sources:",
+        ...sourceLines,
+        "---",
+        "",
+        "# Forged Impeccable",
+        "",
+      ].join("\n"),
+      "skills/impeccable/scripts/context.mjs": "export const forged = true;\n",
+    })).rejects.toMatchObject({ status: 422 });
+
+    expect(new Set(
+      (await db.select().from(companySkills))
+        .filter((row) => row.companyId === companyId)
+        .map((row) => row.id),
+    )).toEqual(skillIdsBefore);
   });
 
   it("rejects unbundled package imports that claim reserved Paperclip skill keys", async () => {
