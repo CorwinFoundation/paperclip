@@ -19,14 +19,16 @@
     "langchain_n5_evidence_sha256": "90cb84051a25dd26db467540427d8fe370597c7dc342303feebd8337f35f4712"
   },
   "verification": {
-    "targeted_tests": "50 passed in 0.33s",
+    "targeted_command": "PYTHONPATH=tools/post-bind-ingest/src pytest -q tools/post-bind-ingest/tests/test_openllmetry_compat_beaaa20642.py tools/post-bind-ingest/tests/test_otel_driver_beaaa20418.py tools/post-bind-ingest/tests/test_otel_log_tracker_integration_beaaa20420.py tools/post-bind-ingest/tests/test_receiver.py tools/post-bind-ingest/tests/test_normalizer.py",
+    "targeted_tests": "54 passed",
     "hash_locked_clean_venv_install": "passed",
     "instrumentor_imports": ["CrewAIInstrumentor", "LangchainInstrumentor"],
     "n5_calibration_delta": 0,
     "non_loopback_socket_attempts": [],
     "content_capture": false,
     "upstream_telemetry": false,
-    "hosted_backend": false
+    "hosted_backend": false,
+    "rollback_environment_restoration": "exact pre-entry snapshot; pre-existing values restored and previously absent pilot keys removed"
   },
   "performance": {
     "crewai": {"samples": 1000, "p50_added_ms": 0.025543, "p95_added_ms": 0.050408, "emitted_bytes_per_event": 534},

@@ -72,22 +72,40 @@ class FrameworkInstrumentation:
         self.framework = framework
         self.config = config
         self._instrumentor = None
+        self._environment_before: dict[str, str | None] | None = None
 
     def enable(self) -> bool:
         if not self.config.enabled:
             return False
-        for key, value in hardened_environment(self.config).items():
+        if self._instrumentor is not None:
+            return True
+        environment = hardened_environment(self.config)
+        self._environment_before = {key: os.environ.get(key) for key in environment}
+        for key, value in environment.items():
             os.environ[key] = value
-        module_name, class_name = self._IMPORTS[self.framework]
-        instrumentor_type = getattr(importlib.import_module(module_name), class_name)
-        self._instrumentor = instrumentor_type()
-        self._instrumentor.instrument()
+        try:
+            module_name, class_name = self._IMPORTS[self.framework]
+            instrumentor_type = getattr(importlib.import_module(module_name), class_name)
+            self._instrumentor = instrumentor_type()
+            self._instrumentor.instrument()
+        except BaseException:
+            self.disable()
+            raise
         return True
 
     def disable(self) -> None:
-        if self._instrumentor is not None:
-            self._instrumentor.uninstrument()
+        try:
+            if self._instrumentor is not None:
+                self._instrumentor.uninstrument()
+        finally:
             self._instrumentor = None
+            if self._environment_before is not None:
+                for key, prior_value in self._environment_before.items():
+                    if prior_value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = prior_value
+                self._environment_before = None
 
     def __enter__(self) -> "FrameworkInstrumentation":
         self.enable()

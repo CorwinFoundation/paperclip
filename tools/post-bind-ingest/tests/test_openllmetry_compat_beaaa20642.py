@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import socket
 import sqlite3
 import sys
@@ -101,6 +102,63 @@ def test_exact_instrumentor_path_and_symmetric_unpatch(monkeypatch, framework, m
     with FrameworkInstrumentation(framework, config):
         assert calls == ["on"]
     assert calls == ["on", "off"]
+
+
+@pytest.mark.parametrize("framework,module_name,class_name", [
+    ("crewai", "opentelemetry.instrumentation.crewai", "CrewAIInstrumentor"),
+    ("langchain", "opentelemetry.instrumentation.langchain", "LangchainInstrumentor"),
+])
+@pytest.mark.parametrize("exit_method", ["context", "explicit_disable"])
+def test_context_exit_restores_exact_process_environment(
+    monkeypatch, framework, module_name, class_name, exit_method,
+) -> None:
+    calls = []
+    fake_type = type(
+        class_name,
+        (),
+        {
+            "instrument": lambda self: calls.append("instrument"),
+            "uninstrument": lambda self: calls.append("uninstrument"),
+        },
+    )
+    module = types.ModuleType(module_name)
+    setattr(module, class_name, fake_type)
+    monkeypatch.setitem(sys.modules, module_name, module)
+
+    pre_existing = {
+        "OTEL_TRACES_EXPORTER": "console",
+        "OTEL_SDK_DISABLED": "prior-sdk-value",
+        "TRACELOOP_TELEMETRY": "prior-traceloop-value",
+        "CREWAI_DISABLE_TELEMETRY": "prior-crewai-value",
+    }
+    absent = {
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_PROTOCOL",
+        "TRACELOOP_BASE_URL",
+        "TRACELOOP_TRACE_CONTENT",
+    }
+    for key, value in pre_existing.items():
+        monkeypatch.setenv(key, value)
+    for key in absent:
+        monkeypatch.delenv(key, raising=False)
+    before = dict(os.environ)
+
+    config = CompatibilityConfig(enabled=True, endpoint="http://127.0.0.1:4318")
+    instrumentation = FrameworkInstrumentation(framework, config)
+    if exit_method == "context":
+        with instrumentation:
+            assert calls == ["instrument"]
+            assert os.environ["OTEL_TRACES_EXPORTER"] == "otlp"
+            assert os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] == config.endpoint
+    else:
+        assert instrumentation.enable() is True
+        assert calls == ["instrument"]
+        assert os.environ["OTEL_TRACES_EXPORTER"] == "otlp"
+        assert os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] == config.endpoint
+        instrumentation.disable()
+
+    assert calls == ["instrument", "uninstrument"]
+    assert dict(os.environ) == before
 
 
 def test_unknown_content_secret_malformed_replay_reorder_and_tamper_reject_before_advance() -> None:
