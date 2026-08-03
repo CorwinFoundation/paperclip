@@ -18,7 +18,7 @@ The trust boundary is hostile telemetry arriving inside the vendor environment. 
 
 ## Build evidence
 
-`otelcol-builder.yaml` is the component manifest and minimal SBOM input. `collector.yaml` is the effective configuration input. The generated receipt records binary SHA-256 `f45eca18c6bf8efead8760de8512079173e272491a567e5463e32f794c8bfa84` and effective-config SHA-256 `1b1c2aefb3c62d5e21fa96a0ffe4ba7d3b486f6948fe6242678d2d6560c54142`. No promotion is authorized without QA approval on the exact candidate SHA.
+`otelcol-builder.yaml` is the component manifest and minimal SBOM input. `collector.yaml` is the effective configuration input. The generated receipt records binary SHA-256 `db85b8af83086cee5df38967ddf686bb82e260a7922ff780f817d4321682974c` and effective-config SHA-256 `1b1c2aefb3c62d5e21fa96a0ffe4ba7d3b486f6948fe6242678d2d6560c54142`. No promotion is authorized without QA approval on the exact candidate SHA.
 
 ## Operational metadata
 
