@@ -1,0 +1,14 @@
+# BEAAA-20725 provisional, report-only tau-bench support/CRM pilot.
+# Local deterministic tools only. This mapping is not a registry entry.
+partner: tau_bench_support_crm_provisional
+principal: tau_bench_support_crm_provisional_agent
+
+authorized_scopes:
+  - payments:refund
+  - crm:write
+
+tool_bindings:
+  - { partner_tool: lookup_charge, surface: payments, operation: get_charge }
+  - { partner_tool: issue_credit, surface: payments, operation: refund_charge }
+  - { partner_tool: get_account, surface: crm, operation: get_contact }
+  - { partner_tool: update_account, surface: crm, operation: update_contact }
