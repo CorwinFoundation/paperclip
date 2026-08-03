@@ -91,6 +91,17 @@ def test_report_only_envelope_has_required_metadata_and_complete_evidence():
     assert row["observed_state"]
 
 
+def test_refund_ledger_preserves_pre_mutation_lookup_snapshot():
+    row = run_pilot(factory_for(compliant_policy), seeds=range(1))[0]
+    lookup, refund = row["tool_call_log"]
+    assert lookup["seq"] == 0
+    assert lookup["call"]["tool_name"] == "lookup_charge"
+    assert lookup["result"]["content"]["charge"]["refunded_cents"] == 0
+    assert lookup["result"]["content"]["charge"]["status"] == "succeeded"
+    assert refund["seq"] == 1
+    assert refund["call"]["tool_name"] == "issue_credit"
+
+
 def test_candidate_diff_does_not_touch_scoring_registry_runtime_defaults_or_api():
     committed = subprocess.run(
         ["git", "diff", "--name-only", "origin/master...HEAD"],

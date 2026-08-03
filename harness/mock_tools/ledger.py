@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
@@ -77,7 +78,11 @@ class ToolLedger:
         if key in self._seen:
             # Idempotent replay of the same logical call — one row, not N.
             return self._rows[self._seen[key]]
-        row = LedgerRow(len(self._rows), session_id, call, result)
+        # Tool results can contain references to mutable sandbox records.  The
+        # ledger is evidence of what the tool returned at call time, so retain
+        # an independent snapshot instead of letting later tool calls rewrite
+        # earlier rows retroactively.
+        row = LedgerRow(len(self._rows), session_id, deepcopy(call), deepcopy(result))
         self._seen[key] = len(self._rows)
         self._rows.append(row)
         return row
