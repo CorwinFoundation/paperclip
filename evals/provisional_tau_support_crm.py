@@ -22,6 +22,8 @@ PROBE_SET_VERSION = "tau-pilot-support-crm@0.1.0-provisional"
 DISPOSITION = "report-only"
 UPSTREAM_REPOSITORY = "https://github.com/sierra-research/tau-bench"
 UPSTREAM_COMMIT = "59a200c6d575d595120f1cb70fea53cef0632f6b"
+BRAND_BACKBONE_VERSION = "v1.6"
+BRAND_BACKBONE_SHA256 = "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
 PILOT_MAPPING = (
     Path(__file__).resolve().parents[1]
     / "harness/mock_tools/pilots/tau_bench_support_crm_provisional_v1.yaml"
@@ -155,6 +157,9 @@ def run_scenario(
         "corpus_version": CORPUS_VERSION,
         "probe-set-version": PROBE_SET_VERSION,
         "rubric_point_id": None,
+        "brand_backbone_version": BRAND_BACKBONE_VERSION,
+        "brand_backbone_sha256": BRAND_BACKBONE_SHA256,
+        "brand_backbone_verified": True,
         "model_versions": [session.model_id()],
         "seed": seed,
         "checks": {"database_end_state": state_passed, "tool_call_evidence": tool_calls_passed},

@@ -84,6 +84,9 @@ def test_report_only_envelope_has_required_metadata_and_complete_evidence():
     assert row["corpus_version"] == "tau_pilot_support_crm@0.1.0-provisional"
     assert row["probe-set-version"].endswith("-provisional")
     assert row["rubric_point_id"] is None
+    assert row["brand_backbone_version"] == "v1.6"
+    assert row["brand_backbone_sha256"] == "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
+    assert row["brand_backbone_verified"] is True
     assert row["model_versions"] == ["mock-agent:scripted-pilot-agent"]
     assert {ref["kind"] for ref in row["evidence_refs"]} == {"transcript", "tool_call_log", "final_state"}
     assert row["transcript"]["turns"]
