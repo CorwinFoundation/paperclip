@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { assets } from "@paperclipai/db";
 
@@ -17,6 +17,12 @@ export function assetService(db: Db) {
         .from(assets)
         .where(eq(assets.id, id))
         .then((rows) => rows[0] ?? null),
+
+    remove: (companyId: string, id: string) =>
+      db
+        .delete(assets)
+        .where(and(eq(assets.companyId, companyId), eq(assets.id, id)))
+        .returning()
+        .then((rows) => rows[0] ?? null),
   };
 }
-
