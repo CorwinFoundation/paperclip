@@ -1491,6 +1491,85 @@ describe("agent issue mutation checkout ownership", () => {
     expect(mockIssueService.update).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["CEO", "allow_legacy_ceo"],
+    ["manager", "allow_manager_chain"],
+  ])(
+    "allows a %s to reassign another agent's idle issue before the generic mutation boundary denies it",
+    async (_actorKind, overrideReason) => {
+      mockIssueService.getById.mockResolvedValue(makeIssue({ status: "todo", assigneeAgentId: ownerAgentId }));
+      mockAgentService.resolveByReference.mockResolvedValue({
+        ambiguous: false,
+        agent: makeAgent(peerAgentId),
+      });
+      mockAccessService.decide.mockImplementation(async (input: { action: string }) => ({
+        allowed:
+          input.action === "tasks:manage_active_checkouts" ||
+          input.action === "tasks:assign",
+        action: input.action,
+        reason:
+          input.action === "tasks:manage_active_checkouts"
+            ? overrideReason
+            : input.action === "tasks:assign"
+              ? "allow_explicit_grant"
+              : "deny_policy_restricted",
+        explanation:
+          input.action === "tasks:manage_active_checkouts"
+            ? "Allowed to manage another agent's checkout ownership."
+            : input.action === "tasks:assign"
+              ? "Allowed to assign the target agent."
+              : "The generic cross-agent mutation boundary denies this issue.",
+      }));
+
+      const res = await request(await createApp(peerActor()))
+        .patch(`/api/issues/${issueId}`)
+        .send({ assigneeAgentId: peerAgentId });
+
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expect(mockAccessService.decide).toHaveBeenCalledWith(expect.objectContaining({
+        action: "tasks:manage_active_checkouts",
+        resource: expect.objectContaining({
+          type: "issue",
+          companyId,
+          assigneeAgentId: ownerAgentId,
+        }),
+      }));
+      expect(mockAccessService.decide).toHaveBeenCalledWith(expect.objectContaining({
+        action: "tasks:assign",
+        resource: expect.objectContaining({ assigneeAgentId: peerAgentId }),
+      }));
+      expect(mockIssueService.update).toHaveBeenCalledWith(
+        issueId,
+        expect.objectContaining({ assigneeAgentId: peerAgentId }),
+      );
+    },
+    15_000,
+  );
+
+  it("still rejects a lateral agent from reassigning another agent's idle issue", async () => {
+    mockIssueService.getById.mockResolvedValue(makeIssue({ status: "todo", assigneeAgentId: ownerAgentId }));
+    mockAgentService.resolveByReference.mockResolvedValue({
+      ambiguous: false,
+      agent: makeAgent(peerAgentId),
+    });
+    mockAccessService.decide.mockImplementation(async (input: { action: string }) => ({
+      allowed: input.action === "tasks:assign",
+      action: input.action,
+      reason: input.action === "tasks:assign" ? "allow_explicit_grant" : "deny_policy_restricted",
+      explanation:
+        input.action === "tasks:assign"
+          ? "Allowed to assign the target agent."
+          : "The generic cross-agent mutation boundary denies this issue.",
+    }));
+
+    const res = await request(await createApp(peerActor()))
+      .patch(`/api/issues/${issueId}`)
+      .send({ assigneeAgentId: peerAgentId });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(403);
+    expect(mockIssueService.update).not.toHaveBeenCalled();
+  });
+
   describe("task watchdog scope grants", () => {
     const watchdogRunId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab";
     const watchdogReportIssueId = "cccccccc-cccc-4ccc-8ccc-cccccccccccd";
