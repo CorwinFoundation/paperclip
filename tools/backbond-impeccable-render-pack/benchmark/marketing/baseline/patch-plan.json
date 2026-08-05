@@ -1,0 +1,1 @@
+{"version":1,"changes":[{"path":"index.html","beforeSha256":"8666bae803b1d920e6f379d2358a1be4c08609fe69bf9ddd53102a80748e8312","replacements":[{"find":".card{background:#fff;border:1px solid #c7cec8;padding:1.2rem}","replace":".card{background:#fff;border-top:5px solid #b95000;padding:1.2rem}"}]}]}

@@ -1,0 +1,12 @@
+{
+  "schema": "backbond-render-build-manifest-v1",
+  "phaseOneBaseGit": "497e3b80a5744fc3a5fae91749e229c6bf52da2f",
+  "runtimeBase": "mcr.microsoft.com/playwright@sha256:b27e719ecbfef153e13fd24e8341736733bf2658b229677eb21ff57ff5d7fb29",
+  "node": "22.18.0",
+  "playwright": "1.55.0",
+  "chromium": "140.0.7339.16",
+  "lockfileSha256": "beef4bb97bc592a2b19dafec0c1e8208dd8a05c598e201a71026cb5840df8db7",
+  "sourceManifestSha256": "d4255e0789d15ac0c521b19795ba94550356dea6df313d690b478be10fabcf5e",
+  "candidateGit": "recorded from immutable commit after manifest generation",
+  "candidateOci": "recorded from the final local image after immutable commit"
+}

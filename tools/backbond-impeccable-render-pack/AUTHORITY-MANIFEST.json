@@ -1,0 +1,14 @@
+{
+  "schema": "backbond-phase-two-authority-manifest-v1",
+  "authority": "phase-two-convergence",
+  "rubricVersion": "phase2-convergence-1.0.0",
+  "allowedEntrypoint": "bin/backbond-impeccable-phase-two.mjs",
+  "allowedOutputs": [
+    "desktop.png",
+    "tablet.png",
+    "mobile-390.png",
+    "print.pdf",
+    "audit.json"
+  ],
+  "promotionAuthorized": false
+}

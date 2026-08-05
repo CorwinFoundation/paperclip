@@ -1,0 +1,16 @@
+{
+  "name": "@backbond/impeccable-render-pack",
+  "version": "2.0.6",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.18.0" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "audit": "node tools/audit-pack.mjs",
+    "audit:image": "node tools/image-audit.mjs",
+    "test:security": "node tools/sandbox-cleanup-regression.test.mjs && node tools/security-acceptance.mjs",
+    "manifest": "node tools/generate-manifests.mjs",
+    "benchmark": "node tools/run-benchmark.mjs"
+  },
+  "dependencies": { "playwright-core": "file:vendor/playwright-core-1.55.0.tgz" }
+}

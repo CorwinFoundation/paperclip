@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "changes": [
+    {
+      "path": "index.html",
+      "beforeSha256": "05bf76f578f972d9067cc7eb4acb2722dceed70088a7f57a3e6656952cdf89d0",
+      "afterSha256": "deaaff1539f9db7de4d9dbb62b9993718bd36691424bc24947c1ab9cbeaa09a2",
+      "replacements": [
+        {
+          "find": "<title>Illustrative evidence report</title>",
+          "replace": "<title>Illustrative BackBond Report</title>"
+        },
+        {
+          "find": ".meta,.metrics{",
+          "replace": ".meta{"
+        },
+        {
+          "find": ".panel{background:#fff;border:1px solid #b9c4bc;padding:1rem}",
+          "replace": ".panel{background:#fff;border:1px solid #b9c4bc;padding:1rem}main,section,.meta,.panel,table,tbody,tr,td{min-width:0}"
+        },
+        {
+          "find": "@media(max-width:700px){.table-wrap{overflow-x:auto}}",
+          "replace": "@media(max-width:700px){table,tbody,tr,td{display:block;width:100%}thead{position:absolute;clip:rect(0 0 0 0);clip-path:inset(50%);width:1px;height:1px;overflow:hidden}tr{background:#fff;border:1px solid #c8d0ca;margin-bottom:.75rem;padding:.5rem}td{border:0;padding:.45rem .5rem;overflow-wrap:normal;word-break:normal}td:before{display:block;font-weight:700;margin-bottom:.15rem}td:nth-child(1):before{content:\"Control\"}td:nth-child(2):before{content:\"Result\"}td:nth-child(3):before{content:\"Evidence\"}}"
+        },
+        {
+          "find": "@media print{nav{display:none}body{background:#fff}.panel{break-inside:avoid}}",
+          "replace": "@media print{@page{size:A4;margin:12mm}nav{display:none}body{background:#fff}header,main,footer{padding:.5rem 0}.panel,tr{break-inside:avoid}}"
+        },
+        {
+          "find": "<p>ILLUSTRATIVE REPORT · NOT LIVE EVIDENCE</p>",
+          "replace": "<p>BACKBOND REPORT · ILLUSTRATIVE · NOT LIVE EVIDENCE</p>"
+        },
+        {
+          "find": "<div class=\"table-wrap\"><table>",
+          "replace": "<table>"
+        },
+        {
+          "find": "<th>Control</th><th>Result</th><th>Evidence</th>",
+          "replace": "<th scope=\"col\">Control</th><th scope=\"col\">Result</th><th scope=\"col\">Evidence</th>"
+        },
+        {
+          "find": "</tbody></table></div></section>",
+          "replace": "</tbody></table></section>"
+        },
+        {
+          "find": "<footer>Historical and illustrative labels are preserved.</footer>",
+          "replace": "<footer>BackBond Report fixture. Historical and illustrative labels are preserved.</footer>"
+        }
+      ]
+    }
+  ]
+}
