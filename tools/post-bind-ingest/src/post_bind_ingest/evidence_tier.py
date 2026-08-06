@@ -86,6 +86,14 @@ class AssignmentResult:
     status: str
     surface_assignments: tuple[SurfaceAssignment, ...]
     basis_codes: tuple[str, ...]
+    event_type: str
+    before_tier: str | None
+    after_tier: str
+    scope: str
+    actor: str
+    reason: str
+    approval_ref: str
+    mapping_version: str
     exception_id: str | None = None
     override_id: str | None = None
 
@@ -110,7 +118,7 @@ def _tier_index(tier: str) -> int:
     return TIERS.index(tier)
 
 
-def _source_assignment(source: VerifiedSource, surface: str) -> SurfaceAssignment:
+def _source_assignment(source: VerifiedSource, surface: str, *, expected_pins: Mapping[str, str], as_of: str) -> SurfaceAssignment:
     source_class = source.source_class if source.source_class in SOURCE_TIERS else "unverified_or_missing"
     target = SOURCE_TIERS[source_class]
     basis: list[str] = [f"source_class:{source_class}"]
@@ -128,12 +136,30 @@ def _source_assignment(source: VerifiedSource, surface: str) -> SurfaceAssignmen
         "stale_source_pin": not source.stale,
     }
     failures.extend(code for code, passed in base_controls.items() if not passed)
-    missing_pins = sorted(REQUIRED_PINS.difference(source.source_pins))
+    missing_pins = sorted(key for key in REQUIRED_PINS if not str(source.source_pins.get(key, "")).strip())
     if source_class in {"endpoint_adr", "kernel_runtime", "semantic_plus_kernel"}:
         if not ({"source_build", "source_commit", "binary_hash"} & set(source.source_pins)):
             missing_pins.append("source_build_or_commit_or_binary_hash")
     if missing_pins:
         failures.append("source_pins_missing:" + ",".join(missing_pins))
+    for key, expected in sorted(expected_pins.items()):
+        actual = source.source_pins.get(key)
+        if not expected or actual != expected:
+            failures.append(f"source_pin_mismatch:{key}")
+    if not source.verification_snapshot_hash.strip():
+        failures.append("verification_snapshot_missing")
+    try:
+        window_start = _iso(source.verification_window_start)
+        window_end = _iso(source.verification_window_end)
+        observed_at = _iso(as_of)
+        if window_start > window_end:
+            failures.append("verification_window_invalid")
+        elif observed_at < window_start:
+            failures.append("verification_window_future")
+        elif observed_at > window_end:
+            failures.append("verification_window_stale")
+    except (TypeError, ValueError):
+        failures.append("verification_window_invalid")
 
     if failures:
         tier = "T0"
@@ -176,6 +202,9 @@ def assign_evidence_tier(
     *, tenant_id: str, agent_id: str, term_id: str, required_surfaces: Sequence[str],
     verified_sources: Sequence[VerifiedSource], as_of: str, exception_id: str | None = None,
     exception_expires_at: str | None = None, audit_actor: str = "post-bind-ingest",
+    expected_pins: Mapping[str, str] | None = None, before_tier: str | None = None,
+    event_type: str = "assignment", scope: str = "agent", reason: str = "receiver_ingest",
+    approval_ref: str = "policy:evidence-tier-assignment/1.0",
 ) -> AssignmentResult:
     """Derive per-surface and agent tiers from tenant-bound verified sources."""
 
@@ -186,7 +215,8 @@ def assign_evidence_tier(
         raise EvidenceTierError("cross_tenant_source_forbidden")
     assignments: list[SurfaceAssignment] = []
     for surface in sorted(set(required_surfaces)):
-        candidates = [_source_assignment(source, surface) for source in verified_sources if surface in source.supported_surfaces]
+        candidates = [_source_assignment(source, surface, expected_pins=expected_pins or {}, as_of=as_of)
+                      for source in verified_sources if surface in source.supported_surfaces]
         if candidates:
             assignments.append(max(candidates, key=lambda item: _tier_index(item.tier)))
         else:
@@ -207,6 +237,9 @@ def assign_evidence_tier(
         event_id=str(uuid.uuid4()), tenant_id=tenant_id, agent_id=agent_id, term_id=term_id,
         policy_version=POLICY_VERSION, assigned_at=as_of, agent_tier=agent_tier, status=status,
         surface_assignments=tuple(assignments), basis_codes=basis,
+        event_type=event_type, before_tier=before_tier, after_tier=agent_tier,
+        scope=scope, actor=audit_actor, reason=reason, approval_ref=approval_ref,
+        mapping_version=(expected_pins or {}).get("mapping_version", "unregistered"),
         exception_id=exception_id if active_exception else None,
     )
 
@@ -216,6 +249,12 @@ def hub_view(result: AssignmentResult, *, requesting_tenant_id: str) -> dict[str
         raise EvidenceTierError("cross_tenant_assignment_forbidden")
     payload = result.audit_payload()
     payload.pop("tenant_id")
+    rows = result.surface_assignments
+    payload["continuity_state"] = "verified" if rows and all(r.status == "assigned" for r in rows) else "partial_or_missing"
+    payload["freshness_state"] = "current" if rows and all(
+        "verification_window_stale" not in r.basis_codes and "verification_window_future" not in r.basis_codes
+        and "verification_window_invalid" not in r.basis_codes for r in rows
+    ) else "invalid_or_stale"
     return payload
 
 

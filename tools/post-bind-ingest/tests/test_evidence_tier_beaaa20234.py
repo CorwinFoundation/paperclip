@@ -36,7 +36,9 @@ def source(source_class="endpoint_adr", surfaces=("coding",), **changes):
 def assign(sources=None, surfaces=("coding",), **changes):
     args = dict(tenant_id="tenant-a", agent_id="agent-a", term_id="term-a",
                 required_surfaces=surfaces, verified_sources=sources or [source()],
-                as_of="2026-08-01T12:00:00Z")
+                as_of="2026-08-01T00:00:00Z",
+                expected_pins={"driver_version":"1", "collector_version":"1", "mapping_version":"1",
+                               "evidence_profile_version":"1", "signing_identity_ref":"spiffe://tenant-a/collector"})
     args.update(changes)
     return assign_evidence_tier(**args)
 
@@ -107,6 +109,34 @@ def test_hub_versions_pins_limitations_and_fixed_in_force_multiplier():
                                      as_of="2026-08-01T13:00:00Z")
     assert rate["current_term_multiplier"] == 1.25
     assert rate["next_policy_candidate"] == {"status":"shadow_only", "agent_tier":"T3"}
+    assert hub["freshness_state"] == "current"
+    assert hub["continuity_state"] == "verified"
+
+
+@pytest.mark.parametrize("changes,code", [
+    ({"source_pins": {}}, "source_pins_missing"),
+    ({"source_pins": {"driver_version":"wrong"}}, "source_pin_mismatch:driver_version"),
+    ({"verification_snapshot_hash":""}, "verification_snapshot_missing"),
+    ({"verification_window_start":"2030-01-01T00:00:00Z", "verification_window_end":"2030-02-01T00:00:00Z"}, "verification_window_future"),
+    ({"verification_window_start":"2025-01-01T00:00:00Z", "verification_window_end":"2025-02-01T00:00:00Z"}, "verification_window_stale"),
+])
+def test_registered_pins_and_freshness_fail_closed(changes, code):
+    result = assign([source(**changes)])
+    assert result.agent_tier == "T0"
+    assert any(item.startswith(code) for item in result.surface_assignments[0].basis_codes)
+
+
+def test_audit_contract_rejects_malformed_and_delete_is_immutable():
+    conn = sqlite3.connect(":memory:")
+    migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
+    conn.executescript(migration.read_text())
+    event = asdict(assign())
+    append_assignment(conn, event)
+    broken = dict(event); broken["event_id"] = "second"; broken["approval_ref"] = ""
+    with pytest.raises(ValueError, match="evidence_tier_field_invalid:approval_ref"):
+        append_assignment(conn, broken)
+    with pytest.raises(sqlite3.IntegrityError, match="append_only_delete_forbidden"):
+        conn.execute("DELETE FROM evidence_tier_events")
 
 
 def test_audit_payload_contains_no_raw_content():

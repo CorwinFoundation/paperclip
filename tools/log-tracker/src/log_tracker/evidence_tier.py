@@ -6,15 +6,27 @@ import json
 import sqlite3
 from typing import Any, Mapping
 
+POLICY_VERSION = "evidence-tier-assignment/1.0"
+EVENT_TYPES = {"assignment", "downgrade", "restoration", "exception", "override"}
+
 
 def _identity_hash(value: str) -> str:
     return "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def append_assignment(conn: sqlite3.Connection, assignment: Mapping[str, Any]) -> None:
-    required = {"event_id", "tenant_id", "agent_id", "term_id", "policy_version", "assigned_at", "agent_tier", "status", "surface_assignments"}
+    required = {"event_id", "tenant_id", "agent_id", "term_id", "policy_version", "assigned_at", "agent_tier", "status", "surface_assignments", "event_type", "before_tier", "after_tier", "scope", "actor", "reason", "approval_ref", "mapping_version"}
     if missing := sorted(required.difference(assignment)):
         raise ValueError("evidence_tier_assignment_missing:" + ",".join(missing))
+    if assignment["policy_version"] != POLICY_VERSION:
+        raise ValueError("evidence_tier_policy_version_invalid")
+    if assignment["event_type"] not in EVENT_TYPES:
+        raise ValueError("evidence_tier_event_type_invalid")
+    for key in ("event_id", "tenant_id", "agent_id", "term_id", "assigned_at", "after_tier", "scope", "actor", "reason", "approval_ref", "mapping_version"):
+        if not isinstance(assignment[key], str) or not assignment[key].strip():
+            raise ValueError(f"evidence_tier_field_invalid:{key}")
+    if assignment["after_tier"] != assignment["agent_tier"]:
+        raise ValueError("evidence_tier_after_mismatch")
     snapshots = sorted({
         row.get("verification_snapshot_hash") for row in assignment["surface_assignments"]
         if row.get("verification_snapshot_hash")
