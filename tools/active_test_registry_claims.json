@@ -1,6 +1,6 @@
 {
-  "published_active_test_count": 2202,
-  "historic_claim_count": 1180,
-  "claim_source": "BEAAA-18720 registers all 2,000 accepted content candidates; 1,782 use the pinned candidate adapter and 218 reuse existing executable adapters",
-  "last_reconciled_at": "2026-07-28"
+  "retired": true,
+  "authoritative_registry": "tools/probe-registry/authoritative_registry.json",
+  "reason": "Legacy aggregate conflated registered and executable rows; retained only as a compatibility tombstone.",
+  "ticket_ref": "BEAAA-20357"
 }
