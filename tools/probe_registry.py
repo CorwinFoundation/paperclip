@@ -323,7 +323,7 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
             "generated_from_commit": _generated_from_commit(repo),
             "generated_at": "2026-08-06T00:00:00Z",
-            "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.0; deterministic regeneration does not use wall-clock time",
+            "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.1; deterministic regeneration does not use wall-clock time",
             "schema": SCHEMA_PATH,
             "contract": "are-scanner-api-v1@v1.3.0",
             "scanner_version": "0.5.0",

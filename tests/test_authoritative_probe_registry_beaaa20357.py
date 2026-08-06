@@ -29,6 +29,11 @@ def test_schema_and_sha_binding() -> None:
     assert "repo_sha" not in registry["metadata"]
 
 
+def test_release_epoch_semantics_match_probe_set_version() -> None:
+    metadata = _registry()["metadata"]
+    assert metadata["probe_set_version"] in metadata["generation_timestamp_semantics"]
+
+
 def test_stable_ids_are_unique_and_category_accounting_is_exact() -> None:
     registry = _registry()
     ids = [row["stable_id"] for row in registry["rows"]]
