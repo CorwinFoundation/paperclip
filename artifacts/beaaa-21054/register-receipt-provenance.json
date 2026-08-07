@@ -41,7 +41,7 @@
     "passed": true,
     "candidate_commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
     "candidate_tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",
-    "result_sha256": "cfb68567dc34feec2dbbdd7f0162e77443c9c50669b2f392a86c28924a38c4ef",
+    "result_sha256": "0e89378968a2d44a30bd2b2933a808c8ba91dc272903f1fbb55516ddc6e36ac9",
     "material_deltas": 0,
     "failure_reasons": 0,
     "scanner_version": "0.5.0",
