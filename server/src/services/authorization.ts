@@ -89,6 +89,7 @@ export type AuthorizationDecision = {
     | "allow_company_member"
     | "allow_simple_company_member"
     | "allow_manager_chain"
+    | "allow_issue_lineage_grant"
     | "deny_unauthenticated"
     | "deny_company_boundary"
     | "deny_missing_membership"
@@ -1000,6 +1001,36 @@ export function authorizationService(db: Db) {
     return isAgentInSubtree(db, companyId, managerAgentId, assigneeAgentId);
   }
 
+  // True when the actor is the CURRENT assignee of any descendant (child at any
+  // depth) of the target issue, within the same company. This authorizes a
+  // controlled child-to-ancestor completion comment (e.g. a child-issue owner
+  // reporting up to the parent), while leaving unrelated siblings, lateral
+  // agents, and cross-company issues denied. Descendant status is not filtered,
+  // so completed child issues still grant the comment. Comment-only by caller.
+  async function actorAssignedToDescendantIssue(
+    companyId: string,
+    actorAgentId: string,
+    targetIssueId: string,
+  ): Promise<boolean> {
+    const rows = await db.execute(sql`
+      WITH RECURSIVE descendant_issues AS (
+        SELECT id, assignee_agent_id
+        FROM issues
+        WHERE parent_id = ${targetIssueId} AND company_id = ${companyId}
+        UNION ALL
+        SELECT child.id, child.assignee_agent_id
+        FROM issues AS child
+        JOIN descendant_issues AS ancestor ON child.parent_id = ancestor.id
+        WHERE child.company_id = ${companyId}
+      )
+      SELECT 1
+      FROM descendant_issues
+      WHERE assignee_agent_id = ${actorAgentId}
+      LIMIT 1
+    `);
+    return Array.from(rows as Iterable<unknown>).length > 0;
+  }
+
   function commentAuthorCanGrantIssueMention(input: {
     mentionedAgentId: string;
     issueAssigneeAgentId: string | null;
@@ -1442,6 +1473,29 @@ export function authorizationService(db: Db) {
         })
       ) {
         return allowIssueMentionGrant(input.action);
+      }
+      if (
+        input.action === "issue:comment" &&
+        resource?.assigneeAgentId &&
+        (await isManagerOf(companyId, actorAgentId, resource.assigneeAgentId))
+      ) {
+        return allow({
+          action: input.action,
+          reason: "allow_manager_chain",
+          explanation: "Allowed because the actor manages the issue assignee in the reporting chain.",
+        });
+      }
+      if (
+        input.action === "issue:comment" &&
+        resource?.issueId &&
+        (await actorAssignedToDescendantIssue(companyId, actorAgentId, resource.issueId))
+      ) {
+        return allow({
+          action: input.action,
+          reason: "allow_issue_lineage_grant",
+          explanation:
+            "Allowed because the actor is the assignee of a descendant issue (controlled child-to-ancestor comment).",
+        });
       }
     }
     if (
