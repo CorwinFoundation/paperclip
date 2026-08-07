@@ -1,0 +1,23 @@
+{
+  "as_of_date": "2026-08-07",
+  "claims": [
+    {
+      "count": 1,
+      "evidence_grade": "none",
+      "stable_id": "count.published-active-claims",
+      "state": "rejected",
+      "unit_type": "case",
+      "wording": null
+    },
+    {
+      "count": 1180,
+      "evidence_grade": "none",
+      "stable_id": "count.historical-1180",
+      "state": "rejected",
+      "unit_type": "probe",
+      "wording": null
+    }
+  ],
+  "register_receipt_id": "sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d",
+  "register_version": "1.0.0-rc1"
+}

@@ -1,0 +1,12 @@
+register_receipt_id,stable_id,count,unit_type,build_state,runtime_state,external_claim_state,limitations
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.dictionary-records,33,dimension,built,inactive,held,27 scored and 6 reported-not-scored records; not a probe count.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.scored-dimensions,27,dimension,built,active,held,"Count is a dimension unit, not executable probes."
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.reported-not-scored,6,dimension,built,active,held,Reported evidence does not change the BackBond Score.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.families,61,family,built,mixed,held,Family count does not establish runtime activation.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.embedded-cases,743,case,built,mixed,held,Embedded does not mean executable or target-bound.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.catalog-observed,278,case,built,mixed,held,Two rows below the 280 expected boundary; delta is classified separately.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.catalog-expected,280,case,designed,inactive,rejected,Expected boundary only. Delta=2 missing/unresolved rows; cannot be stated as current inventory.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.executable-probes,90,probe,built,active,held,Registry executability is not customer-measured production evidence.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.target-bound-cases,306,case,built,active,held,Target-bound evidence is not automatically customer-measured or production-active.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.published-active-claims,1,case,designed,inactive,rejected,No signed full-scan manifest is attached; production-active eligibility is false.
+sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d,count.historical-1180,1180,probe,unknown,unknown,rejected,"Unsupported and prohibited for publication, including plus-sign variants."

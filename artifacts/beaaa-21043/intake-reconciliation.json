@@ -1,0 +1,51 @@
+{
+  "artifact_type": "audit",
+  "claim_or_decision": "Intake evidence map for the canonical Scanner Capability Register; observed totals remain non-publishable until generated and verified from one signed source.",
+  "external_scope": "out",
+  "owner": "Scanner Engineer",
+  "source_commit": "15214abccfee728fa4d0fc1564ca42c1f8aabd79",
+  "source_refs": [
+    "BEAAA-21042",
+    "BEAAA-21043",
+    "contracts/are-scanner-api-v1.md@v1.3.0 with later patch history through v1.10.0",
+    "contracts/scanner-implementation-supervision-v1.md@v1.1"
+  ],
+  "status": "draft",
+  "ticket_classification": {
+    "status": "cto_ruling_required",
+    "reason": "The requested signed full-scan manifest rule and generated publication views may change evidence or output semantics; the supervision table has no exact row and requires CTO classification when uncertain."
+  },
+  "observed_totals": [
+    {"count": 33, "unit": "dictionary_record", "state": "acceptance_input_unverified"},
+    {"count": 27, "unit": "scored_dimension", "state": "acceptance_input_unverified"},
+    {"count": 6, "unit": "reported_not_scored_dimension", "state": "acceptance_input_unverified", "candidate_source": "config/full_scan_reported_not_scored.json"},
+    {"count": 61, "unit": "probe_family", "state": "acceptance_input_unverified"},
+    {"count": 743, "unit": "embedded_case", "state": "acceptance_input_unverified"},
+    {"count": 278, "unit": "catalog_row", "state": "acceptance_input_unverified", "limitation": "Must reconcile against the separately observed 280-row boundary."},
+    {"count": 280, "unit": "catalog_row_expected", "state": "acceptance_input_unverified", "limitation": "Two-row delta must be classified, never silently normalized."},
+    {"count": 90, "unit": "unique_executable_probe", "state": "acceptance_input_unverified", "candidate_source": "tools/probe-registry/active_registry.json"},
+    {"count": 306, "unit": "target_bound_case", "state": "acceptance_input_unverified"},
+    {"count": 1, "unit": "published_active_claim", "state": "acceptance_input_unverified"},
+    {"count": 1180, "unit": "historical_unsupported_probe_claim", "state": "rejected", "candidate_source": "tools/canonical_test_registry.py"}
+  ],
+  "production_active_rule_proposal": {
+    "required_equality": ["expected", "attempted", "terminal", "evidenced"],
+    "status": "not_activated_pending_cto_classification",
+    "existing_implementation_candidates": [
+      "api/full_suite_manifest.py",
+      "api/full_suite_manifest_integrity.py",
+      "api/full_suite_manifest_persistence.py",
+      "api/full_suite_manifest_registry.py"
+    ]
+  },
+  "scanner_metadata": {
+    "scanner_version": "unchanged; registry-only intake",
+    "corpus_version": "unchanged; registry-only intake",
+    "probe-set-version": "unchanged; registry-only intake",
+    "rubric_point_id": "none",
+    "n5_calibration_delta": "not yet run; required before merge",
+    "cto_cosign_ref": "pending CTO classification"
+  },
+  "updated_at": "2026-08-07T00:00:00Z",
+  "verification": "Read-only source inventory completed on canonical master 15214ab. No total is approved for publication; each must be regenerated from source and reconciled without unexplained delta."
+}

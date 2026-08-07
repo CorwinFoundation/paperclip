@@ -1,0 +1,105 @@
+{
+  "as_of_date": "2026-08-07",
+  "production_active_rule": "expected = attempted = terminal = evidenced and signature_ref is present",
+  "reconciliation": [
+    {
+      "count": 33,
+      "evidence_boundary": "fixture",
+      "external_claim_state": "held",
+      "limitation": "27 scored and 6 reported-not-scored records; not a probe count.",
+      "stable_id": "count.dictionary-records",
+      "unit_type": "dimension"
+    },
+    {
+      "count": 27,
+      "evidence_boundary": "fixture",
+      "external_claim_state": "held",
+      "limitation": "Count is a dimension unit, not executable probes.",
+      "stable_id": "count.scored-dimensions",
+      "unit_type": "dimension"
+    },
+    {
+      "count": 6,
+      "evidence_boundary": "fixture",
+      "external_claim_state": "held",
+      "limitation": "Reported evidence does not change the BackBond Score.",
+      "stable_id": "count.reported-not-scored",
+      "unit_type": "dimension"
+    },
+    {
+      "count": 61,
+      "evidence_boundary": "fixture",
+      "external_claim_state": "held",
+      "limitation": "Family count does not establish runtime activation.",
+      "stable_id": "count.families",
+      "unit_type": "family"
+    },
+    {
+      "count": 743,
+      "evidence_boundary": "fixture",
+      "external_claim_state": "held",
+      "limitation": "Embedded does not mean executable or target-bound.",
+      "stable_id": "count.embedded-cases",
+      "unit_type": "case"
+    },
+    {
+      "count": 278,
+      "evidence_boundary": "fixture",
+      "external_claim_state": "held",
+      "limitation": "Two rows below the 280 expected boundary; delta is classified separately.",
+      "stable_id": "count.catalog-observed",
+      "unit_type": "case"
+    },
+    {
+      "count": 280,
+      "evidence_boundary": "none",
+      "external_claim_state": "rejected",
+      "limitation": "Expected boundary only. Delta=2 missing/unresolved rows; cannot be stated as current inventory.",
+      "stable_id": "count.catalog-expected",
+      "unit_type": "case"
+    },
+    {
+      "count": 90,
+      "evidence_boundary": "proxy",
+      "external_claim_state": "held",
+      "limitation": "Registry executability is not customer-measured production evidence.",
+      "stable_id": "count.executable-probes",
+      "unit_type": "probe"
+    },
+    {
+      "count": 306,
+      "evidence_boundary": "target-bound",
+      "external_claim_state": "held",
+      "limitation": "Target-bound evidence is not automatically customer-measured or production-active.",
+      "stable_id": "count.target-bound-cases",
+      "unit_type": "case"
+    },
+    {
+      "count": 1,
+      "evidence_boundary": "none",
+      "external_claim_state": "rejected",
+      "limitation": "No signed full-scan manifest is attached; production-active eligibility is false.",
+      "stable_id": "count.published-active-claims",
+      "unit_type": "case"
+    },
+    {
+      "count": 1180,
+      "evidence_boundary": "none",
+      "external_claim_state": "rejected",
+      "limitation": "Unsupported and prohibited for publication, including plus-sign variants.",
+      "stable_id": "count.historical-1180",
+      "unit_type": "probe"
+    }
+  ],
+  "register_receipt_id": "sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d",
+  "register_version": "1.0.0-rc1",
+  "schema_version": "backbond.scanner-capability-register/v1",
+  "source_commit": "15214abccfee728fa4d0fc1564ca42c1f8aabd79",
+  "source_sha256": "sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d",
+  "view_hashes": {
+    "dictionary_records.json": "sha256:c0a382fc6f18671feca3fc8a1652f2084765fcab8180c25e311ece67005ef0e4",
+    "executive_summary.md": "sha256:8b298f594f27e5ada12a2e0a2a322647bc5c2f870f881b60b598eb2c4d993b6c",
+    "inactive_backlog.csv": "sha256:90c47d363750acfbbb82828b9ee287675b85e78d442460ea089814fe0d79f806",
+    "marketing_claims.json": "sha256:0aed9b0705d91fd570ec1c2b6f7ad6b4ad31f1404e9a849eae94c7564030d21a"
+  }
+}

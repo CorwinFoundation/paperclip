@@ -1,0 +1,94 @@
+{
+  "as_of_date": "2026-08-07",
+  "records": [
+    {
+      "build_state": "built",
+      "canonical_name": "Scanner Dictionary records",
+      "category": "inventory",
+      "control_plane": "build",
+      "count": 33,
+      "date": "2026-08-07",
+      "evidence_grade": "fixture",
+      "evidence_refs": [],
+      "external_claim_state": "held",
+      "limitations": "27 scored and 6 reported-not-scored records; not a probe count.",
+      "manifest_refs": [],
+      "owner": "Editor",
+      "plain_language_name": "Dictionary entries",
+      "public_wording": null,
+      "report_location": "dictionary_records.json",
+      "report_visibility": "internal",
+      "runtime_state": "inactive",
+      "scoring_use": "mixed",
+      "source_paths": [
+        "BEAAA-21042"
+      ],
+      "source_versions": [
+        "dictionary-candidate@v0.3.1"
+      ],
+      "stable_id": "count.dictionary-records",
+      "surface": "generated_dictionary",
+      "unit_type": "dimension"
+    },
+    {
+      "build_state": "built",
+      "canonical_name": "Scored dimensions",
+      "category": "rubric",
+      "control_plane": "build",
+      "count": 27,
+      "date": "2026-08-07",
+      "evidence_grade": "fixture",
+      "evidence_refs": [],
+      "external_claim_state": "held",
+      "limitations": "Count is a dimension unit, not executable probes.",
+      "manifest_refs": [],
+      "owner": "CTO",
+      "plain_language_name": "Dimensions used in scoring",
+      "public_wording": null,
+      "report_location": "dictionary_records.json",
+      "report_visibility": "internal",
+      "runtime_state": "active",
+      "scoring_use": "scored",
+      "source_paths": [
+        "rubric/rubric.yaml"
+      ],
+      "source_versions": [
+        "master@15214ab"
+      ],
+      "stable_id": "count.scored-dimensions",
+      "surface": "scoring",
+      "unit_type": "dimension"
+    },
+    {
+      "build_state": "built",
+      "canonical_name": "Reported-not-scored dimensions",
+      "category": "rubric",
+      "control_plane": "runtime",
+      "count": 6,
+      "date": "2026-08-07",
+      "evidence_grade": "fixture",
+      "evidence_refs": [],
+      "external_claim_state": "held",
+      "limitations": "Reported evidence does not change the BackBond Score.",
+      "manifest_refs": [],
+      "owner": "CTO",
+      "plain_language_name": "Visible dimensions excluded from scoring",
+      "public_wording": null,
+      "report_location": "dictionary_records.json",
+      "report_visibility": "internal",
+      "runtime_state": "active",
+      "scoring_use": "reported_not_scored",
+      "source_paths": [
+        "config/full_scan_reported_not_scored.json"
+      ],
+      "source_versions": [
+        "master@15214ab"
+      ],
+      "stable_id": "count.reported-not-scored",
+      "surface": "full_scan",
+      "unit_type": "dimension"
+    }
+  ],
+  "register_receipt_id": "sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d",
+  "register_version": "1.0.0-rc1"
+}
