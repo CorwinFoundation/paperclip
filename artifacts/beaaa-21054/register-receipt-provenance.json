@@ -10,7 +10,7 @@
     "cto_review_required": true
   },
   "contract": "are-scanner-api-v1@v1.3.0",
-  "adr": "docs/adr/adr-0060-beaaa21043-capability-register.md",
+  "adr": "docs/adr/adr-0069-beaaa21043-capability-register.md",
   "candidate": {
     "commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
     "tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",

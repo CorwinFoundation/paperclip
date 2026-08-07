@@ -11,7 +11,13 @@ def canonical(value): return json.dumps(value, sort_keys=True, separators=(",","
 def digest(value): return "sha256:"+hashlib.sha256(canonical(value)).hexdigest()
 def eligible(manifest):
     counts=[manifest.get(k) for k in ("expected","attempted","terminal","evidenced")]
-    return all(isinstance(v,int) and v >= 0 for v in counts) and len(set(counts)) == 1 and bool(manifest.get("signature_ref"))
+    signature_ref=manifest.get("signature_ref")
+    return (
+        all(type(v) is int and v >= 0 for v in counts)
+        and len(set(counts)) == 1
+        and isinstance(signature_ref,str)
+        and bool(signature_ref.strip())
+    )
 def validate(source):
     ids=set()
     for row in source["records"]:

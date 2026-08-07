@@ -1,4 +1,4 @@
-# ADR-0060: Scanner Capability Register authority and publication eligibility
+# ADR-0069: Scanner Capability Register authority and publication eligibility
 
 Decision: adopt `config/scanner_capability_register.v1.json` as the sole source for typed Scanner inventory counts and generate five deterministic views bound to its SHA-256 receipt. A claim is production-active only when one signed full-scan manifest records equal non-negative integers for `expected`, `attempted`, `terminal`, and `evidenced`.
 
