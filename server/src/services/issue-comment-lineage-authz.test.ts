@@ -259,6 +259,20 @@ describeEmbeddedPostgres("issue:comment manager-chain + child-to-ancestor author
     expect(d.reason).toBe("deny_missing_grant");
   });
 
+  it("fails closed: in an A<->B cycle, B's assignee cannot comment on A", async () => {
+    // B appears as A's descendant, but the hierarchy is cyclic. The grant must
+    // fail closed on any detected cycle, so B's assignee is denied on A.
+    const co = await makeCompany();
+    const ownerA = await makeAgent(co.id, "CycleOwnerA");
+    const ownerB = await makeAgent(co.id, "CycleOwnerB");
+    const a = await makeIssue(co.id, { assigneeAgentId: ownerA.id, status: "in_progress" });
+    const b = await makeIssue(co.id, { parentId: a.id, assigneeAgentId: ownerB.id, status: "in_progress" });
+    await setParent(a.id, b.id); // a -> b (b already -> a): A<->B cycle
+    const d = await decide(co.id, ownerB.id, a, "issue:comment");
+    expect(d.allowed, JSON.stringify(d)).toBe(false);
+    expect(d.reason).toBe("deny_missing_grant");
+  });
+
   it("still grants across a valid multi-level lineage after the cycle-safe change", async () => {
     const co = await makeCompany();
     const owner = await makeAgent(co.id, "GrandparentOwner");

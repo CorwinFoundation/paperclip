@@ -1008,39 +1008,59 @@ export function authorizationService(db: Db) {
   // agents, and cross-company issues denied. Descendant status is not filtered,
   // so completed child issues still grant the comment. Comment-only by caller.
   //
-  // Cycle safety: issue.parent_id is not guaranteed acyclic (a malformed
-  // hierarchy could self-reference or form an A<->B loop). The recursion tracks
-  // the visited-id path and refuses to re-enter any id already on that path
-  // (NOT child.id = ANY(path)), so any cycle terminates instead of looping
-  // forever. Hidden issues (hidden_at set) are excluded from the traversal
-  // entirely, so a hidden descendant never grants access and a hidden node does
-  // not propagate the lineage to issues beneath it (least privilege).
+  // Fail-closed on malformed hierarchies: issue.parent_id is not guaranteed
+  // acyclic (self-parent, A<->B, or return-to-target loops are possible). The
+  // walk seeds from the TARGET issue itself and carries the visited-id path;
+  // a row whose child is already on the path is flagged is_cycle and is NOT
+  // expanded further (so the traversal always terminates). We then complete the
+  // traversal and aggregate two facts: has_actor_match (the actor is the current
+  // assignee of a genuine, non-cyclic descendant) and has_cycle (any cycle was
+  // observed). Access is granted only when has_actor_match AND NOT has_cycle, so
+  // a cycle participant never receives a grant. Hidden issues (hidden_at set)
+  // are excluded from the traversal entirely (seed + recursion), so a hidden
+  // descendant never grants and a hidden node does not propagate lineage.
   async function actorAssignedToDescendantIssue(
     companyId: string,
     actorAgentId: string,
     targetIssueId: string,
   ): Promise<boolean> {
     const rows = await db.execute(sql`
-      WITH RECURSIVE descendant_issues AS (
-        SELECT id, assignee_agent_id, ARRAY[id] AS path
-        FROM issues
-        WHERE parent_id = ${targetIssueId}
-          AND company_id = ${companyId}
-          AND hidden_at IS NULL
+      WITH RECURSIVE lineage AS (
+        SELECT
+          seed.id AS id,
+          seed.assignee_agent_id AS assignee_agent_id,
+          ARRAY[seed.id] AS path,
+          false AS is_cycle
+        FROM issues AS seed
+        WHERE seed.id = ${targetIssueId}
+          AND seed.company_id = ${companyId}
+          AND seed.hidden_at IS NULL
         UNION ALL
-        SELECT child.id, child.assignee_agent_id, ancestor.path || child.id
+        SELECT
+          child.id,
+          child.assignee_agent_id,
+          lineage.path || child.id,
+          child.id = ANY(lineage.path)
         FROM issues AS child
-        JOIN descendant_issues AS ancestor ON child.parent_id = ancestor.id
-        WHERE child.company_id = ${companyId}
+        JOIN lineage ON child.parent_id = lineage.id
+        WHERE lineage.is_cycle = false
+          AND child.company_id = ${companyId}
           AND child.hidden_at IS NULL
-          AND NOT child.id = ANY(ancestor.path)
       )
-      SELECT 1
-      FROM descendant_issues
-      WHERE assignee_agent_id = ${actorAgentId}
-      LIMIT 1
+      SELECT
+        COALESCE(bool_or(is_cycle), false) AS has_cycle,
+        COALESCE(
+          bool_or(
+            assignee_agent_id = ${actorAgentId}
+            AND is_cycle = false
+            AND cardinality(path) > 1
+          ),
+          false
+        ) AS has_actor_match
+      FROM lineage
     `);
-    return Array.from(rows as Iterable<unknown>).length > 0;
+    const [row] = Array.from(rows as Iterable<{ has_cycle: boolean; has_actor_match: boolean }>);
+    return row?.has_actor_match === true && row?.has_cycle === false;
   }
 
   function commentAuthorCanGrantIssueMention(input: {
