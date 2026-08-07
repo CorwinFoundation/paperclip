@@ -1007,6 +1007,14 @@ export function authorizationService(db: Db) {
   // reporting up to the parent), while leaving unrelated siblings, lateral
   // agents, and cross-company issues denied. Descendant status is not filtered,
   // so completed child issues still grant the comment. Comment-only by caller.
+  //
+  // Cycle safety: issue.parent_id is not guaranteed acyclic (a malformed
+  // hierarchy could self-reference or form an A<->B loop). The recursion tracks
+  // the visited-id path and refuses to re-enter any id already on that path
+  // (NOT child.id = ANY(path)), so any cycle terminates instead of looping
+  // forever. Hidden issues (hidden_at set) are excluded from the traversal
+  // entirely, so a hidden descendant never grants access and a hidden node does
+  // not propagate the lineage to issues beneath it (least privilege).
   async function actorAssignedToDescendantIssue(
     companyId: string,
     actorAgentId: string,
@@ -1014,14 +1022,18 @@ export function authorizationService(db: Db) {
   ): Promise<boolean> {
     const rows = await db.execute(sql`
       WITH RECURSIVE descendant_issues AS (
-        SELECT id, assignee_agent_id
+        SELECT id, assignee_agent_id, ARRAY[id] AS path
         FROM issues
-        WHERE parent_id = ${targetIssueId} AND company_id = ${companyId}
+        WHERE parent_id = ${targetIssueId}
+          AND company_id = ${companyId}
+          AND hidden_at IS NULL
         UNION ALL
-        SELECT child.id, child.assignee_agent_id
+        SELECT child.id, child.assignee_agent_id, ancestor.path || child.id
         FROM issues AS child
         JOIN descendant_issues AS ancestor ON child.parent_id = ancestor.id
         WHERE child.company_id = ${companyId}
+          AND child.hidden_at IS NULL
+          AND NOT child.id = ANY(ancestor.path)
       )
       SELECT 1
       FROM descendant_issues

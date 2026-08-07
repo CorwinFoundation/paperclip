@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { agents, companies, createDb, issues } from "@paperclipai/db";
 import {
@@ -223,5 +224,78 @@ describeEmbeddedPostgres("issue:comment manager-chain + child-to-ancestor author
     await makeIssue(co.id, { parentId: parent.id, assigneeAgentId: childOwner.id, status: "todo" });
     const d = await decide(co.id, childOwner.id, parent, "issue:mutate");
     expect(d.allowed, JSON.stringify(d)).toBe(false);
+  });
+
+  async function setParent(issueId: string, parentId: string) {
+    await db.update(issues).set({ parentId }).where(eq(issues.id, issueId));
+  }
+
+  async function hide(issueId: string) {
+    await db.update(issues).set({ hiddenAt: new Date() }).where(eq(issues.id, issueId));
+  }
+
+  it("terminates on a self-parent cycle and does not grant access", async () => {
+    const co = await makeCompany();
+    const owner = await makeAgent(co.id, "SelfOwner");
+    const outsider = await makeAgent(co.id, "Outsider");
+    const s = await makeIssue(co.id, { assigneeAgentId: owner.id, status: "in_progress" });
+    await setParent(s.id, s.id); // malformed: issue is its own parent
+    const d = await decide(co.id, outsider.id, s, "issue:comment");
+    expect(d.allowed, JSON.stringify(d)).toBe(false);
+    expect(d.reason).toBe("deny_missing_grant");
+  });
+
+  it("terminates on a two-issue cycle and does not grant access", async () => {
+    const co = await makeCompany();
+    const ownerA = await makeAgent(co.id, "OwnerA");
+    const ownerB = await makeAgent(co.id, "OwnerB");
+    const outsider = await makeAgent(co.id, "Outsider");
+    const a = await makeIssue(co.id, { assigneeAgentId: ownerA.id, status: "in_progress" });
+    const b = await makeIssue(co.id, { assigneeAgentId: ownerB.id, status: "in_progress" });
+    await setParent(a.id, b.id); // a -> b
+    await setParent(b.id, a.id); // b -> a  (A<->B cycle)
+    const d = await decide(co.id, outsider.id, a, "issue:comment");
+    expect(d.allowed, JSON.stringify(d)).toBe(false);
+    expect(d.reason).toBe("deny_missing_grant");
+  });
+
+  it("still grants across a valid multi-level lineage after the cycle-safe change", async () => {
+    const co = await makeCompany();
+    const owner = await makeAgent(co.id, "GrandparentOwner");
+    const worker = await makeAgent(co.id, "GrandchildWorker");
+    const gp = await makeIssue(co.id, { assigneeAgentId: owner.id, status: "in_progress" });
+    const mid = await makeIssue(co.id, { parentId: gp.id, assigneeAgentId: owner.id, status: "in_progress" });
+    await makeIssue(co.id, { parentId: mid.id, assigneeAgentId: worker.id, status: "todo" });
+    const d = await decide(co.id, worker.id, gp, "issue:comment");
+    expect(d.allowed, JSON.stringify(d)).toBe(true);
+    expect(d.reason).toBe("allow_issue_lineage_grant");
+  });
+
+  it("does not grant when the only matching descendant is hidden", async () => {
+    const co = await makeCompany();
+    const parentOwner = await makeAgent(co.id, "ParentOwner");
+    const childOwner = await makeAgent(co.id, "ChildOwner");
+    const parent = await makeIssue(co.id, { assigneeAgentId: parentOwner.id, status: "in_progress" });
+    const child = await makeIssue(co.id, { parentId: parent.id, assigneeAgentId: childOwner.id, status: "in_progress" });
+    await hide(child.id); // hidden descendant must not confer access
+    const d = await decide(co.id, childOwner.id, parent, "issue:comment");
+    expect(d.allowed, JSON.stringify(d)).toBe(false);
+    expect(d.reason).toBe("deny_missing_grant");
+  });
+
+  it("does not grant through a hidden intermediate (a hidden node severs the lineage)", async () => {
+    // Documented intentional behavior: a hidden issue is excluded from the
+    // traversal entirely, so it neither grants nor propagates lineage to issues
+    // beneath it. A visible grandchild under a hidden parent does not grant.
+    const co = await makeCompany();
+    const gpOwner = await makeAgent(co.id, "GPOwner");
+    const worker = await makeAgent(co.id, "Worker");
+    const gp = await makeIssue(co.id, { assigneeAgentId: gpOwner.id, status: "in_progress" });
+    const mid = await makeIssue(co.id, { parentId: gp.id, assigneeAgentId: gpOwner.id, status: "in_progress" });
+    await makeIssue(co.id, { parentId: mid.id, assigneeAgentId: worker.id, status: "todo" });
+    await hide(mid.id); // hidden intermediate
+    const d = await decide(co.id, worker.id, gp, "issue:comment");
+    expect(d.allowed, JSON.stringify(d)).toBe(false);
+    expect(d.reason).toBe("deny_missing_grant");
   });
 });
