@@ -12,10 +12,10 @@
   "contract": "are-scanner-api-v1@v1.3.0",
   "adr": "docs/adr/adr-0069-beaaa21043-capability-register.md",
   "candidate": {
-    "commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
-    "tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",
+    "commit": "c3b60d65b5171a667493f904128a9ecc8cbcf2e6",
+    "tree": "f768099e80fece7c4d3133e0884e3769949e5c5c",
     "remote_ref": "refs/heads/agent/beaaa-21043-register",
-    "remote_observed_commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5"
+    "remote_observed_commit": "c3b60d65b5171a667493f904128a9ecc8cbcf2e6"
   },
   "register": {
     "register_receipt_id": "sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d",
@@ -39,9 +39,9 @@
   "n5": {
     "result": "PASS",
     "passed": true,
-    "candidate_commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
-    "candidate_tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",
-    "result_sha256": "0e89378968a2d44a30bd2b2933a808c8ba91dc272903f1fbb55516ddc6e36ac9",
+    "candidate_commit": "c3b60d65b5171a667493f904128a9ecc8cbcf2e6",
+    "candidate_tree": "f768099e80fece7c4d3133e0884e3769949e5c5c",
+    "result_sha256": "c752c07ed4487c938956a18d75b2c5c0dac5ad39c8d0bec2b1027cd3304ace1c",
     "material_deltas": 0,
     "failure_reasons": 0,
     "scanner_version": "0.5.0",
@@ -55,7 +55,7 @@
   },
   "focused_test": {
     "command": "python3 -m pytest -q tests/test_scanner_capability_register_beaaa21043.py",
-    "result": "3 passed"
+    "result": "3 passed (including boolean and malformed signature-reference negatives)"
   },
   "boundary_statement": "Generated views are deterministic projections outside the are-scanner-api-v1 response contract. The candidate does not change the contracted API envelope, scoring math, bands, rubric points, or judge models; CTO must confirm this boundary in the exact-candidate review.",
   "operational_metadata": {

@@ -1022,10 +1022,10 @@
     "pilot": "harness/mock_tools/pilots/tau_bench_payments_v1.yaml",
     "stop_pattern": "direct_imperative"
   },
-  "candidate": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
-  "candidate_commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
+  "candidate": "c3b60d65b5171a667493f904128a9ecc8cbcf2e6",
+  "candidate_commit": "c3b60d65b5171a667493f904128a9ecc8cbcf2e6",
   "candidate_identity_resolution": "explicit immutable ref",
-  "candidate_tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",
+  "candidate_tree": "f768099e80fece7c4d3133e0884e3769949e5c5c",
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
