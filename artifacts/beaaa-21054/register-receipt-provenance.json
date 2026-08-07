@@ -1,0 +1,84 @@
+{
+  "artifact_type": "scanner_evidence_repair",
+  "issue": "BEAAA-21054",
+  "subject_issue": "BEAAA-21043",
+  "persona_audience": "internal",
+  "external_scope": "out",
+  "classification": {
+    "value": "rule-change",
+    "table_row": "Anything not listed above: when uncertain, default to rule-change and request CTO co-sign",
+    "cto_review_required": true
+  },
+  "contract": "are-scanner-api-v1@v1.3.0",
+  "adr": "docs/adr/adr-0060-beaaa21043-capability-register.md",
+  "candidate": {
+    "commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
+    "tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",
+    "remote_ref": "refs/heads/agent/beaaa-21043-register",
+    "remote_observed_commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5"
+  },
+  "register": {
+    "register_receipt_id": "sha256:006593efd86d341f20e035a1807202a60e0719434d3e30ab4e38c08b14bb545d",
+    "register_receipt_file_sha256": "2a4b7f204d575ef722f3257924165b7185120f3e9aca5377115a68b5a0f82047",
+    "canonical_source_file_sha256": "cf87066795e0ed919070508f3826e73f39bbd921705c8de8e7364804ee8b877d",
+    "canonical_source_git_blob": "418a4f9c342e164ca05bf1635ea30232268f90a4",
+    "receipt_git_blob": "a40906cb8843f5347175626a6059d7bd0043c650",
+    "view_git_blobs": {
+      "dictionary_records.json": "08b2b4cc2197cc6a2662a41c43ad78ec82ca01a0",
+      "marketing_claims.json": "365b453deb1d150e76f068fc86e81f239ae80e4b",
+      "executive_summary.md": "6422fbd2cb870cc3fa3de23fccf2a79b34efea8c",
+      "inactive_backlog.csv": "2354ec2ee4238d4e15b4d83ffa231bb81d879c50"
+    },
+    "view_sha256": {
+      "dictionary_records.json": "c0a382fc6f18671feca3fc8a1652f2084765fcab8180c25e311ece67005ef0e4",
+      "marketing_claims.json": "0aed9b0705d91fd570ec1c2b6f7ad6b4ad31f1404e9a849eae94c7564030d21a",
+      "executive_summary.md": "8b298f594f27e5ada12a2e0a2a322647bc5c2f870f881b60b598eb2c4d993b6c",
+      "inactive_backlog.csv": "90c47d363750acfbbb82828b9ee287675b85e78d442460ea089814fe0d79f806"
+    }
+  },
+  "n5": {
+    "result": "PASS",
+    "passed": true,
+    "candidate_commit": "a8550bd59777d89f0f21ac8040a901ac5ee7eca5",
+    "candidate_tree": "9205fd69efeba33a4a8f6bba0a25e7b29d6f9690",
+    "result_sha256": "cfb68567dc34feec2dbbdd7f0162e77443c9c50669b2f392a86c28924a38c4ef",
+    "material_deltas": 0,
+    "failure_reasons": 0,
+    "scanner_version": "0.5.0",
+    "corpus_version": "0.2.0",
+    "probe-set-version": "artifacts/beaaa-387/manifest.json",
+    "rubric_point_id": [
+      "GOVERNANCE.PII.HANDLING_ATTESTATION",
+      "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+    ],
+    "release_reliance_authorized": false
+  },
+  "focused_test": {
+    "command": "python3 -m pytest -q tests/test_scanner_capability_register_beaaa21043.py",
+    "result": "3 passed"
+  },
+  "boundary_statement": "Generated views are deterministic projections outside the are-scanner-api-v1 response contract. The candidate does not change the contracted API envelope, scoring math, bands, rubric points, or judge models; CTO must confirm this boundary in the exact-candidate review.",
+  "operational_metadata": {
+    "scanner_version": "0.5.0",
+    "corpus_version": "0.2.0",
+    "probe-set-version": "artifacts/beaaa-387/manifest.json",
+    "rubric_point_id": [
+      "GOVERNANCE.PII.HANDLING_ATTESTATION",
+      "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+    ],
+    "n5_calibration_delta": "0 on every golden total and subscore; candidate spread 0",
+    "cto_cosign_ref": "pending BEAAA-21054 exact-candidate review"
+  },
+  "fal_audit": {
+    "result": "PASS",
+    "findings": [],
+    "scope": "internal evidence receipt; factual claims are directly tied to immutable Git identities, file hashes, test output, and N=5 output"
+  },
+  "authorization": {
+    "approval_implied": false,
+    "merge_authorized": false,
+    "qa_approval_implied": false,
+    "promotion_authorized": false,
+    "deployment_authorized": false
+  }
+}
