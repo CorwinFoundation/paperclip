@@ -2005,11 +2005,21 @@ def scan_status_handler(
 
 
 def scan_context_report_handler(
-    scan_id: str, *, runtime: ScanRuntime
+    scan_id: str,
+    *,
+    runtime: ScanRuntime,
+    authenticated_tenant_id: str | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Internal report-sidecar read path; public scan output stays unchanged."""
     if runtime.fetch(scan_id) is None:
         raise HandlerError(404, "scan_not_found")
+    if authenticated_tenant_id is not None:
+        owning_request = runtime.current_scan_request(scan_id)
+        owner_tenant_id = (
+            owning_request.tenant_id if owning_request is not None else None
+        )
+        if owner_tenant_id != authenticated_tenant_id:
+            raise HandlerError(404, "scan_not_found")
     report = runtime.context_report(scan_id)
     if report is None:
         raise HandlerError(404, "scan_context_not_found")

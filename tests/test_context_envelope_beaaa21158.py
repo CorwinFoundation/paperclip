@@ -138,6 +138,10 @@ def test_forged_derived_envelope_cannot_recommend_or_persist():
 
 def test_real_scan_path_executes_full_set_persists_and_renders(monkeypatch):
     monkeypatch.setattr("api.scan_handlers._verify_live_egress_fail_closed", lambda **_: None)
+    monkeypatch.setenv(
+        "ARE_API_AUTH_TOKENS_JSON",
+        '{"owner-token":"tenant-1","other-token":"tenant-2"}',
+    )
     executed = []
 
     def run(req, _secret):
@@ -170,7 +174,8 @@ def test_real_scan_path_executes_full_set_persists_and_renders(monkeypatch):
     public_status, public = scan_status_handler("scan-context", runtime=runtime)
     client = TestClient(create_app(scan_runtime=runtime))
     report_response = client.get(
-        "/internal/scanner/v1/scans/scan-context/context-report"
+        "/internal/scanner/v1/scans/scan-context/context-report",
+        headers={"Authorization": "Bearer owner-token"},
     )
     report = report_response.json()
     assert status == 202 and public_status == report_response.status_code == 200
@@ -178,6 +183,26 @@ def test_real_scan_path_executes_full_set_persists_and_renders(monkeypatch):
     assert "context_envelope" not in accepted and "interpretation_annotations" not in public
     assert report["shadow_recommendation"]["suppressed_probe_ids"] == []
     assert report["interpretation_annotations"]
+
+    cross_tenant = client.get(
+        "/internal/scanner/v1/scans/scan-context/context-report",
+        headers={"Authorization": "Bearer other-token"},
+    )
+    assert cross_tenant.status_code == 404
+    assert cross_tenant.json()["detail"] == "scan_not_found"
+
+    unknown_scan = client.get(
+        "/internal/scanner/v1/scans/unknown-scan/context-report",
+        headers={"Authorization": "Bearer owner-token"},
+    )
+    assert unknown_scan.status_code == 404
+    assert unknown_scan.json()["detail"] == "scan_not_found"
+
+    unauthenticated = client.get(
+        "/internal/scanner/v1/scans/scan-context/context-report"
+    )
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.json()["detail"] == "authorization_bearer_required"
 
 
 def test_context_store_is_durable_across_runtime_reconstruction(tmp_path):

@@ -567,12 +567,14 @@ def create_app(
     )
     async def get_scan_context_report(request: Request, scan_id: str) -> Any:
         """Return the report-only context sidecar on the internal API path."""
-        _authenticated_tenant_id(request, runtime_profile)
+        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
         if app.state.scan_runtime is None:
             raise _http_error(503, "scan_runtime_unconfigured")
         try:
             status, payload = scan_context_report_handler(
-                scan_id, runtime=app.state.scan_runtime
+                scan_id,
+                runtime=app.state.scan_runtime,
+                authenticated_tenant_id=authenticated_tenant_id,
             )
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
