@@ -160,6 +160,20 @@ export function publishActivity(publication: ActivityPublication) {
 export async function persistActivity(db: Db, input: LogActivityInput) {
   const redactedDetails = await redactActivityDetails(db, input.details ?? null);
   const responsibleUserId = await resolveResponsibleUserIdForActivity(db, input);
+  // Minimal worktree seeds intentionally omit heartbeat history. Requests
+  // forwarded from the source instance can still carry that source run id, so
+  // retain it only when the run exists in this company.
+  const persistedRunId = input.runId && isUuidLike(input.runId)
+    ? await db
+      .select({ id: heartbeatRuns.id })
+      .from(heartbeatRuns)
+      .where(and(
+        eq(heartbeatRuns.id, input.runId),
+        eq(heartbeatRuns.companyId, input.companyId),
+      ))
+      .limit(1)
+      .then((rows) => rows[0]?.id ?? null)
+    : null;
   const [activity] = await db.insert(activityLog).values({
     companyId: input.companyId,
     actorType: input.actorType,
@@ -168,11 +182,10 @@ export async function persistActivity(db: Db, input: LogActivityInput) {
     entityType: input.entityType,
     entityId: input.entityId,
     agentId: input.agentId ?? null,
-    runId: input.runId ?? null,
+    runId: persistedRunId,
     responsibleUserId,
     details: redactedDetails,
   }).returning({ id: activityLog.id });
-
   const payload = {
     actorType: input.actorType,
     actorId: input.actorId,
@@ -180,7 +193,7 @@ export async function persistActivity(db: Db, input: LogActivityInput) {
     entityType: input.entityType,
     entityId: input.entityId,
     agentId: input.agentId ?? null,
-    runId: input.runId ?? null,
+    runId: persistedRunId,
     responsibleUserId,
     details: redactedDetails,
   };
@@ -198,7 +211,7 @@ export async function persistActivity(db: Db, input: LogActivityInput) {
         payload: {
           ...redactedDetails,
           agentId: input.agentId ?? null,
-          runId: input.runId ?? null,
+          runId: persistedRunId,
           responsibleUserId,
         },
       }

@@ -81,6 +81,11 @@ const manifest: PaperclipPluginManifestV1 = {
             description:
               "Optional RuntimeClass for pod isolation (e.g. `kata-fc` for Firecracker-backed microVMs). Cluster must have the RuntimeClass installed.",
           },
+          serviceAccountName: {
+            type: "string",
+            description:
+              "Name of the ServiceAccount provisioned and used by sandbox workloads (default: paperclip-tenant-sa). Must be a valid Kubernetes DNS-1123 subdomain.",
+          },
           serviceAccountAnnotations: {
             type: "object",
             additionalProperties: { type: "string" },

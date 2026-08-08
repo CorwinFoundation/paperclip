@@ -34,6 +34,7 @@ describe("plugin", () => {
       expect.objectContaining({
         namespacePrefix: "paperclip-",
         egressMode: "standard",
+        serviceAccountName: "paperclip-tenant-sa",
         jobTtlSecondsAfterFinished: 900,
         podActivityDeadlineSec: 3600,
         adapterType: "claude_local",

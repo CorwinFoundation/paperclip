@@ -1629,13 +1629,24 @@ describe("sandbox adapter execution targets", () => {
     const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
-    const requests: Array<{ method: string; url: string; auth: string | null; runId: string | null }> = [];
-    const apiServer = createServer((req, res) => {
+    const requests: Array<{
+      method: string;
+      url: string;
+      auth: string | null;
+      runId: string | null;
+      contentType: string | null;
+      body: Buffer;
+    }> = [];
+    const apiServer = createServer(async (req, res) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       requests.push({
         method: req.method ?? "GET",
         url: req.url ?? "/",
         auth: req.headers.authorization ?? null,
         runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+        contentType: req.headers["content-type"] ?? null,
+        body: Buffer.concat(chunks),
       });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
@@ -1688,7 +1699,38 @@ describe("sandbox adapter execution targets", () => {
         url: "/api/agents/me",
         auth: "Bearer real-run-jwt",
         runId: "run-bridge",
+        contentType: null,
+        body: Buffer.alloc(0),
       }]);
+
+      const multipartBody = Buffer.from(
+        "--paperclip-boundary\r\n" +
+          'Content-Disposition: form-data; name="file"; filename="report.bin"\r\n' +
+          "Content-Type: application/octet-stream\r\n\r\n" +
+          "\u0000binary\u0001payload\r\n" +
+          "--paperclip-boundary--\r\n",
+        "utf8",
+      );
+      const uploadResponse = await fetch(
+        `${bridge!.env.PAPERCLIP_API_URL}/api/companies/co-1/issues/issue-1/attachments`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+            "content-type": "multipart/form-data; boundary=paperclip-boundary",
+          },
+          body: multipartBody,
+        },
+      );
+      expect(uploadResponse.status).toBe(200);
+      expect(requests[1]).toEqual({
+        method: "POST",
+        url: "/api/companies/co-1/issues/issue-1/attachments",
+        auth: "Bearer real-run-jwt",
+        runId: "run-bridge",
+        contentType: "multipart/form-data; boundary=paperclip-boundary",
+        body: multipartBody,
+      });
     } finally {
       await bridge?.stop();
       await new Promise<void>((resolve) => apiServer.close(() => resolve()));

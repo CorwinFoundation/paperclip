@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants, promises as fs, type Dirent } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { sanitizeInheritedDatabaseCredentialEnv } from "./database-credential-env.js";
 import { sanitizeRemoteExecutionEnv } from "./remote-execution-env.js";
 import {
   buildLocalProcessSandboxSpawnTarget,
@@ -3212,8 +3213,11 @@ export async function runChildProcess(
   const onLogError = opts.onLogError ?? ((err, id, msg) => console.warn({ err, runId: id }, msg));
   return new Promise<RunProcessResult>((resolve, reject) => {
     const rawMerged: NodeJS.ProcessEnv = {
-      ...sanitizeInheritedPaperclipEnv(process.env),
-      ...opts.env,
+      ...sanitizeInheritedDatabaseCredentialEnv(
+        sanitizeInheritedPaperclipEnv(process.env),
+        process.env,
+      ),
+      ...sanitizeInheritedDatabaseCredentialEnv(opts.env, process.env),
     };
 
     // Strip Claude Code nesting-guard env vars so spawned `claude` processes

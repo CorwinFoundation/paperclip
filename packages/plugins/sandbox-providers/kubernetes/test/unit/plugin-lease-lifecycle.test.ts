@@ -161,6 +161,91 @@ describe("onEnvironmentResumeLease", () => {
   });
 });
 
+describe("onEnvironmentAcquireLease", () => {
+  function acquireClients() {
+    const rejectNotFound = vi.fn().mockRejectedValue({ code: 404 });
+    const resolve = vi.fn().mockResolvedValue({});
+    const createSandbox = vi.fn().mockImplementation(
+      async (request: { body: Record<string, unknown> }) => ({
+        ...request.body,
+        metadata: {
+          ...((request.body.metadata as Record<string, unknown>) ?? {}),
+          uid: "sandbox-uid",
+        },
+      }),
+    );
+
+    return {
+      createSandbox,
+      clients: {
+        core: {
+          readNamespace: rejectNotFound,
+          createNamespace: resolve,
+          readNamespacedServiceAccount: rejectNotFound,
+          createNamespacedServiceAccount: resolve,
+          readNamespacedResourceQuota: rejectNotFound,
+          createNamespacedResourceQuota: resolve,
+          readNamespacedLimitRange: rejectNotFound,
+          createNamespacedLimitRange: resolve,
+          createNamespacedSecret: resolve,
+        },
+        rbac: {
+          readNamespacedRole: rejectNotFound,
+          createNamespacedRole: resolve,
+          readNamespacedRoleBinding: rejectNotFound,
+          createNamespacedRoleBinding: resolve,
+        },
+        networking: {
+          readNamespacedNetworkPolicy: rejectNotFound,
+          createNamespacedNetworkPolicy: resolve,
+        },
+        custom: {
+          createNamespacedCustomObject: createSandbox,
+          getNamespacedCustomObject: vi.fn().mockResolvedValue({
+            status: { podName: "sandbox-pod" },
+          }),
+        },
+      },
+    };
+  }
+
+  it("threads the configured service account into the Sandbox CR without mounting its token", async () => {
+    const { clients, createSandbox } = acquireClients();
+    h.clients = clients;
+
+    await plugin.definition.onEnvironmentAcquireLease!({
+      driverKey: "kubernetes",
+      companyId: "11111111-1111-1111-1111-111111111111",
+      environmentId: "env-1",
+      runId: "run-1",
+      config: {
+        inCluster: true,
+        backend: "sandbox-cr",
+        serviceAccountName: "pc-canary-auditor-dbiso-v1",
+      },
+    });
+
+    const sandboxRequest = createSandbox.mock.calls[0][0] as {
+      body: {
+        spec: {
+          podTemplate: {
+            spec: {
+              serviceAccountName: string;
+              automountServiceAccountToken: boolean;
+            };
+          };
+        };
+      };
+    };
+    expect(sandboxRequest.body.spec.podTemplate.spec.serviceAccountName).toBe(
+      "pc-canary-auditor-dbiso-v1",
+    );
+    expect(
+      sandboxRequest.body.spec.podTemplate.spec.automountServiceAccountToken,
+    ).toBe(false);
+  });
+});
+
 describe("onEnvironmentDestroyLease", () => {
   it("deletes the Sandbox CR, pod, and per-run Secret", async () => {
     const deleteCr = vi.fn().mockResolvedValue({});

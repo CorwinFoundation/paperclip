@@ -391,6 +391,47 @@ describe("adapter skill snapshots", () => {
 });
 
 describe("runChildProcess", () => {
+  it("does not expose inherited database credential sentinels to agent children", async () => {
+    const inheritedRuntime = process.env.DATABASE_URL;
+    const inheritedMigration = process.env.DATABASE_MIGRATION_URL;
+    const inheritedPgPassword = process.env.PGPASSWORD;
+    process.env.DATABASE_URL = "sentinel-runtime";
+    process.env.DATABASE_MIGRATION_URL = "sentinel-migration";
+    process.env.PGPASSWORD = "sentinel-password";
+
+    try {
+      const result = await runChildProcess(
+        randomUUID(),
+        process.execPath,
+        [
+          "-e",
+          "process.stdout.write(JSON.stringify({runtime:process.env.DATABASE_URL,migration:process.env.DATABASE_MIGRATION_URL,pgPassword:process.env.PGPASSWORD,safe:process.env.SAFE_VALUE}))",
+        ],
+        {
+          cwd: process.cwd(),
+          env: {
+            DATABASE_URL: "sentinel-runtime",
+            DATABASE_MIGRATION_URL: "sentinel-migration",
+            PGPASSWORD: "sentinel-password",
+            SAFE_VALUE: "visible",
+          },
+          timeoutSec: 5,
+          graceSec: 1,
+          onLog: async () => {},
+        },
+      );
+
+      expect(JSON.parse(result.stdout)).toEqual({ safe: "visible" });
+    } finally {
+      if (inheritedRuntime === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = inheritedRuntime;
+      if (inheritedMigration === undefined) delete process.env.DATABASE_MIGRATION_URL;
+      else process.env.DATABASE_MIGRATION_URL = inheritedMigration;
+      if (inheritedPgPassword === undefined) delete process.env.PGPASSWORD;
+      else process.env.PGPASSWORD = inheritedPgPassword;
+    }
+  });
+
   it("does not arm a timeout when timeoutSec is 0", async () => {
     const result = await runChildProcess(
       randomUUID(),

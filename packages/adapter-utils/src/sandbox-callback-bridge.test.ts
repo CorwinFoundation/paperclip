@@ -800,7 +800,7 @@ describe("sandbox callback bridge", () => {
     ).resolves.toEqual([]);
   });
 
-  it("rejects non-JSON request bodies and full queues at the bridge server", async () => {
+  it("rejects unsupported request bodies and full queues at the bridge server", async () => {
     const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-bridge-server-guards-"));
     cleanupDirs.push(rootDir);
 
@@ -878,7 +878,7 @@ describe("sandbox callback bridge", () => {
     });
     expect(nonJsonResponse.status).toBe(415);
     await expect(nonJsonResponse.json()).resolves.toEqual({
-      error: "Bridge only accepts JSON request bodies.",
+      error: "Bridge only accepts JSON or multipart form request bodies.",
     });
   });
 
@@ -1267,6 +1267,8 @@ describe("sandbox callback bridge", () => {
       { method: "GET", path: "/api/issues/issue-1/work-products" },
       { method: "POST", path: "/api/issues/issue-1/work-products" },
       { method: "PATCH", path: "/api/work-products/wp-1" },
+      { method: "GET", path: "/api/issues/issue-1/attachments" },
+      { method: "POST", path: "/api/companies/co-1/issues/issue-1/attachments" },
       { method: "GET", path: "/api/issues/issue-1/interactions" },
       { method: "GET", path: "/api/issues/issue-1/interactions/inter-1" },
       { method: "POST", path: "/api/issues/issue-1/interactions" },
