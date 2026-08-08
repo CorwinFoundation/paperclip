@@ -19,6 +19,7 @@ jobs:
     env:
       IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:sha-${{ github.sha }}
       RELEASE_TAG: sha-${{ github.sha }}
+      EXPECTED_OCI_SOURCE: https://github.com/CorwinFoundation/are-scanner
     steps:
       - name: Check out exact commit
         uses: actions/checkout@v6
@@ -45,6 +46,7 @@ jobs:
       - name: Verify OCI and embedded release identity before push
         run: |
           set -euo pipefail
+          test "$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "$EXPECTED_OCI_SOURCE"
           test "$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$GITHUB_SHA"
           docker run --rm --entrypoint python "$IMAGE_REF" -c '
           import json, os, pathlib

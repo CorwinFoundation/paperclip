@@ -36,6 +36,7 @@ ENV PATH="/opt/venv/bin:${PATH}" \
 
 LABEL org.opencontainers.image.title="BackBond Scanner live edge" \
       org.opencontainers.image.description="FastAPI live scanner edge image; state and secrets are host-mounted." \
+      org.opencontainers.image.source="https://github.com/CorwinFoundation/are-scanner" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
 WORKDIR /app
