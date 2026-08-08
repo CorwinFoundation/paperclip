@@ -479,6 +479,11 @@ class RegisteredCaseExecutor:
                 delta["estimated_judge_cost_usd"]
             ),
             duration_ms=evidence["duration_ms"],
+            numeric_result=(
+                float(evidence["score"])
+                if status == "complete" and evidence.get("score") is not None
+                else None
+            ),
         )
 
     def _execute_case(

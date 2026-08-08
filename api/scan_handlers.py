@@ -799,7 +799,7 @@ class ScanRuntime:
         )
         model_versions: dict[str, Any] = {
             "primary": str(
-                worker_metadata.get("target_model") or scan_request.agent_endpoint
+                worker_metadata.get("target_model") or "vendor-target:unversioned"
             ),
             "judges": list(worker_metadata.get("judge_models") or []),
         }

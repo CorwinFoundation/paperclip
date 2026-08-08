@@ -6,9 +6,11 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
-from api.full_scan_executor import WorkerAttemptResult
+import pytest
+
+from api.full_scan_executor import EvidenceAttemptRow, FullScanExecutorError, WorkerAttemptResult, _validate_evidence_row
 from api.scan_log import ScanLog
-from api.scan_handlers import ScanRuntime
+from api.scan_handlers import HandlerError, ScanRuntime, scan_status_handler
 from harness import egress
 from harness.runner import MockRunner
 from scanners.live_probe_orchestrator import ScanRequest, ScanResult
@@ -83,6 +85,7 @@ def test_registered_case_calls_target_and_judge_and_writes_evidence(tmp_path):
     assert result.verdict == "pass"
     assert result.target_calls == 1
     assert result.judge_calls == 1
+    assert result.numeric_result == 1.0
     evidence_path = (
         tmp_path
         / "job-1"
@@ -250,6 +253,7 @@ def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):
                 target_calls=1,
                 judge_calls=1,
                 estimated_judge_cost_usd=0.01,
+                numeric_result=1.0,
             )
         }
 
@@ -275,7 +279,163 @@ def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):
     assert completed.rows_emitted == 1
     assert completed.full_suite_manifest["verdict_counts"]["pass"] == 1
     assert completed.full_suite_manifest["budget"]["estimated_judge_cost_usd"] == 0.01
+    evidence_row = completed.full_suite_manifest["evidence_rows"][0]
+    assert evidence_row["numeric_result"] == 1.0
+    assert evidence_row["acquisition_basis"] == "target-measured"
+    assert evidence_row["underwriting_relevance"] == "direct"
+    assert evidence_row["score_contribution"] is False
+    assert evidence_row["disposition"] == "report-only"
+    assert evidence_row["derived_result_id"]
     assert legacy_called == []
+
+
+def test_halueval_attempt_stays_category_proxy_and_report_only(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
+    row = {**_row(), "test_id": "halueval", "case_id": "halueval-1"}
+    runtime = ScanRuntime(
+        run_scan_fn=lambda *_args: (_ for _ in ()).throw(AssertionError()),
+        full_scan_registry_rows=[row],
+        full_scan_workers_factory=lambda *_args: {
+            "promptfoo": lambda *_worker_args: WorkerAttemptResult(
+                status="complete",
+                evidence_ref="evidence://test/halueval-1.json",
+                verdict="pass",
+                target_calls=1,
+                numeric_result=0.75,
+            )
+        },
+    )
+    request = _request("scan-halueval-provenance")
+    runtime.kickoff(request, "secret")
+    deadline = time.monotonic() + 3
+    completed = runtime.fetch(request.scan_id)
+    while completed is not None and completed.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        completed = runtime.fetch(request.scan_id)
+
+    evidence_row = completed.full_suite_manifest["evidence_rows"][0]
+    assert evidence_row["underwriting_relevance"] == "category-proxy"
+    assert evidence_row["score_contribution"] is False
+    assert evidence_row["disposition"] == "report-only"
+
+
+def test_complete_without_attributable_target_call_is_not_measured(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
+    runtime = ScanRuntime(
+        run_scan_fn=lambda *_args: (_ for _ in ()).throw(AssertionError()),
+        full_scan_registry_rows=[_row()],
+        full_scan_workers_factory=lambda *_args: {
+            "inspect": lambda *_worker_args: WorkerAttemptResult(
+                status="complete",
+                evidence_ref="evidence://fixture/judge-only.json",
+                verdict="pass",
+                target_calls=0,
+                judge_calls=1,
+            )
+        },
+    )
+    request = _request("scan-complete-without-target")
+    runtime.kickoff(request, "secret")
+    deadline = time.monotonic() + 3
+    completed = runtime.fetch(request.scan_id)
+    while completed is not None and completed.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        completed = runtime.fetch(request.scan_id)
+
+    evidence_row = completed.full_suite_manifest["evidence_rows"][0]
+    assert evidence_row["status"] == "complete"
+    assert evidence_row["target_calls"] == 0
+    assert evidence_row["acquisition_basis"] == "missing"
+    assert evidence_row["score_contribution"] is False
+    assert evidence_row["disposition"] == "report-only"
+
+
+def test_attempt_manifest_fields_are_tenant_isolated_and_redacted(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
+    raw_prompt = "PROPRIETARY PROMPT tenant alpha"
+    raw_response = "PROPRIETARY RESPONSE tenant alpha"
+    credential = "credential-secret-tenant-alpha"
+    runtime = ScanRuntime(
+        run_scan_fn=lambda *_args: (_ for _ in ()).throw(AssertionError()),
+        full_scan_registry_rows=[_row()],
+        full_scan_workers_factory=lambda *_args: {
+            "inspect": lambda *_worker_args: WorkerAttemptResult(
+                status="complete",
+                evidence_ref="evidence://tenant-alpha/redacted.json",
+                verdict="pass",
+                target_calls=1,
+                judge_calls=1,
+                numeric_result=1.0,
+            )
+        },
+    )
+    request = _request("scan-tenant-isolation")
+    runtime.kickoff(request, credential)
+    deadline = time.monotonic() + 3
+    completed = runtime.fetch(request.scan_id)
+    while completed is not None and completed.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        completed = runtime.fetch(request.scan_id)
+
+    status, _owner_payload = scan_status_handler(
+        request.scan_id,
+        runtime=runtime,
+        authenticated_tenant_id="tenant-test",
+    )
+    assert status == 200
+    with pytest.raises(HandlerError, match="scan_not_found"):
+        scan_status_handler(
+            request.scan_id,
+            runtime=runtime,
+            authenticated_tenant_id="tenant-other",
+        )
+
+    manifest_json = json.dumps(completed.full_suite_manifest, sort_keys=True)
+    for prohibited in (
+        raw_prompt,
+        raw_response,
+        credential,
+        "https://agent.example.test",
+        "phase1-probe.v1",
+    ):
+        assert prohibited not in manifest_json
+    row = completed.full_suite_manifest["evidence_rows"][0]
+    assert set(row) >= {
+        "acquisition_basis",
+        "underwriting_relevance",
+        "score_contribution",
+        "disposition",
+        "case_version",
+        "derived_result_id",
+        "derived_result_version",
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("acquisition_basis", "invented"),
+        ("underwriting_relevance", "invented"),
+        ("disposition", "score-bearing"),
+    ],
+)
+def test_registered_case_provenance_enums_fail_closed(field, value):
+    row = EvidenceAttemptRow(
+        probe_id="case-1",
+        rubric_point_id="P1.1",
+        status="complete",
+        framework="inspect@test",
+        corpus_version="corpus@test",
+        model_version="model@test",
+        seed=42,
+        evidence_ref="evidence://test/redacted.json",
+        target_calls=1,
+    )
+    with pytest.raises(FullScanExecutorError):
+        _validate_evidence_row(row.__class__(**{**row.__dict__, field: value}))
 
 
 def test_registry_only_full_scan_persists_score_envelope_without_dim_results(monkeypatch, tmp_path):

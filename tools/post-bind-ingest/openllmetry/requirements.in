@@ -1,0 +1,6 @@
+# BEAAA-20642 exact pilot inputs. Runtime installation is an explicit operator step.
+opentelemetry-instrumentation-crewai==0.62.1
+opentelemetry-instrumentation-langchain==0.62.1
+opentelemetry-exporter-otlp-proto-http==1.42.0
+crewai==1.15.10
+langchain==1.3.14

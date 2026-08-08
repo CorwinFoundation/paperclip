@@ -1,0 +1,107 @@
+{
+  "classification": "rule_execution",
+  "contract": "are-scanner-api-v1.md@v1.3.0",
+  "corpus_version": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "current_counts": {
+    "eligibility_class": {
+      "current_score_input_eligible": 350,
+      "diagnostic_only": 808,
+      "potentially_score_input_eligible_after_authorized_fix": 842
+    },
+    "families": 87,
+    "status": {
+      "adjudicated_valid": 95,
+      "adjudication_unresolved": 30,
+      "capability_trace_not_behavior_scored": 808,
+      "deterministic_invalid": 642,
+      "deterministic_valid": 255,
+      "judge_uncovered_response_absent": 170
+    },
+    "verdict": {
+      "FAIL": 56,
+      "INVALID": 642,
+      "PARTIAL": 10,
+      "PASS": 284
+    }
+  },
+  "historical_baseline_comparison": {
+    "adapter": {
+      "current": 212,
+      "historical": 212
+    },
+    "adjudication_abstained": {
+      "current": 30,
+      "historical": 30
+    },
+    "deterministic_invalid": {
+      "current": 642,
+      "historical": 642
+    },
+    "inventory": {
+      "current": 2000,
+      "historical": 2000
+    },
+    "judge_uncovered": {
+      "current": 170,
+      "historical": 170
+    },
+    "registered_reported_not_scored": {
+      "current_not_score_input_eligible": 1650,
+      "historical": 1782,
+      "note": "Historical label is not forced onto current accepted terminal states."
+    },
+    "synthetic_capability": {
+      "current": 596,
+      "historical": 596
+    },
+    "valid_judged_fail": {
+      "current": 56,
+      "historical": 56
+    },
+    "valid_judged_partial": {
+      "current": 10,
+      "historical": 10
+    }
+  },
+  "inputs": {
+    "accepted_terminal_ledger": {
+      "path": "artifacts/beaaa-19529/vapi-2000-terminal-accounting-v1.1.json",
+      "rows": 2000,
+      "sha256": "aa291460b4c2781f97825da4e1b27bd5986eda1e7fa8b2b4e36e841deb8d4c2c"
+    },
+    "authorization_freeze": {
+      "path": "artifacts/beaaa-19218/vapi-2000-probe-authorization-freeze-v1.3.jsonl",
+      "rows": 2000,
+      "sha256": "d483a281556d9ae04a09bccc00bd3f886f27cce2f2dbde4534862c731e818319"
+    },
+    "canonical_inventory": {
+      "path": ".worktrees/beaaa-19628/artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "rows": 2000,
+      "sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+    }
+  },
+  "integrity": {
+    "duplicates": 0,
+    "missing": 0,
+    "orphans": 0,
+    "source_maps_per_row": 3,
+    "unique_stable_case_ids": 2000
+  },
+  "n5_calibration_delta": {
+    "path": "artifacts/beaaa-19929/n5-calibration-delta-v1.0.json",
+    "runs": 5,
+    "sha256": "c69098ce3892cb80c5ae559ae6acc88aa985f5986177dae435f342f0847c2d16",
+    "total": 0.0
+  },
+  "output": {
+    "path": "artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl",
+    "rows": 2000,
+    "sha256": "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276"
+  },
+  "probe_set_version": "1.4",
+  "rubric_point_id": "N/A-offline-row-reconciliation-only",
+  "scanner_version": "0.5.0",
+  "schema": "backbond.canonical_probe_vapi_backlog/v1.0",
+  "source_commit": "de632d95a33fb866352f01916399e0309035b7ce",
+  "ticket_ref": "BEAAA-19929"
+}

@@ -35,6 +35,9 @@ ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
 TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled"}
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
+ACQUISITION_BASES = {"target-measured", "missing", "failed"}
+UNDERWRITING_RELEVANCES = {"direct", "category-proxy", "failed"}
+EVIDENCE_DISPOSITIONS = {"report-only"}
 
 # BEAAA-14401 — a recovered job whose stale attempt is cleared is re-queued for
 # resume. A job that cannot make progress across this many restart recoveries is
@@ -69,6 +72,16 @@ class EvidenceAttemptRow:
     estimated_judge_output_tokens: int = 0
     estimated_judge_cost_usd: float = 0.0
     duration_ms: int = 0
+    numeric_result: float | None = None
+    acquisition_basis: str = "missing"
+    underwriting_relevance: str = "failed"
+    source_acquisition_basis: str | None = None
+    source_underwriting_relevance: str | None = None
+    score_contribution: bool = False
+    disposition: str = "report-only"
+    case_version: str | None = None
+    derived_result_id: str | None = None
+    derived_result_version: str = "registered-case-result/v1"
 
     def to_manifest_row(self) -> dict[str, Any]:
         return {
@@ -89,6 +102,16 @@ class EvidenceAttemptRow:
             "estimated_judge_output_tokens": self.estimated_judge_output_tokens,
             "estimated_judge_cost_usd": self.estimated_judge_cost_usd,
             "duration_ms": self.duration_ms,
+            "numeric_result": self.numeric_result,
+            "acquisition_basis": self.acquisition_basis,
+            "underwriting_relevance": self.underwriting_relevance,
+            "source_acquisition_basis": self.source_acquisition_basis,
+            "source_underwriting_relevance": self.source_underwriting_relevance,
+            "score_contribution": self.score_contribution,
+            "disposition": self.disposition,
+            "case_version": self.case_version,
+            "derived_result_id": self.derived_result_id,
+            "derived_result_version": self.derived_result_version,
         }
 
 
@@ -107,6 +130,7 @@ class WorkerAttemptResult:
     estimated_judge_output_tokens: int = 0
     estimated_judge_cost_usd: float = 0.0
     duration_ms: int = 0
+    numeric_result: float | None = None
 
 
 @dataclass(frozen=True)
@@ -940,6 +964,9 @@ def dispatch_registry_attempt(
             )
 
         rows_to_checkpoint.append(
+            # These axes describe evidence provenance independently. A completed,
+            # attributable target execution is measured; all other terminal paths
+            # remain explicitly non-measured and report-only.
             EvidenceAttemptRow(
                 probe_id=case_id,
                 rubric_point_id=rubric_point_id,
@@ -958,6 +985,44 @@ def dispatch_registry_attempt(
                 estimated_judge_output_tokens=result.estimated_judge_output_tokens,
                 estimated_judge_cost_usd=result.estimated_judge_cost_usd,
                 duration_ms=result.duration_ms,
+                numeric_result=result.numeric_result,
+                acquisition_basis=(
+                    "target-measured"
+                    if result.status == "complete" and result.target_calls > 0
+                    else "missing"
+                    if result.status == "complete"
+                    else "failed"
+                    if result.status == "failed"
+                    else "missing"
+                ),
+                underwriting_relevance=(
+                    "category-proxy"
+                    if result.status == "complete"
+                    and str(registry_row.get("test_id") or "") == "halueval"
+                    else "direct"
+                    if result.status == "complete"
+                    else "failed"
+                ),
+                source_acquisition_basis=(
+                    str(registry_row.get("acquisition_basis"))
+                    if registry_row.get("acquisition_basis") is not None
+                    else None
+                ),
+                source_underwriting_relevance=(
+                    str(registry_row.get("underwriting_relevance"))
+                    if registry_row.get("underwriting_relevance") is not None
+                    else None
+                ),
+                score_contribution=False,
+                disposition="report-only",
+                case_version=(
+                    str(registry_row.get("version_pin"))
+                    if registry_row.get("version_pin") is not None
+                    else None
+                ),
+                derived_result_id=(
+                    f"{job.job_id}:{case_id}:{job.seed}"
+                ),
             )
         )
 
@@ -1007,6 +1072,24 @@ def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
         raise FullScanExecutorError("complete evidence row requires evidence_ref")
     if row.status != "complete" and not row.incomplete_reason:
         raise FullScanExecutorError("non-complete evidence row requires incomplete_reason")
+    if row.score_contribution or row.disposition != "report-only":
+        raise FullScanExecutorError("registered-case evidence must remain report-only")
+    if row.acquisition_basis not in ACQUISITION_BASES:
+        raise FullScanExecutorError(
+            f"invalid acquisition_basis: {row.acquisition_basis!r}"
+        )
+    if row.underwriting_relevance not in UNDERWRITING_RELEVANCES:
+        raise FullScanExecutorError(
+            f"invalid underwriting_relevance: {row.underwriting_relevance!r}"
+        )
+    if row.disposition not in EVIDENCE_DISPOSITIONS:
+        raise FullScanExecutorError(f"invalid disposition: {row.disposition!r}")
+    if row.acquisition_basis == "target-measured" and (
+        row.status != "complete" or row.target_calls <= 0
+    ):
+        raise FullScanExecutorError(
+            "target-measured evidence requires a complete attributable target call"
+        )
 
 
 def _case_id_from_row(row: Mapping[str, Any]) -> str:
