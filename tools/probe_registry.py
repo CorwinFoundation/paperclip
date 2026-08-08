@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -52,13 +51,6 @@ DEDUPE_FIELDS = (
 def _load_yaml(path: Path) -> dict[str, Any]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     return data if isinstance(data, dict) else {}
-
-
-def _generated_from_commit(repo: Path) -> str:
-    """Return the immutable parent/base commit for this one-commit change."""
-    return subprocess.check_output(
-        ["git", "rev-parse", "HEAD^"], cwd=repo, text=True
-    ).strip()
 
 
 def _source_sha(repo: Path) -> str:
@@ -321,7 +313,8 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "ticket_ref": "BEAAA-20991",
             "source_closure_sha": source_sha,
             "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-            "generated_from_commit": _generated_from_commit(repo),
+            "generated_from_content_sha": source_sha,
+            "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
             "generated_at": "2026-08-06T00:00:00Z",
             "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.1; deterministic regeneration does not use wall-clock time",
             "schema": SCHEMA_PATH,

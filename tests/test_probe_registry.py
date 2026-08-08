@@ -11,20 +11,24 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 class ProbeRegistryBaselineTest(unittest.TestCase):
+    _cached_registry: dict | None = None
+
     def _emit(self, path: Path) -> dict:
-        subprocess.check_call(
-            [
-                sys.executable,
-                "-m",
-                "tools.probe_registry",
-                "--repo",
-                str(REPO),
-                "--emit",
-                str(path),
-            ],
-            cwd=REPO,
-        )
-        return json.loads(path.read_text(encoding="utf-8"))
+        if self.__class__._cached_registry is None:
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    "-m",
+                    "tools.probe_registry",
+                    "--repo",
+                    str(REPO),
+                    "--emit",
+                    str(path),
+                ],
+                cwd=REPO,
+            )
+            self.__class__._cached_registry = json.loads(path.read_text(encoding="utf-8"))
+        return self.__class__._cached_registry
 
     def test_emit_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

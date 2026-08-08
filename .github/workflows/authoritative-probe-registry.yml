@@ -12,5 +12,4 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install -r requirements.txt
-      - run: python -m tools.probe_registry --repo . --check
-      - run: pytest -q tests/test_authoritative_probe_registry_beaaa20357.py
+      - run: scripts/authoritative_probe_registry_integration_gate.sh
