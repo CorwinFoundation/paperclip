@@ -1230,6 +1230,28 @@ async function loadCompanyMemberRecords(
   }));
 }
 
+async function loadCompanyMemberAccessRecord(
+  db: Db,
+  access: ReturnType<typeof accessService>,
+  companyId: string,
+  memberId: string,
+) {
+  const member = await access.getMemberById(companyId, memberId);
+  if (!member) return null;
+  if (member.principalType === "user") {
+    return (await loadCompanyMemberRecords(db, companyId)).find(
+      (entry) => entry.id === memberId,
+    ) ?? null;
+  }
+  if (member.principalType !== "agent") return null;
+  const grants = await access.listPrincipalGrants(
+    companyId,
+    member.principalType,
+    member.principalId,
+  );
+  return { ...member, grants };
+}
+
 type CompanyMemberRecord = Awaited<ReturnType<typeof loadCompanyMemberRecords>>[number];
 
 const humanRoleRank: Record<HumanCompanyMembershipRole, number> = {
@@ -1300,6 +1322,28 @@ async function assertCanManageCompanyMember(
 ) {
   const reason = await getProtectedMemberReason(req, access, companyId, member, { operation });
   if (reason) throw forbidden(reason);
+}
+
+async function assertCanManageMemberPermissions(
+  req: Request,
+  access: ReturnType<typeof accessService>,
+  companyId: string,
+  member: { principalId: string; principalType: string; membershipRole: string | null },
+) {
+  if (member.principalType === "user") {
+    await assertCanManageCompanyMember(req, access, companyId, member);
+    return;
+  }
+  if (member.principalType !== "agent") {
+    throw forbidden("Only user and agent permissions can be managed.");
+  }
+  if (req.actor.type !== "board") {
+    throw forbidden("Board access is required to manage agent permissions.");
+  }
+  const actorRole = await resolveActorHumanRole(req, access, companyId);
+  if (!actorRole) {
+    throw forbidden("Only active company members can manage agent permissions.");
+  }
 }
 
 async function addCompanyMemberRemovalAccess(
@@ -4517,7 +4561,7 @@ export function accessRoutes(
       await assertCompanyPermission(req, companyId, "users:manage_permissions");
       const memberToUpdate = await access.getMemberById(companyId, memberId);
       if (!memberToUpdate) throw notFound("Member not found");
-      await assertCanManageCompanyMember(req, access, companyId, memberToUpdate);
+      await assertCanManageMemberPermissions(req, access, companyId, memberToUpdate);
 
       const updated = await db.transaction(async (tx) => {
         await tx.execute(sql`
@@ -4627,9 +4671,7 @@ export function accessRoutes(
         },
       });
 
-      const member = (await loadCompanyMemberRecords(db, companyId)).find(
-        (entry) => entry.id === memberId,
-      );
+      const member = await loadCompanyMemberAccessRecord(db, access, companyId, memberId);
       if (!member) throw notFound("Member not found");
       res.json(member);
     }
@@ -4685,7 +4727,7 @@ export function accessRoutes(
       await assertCompanyPermission(req, companyId, "users:manage_permissions");
       const memberToUpdate = await access.getMemberById(companyId, memberId);
       if (!memberToUpdate) throw notFound("Member not found");
-      await assertCanManageCompanyMember(req, access, companyId, memberToUpdate);
+      await assertCanManageMemberPermissions(req, access, companyId, memberToUpdate);
       const updated = await access.setMemberPermissions(
         companyId,
         memberId,
@@ -4704,9 +4746,7 @@ export function accessRoutes(
           grantCount: req.body.grants?.length ?? 0,
         },
       });
-      const member = (await loadCompanyMemberRecords(db, companyId)).find(
-        (entry) => entry.id === memberId,
-      );
+      const member = await loadCompanyMemberAccessRecord(db, access, companyId, memberId);
       if (!member) throw notFound("Member not found");
       res.json(member);
     }

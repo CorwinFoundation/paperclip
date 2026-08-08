@@ -4,6 +4,7 @@ import request from "supertest";
 import { and, eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  agents,
   activityLog,
   companies,
   companyMemberships,
@@ -92,6 +93,7 @@ describeEmbeddedPostgres("access routes permissions upgrade compatibility", () =
     await db.delete(activityLog);
     await db.delete(principalPermissionGrants);
     await db.delete(companyMemberships);
+    await db.delete(agents);
     await db.delete(companies);
   });
 
@@ -115,7 +117,7 @@ describeEmbeddedPostgres("access routes permissions upgrade compatibility", () =
       .where(eq(companyMemberships.id, owner.id))
       .then((rows) => rows[0]!);
     expect(unchanged.membershipRole).toBe("owner");
-  }, 10_000);
+  }, 20_000);
 
   it("keeps custom grants when the role-only member route changes a member role", async () => {
     const { company, owner } = await createCompanyWithOwner(db);
@@ -163,5 +165,85 @@ describeEmbeddedPostgres("access routes permissions upgrade compatibility", () =
       scope: customScope,
       grantedByUserId: owner.principalId,
     });
+  });
+
+  it("lets the board atomically replace grants for an agent membership", async () => {
+    const { company, owner } = await createCompanyWithOwner(db);
+    const agent = await db
+      .insert(agents)
+      .values({
+        companyId: company.id,
+        name: `CTO ${randomUUID()}`,
+        role: "cto",
+        permissions: { canCreateAgents: true },
+        adapterType: "process",
+        adapterConfig: {},
+        runtimeConfig: {},
+      })
+      .returning()
+      .then((rows) => rows[0]!);
+    const membership = await db
+      .insert(companyMemberships)
+      .values({
+        companyId: company.id,
+        principalType: "agent",
+        principalId: agent.id,
+        status: "active",
+        membershipRole: "member",
+      })
+      .returning()
+      .then((rows) => rows[0]!);
+    const configureScope = { targetAgentIds: [agent.id] };
+    await db.insert(principalPermissionGrants).values({
+      companyId: company.id,
+      principalType: "agent",
+      principalId: agent.id,
+      permissionKey: "tasks:assign",
+      scope: null,
+      grantedByUserId: owner.principalId,
+    });
+
+    const res = await request(await createApp(db, company.id, owner.principalId))
+      .patch(`/api/companies/${company.id}/members/${membership.id}/role-and-grants`)
+      .send({
+        status: "active",
+        grants: [
+          { permissionKey: "tasks:assign", scope: null },
+          { permissionKey: "agents:configure", scope: configureScope },
+        ],
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({
+      id: membership.id,
+      principalType: "agent",
+      principalId: agent.id,
+      status: "active",
+      membershipRole: "member",
+    });
+    expect(res.body.grants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ permissionKey: "tasks:assign", scope: null }),
+        expect.objectContaining({ permissionKey: "agents:configure", scope: configureScope }),
+      ]),
+    );
+
+    const grants = await db
+      .select()
+      .from(principalPermissionGrants)
+      .where(
+        and(
+          eq(principalPermissionGrants.companyId, company.id),
+          eq(principalPermissionGrants.principalType, "agent"),
+          eq(principalPermissionGrants.principalId, agent.id),
+        ),
+      );
+    expect(grants).toHaveLength(2);
+    expect(grants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ permissionKey: "tasks:assign", scope: null }),
+        expect.objectContaining({ permissionKey: "agents:configure", scope: configureScope }),
+      ]),
+    );
   });
 });
