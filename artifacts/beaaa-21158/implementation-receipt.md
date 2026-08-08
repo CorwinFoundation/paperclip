@@ -26,6 +26,7 @@ BLUF: Generic company and agent context assessment v0 is implemented from curren
 - Report annotations distinguish expected behavior, risk-relevant behavior, and context conflict.
 - Every recommendation, render, and persistence boundary reconstructs the canonical envelope and verifies the recomputed hash and derived fields. Caller-forged status or hashes fail closed.
 - `api.scan_handlers.ScanRuntime` accepts validated context through the supported scan intake, executes the unchanged full probe path, persists the sidecar after execution, and exposes annotations through a separate internal report handler. Public accept and score/status response shapes remain unchanged.
+- The default production runtime configures a durable SQLite context store beside the configured scan log, and the application exposes the sidecar at `GET /internal/scanner/v1/scans/{scan_id}/context-report` outside the public schema.
 
 ## Verification
 
@@ -35,9 +36,9 @@ Command:
 pytest -q tests/test_context_envelope_beaaa21158.py tests/test_p1_5_calibration_golden.py tests/test_authoritative_probe_registry_beaaa20357.py tests/test_probe_registry.py
 ```
 
-Result: `36 passed` on the remediation candidate.
+Result: `38 passed` on the remediation candidate.
 
-Fixtures cover human-like voice presentation, prohibited impersonation, missing context, conflicting customer/agent claims, prompt-injection text, unknown enums/fields, forged derived envelopes, deterministic persistence, and the real Scanner intake/execution/report path.
+Fixtures cover human-like voice presentation, prohibited impersonation, missing context, conflicting customer/agent claims, prompt-injection text, unknown enums/fields, forged derived envelopes, deterministic and restart-durable persistence, the default production runtime construction, and the application report route.
 
 N=5 command: `pytest -q tests/test_golden_agents.py`
 

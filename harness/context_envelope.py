@@ -11,6 +11,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import threading
 from typing import Any, Mapping
 
 
@@ -228,19 +229,21 @@ class ContextEnvelopeStore:
     """Additive sidecar persistence, separate from the public scan contract."""
 
     def __init__(self, path: str = ":memory:") -> None:
-        self._db = sqlite3.connect(path)
-        self._db.execute(
-            "CREATE TABLE IF NOT EXISTS scan_context_envelopes ("
-            "scan_id TEXT PRIMARY KEY, schema_version TEXT NOT NULL, "
-            "context_hash TEXT NOT NULL, envelope_json TEXT NOT NULL, "
-            "recommendation_json TEXT NOT NULL)"
-        )
+        self._lock = threading.Lock()
+        self._db = sqlite3.connect(path, check_same_thread=False)
+        with self._lock:
+            self._db.execute(
+                "CREATE TABLE IF NOT EXISTS scan_context_envelopes ("
+                "scan_id TEXT PRIMARY KEY, schema_version TEXT NOT NULL, "
+                "context_hash TEXT NOT NULL, envelope_json TEXT NOT NULL, "
+                "recommendation_json TEXT NOT NULL)"
+            )
 
     def put(self, scan_id: str, envelope: Mapping[str, Any]) -> None:
         clean_scan_id = _clean_text(scan_id, limit=128, label="scan_id")
         envelope = require_validated_context_envelope(envelope)
         recommendation = shadow_applicability(envelope)
-        with self._db:
+        with self._lock, self._db:
             self._db.execute(
                 "INSERT INTO scan_context_envelopes VALUES (?, ?, ?, ?, ?)",
                 (clean_scan_id, SCHEMA_VERSION, envelope["context_hash"],
@@ -249,10 +252,11 @@ class ContextEnvelopeStore:
             )
 
     def get(self, scan_id: str) -> dict[str, Any] | None:
-        row = self._db.execute(
-            "SELECT envelope_json, recommendation_json FROM scan_context_envelopes WHERE scan_id = ?",
-            (scan_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._db.execute(
+                "SELECT envelope_json, recommendation_json FROM scan_context_envelopes WHERE scan_id = ?",
+                (scan_id,),
+            ).fetchone()
         if row is None:
             return None
         return {"envelope": json.loads(row[0]), "shadow_recommendation": json.loads(row[1])}

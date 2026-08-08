@@ -2,6 +2,7 @@ import copy
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 
 from harness.context_envelope import (
     ContextEnvelopeError,
@@ -12,7 +13,8 @@ from harness.context_envelope import (
     shadow_applicability,
     validate_context_envelope,
 )
-from api.scan_handlers import ScanRuntime, scan_context_report_handler, scan_handler, scan_status_handler
+from api.scan_handlers import ScanRuntime, scan_handler, scan_status_handler
+from api.app import create_app
 from scanners.live_probe_orchestrator import DimResult, ScanResult
 
 
@@ -166,12 +168,45 @@ def test_real_scan_path_executes_full_set_persists_and_renders(monkeypatch):
         scan_id_factory=lambda: "scan-context",
     )
     public_status, public = scan_status_handler("scan-context", runtime=runtime)
-    report_status, report = scan_context_report_handler("scan-context", runtime=runtime)
-    assert status == 202 and public_status == report_status == 200
+    client = TestClient(create_app(scan_runtime=runtime))
+    report_response = client.get(
+        "/internal/scanner/v1/scans/scan-context/context-report"
+    )
+    report = report_response.json()
+    assert status == 202 and public_status == report_response.status_code == 200
     assert executed == ["P1.1", "P2.1", "P3.1"]
     assert "context_envelope" not in accepted and "interpretation_annotations" not in public
     assert report["shadow_recommendation"]["suppressed_probe_ids"] == []
     assert report["interpretation_annotations"]
+
+
+def test_context_store_is_durable_across_runtime_reconstruction(tmp_path):
+    path = tmp_path / "context.sqlite3"
+    first = ContextEnvelopeStore(str(path))
+    first.put("durable-scan", validate_context_envelope(_raw()))
+    second = ContextEnvelopeStore(str(path))
+    saved = second.get("durable-scan")
+    assert saved is not None
+    assert saved["shadow_recommendation"]["execution_policy"] == "execute_full_probe_set"
+
+
+def test_default_production_runtime_configures_durable_context_store(
+    monkeypatch, tmp_path
+):
+    scan_log_path = tmp_path / "scan_log.sqlite3"
+    monkeypatch.setenv("ARE_SCAN_LOG_PATH", str(scan_log_path))
+    monkeypatch.setenv("ARE_SCORER_REAL", "off")
+    monkeypatch.setenv("ARE_CUSTOMER_AGENT_WALKER", "off")
+
+    from api.scan_runtime_factory import make_default_production_scan_runtime
+
+    runtime = make_default_production_scan_runtime()
+    assert runtime._context_envelope_store is not None
+    runtime._context_envelope_store.put(
+        "production-default", validate_context_envelope(_raw())
+    )
+    reopened = ContextEnvelopeStore(str(tmp_path / "context_envelopes.sqlite3"))
+    assert reopened.get("production-default") is not None
 
 
 def test_score_and_evidence_envelope_is_byte_identical_context_on_off():
