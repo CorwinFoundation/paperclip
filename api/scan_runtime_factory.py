@@ -73,6 +73,7 @@ from api.scan_handlers import (
 )
 from api.scan_log import ScanLog
 from harness.credentials import CredentialVault
+from harness.context_envelope import ContextEnvelopeStore
 from harness.egress import ScopedEgressAllowlist
 from harness.runner import MockRunner, ModelRunner
 from scanners.canary_anti_gaming import (
@@ -408,6 +409,7 @@ def make_production_scan_runtime(
     fired_probe_ledger: FiredProbeLedger | None = None,
     production_control_ledger: production_controls.ProductionControlLedger | None = None,
     production_security_findings_source: Callable[[], Iterable[dict[str, Any]]] | None = None,
+    context_envelope_store: ContextEnvelopeStore | None = None,
 ) -> ScanRuntime:
     """Build a production ``ScanRuntime`` wired to the fork-spawned Prober/Scorer.
 
@@ -613,6 +615,7 @@ def make_production_scan_runtime(
         run_scan_fn=run_scan_fn,
         production_control_ledger=production_control_ledger,
         production_security_findings_source=production_security_findings_source,
+        context_envelope_store=context_envelope_store,
     )
 
 
@@ -797,6 +800,9 @@ def make_default_production_scan_runtime() -> ScanRuntime:
 
     scan_log_path = ApiConfig.from_env().scan_log_path(ARE_SCAN_LOG_DEFAULT_PATH)
     ledger_dir = _production_control_ledger_dir(Path(scan_log_path).parent)
+    context_envelope_store = ContextEnvelopeStore(
+        str(Path(scan_log_path).with_name("context_envelopes.sqlite3"))
+    )
 
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
@@ -809,6 +815,7 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         production_security_findings_source=lambda: production_controls.repo_security_findings(
             Path(__file__).resolve().parents[1]
         ),
+        context_envelope_store=context_envelope_store,
     )
 
     # The standard full tier is registry-driven and asynchronous.  Only rows
