@@ -6,6 +6,7 @@ from typing import Any, Mapping, Sequence
 
 from .evidence_tier import VerifiedSource, assign_evidence_tier, hub_view, rate_multiplier_interface, reject_reserved_client_fields
 from .normalizer import normalize_receiver_events
+from .receiver import parse_receiver_payload
 
 
 def ingest_evidence_tier(*, receiver_payload: Mapping[str, Any], jwt_keyring: Mapping[str, Any], conn: Any,
@@ -20,6 +21,11 @@ def ingest_evidence_tier(*, receiver_payload: Mapping[str, Any], jwt_keyring: Ma
             payload = event.get("payload")
             if isinstance(payload, Mapping):
                 reject_reserved_client_fields(payload)
+    envelope = parse_receiver_payload(dict(receiver_payload), jwt_keyring=dict(jwt_keyring))
+    if envelope.customer_id != tenant_id:
+        raise ValueError("receiver_tenant_identity_mismatch")
+    if envelope.agent_id != agent_id:
+        raise ValueError("receiver_agent_identity_mismatch")
     normalized = normalize_receiver_events(dict(receiver_payload), jwt_keyring=dict(jwt_keyring))
     result = assign_evidence_tier(
         tenant_id=tenant_id, agent_id=agent_id, term_id=term_id, required_surfaces=required_surfaces,

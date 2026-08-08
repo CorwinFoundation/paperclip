@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 POLICY_VERSION = "evidence-tier-assignment/1.0"
 EVENT_TYPES = {"assignment", "downgrade", "restoration", "exception", "override"}
+TIERS = ("T0", "T1", "T2", "T3", "T4")
 
 
 def _identity_hash(value: str) -> str:
@@ -27,6 +28,21 @@ def append_assignment(conn: sqlite3.Connection, assignment: Mapping[str, Any]) -
             raise ValueError(f"evidence_tier_field_invalid:{key}")
     if assignment["after_tier"] != assignment["agent_tier"]:
         raise ValueError("evidence_tier_after_mismatch")
+    before = assignment["before_tier"]
+    after = assignment["after_tier"]
+    if after not in TIERS or (before is not None and before not in TIERS):
+        raise ValueError("evidence_tier_transition_tier_invalid")
+    event_type = assignment["event_type"]
+    if event_type == "assignment" and before is not None:
+        raise ValueError("evidence_tier_assignment_before_forbidden")
+    if event_type == "downgrade" and (before is None or TIERS.index(before) <= TIERS.index(after)):
+        raise ValueError("evidence_tier_downgrade_transition_invalid")
+    if event_type == "restoration" and (before is None or TIERS.index(before) >= TIERS.index(after)):
+        raise ValueError("evidence_tier_restoration_transition_invalid")
+    if event_type == "exception" and not str(assignment.get("exception_id") or "").strip():
+        raise ValueError("evidence_tier_exception_id_required")
+    if event_type == "override" and not str(assignment.get("override_id") or "").strip():
+        raise ValueError("evidence_tier_override_id_required")
     snapshots = sorted({
         row.get("verification_snapshot_hash") for row in assignment["surface_assignments"]
         if row.get("verification_snapshot_hash")

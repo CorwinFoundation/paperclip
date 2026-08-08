@@ -29,6 +29,7 @@ def source(source_class="endpoint_adr", surfaces=("coding",), **changes):
         silence_distinguished_from_zero=True, coverage_bounded=True, class_specific_verified=True,
         verification_snapshot_hash="sha256:snapshot", verification_window_start="2026-07-01T00:00:00Z",
         verification_window_end="2026-08-01T00:00:00Z",
+        registered_agent_id="agent-a",
     )
     return replace(base, **changes)
 
@@ -126,6 +127,20 @@ def test_registered_pins_and_freshness_fail_closed(changes, code):
     assert any(item.startswith(code) for item in result.surface_assignments[0].basis_codes)
 
 
+def test_missing_tenant_pin_registration_reproduces_qa_call_and_fails_closed():
+    with pytest.raises(EvidenceTierError, match="^tenant_pin_registration_missing$"):
+        assign_evidence_tier(
+            tenant_id="tenant-a", agent_id="agent-a", term_id="term-a",
+            required_surfaces=("coding",), verified_sources=(source(),),
+            expected_pins={}, as_of="2026-08-01T00:00:00Z",
+        )
+
+
+def test_registered_source_agent_mismatch_fails_closed():
+    with pytest.raises(EvidenceTierError, match="^cross_agent_source_forbidden$"):
+        assign([replace(source(), registered_agent_id="agent-b")])
+
+
 def test_audit_contract_rejects_malformed_and_delete_is_immutable():
     conn = sqlite3.connect(":memory:")
     migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
@@ -137,6 +152,26 @@ def test_audit_contract_rejects_malformed_and_delete_is_immutable():
         append_assignment(conn, broken)
     with pytest.raises(sqlite3.IntegrityError, match="append_only_delete_forbidden"):
         conn.execute("DELETE FROM evidence_tier_events")
+
+
+@pytest.mark.parametrize("event_type,before,extra,error", [
+    ("assignment", "T0", {}, "evidence_tier_assignment_before_forbidden"),
+    ("downgrade", None, {}, "evidence_tier_downgrade_transition_invalid"),
+    ("downgrade", "T2", {}, "evidence_tier_downgrade_transition_invalid"),
+    ("restoration", None, {}, "evidence_tier_restoration_transition_invalid"),
+    ("restoration", "T4", {}, "evidence_tier_restoration_transition_invalid"),
+    ("exception", "T2", {}, "evidence_tier_exception_id_required"),
+    ("override", "T2", {}, "evidence_tier_override_id_required"),
+])
+def test_audit_event_specific_invalid_transitions_reject_before_append(event_type, before, extra, error):
+    conn = sqlite3.connect(":memory:")
+    migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
+    conn.executescript(migration.read_text())
+    event = asdict(assign())
+    event.update(event_type=event_type, before_tier=before, **extra)
+    with pytest.raises(ValueError, match=f"^{error}$"):
+        append_assignment(conn, event)
+    assert conn.execute("SELECT COUNT(*) FROM evidence_tier_events").fetchone()[0] == 0
 
 
 def test_audit_payload_contains_no_raw_content():

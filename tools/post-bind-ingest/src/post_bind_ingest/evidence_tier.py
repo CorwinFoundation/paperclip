@@ -56,6 +56,7 @@ class VerifiedSource:
     verification_window_end: str
     stale: bool = False
     independent_corroboration_valid: bool = True
+    registered_agent_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -210,9 +211,17 @@ def assign_evidence_tier(
 
     if not required_surfaces:
         raise EvidenceTierError("required_surfaces_empty")
+    if not expected_pins or not all(str(expected_pins.get(key, "")).strip() for key in REQUIRED_PINS):
+        raise EvidenceTierError("tenant_pin_registration_missing")
     foreign = [source.source_instance_id for source in verified_sources if source.tenant_id != tenant_id]
     if foreign:
         raise EvidenceTierError("cross_tenant_source_forbidden")
+    foreign_agents = [
+        source.source_instance_id for source in verified_sources
+        if source.registered_agent_id is not None and source.registered_agent_id != agent_id
+    ]
+    if foreign_agents:
+        raise EvidenceTierError("cross_agent_source_forbidden")
     assignments: list[SurfaceAssignment] = []
     for surface in sorted(set(required_surfaces)):
         candidates = [_source_assignment(source, surface, expected_pins=expected_pins or {}, as_of=as_of)
@@ -239,7 +248,7 @@ def assign_evidence_tier(
         surface_assignments=tuple(assignments), basis_codes=basis,
         event_type=event_type, before_tier=before_tier, after_tier=agent_tier,
         scope=scope, actor=audit_actor, reason=reason, approval_ref=approval_ref,
-        mapping_version=(expected_pins or {}).get("mapping_version", "unregistered"),
+        mapping_version=expected_pins["mapping_version"],
         exception_id=exception_id if active_exception else None,
     )
 

@@ -204,6 +204,8 @@ def test_receiver_to_log_tracker_and_hub_evidence_tier_boundary() -> None:
     from log_tracker.evidence_tier import append_assignment, list_assignments
 
     payload = _receiver_payload()
+    payload["customer_id"] = "tenant-a"
+    payload["agent"] = "agent-a"
     payload["jwt"] = _signed_receiver_payload(payload)
     pins = {"driver_version":"1", "collector_version":"1", "mapping_version":"1",
             "evidence_profile_version":"1", "signing_identity_ref":"spiffe://tenant-a/collector"}
@@ -214,6 +216,7 @@ def test_receiver_to_log_tracker_and_hub_evidence_tier_boundary() -> None:
         replay_idempotency_valid=True, continuity_verified=True, silence_distinguished_from_zero=True,
         coverage_bounded=True, class_specific_verified=True, verification_snapshot_hash="sha256:snapshot",
         verification_window_start="2026-08-01T00:00:00Z", verification_window_end="2026-08-02T00:00:00Z",
+        registered_agent_id="agent-a",
     )
     conn = sqlite3.connect(":memory:")
     migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
@@ -229,6 +232,46 @@ def test_receiver_to_log_tracker_and_hub_evidence_tier_boundary() -> None:
     assert boundary["rate"]["current_term_multiplier"] == 1.25
     assert len(list_assignments(conn, tenant_id="tenant-a", agent_id="agent-a")) == 1
     assert list_assignments(conn, tenant_id="tenant-b", agent_id="agent-a") == []
+
+
+@pytest.mark.parametrize("field,value,error", [
+    ("customer_id", "tenant-b", "receiver_tenant_identity_mismatch"),
+    ("agent", "agent-b", "receiver_agent_identity_mismatch"),
+])
+def test_receiver_signed_identity_mismatch_rejects_before_log_tracker(field, value, error) -> None:
+    import sqlite3
+    import sys
+    log_tracker_src = Path(__file__).resolve().parents[2] / "log-tracker" / "src"
+    sys.path.insert(0, str(log_tracker_src))
+    from log_tracker.evidence_tier import append_assignment
+
+    payload = _receiver_payload()
+    payload["customer_id"] = "tenant-a"
+    payload["agent"] = "agent-a"
+    payload[field] = value
+    payload["jwt"] = _signed_receiver_payload(payload)
+    pins = {"driver_version":"1", "collector_version":"1", "mapping_version":"1",
+            "evidence_profile_version":"1", "signing_identity_ref":"spiffe://tenant-a/collector"}
+    source = VerifiedSource(
+        tenant_id="tenant-a", source_instance_id="source-a", source_class="in_code_otel",
+        supported_surfaces=("coding",), source_pins=pins, identity_verified=True, signature_valid=True,
+        hash_chain_valid=True, redaction_fail_closed=True, replay_idempotency_valid=True,
+        continuity_verified=True, silence_distinguished_from_zero=True, coverage_bounded=True,
+        class_specific_verified=True, verification_snapshot_hash="sha256:snapshot",
+        verification_window_start="2026-08-01T00:00:00Z", verification_window_end="2026-08-02T00:00:00Z",
+        registered_agent_id="agent-a",
+    )
+    conn = sqlite3.connect(":memory:")
+    migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
+    conn.executescript(migration.read_text())
+    with pytest.raises(ValueError, match=f"^{error}$"):
+        ingest_evidence_tier(
+            receiver_payload=payload, jwt_keyring=KEYRING, conn=conn, tenant_id="tenant-a", agent_id="agent-a",
+            term_id="term-a", required_surfaces=("coding",), verified_sources=(source,), registered_pins=pins,
+            as_of="2026-08-01T12:00:00Z", append_assignment=append_assignment,
+            bound_current_term_multiplier=1.25,
+        )
+    assert conn.execute("SELECT COUNT(*) FROM evidence_tier_events").fetchone()[0] == 0
 
 
 def test_parse_receiver_payload_rejects_bad_signature() -> None:
