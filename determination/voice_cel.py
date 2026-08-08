@@ -49,6 +49,8 @@ _CEL = re.compile(
     r'^!has\(e\.(?P<left>[a-z_]+)\) \|\| !has\(e\.(?P<right>[a-z_]+)\) '
     r'\? "indeterminate" : e\.(?P=left) > 0 \? "fail" : "pass"$'
 )
+_COMMITMENT_REF = re.compile(r"sha256:[0-9a-f]{64}")
+SOURCE_STATES = frozenset({"healthy", "grace", "gap", "stale_ineligible"})
 
 
 class VoiceCelError(ValueError):
@@ -71,6 +73,14 @@ def reject_forbidden_keys(value: Any, path: str = "$") -> None:
     elif isinstance(value, list):
         for index, child in enumerate(value):
             reject_forbidden_keys(child, f"{path}[{index}]")
+
+
+def _validate_output_metadata(commitment_ref: str, source_state: str) -> None:
+    """Fail closed before caller-controlled metadata reaches the output."""
+    if not isinstance(commitment_ref, str) or _COMMITMENT_REF.fullmatch(commitment_ref) is None:
+        raise VoiceCelError("commitment_ref must be a canonical sha256 digest")
+    if not isinstance(source_state, str) or source_state not in SOURCE_STATES:
+        raise VoiceCelError("source_state is outside the continuity-state allowlist")
 
 
 @dataclass(frozen=True)
@@ -121,6 +131,7 @@ class VoiceCelPack:
         source_state: str,
     ) -> dict[str, Any]:
         reject_forbidden_keys(evidence)
+        _validate_output_metadata(commitment_ref, source_state)
         rule = next((candidate for candidate in self.rules if candidate.intent_id == intent_id), None)
         if rule is None:
             raise VoiceCelError(f"unknown intent_id: {intent_id}")
@@ -149,4 +160,4 @@ class VoiceCelPack:
         return output
 
 
-__all__ = ["FORBIDDEN_KEYS", "VoiceCelError", "VoiceCelPack", "reject_forbidden_keys"]
+__all__ = ["FORBIDDEN_KEYS", "SOURCE_STATES", "VoiceCelError", "VoiceCelPack", "reject_forbidden_keys"]
