@@ -105,7 +105,7 @@ def test_job_streams_agent_passive_tests_and_cicd() -> None:
         assert lifecycle["initial_scan"]["backbond_score"] is None
         assert lifecycle["updated_scan"]["backbond_score"] is None
         assert lifecycle["updated_scan"]["rating_status"] == "not_available"
-        assert lifecycle["bind"]["admittance_class"] == "CONSTRAINED_BIND"
+        assert lifecycle["bind"]["status"] == "NOT_AVAILABLE"
         assert lifecycle["bind"]["real_policy_bound"] is False
         assert lifecycle["installation"]["status"] == "INSTALLED"
         assert lifecycle["ci_gate"]["status"] == "passed"
