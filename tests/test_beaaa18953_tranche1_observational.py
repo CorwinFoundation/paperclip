@@ -521,6 +521,17 @@ def test_actual_rollback_refuses_each_material_file_pin_before_mutation(
     assert evidence.read_bytes() == b"retained-evidence"
 
 
+def test_evaluator_pin_matches_authoritative_registered_case_executor():
+    evaluator = (
+        Path(__file__).resolve().parents[1]
+        / "tools"
+        / "registered_case_executor.py"
+    )
+    observed = observational.sha256_file(evaluator)
+
+    assert set(EVALUATOR_SHA256.values()) == {observed}
+
+
 def test_complete_downstream_matrix_canonical_hash_isolation(monkeypatch):
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", "e06cb09df3d0a490816eace227b083b97665949d")
