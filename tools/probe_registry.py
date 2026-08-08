@@ -232,8 +232,7 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
         version_pin = str(row.get("version_pin") or "")
         _, _, framework_version = version_pin.partition("@")
         source = str(row.get("source_pack") or "")
-        rows.append(
-            {
+        emitted = {
                 "bucket": "runnable_today",
                 "framework": str(row.get("runner") or row.get("test_id") or "unknown"),
                 "framework_version": framework_version or "unpinned",
@@ -248,7 +247,26 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
                 "worker_runner": str(row.get("runner") or ""),
                 "version_pin": version_pin,
             }
-        )
+        if str(row.get("test_id")) == "consequential_action_confirmation":
+            mapping = _load_yaml(repo / source)
+            probe = next(
+                (item for item in mapping.get("probes") or [] if str(item.get("id")) == str(row.get("case_id"))),
+                {},
+            )
+            execution = probe.get("report_only_execution") or {}
+            if execution.get("reported") is True:
+                emitted.update(
+                    {
+                        "reported": True,
+                        "scoring_active": False,
+                        "default_runtime_executable": False,
+                        "executed_in_latest_evidenced_run": False,
+                        "execution_mode": "report_only_consequential_action_v0.1",
+                        "runner_source": "harness/bench/consequential_action_confirmation.py",
+                        "weight": 0.0,
+                    }
+                )
+        rows.append(emitted)
     return rows
 
 
@@ -325,8 +343,8 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "probe_set_version": "authoritative-probe-registry@1.0.1",
             "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
             "active_rubric_point_count": len(active_points),
-            "n5_calibration_delta": "not_applicable_metadata_only_no_score_path_change",
-            "classification": "rule-execution: refactor/metadata registry that does not touch scoring behavior",
+            "n5_calibration_delta": "not_applicable_report_only_zero_weight",
+            "classification": "rule-execution: report-only probe execution inside an existing rubric point; no score path change",
             "parser_dependency": f"PyYAML=={PY_YAML_PIN}",
             "stdlib_dependencies": ["pathlib", "json", "csv", "hashlib"],
             "open_source_first_constraint": "Parse existing corpus/mapping/harness/scanner assets as sources; only BackBond stable key, disposition buckets, and fail-closed reasons are hand-rolled.",
