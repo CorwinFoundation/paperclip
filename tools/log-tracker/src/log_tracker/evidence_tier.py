@@ -39,10 +39,16 @@ def append_assignment(conn: sqlite3.Connection, assignment: Mapping[str, Any]) -
         raise ValueError("evidence_tier_downgrade_transition_invalid")
     if event_type == "restoration" and (before is None or TIERS.index(before) >= TIERS.index(after)):
         raise ValueError("evidence_tier_restoration_transition_invalid")
-    if event_type == "exception" and not str(assignment.get("exception_id") or "").strip():
-        raise ValueError("evidence_tier_exception_id_required")
-    if event_type == "override" and not str(assignment.get("override_id") or "").strip():
-        raise ValueError("evidence_tier_override_id_required")
+    if event_type == "exception":
+        if before is None or TIERS.index(before) < TIERS.index(after):
+            raise ValueError("evidence_tier_exception_transition_invalid")
+        if not str(assignment.get("exception_id") or "").strip():
+            raise ValueError("evidence_tier_exception_id_required")
+    if event_type == "override":
+        if before is None or before == after:
+            raise ValueError("evidence_tier_override_transition_invalid")
+        if not str(assignment.get("override_id") or "").strip():
+            raise ValueError("evidence_tier_override_id_required")
     snapshots = sorted({
         row.get("verification_snapshot_hash") for row in assignment["surface_assignments"]
         if row.get("verification_snapshot_hash")

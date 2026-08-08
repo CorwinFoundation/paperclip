@@ -160,8 +160,10 @@ def test_audit_contract_rejects_malformed_and_delete_is_immutable():
     ("downgrade", "T2", {}, "evidence_tier_downgrade_transition_invalid"),
     ("restoration", None, {}, "evidence_tier_restoration_transition_invalid"),
     ("restoration", "T4", {}, "evidence_tier_restoration_transition_invalid"),
-    ("exception", "T2", {}, "evidence_tier_exception_id_required"),
+    ("exception", "T3", {}, "evidence_tier_exception_id_required"),
     ("override", "T2", {}, "evidence_tier_override_id_required"),
+    ("exception", "T2", {"exception_id": "exc-1"}, "evidence_tier_exception_transition_invalid"),
+    ("override", "T3", {"override_id": "ovr-1"}, "evidence_tier_override_transition_invalid"),
 ])
 def test_audit_event_specific_invalid_transitions_reject_before_append(event_type, before, extra, error):
     conn = sqlite3.connect(":memory:")
@@ -172,6 +174,35 @@ def test_audit_event_specific_invalid_transitions_reject_before_append(event_typ
     with pytest.raises(ValueError, match=f"^{error}$"):
         append_assignment(conn, event)
     assert conn.execute("SELECT COUNT(*) FROM evidence_tier_events").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("event_type,identifier", [
+    ("exception", {"exception_id": "exc-1"}),
+    ("override", {"override_id": "ovr-1"}),
+])
+def test_qa_exact_exception_and_override_missing_before_reject_before_append(event_type, identifier):
+    conn = sqlite3.connect(":memory:")
+    migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
+    conn.executescript(migration.read_text())
+    event = asdict(assign())
+    event.update(event_type=event_type, before_tier=None, **identifier)
+    with pytest.raises(ValueError, match=f"^evidence_tier_{event_type}_transition_invalid$"):
+        append_assignment(conn, event)
+    assert conn.execute("SELECT COUNT(*) FROM evidence_tier_events").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("event_type,before,identifier", [
+    ("exception", "T3", {"exception_id": "exc-1"}),
+    ("override", "T2", {"override_id": "ovr-1"}),
+])
+def test_valid_exception_and_override_transitions_append(event_type, before, identifier):
+    conn = sqlite3.connect(":memory:")
+    migration = Path(__file__).resolve().parents[2] / "log-tracker" / "migrations" / "0002_evidence_tier_assignment_v1.sql"
+    conn.executescript(migration.read_text())
+    event = asdict(assign())
+    event.update(event_type=event_type, before_tier=before, **identifier)
+    append_assignment(conn, event)
+    assert conn.execute("SELECT COUNT(*) FROM evidence_tier_events").fetchone()[0] == 1
 
 
 def test_audit_payload_contains_no_raw_content():
