@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LEDGER = ROOT / "artifacts/beaaa-19327/scoreability-ledger-v1.1"
+LEDGER = ROOT / "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json"
 VERDICTS = ROOT / "artifacts/beaaa-19322/vapi-897-deterministic-verdicts-v1.1.json"
 OUT = ROOT / "artifacts/beaaa-19931/vapi-invalid-family-verifier-specifications-v1.0.json"
 
