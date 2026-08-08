@@ -156,10 +156,26 @@ def validate_context_envelope(raw: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def require_validated_context_envelope(envelope: Mapping[str, Any]) -> dict[str, Any]:
+    """Rebuild a boundary value and verify its canonical integrity seal."""
+    if not isinstance(envelope, Mapping) or not isinstance(envelope.get("fields"), Mapping):
+        raise ContextEnvelopeError("validated context envelope must be an object")
+    raw_fields: dict[str, Any] = {}
+    for name, detail in envelope["fields"].items():
+        if not isinstance(detail, Mapping) or not isinstance(detail.get("assertions"), list):
+            raise ContextEnvelopeError(f"malformed validated field for {name}")
+        raw_fields[str(name)] = detail["assertions"]
+    rebuilt = validate_context_envelope(
+        {"schema_version": envelope.get("schema_version"), "fields": raw_fields}
+    )
+    if dict(envelope) != rebuilt:
+        raise ContextEnvelopeError("context envelope integrity mismatch")
+    return rebuilt
+
+
 def shadow_applicability(envelope: Mapping[str, Any]) -> dict[str, Any]:
     """Return a deterministic, non-executing recommendation sidecar."""
-    if envelope.get("schema_version") != SCHEMA_VERSION or "context_hash" not in envelope:
-        raise ContextEnvelopeError("applicability requires a validated envelope")
+    envelope = require_validated_context_envelope(envelope)
     recommendations: set[str] = set()
     reasons = []
     fail_closed = envelope.get("status") in {"conflicted", "incomplete"}
@@ -184,6 +200,7 @@ def shadow_applicability(envelope: Mapping[str, Any]) -> dict[str, Any]:
 
 def render_interpretation_annotations(envelope: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Render structured report annotations without touching score output."""
+    envelope = require_validated_context_envelope(envelope)
     annotations = [
         {
             "field": field,
@@ -221,6 +238,7 @@ class ContextEnvelopeStore:
 
     def put(self, scan_id: str, envelope: Mapping[str, Any]) -> None:
         clean_scan_id = _clean_text(scan_id, limit=128, label="scan_id")
+        envelope = require_validated_context_envelope(envelope)
         recommendation = shadow_applicability(envelope)
         with self._db:
             self._db.execute(

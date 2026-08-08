@@ -12,6 +12,8 @@ from harness.context_envelope import (
     shadow_applicability,
     validate_context_envelope,
 )
+from api.scan_handlers import ScanRuntime, scan_context_report_handler, scan_handler, scan_status_handler
+from scanners.live_probe_orchestrator import DimResult, ScanResult
 
 
 def _raw(*, agent_presentation="human_like", customer_presentation="human_like"):
@@ -121,6 +123,55 @@ def test_deterministic_and_persisted_with_field_level_provenance():
     saved = store.get("scan-21158")
     assert saved["envelope"] == first
     assert saved["shadow_recommendation"] == shadow_applicability(first)
+
+
+def test_forged_derived_envelope_cannot_recommend_or_persist():
+    forged = validate_context_envelope(_raw())
+    forged["context_hash"] = "sha256:" + "0" * 64
+    with pytest.raises(ContextEnvelopeError):
+        shadow_applicability(forged)
+    with pytest.raises(ContextEnvelopeError):
+        ContextEnvelopeStore().put("forged", forged)
+
+
+def test_real_scan_path_executes_full_set_persists_and_renders(monkeypatch):
+    monkeypatch.setattr("api.scan_handlers._verify_live_egress_fail_closed", lambda **_: None)
+    executed = []
+
+    def run(req, _secret):
+        executed.extend(["P1.1", "P2.1", "P3.1"])
+        dims = tuple(
+            DimResult(dim_id=probe, raw=4.0, spread=0.0, replicates=(4.0,) * 5)
+            for probe in executed
+        )
+        return ScanResult(
+            scan_id=req.scan_id, status="complete", scanner_version=req.scanner_version,
+            corpus_version=req.corpus_version, rows_emitted=len(dims), k_replicates=5,
+            live_probe_variance_band=1.0, dim_results=dims,
+            spread_per_dim={p: 0.0 for p in executed},
+            pillar_spread={"P1": 0.0, "P2": 0.0, "P3": 0.0, "P4": 0.0},
+            total_spread=0.0, incomplete=False, incomplete_reason=None,
+        )
+
+    runtime = ScanRuntime(run_scan_fn=run, context_envelope_store=ContextEnvelopeStore())
+    body = {
+        "tenant_id": "tenant-1", "agent_endpoint": {"host": "agent.example"},
+        "credential_ref": "cred-1", "credential_secret": "secret",
+        "corpus_snapshot_hash": "sha256:" + "1" * 64,
+        "scanner_version": "0.5.0", "corpus_version": "golden-v1", "seed": 0,
+        "context_envelope": _raw(),
+    }
+    status, accepted = scan_handler(
+        body, tenant_header="tenant-1", runtime=runtime,
+        scan_id_factory=lambda: "scan-context",
+    )
+    public_status, public = scan_status_handler("scan-context", runtime=runtime)
+    report_status, report = scan_context_report_handler("scan-context", runtime=runtime)
+    assert status == 202 and public_status == report_status == 200
+    assert executed == ["P1.1", "P2.1", "P3.1"]
+    assert "context_envelope" not in accepted and "interpretation_annotations" not in public
+    assert report["shadow_recommendation"]["suppressed_probe_ids"] == []
+    assert report["interpretation_annotations"]
 
 
 def test_score_and_evidence_envelope_is_byte_identical_context_on_off():

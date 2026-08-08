@@ -24,7 +24,8 @@ BLUF: Generic company and agent context assessment v0 is implemented from curren
 - Conflicts fail closed: no recommendation is emitted and the unchanged full-probe execution policy remains explicit.
 - Shadow applicability can only recommend allowlisted test identifiers. It has no probe-suppression representation beyond the invariant empty list.
 - Report annotations distinguish expected behavior, risk-relevant behavior, and context conflict.
-- Additive SQLite sidecar persistence stores the canonical envelope and deterministic shadow recommendation outside the public response contract.
+- Every recommendation, render, and persistence boundary reconstructs the canonical envelope and verifies the recomputed hash and derived fields. Caller-forged status or hashes fail closed.
+- `api.scan_handlers.ScanRuntime` accepts validated context through the supported scan intake, executes the unchanged full probe path, persists the sidecar after execution, and exposes annotations through a separate internal report handler. Public accept and score/status response shapes remain unchanged.
 
 ## Verification
 
@@ -34,9 +35,13 @@ Command:
 pytest -q tests/test_context_envelope_beaaa21158.py tests/test_p1_5_calibration_golden.py tests/test_authoritative_probe_registry_beaaa20357.py tests/test_probe_registry.py
 ```
 
-Result: `24 passed` from exact current master.
+Result: `36 passed` on the remediation candidate.
 
-Fixtures cover human-like voice presentation, prohibited impersonation, missing context, conflicting customer/agent claims, prompt-injection text, unknown enums/fields, deterministic persistence, and score/evidence byte identity.
+Fixtures cover human-like voice presentation, prohibited impersonation, missing context, conflicting customer/agent claims, prompt-injection text, unknown enums/fields, forged derived envelopes, deterministic persistence, and the real Scanner intake/execution/report path.
+
+N=5 command: `pytest -q tests/test_golden_agents.py`
+
+N=5 result: `7 passed, 18 subtests passed`; maximum absolute score delta `0`.
 
 ### N=5 golden calibration delta
 

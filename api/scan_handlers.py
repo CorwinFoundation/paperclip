@@ -76,6 +76,12 @@ from api.sla import (
     pillars_from_dim_results,
 )
 from harness import egress
+from harness.context_envelope import (
+    ContextEnvelopeError,
+    ContextEnvelopeStore,
+    render_interpretation_annotations,
+    validate_context_envelope,
+)
 from harness.runner import RunnerError
 from framework_assessment import (
     build_framework_envelope,
@@ -348,6 +354,7 @@ class ScanRuntime:
         production_security_findings_source: ProductionSecurityFindingsSource | None = None,
         in_memory_state_ttl_seconds: float = DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS,
         monotonic_clock: Callable[[], float] | None = None,
+        context_envelope_store: ContextEnvelopeStore | None = None,
     ) -> None:
         if (
             isinstance(in_memory_state_ttl_seconds, bool)
@@ -398,6 +405,7 @@ class ScanRuntime:
         self._bundle_store = bundle_store
         self._production_control_ledger = production_control_ledger
         self._production_security_findings_source = production_security_findings_source
+        self._context_envelope_store = context_envelope_store
         # Tracks the (agent_id, run_timestamp) of the current kickoff so the
         # handler can read the just-persisted row back without a second
         # scan_log scan (the row is keyed by that pair, not by scan_id).
@@ -945,6 +953,25 @@ class ScanRuntime:
                 return refreshed
         return result
 
+    def persist_context_envelope(self, scan_id: str, raw_context: Mapping[str, Any]) -> None:
+        """Validate and persist the report-only sidecar after execution."""
+        if self._context_envelope_store is None:
+            raise ContextEnvelopeError("context envelope store is not configured")
+        self._context_envelope_store.put(scan_id, validate_context_envelope(raw_context))
+
+    def context_report(self, scan_id: str) -> dict[str, Any] | None:
+        if self._context_envelope_store is None:
+            return None
+        saved = self._context_envelope_store.get(scan_id)
+        if saved is None:
+            return None
+        return {
+            "scan_id": scan_id,
+            "mode": "report_only_shadow",
+            "shadow_recommendation": saved["shadow_recommendation"],
+            "interpretation_annotations": render_interpretation_annotations(saved["envelope"]),
+        }
+
     # ----- BEAAA-1265 (WS1) agent-scan-log shim -----
     def register_prior_scan(self, agent_id: str) -> None:
         """Record that a prior /scans row exists for ``agent_id``.
@@ -1455,6 +1482,13 @@ def _kickoff_live_probe_scan(
     if not isinstance(body, dict):
         raise HandlerError(422, "body_invalid")
 
+    raw_context = body.get("context_envelope")
+    if raw_context is not None:
+        try:
+            validate_context_envelope(raw_context)
+        except ContextEnvelopeError as exc:
+            raise HandlerError(422, "context_envelope_invalid") from exc
+
     tenant_id = _require(body, "tenant_id")
     verify_tenant_isolation(tenant_id, tenant_header)
 
@@ -1587,6 +1621,12 @@ def _kickoff_live_probe_scan(
         # Hard Invariant #4: the local secret is dropped as the function
         # returns; do not log it, do not place it in any persistent struct.
         del credential_secret
+
+    if raw_context is not None:
+        try:
+            runtime.persist_context_envelope(scan_id, raw_context)
+        except ContextEnvelopeError as exc:
+            raise HandlerError(422, "context_envelope_invalid") from exc
 
     # BEAAA-11726 item 4 — probe_set_hash computed from the dim_ids that ran.
     # Wired via kickoff's scan_log call below; runtime wires probe_set_hash
@@ -1962,6 +2002,18 @@ def scan_status_handler(
             dashboard_base_url=dashboard_base_url,
         )
     raise HandlerError(422, "audience_invalid")
+
+
+def scan_context_report_handler(
+    scan_id: str, *, runtime: ScanRuntime
+) -> tuple[int, dict[str, Any]]:
+    """Internal report-sidecar read path; public scan output stays unchanged."""
+    if runtime.fetch(scan_id) is None:
+        raise HandlerError(404, "scan_not_found")
+    report = runtime.context_report(scan_id)
+    if report is None:
+        raise HandlerError(404, "scan_context_not_found")
+    return 200, report
 
 
 def _ci_plugin_payload(
