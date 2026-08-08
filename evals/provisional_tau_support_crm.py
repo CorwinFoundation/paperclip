@@ -1,7 +1,9 @@
 """Registry-integrated report-only tau-bench support/CRM pilot (BEAAA-20989).
 
 This module wraps the existing multi-turn Agent Interface and deterministic
-mock-tool harness. It is deliberately absent from registry and scoring paths.
+mock-tool harness. Its three stable scenarios are registered as report-only
+authoritative rows with null rubric point IDs. They remain excluded from
+default-runtime execution and scoring.
 Contract anchor: are-scanner-api-v1@v1.3.0; no output-contract delta.
 """
 from __future__ import annotations
