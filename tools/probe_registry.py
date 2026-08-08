@@ -36,6 +36,7 @@ SOURCE_INPUTS = [
     "harness/bench/**",
     "scanners/*_runner.py",
     "tests/fixtures/golden_agents/**",
+    "evals/provisional_tau_support_crm.py",
 ]
 AUTHORITATIVE_PATH = "tools/probe-registry/authoritative_registry.json"
 SCHEMA_PATH = "tools/probe-registry/authoritative_registry.schema.json"
@@ -178,6 +179,34 @@ def _fixture_rows(repo: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _report_only_pilot_rows(repo: Path) -> list[dict[str, Any]]:
+    """Register the tau support/CRM pilot without activating execution or scoring."""
+    source = "evals/provisional_tau_support_crm.py"
+    if not (repo / source).exists():
+        return []
+    return [
+        {
+            "bucket": "report_only",
+            "framework": "tau-bench",
+            "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b",
+            "corpus_or_family": "tau_support_crm_pilot",
+            "case_id_or_probe_id": case_id,
+            "rubric_point_id": None,
+            "mode": "report_only_local_mock_tool_harness_v1",
+            "source": source,
+            "countable_as_executable": False,
+            "reported": True,
+            "scoring_active": False,
+            "reason": "registered report-only pilot; excluded from default runtime and scoring",
+        }
+        for case_id in (
+            "tau_support_crm.refund_credit.001",
+            "tau_support_crm.account_change.001",
+            "tau_support_crm.identity_boundary.001",
+        )
+    ]
+
+
 def _runnable_today_rows(repo: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     wrap = repo / "scanners" / "wraps" / "inspect_section1_v0.py"
@@ -275,7 +304,13 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
         raise RuntimeError(f"PyYAML=={PY_YAML_PIN} required for deterministic registry parsing")
     source_sha = _source_sha(repo)
     active_points = _active_rubric_points(repo)
-    rows = _runnable_today_rows(repo) + _active_test_executable_rows(repo) + _mapping_rows(repo) + _fixture_rows(repo)
+    rows = (
+        _runnable_today_rows(repo)
+        + _active_test_executable_rows(repo)
+        + _mapping_rows(repo)
+        + _fixture_rows(repo)
+        + _report_only_pilot_rows(repo)
+    )
     unique = _index_unique_rows(rows)
     rows = sorted(unique.values(), key=lambda row: tuple(str(row.get(f, "")) for f in DEDUPE_FIELDS))
     # Legacy active-test rows prove registration and an adapter binding, not that
@@ -294,7 +329,7 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "attestation_only": row["bucket"] == "attestation_only",
             "fixture_test_only": row["bucket"] == "fixture_test_only",
             "inactive_deferred": row["bucket"] == "inactive_deferred",
-            "blocked_unsupported": not legacy_runnable and row["bucket"] not in {"fixture_test_only", "inactive_deferred"},
+            "blocked_unsupported": not legacy_runnable and row["bucket"] not in {"fixture_test_only", "inactive_deferred", "report_only"},
         }
         row["stable_id"] = row.pop("stable_executable_key")
         row["source_provenance"] = {
@@ -361,6 +396,7 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "proxy_grade_non_customer_measured": "Category-proxy or non-customer-measured row; visible but excluded from executable count.",
             "fixture_test_only": "Test fixture or harness corpus row; excluded from executable count.",
             "inactive_deferred": "Schema, scaffold, deferred, or inactive row; excluded from executable count.",
+            "report_only": "Registered report output from an isolated local harness; excluded from default runtime, executable count, and scoring.",
         },
         "unique_executable_count": category_counts.get("executable", 0),
         "bucket_counts": dict(sorted(bucket_counts.items())),

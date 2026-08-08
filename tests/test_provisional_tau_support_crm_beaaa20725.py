@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 import subprocess
 
 from evals.provisional_tau_support_crm import SCENARIOS, run_pilot
@@ -8,7 +10,7 @@ from harness.agent_interface import MockAgentSession, ToolCall
 
 def _call(scenario, suffix, tool_name, arguments, action_class):
     return ToolCall(
-        call_id=f"{scenario.provisional_id}-{suffix}",
+        call_id=f"{scenario.stable_id}-{suffix}",
         tool_name=tool_name,
         arguments=arguments,
         action_class=action_class,
@@ -48,7 +50,7 @@ def factory_for(builder):
             name="scripted-pilot-agent",
             policy=builder(scenario),
             declared_tools=("get_account", "issue_credit", "lookup_charge", "update_account"),
-            session_id=f"{scenario.provisional_id}-seed-{seed}",
+            session_id=f"{scenario.stable_id}-seed-{seed}",
         )
     return factory
 
@@ -57,12 +59,12 @@ def test_three_scenarios_are_deterministic_and_distinguish_agents_across_seeds_0
     compliant = run_pilot(factory_for(compliant_policy))
     violating = run_pilot(factory_for(violating_policy))
     assert len(compliant) == len(violating) == 15
-    assert {row["provisional_id"] for row in compliant} == {s.provisional_id for s in SCENARIOS}
+    assert {row["stable_id"] for row in compliant} == {s.stable_id for s in SCENARIOS}
     assert all(row["verdict"] == "pass" for row in compliant)
     assert all(row["verdict"] == "fail" for row in violating)
     for rows in (compliant, violating):
         for scenario in SCENARIOS:
-            group = [row for row in rows if row["provisional_id"] == scenario.provisional_id]
+            group = [row for row in rows if row["stable_id"] == scenario.stable_id]
             assert [row["seed"] for row in group] == [0, 1, 2, 3, 4]
             comparable = [
                 {
@@ -79,10 +81,10 @@ def test_three_scenarios_are_deterministic_and_distinguish_agents_across_seeds_0
 def test_report_only_envelope_has_required_metadata_and_complete_evidence():
     row = run_pilot(factory_for(compliant_policy), seeds=range(1))[0]
     assert row["disposition"] == "report-only"
-    assert row["provisional_id"].startswith("PROVISIONAL_TAU_PILOT_")
+    assert len(row["stable_id"]) == 64
     assert row["scanner_version"] == "0.5.0"
-    assert row["corpus_version"] == "tau_pilot_support_crm@0.1.0-provisional"
-    assert row["probe-set-version"].endswith("-provisional")
+    assert row["corpus_version"] == "tau_pilot_support_crm@0.1.0-report-only"
+    assert row["probe-set-version"].endswith("-report-only")
     assert row["rubric_point_id"] is None
     assert row["brand_backbone_version"] == "v1.6"
     assert row["brand_backbone_sha256"] == "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090"
@@ -92,6 +94,19 @@ def test_report_only_envelope_has_required_metadata_and_complete_evidence():
     assert row["transcript"]["turns"]
     assert row["tool_call_log"]
     assert row["observed_state"]
+
+
+def test_scenarios_bind_to_authoritative_report_only_registry_rows():
+    registry = json.loads(
+        Path("tools/probe-registry/authoritative_registry.json").read_text(encoding="utf-8")
+    )
+    rows = {row["stable_id"]: row for row in registry["rows"] if row["bucket"] == "report_only"}
+    assert set(rows) == {scenario.stable_id for scenario in SCENARIOS}
+    assert all(row["rubric_point_id"] is None for row in rows.values())
+    assert all(row["categories"]["registered"] for row in rows.values())
+    assert all(row["categories"]["reported"] for row in rows.values())
+    assert not any(row["categories"]["scoring_active"] for row in rows.values())
+    assert not any(row["categories"]["executable_on_default_runtime"] for row in rows.values())
 
 
 def test_refund_ledger_preserves_pre_mutation_lookup_snapshot():

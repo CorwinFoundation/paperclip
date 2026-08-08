@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -198,7 +198,7 @@
       "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Tool misuse \u2014 parameter tampering",
@@ -206,7 +206,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -214,7 +214,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 5e47b6e"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e9bffaf"
     }
   ],
   "bucket_counts": {
@@ -223,6 +223,7 @@
     "fixture_test_only": 82,
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
+    "report_only": 3,
     "runnable_today": 2202
   },
   "bucket_definitions": {
@@ -231,6 +232,7 @@
     "fixture_test_only": "Test fixture or harness corpus row; excluded from executable count.",
     "inactive_deferred": "Schema, scaffold, deferred, or inactive row; excluded from executable count.",
     "proxy_grade_non_customer_measured": "Category-proxy or non-customer-measured row; visible but excluded from executable count.",
+    "report_only": "Registered report output from an isolated local harness; excluded from default runtime, executable count, and scoring.",
     "runnable_today": "A registered adapter can materialize the row; this does not imply default-runtime, latest-run, reporting, or scoring activation."
   },
   "category_counts": {
@@ -242,8 +244,8 @@
     "fixture_test_only": 82,
     "inactive_deferred": 8,
     "proxy_grade": 49,
-    "registered": 2512,
-    "reported": 5,
+    "registered": 2515,
+    "reported": 8,
     "scoring_active": 0
   },
   "claimed_1180_disposition": {
@@ -266,7 +268,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "5e47b6e55fdbb6ecbb495c1dc10b70bf7300cee1",
+    "generated_from_content_sha": "e9bffaf6e616e9ee870687145d92d4fd0c04b717",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.1; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -276,9 +278,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "5e47b6e55fdbb6ecbb495c1dc10b70bf7300cee1",
+    "source_closure_sha": "e9bffaf6e616e9ee870687145d92d4fd0c04b717",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-5e47b6e",
+    "source_closure_version": "registry-source-e9bffaf",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -79721,6 +79723,99 @@
       "stable_id": "0ad8a7149f3d60231ef9654761b1c20fbead922dfc664372bfb8050cfa2f27b9"
     },
     {
+      "bucket": "report_only",
+      "case_id_or_probe_id": "tau_support_crm.account_change.001",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": true,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tau_support_crm_pilot",
+      "framework": "tau-bench",
+      "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b",
+      "mode": "report_only_local_mock_tool_harness_v1",
+      "reason": "registered report-only pilot; excluded from default runtime and scoring",
+      "reported": true,
+      "rubric_point_id": null,
+      "scoring_active": false,
+      "source": "evals/provisional_tau_support_crm.py",
+      "source_provenance": {
+        "path": "evals/provisional_tau_support_crm.py",
+        "version": "59a200c6d575d595120f1cb70fea53cef0632f6b"
+      },
+      "stable_id": "0e1ca6c87b7b6ebcadf6a3a69a654915b35923427aedb61de0756e3f71354243"
+    },
+    {
+      "bucket": "report_only",
+      "case_id_or_probe_id": "tau_support_crm.identity_boundary.001",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": true,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tau_support_crm_pilot",
+      "framework": "tau-bench",
+      "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b",
+      "mode": "report_only_local_mock_tool_harness_v1",
+      "reason": "registered report-only pilot; excluded from default runtime and scoring",
+      "reported": true,
+      "rubric_point_id": null,
+      "scoring_active": false,
+      "source": "evals/provisional_tau_support_crm.py",
+      "source_provenance": {
+        "path": "evals/provisional_tau_support_crm.py",
+        "version": "59a200c6d575d595120f1cb70fea53cef0632f6b"
+      },
+      "stable_id": "384f8b25b24f5a3f5c060bcbcc150ed7e5278ebffe8d0c4b9722010c4971c3aa"
+    },
+    {
+      "bucket": "report_only",
+      "case_id_or_probe_id": "tau_support_crm.refund_credit.001",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": true,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tau_support_crm_pilot",
+      "framework": "tau-bench",
+      "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b",
+      "mode": "report_only_local_mock_tool_harness_v1",
+      "reason": "registered report-only pilot; excluded from default runtime and scoring",
+      "reported": true,
+      "rubric_point_id": null,
+      "scoring_active": false,
+      "source": "evals/provisional_tau_support_crm.py",
+      "source_provenance": {
+        "path": "evals/provisional_tau_support_crm.py",
+        "version": "59a200c6d575d595120f1cb70fea53cef0632f6b"
+      },
+      "stable_id": "58a2a82840cabbe9ab7dee554862ce3eb2c99b70afc9cd462f667b525942f726"
+    },
+    {
       "bucket": "proxy_grade_non_customer_measured",
       "case_id_or_probe_id": "tqa.b2b_domain",
       "categories": {
@@ -79784,7 +79879,8 @@
     "corpus/**",
     "harness/bench/**",
     "scanners/*_runner.py",
-    "tests/fixtures/golden_agents/**"
+    "tests/fixtures/golden_agents/**",
+    "evals/provisional_tau_support_crm.py"
   ],
   "unique_executable_count": 2202,
   "upstream_framework_pins": {
