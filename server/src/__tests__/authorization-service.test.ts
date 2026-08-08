@@ -99,7 +99,7 @@ async function grantAgentPermission(
   db: ReturnType<typeof createDb>,
   companyId: string,
   agentId: string,
-  permissionKey: "tasks:assign" | "tasks:assign_scope",
+  permissionKey: "agents:configure" | "agents:create" | "tasks:assign" | "tasks:assign_scope",
   scope: Record<string, unknown> | null = null,
 ) {
   await db.insert(companyMemberships).values({
@@ -181,7 +181,7 @@ describeEmbeddedPostgres("authorization service", () => {
     expect(decision.explanation).toContain("Allowed by explicit grant tasks:assign");
   });
 
-  it("allows agent grants for agent configuration decisions", async () => {
+  it("allows agents:configure grants for an in-scope agent configuration decision", async () => {
     const company = await createCompany(db, "AgentGrant");
     const actorAgent = await createAgent(db, company.id);
     const targetAgent = await createAgent(db, company.id);
@@ -196,7 +196,8 @@ describeEmbeddedPostgres("authorization service", () => {
       companyId: company.id,
       principalType: "agent",
       principalId: actorAgent.id,
-      permissionKey: "agents:create",
+      permissionKey: "agents:configure",
+      scope: { targetAgentIds: [targetAgent.id] },
       grantedByUserId: null,
     });
 
@@ -204,10 +205,84 @@ describeEmbeddedPostgres("authorization service", () => {
       actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_key" },
       action: "agent_config:read",
       resource: { type: "agent", companyId: company.id, agentId: targetAgent.id },
+      scope: { targetAgentId: targetAgent.id },
     });
 
     expect(decision.allowed).toBe(true);
-    expect(decision.grant?.permissionKey).toBe("agents:create");
+    expect(decision.grant?.permissionKey).toBe("agents:configure");
+  });
+
+  it("makes an explicit agents:configure scope authoritative over legacy creator authority", async () => {
+    const company = await createCompany(db, "AgentConfigureScope");
+    const actorAgent = await createAgent(db, company.id, {
+      permissions: { canCreateAgents: true },
+    });
+    const allowedTarget = await createAgent(db, company.id);
+    const deniedTarget = await createAgent(db, company.id);
+    await grantAgentPermission(db, company.id, actorAgent.id, "agents:configure", {
+      targetAgentIds: [allowedTarget.id],
+    });
+    const authz = authorizationService(db);
+
+    await expect(authz.decide({
+      actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" },
+      action: "agent_config:update",
+      resource: { type: "agent", companyId: company.id, agentId: allowedTarget.id },
+      scope: { targetAgentId: allowedTarget.id },
+    })).resolves.toMatchObject({
+      allowed: true,
+      grant: { permissionKey: "agents:configure" },
+    });
+
+    await expect(authz.decide({
+      actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" },
+      action: "agent_config:update",
+      resource: { type: "agent", companyId: company.id, agentId: deniedTarget.id },
+      scope: { targetAgentId: deniedTarget.id },
+    })).resolves.toMatchObject({
+      allowed: false,
+      reason: "deny_scope",
+      grant: { permissionKey: "agents:configure" },
+    });
+  });
+
+  it("preserves legacy agent creator authority when no agents:configure grant exists", async () => {
+    const company = await createCompany(db, "LegacyAgentConfigure");
+    const actorAgent = await createAgent(db, company.id, {
+      permissions: { canCreateAgents: true },
+    });
+    const targetAgent = await createAgent(db, company.id);
+
+    const decision = await authorizationService(db).decide({
+      actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" },
+      action: "agent_config:update",
+      resource: { type: "agent", companyId: company.id, agentId: targetAgent.id },
+      scope: { targetAgentId: targetAgent.id },
+    });
+
+    expect(decision).toMatchObject({
+      allowed: true,
+      reason: "allow_legacy_agent_creator",
+    });
+  });
+
+  it("preserves an explicit agents:create compatibility grant when no agents:configure grant exists", async () => {
+    const company = await createCompany(db, "AgentCreateCompatibility");
+    const actorAgent = await createAgent(db, company.id);
+    const targetAgent = await createAgent(db, company.id);
+    await grantAgentPermission(db, company.id, actorAgent.id, "agents:create");
+
+    const decision = await authorizationService(db).decide({
+      actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_key" },
+      action: "agent_config:read",
+      resource: { type: "agent", companyId: company.id, agentId: targetAgent.id },
+      scope: { targetAgentId: targetAgent.id },
+    });
+
+    expect(decision).toMatchObject({
+      allowed: true,
+      grant: { permissionKey: "agents:create" },
+    });
   });
 
   it("denies cross-company agent decisions before grant evaluation", async () => {

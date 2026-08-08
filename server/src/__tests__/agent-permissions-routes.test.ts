@@ -1699,11 +1699,7 @@ describe.sequential("agent permission routes", () => {
       expect(res.status).toBe(200);
     });
 
-    it("denies an agent actor without agents:create when reading peer config", async () => {
-      // Agent actors must still pass the agents:create gate (explicit
-      // grant OR canCreateAgents permission on the agent record). A peer
-      // agent in the same company without that permission must not be
-      // able to read another agent's configuration.
+    it("denies an agent actor without configuration authority when reading peer config", async () => {
       const peerAgentId = "33333333-3333-4333-8333-333333333333";
       const peerAgent = { ...baseAgent, id: peerAgentId };
       mockAgentService.getById.mockImplementation(async (id: string) => {
@@ -1713,7 +1709,11 @@ describe.sequential("agent permission routes", () => {
         }
         return null;
       });
-      mockAccessService.hasPermission.mockResolvedValue(false);
+      mockAccessService.decide.mockResolvedValue({
+        allowed: false,
+        reason: "deny_missing_grant",
+        explanation: "Missing permission: agents:configure.",
+      });
 
       const app = await createApp({
         type: "agent",
@@ -1726,11 +1726,14 @@ describe.sequential("agent permission routes", () => {
       const res = await request(app).get(`/api/agents/${peerAgentId}/configuration`);
 
       expect(res.status).toBe(403);
+      expect(mockAccessService.decide).toHaveBeenCalledWith(expect.objectContaining({
+        action: "agent_config:read",
+        resource: { type: "agent", companyId, agentId: peerAgentId },
+        scope: { targetAgentId: peerAgentId },
+      }));
     });
 
-    it("allows an agent actor with agents:create grant to read peer config", async () => {
-      // When an agent actor has an explicit agents:create grant in the
-      // access service, the read gate must let them through.
+    it("allows an agent actor with in-scope agents:configure authority to read peer config", async () => {
       const peerAgentId = "44444444-4444-4444-8444-444444444444";
       const peerAgent = { ...baseAgent, id: peerAgentId };
       mockAgentService.getById.mockImplementation(async (id: string) => {
@@ -1740,11 +1743,11 @@ describe.sequential("agent permission routes", () => {
         }
         return null;
       });
-      mockAccessService.hasPermission.mockImplementation(
-        async (_companyId: string, _principalType: string, principalId: string, key: string) => {
-          return principalId === agentId && key === "agents:create";
-        },
-      );
+      mockAccessService.decide.mockResolvedValue({
+        allowed: true,
+        reason: "allow_explicit_grant",
+        explanation: "Allowed by explicit grant agents:configure.",
+      });
 
       const app = await createApp({
         type: "agent",

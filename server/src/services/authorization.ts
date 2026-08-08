@@ -115,7 +115,7 @@ function companyIdForResource(resource: AuthorizationResource) {
 }
 
 function permissionForAction(action: AuthorizationAction): PermissionKey | null {
-  if (action === "agent_config:read" || action === "agent_config:update") return "agents:create";
+  if (action === "agent_config:read" || action === "agent_config:update") return "agents:configure";
   if (
     action === "agent:read" ||
     action === "agent:wake" ||
@@ -1184,6 +1184,40 @@ export function authorizationService(db: Db) {
       return broadDecision;
     }
 
+    async function decideWithAgentConfigurationGrant(
+      principalType: PrincipalType,
+      principalId: string,
+    ): Promise<AuthorizationDecision> {
+      const configureDecision = await decidePrincipalGrant({
+        companyId,
+        principalType,
+        principalId,
+        action: input.action,
+        permissionKey: "agents:configure",
+        scope: input.scope,
+      });
+      if (configureDecision.allowed || configureDecision.reason !== "deny_missing_grant") {
+        return configureDecision;
+      }
+
+      // Preserve the pre-advanced-permissions contract for principals that
+      // have not yet been migrated. Once an explicit agents:configure grant
+      // exists, its scope is authoritative and cannot fall through to this
+      // compatibility grant.
+      const legacyGrantDecision = await decidePrincipalGrant({
+        companyId,
+        principalType,
+        principalId,
+        action: input.action,
+        permissionKey: "agents:create",
+        scope: input.scope,
+      });
+      if (legacyGrantDecision.allowed || legacyGrantDecision.reason !== "deny_missing_grant") {
+        return legacyGrantDecision;
+      }
+      return configureDecision;
+    }
+
     async function denyForAssignmentPolicyIfNeeded(
       policyEffect: AssignmentPolicyEffect,
     ): Promise<AuthorizationDecision | null> {
@@ -1295,6 +1329,9 @@ export function authorizationService(db: Db) {
             explanation: "Allowed by simple mode company-wide task assignment default.",
           });
         }
+      }
+      if (input.action === "agent_config:read" || input.action === "agent_config:update") {
+        return decideWithAgentConfigurationGrant("user", input.actor.userId);
       }
       if (!permissionKey) {
         if (
@@ -1542,6 +1579,21 @@ export function authorizationService(db: Db) {
       });
     }
 
+    if (input.action === "agent_config:read" || input.action === "agent_config:update") {
+      const grantDecision = await decideWithAgentConfigurationGrant("agent", actorAgentId);
+      if (grantDecision.allowed || grantDecision.reason === "deny_scope") {
+        return grantDecision;
+      }
+      if (canCreateAgentsLegacy(actorAgent)) {
+        return allow({
+          action: input.action,
+          reason: "allow_legacy_agent_creator",
+          explanation: "Allowed by legacy agent creator authority.",
+        });
+      }
+      return grantDecision;
+    }
+
     if (permissionKey) {
       const grantDecision = await decidePrincipalGrant({
         companyId,
@@ -1556,8 +1608,6 @@ export function authorizationService(db: Db) {
 
     if (
       (input.action === "agents:create" ||
-        input.action === "agent_config:read" ||
-        input.action === "agent_config:update" ||
         input.action === "tasks:manage_active_checkouts") &&
       canCreateAgentsLegacy(actorAgent)
     ) {
