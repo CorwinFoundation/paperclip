@@ -62,6 +62,11 @@ def _score_fixture(rubric: Rubric, fixture_id: str) -> dict[str, Any]:
 
 
 def main() -> int:
+    # This offline golden-fixture gate signs only process-local applicability
+    # envelopes. Opt into the existing non-secret test key explicitly so the
+    # documented bare command is reproducible from a clean checkout; a real
+    # configured key still takes precedence in ApiConfig.bundle_signing_key().
+    os.environ.setdefault("ARE_ALLOW_DEV_SIGNING_KEY", "true")
     rubric = Rubric.load(RUBRIC_PATH)
     rows: list[dict[str, Any]] = []
     failures: list[str] = []
