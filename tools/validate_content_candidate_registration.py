@@ -18,11 +18,15 @@ from tools.content_candidate_inventory import (
     INVENTORY_SHA256,
     load_candidate_inventory,
 )
+from tools.founder_dev_mode import assert_production_attested
 
 
 def main() -> int:
     inventory = load_candidate_inventory()
     registry = build_registry()
+    # Production boundary: this validator publishes customer-visible counts.
+    # Fail closed if a dev-mode-scored family is live (unset dev-mode to publish).
+    assert_production_attested(registry)
     candidates = [
         row for row in registry if row.get("content_candidate_inventory") is True
     ]

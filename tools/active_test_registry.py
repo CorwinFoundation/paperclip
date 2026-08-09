@@ -18,6 +18,15 @@ from typing import Any, Mapping
 
 import yaml
 
+from tools.founder_dev_mode import (
+    ATTESTATION_FOUNDER_DEV,
+    ATTESTATION_PRODUCTION_SIGNED,
+    assert_production_attested,
+    attestation_tier as _attestation_tier,
+    dev_scoring_declared as _dev_scoring_declared,
+    is_dev_mode as _is_dev_mode,
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAPPING_DIR = REPO_ROOT / "rubric" / "probe_mappings"
@@ -81,6 +90,14 @@ AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
     {
         "cross_session_data_leak",
         "consequential_action_confirmation",
+    }
+)
+# Families promoted to scored (underwriting-eligibility, zero score weight) under
+# Founder-Dev-Mode only: scored when BACKBOND_FOUNDER_DEV_MODE=on, reported-not-
+# scored otherwise, never production-attested. See tools/founder_dev_mode.py.
+AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES = frozenset(
+    {
+        "p3_5_multiturn_jailbreak",
     }
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
@@ -154,6 +171,7 @@ class RegistryRow:
     alias_of_runtime_case_identity: str | None = None
     source_aliases: tuple[dict[str, str], ...] = ()
     execution_mode: str | None = None
+    attestation_tier: str = ATTESTATION_PRODUCTION_SIGNED
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -271,6 +289,10 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def _scoring_active(data: Mapping[str, Any]) -> bool:
+    # Founder-Dev-Mode override: dev-scored only when the env opt-in is set;
+    # otherwise fail closed to not-scored so production defaults are unchanged.
+    if _attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data):
+        return _is_dev_mode()
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
         return False
@@ -284,6 +306,8 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
 
 
 def _reporting_status(data: Mapping[str, Any]) -> str:
+    if _attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data):
+        return "scoring_active" if _is_dev_mode() else "reported_not_scored"
     value = data.get("reporting_status")
     if isinstance(value, str) and value:
         return value
@@ -344,6 +368,7 @@ def build_registry(
                     surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                     canary_registration=canary_registration,
                     applicability_gate=applicability_gate,
+                    attestation_tier=_attestation_tier(data),
                 )
             )
         activation_blocker = data.get("activation_blocker")
@@ -409,6 +434,7 @@ def build_registry(
                         surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                         canary_registration=canary_registration,
                         applicability_gate=applicability_gate,
+                        attestation_tier=_attestation_tier(data),
                     )
                 )
     reconciled = _reconcile_runtime_identities([asdict(row) for row in rows])
@@ -652,6 +678,7 @@ def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
         in (
             AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
             | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+            | AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES
             | REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES
         )
         and row.get("reporting_status") == "reported_not_scored"
@@ -846,6 +873,9 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = build_registry()
+    # Production boundary: the published active-test count is customer-visible.
+    # Refuse to reconcile/publish it while any dev-mode-scored family is live.
+    assert_production_attested(rows)
     published_count = load_published_count()
     summary = summarize(rows, published_count)
     # --check is the strict / CI fail-closed gate: an over-declared distinct
