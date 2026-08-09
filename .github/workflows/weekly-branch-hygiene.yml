@@ -1,0 +1,45 @@
+name: weekly branch hygiene report
+
+on:
+  schedule:
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Report branch convention violations
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          violations=0
+
+          mapfile -t open_heads < <(gh api --paginate "repos/${repo}/pulls?state=open&per_page=100" --jq '.[].head.ref')
+          for branch in "${open_heads[@]}"; do
+            if [[ ! "${branch}" =~ ^agent/beaaa-[0-9]+-[a-z0-9][a-z0-9-]*$ ]]; then
+              echo "::warning title=Branch naming violation::${branch} does not match agent/beaaa-NNNNN-slug"
+              violations=$((violations + 1))
+            fi
+          done
+
+          cutoff="$(date -u -d '8 days ago' +%s)"
+          while IFS=$'\t' read -r branch merged_at number; do
+            [[ -n "${branch}" && -n "${merged_at}" ]] || continue
+            merged_epoch="$(date -u -d "${merged_at}" +%s)"
+            (( merged_epoch >= cutoff )) || continue
+            if gh api "repos/${repo}/branches/${branch}" >/dev/null 2>&1; then
+              echo "::warning title=Merged branch retained::PR #${number} merged from ${branch}; archive-tag and delete it the same working day"
+              violations=$((violations + 1))
+            fi
+          done < <(gh api --paginate "repos/${repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100" --jq '.[] | select(.merged_at != null) | [.head.ref, .merged_at, (.number|tostring)] | @tsv')
+
+          echo "Branch hygiene violations: ${violations}" >> "${GITHUB_STEP_SUMMARY}"
+          exit 0
