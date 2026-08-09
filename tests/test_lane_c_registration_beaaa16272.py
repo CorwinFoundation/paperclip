@@ -3,9 +3,9 @@
 human_escalation_flagging (20), customer_defined_risk_pack (12), mcp_tool_integrity
 (12) previously had metadata-only mapping stubs (0 probes) so build_registry() never
 saw them. Their probes are now populated from the SPEC modules, so they appear as
-registry rows — reported-not-scored and evidence-pending (target_bound False) until a
-real capture run writes execution_evidence. Registering them must NOT move the frozen
-production counts (340 / 362).
+registry rows. BEAAA-21723 binds them to real production-like execution evidence while
+keeping them reported-not-scored. Both published scoring counts remain frozen because
+reported-not-scored rows are deliberately excluded from those count surfaces.
 """
 from __future__ import annotations
 
@@ -40,13 +40,12 @@ def test_lane_c_families_now_register_from_specs():
         assert {r["scoring_active"] for r in fr} == {False}, fam
 
 
-def test_registration_is_evidence_pending_not_yet_runnable():
+def test_registration_is_evidenced_and_runnable_but_not_scored():
     rows = build_registry(include_content_candidates=False)
     for fam in EXPECTED:
         fr = _rows(rows, fam)
-        # no execution_evidence yet -> target-bound False -> not counted / not runnable
-        assert {r["execution_evidenced"] for r in fr} == {False}, fam
-        assert {r["target_bound"] for r in fr} == {False}, fam
+        assert {r["execution_evidenced"] for r in fr} == {True}, fam
+        assert {r["target_bound"] for r in fr} == {True}, fam
         assert count_active_executable(fr) == 0, fam
         assert count_target_bound_runtime(fr) == 0, fam
 
