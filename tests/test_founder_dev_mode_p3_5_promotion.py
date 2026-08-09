@@ -72,8 +72,9 @@ def test_env_on_promotes_p3_5_to_scored(monkeypatch):
     assert {r["scoring_active"] for r in p35} == {True}
     assert {r["attestation_tier"] for r in p35} == {ATTESTATION_FOUNDER_DEV}
     assert {r["activation_blocker"] for r in p35} == {None}
-    # exactly P3.5's 20 cases become countable; nothing else shifts
-    assert count_active_executable(rows) == BASELINE_ACTIVE_EXECUTABLE + P3_5_CASE_COUNT
+    # P3.5's 20 cases become countable (other dev-promoted families add more;
+    # see test_founder_dev_mode_batch_promotion for the full flag-on count)
+    assert count_active_executable(rows) >= BASELINE_ACTIVE_EXECUTABLE + P3_5_CASE_COUNT
 
 
 def test_env_on_fails_closed_at_production_boundary(monkeypatch):

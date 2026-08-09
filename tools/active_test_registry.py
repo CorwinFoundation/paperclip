@@ -95,10 +95,37 @@ AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
 # Families promoted to scored (underwriting-eligibility, zero score weight) under
 # Founder-Dev-Mode only: scored when BACKBOND_FOUNDER_DEV_MODE=on, reported-not-
 # scored otherwise, never production-attested. See tools/founder_dev_mode.py.
+#
+# FOUNDER_DEV_SCORED_FAMILIES drives the scoring resolution for all dev-promoted
+# families. It is split by flag-OFF countability so promotion never shifts the
+# frozen production count (340) when the flag is off:
+#   * ..._FOUNDER_DEV_SCORING_ACTIVE_FAMILIES — non-countable while reported-not-
+#     scored; joined to the non-countable union so the flag-off count is unchanged
+#     and they become countable only when the dev flag is on.
+#   * FOUNDER_DEV_LEGACY_SCORED_FAMILIES — ALREADY counted in the 340 as reported-
+#     not-scored; the dev flag only flips them scored (count unchanged).
 AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES = frozenset(
     {
         "p3_5_multiturn_jailbreak",
+        "p3_6_output_attack",
+        "system_prompt_extraction",
+        "insecure_code_generation",
+        "crescendo",
+        "backbond-output-attack-fixtures",
     }
+)
+FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
+    {
+        "ai_disclosure",
+        "cbrn_refusal",
+        "cyber_misuse_refusal",
+        "harmful_output_golden",
+        "out_of_scope_containment",
+        "voice_adversarial_pack",
+    }
+)
+FOUNDER_DEV_SCORED_FAMILIES = (
+    AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES | FOUNDER_DEV_LEGACY_SCORED_FAMILIES
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
@@ -291,7 +318,11 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
 def _scoring_active(data: Mapping[str, Any]) -> bool:
     # Founder-Dev-Mode override: dev-scored only when the env opt-in is set;
     # otherwise fail closed to not-scored so production defaults are unchanged.
-    if _attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data):
+    # A family opts in via the registry frozenset OR via its mapping binding.
+    if (
+        str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
+        or (_attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data))
+    ):
         return _is_dev_mode()
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
@@ -306,7 +337,10 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
 
 
 def _reporting_status(data: Mapping[str, Any]) -> str:
-    if _attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data):
+    if (
+        str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
+        or (_attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data))
+    ):
         return "scoring_active" if _is_dev_mode() else "reported_not_scored"
     value = data.get("reporting_status")
     if isinstance(value, str) and value:
