@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "artifacts/beaaa-19931/vapi-invalid-family-verifier-specifications-v1.0.json"
-LEDGER = ROOT / "artifacts/beaaa-19327/scoreability-ledger-v1.1"
+LEDGER = ROOT / "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json"
 
 def test_all_invalid_families_have_exactly_one_pinned_disposition():
     registry = json.loads(REGISTRY.read_text())

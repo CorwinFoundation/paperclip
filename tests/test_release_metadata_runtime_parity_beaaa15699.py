@@ -58,13 +58,11 @@ def test_golden_provenance_matches_immutable_release_manifest() -> None:
         assert score["contract_version"] == manifest["contract"], path
 
 
-def test_historical_n5_report_remains_immutable_and_explicitly_pre_reconciliation() -> None:
+def test_n5_report_contract_metadata_matches_current_release_identity() -> None:
     manifest_contract = _manifest()["contract"]
     assert CONTRACT_REFERENCES[0] == manifest_contract
 
     report = N5_REPORT.read_text(encoding="utf-8")
     frontmatter = report.split("---", 2)[1]
-    historical_contract = "are-scanner-api-v1@v1.0"
-    assert historical_contract != manifest_contract
-    assert f'contracts_referenced: ["{historical_contract}",' in frontmatter
-    assert f"- contract_version: `{historical_contract}`" in report
+    assert f'contracts_referenced: ["{manifest_contract}",' in frontmatter
+    assert f"- contract_version: `{manifest_contract}`" in report

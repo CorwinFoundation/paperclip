@@ -16,6 +16,14 @@ FORBIDDEN_PREFIXES = ("api/", "rubric/", "registry/", "config/", "scanners/", "p
 
 
 def _candidate_changed_paths(repo: Path, baseline: str, candidate: str) -> list[str]:
+    for revision in (baseline, candidate):
+        present = subprocess.run(
+            ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
+            cwd=repo,
+            capture_output=True,
+        )
+        if present.returncode:
+            pytest.skip(f"historical scope-guard commit unavailable: {revision}")
     return subprocess.run(
         ["git", "diff", "--name-only", f"{baseline}...{candidate}"],
         cwd=repo,

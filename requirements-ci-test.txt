@@ -1,0 +1,2 @@
+# Dependencies imported directly by tests collected in the main pytest job.
+jsonschema==4.26.0

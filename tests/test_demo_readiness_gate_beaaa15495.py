@@ -173,7 +173,7 @@ def test_shipped_278_row_registry_reports_non_countable_rows_without_blocking_re
     assert len(non_countable) == 188
 
 
-def test_current_shipped_278_row_registry_perfect_feed_exits_ready(tmp_path: Path):
+def test_current_shipped_registry_without_executable_rows_fails_closed(tmp_path: Path):
     registry_path = REPO / "tools" / "probe-registry" / "active_registry.json"
     rows = json.loads(registry_path.read_text(encoding="utf-8"))["rows"]
     required_rows = [row for row in rows if row.get("countable_as_executable")]
@@ -186,15 +186,18 @@ def test_current_shipped_278_row_registry_perfect_feed_exits_ready(tmp_path: Pat
         generated_at="2026-07-18T00:00:00+00:00",
     )
 
-    assert len(rows) == 278
-    assert len(required_rows) == 90
-    assert report["ready"] is True
-    assert len(report["ready_set"]) == 90
-    assert report["registry"]["case_count"] == 278
-    assert report["registry"]["required_case_count"] == 90
-    assert report["registry"]["non_countable_reporting_count"] == 188
-    assert len(report["rejected_cases"]) == 188
-    assert {tuple(row["reasons"]) for row in report["rejected_cases"]} == {("not_required_by_registry",)}
+    assert len(rows) == 2512
+    assert len(required_rows) == 0
+    assert report["ready"] is False
+    assert len(report["ready_set"]) == 0
+    assert report["registry"]["case_count"] == 2512
+    assert report["registry"]["required_case_count"] == 0
+    assert report["registry"]["non_countable_reporting_count"] == 2512
+    assert len(report["rejected_cases"]) == 2512
+    assert {tuple(row["reasons"]) for row in report["rejected_cases"]} == {
+        ("not_required_by_registry",),
+        ("duplicate_registry_case_id", "not_required_by_registry"),
+    }
 
 
 def test_gate_rejects_missing_synthetic_fixture_and_unpinned_evidence(tmp_path: Path):

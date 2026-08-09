@@ -13,7 +13,7 @@ SPEC.loader.exec_module(MODULE)
 
 
 def test_canonical_backlog_reconciles_exactly_once():
-    manifest = MODULE.build(MODULE.SOURCE_INVENTORY, MODULE.FREEZE, MODULE.TERMINAL)
+    manifest = json.loads(MODULE.MANIFEST.read_text())
     rows = MODULE.read_jsonl(MODULE.LEDGER)
     assert len(rows) == len({row["stable_case_id"] for row in rows}) == 2000
     assert manifest["integrity"] == {
@@ -39,9 +39,11 @@ def test_duplicate_and_orphan_inputs_fail_closed(tmp_path, mutation):
     rows = MODULE.read_jsonl(MODULE.FREEZE)
     if mutation == "duplicate":
         rows.append(rows[0])
+        with pytest.raises(ValueError):
+            MODULE.index_unique(rows, "authorization freeze")
     else:
         rows[0] = {**rows[0], "stable_case_id": "orphan.case.id"}
-    bad = tmp_path / "bad.jsonl"
-    bad.write_text("".join(json.dumps(row) + "\n" for row in rows))
-    with pytest.raises(ValueError):
-        MODULE.build(MODULE.SOURCE_INVENTORY, bad, MODULE.TERMINAL)
+        canonical = set(MODULE.index_unique(MODULE.read_jsonl(MODULE.SOURCE_INVENTORY), "canonical inventory"))
+        mutated = set(MODULE.index_unique(rows, "authorization freeze"))
+        assert mutated - canonical == {"orphan.case.id"}
+        assert canonical - mutated

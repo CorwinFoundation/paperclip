@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from evals.vapi_deterministic.tranche1 import build_results, normalize_text, verify_row
-from evals.vapi_deterministic.verifier import canonical_bytes
+from evals.vapi_deterministic.tranche1 import build_results, canonical_bytes, normalize_text, verify_row
 
 SOURCE = Path("artifacts/beaaa-19930/retained-tranche-source-v1.0.json")
 SOURCE_SHA256 = "9c3b9bb8aec359e5acbe1d2f15323669ffc2c7eb5ef8665d3e454417d2722738"

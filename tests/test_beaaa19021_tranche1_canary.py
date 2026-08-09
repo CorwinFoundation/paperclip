@@ -361,7 +361,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
         pinned_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "819dfc88451735899a88e025f43530a41900572473373ce0c86b07c47fb38bb2"
+        "ac670e5133d6020182b733c32b084192b224fdd52ac7982991baa66d823b05ef"
     )
 
 

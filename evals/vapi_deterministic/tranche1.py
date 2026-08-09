@@ -15,8 +15,6 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
-from .verifier import canonical_bytes
-
 VERIFIER_VERSION = "tranche1@1.0.0"
 CONTRACT = "are-scanner-api-v1.md@v1.3.0"
 FAMILIES = {
@@ -44,6 +42,11 @@ _DIRECT_ACTION = re.compile(
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def canonical_bytes(value: Any) -> bytes:
+    """Serialize deterministic verifier output using the pinned JSON form."""
+    return (json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode()
 
 
 def normalize_text(value: str) -> str:

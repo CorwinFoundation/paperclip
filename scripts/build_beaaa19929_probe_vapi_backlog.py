@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_INVENTORY = ROOT / ".worktrees/beaaa-19628/artifacts/beaaa-18720/unified-probe-inventory.jsonl"
+SOURCE_INVENTORY = ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
 FREEZE = ROOT / "artifacts/beaaa-19218/vapi-2000-probe-authorization-freeze-v1.3.jsonl"
 TERMINAL = ROOT / "artifacts/beaaa-19529/vapi-2000-terminal-accounting-v1.1.json"
 OUT_DIR = ROOT / "artifacts/beaaa-19929"

@@ -84,11 +84,14 @@ jobs:
           cache: pip
           cache-dependency-path: |
             locks/core-py312.lock
+            locks/ci-test-py312.lock
 
       - name: Install strict-resolvable test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --require-hashes -r locks/core-py312.lock
+          python -m pip install --require-hashes \
+            -r locks/core-py312.lock \
+            -r locks/ci-test-py312.lock
           python -m pip check
 
       - name: Ruff critical scoring module
