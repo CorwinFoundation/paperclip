@@ -576,6 +576,180 @@ describe.sequential("agent permission routes", () => {
     expect(mockLogActivity).not.toHaveBeenCalled();
   });
 
+  it("allows an authorized agent to PATCH a full adapter config with unchanged protected fields", async () => {
+    const targetAgentId = "33333333-3333-4333-8333-333333333333";
+    const persistedAdapterConfig = {
+      command: "node",
+      args: ["agent.js"],
+      cwd: "/tmp/agent",
+      instructionsBundleMode: "managed",
+      instructionsRootPath: "/tmp/agent/instructions",
+      instructionsEntryFile: "AGENTS.md",
+      instructionsFilePath: "/tmp/agent/instructions/AGENTS.md",
+      workspaceStrategy: {
+        type: "git_worktree",
+        provisionCommand: "pnpm install",
+        teardownCommand: "pnpm clean",
+      },
+    };
+    const targetAgent = {
+      ...baseAgent,
+      id: targetAgentId,
+      adapterConfig: persistedAdapterConfig,
+    };
+    mockAgentService.getById.mockResolvedValue(targetAgent);
+    mockAgentService.update.mockResolvedValue(targetAgent);
+    mockAccessService.decide.mockResolvedValue({
+      allowed: true,
+      reason: "allow_explicit_grant",
+      explanation: "Allowed by explicit grant agents:configure.",
+    });
+
+    const app = await createApp({
+      type: "agent",
+      agentId,
+      companyId,
+      source: "agent_key",
+      runId: "run-1",
+    });
+
+    const res = await requestApp(app, (baseUrl) => request(baseUrl)
+      .patch(`/api/agents/${targetAgentId}`)
+      .send({
+        adapterConfig: {
+          ...persistedAdapterConfig,
+          args: ["agent.js", "--once"],
+        },
+      }));
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(mockAccessService.decide).toHaveBeenCalledWith(expect.objectContaining({
+      action: "agent_config:update",
+      resource: { type: "agent", companyId, agentId: targetAgentId },
+      scope: { targetAgentId },
+    }));
+    expect(mockAgentService.update).toHaveBeenCalledWith(
+      targetAgentId,
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          args: ["agent.js", "--once"],
+          instructionsRootPath: persistedAdapterConfig.instructionsRootPath,
+          workspaceStrategy: persistedAdapterConfig.workspaceStrategy,
+        }),
+      }),
+      expect.anything(),
+    );
+  }, 15_000);
+
+  it("blocks an authorized agent from changing a protected instructions value in a full adapter config", async () => {
+    const persistedAdapterConfig = {
+      instructionsBundleMode: "managed",
+      instructionsRootPath: "/tmp/agent/instructions",
+      instructionsEntryFile: "AGENTS.md",
+      instructionsFilePath: "/tmp/agent/instructions/AGENTS.md",
+    };
+    mockAgentService.getById.mockResolvedValue({
+      ...baseAgent,
+      adapterConfig: persistedAdapterConfig,
+    });
+
+    const app = await createApp({
+      type: "agent",
+      agentId,
+      companyId,
+      source: "agent_key",
+      runId: "run-1",
+    });
+
+    const res = await requestApp(app, (baseUrl) => request(baseUrl)
+      .patch(`/api/agents/${agentId}`)
+      .send({
+        adapterConfig: {
+          ...persistedAdapterConfig,
+          instructionsRootPath: "/tmp/other/instructions",
+        },
+      }));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("adapterConfig.instructionsRootPath");
+    expect(mockAgentService.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks an authorized agent from changing a protected workspace command in a full adapter config", async () => {
+    const persistedAdapterConfig = {
+      workspaceStrategy: {
+        type: "git_worktree",
+        provisionCommand: "pnpm install",
+        teardownCommand: "pnpm clean",
+      },
+    };
+    mockAgentService.getById.mockResolvedValue({
+      ...baseAgent,
+      adapterConfig: persistedAdapterConfig,
+    });
+
+    const app = await createApp({
+      type: "agent",
+      agentId,
+      companyId,
+      source: "agent_key",
+      runId: "run-1",
+    });
+
+    const res = await requestApp(app, (baseUrl) => request(baseUrl)
+      .patch(`/api/agents/${agentId}`)
+      .send({
+        adapterConfig: {
+          ...persistedAdapterConfig,
+          workspaceStrategy: {
+            ...persistedAdapterConfig.workspaceStrategy,
+            provisionCommand: "pnpm install --ignore-scripts",
+          },
+        },
+      }));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("adapterConfig.workspaceStrategy.provisionCommand");
+    expect(mockAgentService.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks an unprotected agent patch when canonical sync introduces a protected instructions value", async () => {
+    mockAgentService.getById.mockResolvedValue({
+      ...baseAgent,
+      adapterConfig: {
+        command: "node",
+        args: ["agent.js"],
+      },
+    });
+    mockSyncInstructionsBundleConfigFromFilePath.mockImplementation((_agent, config) => ({
+      ...config,
+      instructionsBundleMode: "external",
+      instructionsRootPath: "/tmp/synced/instructions",
+      instructionsEntryFile: "AGENTS.md",
+      instructionsFilePath: "/tmp/synced/instructions/AGENTS.md",
+    }));
+
+    const app = await createApp({
+      type: "agent",
+      agentId,
+      companyId,
+      source: "agent_key",
+      runId: "run-1",
+    });
+
+    const res = await requestApp(app, (baseUrl) => request(baseUrl)
+      .patch(`/api/agents/${agentId}`)
+      .send({
+        adapterConfig: {
+          args: ["agent.js", "--once"],
+        },
+      }));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("adapterConfig.instructionsBundleMode");
+    expect(mockAgentService.update).not.toHaveBeenCalled();
+  });
+
   it("blocks agent-authenticated self-updates that set cheap-profile host-executed workspace commands", async () => {
     mockAgentService.getById.mockResolvedValue({
       ...baseAgent,

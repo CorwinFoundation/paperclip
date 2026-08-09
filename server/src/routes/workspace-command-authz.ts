@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { isDeepStrictEqual } from "node:util";
 import { forbidden } from "../errors.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,6 +57,25 @@ export function collectAgentAdapterWorkspaceCommandPaths(
     adapterConfig.workspaceStrategy,
     `${prefix}.workspaceStrategy`,
   );
+}
+
+export function collectChangedAgentAdapterWorkspaceCommandPaths(
+  existingAdapterConfig: unknown,
+  nextAdapterConfig: unknown,
+  prefix = "adapterConfig",
+): string[] {
+  const existingWorkspaceStrategy = isRecord(existingAdapterConfig)
+    ? existingAdapterConfig.workspaceStrategy
+    : undefined;
+  const nextWorkspaceStrategy = isRecord(nextAdapterConfig)
+    ? nextAdapterConfig.workspaceStrategy
+    : undefined;
+  const existingCommands = isRecord(existingWorkspaceStrategy) ? existingWorkspaceStrategy : {};
+  const nextCommands = isRecord(nextWorkspaceStrategy) ? nextWorkspaceStrategy : {};
+
+  return ["provisionCommand", "teardownCommand"]
+    .filter((key) => !isDeepStrictEqual(existingCommands[key], nextCommands[key]))
+    .map((key) => `${prefix}.workspaceStrategy.${key}`);
 }
 
 export function collectProjectExecutionWorkspaceCommandPaths(policy: unknown): string[] {

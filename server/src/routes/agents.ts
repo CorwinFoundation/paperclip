@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { generateKeyPairSync, randomUUID } from "node:crypto";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import type { Db } from "@paperclipai/db";
 import { agents as agentsTable, companies, heartbeatRuns, issues as issuesTable, projects as projectsTable } from "@paperclipai/db";
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
@@ -56,6 +57,7 @@ import { assertBoard, assertCompanyAccess, assertInstanceAdmin, getActorInfo } f
 import {
   assertNoAgentHostWorkspaceCommandMutation,
   collectAgentAdapterWorkspaceCommandPaths,
+  collectChangedAgentAdapterWorkspaceCommandPaths,
 } from "./workspace-command-authz.js";
 import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 import { environmentService } from "../services/environments.js";
@@ -1327,10 +1329,13 @@ export function agentRoutes(
     req: Request,
     adapterConfig: Record<string, unknown> | null | undefined,
     path = "adapterConfig",
+    existingAdapterConfig?: Record<string, unknown>,
   ) {
     if (req.actor.type !== "agent" || !adapterConfig) return;
     const changedSensitiveKeys = KNOWN_INSTRUCTIONS_BUNDLE_KEYS
-      .filter((key) => adapterConfig[key] !== undefined)
+      .filter((key) => existingAdapterConfig
+        ? !isDeepStrictEqual(existingAdapterConfig[key], adapterConfig[key])
+        : adapterConfig[key] !== undefined)
       .map((key) => `${path}.${key}`);
     if (changedSensitiveKeys.length === 0) return;
     throw forbidden(
@@ -1338,19 +1343,27 @@ export function agentRoutes(
     );
   }
 
-  function adapterConfigTouchesInstructionsConfig(adapterConfig: Record<string, unknown>) {
-    return KNOWN_INSTRUCTIONS_BUNDLE_KEYS.some((key) => adapterConfig[key] !== undefined);
+  function adapterConfigChangesInstructionsConfig(
+    existingAdapterConfig: Record<string, unknown>,
+    nextAdapterConfig: Record<string, unknown>,
+  ) {
+    return KNOWN_INSTRUCTIONS_BUNDLE_KEYS.some((key) =>
+      !isDeepStrictEqual(existingAdapterConfig[key], nextAdapterConfig[key]),
+    );
   }
 
   function assertNoAgentAdapterConfigMutation(
     req: Request,
     adapterConfig: Record<string, unknown>,
     path = "adapterConfig",
+    existingAdapterConfig?: Record<string, unknown>,
   ) {
-    assertNoAgentInstructionsConfigMutation(req, adapterConfig, path);
+    assertNoAgentInstructionsConfigMutation(req, adapterConfig, path, existingAdapterConfig);
     assertNoAgentHostWorkspaceCommandMutation(
       req,
-      collectAgentAdapterWorkspaceCommandPaths(adapterConfig, path),
+      existingAdapterConfig
+        ? collectChangedAgentAdapterWorkspaceCommandPaths(existingAdapterConfig, adapterConfig, path)
+        : collectAgentAdapterWorkspaceCommandPaths(adapterConfig, path),
     );
   }
 
@@ -2814,11 +2827,6 @@ export function agentRoutes(
         res.status(422).json({ error: "adapterConfig must be an object" });
         return;
       }
-      assertNoAgentAdapterConfigMutation(req, adapterConfig);
-      const changingInstructionsConfig = adapterConfigTouchesInstructionsConfig(adapterConfig);
-      if (changingInstructionsConfig) {
-        await assertCanManageInstructionsPath(req, existing);
-      }
       patchData.adapterConfig = adapterConfig;
     }
 
@@ -2845,15 +2853,6 @@ export function agentRoutes(
       const requestedAdapterConfig = hasOwn(patchData, "adapterConfig")
         ? (asRecord(patchData.adapterConfig) ?? {})
         : null;
-      if (
-        requestedAdapterConfig
-        && replaceAdapterConfig
-        && KNOWN_INSTRUCTIONS_BUNDLE_KEYS.some((key) =>
-          existingAdapterConfig[key] !== undefined && requestedAdapterConfig[key] === undefined,
-        )
-      ) {
-        await assertCanManageInstructionsPath(req, existing);
-      }
       let rawEffectiveAdapterConfig = requestedAdapterConfig ?? existingAdapterConfig;
       if (requestedAdapterConfig && !changingAdapterType && !replaceAdapterConfig) {
         rawEffectiveAdapterConfig = { ...existingAdapterConfig, ...requestedAdapterConfig };
@@ -2890,7 +2889,17 @@ export function agentRoutes(
         adapterType: requestedAdapterType,
         adapterConfig: effectiveAdapterConfig,
       });
-      patchData.adapterConfig = syncInstructionsBundleConfigFromFilePath(existing, normalizedEffectiveAdapterConfig);
+      const nextAdapterConfig = syncInstructionsBundleConfigFromFilePath(existing, normalizedEffectiveAdapterConfig);
+      assertNoAgentAdapterConfigMutation(
+        req,
+        nextAdapterConfig,
+        "adapterConfig",
+        existingAdapterConfig,
+      );
+      if (adapterConfigChangesInstructionsConfig(existingAdapterConfig, nextAdapterConfig)) {
+        await assertCanManageInstructionsPath(req, existing);
+      }
+      patchData.adapterConfig = nextAdapterConfig;
     }
     if (requestedRuntimeConfig) {
       const baseAdapterConfig = asRecord(patchData.adapterConfig) ?? asRecord(existing.adapterConfig) ?? {};

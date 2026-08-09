@@ -217,32 +217,82 @@ describeEmbeddedPostgres("authorization service", () => {
     const actorAgent = await createAgent(db, company.id, {
       permissions: { canCreateAgents: true },
     });
-    const allowedTarget = await createAgent(db, company.id);
-    const deniedTarget = await createAgent(db, company.id);
+    const allowedTargets = await Promise.all([
+      createAgent(db, company.id),
+      createAgent(db, company.id),
+      createAgent(db, company.id),
+    ]);
+    const unlistedFourthTarget = await createAgent(db, company.id);
     await grantAgentPermission(db, company.id, actorAgent.id, "agents:configure", {
-      targetAgentIds: [allowedTarget.id],
+      targetAgentIds: allowedTargets.map((target) => target.id),
     });
     const authz = authorizationService(db);
 
-    await expect(authz.decide({
-      actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" },
-      action: "agent_config:update",
-      resource: { type: "agent", companyId: company.id, agentId: allowedTarget.id },
-      scope: { targetAgentId: allowedTarget.id },
-    })).resolves.toMatchObject({
-      allowed: true,
-      grant: { permissionKey: "agents:configure" },
-    });
+    for (const allowedTarget of allowedTargets) {
+      await expect(authz.decide({
+        actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" },
+        action: "agent_config:update",
+        resource: { type: "agent", companyId: company.id, agentId: allowedTarget.id },
+        scope: { targetAgentId: allowedTarget.id },
+      })).resolves.toMatchObject({
+        allowed: true,
+        grant: { permissionKey: "agents:configure" },
+      });
+    }
 
     await expect(authz.decide({
       actor: { type: "agent", agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" },
       action: "agent_config:update",
-      resource: { type: "agent", companyId: company.id, agentId: deniedTarget.id },
-      scope: { targetAgentId: deniedTarget.id },
+      resource: { type: "agent", companyId: company.id, agentId: unlistedFourthTarget.id },
+      scope: { targetAgentId: unlistedFourthTarget.id },
     })).resolves.toMatchObject({
       allowed: false,
       reason: "deny_scope",
       grant: { permissionKey: "agents:configure" },
+    });
+  });
+
+  it("denies agent configuration after an absent or removed explicit grant", async () => {
+    const company = await createCompany(db, "AgentConfigureGrantLifecycle");
+    const actorAgent = await createAgent(db, company.id);
+    const targetAgent = await createAgent(db, company.id);
+    await db.insert(companyMemberships).values({
+      companyId: company.id,
+      principalType: "agent",
+      principalId: actorAgent.id,
+      status: "active",
+      membershipRole: "member",
+    });
+    const authz = authorizationService(db);
+    const input = {
+      actor: { type: "agent" as const, agentId: actorAgent.id, companyId: company.id, source: "agent_jwt" as const },
+      action: "agent_config:update" as const,
+      resource: { type: "agent" as const, companyId: company.id, agentId: targetAgent.id },
+      scope: { targetAgentId: targetAgent.id },
+    };
+
+    await expect(authz.decide(input)).resolves.toMatchObject({
+      allowed: false,
+      reason: "deny_missing_grant",
+    });
+
+    await db.insert(principalPermissionGrants).values({
+      companyId: company.id,
+      principalType: "agent",
+      principalId: actorAgent.id,
+      permissionKey: "agents:configure",
+      scope: { targetAgentIds: [targetAgent.id] },
+      grantedByUserId: null,
+    });
+    await expect(authz.decide(input)).resolves.toMatchObject({
+      allowed: true,
+      grant: { permissionKey: "agents:configure" },
+    });
+
+    await db.delete(principalPermissionGrants);
+    await expect(authz.decide(input)).resolves.toMatchObject({
+      allowed: false,
+      reason: "deny_missing_grant",
     });
   });
 
