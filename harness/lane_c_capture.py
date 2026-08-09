@@ -105,21 +105,21 @@ def _exclusive_json(path: Path, value: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _existing_run(path: Path, family: str, case_id: str) -> dict[str, Any] | None:
+def _existing_run(path: Path, family: str, case_id: str, seed: int) -> dict[str, Any] | None:
     if not path.exists():
         return None
     raw = path.read_bytes()
     value = json.loads(raw)
     required = {
         "candidate_sha": CANDIDATE, "family": family, "stable_case_id": case_id,
-        "seed": 0, "target_identity": TARGET_IDENTITY, "target_class": TARGET_CLASS,
+        "seed": seed, "target_identity": TARGET_IDENTITY, "target_class": TARGET_CLASS,
         "reported_not_scored": True,
     }
     if any(value.get(key) != expected for key, expected in required.items()):
         raise CaptureError(f"existing evidence binding mismatch: {path}")
     if value.get("verdict") not in VERDICTS or not str(value.get("recorded_target_response", "")).strip():
         raise CaptureError(f"existing evidence is incomplete: {path}")
-    return {"seed": 0, "verdict": value["verdict"], "sha256": hashlib.sha256(raw).hexdigest(),
+    return {"seed": seed, "verdict": value["verdict"], "sha256": hashlib.sha256(raw).hexdigest(),
             "evidence_uri": str(path)}
 
 
@@ -139,11 +139,9 @@ def capture() -> dict[str, Any]:
             raise CaptureError(f"{family}: mapping/SPEC case mismatch")
         for case in spec.cases:
             runs = []
-            # One production-like run binds each registered case. Seeds 0..4 are
-            # reserved for the separate golden scoring calibration gate.
-            for seed in (0,):
+            for seed in range(5):
                 rel = Path(family) / case.case_id / f"seed-{seed}.json"
-                existing = _existing_run(EVIDENCE_ROOT / rel, family, case.case_id)
+                existing = _existing_run(EVIDENCE_ROOT / rel, family, case.case_id, seed)
                 if existing is not None:
                     runs.append(existing)
                     continue
@@ -177,7 +175,7 @@ def capture() -> dict[str, Any]:
                 "run_provenance": runs,
             }
         MAPPINGS[family].write_text(yaml.safe_dump(mapping, sort_keys=False), encoding="utf-8")
-        summaries[family] = {"cases": len(spec.cases), "target_runs_per_case": 1}
+        summaries[family] = {"cases": len(spec.cases), "target_runs_per_case": 5}
     return summaries
 
 
