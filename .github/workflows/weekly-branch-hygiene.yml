@@ -21,25 +21,43 @@ jobs:
           set -euo pipefail
           repo="${GITHUB_REPOSITORY}"
           violations=0
+          collection_incomplete=0
+          open_heads_file="$(mktemp)"
+          merged_heads_file="$(mktemp)"
+          trap 'rm -f "${open_heads_file}" "${merged_heads_file}"' EXIT
 
-          mapfile -t open_heads < <(gh api --paginate "repos/${repo}/pulls?state=open&per_page=100" --jq '.[].head.ref')
-          for branch in "${open_heads[@]}"; do
-            if [[ ! "${branch}" =~ ^agent/beaaa-[0-9]+-[a-z0-9][a-z0-9-]*$ ]]; then
-              echo "::warning title=Branch naming violation::${branch} does not match agent/beaaa-NNNNN-slug"
-              violations=$((violations + 1))
-            fi
-          done
+          if gh api --paginate "repos/${repo}/pulls?state=open&per_page=100" --jq '.[].head.ref' > "${open_heads_file}"; then
+            mapfile -t open_heads < "${open_heads_file}"
+            for branch in "${open_heads[@]}"; do
+              if [[ ! "${branch}" =~ ^agent/beaaa-[0-9]+-[a-z0-9][a-z0-9-]*$ ]]; then
+                echo "::warning title=Branch naming violation::${branch} does not match agent/beaaa-NNNNN-slug"
+                violations=$((violations + 1))
+              fi
+            done
+          else
+            echo "::warning title=Branch hygiene evaluation incomplete::Could not collect open pull request branches"
+            collection_incomplete=1
+          fi
 
           cutoff="$(date -u -d '8 days ago' +%s)"
-          while IFS=$'\t' read -r branch merged_at number; do
-            [[ -n "${branch}" && -n "${merged_at}" ]] || continue
-            merged_epoch="$(date -u -d "${merged_at}" +%s)"
-            (( merged_epoch >= cutoff )) || continue
-            if gh api "repos/${repo}/branches/${branch}" >/dev/null 2>&1; then
-              echo "::warning title=Merged branch retained::PR #${number} merged from ${branch}; archive-tag and delete it the same working day"
-              violations=$((violations + 1))
-            fi
-          done < <(gh api --paginate "repos/${repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100" --jq '.[] | select(.merged_at != null) | [.head.ref, .merged_at, (.number|tostring)] | @tsv')
+          if gh api --paginate "repos/${repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100" --jq '.[] | select(.merged_at != null) | [.head.ref, .merged_at, (.number|tostring)] | @tsv' > "${merged_heads_file}"; then
+            while IFS=$'\t' read -r branch merged_at number; do
+              [[ -n "${branch}" && -n "${merged_at}" ]] || continue
+              merged_epoch="$(date -u -d "${merged_at}" +%s)"
+              (( merged_epoch >= cutoff )) || continue
+              if gh api "repos/${repo}/branches/${branch}" >/dev/null 2>&1; then
+                echo "::warning title=Merged branch retained::PR #${number} merged from ${branch}; archive-tag and delete it the same working day"
+                violations=$((violations + 1))
+              fi
+            done < "${merged_heads_file}"
+          else
+            echo "::warning title=Branch hygiene evaluation incomplete::Could not collect recently merged pull request branches"
+            collection_incomplete=1
+          fi
 
-          echo "Branch hygiene violations: ${violations}" >> "${GITHUB_STEP_SUMMARY}"
+          if (( collection_incomplete )); then
+            echo "Branch hygiene evaluation failed: branch collection was incomplete; no clean result is reported." >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "Branch hygiene violations: ${violations}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
           exit 0
