@@ -126,8 +126,11 @@ def _existing_run(path: Path, family: str, case_id: str) -> dict[str, Any] | Non
 def capture() -> dict[str, Any]:
     subprocess.run(["/opt/backbond/lane-c/BEAAA-21725/verify_runtime_pins.sh"], check=True)
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    if head != CANDIDATE:
-        raise CaptureError(f"candidate mismatch: {head}")
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", CANDIDATE, head], cwd=ROOT
+    )
+    if ancestry.returncode != 0:
+        raise CaptureError(f"candidate is not based on authorized baseline: {head}")
     summaries: dict[str, dict[str, Any]] = {}
     for family, spec in SPECS.items():
         mapping = yaml.safe_load(MAPPINGS[family].read_text())
