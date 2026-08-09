@@ -1,0 +1,3 @@
+# BEAAA-21634 canonical Scanner report-renderer allowlist.
+# One absolute, resolved repository root per line. Blank lines and comments are ignored.
+/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner
