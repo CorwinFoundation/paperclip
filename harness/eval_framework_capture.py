@@ -135,7 +135,7 @@ def _post_json(url: str, key: str, payload: dict[str, Any]) -> dict[str, Any]:
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         method="POST",
     )
-    with request.urlopen(req, timeout=300) as response:
+    with request.urlopen(req, timeout=180) as response:
         value = json.loads(response.read().decode("utf-8"))
     if not isinstance(value, dict):
         raise ValueError("target returned a non-object response")
@@ -147,7 +147,7 @@ def _text_runner(probe: dict[str, Any], target: dict[str, str]) -> dict[str, str
     responses: list[str] = []
     for prompt in spec.prompts:
         result = _post_json(target["url"], target["key"], {
-            "model": target["model"], "temperature": 0, "seed": 0,
+            "model": target["model"], "temperature": 0, "seed": 0, "max_tokens": 256,
             "messages": [{"role": "user", "content": prompt}],
         })
         text = str(result["choices"][0]["message"]["content"]).strip()

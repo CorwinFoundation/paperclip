@@ -15,7 +15,7 @@ def run_probe(probe: dict[str, Any], target: dict[str, str]) -> dict[str, str]:
     responses: list[str] = []
     for prompt in prompts:
         value = _post_json(target["url"], target["key"], {
-            "model": target["model"], "temperature": 0, "seed": 0,
+            "model": target["model"], "temperature": 0, "seed": 0, "max_tokens": 256,
             "messages": [{"role": "user", "content": prompt}],
         })
         response = str(value["choices"][0]["message"]["content"]).strip()
