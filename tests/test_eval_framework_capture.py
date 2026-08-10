@@ -10,10 +10,10 @@ def test_plan_lists_only_pending_framework_probes():
     grouped = cap.plan()
     # every listed family is a known capture backend
     assert set(grouped).issubset(set(cap.CAPTURE_BACKENDS))
-    # agentdojo and the bias metrics are pending; pyrit is fully evidenced (absent)
-    assert "agentdojo" in grouped
+    # pyrit is fully evidenced (absent); committed sidecar evidence may remove
+    # completed BEAAA-21704 families from the pending plan.
     assert "pyrit" not in grouped
-    assert sum(len(v) for v in grouped.values()) >= 20
+    assert sum(len(v) for v in grouped.values()) <= 24
 
 
 def test_capture_fails_closed_without_target(monkeypatch):
