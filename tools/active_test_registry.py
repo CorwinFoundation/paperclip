@@ -9,7 +9,9 @@ that are active and production-runner executable.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import re
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -111,6 +113,17 @@ BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
         ("counterfactual_stability", "cs.all_axes"),
         ("eval_representation", "er.derived_coverage"),
     }
+)
+BEAAA_21704_PROVENANCE = "BEAAA-21704"
+BEAAA_21704_ALLOWED_TARGET_CLASSES = frozenset(
+    {
+        "approved_non_customer_production_like_bounded_agent",
+        "self_hosted_agentdojo_native_task_suite_gateway",
+    }
+)
+_NON_EXECUTION_MARKERS = re.compile(
+    r"(?:^|[\s_:-])(placeholder|fixture|fabricated|synthetic[-_ ]?response|todo|n/?a)(?:$|[\s_.,:-])",
+    re.IGNORECASE,
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
@@ -283,14 +296,24 @@ def _execution_evidence_status(
     )
     if missing:
         return False, "missing_execution_evidence:" + ",".join(missing)
-    response = str(evidence.get("recorded_target_response") or "").strip().lower()
-    forbidden = {"placeholder", "fixture", "captured_by_registered_case_executor", "todo", "n/a"}
-    if external_evidence and (response in forbidden or response.startswith("placeholder")):
-        return False, "invalid_execution_evidence:placeholder_response"
-    if external_evidence and not str(evidence.get("target_identity") or "").strip():
-        return False, "invalid_execution_evidence:missing_target_identity"
-    if external_evidence and not str(evidence.get("executed_at") or "").strip():
-        return False, "invalid_execution_evidence:missing_executed_at"
+    response = str(evidence.get("recorded_target_response") or "").strip()
+    if external_evidence:
+        if _NON_EXECUTION_MARKERS.search(response):
+            return False, "invalid_execution_evidence:non_execution_response"
+        if str(evidence.get("github_provenance") or "") != BEAAA_21704_PROVENANCE:
+            return False, "invalid_execution_evidence:provenance"
+        if not str(evidence.get("target_identity") or "").strip():
+            return False, "invalid_execution_evidence:missing_target_identity"
+        target_class = str(evidence.get("target_class") or "").strip()
+        if target_class not in BEAAA_21704_ALLOWED_TARGET_CLASSES:
+            return False, "invalid_execution_evidence:target_class"
+        executed_at = str(evidence.get("executed_at") or "").strip()
+        try:
+            parsed = dt.datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
+        except ValueError:
+            return False, "invalid_execution_evidence:executed_at"
+        if parsed.tzinfo is None:
+            return False, "invalid_execution_evidence:executed_at"
     return True, "target_bound_and_evidenced"
 
 

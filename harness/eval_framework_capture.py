@@ -84,12 +84,17 @@ def target_config() -> dict[str, str]:
 def pending_probes(framework: str | None = None) -> list[dict[str, Any]]:
     """Framework probes that are target-bound but not yet execution-evidenced."""
     rows = build_registry(include_content_candidates=False)
+    captured_keys = set()
+    if EVIDENCE_PATH.exists():
+        captured_keys = set(json.loads(EVIDENCE_PATH.read_text(encoding="utf-8")))
     out = []
     for r in rows:
         fam = r.get("test_id")
         if fam not in CAPTURE_BACKENDS:
             continue
         if framework and fam != framework:
+            continue
+        if f"{fam}:{r.get('case_id')}" in captured_keys:
             continue
         if r.get("execution_evidenced") is True:
             continue
