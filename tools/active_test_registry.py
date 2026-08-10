@@ -48,6 +48,7 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
     "verdict",
     "github_provenance",
 }
+EXTERNAL_EVIDENCE_PATH = REPO_ROOT / "artifacts" / "beaaa-21704" / "execution_evidence.json"
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
 LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
@@ -235,6 +236,11 @@ def _execution_evidence_status(
     mapping: dict[str, Any],
 ) -> tuple[bool, str]:
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    benchmark = str(mapping.get("benchmark") or "")
+    probe_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if (not evidence) and EXTERNAL_EVIDENCE_PATH.exists():
+        records = json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        evidence = records.get(f"{benchmark}:{probe_id}") or {}
     if not isinstance(evidence, dict):
         return False, "execution_evidence_not_object"
     missing = sorted(
@@ -244,6 +250,14 @@ def _execution_evidence_status(
     )
     if missing:
         return False, "missing_execution_evidence:" + ",".join(missing)
+    response = str(evidence.get("recorded_target_response") or "").strip().lower()
+    forbidden = {"placeholder", "fixture", "captured_by_registered_case_executor", "todo", "n/a"}
+    if response in forbidden or response.startswith("placeholder"):
+        return False, "invalid_execution_evidence:placeholder_response"
+    if not str(evidence.get("target_identity") or "").strip():
+        return False, "invalid_execution_evidence:missing_target_identity"
+    if not str(evidence.get("executed_at") or "").strip():
+        return False, "invalid_execution_evidence:missing_executed_at"
     return True, "target_bound_and_evidenced"
 
 

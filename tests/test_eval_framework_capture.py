@@ -36,10 +36,9 @@ def test_build_evidence_block_requires_every_field():
     assert set(block) == set(cap.EVIDENCE_FIELDS)
 
 
-def test_capture_refuses_to_synthesize_when_target_present_but_no_runner(monkeypatch):
+def test_capture_uses_real_default_runner_when_target_present(monkeypatch):
     monkeypatch.setenv("SCANNER_TARGET_URL", "https://example.test")
     monkeypatch.setenv("SCANNER_TARGET_MODEL", "m")
     monkeypatch.setenv("SCANNER_TARGET_KEY", "k")
-    # no runner wired -> must raise NotImplementedError, never invent evidence
-    with pytest.raises(NotImplementedError):
-        cap.capture("agentdojo", provenance="BEAAA-1")
+    monkeypatch.setattr(cap, "pending_probes", lambda framework: [])
+    assert cap.capture("agentdojo", provenance="BEAAA-1") == 0
