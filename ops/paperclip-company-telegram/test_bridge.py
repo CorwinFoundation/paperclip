@@ -90,6 +90,30 @@ class RateLimitedTelegram:
         self.sent.append((chat_id, text))
 
 
+class SecondChunkRateLimitedTelegram:
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.sent: list[tuple[int, str]] = []
+
+    def send(self, chat_id: int, text: str) -> None:
+        self.attempts += 1
+        if self.attempts == 2:
+            raise bridge.RemoteError("Telegram", 429, "retry later")
+        self.sent.append((chat_id, text))
+
+
+class SecondChunkCrashTelegram:
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.sent: list[tuple[int, str]] = []
+
+    def send(self, chat_id: int, text: str) -> None:
+        self.attempts += 1
+        self.sent.append((chat_id, text))
+        if self.attempts == 2:
+            raise SimulatedCrash
+
+
 class SimulatedCrash(BaseException):
     pass
 
@@ -196,7 +220,7 @@ class OutboundIdempotencyTests(unittest.TestCase):
             ["comment-1", "comment-2"],
         )
 
-    def test_explicit_rate_limit_releases_reservation_for_retry(self) -> None:
+    def test_explicit_rate_limit_rewinds_unsent_chunk_for_retry(self) -> None:
         state = relay_state()
         telegram = RateLimitedTelegram()
         paperclip = RelayPaperclip(
@@ -212,6 +236,70 @@ class OutboundIdempotencyTests(unittest.TestCase):
         self.assertEqual(telegram.attempts, 2)
         self.assertEqual(len(telegram.sent), 1)
         self.assertEqual(state["offset"], 41)
+
+    def test_later_chunk_rate_limit_does_not_replay_prior_chunk(self) -> None:
+        state = relay_state()
+        body = "A" * 4000
+        rendered = f"Paperclip agent · BEAAA-1\n\n{body}"
+        expected_chunks = bridge.split_message(rendered)
+        self.assertEqual(len(expected_chunks), 2)
+        telegram = SecondChunkRateLimitedTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": body}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            with self.assertRaises(bridge.RemoteError):
+                bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(telegram.attempts, 3)
+        self.assertEqual(
+            telegram.sent,
+            [(1234, expected_chunks[0]), (1234, expected_chunks[1])],
+        )
+        self.assertEqual(state["outbound_deliveries"][0]["next_chunk_index"], 2)
+        self.assertEqual(state["offset"], 41)
+
+    def test_restart_after_later_uncertain_chunk_resumes_without_replay(self) -> None:
+        state = relay_state()
+        body = "A" * 7500
+        rendered = f"Paperclip agent · BEAAA-1\n\n{body}"
+        expected_chunks = bridge.split_message(rendered)
+        self.assertEqual(len(expected_chunks), 3)
+        persisted: list[dict] = []
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": body}]
+        )
+        first_process = SecondChunkCrashTelegram()
+
+        def record_save(current_state: dict) -> None:
+            persisted.append(copy.deepcopy(current_state))
+
+        with mock.patch.object(bridge, "save_state", side_effect=record_save):
+            with self.assertRaises(SimulatedCrash):
+                bridge.relay_paperclip_updates(first_process, paperclip, state)
+
+        restarted_state = persisted[-1]
+        restarted_process = RecordingTelegram()
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(
+                restarted_process, paperclip, restarted_state
+            )
+            bridge.relay_paperclip_updates(
+                restarted_process, paperclip, restarted_state
+            )
+
+        self.assertEqual(
+            first_process.sent,
+            [(1234, expected_chunks[0]), (1234, expected_chunks[1])],
+        )
+        self.assertEqual(restarted_process.sent, [(1234, expected_chunks[2])])
+        self.assertEqual(
+            restarted_state["outbound_deliveries"][0]["next_chunk_index"], 3
+        )
+        self.assertEqual(restarted_state["offset"], 41)
 
     def test_outbound_delivery_retention_is_bounded(self) -> None:
         state = relay_state()

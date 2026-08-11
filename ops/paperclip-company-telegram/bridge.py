@@ -195,42 +195,48 @@ def reserve_outbound_delivery(
     issue_id: str,
     comment_id: str,
     *,
+    chunk_count: int = 1,
     retention: int = OUTBOUND_DELIVERY_RETENTION,
-) -> bool:
-    """Durably reserve one comment delivery before calling Telegram.
+) -> dict[str, Any]:
+    """Durably reserve one comment and return its write-ahead chunk cursor.
 
     Telegram's Bot API has no caller-supplied idempotency key. Persisting the
-    reservation first makes restart behavior at-most-once: an uncertain send is
-    suppressed rather than replayed.
+    next chunk index before each send makes restart behavior at-most-once: an
+    uncertain chunk is suppressed rather than replayed.
     """
     if retention < 1:
         raise ValueError("outbound delivery retention must be positive")
+    if chunk_count < 1:
+        raise ValueError("outbound delivery chunk count must be positive")
     key = {
         "chat_id": int(chat_id),
         "issue_id": str(issue_id),
         "comment_id": str(comment_id),
     }
     deliveries = state.setdefault("outbound_deliveries", [])
-    if key in deliveries:
-        return False
-    deliveries.append(key)
+    for delivery in deliveries:
+        if all(delivery.get(field) == value for field, value in key.items()):
+            if "next_chunk_index" not in delivery:
+                delivery["next_chunk_index"] = int(
+                    delivery.get("chunk_count", chunk_count)
+                )
+            delivery.setdefault("chunk_count", chunk_count)
+            return delivery
+    delivery = {
+        **key,
+        "next_chunk_index": 0,
+        "chunk_count": int(chunk_count),
+    }
+    deliveries.append(delivery)
     del deliveries[:-retention]
     save_state(state)
-    return True
+    return delivery
 
 
-def release_outbound_delivery(
-    state: dict[str, Any], chat_id: int, issue_id: str, comment_id: str
+def set_outbound_delivery_chunk(
+    state: dict[str, Any], delivery: dict[str, Any], next_chunk_index: int
 ) -> None:
-    key = {
-        "chat_id": int(chat_id),
-        "issue_id": str(issue_id),
-        "comment_id": str(comment_id),
-    }
-    deliveries = state.setdefault("outbound_deliveries", [])
-    if key not in deliveries:
-        return
-    deliveries.remove(key)
+    delivery["next_chunk_index"] = int(next_chunk_index)
     save_state(state)
 
 
@@ -514,22 +520,34 @@ def relay_paperclip_updates(
             )
             body = comment.get("body")
             if author_agent_id and isinstance(body, str) and body.strip():
-                if not reserve_outbound_delivery(
-                    state, chat_id, issue_id, str(comment_id)
-                ):
-                    continue
                 role = AGENT_NAMES.get(author_agent_id, "Paperclip agent")
-                try:
-                    telegram.send(
-                        chat_id,
-                        f"{role} · {chat_state['identifier']}\n\n{body.strip()}",
+                chunks = split_message(
+                    f"{role} · {chat_state['identifier']}\n\n{body.strip()}"
+                )
+                delivery = reserve_outbound_delivery(
+                    state,
+                    chat_id,
+                    issue_id,
+                    str(comment_id),
+                    chunk_count=len(chunks),
+                )
+                if int(delivery["chunk_count"]) != len(chunks):
+                    LOG.error(
+                        "suppressed changed outbound comment issue=%s",
+                        chat_state["identifier"],
                     )
-                except RemoteError as error:
-                    if error.service == "Telegram" and error.status in {409, 429}:
-                        release_outbound_delivery(
-                            state, chat_id, issue_id, str(comment_id)
-                        )
-                    raise
+                    continue
+                next_chunk_index = int(delivery["next_chunk_index"])
+                for chunk_index in range(next_chunk_index, len(chunks)):
+                    set_outbound_delivery_chunk(state, delivery, chunk_index + 1)
+                    try:
+                        telegram.send(chat_id, chunks[chunk_index])
+                    except RemoteError as error:
+                        if error.service == "Telegram" and error.status in {409, 429}:
+                            set_outbound_delivery_chunk(
+                                state, delivery, chunk_index
+                            )
+                        raise
                 LOG.info(
                     "relayed agent comment issue=%s role=%s",
                     chat_state["identifier"],
