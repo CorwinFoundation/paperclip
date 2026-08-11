@@ -14,3 +14,8 @@ Promotion is gated on independent QA approval for the exact immutable commit. In
 `paperclip-company-telegram.service`. Before replacing files, record their hashes and keep
 recoverable copies outside the install directory. Roll back by restoring both prior files,
 restarting the service, and rechecking its active state and logs.
+
+Outbound Paperclip comments use a write-ahead delivery ledger keyed by Telegram chat,
+Paperclip issue, and comment. The bridge keeps the newest 2,000 keys. Telegram's Bot API
+does not accept a caller idempotency key, so a process failure after reservation is treated
+as an uncertain at-most-once delivery and is suppressed on restart instead of replayed.

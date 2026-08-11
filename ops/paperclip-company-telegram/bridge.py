@@ -36,6 +36,7 @@ COMPANY_ID = "59f8876e-e729-4dda-98f9-1317c2b50492"
 COMPANY_SLUG = "BEAAA"
 ONBOARDING_PROJECT_ID = "8e61a25d-a945-4569-9f9c-4bce1cfef97b"
 ONBOARDING_GOAL_ID = "4688e2e2-c857-4ef1-b5a7-28356f7f5c00"
+OUTBOUND_DELIVERY_RETENTION = 2000
 
 CEO_ID = "ca0edebc-6f54-4a19-b836-4d306e3a3c48"
 HEAD_OF_UW_ID = "93e0b62b-2d87-4dc7-990a-5808079e1c4e"
@@ -161,11 +162,12 @@ def load_bridge_config() -> tuple[str, set[int]]:
 
 def load_state() -> dict[str, Any]:
     if not STATE_FILE.exists():
-        return {"offset": 0, "chats": {}}
+        return {"offset": 0, "chats": {}, "outbound_deliveries": []}
     with STATE_FILE.open(encoding="utf-8") as handle:
         state = json.load(handle)
     state.setdefault("offset", 0)
     state.setdefault("chats", {})
+    state.setdefault("outbound_deliveries", [])
     return state
 
 
@@ -185,6 +187,51 @@ def save_state(state: dict[str, Any]) -> None:
     finally:
         if os.path.exists(temporary_name):
             os.unlink(temporary_name)
+
+
+def reserve_outbound_delivery(
+    state: dict[str, Any],
+    chat_id: int,
+    issue_id: str,
+    comment_id: str,
+    *,
+    retention: int = OUTBOUND_DELIVERY_RETENTION,
+) -> bool:
+    """Durably reserve one comment delivery before calling Telegram.
+
+    Telegram's Bot API has no caller-supplied idempotency key. Persisting the
+    reservation first makes restart behavior at-most-once: an uncertain send is
+    suppressed rather than replayed.
+    """
+    if retention < 1:
+        raise ValueError("outbound delivery retention must be positive")
+    key = {
+        "chat_id": int(chat_id),
+        "issue_id": str(issue_id),
+        "comment_id": str(comment_id),
+    }
+    deliveries = state.setdefault("outbound_deliveries", [])
+    if key in deliveries:
+        return False
+    deliveries.append(key)
+    del deliveries[:-retention]
+    save_state(state)
+    return True
+
+
+def release_outbound_delivery(
+    state: dict[str, Any], chat_id: int, issue_id: str, comment_id: str
+) -> None:
+    key = {
+        "chat_id": int(chat_id),
+        "issue_id": str(issue_id),
+        "comment_id": str(comment_id),
+    }
+    deliveries = state.setdefault("outbound_deliveries", [])
+    if key not in deliveries:
+        return
+    deliveries.remove(key)
+    save_state(state)
 
 
 class Telegram:
@@ -467,11 +514,22 @@ def relay_paperclip_updates(
             )
             body = comment.get("body")
             if author_agent_id and isinstance(body, str) and body.strip():
+                if not reserve_outbound_delivery(
+                    state, chat_id, issue_id, str(comment_id)
+                ):
+                    continue
                 role = AGENT_NAMES.get(author_agent_id, "Paperclip agent")
-                telegram.send(
-                    chat_id,
-                    f"{role} · {chat_state['identifier']}\n\n{body.strip()}",
-                )
+                try:
+                    telegram.send(
+                        chat_id,
+                        f"{role} · {chat_state['identifier']}\n\n{body.strip()}",
+                    )
+                except RemoteError as error:
+                    if error.service == "Telegram" and error.status in {409, 429}:
+                        release_outbound_delivery(
+                            state, chat_id, issue_id, str(comment_id)
+                        )
+                    raise
                 LOG.info(
                     "relayed agent comment issue=%s role=%s",
                     chat_state["identifier"],
