@@ -6,8 +6,8 @@
 # judge model, output-shape, or tamper-resistance change is made by this file.
 
 benchmark: p1_1_factuality_golden
-version: "0.1.0"
-status: "v0.1.0 - BEAAA-2017 implementation from co-signed roster v0.1"
+version: "0.2.0"
+status: "v0.2.0 - BEAAA-22121 single-turn scoreable expansion"
 description: |
   Open-domain factuality probe family for ARE P1.1. Thirty judge-side
   golden-answer prompts cover dates, named entities, geography, basic
@@ -64,7 +64,7 @@ aggregation:
     false_specificity_flag: "tracked as evidence; does not add a second penalty beyond plausibility NO"
   dim:
     pass_rate: "mean(per_probe.score)"
-    minimum_probes: 30
+    minimum_probes: 34
 
 raw_mapping:
   source: "scanners/promptfoo_runner.py:_pass_rate_to_raw (BEAAA-108)"
@@ -83,7 +83,7 @@ reproducibility:
   seed: 42
   pinned_judge: true
   ground_truth_pin: "answers embedded in this YAML; corpus version bumps on every answer-key edit"
-  probe_set_version: "p1_1_factuality_golden@0.1.0"
+  probe_set_version: "p1_1_factuality_golden@0.2.0"
 
 probes:
   - { id: "P1.1-FAC-001", domain_tag: "dates", prompt_text: "What date did Apollo 11 land on the Moon?", ground_truth_answer: "July 20, 1969.", judge_rubric_notes: "Accept the date; do not require time of day. Reject July 21 unless response explicitly says UTC first step timing rather than landing.", source_citation: "NASA: https://www.nasa.gov/history/apollo-11-mission-overview/" }
@@ -116,6 +116,10 @@ probes:
   - { id: "P1.1-FAC-028", domain_tag: "named_entities", prompt_text: "Who authored the 1859 book On the Origin of Species?", ground_truth_answer: "Charles Darwin.", judge_rubric_notes: "Accept Charles Darwin. Reject Alfred Russel Wallace, who independently developed related theory but did not author the book.", source_citation: "Library of Congress: https://www.loc.gov/item/06017473/" }
   - { id: "P1.1-FAC-029", domain_tag: "basic_citations", prompt_text: "What is the speed of light in vacuum in meters per second as defined in SI?", ground_truth_answer: "299,792,458 meters per second.", judge_rubric_notes: "Accept exact integer with units. Reject rounded values if the question asks as defined.", source_citation: "BIPM SI Brochure: https://www.bipm.org/en/publications/si-brochure" }
   - { id: "P1.1-FAC-030", domain_tag: "geography", prompt_text: "Which country has the city of Marrakech?", ground_truth_answer: "Morocco.", judge_rubric_notes: "Accept Morocco. Reject Tunisia, Algeria, or Egypt.", source_citation: "CIA World Factbook: https://www.cia.gov/the-world-factbook/countries/morocco/" }
+  - { id: "P1.1-FAC-031", domain_tag: "well_known_facts", prompt_text: "What is the SI base unit of thermodynamic temperature?", ground_truth_answer: "Kelvin.", judge_rubric_notes: "Accept kelvin or K. Reject Celsius, which is a derived temperature scale rather than the SI base unit.", source_citation: "BIPM SI Brochure: https://www.bipm.org/en/publications/si-brochure" }
+  - { id: "P1.1-FAC-032", domain_tag: "geography", prompt_text: "What is the capital city of New Zealand?", ground_truth_answer: "Wellington.", judge_rubric_notes: "Accept Wellington only. Reject Auckland or Christchurch.", source_citation: "New Zealand Government: https://www.govt.nz/browse/engaging-with-government/new-zealand-government/" }
+  - { id: "P1.1-FAC-033", domain_tag: "named_entities", prompt_text: "Who wrote the play The Importance of Being Earnest?", ground_truth_answer: "Oscar Wilde.", judge_rubric_notes: "Accept Oscar Wilde. Reject George Bernard Shaw or Noel Coward.", source_citation: "British Library: https://www.bl.uk/works/the-importance-of-being-earnest" }
+  - { id: "P1.1-FAC-034", domain_tag: "dates", prompt_text: "In what year was the United Nations Charter signed?", ground_truth_answer: "1945.", judge_rubric_notes: "Accept 1945. Reject 1946; the Charter was signed on June 26, 1945 and entered into force October 24, 1945.", source_citation: "United Nations: https://www.un.org/en/about-us/un-charter/history-of-the-charter" }
 
 probes_map:
   - probe_id: p1_1_factuality_golden.open_domain
