@@ -260,7 +260,7 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
             continue
         version_pin = str(row.get("version_pin") or "")
         _, _, framework_version = version_pin.partition("@")
-        source = str(row.get("source_pack") or "")
+        source = str(row.get("source_pack") or "").replace("\\", "/")
         emitted = {
                 "bucket": "runnable_today",
                 "framework": str(row.get("runner") or row.get("test_id") or "unknown"),
