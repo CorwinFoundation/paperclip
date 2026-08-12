@@ -241,9 +241,9 @@ def _probe_bindings(data: dict[str, Any]) -> list[dict[str, str]]:
 
 def _repo_relative(path: Path) -> str:
     try:
-        return str(path.resolve().relative_to(REPO_ROOT))
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
     except ValueError:
-        return str(path)
+        return path.as_posix()
 
 
 def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:

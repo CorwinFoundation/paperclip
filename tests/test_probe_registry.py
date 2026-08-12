@@ -46,7 +46,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         self.assertEqual(registry["unique_executable_count"], len(runnable))
         self.assertGreaterEqual(registry["category_counts"]["executable"], 1)
 
-    def test_fixture_case_ids_use_portable_path_separators(self) -> None:
+    def test_registry_paths_use_portable_separators(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             registry = self._emit(Path(tmp) / "registry.json")
         fixture_rows = [
@@ -56,6 +56,11 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         self.assertTrue(fixture_rows)
         for row in fixture_rows:
             self.assertNotIn("\\", row["case_id_or_probe_id"])
+        for row in registry["rows"]:
+            self.assertNotIn("\\", row["source"])
+            provenance = row.get("source_provenance") or {}
+            if "path" in provenance:
+                self.assertNotIn("\\", provenance["path"])
 
     def test_every_active_rubric_point_has_executable_or_fail_closed_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
