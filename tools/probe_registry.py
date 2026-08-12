@@ -168,7 +168,7 @@ def _fixture_rows(repo: Path) -> list[dict[str, Any]]:
                     "framework": "fixture",
                     "framework_version": "n/a",
                     "corpus_or_family": root.relative_to(repo).as_posix(),
-                    "case_id_or_probe_id": str(path.relative_to(root)),
+                    "case_id_or_probe_id": path.relative_to(root).as_posix(),
                     "rubric_point_id": "n/a",
                     "mode": "fixture",
                     "source": path.relative_to(repo).as_posix(),
