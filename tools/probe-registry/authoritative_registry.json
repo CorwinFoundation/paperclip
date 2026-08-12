@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -198,7 +198,7 @@
       "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Tool misuse \u2014 parameter tampering",
@@ -206,7 +206,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -214,12 +214,12 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 744c28c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure a5e77a8"
     }
   ],
   "bucket_counts": {
     "attestation_only": 7,
-    "declared_minimum_only": 164,
+    "declared_minimum_only": 208,
     "fixture_test_only": 82,
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
@@ -237,14 +237,14 @@
   },
   "category_counts": {
     "attestation_only": 7,
-    "blocked_unsupported": 220,
+    "blocked_unsupported": 264,
     "executable": 2202,
     "executable_on_default_runtime": 0,
     "executed_in_latest_evidenced_run": 0,
     "fixture_test_only": 82,
     "inactive_deferred": 8,
     "proxy_grade": 49,
-    "registered": 2515,
+    "registered": 2559,
     "reported": 8,
     "scoring_active": 0
   },
@@ -253,7 +253,7 @@
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
     "supported_unique_executable_count": 2202,
-    "unsupported_rows_count": 220
+    "unsupported_rows_count": 264
   },
   "dedupe_key_fields": [
     "framework",
@@ -268,7 +268,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "744c28c803ec1f5b408941ac58cf38cdeae59876",
+    "generated_from_content_sha": "a5e77a871dc81ae76516e7874f61e327a3a24aa1",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.1; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -278,9 +278,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "744c28c803ec1f5b408941ac58cf38cdeae59876",
+    "source_closure_sha": "a5e77a871dc81ae76516e7874f61e327a3a24aa1",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-744c28c",
+    "source_closure_version": "registry-source-a5e77a8",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -71429,6 +71429,354 @@
       "stable_id": "20a9e23451470fe2b1139f347182605f7a01d783107559e09643b66b4af5ff56"
     },
     {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "1048cd3babe61736685fdb7eb4843b85a61f6e96c6ec71ce8eeca0e6efc46414"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "b843aae5ab0ab3dfb18ff0898b80eb742e5700e9c891b9840b2a7632d3cf6334"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "40c364da340f5b43dee7350ffc70b0658ca0d9d181609333eef42c3be4f44f95"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "bf6f894fcb2bbb337c1d55cdf923040422c6186c4e03c4af763faeb8c2c6a84a"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "461238a3ad8536dc4de6d64eb766309419a585e03e3df34880e0951ea99f4086"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "6db206d26ded232d15585bbd13d33cc66a514f0b446af5989dbf9bc4e72f9eeb"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "6d7e6d5fabfd7e1f5361598a79641fdbb663be866102ed1e727a178012a5f6c3"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "b19e12207d60fa4417a3c70647c51a07e9cb50003c8415e078e592d704bf0589"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-09",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "111fa71416443955c60b04aece360f01b18a80627edbe7bd9a3d438fe7db2196"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-10",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "fc41531d016a76b571702fcbe828be4b6fb11593273017e122ed1994abc6a667"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-11",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "5dd7adcee7c4dd582ba2211b6155391f184597b65c6792d726f8659aac12fec0"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "cdr-12-canary",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "customer_defined_risk_pack",
+      "framework": "customer_defined_risk_pack",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE",
+      "source": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/customer_defined_risk_pack.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "20ea60af86234bb6c87a29558b7fc6818432e4361d4a330f475df8e65ad2dcdb"
+    },
+    {
       "bucket": "proxy_grade_non_customer_measured",
       "case_id_or_probe_id": "dp.bbq_disambig",
       "categories": {
@@ -75898,6 +76246,586 @@
     },
     {
       "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "5a02d42bdc63678fddfcd2cad59b6d2f21a9b45c0506695960f9567ed4368744"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "bb3066a7e499c90c7fb22be81fb2ab620901cd13c42cc598e32a2cde98ada7b3"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "936e936091ceb71e9b6f9268aa722fe7a60435d053b0fc6ba2aff787d632f487"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "cb2514791bb826e1d3e7a8ec6f4bda3d6fd3d142d3db73bec8a908892fdf4937"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "8079a898610d93b5db92583cd74ad71d87d459184d05b10b565da7524bc4da0a"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "493aebad92b75282a501ea8cbbef78cf54388c1fe0760b822effdbbec42b2d96"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "4fa6c0be97ebeedf4e56375032f49f7d69abc9c19ab5d9c7b27dbff67d11fb02"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "afd5cefd3cef53ce069aeab120f75a4cb486a1c2dd526d9660a52ef6581dd4ee"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-09",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "bdb265d0dcaaaae6cc50c7e21adeb03affb467f8be0a4206b45e3284e6461f1f"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-10",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "4389d92dfd1bbf5fe73f364ed181d191e4bf1c7eeaf2b4aa4d31678403391228"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-11",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "ba7def2134f691c4c4a6f7e40a2b22760324f74b76bffb54e84275ffb9c87293"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-12",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "a70bb90f58f8cd90fcd24667150068bdfae019b1588c6a5b86d6657694024585"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-13",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "105e225ecd6c90bfdc4e2605f91d514a853e1a57244ebb5b50a15b592305985a"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-14",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "d67e24f77c310fd852cffd44e5a165906be45731197c288d583a5342a963467f"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-15",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "0bbe70798905ebafaccd54b1c07257369b92730a047a0ed9f1b899c9c284ad4e"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-16",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "9e7290b38e139d85ed8c4bf7441fff3bcd5521c2cc78aa008027549bbaabd6d9"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-17",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "5ce02a170b5da75b941236b05e8f42041808dabe8745cd2e117c1a7e6033b4ed"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-18",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "5977f73fc2a2ff443dccf678dd060384165bcba46b1145eb6709f336a1d44dba"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-19",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "447702e50b1cd09d3d4c1fdc8c7b7a89baa8dc833944590bef06498a1034a7d4"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "esc-20-canary",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "human_escalation_flagging",
+      "framework": "human_escalation_flagging",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION",
+      "source": "rubric/probe_mappings/human_escalation_flagging.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/human_escalation_flagging.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "dd2f7c70fd4d9a640ef43c565801f0e390457fef9ef47aa1b0976793b1d202f9"
+    },
+    {
+      "bucket": "declared_minimum_only",
       "case_id_or_probe_id": "ICG-001",
       "categories": {
         "attestation_only": false,
@@ -76823,6 +77751,354 @@
         "version": "0.1.0"
       },
       "stable_id": "705df4a6030983669a23b5f5cfee45afa6798ff7db0816273feef5ecfba9a564"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "ddfcf360e270019c035d23f413b92280b357da50829d0fcd7cf4dd9d58c6dd36"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "a63c41c474f137cf80f8829ca188767d96aa6fe4b4504365726abb0fc89e9089"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "f2f2343877bdde89e4e003cb017cc7cf6fe04a8a4f939333d5c310a1f3c799ee"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "68f259abdc778d387c490dffb946bd9dfa88e5dd43452e739157aa2737d5a9ae"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "2defcefed7ea80d53986851de9d3dcdfbb6b34a8df5b1d5abb5a426397c9ad47"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "e8cb5fa29c0a1227e1b4e74ea25d8c8776a13d1a700c2dcbb6d49c2c2f19a58f"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "2d0355d09aca57bff7133fa646f8226c3ceaf7e6335e022cbe462080770a3e44"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "3c22dc39c1ffc66d094c5837a0fdd42e1118cd1544b9d5f2c69bccb481042886"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-09",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "54dafb77637381e1af8bb232749b6c86807957c33652fedb0c6dfc62f5b2a04a"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-10",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "dabc19d2caa0f54b9221e3c033002fc7ee092e8d513ba1a4c2d020212c3762a4"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-11",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "bf70db0d9102dd78f23b70e242d3dc8b13a35a0c0b070ead799f446cda30c05c"
+    },
+    {
+      "bucket": "declared_minimum_only",
+      "case_id_or_probe_id": "mcp-12-canary",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "mcp_tool_integrity",
+      "framework": "mcp_tool_integrity",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY",
+      "source": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/mcp_tool_integrity.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "42a30f1005f6b65287fb2a48f89f3ec14ecdb5b91cb7386daee0aebe4c934450"
     },
     {
       "bucket": "attestation_only",
