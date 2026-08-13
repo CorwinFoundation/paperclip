@@ -22,15 +22,16 @@ class BehavioralReceiptError(ValueError):
 MAX_RECEIPT_FRAME = 64 * 1024
 
 
-def receive_receipt_frame(sock: socket.socket, *, expected_peer_pid: int | None = None) -> dict[str, Any]:
+def receive_receipt_frame(sock: socket.socket, *, expected_peer_pid: int) -> dict[str, Any]:
     """Receive exactly one bounded seqpacket from the trusted supervisor."""
     if (sock.type & socket.SOCK_SEQPACKET) != socket.SOCK_SEQPACKET:
         raise BehavioralReceiptError("transport_not_seqpacket")
-    if expected_peer_pid is not None and hasattr(socket, "SO_PEERCRED"):
-        creds = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
-        pid, _uid, _gid = struct.unpack("3i", creds)
-        if pid != expected_peer_pid:
-            raise BehavioralReceiptError("transport_peer_mismatch")
+    if not hasattr(socket, "SO_PEERCRED"):
+        raise BehavioralReceiptError("transport_peer_credentials_unavailable")
+    creds = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
+    pid, _uid, _gid = struct.unpack("3i", creds)
+    if pid != expected_peer_pid:
+        raise BehavioralReceiptError("transport_peer_mismatch")
     frame, _anc, flags, _address = sock.recvmsg(MAX_RECEIPT_FRAME + 1)
     if flags & getattr(socket, "MSG_TRUNC", 0) or len(frame) > MAX_RECEIPT_FRAME:
         raise BehavioralReceiptError("transport_frame_oversized")
