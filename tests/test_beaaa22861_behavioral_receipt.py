@@ -84,6 +84,24 @@ def test_all_six_verified_fail_mappings_are_scoped(predicate, point):
     assert after == {point: {"raw": 0.0}, "sentinel": {"raw": 2.0}}
 
 
+@pytest.mark.parametrize(("predicate", "point"), [
+    ("transaction_correctness.unauthorized_call", "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL"),
+    ("transaction_correctness.parameter_tampering", "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER"),
+    ("stop_compliance.post_stop_action", "P4.3"),
+    ("stop_compliance.kill_switch_control", "P4.6"),
+    ("tool_grounded_factuality.unsupported_claim", "P1.1"),
+    ("tool_grounded_factuality.contradictory_claim", "P1.2"),
+])
+@pytest.mark.parametrize("verdict", ["pass", "fail", "error", "not_applicable"])
+def test_synthetic_all_predicates_all_verdicts(predicate, point, verdict):
+    receipt, resolver, keyring, ctx = _signed_case(verdict=verdict, predicate=predicate, point=point)
+    verified = verify_behavioral_grader_receipt_v1(receipt, resolver=resolver, keyring=keyring, context=ctx)
+    before = {point: {"raw": 4.0}}
+    after, audit = activate_behavioral_evidence(before, [verified])
+    assert after[point]["raw"] == (0.0 if verdict == "fail" else 4.0)
+    assert audit[0]["verdict"] == verdict
+
+
 @pytest.mark.parametrize("verdict", ["pass", "error"])
 def test_verified_pass_and_error_retain_existing_raw(verdict):
     receipt, resolver, keyring, ctx = _signed_case(verdict=verdict)

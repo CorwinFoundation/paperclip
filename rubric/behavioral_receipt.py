@@ -5,6 +5,9 @@ import base64
 import hashlib
 import json
 import re
+import socket
+import struct
+import uuid
 from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
@@ -14,6 +17,63 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 class BehavioralReceiptError(ValueError):
     """A receipt failed authentication or immutable evidence resolution."""
+
+
+MAX_RECEIPT_FRAME = 64 * 1024
+
+
+def receive_receipt_frame(sock: socket.socket, *, expected_peer_pid: int | None = None) -> dict[str, Any]:
+    """Receive exactly one bounded seqpacket from the trusted supervisor."""
+    if (sock.type & socket.SOCK_SEQPACKET) != socket.SOCK_SEQPACKET:
+        raise BehavioralReceiptError("transport_not_seqpacket")
+    if expected_peer_pid is not None and hasattr(socket, "SO_PEERCRED"):
+        creds = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
+        pid, _uid, _gid = struct.unpack("3i", creds)
+        if pid != expected_peer_pid:
+            raise BehavioralReceiptError("transport_peer_mismatch")
+    frame, _anc, flags, _address = sock.recvmsg(MAX_RECEIPT_FRAME + 1)
+    if flags & getattr(socket, "MSG_TRUNC", 0) or len(frame) > MAX_RECEIPT_FRAME:
+        raise BehavioralReceiptError("transport_frame_oversized")
+    if not frame:
+        raise BehavioralReceiptError("transport_frame_empty")
+    try:
+        value = json.loads(frame)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise BehavioralReceiptError("transport_frame_invalid_json") from exc
+    if not isinstance(value, dict):
+        raise BehavioralReceiptError("transport_frame_invalid_json")
+    return value
+
+
+@dataclass
+class ReceiptReplayState:
+    """Scan-scoped replay/conflict guard; persist one instance per scan."""
+    by_receipt_id: dict[str, bytes]
+    by_predicate: dict[tuple[str, str], bytes]
+
+    @classmethod
+    def empty(cls) -> "ReceiptReplayState":
+        return cls({}, {})
+
+    def admit(self, receipt: Mapping[str, Any]) -> str:
+        receipt_id = receipt.get("receipt_id")
+        try:
+            uuid.UUID(str(receipt_id))
+        except (ValueError, AttributeError) as exc:
+            raise BehavioralReceiptError("receipt_id_invalid") from exc
+        scan_id, predicate = str(receipt.get("scan_id", "")), str(receipt.get("predicate", ""))
+        digest = hashlib.sha256(canonicalize_receipt(receipt)).digest()
+        prior_id = self.by_receipt_id.get(str(receipt_id))
+        if prior_id is not None:
+            if prior_id != digest: raise BehavioralReceiptError("receipt_id_conflict")
+            return "duplicate"
+        prior_predicate = self.by_predicate.get((scan_id, predicate))
+        if prior_predicate is not None:
+            if prior_predicate != digest: raise BehavioralReceiptError("scan_predicate_conflict")
+            return "duplicate"
+        self.by_receipt_id[str(receipt_id)] = digest
+        self.by_predicate[(scan_id, predicate)] = digest
+        return "accepted"
 
 
 _SHA = re.compile(r"sha256:[0-9a-f]{64}\Z")
@@ -74,6 +134,33 @@ class KeyRecord:
     status: str
     predicates: frozenset[str]
     fixture_only: bool = False
+
+
+@dataclass(frozen=True)
+class ProductionKeyring:
+    """Immutable key capability pinned to the production scanner build."""
+    scanner_build_digest: str
+    records: Mapping[str, KeyRecord]
+
+    def for_build(self, scanner_build_digest: str) -> Mapping[str, KeyRecord]:
+        if scanner_build_digest != self.scanner_build_digest:
+            raise BehavioralReceiptError("keyring_build_mismatch")
+        return self.records
+
+
+@dataclass(frozen=True)
+class ScanScopedEvidenceResolver:
+    """Restrict an immutable resolver capability to one scan namespace."""
+    scan_id: str
+    delegate: EvidenceResolver
+
+    def resolve(self, ref: str) -> EvidenceObject:
+        if not ref.startswith(f"evidence://{self.scan_id}/"):
+            raise BehavioralReceiptError("resolver_scope_violation")
+        obj = self.delegate.resolve(ref)
+        if not obj.immutable or not obj.generation:
+            raise BehavioralReceiptError("evidence_mutable")
+        return obj
 
 
 @dataclass(frozen=True)
@@ -156,4 +243,3 @@ def verify_behavioral_grader_receipt_v1(receipt: Mapping[str, Any], *, resolver:
     expected_output = {"predicate": predicate, "verdict": receipt["verdict"], "grader_id": key.grader_id, "grader_version": key.grader_version, "grader_build_digest": key.grader_build_digest, "scanner_version": context.scanner_version, "corpus_version": context.corpus_version, "model_versions": list(context.model_versions), "seed": context.seed}
     if output != expected_output: raise BehavioralReceiptError("grader_output_identity_mismatch")
     return VerifiedBehavioralReceipt(VerifiedBehavioralReceipt._TOKEN, receipt, tuple(generations))
-
