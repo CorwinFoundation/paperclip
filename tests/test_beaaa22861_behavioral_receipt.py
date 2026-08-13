@@ -2,6 +2,7 @@ import base64
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from rubric.behavioral_receipt import (
     verify_behavioral_grader_receipt_v1,
 )
 from scanners.score_runtime import ScoreRuntime
+from scanners.behavioral_receipt_ingestion import create_receipt_channel
 
 
 PREDICATE = "stop_compliance.post_stop_action"
@@ -121,15 +123,35 @@ def test_verified_not_applicable_does_not_require_point():
 
 def test_verified_fail_changes_production_final_point_pillar_and_total():
     receipt, resolver, keyring, ctx = _signed_case()
-    verified = verify_behavioral_grader_receipt_v1(receipt, resolver=resolver, keyring=keyring, context=ctx)
+    ingestor, sender = create_receipt_channel(
+        expected_grader_pid=os.getpid(), resolver=resolver, keyring=keyring, context=ctx
+    )
+    sender.send(json.dumps(receipt).encode())
     runtime = ScoreRuntime.from_rubric_path(Path("rubric/rubric.yaml"))
     rows = {POINT: {"raw": 4.0, "evidence_uri": "evidence://scan-1/p4-3"}}
     kwargs = dict(scan_id="scan-1", agent_id="agent-1", seed=0, scanner_version="0.5.0", corpus_version="0.1.0",
                   run_timestamp="2026-08-13T00:00:00Z", invocation_context={"purpose": "pre_bind"}, prior_scan_refs=[])
     baseline = runtime.compute_envelope(accumulated_rows=rows, **kwargs)
-    candidate = runtime.compute_envelope(accumulated_rows=rows, verified_behavioral_receipts=(verified,), behavioral_activation_enabled=True, **kwargs)
+    candidate = runtime.compute_envelope(accumulated_rows=rows, behavioral_receipt_ingestors=(ingestor,), behavioral_activation_enabled=True, **kwargs)
     assert candidate["are_total"] < baseline["are_total"]
     assert candidate["subscores"]["GOVERNANCE"] < baseline["subscores"]["GOVERNANCE"]
+    ingestor._reader.close(); sender.close()
+
+
+def test_authoritative_runtime_rejects_grader_sender_capability():
+    receipt, resolver, keyring, ctx = _signed_case()
+    ingestor, sender = create_receipt_channel(
+        expected_grader_pid=os.getpid(), resolver=resolver, keyring=keyring, context=ctx
+    )
+    runtime = ScoreRuntime.from_rubric_path(Path("rubric/rubric.yaml"))
+    with pytest.raises(TypeError, match="ScorerReceiptIngestor"):
+        runtime.compute_envelope(
+            accumulated_rows={POINT: {"raw": 4.0}}, scan_id="scan-1", agent_id="agent-1",
+            seed=0, scanner_version="0.5.0", corpus_version="0.1.0",
+            run_timestamp="2026-08-13T00:00:00Z", invocation_context={"purpose": "pre_bind"},
+            prior_scan_refs=[], behavioral_receipt_ingestors=(sender,), behavioral_activation_enabled=True,
+        )
+    ingestor._reader.close(); sender.close()
 
 
 @pytest.mark.parametrize("mutation", ["verdict", "fixture_bytes", "duplicate_ref", "wrong_scan"])

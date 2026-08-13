@@ -52,7 +52,7 @@ from harness.contract_envelope import to_contract_output
 from harness.applicability import load_policy, validate_for_scoring
 from rubric.scoring import Rubric, ValidatedApplicability, score
 from rubric.behavioral_activation import activate_behavioral_evidence
-from rubric.behavioral_receipt import VerifiedBehavioralReceipt
+from scanners.behavioral_receipt_ingestion import ScorerReceiptIngestor
 from api.bundle import _signing_key
 
 
@@ -314,7 +314,7 @@ class ScoreRuntime:
         prior_scan_refs: list[dict[str, Any]],
         applicability_decisions: dict[str, dict[str, Any]] | None = None,
         walker_partial_completion: bool = False,
-        verified_behavioral_receipts: tuple[VerifiedBehavioralReceipt, ...] = (),
+        behavioral_receipt_ingestors: tuple[ScorerReceiptIngestor, ...] = (),
         behavioral_activation_enabled: bool = False,
     ) -> dict[str, Any]:
         """Project the accumulated IPC row map into the §2.2 envelope.
@@ -361,9 +361,14 @@ class ScoreRuntime:
           preserves the synthetic_v0 path byte-stability.
         """
         eval_outputs = _reconstruct_eval_outputs(accumulated_rows)
-        if verified_behavioral_receipts:
+        if behavioral_receipt_ingestors:
             if not behavioral_activation_enabled:
                 raise ValueError("behavioral receipts supplied while activation is disabled")
+            if not all(isinstance(item, ScorerReceiptIngestor) for item in behavioral_receipt_ingestors):
+                raise TypeError("Scorer accepts only ScorerReceiptIngestor capabilities")
+            verified_behavioral_receipts = tuple(
+                ingestor.ingest_one()[0] for ingestor in behavioral_receipt_ingestors
+            )
             eval_outputs, _behavioral_audit = activate_behavioral_evidence(
                 eval_outputs, list(verified_behavioral_receipts)
             )
