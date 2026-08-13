@@ -24,7 +24,7 @@ BLUF: seeds 0, 1, 2, 3 and 4 each pass the local Passive Monitor acceptance suit
 - Classification: rule-execution under `scanner-implementation-supervision-v1@v1.1`, eval tooling and existing contract implementation.
 - Contract anchor: `are-scanner-api-v1@v1.0`.
 - Command: `PYTHONHASHSEED=<seed> PYTHONPATH=tools/post-bind-ingest/src pytest -q tools/post-bind-ingest/tests/test_beaaa22776_passive_monitor.py tools/post-bind-ingest/tests/test_no_score_imports.py`.
-- Result per seed: 13 passed.
+- Result per seed: 10 passed.
 - Score delta per seed: total 0; GOVERNANCE 0; ROBUSTNESS 0; BIAS_FAIRNESS 0; OPS 0.
 - False-positive fixture threshold: zero; observed zero on the clean-control fixture.
 - FAL audit: focus is one Passive Monitor implementation slice; authority is the existing runtime-evidence lane; linkage is BEAAA-22776 → BEAAA-22773. No external claim or protection statement is introduced.
