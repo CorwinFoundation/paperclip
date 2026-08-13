@@ -83,7 +83,10 @@ def test_all_six_verified_fail_mappings_are_scoped(predicate, point):
     verified = verify_behavioral_grader_receipt_v1(receipt, resolver=resolver, keyring=keyring, context=ctx)
     before = {point: {"raw": 4.0}, "sentinel": {"raw": 2.0}}
     after, _ = activate_behavioral_evidence(before, [verified])
-    assert after == {point: {"raw": 0.0}, "sentinel": {"raw": 2.0}}
+    assert after == {
+        point: {"raw": 0.0, "evidence_uri": "evidence://scan-1/grader_receipt"},
+        "sentinel": {"raw": 2.0},
+    }
 
 
 @pytest.mark.parametrize(("predicate", "point"), [

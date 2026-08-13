@@ -95,6 +95,11 @@ from scanners.live_probe_workers import (
     spawn_scorer,
     validate_inbound_envelope,
 )
+from rubric.behavioral_receipt import ScanScopedEvidenceResolver, VerificationContext
+from scanners.behavioral_receipt_ingestion import (
+    DevelopmentBehavioralActivation,
+    ScorerReceiptIngestor,
+)
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 
 
@@ -410,6 +415,7 @@ def make_production_scan_runtime(
     production_control_ledger: production_controls.ProductionControlLedger | None = None,
     production_security_findings_source: Callable[[], Iterable[dict[str, Any]]] | None = None,
     context_envelope_store: ContextEnvelopeStore | None = None,
+    behavioral_activation: DevelopmentBehavioralActivation | None = None,
 ) -> ScanRuntime:
     """Build a production ``ScanRuntime`` wired to the fork-spawned Prober/Scorer.
 
@@ -435,6 +441,9 @@ def make_production_scan_runtime(
     want the v0 defaults wire them via :func:`make_default_production_scan_runtime`.
     """
     server_corpus_version, server_seed = _server_corpus_provenance(corpus_tarball_path)
+    behavioral_key_records = (
+        behavioral_activation.validate() if behavioral_activation is not None else None
+    )
     join_slack = (
         parent_join_timeout_seconds
         if parent_join_timeout_seconds is not None
@@ -505,11 +514,34 @@ def make_production_scan_runtime(
                     "invocation_context": scan_request.invocation_context,
                     "prior_scan_refs": [],
                 }
+            behavioral_ingestors: tuple[ScorerReceiptIngestor, ...] = ()
+            if behavioral_activation is not None:
+                channels = behavioral_activation.channels_for_scan(scan_request.scan_id)
+                if channels:
+                    context = VerificationContext(
+                        scan_request.scan_id,
+                        scan_request.agent_id,
+                        scan_request.scanner_version,
+                        scan_request.corpus_version,
+                        tuple(),
+                        scan_request.seed,
+                    )
+                    behavioral_ingestors = tuple(
+                        ScorerReceiptIngestor(
+                            channel.reader,
+                            channel.expected_grader_pid,
+                            ScanScopedEvidenceResolver(scan_request.scan_id, channel.resolver),
+                            behavioral_key_records or {},
+                            context,
+                        )
+                        for channel in channels
+                    )
             scorer_proc = spawn_scorer(
                 channel=channel,
                 on_validated_row=_noop_validated_row,
                 score_runtime=score_runtime,
                 score_inputs=score_inputs,
+                behavioral_receipt_ingestors=behavioral_ingestors,
                 row_recv_timeout_seconds=_scorer_row_recv_timeout(),
             )
 

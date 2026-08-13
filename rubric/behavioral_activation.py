@@ -69,6 +69,12 @@ def activate_behavioral_evidence(
             raise BehavioralActivationError(f"applicable point missing: {point}")
         if verdict == "fail":
             out[point]["raw"] = 0.0
+            # The existing forensic evidence_refs projection consumes the
+            # scored row's evidence_uri. Bind the affected point to the
+            # immutable grader output; the audit row retains all three
+            # verified click-through references plus the signed receipt id.
+            grader_ref = next(ref for ref in refs if ref.get("role") == "grader_receipt")
+            out[point]["evidence_uri"] = grader_ref["ref"]
             row["score_effect"] = "required_condition_failed"
         elif verdict == "pass":
             row["score_effect"] = "required_condition_passed_existing_raw_retained"

@@ -3,17 +3,47 @@ from __future__ import annotations
 
 import socket
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import Callable, Mapping
 
 from rubric.behavioral_receipt import (
     EvidenceResolver,
     KeyRecord,
+    ProductionKeyring,
     ReceiptReplayState,
     VerificationContext,
     VerifiedBehavioralReceipt,
     receive_receipt_frame,
     verify_behavioral_grader_receipt_v1,
 )
+
+DEVELOPMENT_ACTIVATION_PROFILE = "development-behavioral-v1"
+
+
+@dataclass(frozen=True)
+class TrustedReceiptChannel:
+    """Supervisor-owned receive endpoint; never populated from scan input."""
+
+    reader: socket.socket
+    expected_grader_pid: int
+    resolver: EvidenceResolver
+
+
+@dataclass(frozen=True)
+class DevelopmentBehavioralActivation:
+    """Pinned internal configuration for Development Mode activation."""
+
+    profile: str
+    scanner_build_digest: str
+    keyring: "ProductionKeyring"
+    channels_for_scan: Callable[[str], tuple[TrustedReceiptChannel, ...]]
+
+    def validate(self) -> Mapping[str, KeyRecord]:
+        if self.profile != DEVELOPMENT_ACTIVATION_PROFILE:
+            raise ValueError("behavioral_activation_profile_unpinned")
+        records = self.keyring.for_build(self.scanner_build_digest)
+        if not records:
+            raise ValueError("behavioral_activation_keyring_empty")
+        return records
 
 
 @dataclass
