@@ -34,6 +34,10 @@ SPAN_ALLOWLIST = frozenset(
         "gen_ai.response.id",
         "gen_ai.usage.input_tokens",
         "gen_ai.usage.output_tokens",
+        "gen_ai.input.type",
+        "gen_ai.output.type",
+        "gen_ai.tool.name",
+        "gen_ai.tool.type",
         "error.type",
     }
 )
@@ -132,12 +136,20 @@ def map_otlp_json(
     now: datetime | None = None,
     max_clock_skew_seconds: int = 300,
     content_enabled: bool = False,
+    max_request_bytes: int = 1_048_576,
+    max_spans: int = 1000,
 ) -> tuple[dict[str, Any], ...]:
     """Map OTLP/HTTP JSON traces to unsigned Evidence Profile events.
 
     The caller must sign/hash-chain only the returned tuple. Any rejection occurs
     before output is returned, so partial batches cannot enter the evidence chain.
     """
+    try:
+        request_size = len(json.dumps(request, separators=(",", ":"), ensure_ascii=False).encode())
+    except (TypeError, ValueError) as exc:
+        raise OTelDriverError("OTLP request is not JSON serializable") from exc
+    if request_size > max_request_bytes:
+        raise OTelDriverError("OTLP request exceeds size limit")
     if not isinstance(request, Mapping) or set(request) != {"resourceSpans"}:
         raise OTelDriverError("OTLP request must contain only resourceSpans")
     groups = request["resourceSpans"]
@@ -193,6 +205,8 @@ def map_otlp_json(
                     "provenance": {"class": "vendor_otel", "component": "post_bind_ingest.otel_driver", "source_driver": SOURCE_DRIVER, "evidence_tier": EVIDENCE_TIER},
                     "redaction_applied": [],
                 })
+                if len(candidate) > max_spans:
+                    raise OTelDriverError("OTLP request exceeds span limit")
     if not candidate:
         raise OTelDriverError("OTLP request contains no spans")
     # Mutate replay state only after the entire batch passes validation.

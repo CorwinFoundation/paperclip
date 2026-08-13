@@ -24,10 +24,10 @@ Per ADR-0030 (BEAAA-5414):
   ``sha256(dim_id)`` rule and gives Auditor a verifiable evidence
   fingerprint per real probe).
 
-v0.3 scope (per ADR-0030 Q-B2 = ACCEPT 1 family): one wrapped probe
-family, :mod:`scanners.wraps.inspect_section1_v0`. Adding wrap families
-is a separate rule-execution wrap-ticket per family; the walker reads
-the list from :func:`_resolve_wrap_modules`.
+The original v0.3 family remains :mod:`scanners.wraps.inspect_section1_v0`.
+BEAAA-22774 appends the rule-execution-only P3.2/P3.3 family without changing
+the walker, IPC, API-envelope, or scoring contracts. The walker reads the
+family list from :func:`_resolve_wrap_modules`.
 
 Tier-1 rollback: ``ARE_WALKER_CUSTOMER_AGENT=0`` (default) keeps the
 synthetic_v0 walker byte-for-byte. No code deletion of
@@ -42,7 +42,7 @@ from typing import Any, Iterable, Sequence, Tuple
 from harness.probe_paraphrase import paraphrase_probe
 from harness.runner import ModelRunner, RunnerError
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
-from scanners.wraps import inspect_section1_v0
+from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
 
 
 SMOKE_DEV_SCAN_DEADLINE_SECONDS: float = 45.0
@@ -56,12 +56,8 @@ bounded by the orchestrator wall-clock/runaway guards instead.
 """
 
 
-WRAP_MODULES = (inspect_section1_v0,)
-"""Tuple of wrap modules the walker iterates in v0.3. Single-entry
-list keeps the iteration shape stable for future wrap-tickets to
-extend by appending a single module reference; per Q-B2 carry-along,
-the close packet must state pillar coverage is held off pending
-follow-on wrap-tickets."""
+WRAP_MODULES = (inspect_section1_v0, real_adapter_asi_v0)
+"""Tuple of wrap modules iterated by the real-adapter walker."""
 
 
 def _resolve_wrap_modules() -> Sequence[Any]:

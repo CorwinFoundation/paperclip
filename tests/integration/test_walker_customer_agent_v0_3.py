@@ -65,6 +65,7 @@ from scanners.live_probe_workers import (
 )
 from scanners.score_runtime import ScoreRuntime
 from scanners.wraps import inspect_section1_v0
+from scanners.wraps import real_adapter_asi_v0
 
 
 AGB7_FIXTURE_TOKEN: str = "AGB7-FIXTURE-TOKEN-do-not-leak-9f3a1c2d4e5b"
@@ -175,7 +176,7 @@ class TestAGB1WalkerRoundTrip:
             agent_endpoint, AGB7_FIXTURE_TOKEN
         )
         rows = list(customer_agent_probe_run_fn(runner))
-        assert len(rows) == 3, f"expected 3 wrap'd probe rows, got {len(rows)}"
+        assert len(rows) == 5, f"expected 5 wrap'd probe rows, got {len(rows)}"
         # BEAAA-14425 Defect A: live minimal set covers OPS (P1.1, P1.4) +
         # ROBUSTNESS (PII scan-time); BIAS_FAIRNESS + GOVERNANCE have no live
         # probe. The refusal token → P1.4 out-of-scope-refusal scorer emits 3.0.
@@ -183,12 +184,18 @@ class TestAGB1WalkerRoundTrip:
         assert dim_ids == {
             "P1.1",
             "P1.4",
+            "P3.2",
+            "P3.3",
             "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
         }, dim_ids
         for dim_id, partial in rows:
+            family, version = (
+                (real_adapter_asi_v0.WRAP_FAMILY_ID, real_adapter_asi_v0.WRAP_VERSION)
+                if dim_id in {"P3.2", "P3.3"}
+                else (inspect_section1_v0.WRAP_FAMILY_ID, inspect_section1_v0.WRAP_VERSION)
+            )
             assert partial["evidence_uri"] == (
-                "https://evidence.are-scanner.local/wrap/"
-                f"inspect_section1_v0/{inspect_section1_v0.WRAP_VERSION}/{dim_id}"
+                f"https://evidence.are-scanner.local/wrap/{family}/{version}/{dim_id}"
             )
             assert partial["evidence_sha256"].startswith("sha256:")
             assert isinstance(partial["raw"], float)
@@ -212,13 +219,13 @@ class TestAGB1WalkerRoundTrip:
         runner = _Runner()
         rows = list(customer_agent_probe_run_fn(runner))  # type: ignore[arg-type]
 
-        assert len(rows) == 3
+        assert len(rows) == 5
         assert runner.deadline is None
 
     def test_smoke_tier_stamps_bounded_walker_deadline(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        clock = iter((100.0, 100.1, 100.2, 100.3, 100.4))
+        clock = iter((100.0, 100.1, 100.2, 100.3, 100.4, 100.5))
         monkeypatch.setattr(customer_walker.time, "monotonic", lambda: next(clock))
 
         class _Runner:
@@ -239,7 +246,7 @@ class TestAGB1WalkerRoundTrip:
         runner = _Runner()
         rows = list(customer_agent_probe_run_fn(runner))  # type: ignore[arg-type]
 
-        assert len(rows) == 3
+        assert len(rows) == 5
         assert runner.deadline == 100.0 + SMOKE_DEV_SCAN_DEADLINE_SECONDS
 
 

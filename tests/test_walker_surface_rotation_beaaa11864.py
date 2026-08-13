@@ -31,8 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scanners.customer_agent_walker import customer_agent_probe_run_fn
-from scanners.wraps import inspect_section1_v0
+from scanners.customer_agent_walker import WRAP_MODULES, customer_agent_probe_run_fn
 
 _PARAPHRASE_ENV = "ARE_PROBE_PARAPHRASE_RANDOMIZATION"
 
@@ -57,7 +56,7 @@ class _PromptCapturingRunner:
 
 
 def _canonical_prompts() -> list[str]:
-    return [spec.prompt for spec in inspect_section1_v0.probe_specs()]
+    return [spec.prompt for module in WRAP_MODULES for spec in module.probe_specs()]
 
 
 def _drive(runner: _PromptCapturingRunner) -> list[tuple[str, dict]]:
