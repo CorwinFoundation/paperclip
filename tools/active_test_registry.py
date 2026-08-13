@@ -9,7 +9,9 @@ that are active and production-runner executable.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import re
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -57,6 +59,7 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
     "verdict",
     "github_provenance",
 }
+EXTERNAL_EVIDENCE_PATH = REPO_ROOT / "artifacts" / "beaaa-21704" / "execution_evidence.json"
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
 LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
@@ -126,6 +129,45 @@ FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
 )
 FOUNDER_DEV_SCORED_FAMILIES = (
     AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES | FOUNDER_DEV_LEGACY_SCORED_FAMILIES
+)
+BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
+    {
+        ("agentdojo", "docs.attachment.rendered_html.command_hijack"),
+        ("agentdojo", "retrieval.citation_card.canary_exfil"),
+        ("agentdojo", "tools.email_thread.injected_followup"),
+        ("agentdojo", "workspace.write_then_summarize.indirect_system_override"),
+        ("garak", "dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.dan.AntiDAN"),
+        ("garak_beaaa152", "garak.dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.malwaregen.Evasion"),
+        ("garak_beaaa152", "garak.misleading.FalseAssertion"),
+        ("garak_beaaa152", "garak.promptinject.HijackHateHumans"),
+        ("garak_beaaa152", "garak.snowball.GraphConnectivity"),
+        ("garak_beaaa152", "garak.xss.MarkdownImageExfil"),
+        ("jailbreakbench", "jbb.privacy.injection"),
+        ("privacybench", "privacybench.direct_regurg"),
+        ("privacybench", "privacybench.indirect_inference.exfil"),
+        ("privacybench", "privacybench.jailbreak_pii.exfil"),
+        ("sentiment_skew", "ss.bold_subset"),
+        ("sentiment_skew", "ss.holisticbias_subset"),
+        ("sentiment_skew", "ss.legal_intake_counterfactual"),
+        ("demographic_parity", "dp.bbq_disambig"),
+        ("demographic_parity", "dp.legal_intake_counterfactual"),
+        ("equal_opportunity", "eo.uw_labeled_subset"),
+        ("counterfactual_stability", "cs.all_axes"),
+        ("eval_representation", "er.derived_coverage"),
+    }
+)
+BEAAA_21704_PROVENANCE = "BEAAA-21704"
+BEAAA_21704_ALLOWED_TARGET_CLASSES = frozenset(
+    {
+        "approved_non_customer_production_like_bounded_agent",
+        "self_hosted_agentdojo_native_task_suite_gateway",
+    }
+)
+_NON_EXECUTION_MARKERS = re.compile(
+    r"(?:^|[\s_:-])(placeholder|fixture|fabricated|synthetic[-_ ]?response|todo|n/?a)(?:$|[\s_.,:-])",
+    re.IGNORECASE,
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
@@ -278,8 +320,18 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
 def _execution_evidence_status(
     probe: dict[str, Any],
     mapping: dict[str, Any],
+    *,
+    allow_external_evidence: bool = True,
 ) -> tuple[bool, str]:
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    external_evidence = False
+    benchmark = str(mapping.get("benchmark") or "")
+    probe_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if allow_external_evidence and (not evidence) and EXTERNAL_EVIDENCE_PATH.exists():
+        records = json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        if len(records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+            evidence = records.get(f"{benchmark}:{probe_id}") or {}
+            external_evidence = bool(evidence)
     if not isinstance(evidence, dict):
         return False, "execution_evidence_not_object"
     missing = sorted(
@@ -289,6 +341,24 @@ def _execution_evidence_status(
     )
     if missing:
         return False, "missing_execution_evidence:" + ",".join(missing)
+    response = str(evidence.get("recorded_target_response") or "").strip()
+    if external_evidence:
+        if _NON_EXECUTION_MARKERS.search(response):
+            return False, "invalid_execution_evidence:non_execution_response"
+        if str(evidence.get("github_provenance") or "") != BEAAA_21704_PROVENANCE:
+            return False, "invalid_execution_evidence:provenance"
+        if not str(evidence.get("target_identity") or "").strip():
+            return False, "invalid_execution_evidence:missing_target_identity"
+        target_class = str(evidence.get("target_class") or "").strip()
+        if target_class not in BEAAA_21704_ALLOWED_TARGET_CLASSES:
+            return False, "invalid_execution_evidence:target_class"
+        executed_at = str(evidence.get("executed_at") or "").strip()
+        try:
+            parsed = dt.datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
+        except ValueError:
+            return False, "invalid_execution_evidence:executed_at"
+        if parsed.tzinfo is None:
+            return False, "invalid_execution_evidence:executed_at"
     return True, "target_bound_and_evidenced"
 
 
@@ -412,7 +482,9 @@ def build_registry(
             if not probe_id:
                 continue
             execution_evidenced, evidence_status = _execution_evidence_status(
-                probe, data
+                probe,
+                data,
+                allow_external_evidence=mapping_dir.resolve() == MAPPING_DIR.resolve(),
             )
             materializable = executable and _case_has_bound_execution(benchmark, probe)
             target_bound = execution_evidenced or materializable
@@ -472,6 +544,23 @@ def build_registry(
                     )
                 )
     reconciled = _reconcile_runtime_identities([asdict(row) for row in rows])
+    evidence_records = (
+        json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        if EXTERNAL_EVIDENCE_PATH.exists()
+        else {}
+    )
+    if len(evidence_records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+        for row in reconciled:
+            key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            if key not in BEAAA_21704_REPORTED_NOT_SCORED_CASES:
+                continue
+            row["scoring_active"] = False
+            row["reporting_status"] = "reported_not_scored"
+            if f"{key[0]}:{key[1]}" in evidence_records:
+                row["production_runner_executable"] = True
+                row["execution_evidenced"] = True
+                row["execution_evidence_status"] = "target_bound_and_evidenced"
+                row["activation_blocker"] = None
     if (
         include_content_candidates
         and mapping_dir.resolve() == MAPPING_DIR.resolve()
@@ -708,12 +797,15 @@ def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
     if row.get("content_candidate_inventory") is True:
         return False
     return (
-        row.get("test_id")
-        in (
+        (
+            (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            in BEAAA_21704_REPORTED_NOT_SCORED_CASES
+            or row.get("test_id") in (
             AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
             | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
             | AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES
             | REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES
+        )
         )
         and row.get("reporting_status") == "reported_not_scored"
         and row.get("scoring_active") is False
