@@ -15,6 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "scripts/deploy/scanner-deploy.sh"
+DEV_DEPLOY = ROOT / "scripts/deploy/dev_deploy.sh"
 UNIT = ROOT / "infra/live-edge/backbond-scanner-live.service"
 SHA = "a" * 40
 DIGEST = "example.invalid/backbond/scanner@sha256:" + "b" * 64
@@ -93,12 +94,17 @@ def test_shell_syntax_and_exact_read_only_mount():
     assert "--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro" in UNIT.read_text()
 
 
-def test_frozen_defaults_bind_exact_de50_artifact_identity():
+def test_development_helper_takes_identity_from_five_validated_arguments():
     text = HELPER.read_text()
-    assert "de50ddf2a8372d7714b12cf11a4ec7adf1f02ec4" in text
-    assert "0e5889e3e0bcc82bbde0c195198211b6a7f6523d254af45b8ad0be5ff88e391b" in text
-    assert "775891a2dbab7d355341e48805a8e9c3e12023692de4c2db6b647d0288856de9" in text
-    assert "a03c52accde2c550cef8bfb8935be9f56133591fd2a3b0a946e0a523482e56e0" in text
+    assert "[ \"$#\" = 5 ]" in text
+    assert "SCANNER_FROZEN_" not in text
+    assert "repository@sha256" in text
+
+
+def test_dev_deploy_emits_all_five_helper_arguments():
+    text = DEV_DEPLOY.read_text()
+    assert "BACKBOND_CANDIDATE_ID is required" in text
+    assert "${Q_SHA} ${Q_REMOTE_ARCHIVE} ${Q_DIGEST} ${Q_ARCHIVE_SHA} ${Q_CANDIDATE}" in text
 
 
 @pytest.mark.parametrize("field", ["scanner_version", "corpus_version", "build_sha", "release_tag"])
@@ -200,7 +206,7 @@ def test_invalid_embedded_json_cleans_resources_before_transaction(tmp_path):
 
 def test_preflight_rejects_repository_digest_before_mutation(tmp_path):
     e, env_file, _, archive, archive_sha, calls = harness(tmp_path)
-    before=env_file.read_bytes(); result=run(e,archive,archive_sha,digest="example.invalid/x@sha256:"+"d"*64)
+    before=env_file.read_bytes(); result=run(e,archive,archive_sha,digest="example.invalid/x:latest")
     assert result.returncode != 0 and env_file.read_bytes()==before
     assert not calls.exists()
 
@@ -274,13 +280,13 @@ def test_single_err_int_term_trap_and_no_secret_output_or_registry_pull():
 
 
 @pytest.mark.parametrize("field", ["archive", "revision", "manifest", "candidate"])
-def test_each_frozen_anchor_mismatch_fails_closed(tmp_path, field):
+def test_each_identity_input_or_embedded_anchor_mismatch_fails_closed(tmp_path, field):
     e, env_file, _, archive, archive_sha, _ = harness(tmp_path)
     args=["bash",str(HELPER),SHA,str(archive),DIGEST,archive_sha,CANDIDATE]
     if field == "archive": archive.write_bytes(b"tampered")
     elif field == "revision": e["STUB_SHA"]="d"*40
     elif field == "manifest": Path(e["STUB_MANIFEST_FILE"]).write_text("tampered")
-    else: args[-1]="BEAAA-1"
+    else: args[-1]="invalid-candidate"
     before=env_file.read_bytes()
     result=subprocess.run(args,env=e,text=True,capture_output=True)
     assert result.returncode != 0 and env_file.read_bytes() == before

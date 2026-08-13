@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BEAAA-20076 - atomic, egress-sealed activation of the frozen Scanner image.
+# BEAAA-22831 - atomic, egress-sealed activation of a Development Mode image.
 # Install only as /usr/local/sbin/scanner-deploy (root:root 0755).
 set -Eeuo pipefail
 
@@ -19,11 +19,6 @@ EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
 EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
 ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
 
-FROZEN_SHA="${SCANNER_FROZEN_SHA:-de50ddf2a8372d7714b12cf11a4ec7adf1f02ec4}"
-FROZEN_REPO_DIGEST="${SCANNER_FROZEN_REPO_DIGEST:-ghcr.io/corwinfoundation/are-scanner@sha256:0e5889e3e0bcc82bbde0c195198211b6a7f6523d254af45b8ad0be5ff88e391b}"
-FROZEN_ARCHIVE_SHA="${SCANNER_FROZEN_ARCHIVE_SHA:-775891a2dbab7d355341e48805a8e9c3e12023692de4c2db6b647d0288856de9}"
-FROZEN_MANIFEST_SHA="${SCANNER_FROZEN_MANIFEST_SHA:-a03c52accde2c550cef8bfb8935be9f56133591fd2a3b0a946e0a523482e56e0}"
-FROZEN_CANDIDATE="${SCANNER_FROZEN_CANDIDATE:-BEAAA-19984}"
 REVISION_LABEL=org.opencontainers.image.revision
 
 log() { printf '[scanner-deploy] %s\n' "$*" >&2; }
@@ -68,14 +63,10 @@ wait_200() {
 
 [ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id>'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
-case "$SHA" in (*[!0-9a-f]*|'') die 'commit must be lowercase hex';; esac
-case "$ARCHIVE_SHA" in (*[!0-9a-f]*|'') die 'archive SHA-256 must be lowercase hex';; esac
-case "$REPO_DIGEST" in (*[!a-zA-Z0-9._/@:-]*|'') die 'repository digest has invalid syntax';; esac
-case "$CANDIDATE" in (BEAAA-[0-9]*) :;; (*) die 'candidate id has invalid syntax';; esac
-[ "$SHA" = "$FROZEN_SHA" ] || die 'commit is not the frozen candidate'
-[ "$REPO_DIGEST" = "$FROZEN_REPO_DIGEST" ] || die 'repository digest is not the frozen candidate'
-[ "$ARCHIVE_SHA" = "$FROZEN_ARCHIVE_SHA" ] || die 'archive SHA argument is not the frozen candidate'
-[ "$CANDIDATE" = "$FROZEN_CANDIDATE" ] || die 'candidate id is not the frozen candidate'
+[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
+[[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
+[[ "$REPO_DIGEST" =~ ^[a-zA-Z0-9._/-]+@sha256:[0-9a-f]{64}$ ]] || die 'repository digest must be an immutable repository@sha256 reference'
+[[ "$CANDIDATE" =~ ^BEAAA-[0-9]+$ ]] || die 'candidate id has invalid syntax'
 [ "$ARCHIVE" = "$ARCHIVE_DIR/backbond-scanner-$SHA.tar" ] || die 'archive path is not the fixed candidate path'
 [ -f "$ARCHIVE" ] || die 'archive not found'
 [ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" = "$ARCHIVE_SHA" ] || die 'archive checksum mismatch'
@@ -90,9 +81,9 @@ grep -Fq -- '--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-ag
 # Loading is pre-mutation. No registry operation is permitted.
 "$DOCKER" load -i "$ARCHIVE" >/dev/null
 IMAGE_ID="$("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL=$SHA" --format '{{.ID}}' | awk 'NF' | sort -u)"
-[ "$(printf '%s\n' "$IMAGE_ID" | awk 'NF{n++} END{print n+0}')" = 1 ] || die 'expected exactly one image with frozen OCI revision'
+[ "$(printf '%s\n' "$IMAGE_ID" | awk 'NF{n++} END{print n+0}')" = 1 ] || die 'expected exactly one image with requested OCI revision'
 GOT_REV="$("$DOCKER" image inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$IMAGE_ID")"
-[ "$GOT_REV" = "$FROZEN_SHA" ] || die 'OCI revision mismatch'
+[ "$GOT_REV" = "$SHA" ] || die 'OCI revision mismatch'
 MANIFEST_CONTAINER= MANIFEST_TMP=
 cleanup_manifest_resources() {
   cleanup_rc=0
@@ -121,8 +112,7 @@ MANIFEST_CONTAINER=
 if ! GOT_MANIFEST="$(sha256sum "$MANIFEST_TMP" | awk '{print $1}')"; then
   die 'cannot hash embedded release manifest'
 fi
-[ "$GOT_MANIFEST" = "$FROZEN_MANIFEST_SHA" ] || die 'embedded release-manifest SHA mismatch'
-if ! python3 - "$MANIFEST_TMP" "$FROZEN_SHA" <<'PY'
+if ! python3 - "$MANIFEST_TMP" "$SHA" <<'PY'
 import json,sys
 p,sha=sys.argv[1:]
 d=json.load(open(p,encoding='utf-8'))
@@ -249,4 +239,4 @@ open(p,'w').write(json.dumps(d,sort_keys=True,separators=(',',':'))+'\n')
 PY
 atomic_install "$TX/receipt.json" "$RECEIPTS/$SHA.json" 0444
 transaction_active=0; trap - ERR INT TERM
-log "OK: exact frozen candidate activated; receipt $RECEIPTS/$SHA.json"
+log "OK: exact Development Mode candidate activated; receipt $RECEIPTS/$SHA.json"

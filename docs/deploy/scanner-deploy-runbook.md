@@ -1,9 +1,9 @@
 # Scanner deploy runbook — systemd-owned live edge
 
-**Ticket:** BEAAA-16598 (parent BEAAA-16355; live-verified against
-`462aee92358993eb21f29d74d6f690765db3ae06` on `srv1749248`).
+**Tickets:** BEAAA-16598 established the path; BEAAA-22831 made the helper
+Development Mode-capable.
 **Contract:** `are-scanner-api-v1@v1.1.0` (unchanged). No score / rubric / corpus /
-API response contract change; `scanner_version 0.5.0`, `corpus_version 0.1.0`.
+API response contract change; `scanner_version 0.5.0`, `corpus_version 0.2.0`.
 
 This is the **single active deploy runbook** for putting a merged `master` commit
 live on the edge host. Superseded CD-pipeline docs are preserved under
@@ -39,16 +39,16 @@ locally. The GHCR ref produced at build time is signed provenance only and is
    `master`. It builds `--build-arg GIT_SHA=<sha>` (which bakes the revision
    label), pushes and `cosign`-signs the GHCR provenance ref, `docker save`s the
    tar, records `archive.sha256`, and then **emits — but never runs** a single
-   operator command. The agent side has no SSH key and opens no SSH connection.
+   operator command.
 
-2. `scripts/deploy/scanner-deploy.sh <git-sha> [tar]` — runs **on the box** as
+2. `scripts/deploy/scanner-deploy.sh <git-sha> <tar> <repository@sha256:digest> <archive-sha256> <candidate-id>` — runs **on the box** as
    `sudo /usr/local/sbin/scanner-deploy`. It:
    1. `docker load`s the SCP-delivered tar (no pull),
    2. selects the image by exact `org.opencontainers.image.revision=<sha>` and
       re-inspects the winner,
    3. retags it to `backbond-scanner-live:<sha>`,
-   4. backs up `/etc/backbond/scanner-edge.env` to `.pre-<sha>` **before** any
-      mutation,
+   4. snapshots the environment, current-version marker, and release identities
+      in a retained transaction directory **before** any mutation,
    5. repoints `SCANNER_EDGE_IMAGE` at the local live tag (all other lines
       preserved),
    6. `systemctl restart backbond-scanner-live.service`,
@@ -60,10 +60,10 @@ locally. The GHCR ref produced at build time is signed provenance only and is
 
 ```bash
 # On the agent/CI side, on green master:
-scripts/deploy/dev_deploy.sh
+BACKBOND_CANDIDATE_ID=BEAAA-22801 scripts/deploy/dev_deploy.sh
 # Copy the single emitted command and run it as the operator:
 scp <stage>/backbond-scanner-<sha>.tar are-deploy@srv1749248:/var/tmp/backbond-scanner-<sha>.tar \
-  && ssh are-deploy@srv1749248 'set -euo pipefail; cleanup() { rm -f /var/tmp/backbond-scanner-<sha>.tar; }; trap cleanup EXIT; sudo /usr/local/sbin/scanner-deploy <sha> /var/tmp/backbond-scanner-<sha>.tar'
+  && ssh are-deploy@srv1749248 'set -euo pipefail; cleanup() { rm -f /var/tmp/backbond-scanner-<sha>.tar; }; trap cleanup EXIT; sudo /usr/local/sbin/scanner-deploy <sha> /var/tmp/backbond-scanner-<sha>.tar <repository@sha256:digest> <archive-sha256> <candidate-id>'
 ```
 
 A non-zero exit means the helper already rolled the box back to the prior image.
@@ -78,18 +78,18 @@ sudo install -m 0755 -o root -g root scripts/deploy/scanner-deploy.sh /usr/local
 
 ## Rollback
 
-- **Automatic:** any failure after the env backup restores
-  `/etc/backbond/scanner-edge.env.pre-<sha>` and restarts the retained prior
-  image.
+- **Automatic:** any failure after the transaction snapshot restores the prior
+  environment, markers, and identities, then restarts and verifies the retained
+  prior image.
 - **Manual (later regression):** repoint `SCANNER_EDGE_IMAGE` to the prior
   `backbond-scanner-live:<prev-sha>` (still loaded locally) and
   `sudo systemctl restart backbond-scanner-live.service`, or restore a
   `.pre-<sha>` backup.
 - **Candidate:** revert the candidate commit.
 
-## Promotion gate
+## Development Mode gate
 
-No score/rubric/corpus/API change; calibration delta is Δ0 by construction
-(this change touches only deploy machinery and docs). A fresh QA Engineer
-exact-SHA `APPROVED` is required before merge; any live/shared promotion
-additionally requires Founder sign-off (BEAAA-15373 / BEAAA-15399 / BEAAA-15400).
+The helper validates the five generated identity inputs and does not contain a
+historical candidate pin. The calling promotion issue must still establish the
+current master identity, applicable QA evidence, authorization, and rollback
+point before executing the emitted command.
