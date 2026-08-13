@@ -51,6 +51,8 @@ from typing import Any
 from harness.contract_envelope import to_contract_output
 from harness.applicability import load_policy, validate_for_scoring
 from rubric.scoring import Rubric, ValidatedApplicability, score
+from rubric.behavioral_activation import activate_behavioral_evidence
+from rubric.behavioral_receipt import VerifiedBehavioralReceipt
 from api.bundle import _signing_key
 
 
@@ -312,6 +314,8 @@ class ScoreRuntime:
         prior_scan_refs: list[dict[str, Any]],
         applicability_decisions: dict[str, dict[str, Any]] | None = None,
         walker_partial_completion: bool = False,
+        verified_behavioral_receipts: tuple[VerifiedBehavioralReceipt, ...] = (),
+        behavioral_activation_enabled: bool = False,
     ) -> dict[str, Any]:
         """Project the accumulated IPC row map into the §2.2 envelope.
 
@@ -357,6 +361,12 @@ class ScoreRuntime:
           preserves the synthetic_v0 path byte-stability.
         """
         eval_outputs = _reconstruct_eval_outputs(accumulated_rows)
+        if verified_behavioral_receipts:
+            if not behavioral_activation_enabled:
+                raise ValueError("behavioral receipts supplied while activation is disabled")
+            eval_outputs, _behavioral_audit = activate_behavioral_evidence(
+                eval_outputs, list(verified_behavioral_receipts)
+            )
         if applicability_decisions is None and invocation_context is not None:
             # BEAAA-5414 Q-B3 — customer-true Track B walker carries
             # ``applicability_decisions`` through ``invocation_context``

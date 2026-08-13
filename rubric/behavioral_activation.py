@@ -8,9 +8,9 @@ not alter scoring.
 from __future__ import annotations
 
 import copy
-import hashlib
-import json
 from typing import Any, Mapping
+
+from .behavioral_receipt import VerifiedBehavioralReceipt
 
 
 class BehavioralActivationError(ValueError):
@@ -28,16 +28,9 @@ MAPPINGS = {
 _VERDICTS = {"pass", "fail", "error", "not_applicable"}
 
 
-def _digest(receipt: Mapping[str, Any]) -> str:
-    payload = {k: v for k, v in receipt.items() if k != "sha256"}
-    return hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-
-
 def activate_behavioral_evidence(
     eval_outputs: Mapping[str, Mapping[str, Any]],
-    receipts: list[Mapping[str, Any]],
+    receipts: list[VerifiedBehavioralReceipt],
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
     """Apply verified candidate evidence without changing weights or shape.
 
@@ -48,7 +41,10 @@ def activate_behavioral_evidence(
     out = copy.deepcopy(dict(eval_outputs))
     audit: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for receipt in receipts:
+    for verified in receipts:
+        if not isinstance(verified, VerifiedBehavioralReceipt):
+            raise TypeError("behavioral activation requires VerifiedBehavioralReceipt")
+        receipt = verified.payload
         predicate = str(receipt.get("predicate", ""))
         if predicate not in MAPPINGS:
             raise BehavioralActivationError(f"unknown predicate: {predicate}")
@@ -58,16 +54,13 @@ def activate_behavioral_evidence(
         verdict = str(receipt.get("verdict", ""))
         if verdict not in _VERDICTS:
             raise BehavioralActivationError(f"invalid verdict: {verdict}")
-        if receipt.get("sha256") != _digest(receipt):
-            raise BehavioralActivationError(f"receipt digest mismatch: {predicate}")
         refs = receipt.get("evidence_refs")
-        if not isinstance(refs, list) or len(refs) != 3 or any(not r for r in refs):
-            raise BehavioralActivationError(f"incomplete evidence_refs: {predicate}")
 
         point = MAPPINGS[predicate]
         row = {"predicate": predicate, "rubric_point_id": point,
                "verdict": verdict, "evidence_refs": list(refs),
-               "receipt_sha256": receipt["sha256"]}
+               "receipt_id": receipt["receipt_id"],
+               "verification": "ed25519+jcs+immutable_evidence"}
         if point not in out:
             if verdict == "not_applicable":
                 row["score_effect"] = "none_not_applicable"
@@ -83,4 +76,3 @@ def activate_behavioral_evidence(
             row["score_effect"] = "none_error_existing_raw_retained"
         audit.append(row)
     return out, audit
-
