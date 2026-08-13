@@ -4,6 +4,7 @@ import hashlib
 from typing import Any
 
 from .detector_input import normalize_tool_name
+from .taxonomy import asi_view
 
 
 DETECTOR_VERSION = "0.1.0"
@@ -112,6 +113,7 @@ def _build_claim_event(
         "schema_version": schema_version,
         "payload": {
             "peril": peril,
+            "asi_view": asi_view(peril),
             "detector_id": detector_id,
             "detector_version": DETECTOR_VERSION,
             "severity": severity,
