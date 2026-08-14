@@ -139,10 +139,12 @@ def test_rescans_includes_invocation_context_in_score_inputs(
         on_validated_row: Any,
         score_runtime: Any,
         score_inputs: dict[str, Any] | None,
+        behavioral_receipt_ingestors: tuple[Any, ...] = (),
         row_recv_timeout_seconds: float | None = None,
     ) -> _DummyScorerProcess:
         del channel, on_validated_row, score_runtime, row_recv_timeout_seconds
         captured["score_inputs"] = score_inputs
+        captured["behavioral_receipt_ingestors"] = behavioral_receipt_ingestors
         return _DummyScorerProcess()
 
     monkeypatch.setattr(scan_runtime_factory, "spawn_scorer", fake_spawn_scorer)
@@ -167,6 +169,7 @@ def test_rescans_includes_invocation_context_in_score_inputs(
     assert response.status_code == 202, response.text
 
     assert captured["score_inputs"] is not None
+    assert captured["behavioral_receipt_ingestors"] == ()
     score_inputs = captured["score_inputs"]
     invocation_context = score_inputs.get("invocation_context")
     assert isinstance(invocation_context, dict), f"score_inputs={score_inputs!r}"
