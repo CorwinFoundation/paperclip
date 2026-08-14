@@ -158,6 +158,25 @@ BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
         ("eval_representation", "er.derived_coverage"),
     }
 )
+# These rows were already target-bound runtime aliases before BEAAA-21704 added
+# external execution evidence.  Report-only status keeps them out of the scored
+# executable total, but must not erase their pre-existing runtime coverage.
+BEAAA_21704_RETAINED_RUNTIME_CASES = frozenset(
+    {
+        ("garak", "dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.dan.AntiDAN"),
+        ("garak_beaaa152", "garak.dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.malwaregen.Evasion"),
+        ("garak_beaaa152", "garak.misleading.FalseAssertion"),
+        ("garak_beaaa152", "garak.promptinject.HijackHateHumans"),
+        ("garak_beaaa152", "garak.snowball.GraphConnectivity"),
+        ("garak_beaaa152", "garak.xss.MarkdownImageExfil"),
+        ("jailbreakbench", "jbb.privacy.injection"),
+        ("privacybench", "privacybench.direct_regurg"),
+        ("privacybench", "privacybench.indirect_inference.exfil"),
+        ("privacybench", "privacybench.jailbreak_pii.exfil"),
+    }
+)
 BEAAA_21704_PROVENANCE = "BEAAA-21704"
 BEAAA_21704_ALLOWED_TARGET_CLASSES = frozenset(
     {
@@ -820,10 +839,19 @@ def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
     )
 
 
-def _is_runtime_runnable(row: dict[str, Any]) -> bool:
+def _is_runtime_runnable(
+    row: dict[str, Any], *, retain_preexisting_beaaa21704_aliases: bool = True
+) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
-    if _is_non_countable_reported_not_scored(row):
+    key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+    if (
+        _is_non_countable_reported_not_scored(row)
+        and (
+            not retain_preexisting_beaaa21704_aliases
+            or key not in BEAAA_21704_RETAINED_RUNTIME_CASES
+        )
+    ):
         return False
     return (
         row.get("status") == "active"
@@ -838,7 +866,14 @@ def _is_runtime_runnable(row: dict[str, Any]) -> bool:
 def count_target_bound_runtime(rows: list[dict[str, Any]]) -> int:
     """Count active rows the standard runtime can execute to generate evidence."""
 
-    return sum(1 for row in rows if _is_runtime_runnable(row))
+    retain_aliases = not any(row.get("content_candidate_inventory") is True for row in rows)
+    return sum(
+        1
+        for row in rows
+        if _is_runtime_runnable(
+            row, retain_preexisting_beaaa21704_aliases=retain_aliases
+        )
+    )
 
 
 def runtime_case_identity(row: dict[str, Any]) -> str:
@@ -899,8 +934,11 @@ def distinct_case_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
     declared_by_family: Counter[str] = Counter()
     distinct_by_family: dict[str, set[str]] = {}
     distinct_global: set[str] = set()
+    retain_aliases = not any(row.get("content_candidate_inventory") is True for row in rows)
     for row in rows:
-        if not _is_runtime_runnable(row):
+        if not _is_runtime_runnable(
+            row, retain_preexisting_beaaa21704_aliases=retain_aliases
+        ):
             continue
         family = str(row.get("test_id") or "")
         identity = runtime_case_identity(row)
