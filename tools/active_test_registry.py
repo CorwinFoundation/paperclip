@@ -503,7 +503,11 @@ def build_registry(
             execution_evidenced, evidence_status = _execution_evidence_status(
                 probe,
                 data,
-                allow_external_evidence=mapping_dir.resolve() == MAPPING_DIR.resolve(),
+                allow_external_evidence=(
+                    mapping_dir.resolve() == MAPPING_DIR.resolve()
+                    and (benchmark, str(probe_id))
+                    not in BEAAA_21704_RETAINED_RUNTIME_CASES
+                ),
             )
             materializable = executable and _case_has_bound_execution(benchmark, probe)
             target_bound = execution_evidenced or materializable
@@ -576,6 +580,9 @@ def build_registry(
             row["scoring_active"] = False
             row["reporting_status"] = "reported_not_scored"
             if f"{key[0]}:{key[1]}" in evidence_records:
+                row["external_execution_evidenced"] = True
+                if key in BEAAA_21704_RETAINED_RUNTIME_CASES:
+                    continue
                 row["production_runner_executable"] = True
                 row["execution_evidenced"] = True
                 row["execution_evidence_status"] = "target_bound_and_evidenced"
@@ -839,18 +846,13 @@ def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
     )
 
 
-def _is_runtime_runnable(
-    row: dict[str, Any], *, retain_preexisting_beaaa21704_aliases: bool = True
-) -> bool:
+def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
     key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
     if (
         _is_non_countable_reported_not_scored(row)
-        and (
-            not retain_preexisting_beaaa21704_aliases
-            or key not in BEAAA_21704_RETAINED_RUNTIME_CASES
-        )
+        and key not in BEAAA_21704_RETAINED_RUNTIME_CASES
     ):
         return False
     return (
@@ -866,14 +868,7 @@ def _is_runtime_runnable(
 def count_target_bound_runtime(rows: list[dict[str, Any]]) -> int:
     """Count active rows the standard runtime can execute to generate evidence."""
 
-    retain_aliases = not any(row.get("content_candidate_inventory") is True for row in rows)
-    return sum(
-        1
-        for row in rows
-        if _is_runtime_runnable(
-            row, retain_preexisting_beaaa21704_aliases=retain_aliases
-        )
-    )
+    return sum(1 for row in rows if _is_runtime_runnable(row))
 
 
 def runtime_case_identity(row: dict[str, Any]) -> str:
@@ -934,11 +929,8 @@ def distinct_case_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
     declared_by_family: Counter[str] = Counter()
     distinct_by_family: dict[str, set[str]] = {}
     distinct_global: set[str] = set()
-    retain_aliases = not any(row.get("content_candidate_inventory") is True for row in rows)
     for row in rows:
-        if not _is_runtime_runnable(
-            row, retain_preexisting_beaaa21704_aliases=retain_aliases
-        ):
+        if not _is_runtime_runnable(row):
             continue
         family = str(row.get("test_id") or "")
         identity = runtime_case_identity(row)

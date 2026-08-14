@@ -57,8 +57,9 @@ def test_beaaa21704_exact_roster_is_real_and_reported_not_scored():
     }
     selected = [rows[key] for key in registry.BEAAA_21704_REPORTED_NOT_SCORED_CASES]
     assert len(selected) == 24
-    assert all(row["production_runner_executable"] is True for row in selected)
-    assert all(row["execution_evidenced"] is True for row in selected)
+    assert sum(row["production_runner_executable"] is True for row in selected) == 12
+    assert sum(row["production_runner_executable"] is False for row in selected) == 12
+    assert all(row["external_execution_evidenced"] is True for row in selected)
     assert all(row["reporting_status"] == "reported_not_scored" for row in selected)
     assert all(row["scoring_active"] is False for row in selected)
 

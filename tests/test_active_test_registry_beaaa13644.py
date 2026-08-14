@@ -51,14 +51,14 @@ class ActiveTestRegistryTests(unittest.TestCase):
     def test_production_registry_counts_canonical_runtime_identities_once(self) -> None:
         self.assertEqual(count_active_executable(self.rows), load_published_count())
         self.assertEqual(count_active_executable(self.rows), 2202)
-        # The 24 BEAAA-21704 rows now carry accepted execution evidence. Twelve
-        # are aliases of existing canonical runtime identities, so promotion
-        # removes their former pending-only identities from this deduped count.
-        self.assertEqual(count_target_bound_runtime(self.rows), 2201)
+        # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
+        # coverage while external evidence remains separate from the canonical
+        # runtime-identity evidence gate.
+        self.assertEqual(count_target_bound_runtime(self.rows), 2213)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
         self.assertEqual(len(promoted), 1954)
-        self.assertEqual(len(aliases), 0)
+        self.assertEqual(len(aliases), 12)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:
         summary = summarize(self.rows, published_count=load_published_count())

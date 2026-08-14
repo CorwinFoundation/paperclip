@@ -220,7 +220,7 @@
   "bucket_counts": {
     "attestation_only": 7,
     "declared_minimum_only": 208,
-    "fixture_test_only": 82,
+    "fixture_test_only": 83,
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
     "report_only": 3,
@@ -241,10 +241,10 @@
     "executable": 2202,
     "executable_on_default_runtime": 0,
     "executed_in_latest_evidenced_run": 0,
-    "fixture_test_only": 82,
+    "fixture_test_only": 83,
     "inactive_deferred": 8,
     "proxy_grade": 49,
-    "registered": 2559,
+    "registered": 2560,
     "reported": 8,
     "scoring_active": 0
   },
@@ -72964,6 +72964,35 @@
         "version": "n/a"
       },
       "stable_id": "0b5f8eb9b12ff83e07d4f316e108dd3cb20db04bdf484d6480d2640492be9922"
+    },
+    {
+      "bucket": "fixture_test_only",
+      "case_id_or_probe_id": "interaction_risk_shadow/authority_frontier_pack_v3.json",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": true,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tests/fixtures",
+      "framework": "fixture",
+      "framework_version": "n/a",
+      "mode": "fixture",
+      "reason": "fixture/test asset is not a production full-scan execution row",
+      "rubric_point_id": "n/a",
+      "source": "tests/fixtures/interaction_risk_shadow/authority_frontier_pack_v3.json",
+      "source_provenance": {
+        "path": "tests/fixtures/interaction_risk_shadow/authority_frontier_pack_v3.json",
+        "version": "n/a"
+      },
+      "stable_id": "eb15bcadab5b332867b683157f53c3f0a318241a58370f52cf8728d160c973e4"
     },
     {
       "bucket": "fixture_test_only",
