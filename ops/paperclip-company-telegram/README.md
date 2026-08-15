@@ -24,3 +24,7 @@ failure is treated as at-most-once and the uncertain chunk is suppressed on rest
 
 The bridge reads Paperclip comments in ascending pages of 100. Paperclip's `after` cursor is
 inclusive, so page-boundary comment IDs are deduplicated before outbound processing.
+Each active chat stores the last processed comment ID and requests only newer comments.
+When upgrading legacy state without that cursor, the bridge baselines the existing thread
+once without relaying its historical backlog; comments created afterward follow the normal
+write-ahead delivery path.

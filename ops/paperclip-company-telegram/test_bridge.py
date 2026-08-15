@@ -105,6 +105,18 @@ class CommentPaginationTests(unittest.TestCase):
             ],
         )
 
+    def test_comments_after_cursor_excludes_inclusive_boundary(self) -> None:
+        expected = [{"id": f"comment-{index}"} for index in range(105)]
+        paperclip = PaginatedPaperclip(expected)
+
+        actual = paperclip.comments("issue-1", after="comment-99")
+
+        self.assertEqual(actual, expected[100:])
+        self.assertEqual(
+            paperclip.paths,
+            ["/issues/issue-1/comments?order=asc&limit=100&after=comment-99"],
+        )
+
 
 class RecordingTelegram:
     def __init__(self, *, crash_after_send: bool = False) -> None:
@@ -164,8 +176,14 @@ class RelayPaperclip:
     def issue(self, issue_id: str) -> dict:
         return {"id": issue_id, "status": "in_progress"}
 
-    def comments(self, issue_id: str) -> list[dict]:
-        return copy.deepcopy(self._comments)
+    def comments(self, issue_id: str, *, after: str | None = None) -> list[dict]:
+        comments = copy.deepcopy(self._comments)
+        if after is None:
+            return comments
+        for index, comment in enumerate(comments):
+            if comment.get("id") == after:
+                return comments[index + 1 :]
+        return comments
 
 
 def relay_state() -> dict:
@@ -177,6 +195,8 @@ def relay_state() -> dict:
                 "identifier": "BEAAA-1",
                 "last_status": "in_progress",
                 "seen_comment_ids": [],
+                "last_comment_id": None,
+                "comment_cursor_state_version": bridge.COMMENT_CURSOR_STATE_VERSION,
             }
         },
         "outbound_deliveries": [],
@@ -184,6 +204,31 @@ def relay_state() -> dict:
 
 
 class OutboundIdempotencyTests(unittest.TestCase):
+    def test_legacy_state_baselines_existing_comments_before_forwarding(self) -> None:
+        state = relay_state()
+        chat_state = state["chats"]["1234"]
+        chat_state.pop("last_comment_id")
+        chat_state.pop("comment_cursor_state_version")
+        telegram = RecordingTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": "old"}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            paperclip._comments.append(
+                {"id": "comment-2", "authorAgentId": "agent-1", "body": "new"}
+            )
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(telegram.sent, [(1234, "Paperclip agent · BEAAA-1\n\nnew")])
+        self.assertEqual(chat_state["last_comment_id"], "comment-2")
+        self.assertEqual(
+            chat_state["comment_cursor_state_version"],
+            bridge.COMMENT_CURSOR_STATE_VERSION,
+        )
+
     def test_repeated_polling_sends_comment_once(self) -> None:
         state = relay_state()
         telegram = RecordingTelegram()

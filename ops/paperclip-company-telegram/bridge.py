@@ -38,6 +38,7 @@ ONBOARDING_PROJECT_ID = "8e61a25d-a945-4569-9f9c-4bce1cfef97b"
 ONBOARDING_GOAL_ID = "4688e2e2-c857-4ef1-b5a7-28356f7f5c00"
 OUTBOUND_DELIVERY_RETENTION = 2000
 COMMENT_PAGE_LIMIT = 100
+COMMENT_CURSOR_STATE_VERSION = 1
 
 CEO_ID = "ca0edebc-6f54-4a19-b836-4d306e3a3c48"
 HEAD_OF_UW_ID = "93e0b62b-2d87-4dc7-990a-5808079e1c4e"
@@ -329,16 +330,18 @@ class Paperclip:
     def issue(self, issue_id: str) -> dict[str, Any]:
         return self.get(f"/issues/{urllib.parse.quote(issue_id)}")
 
-    def comments(self, issue_id: str) -> list[dict[str, Any]]:
+    def comments(
+        self, issue_id: str, *, after: str | None = None
+    ) -> list[dict[str, Any]]:
         issue_path = f"/issues/{urllib.parse.quote(issue_id)}/comments"
         comments: list[dict[str, Any]] = []
-        seen_ids: set[str] = set()
-        after: str | None = None
+        seen_ids = {after} if after is not None else set()
+        cursor = after
 
         while True:
             query = f"order=asc&limit={COMMENT_PAGE_LIMIT}"
-            if after is not None:
-                query += f"&after={urllib.parse.quote(after)}"
+            if cursor is not None:
+                query += f"&after={urllib.parse.quote(cursor)}"
             page = self.get(f"{issue_path}?{query}")
             if not isinstance(page, list) or not page:
                 break
@@ -356,10 +359,10 @@ class Paperclip:
             if len(page) < COMMENT_PAGE_LIMIT:
                 break
             next_after = page[-1].get("id") if isinstance(page[-1], dict) else None
-            if not isinstance(next_after, str) or next_after == after:
+            if not isinstance(next_after, str) or next_after == cursor:
                 LOG.error("stopped comment pagination issue=%s", issue_id)
                 break
-            after = next_after
+            cursor = next_after
 
         return comments
 
@@ -408,6 +411,8 @@ def start_conversation(
         "identifier": identifier,
         "last_status": issue.get("status", "todo"),
         "seen_comment_ids": [],
+        "last_comment_id": None,
+        "comment_cursor_state_version": COMMENT_CURSOR_STATE_VERSION,
         "updated_at": int(time.time()),
     }
     save_state(state)
@@ -534,7 +539,33 @@ def relay_paperclip_updates(
         issue_id = chat_state["active_issue_id"]
         try:
             issue = paperclip.issue(issue_id)
-            comments = paperclip.comments(issue_id)
+            if (
+                chat_state.get("comment_cursor_state_version")
+                != COMMENT_CURSOR_STATE_VERSION
+            ):
+                existing_comments = paperclip.comments(issue_id)
+                existing_ids = [
+                    str(comment["id"])
+                    for comment in existing_comments
+                    if isinstance(comment, dict) and comment.get("id")
+                ]
+                chat_state["seen_comment_ids"] = existing_ids[-200:]
+                chat_state["last_comment_id"] = (
+                    existing_ids[-1] if existing_ids else None
+                )
+                chat_state["comment_cursor_state_version"] = (
+                    COMMENT_CURSOR_STATE_VERSION
+                )
+                save_state(state)
+                LOG.info(
+                    "initialized comment cursor issue=%s comment_count=%d",
+                    chat_state.get("identifier"),
+                    len(existing_ids),
+                )
+                continue
+            comments = paperclip.comments(
+                issue_id, after=chat_state.get("last_comment_id")
+            )
         except Exception:
             LOG.exception("could not poll Paperclip issue=%s", chat_state.get("identifier"))
             continue
@@ -583,6 +614,10 @@ def relay_paperclip_updates(
                     role,
                 )
         chat_state["seen_comment_ids"] = list(seen)[-200:]
+        if comments:
+            last_comment_id = comments[-1].get("id")
+            if last_comment_id:
+                chat_state["last_comment_id"] = str(last_comment_id)
         status = issue.get("status")
         if status and status != chat_state.get("last_status"):
             previous_status = chat_state.get("last_status")
