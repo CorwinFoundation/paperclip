@@ -5,6 +5,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 from unittest import mock
+import urllib.parse
 
 
 MODULE_PATH = Path(__file__).with_name("bridge.py")
@@ -64,6 +65,44 @@ class AddFollowUpTests(unittest.TestCase):
                 ),
                 "resume": True,
             },
+        )
+
+
+class PaginatedPaperclip(bridge.Paperclip):
+    def __init__(self, comments: list[dict]) -> None:
+        self._comments = comments
+        self.paths: list[str] = []
+
+    def get(self, path: str):
+        self.paths.append(path)
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(path).query)
+        limit = int(query["limit"][0])
+        after = query.get("after", [None])[0]
+        start = 0
+        if after is not None:
+            start = next(
+                index
+                for index, comment in enumerate(self._comments)
+                if comment["id"] == after
+            )
+        return copy.deepcopy(self._comments[start : start + limit])
+
+
+class CommentPaginationTests(unittest.TestCase):
+    def test_comments_fetches_every_page_and_deduplicates_inclusive_cursor(self) -> None:
+        expected = [{"id": f"comment-{index}"} for index in range(205)]
+        paperclip = PaginatedPaperclip(expected)
+
+        actual = paperclip.comments("issue/1")
+
+        self.assertEqual(actual, expected)
+        self.assertEqual(
+            paperclip.paths,
+            [
+                "/issues/issue/1/comments?order=asc&limit=100",
+                "/issues/issue/1/comments?order=asc&limit=100&after=comment-99",
+                "/issues/issue/1/comments?order=asc&limit=100&after=comment-198",
+            ],
         )
 
 

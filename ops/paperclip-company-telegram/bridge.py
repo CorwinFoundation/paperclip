@@ -37,6 +37,7 @@ COMPANY_SLUG = "BEAAA"
 ONBOARDING_PROJECT_ID = "8e61a25d-a945-4569-9f9c-4bce1cfef97b"
 ONBOARDING_GOAL_ID = "4688e2e2-c857-4ef1-b5a7-28356f7f5c00"
 OUTBOUND_DELIVERY_RETENTION = 2000
+COMMENT_PAGE_LIMIT = 100
 
 CEO_ID = "ca0edebc-6f54-4a19-b836-4d306e3a3c48"
 HEAD_OF_UW_ID = "93e0b62b-2d87-4dc7-990a-5808079e1c4e"
@@ -329,10 +330,38 @@ class Paperclip:
         return self.get(f"/issues/{urllib.parse.quote(issue_id)}")
 
     def comments(self, issue_id: str) -> list[dict[str, Any]]:
-        comments = self.get(
-            f"/issues/{urllib.parse.quote(issue_id)}/comments?order=asc&limit=100"
-        )
-        return comments if isinstance(comments, list) else []
+        issue_path = f"/issues/{urllib.parse.quote(issue_id)}/comments"
+        comments: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+        after: str | None = None
+
+        while True:
+            query = f"order=asc&limit={COMMENT_PAGE_LIMIT}"
+            if after is not None:
+                query += f"&after={urllib.parse.quote(after)}"
+            page = self.get(f"{issue_path}?{query}")
+            if not isinstance(page, list) or not page:
+                break
+
+            for comment in page:
+                if not isinstance(comment, dict):
+                    continue
+                comment_id = comment.get("id")
+                if isinstance(comment_id, str):
+                    if comment_id in seen_ids:
+                        continue
+                    seen_ids.add(comment_id)
+                comments.append(comment)
+
+            if len(page) < COMMENT_PAGE_LIMIT:
+                break
+            next_after = page[-1].get("id") if isinstance(page[-1], dict) else None
+            if not isinstance(next_after, str) or next_after == after:
+                LOG.error("stopped comment pagination issue=%s", issue_id)
+                break
+            after = next_after
+
+        return comments
 
 
 def route_owner(text: str) -> str:

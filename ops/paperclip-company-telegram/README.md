@@ -21,3 +21,6 @@ keeps the newest 2,000 keys. The cursor advances before each Telegram call; an e
 `409` or `429` response rewinds only the rejected chunk for retry, so earlier chunks are not
 replayed. Telegram's Bot API does not accept a caller idempotency key, so an ambiguous
 failure is treated as at-most-once and the uncertain chunk is suppressed on restart.
+
+The bridge reads Paperclip comments in ascending pages of 100. Paperclip's `after` cursor is
+inclusive, so page-boundary comment IDs are deduplicated before outbound processing.
