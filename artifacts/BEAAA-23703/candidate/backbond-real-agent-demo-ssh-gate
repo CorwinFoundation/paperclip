@@ -1,0 +1,578 @@
+#!/usr/bin/python3
+"""Forced-command boundary for the exact d9 Real Agent demo release.
+
+Runs as the unprivileged deployment account. Accepts only the release shapes
+that `.github/workflows/real-agent-demo.yml` emits at commit
+d9d680f53db7de263f026be5284c97229126872c and rejects every other SHA,
+argument and command.
+
+This program never runs repository content as root. The one privileged step it
+takes is a fixed no-argument call to
+`/usr/local/sbin/backbond-real-agent-demo-authorize`, which atomically consumes
+the root-owned one-shot d9 authorization. That call happens only after the
+extracted release is proved byte for byte against the pinned d9 tree, and the
+deploy script itself is then executed under the unprivileged account. With no
+authorization armed, deployment is impossible and the gate fails closed.
+"""
+
+import errno
+import hashlib
+import os
+from pathlib import Path
+import posixpath
+import pwd
+import re
+import stat
+import struct
+import subprocess
+import sys
+
+SHA = "d9d680f53db7de263f026be5284c97229126872c"
+RELEASES = "/opt/backbond-real-agent-demo/releases"
+RELEASE_DIR = f"{RELEASES}/{SHA}"
+ARCHIVE_NAME = "real-agent-demo-release.tgz"
+ARCHIVE_PATH = f"{RELEASE_DIR}/{ARCHIVE_NAME}"
+DEPLOY_SCRIPT = f"{RELEASE_DIR}/demo-real-agent/deploy.sh"
+
+# The extracted d9 release: 906 regular files, no symlinks. Reproduce with
+# verify_release_manifest.py, either from the d9 tree in git or from an
+# extracted release directory.
+EXPECTED_FILES = 906
+EXPECTED_TREE_SHA256 = "5d6398a3cbf567778a8ca9ae7254b82a286a782dbd2874f0f711e9292bf16c17"
+
+MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
+MAX_SFTP_PACKET = 256 * 1024
+TAR = "/bin/tar"
+BASH = "/bin/bash"
+SUDO = "/usr/bin/sudo"
+AUTHORIZE_HELPER = "/usr/local/sbin/backbond-real-agent-demo-authorize"
+AUTHORIZE_GRANT = f"authorized: {SHA}"
+SAFE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+MKDIR_SHAPE = f"mkdir -p {RELEASE_DIR}"
+EXTRACT_SHAPE = f"cd {RELEASE_DIR} && tar -xzf {ARCHIVE_NAME}"
+SCP_SINK_SHAPES = frozenset(
+    {
+        f"scp -t {RELEASE_DIR}/",
+        f"scp -t {RELEASE_DIR}",
+        f"scp -t -- {RELEASE_DIR}/",
+        f"scp -t -- {RELEASE_DIR}",
+    }
+)
+SFTP_SUBSYSTEM_SHAPES = frozenset(
+    {
+        "internal-sftp",
+        "sftp-server",
+        "/usr/lib/openssh/sftp-server",
+        "/usr/lib/ssh/sftp-server",
+        "/usr/libexec/openssh/sftp-server",
+        "/usr/libexec/sftp-server",
+    }
+)
+DEPLOY_SHAPE = re.compile(
+    r"DEMO_GIT_SHA='(?P<sha>[0-9a-f]{40})' "
+    r"DEMO_DEPLOYED_AT='(?P<at>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)' "
+    r"bash '(?P<script>[^']*)' '(?P<root>[^']*)'"
+)
+
+SSH_FX_OK = 0
+SSH_FX_EOF = 1
+SSH_FX_NO_SUCH_FILE = 2
+SSH_FX_PERMISSION_DENIED = 3
+SSH_FX_FAILURE = 4
+SSH_FX_OP_UNSUPPORTED = 8
+
+SSH_FXF_READ = 0x01
+SSH_FXF_WRITE = 0x02
+SSH_FXF_APPEND = 0x04
+
+SFTP_HANDLE = b"d9-release-archive"
+
+
+class Rejected(Exception):
+    """The presented command is outside the d9 allowlist."""
+
+
+def reject(reason: str) -> "Rejected":
+    return Rejected(reason)
+
+
+def deny(reason: str, original: str) -> "NoReturn":
+    """Refuse without echoing attacker-controlled text into the host log."""
+    fingerprint = hashlib.sha256(original.encode("utf-8", "surrogateescape")).hexdigest()
+    print(
+        f"real-agent-demo gate: {reason} (sha={SHA} rejected_command_sha256={fingerprint})",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
+def resolve(original: str) -> tuple[str, str | None]:
+    """Map SSH_ORIGINAL_COMMAND onto exactly one allowlisted d9 action."""
+    if not original:
+        raise reject("interactive access is disabled for this key")
+    if original == MKDIR_SHAPE:
+        return "mkdir", None
+    if original in SCP_SINK_SHAPES:
+        return "scp-sink", None
+    # sshd reports a subsystem request as the configured Subsystem command line,
+    # which carries one trailing space when that line has no arguments.
+    if original.rstrip(" ") in SFTP_SUBSYSTEM_SHAPES:
+        return "sftp-sink", None
+    if original == EXTRACT_SHAPE:
+        return "extract", None
+    match = DEPLOY_SHAPE.fullmatch(original)
+    if match is None:
+        raise reject("command is not allowlisted for the pinned release")
+    if match.group("sha") != SHA:
+        raise reject("SHA is not the pinned release SHA")
+    if match.group("script") != DEPLOY_SCRIPT or match.group("root") != RELEASE_DIR:
+        raise reject("deploy paths are not the pinned release paths")
+    return "deploy", match.group("at")
+
+
+def require_unprivileged() -> None:
+    if os.geteuid() == 0 or os.getegid() == 0:
+        raise SystemExit(
+            "real-agent-demo gate: refusing to run with root privilege; "
+            "the release must stay under the unprivileged deployment account"
+        )
+
+
+def owned_release_dir() -> Path:
+    """Return the release directory, proving it is a real directory we own."""
+    path = Path(RELEASE_DIR)
+    try:
+        st = path.lstat()
+    except OSError:
+        raise reject("release directory is absent") from None
+    if not stat.S_ISDIR(st.st_mode):
+        raise reject("release path is not a directory")
+    if st.st_uid != os.getuid():
+        raise reject("release directory is not owned by the deployment account")
+    return path
+
+
+def tree_digest(root: Path) -> tuple[int, str]:
+    """Hash the extracted release: one record per entry, sorted, then sha256."""
+    records: list[tuple[bytes, bytes, bytes]] = []
+    for current, dirs, files in os.walk(root, topdown=True, followlinks=False):
+        base = Path(current)
+        for name in list(dirs):
+            path = base / name
+            if path.is_symlink():
+                dirs.remove(name)
+                rel = path.relative_to(root).as_posix().encode()
+                digest = hashlib.sha256(os.readlink(path).encode()).hexdigest().encode()
+                records.append((rel, b"L", digest))
+        for name in files:
+            path = base / name
+            rel = path.relative_to(root).as_posix()
+            if rel == ARCHIVE_NAME:
+                continue
+            if path.is_symlink():
+                kind, data = b"L", os.readlink(path).encode()
+            elif path.is_file():
+                kind, data = b"F", path.read_bytes()
+            else:
+                raise reject(f"unsupported release entry type: {rel}")
+            records.append((rel.encode(), kind, hashlib.sha256(data).hexdigest().encode()))
+    digest = hashlib.sha256()
+    for rel, kind, content_hash in sorted(records):
+        digest.update(rel + b"\0" + kind + b"\0" + content_hash + b"\0")
+    return len(records), digest.hexdigest()
+
+
+def do_mkdir() -> None:
+    parent = Path(RELEASES)
+    if not parent.is_dir():
+        raise reject("release root is absent")
+    try:
+        os.mkdir(RELEASE_DIR, 0o755)
+    except FileExistsError:
+        owned_release_dir()
+    print(f"upload_dir=PASS sha={SHA} path={RELEASE_DIR}")
+
+
+def open_archive_for_write() -> int:
+    owned_release_dir()
+    return os.open(ARCHIVE_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+
+
+# --- legacy SCP sink -------------------------------------------------------
+
+CONTROL_LINE = re.compile(rb"C0[0-7]{3} (?P<size>[0-9]{1,13}) (?P<name>[^/\x00\n]+)\n")
+
+
+def scp_read_line(stream) -> bytes:
+    line = b""
+    while not line.endswith(b"\n"):
+        chunk = stream.read(1)
+        if not chunk:
+            return line
+        line += chunk
+        if len(line) > 4096:
+            raise reject("legacy scp control line is oversized")
+    return line
+
+
+def do_scp_sink() -> None:
+    """Accept exactly one legacy-protocol file at the pinned archive path."""
+    stdin, stdout = sys.stdin.buffer, sys.stdout.buffer
+    stdout.write(b"\0")
+    stdout.flush()
+    line = scp_read_line(stdin)
+    if not line:
+        raise reject("legacy scp transfer sent no control record")
+    match = CONTROL_LINE.fullmatch(line)
+    if match is None:
+        raise reject("legacy scp control record is not a single plain file")
+    if match.group("name").decode("ascii", "replace") != ARCHIVE_NAME:
+        raise reject("legacy scp file name is not the pinned release archive")
+    size = int(match.group("size"))
+    if size > MAX_ARCHIVE_BYTES:
+        raise reject("legacy scp payload exceeds the release size cap")
+    stdout.write(b"\0")
+    stdout.flush()
+    fd = open_archive_for_write()
+    try:
+        remaining = size
+        while remaining:
+            chunk = stdin.read(min(remaining, 1 << 20))
+            if not chunk:
+                raise reject("legacy scp payload ended early")
+            os.write(fd, chunk)
+            remaining -= len(chunk)
+    finally:
+        os.close(fd)
+    if stdin.read(1) != b"\0":
+        raise reject("legacy scp payload was not terminated cleanly")
+    stdout.write(b"\0")
+    stdout.flush()
+    print(f"upload=PASS sha={SHA} transport=scp bytes={size}", file=sys.stderr)
+
+
+# --- confined single-file SFTP sink ---------------------------------------
+
+
+def sftp_string(value: bytes) -> bytes:
+    return struct.pack(">I", len(value)) + value
+
+
+def sftp_attrs(st: os.stat_result) -> bytes:
+    return (
+        struct.pack(">I", 0x1 | 0x2 | 0x4 | 0x8)
+        + struct.pack(">Q", st.st_size)
+        + struct.pack(">II", st.st_uid, st.st_gid)
+        + struct.pack(">I", stat.S_IMODE(st.st_mode) | stat.S_IFMT(st.st_mode))
+        + struct.pack(">II", int(st.st_atime), int(st.st_mtime))
+    )
+
+
+class SftpSink:
+    """A write-only SFTP v3 server whose entire namespace is one pinned file."""
+
+    def __init__(self, stdin, stdout):
+        self.stdin = stdin
+        self.stdout = stdout
+        self.fd: int | None = None
+        self.written = 0
+
+    def read_exact(self, count: int) -> bytes:
+        data = b""
+        while len(data) < count:
+            chunk = self.stdin.read(count - len(data))
+            if not chunk:
+                return b""
+            data += chunk
+        return data
+
+    def send(self, kind: int, payload: bytes) -> None:
+        body = bytes([kind]) + payload
+        self.stdout.write(struct.pack(">I", len(body)) + body)
+        self.stdout.flush()
+
+    def status(self, request_id: int, code: int, message: str) -> None:
+        self.send(
+            101,
+            struct.pack(">II", request_id, code)
+            + sftp_string(message.encode())
+            + sftp_string(b""),
+        )
+
+    def normalise(self, raw: bytes) -> str | None:
+        try:
+            candidate = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return None
+        if not candidate or candidate in (".", "./"):
+            return RELEASE_DIR
+        if not candidate.startswith("/"):
+            candidate = posixpath.join(RELEASE_DIR, candidate)
+        resolved = posixpath.normpath(candidate)
+        if resolved in (RELEASE_DIR, ARCHIVE_PATH):
+            return resolved
+        return None
+
+    def run(self) -> None:
+        while True:
+            header = self.read_exact(4)
+            if not header:
+                return
+            (length,) = struct.unpack(">I", header)
+            if length == 0 or length > MAX_SFTP_PACKET:
+                raise reject("sftp packet length is outside the accepted range")
+            packet = self.read_exact(length)
+            if len(packet) != length:
+                raise reject("sftp packet was truncated")
+            if not self.dispatch(packet[0], packet[1:]):
+                return
+
+    def dispatch(self, kind: int, body: bytes) -> bool:
+        if kind == 1:  # INIT
+            self.send(2, struct.pack(">I", 3))
+            return True
+        if len(body) < 4:
+            raise reject("sftp request is malformed")
+        (request_id,) = struct.unpack(">I", body[:4])
+        rest = body[4:]
+        if kind in (7, 17):  # LSTAT / STAT
+            self.reply_stat(request_id, rest)
+        elif kind == 16:  # REALPATH
+            self.reply_realpath(request_id, rest)
+        elif kind == 3:  # OPEN
+            self.reply_open(request_id, rest)
+        elif kind == 6:  # WRITE
+            self.reply_write(request_id, rest)
+        elif kind == 8:  # FSTAT
+            self.reply_fstat(request_id, rest)
+        elif kind in (9, 10):  # SETSTAT / FSETSTAT
+            self.status(request_id, SSH_FX_OK, "ok")
+        elif kind == 4:  # CLOSE
+            self.reply_close(request_id)
+            return False
+        else:
+            self.status(
+                request_id, SSH_FX_OP_UNSUPPORTED, "only a single pinned upload is permitted"
+            )
+        return True
+
+    @staticmethod
+    def take_string(data: bytes) -> bytes:
+        if len(data) < 4:
+            raise reject("sftp string field is malformed")
+        (size,) = struct.unpack(">I", data[:4])
+        if size > MAX_SFTP_PACKET or len(data) < 4 + size:
+            raise reject("sftp string field is malformed")
+        return data[4 : 4 + size]
+
+    def reply_realpath(self, request_id: int, rest: bytes) -> None:
+        target = self.normalise(self.take_string(rest))
+        if target is None:
+            self.status(request_id, SSH_FX_PERMISSION_DENIED, "path is outside the pinned release")
+            return
+        encoded = target.encode()
+        self.send(
+            104,
+            struct.pack(">II", request_id, 1)
+            + sftp_string(encoded)
+            + sftp_string(encoded)
+            + struct.pack(">I", 0),
+        )
+
+    def reply_stat(self, request_id: int, rest: bytes) -> None:
+        target = self.normalise(self.take_string(rest))
+        if target is None:
+            self.status(request_id, SSH_FX_PERMISSION_DENIED, "path is outside the pinned release")
+            return
+        try:
+            st = os.lstat(target)
+        except OSError:
+            self.status(request_id, SSH_FX_NO_SUCH_FILE, "no such file")
+            return
+        self.send(105, struct.pack(">I", request_id) + sftp_attrs(st))
+
+    def reply_fstat(self, request_id: int, rest: bytes) -> None:
+        if self.take_string(rest) != SFTP_HANDLE or self.fd is None:
+            self.status(request_id, SSH_FX_FAILURE, "unknown handle")
+            return
+        self.send(105, struct.pack(">I", request_id) + sftp_attrs(os.fstat(self.fd)))
+
+    def reply_open(self, request_id: int, rest: bytes) -> None:
+        name = self.take_string(rest)
+        offset = 4 + len(name)
+        if len(rest) < offset + 4:
+            raise reject("sftp open request is malformed")
+        (pflags,) = struct.unpack(">I", rest[offset : offset + 4])
+        target = self.normalise(name)
+        if target != ARCHIVE_PATH:
+            self.status(
+                request_id,
+                SSH_FX_PERMISSION_DENIED,
+                "only the pinned release archive may be written",
+            )
+            return
+        if not pflags & SSH_FXF_WRITE or pflags & (SSH_FXF_READ | SSH_FXF_APPEND):
+            self.status(request_id, SSH_FX_PERMISSION_DENIED, "this sink is write-only")
+            return
+        if self.fd is not None:
+            self.status(request_id, SSH_FX_FAILURE, "the pinned archive is already open")
+            return
+        try:
+            self.fd = open_archive_for_write()
+        except OSError as error:
+            self.status(request_id, SSH_FX_FAILURE, os.strerror(error.errno or errno.EIO))
+            return
+        self.send(102, struct.pack(">I", request_id) + sftp_string(SFTP_HANDLE))
+
+    def reply_write(self, request_id: int, rest: bytes) -> None:
+        handle = self.take_string(rest)
+        cursor = 4 + len(handle)
+        if handle != SFTP_HANDLE or self.fd is None:
+            self.status(request_id, SSH_FX_FAILURE, "unknown handle")
+            return
+        if len(rest) < cursor + 8:
+            raise reject("sftp write request is malformed")
+        (position,) = struct.unpack(">Q", rest[cursor : cursor + 8])
+        data = self.take_string(rest[cursor + 8 :])
+        if position + len(data) > MAX_ARCHIVE_BYTES:
+            self.status(
+                request_id, SSH_FX_FAILURE, "upload exceeds the pinned release size cap"
+            )
+            return
+        os.pwrite(self.fd, data, position)
+        self.written += len(data)
+        self.status(request_id, SSH_FX_OK, "ok")
+
+    def reply_close(self, request_id: int) -> None:
+        if self.fd is not None:
+            os.close(self.fd)
+            self.fd = None
+        self.status(request_id, SSH_FX_OK, "ok")
+
+
+def do_sftp_sink() -> None:
+    sink = SftpSink(sys.stdin.buffer, sys.stdout.buffer)
+    try:
+        sink.run()
+    finally:
+        if sink.fd is not None:
+            os.close(sink.fd)
+    print(f"upload=PASS sha={SHA} transport=sftp bytes={sink.written}", file=sys.stderr)
+
+
+# --- extract and deploy ----------------------------------------------------
+
+
+def archive_members() -> list[str]:
+    listing = subprocess.run(
+        [TAR, "-tzf", ARCHIVE_NAME],
+        cwd=RELEASE_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if listing.returncode != 0:
+        raise reject("release archive could not be listed")
+    return [name for name in listing.stdout.splitlines() if name]
+
+
+def member_parts(member: str) -> list[str]:
+    return [part for part in member.split("/") if part]
+
+
+def do_extract() -> None:
+    owned_release_dir()
+    archive = Path(ARCHIVE_PATH)
+    if archive.is_symlink() or not archive.is_file():
+        raise reject("release archive is absent")
+    for member in archive_members():
+        if member.startswith("/") or member.startswith("~"):
+            raise reject("release archive contains an absolute member path")
+        if ".." in member_parts(member):
+            raise reject("release archive contains a parent-directory member path")
+    extraction = subprocess.run(
+        [TAR, "-xzf", ARCHIVE_NAME, "--no-same-owner"],
+        cwd=RELEASE_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if extraction.returncode != 0:
+        raise reject("release archive extraction failed")
+    count, digest = verify_pinned_tree()
+    print(f"extract=PASS sha={SHA} files={count} tree_sha256={digest}")
+
+
+def verify_pinned_tree() -> tuple[int, str]:
+    """Prove the extracted release is the pinned d9 tree, byte for byte."""
+    count, digest = tree_digest(Path(RELEASE_DIR))
+    if count != EXPECTED_FILES or digest != EXPECTED_TREE_SHA256:
+        raise reject(
+            f"extracted release is not the pinned d9 tree: files={count} tree_sha256={digest}"
+        )
+    return count, digest
+
+
+def consume_one_shot_authorization() -> None:
+    """Spend the root-owned one-shot d9 grant, or refuse to deploy.
+
+    The helper takes no arguments, so nothing the client controls reaches the
+    privileged step. It is the only elevation in this program.
+    """
+    result = subprocess.run(
+        [SUDO, "--non-interactive", AUTHORIZE_HELPER],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise reject("one-shot d9 deployment authorization was not granted")
+    if result.stdout.strip() != AUTHORIZE_GRANT:
+        raise reject("authorization helper did not confirm the pinned release")
+
+
+def do_deploy(deployed_at: str) -> None:
+    owned_release_dir()
+    script = Path(DEPLOY_SCRIPT)
+    if script.is_symlink() or not script.is_file():
+        raise reject("pinned deploy script is absent")
+    count, digest = verify_pinned_tree()
+    consume_one_shot_authorization()
+    print(f"authorization=CONSUMED sha={SHA} files={count} tree_sha256={digest}", flush=True)
+    try:
+        entry = pwd.getpwuid(os.getuid())
+        home, account = entry.pw_dir, entry.pw_name
+    except KeyError:
+        home, account = RELEASE_DIR, "deploy"
+    env = {
+        "PATH": SAFE_PATH,
+        "HOME": home,
+        "USER": account,
+        "LOGNAME": account,
+        "DEMO_GIT_SHA": SHA,
+        "DEMO_DEPLOYED_AT": deployed_at,
+    }
+    print(f"deploy_gate=PASS sha={SHA} deployed_at={deployed_at} privilege=unprivileged", flush=True)
+    os.execve(BASH, [BASH, DEPLOY_SCRIPT, RELEASE_DIR], env)
+
+
+ACTIONS = {
+    "mkdir": lambda detail: do_mkdir(),
+    "scp-sink": lambda detail: do_scp_sink(),
+    "sftp-sink": lambda detail: do_sftp_sink(),
+    "extract": lambda detail: do_extract(),
+    "deploy": do_deploy,
+}
+
+
+def main() -> None:
+    require_unprivileged()
+    original = os.environ.get("SSH_ORIGINAL_COMMAND", "")
+    try:
+        action, detail = resolve(original)
+        ACTIONS[action](detail)
+    except Rejected as rejection:
+        deny(str(rejection), original)
+
+
+if __name__ == "__main__":
+    main()
