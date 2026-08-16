@@ -6,8 +6,9 @@ Run from the candidate directory:
 
 The tests load the candidate files themselves, not a copy. Nothing here
 installs, arms, or deploys anything: every filesystem effect stays inside
-pytest's temporary directories, and the installer is exercised against a fake
-host root with os.chown stubbed, never against `/`.
+pytest's temporary directories. This candidate ships no installer; the manual
+procedure in INSTALL.md is extracted from the document and rehearsed against a
+fake host root with `chown` and `visudo` stubbed, never against `/`.
 """
 
 import hashlib
@@ -16,6 +17,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import stat
 import subprocess
 
@@ -45,12 +47,17 @@ def _load(name, filename):
 gate = _load("d9_gate", "backbond-real-agent-demo-ssh-gate")
 helper = _load("d9_preflight", "backbond-real-agent-demo-secret-preflight")
 verifier = _load("d9_verifier", "verify_release_manifest.py")
-installer = _load("d9_installer", "install_host_gate.py")
 
 GATE_SOURCE = (CANDIDATE / "backbond-real-agent-demo-ssh-gate").read_bytes()
 HELPER_SOURCE = (CANDIDATE / "backbond-real-agent-demo-secret-preflight").read_bytes()
-INSTALLER_SOURCE = (CANDIDATE / "install_host_gate.py").read_bytes()
+INSTALL_DOC = (CANDIDATE / "INSTALL.md").read_text()
 MANIFEST = json.loads((CANDIDATE / "MANIFEST.json").read_text())
+
+A68_SUDOERS = "/etc/sudoers.d/backbond-real-agent-demo"
+A68_DEPLOY = "/usr/local/sbin/backbond-real-agent-demo-deploy"
+TARGET_PREFLIGHT = "/usr/local/sbin/backbond-real-agent-demo-secret-preflight"
+TARGET_SSHGATE = "/usr/local/sbin/backbond-real-agent-demo-ssh-gate"
+KEEP_SUDOERS = "/etc/sudoers.d/backbond-real-agent-demo-secret-preflight"
 
 ROOT = gate.RELEASE_DIR
 DEPLOY_OK = (
@@ -637,28 +644,207 @@ def test_helper_success_line_names_the_pinned_release(monkeypatch, capsys):
 
 
 # ---------------------------------------------------------------------------
-# installer: verified backup, same-directory atomic replacement, rollback
+# no installer ships: the procedure is manual, and it is rehearsed from the
+# document itself
 # ---------------------------------------------------------------------------
 
 
-def rehearsal_manifest():
-    """MANIFEST with the target ownership a rootless rehearsal can produce."""
-    manifest = json.loads(json.dumps(MANIFEST))
-    for entry in manifest["install"]:
-        entry["owner_uid"] = os.getuid()
-        entry["owner_gid"] = os.getgid()
-    return manifest
+def extract_block(name):
+    """The shell block INSTALL.md marks with BEGIN:<name> / END:<name>."""
+    pattern = (
+        r"<!-- BEGIN:%s -->\n```sh\n(.*?)```\n<!-- END:%s -->" % (name, name)
+    )
+    match = re.search(pattern, INSTALL_DOC, re.S)
+    assert match, "INSTALL.md has no %s block" % name
+    return match.group(1)
+
+
+INSTALL_PROCEDURE = extract_block("install-procedure")
+ROLLBACK_PROCEDURE = extract_block("rollback-procedure")
+
+
+def test_candidate_ships_no_installer():
+    """BEAAA-23726: no repository-provided program is authorized to run as root."""
+    names = {path.name for path in CANDIDATE.iterdir()}
+    assert "install_host_gate.py" not in names
+    assert MANIFEST["procedure"]["repository_installer"] is None
+    assert MANIFEST["procedure"]["type"] == "manual_root_owner"
+    assert MANIFEST["procedure"]["document"] == "INSTALL.md"
+
+
+def test_nothing_in_the_bundle_names_a_repository_installer():
+    """CTO 48a4cb3a: the name is gone from the procedure, the contract and the report."""
+    for path in (CANDIDATE / "INSTALL.md", CANDIDATE / "MANIFEST.json", BUNDLE / "REPORT.md"):
+        assert "install_host_gate" not in path.read_text(), path.name
+    shipped = [line.split(None, 1)[1].strip() for line in (BUNDLE / "SHA256SUMS").read_text().splitlines()]
+    assert not any("install_host_gate" in name for name in shipped)
+
+
+def test_only_fixed_system_programs_run_as_root():
+    procedure = INSTALL_PROCEDURE + ROLLBACK_PROCEDURE
+    for forbidden in ("deploy.sh", "eval ", "$(cat", "curl", "wget", "git "):
+        assert forbidden not in procedure
+    # the reviewed bytes are copied, never executed
+    assert '"$CAND/backbond-real-agent-demo-secret-preflight"' in INSTALL_PROCEDURE
+    assert re.search(r'^\s*"?\$CAND/', INSTALL_PROCEDURE, re.M) is None
+
+
+# --- F5: validation leaves no cache residue --------------------------------
+
+
+def test_validator_is_non_executing_and_writes_no_cache():
+    validator = MANIFEST["validation"]["command"]
+    assert "py_compile" not in validator
+    assert "ast.parse" in validator
+    assert MANIFEST["validation"]["executes_the_file"] is False
+    assert MANIFEST["validation"]["writes_bytecode_cache"] is False
+    for entry in MANIFEST["install"]:
+        assert entry["validator"] == validator
+
+
+def test_install_step_matches_the_manifest_validator_exactly():
+    validator = MANIFEST["validation"]["command"]
+    assert validator + ' "$TMP"' in INSTALL_PROCEDURE
+
+
+def test_no_py_compile_anywhere_in_the_bundle_documents():
+    for path in (CANDIDATE / "INSTALL.md", CANDIDATE / "MANIFEST.json"):
+        assert "-m py_compile" not in path.read_text().replace(
+            MANIFEST["validation"]["rejected"], ""
+        )
+
+
+def test_procedure_asserts_no_cache_residue_beside_the_helpers():
+    assert "no_cache_residue" in INSTALL_PROCEDURE
+    assert INSTALL_PROCEDURE.count("no_cache_residue ") >= 2
+    assert "__pycache__" in INSTALL_PROCEDURE and "*.pyc" in INSTALL_PROCEDURE
+    checks = [c["command"] for c in MANIFEST["post_install_verification"]]
+    assert any("__pycache__" in command for command in checks)
+
+
+def test_validator_writes_no_bytecode_for_a_real_helper(tmp_path):
+    """Run the manifest's validator itself and prove it leaves nothing behind."""
+    staged = tmp_path / ".backbond-install.rehearsal"
+    staged.write_bytes(HELPER_SOURCE)
+    subprocess.run(
+        ["/bin/sh", "-c", MANIFEST["validation"]["command"] + ' "$1"', "sh", str(staged)],
+        check=True,
+    )
+    assert sorted(p.name for p in tmp_path.iterdir()) == [".backbond-install.rehearsal"]
+
+
+# --- F6: unique, non-overwriting backups -----------------------------------
+
+
+def test_manifest_pins_a_unique_fail_if_exists_backup_directory():
+    backup = MANIFEST["backup"]
+    assert backup["fail_if_exists"] is True
+    assert backup["reuse"] == "prohibited"
+    assert backup["mode"] == "0700"
+    assert backup["owner_uid"] == 0 and backup["owner_gid"] == 0
+    assert backup["layout"] == "path_preserving"
+    assert backup["creation"].startswith("mkdir -m 0700")
+    assert "-p" not in backup["creation"].split("<")[0].split()[1:2] + []
+
+
+def test_procedure_creates_the_backup_directory_without_mkdir_p():
+    line = [l for l in INSTALL_PROCEDURE.splitlines() if l.startswith("mkdir -m 0700")]
+    assert len(line) == 1, "exactly one backup-directory creation is expected"
+    assert " -p " not in line[0]
+    assert "exist_ok" not in INSTALL_PROCEDURE
+    assert "|| stop" in line[0]
+
+
+def test_backups_are_path_preserving_not_by_basename():
+    assert 'mkdir -p "$BK$(dirname "$REL")"' in INSTALL_PROCEDURE
+    assert 'cp -a "$T" "$BK$REL"' in INSTALL_PROCEDURE
+    assert "$BK$REL" in INSTALL_PROCEDURE
+    assert "$(basename" not in INSTALL_PROCEDURE
+    assert MANIFEST["backup"]["layout"] == "path_preserving"
+
+
+# --- F1: bounded rollback ---------------------------------------------------
+
+
+def test_manifest_rollback_is_bounded_to_the_replacement_targets():
+    rollback = MANIFEST["rollback"]
+    assert rollback["bounded"] is True
+    assert set(rollback["never_restores"]) == {A68_SUDOERS, A68_DEPLOY}
+    assert set(rollback["asserts_absent_after"]) == {A68_SUDOERS, A68_DEPLOY}
+    assert any(CANONICAL_PREFLIGHT in step for step in rollback["restores"])
+    assert any(CANONICAL_GATE in step for step in rollback["restores"])
+    assert len(rollback["restores"]) == 2
+    for entry in MANIFEST["remove"]:
+        assert entry["restored_by_rollback"] is False
+
+
+def test_rollback_procedure_restores_two_targets_and_no_others():
+    restored = re.search(r"for REL in (.*?)\n\s*SAVED=", ROLLBACK_PROCEDURE, re.S).group(1)
+    assert TARGET_PREFLIGHT in restored
+    assert TARGET_SSHGATE in restored
+    assert A68_SUDOERS not in restored
+    assert "backbond-real-agent-demo-deploy" not in restored
+
+
+def test_rollback_procedure_stops_if_the_a68_authority_reappears():
+    assert "rollback never restores it" in ROLLBACK_PROCEDURE
+    assert "$VISUDO -c" in ROLLBACK_PROCEDURE
+
+
+# --- F3: a failed installation stops and leaves a coherent host -------------
+
+
+def test_failed_install_branch_is_explicit():
+    failed = MANIFEST["failed_install"]
+    assert failed["rule"] == "stop at the first non-zero exit"
+    joined = " ".join(failed["steps"]).lower()
+    for phrase in ("stop", "rollback", "visudo -c", "still absent", "beaaa-23705"):
+        assert phrase in joined
+    assert "do not arm" in joined and "do not deploy" in joined
+    assert "set -eu" in INSTALL_PROCEDURE
+    assert "If any step fails" in INSTALL_DOC
+
+
+def test_removals_precede_replacements_so_an_abort_only_narrows():
+    removal = INSTALL_PROCEDURE.index('rm -f "$A68_SUDOERS"')
+    replacement = INSTALL_PROCEDURE.index('replace "$CAND/backbond-real-agent-demo-secret-preflight"')
+    assert removal < replacement
+    assert MANIFEST["procedure"]["order"].startswith("removals before replacements")
+
+
+# --- rehearsal: run the documented procedure against a fake host root -------
+
+
+SYNTHETIC_A68_SUDOERS = b"# stale a68 authority, rehearsal stand-in\npassive-demo-deploy ALL=(root) NOPASSWD: /usr/local/sbin/backbond-real-agent-demo-deploy\n"
+SYNTHETIC_KEEP_SUDOERS = b"# the one rule that must not change, rehearsal stand-in\n"
+
+
+def _seed(root, rel, data, mode):
+    path = root / rel.lstrip("/")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    os.chmod(path, mode)
+    return path
+
+
+def _host_bytes(path, pinned):
+    """The real host file when this machine has it at the pinned digest."""
+    try:
+        data = pathlib.Path(path).read_bytes()
+    except OSError:
+        return None
+    return data if hashlib.sha256(data).hexdigest() == pinned else None
 
 
 @pytest.fixture
-def fake_host(tmp_path, monkeypatch):
-    """A host root holding the exact bytes this candidate expects to replace."""
-    monkeypatch.setattr(installer.os, "chown", lambda *a, **k: None)
-    monkeypatch.setattr(installer, "CANDIDATE_DIR", CANDIDATE)
-    root = tmp_path / "host"
-    (root / "usr/local/sbin").mkdir(parents=True)
-    (root / "etc/sudoers.d").mkdir(parents=True)
+def fake_host(tmp_path):
+    """A host root seeded with the exact bytes this candidate expects to replace.
 
+    Only the two sudoers files are stand-ins: they are 0440 root-only on the
+    real host and unreadable from this seat, so the rehearsal substitutes their
+    two pinned digests in the procedure text. Every other constant, and both
+    reviewed source digests, are used exactly as shipped.
+    """
     canonical = subprocess.run(
         ["git", "-C", str(REPO), "cat-file", "blob",
          D9 + ":demo-real-agent/host/real_agent_demo_secret_preflight.py"],
@@ -666,86 +852,227 @@ def fake_host(tmp_path, monkeypatch):
     )
     if canonical.returncode != 0:
         pytest.skip("commit %s is not present in %s" % (D9, REPO))
-    preflight = root / "usr/local/sbin/backbond-real-agent-demo-secret-preflight"
-    preflight.write_bytes(canonical.stdout)
-    os.chmod(preflight, 0o755)
+    assert hashlib.sha256(canonical.stdout).hexdigest() == CANONICAL_PREFLIGHT
 
-    sudoers = root / "etc/sudoers.d/backbond-real-agent-demo-secret-preflight"
-    sudoers.write_bytes(
-        subprocess.run(
-            ["git", "-C", str(REPO), "cat-file", "blob",
-             D9 + ":demo-real-agent/host/backbond-real-agent-demo-secret-preflight.sudoers"],
-            capture_output=True, check=True,
-        ).stdout
+    stale_gate = _host_bytes(TARGET_SSHGATE, CANONICAL_GATE)
+    deploy_sha = "956065275defd2abcc95a7d2e14d8e70ee54c10aa799578aa00602f29c9af723"
+    stale_deploy = _host_bytes(A68_DEPLOY, deploy_sha)
+
+    root = tmp_path / "host"
+    (root / "root").mkdir(parents=True)
+    _seed(root, TARGET_PREFLIGHT, canonical.stdout, 0o755)
+    _seed(root, TARGET_SSHGATE, stale_gate if stale_gate else b"# stale a68 gate stand-in\n", 0o755)
+    _seed(root, A68_DEPLOY, stale_deploy if stale_deploy else b"#!/bin/sh\n# a68 deploy wrapper stand-in\n", 0o755)
+    _seed(root, A68_SUDOERS, SYNTHETIC_A68_SUDOERS, 0o440)
+    _seed(root, KEEP_SUDOERS, SYNTHETIC_KEEP_SUDOERS, 0o440)
+
+    substitutions = {
+        "OLD_A68_SUDOERS": hashlib.sha256(SYNTHETIC_A68_SUDOERS).hexdigest(),
+        "KEEP_SUDOERS_SHA": hashlib.sha256(SYNTHETIC_KEEP_SUDOERS).hexdigest(),
+    }
+    if stale_gate is None:
+        substitutions["OLD_SSHGATE"] = hashlib.sha256(b"# stale a68 gate stand-in\n").hexdigest()
+    if stale_deploy is None:
+        substitutions["OLD_A68_DEPLOY"] = hashlib.sha256(
+            b"#!/bin/sh\n# a68 deploy wrapper stand-in\n"
+        ).hexdigest()
+    return root, substitutions
+
+
+def stub_bin(tmp_path, chown_fails_on=None):
+    """Stubs for the two operations a rootless rehearsal cannot perform."""
+    binned = tmp_path / "stub-bin"
+    binned.mkdir(exist_ok=True)
+    counter = binned / "chown.count"
+    chown = binned / "chown"
+    chown.write_text(
+        "#!/bin/sh\n"
+        'n=$(cat "%s" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "%s"\n'
+        'if [ -n "%s" ] && [ "$n" = "%s" ]; then echo "stub chown: forced failure" >&2; exit 1; fi\n'
+        "exit 0\n" % (counter, counter, chown_fails_on or "", chown_fails_on or "")
     )
-    return root
+    os.chmod(chown, 0o755)
+    visudo = binned / "visudo"
+    visudo.write_text("#!/bin/sh\necho '/etc/sudoers: parsed OK'\nexit 0\n")
+    os.chmod(visudo, 0o755)
+    return binned
 
 
-def test_installer_replaces_the_existing_helper_with_backup(fake_host, tmp_path):
-    """The complaint that installation refuses an existing helper, tested."""
-    gate_target = fake_host / "usr/local/sbin/backbond-real-agent-demo-ssh-gate"
-    gate_target.write_bytes(b"stale a68 gate bytes\n")
-
-    manifest = rehearsal_manifest()
-    manifest["install"][0]["replaces_sha256"] = hashlib.sha256(b"stale a68 gate bytes\n").hexdigest()
-
-    steps = installer.plan(manifest, fake_host)
-    actions = {pathlib.Path(step["target"]).name: step["action"] for step in steps}
-    assert actions["backbond-real-agent-demo-secret-preflight"] == "replace"
-    assert actions["backbond-real-agent-demo-ssh-gate"] == "replace"
-
-    backups = tmp_path / "backups"
-    receipt = {}
-    installer.install(steps, backups, receipt, system_validation=False)
-
-    installed = fake_host / "usr/local/sbin/backbond-real-agent-demo-secret-preflight"
-    assert installer.sha256_file(installed) == MANIFEST["install"][1]["source_sha256"]
-    saved = backups / "backbond-real-agent-demo-secret-preflight"
-    assert installer.sha256_file(saved) == CANONICAL_PREFLIGHT
-    assert oct(stat.S_IMODE(installed.lstat().st_mode)) == "0o755"
-
-    # rollback restores the canonical bytes the board requires us to keep
-    installer.rollback(backups, manifest, fake_host, receipt)
-    assert installer.sha256_file(installed) == CANONICAL_PREFLIGHT
+def render(procedure, substitutions):
+    """Substitute only the digests of files a rootless rehearsal must stand in for."""
+    for name, digest in substitutions.items():
+        expected = 1 if ("\n%s=" % name) in procedure else 0
+        procedure, count = re.subn(
+            r"^%s=[0-9a-f]{64}$" % name, "%s=%s" % (name, digest), procedure, flags=re.M
+        )
+        assert count == expected, name
+    # the reviewed candidate bytes are never stood in for
+    assert MANIFEST["install"][0]["source_sha256"] in procedure or "NEW_PREFLIGHT" not in procedure
+    return procedure
 
 
-def test_installer_fails_closed_on_unexpected_current_bytes(fake_host):
-    target = fake_host / "usr/local/sbin/backbond-real-agent-demo-secret-preflight"
-    target.write_bytes(b"not the canonical helper\n")
-    with pytest.raises(installer.InstallError):
-        installer.plan(MANIFEST, fake_host)
+def run_procedure(procedure, tmp_path, root, substitutions, env=None, chown_fails_on=None):
+    binned = stub_bin(tmp_path, chown_fails_on)
+    environ = dict(os.environ)
+    environ.update(
+        HOSTROOT=str(root),
+        CAND=str(CANDIDATE),
+        CHOWN=str(binned / "chown"),
+        VISUDO=str(binned / "visudo"),
+    )
+    environ.update(env or {})
+    return subprocess.run(
+        ["/bin/sh", "-c", render(procedure, substitutions)],
+        capture_output=True, text=True, env=environ,
+    )
 
 
-def test_installer_refuses_to_run_while_armed(fake_host):
-    arm = fake_host / "etc/backbond/real-agent-demo-deploy.allow"
-    arm.parent.mkdir(parents=True, exist_ok=True)
-    arm.write_text(D9 + "\n")
-    with pytest.raises(installer.InstallError) as excinfo:
-        installer.check_preconditions(MANIFEST, fake_host)
-    assert "armed" in str(excinfo.value)
+def backup_dir_from(stdout):
+    match = re.search(r"^backup_directory=(.+)$", stdout, re.M)
+    assert match, stdout
+    return match.group(1)
 
 
-def test_installer_verifies_the_unchanged_sudoers_rule(fake_host):
-    installer.check_preconditions(MANIFEST, fake_host)
-    (fake_host / "etc/sudoers.d/backbond-real-agent-demo-secret-preflight").write_text("tampered\n")
-    with pytest.raises(installer.InstallError):
-        installer.check_preconditions(MANIFEST, fake_host)
+def sha256_of(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
-def test_installer_never_arms(fake_host, tmp_path):
-    steps = installer.plan(rehearsal_manifest(), fake_host)
-    installer.install(steps, tmp_path / "backups", {}, system_validation=False)
-    assert not (fake_host / "etc/backbond/real-agent-demo-deploy.allow").exists()
+def test_rehearsal_install_completes_and_removes_the_a68_authority(fake_host, tmp_path):
+    root, substitutions = fake_host
+    result = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert result.returncode == 0, result.stderr
+    assert "install_complete" in result.stdout
+    assert sha256_of(root / TARGET_PREFLIGHT.lstrip("/")) == MANIFEST["install"][0]["source_sha256"]
+    assert sha256_of(root / TARGET_SSHGATE.lstrip("/")) == MANIFEST["install"][1]["source_sha256"]
+    assert not (root / A68_SUDOERS.lstrip("/")).exists()
+    assert not (root / A68_DEPLOY.lstrip("/")).exists()
+    assert (root / KEEP_SUDOERS.lstrip("/")).read_bytes() == SYNTHETIC_KEEP_SUDOERS
 
 
-def test_installer_only_runs_fixed_validators(tmp_path):
-    with pytest.raises(installer.InstallError):
-        installer.validate_with("/bin/sh -c", tmp_path)
+def test_rehearsal_rollback_keeps_the_a68_authority_removed(fake_host, tmp_path):
+    """F1, tested the way QA proved the defect: install, then roll back."""
+    root, substitutions = fake_host
+    install = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert install.returncode == 0, install.stderr
+    backup = backup_dir_from(install.stdout)
+
+    rollback = run_procedure(
+        ROLLBACK_PROCEDURE, tmp_path, root, substitutions, env={"BK": backup}
+    )
+    assert rollback.returncode == 0, rollback.stderr
+    assert "rollback_complete" in rollback.stdout
+    assert sha256_of(root / TARGET_PREFLIGHT.lstrip("/")) == CANONICAL_PREFLIGHT
+    # the stale a68 sudo authority and root deploy wrapper stay gone
+    assert not (root / A68_SUDOERS.lstrip("/")).exists()
+    assert not (root / A68_DEPLOY.lstrip("/")).exists()
+    assert "a68_sudoers=absent" in rollback.stdout
+    assert "a68_deploy_wrapper=absent" in rollback.stdout
 
 
-def test_installer_executes_no_repository_content():
-    for forbidden in (b"deploy.sh", b"os.system", b"shell=True", b"os.execv"):
-        assert forbidden not in INSTALLER_SOURCE
+def test_rehearsal_backup_set_holds_all_four_paths_path_preserving(fake_host, tmp_path):
+    root, substitutions = fake_host
+    install = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert install.returncode == 0, install.stderr
+    backup = pathlib.Path(backup_dir_from(install.stdout))
+    assert oct(stat.S_IMODE(backup.lstat().st_mode)) == "0o700"
+    for rel in (TARGET_PREFLIGHT, TARGET_SSHGATE, A68_SUDOERS, A68_DEPLOY):
+        assert (backup / rel.lstrip("/")).is_file(), rel
+    inventory = (backup / "BACKUP.sha256").read_text()
+    assert sha256_of(backup / TARGET_PREFLIGHT.lstrip("/")) == CANONICAL_PREFLIGHT
+    assert CANONICAL_PREFLIGHT in inventory
+    assert len(inventory.strip().splitlines()) == 4
+
+
+def test_rehearsal_second_attempt_never_overwrites_a_backup_set(fake_host, tmp_path):
+    """F6: the same identifier stops instead of overwriting a rollback set."""
+    root, substitutions = fake_host
+    first = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert first.returncode == 0, first.stderr
+    backup = pathlib.Path(backup_dir_from(first.stdout))
+    before = (backup / "BACKUP.sha256").read_bytes()
+
+    second = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert second.returncode == 1
+    assert "already exists" in second.stderr
+    assert (backup / "BACKUP.sha256").read_bytes() == before
+    assert sha256_of(backup / TARGET_PREFLIGHT.lstrip("/")) == CANONICAL_PREFLIGHT
+
+
+def test_rehearsal_distinct_attempts_use_distinct_backup_directories(fake_host, tmp_path):
+    root, substitutions = fake_host
+    first = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "attempt-one"})
+    assert first.returncode == 0, first.stderr
+    rollback = run_procedure(
+        ROLLBACK_PROCEDURE, tmp_path, root, substitutions, env={"BK": backup_dir_from(first.stdout)}
+    )
+    assert rollback.returncode == 0, rollback.stderr
+
+    # a second attempt is only possible after the a68 removals are re-seeded,
+    # which the rollback deliberately does not do, so it stops before mutating
+    second = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "attempt-two"})
+    assert second.returncode == 1
+    assert "missing" in second.stderr
+    assert backup_dir_from(second.stdout) != backup_dir_from(first.stdout)
+
+
+def test_rehearsal_stops_on_unexpected_current_bytes(fake_host, tmp_path):
+    root, substitutions = fake_host
+    (root / TARGET_PREFLIGHT.lstrip("/")).write_bytes(b"not the canonical helper\n")
+    result = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert result.returncode == 1
+    assert "unexpected bytes" in result.stderr
+    assert (root / A68_SUDOERS.lstrip("/")).exists(), "nothing may be removed before verification"
+
+
+def test_rehearsal_abort_part_way_leaves_a_narrower_host(fake_host, tmp_path):
+    """F3: fail during the second replacement, then recover with the rollback."""
+    root, substitutions = fake_host
+    # chown calls: 1 backup directory, 2 staged preflight, 3 staged ssh-gate
+    aborted = run_procedure(
+        INSTALL_PROCEDURE, tmp_path, root, substitutions,
+        env={"STAMP": "rehearsal"}, chown_fails_on="3",
+    )
+    assert aborted.returncode != 0
+    assert "install_complete" not in aborted.stdout
+    assert not (root / A68_SUDOERS.lstrip("/")).exists()
+    assert not (root / A68_DEPLOY.lstrip("/")).exists()
+    assert sha256_of(root / TARGET_PREFLIGHT.lstrip("/")) == MANIFEST["install"][0]["source_sha256"]
+
+    rollback = run_procedure(
+        ROLLBACK_PROCEDURE, tmp_path, root, substitutions,
+        env={"BK": backup_dir_from(aborted.stdout)},
+    )
+    assert rollback.returncode == 0, rollback.stderr
+    assert sha256_of(root / TARGET_PREFLIGHT.lstrip("/")) == CANONICAL_PREFLIGHT
+    assert not (root / A68_SUDOERS.lstrip("/")).exists()
+    assert not (root / A68_DEPLOY.lstrip("/")).exists()
+
+
+def test_rehearsal_leaves_no_cache_residue_beside_the_helpers(fake_host, tmp_path):
+    root, substitutions = fake_host
+    result = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert result.returncode == 0, result.stderr
+    sbin = root / "usr/local/sbin"
+    assert not (sbin / "__pycache__").exists()
+    assert not any(path.name.endswith(".pyc") for path in sbin.iterdir())
+    assert sorted(path.name for path in sbin.iterdir()) == [
+        "backbond-real-agent-demo-secret-preflight",
+        "backbond-real-agent-demo-ssh-gate",
+    ]
+
+
+def test_rehearsal_never_arms_and_never_touches_the_real_host(fake_host, tmp_path):
+    root, substitutions = fake_host
+    result = run_procedure(INSTALL_PROCEDURE, tmp_path, root, substitutions, env={"STAMP": "rehearsal"})
+    assert result.returncode == 0, result.stderr
+    assert not (root / "etc/backbond/real-agent-demo-deploy.allow").exists()
+    assert not os.path.exists("/etc/backbond/real-agent-demo-deploy.allow")
+    assert not os.path.exists("/opt/backbond-real-agent-demo/releases/" + D9)
+    # this machine is the demo host: its real helpers must still hold the bytes
+    # the candidate expects to replace, untouched by the rehearsal
+    for path, pinned in ((TARGET_PREFLIGHT, CANONICAL_PREFLIGHT), (TARGET_SSHGATE, CANONICAL_GATE)):
+        if os.path.exists(path):
+            assert sha256_of(path) == pinned, path
 
 
 # ---------------------------------------------------------------------------
@@ -753,7 +1080,7 @@ def test_installer_executes_no_repository_content():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE, INSTALLER_SOURCE])
+@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE])
 def test_fixed_interpreter_without_path_resolution(source):
     assert source.split(b"\n", 1)[0] == b"#!/usr/bin/python3"
 
@@ -764,7 +1091,7 @@ def test_no_shell_evaluation_of_client_input(source):
         assert forbidden not in source
 
 
-@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE, INSTALLER_SOURCE])
+@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE])
 def test_no_stale_a68_authority_in_the_candidate(source):
     assert A68.encode() not in source
 
@@ -784,8 +1111,6 @@ def test_manifest_removes_the_stale_a68_authority():
     )
 
 
-def test_manifest_rollback_restores_the_canonical_helper():
-    assert any(CANONICAL_PREFLIGHT in step for step in MANIFEST["rollback"])
 
 
 def test_manifest_source_hashes_match_the_shipped_bytes():

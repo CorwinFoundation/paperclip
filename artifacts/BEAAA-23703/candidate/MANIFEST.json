@@ -1,10 +1,12 @@
 {
-  "version": 2,
+  "version": 3,
   "issue": "BEAAA-23703",
   "parent": "BEAAA-23702",
+  "repair": "BEAAA-23726",
   "supersedes": [
     "521c413802b3b86f0b3b4e8fadcfdb616b1b4b4c",
-    "711d3e76"
+    "711d3e76",
+    "48fd6b3e2f0cddde520f069db3f73b48af0cbaf2"
   ],
   "release": {
     "commit": "d9d680f53db7de263f026be5284c97229126872c",
@@ -19,19 +21,32 @@
     "invoked_by": "demo-real-agent/deploy.sh at d9, through the existing sudoers rule",
     "note": "The gate adds no sudo entry point. The single existing root action is enhanced in place to consume the one-shot authorization."
   },
+  "procedure": {
+    "type": "manual_root_owner",
+    "document": "INSTALL.md",
+    "repository_installer": null,
+    "ruling": "BEAAA-23726 CTO ruling of 2026-08-16: no repository-provided installer is authorized to execute as root, so this candidate ships none. The host owner performs only fixed administrative operations on named paths.",
+    "programs_run_as_root": [
+      "mkdir", "cp", "mktemp", "chown", "chmod", "mv", "rm", "sha256sum", "stat", "find", "sync",
+      "/usr/bin/python3 -c 'import ast,sys; ast.parse(open(sys.argv[1],\"rb\").read())'",
+      "/usr/sbin/visudo -c"
+    ],
+    "candidate_bytes_are": "copied and hash-verified, never executed",
+    "order": "removals before replacements, so any abort leaves a strictly narrower host"
+  },
+  "backup": {
+    "directory": "/root/beaaa-23703-backup-<UTC timestamp>-<pid>",
+    "owner_uid": 0,
+    "owner_gid": 0,
+    "mode": "0700",
+    "creation": "mkdir -m 0700 <directory>",
+    "fail_if_exists": true,
+    "reuse": "prohibited",
+    "layout": "path_preserving",
+    "inventory": "BACKUP.sha256",
+    "note": "mkdir without -p is the fail-if-exists operation. Every attempt creates a fresh, previously absent directory; a second attempt that reaches an existing directory stops instead of overwriting a rollback set. Files are stored under their full target path inside the directory, never by basename, so no copy can collide with another."
+  },
   "install": [
-    {
-      "source": "backbond-real-agent-demo-ssh-gate",
-      "source_sha256": "bd564caf524ccec27cdf00d1b85e7ef18cadbcdc2e4163a605565c19578cab93",
-      "target": "/usr/local/sbin/backbond-real-agent-demo-ssh-gate",
-      "owner_uid": 0,
-      "owner_gid": 0,
-      "mode": "0755",
-      "replaces_sha256": "44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f",
-      "placement": "same_directory_temporary_file_then_atomic_rename",
-      "validator": "/usr/bin/python3 -m py_compile",
-      "reason": "stale forced-command gate pinned to a68e7e09; replaced by the exact-d9 gate"
-    },
     {
       "source": "backbond-real-agent-demo-secret-preflight",
       "source_sha256": "927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8",
@@ -41,22 +56,44 @@
       "mode": "0755",
       "replaces_sha256": "e1d50aec40829636e2ab68488c8887d1bd0e796c8aef9b62f2b66a07445f1542",
       "placement": "same_directory_temporary_file_then_atomic_rename",
-      "validator": "/usr/bin/python3 -m py_compile",
+      "validator": "/usr/bin/python3 -c 'import ast,sys; ast.parse(open(sys.argv[1],\"rb\").read())'",
       "reason": "the single root action, enhanced in place: unchanged names-only preflight, then atomic consumption of the one-shot exact-d9 authorization"
+    },
+    {
+      "source": "backbond-real-agent-demo-ssh-gate",
+      "source_sha256": "bd564caf524ccec27cdf00d1b85e7ef18cadbcdc2e4163a605565c19578cab93",
+      "target": "/usr/local/sbin/backbond-real-agent-demo-ssh-gate",
+      "owner_uid": 0,
+      "owner_gid": 0,
+      "mode": "0755",
+      "replaces_sha256": "44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f",
+      "placement": "same_directory_temporary_file_then_atomic_rename",
+      "validator": "/usr/bin/python3 -c 'import ast,sys; ast.parse(open(sys.argv[1],\"rb\").read())'",
+      "reason": "stale forced-command gate pinned to a68e7e09; replaced by the exact-d9 gate"
     }
   ],
+  "validation": {
+    "command": "/usr/bin/python3 -c 'import ast,sys; ast.parse(open(sys.argv[1],\"rb\").read())'",
+    "executes_the_file": false,
+    "writes_bytecode_cache": false,
+    "rejected": "/usr/bin/python3 -m py_compile, which writes a __pycache__ directory beside the staged file inside /usr/local/sbin",
+    "assert_no_residue": "find /usr/local/sbin -maxdepth 1 \\( -name '__pycache__' -o -name '*.pyc' \\) -print",
+    "expect": "no output, checked after each replacement and again at the end of installation"
+  },
   "remove": [
     {
       "target": "/etc/sudoers.d/backbond-real-agent-demo",
       "expected_sha256": "37b24501a7470ba37e2002d6f0a219c3b2222f82a6ca559fd71c3cefc73c02bf",
       "reason": "stale sudo authority for a68e7e0969b45e7eb8add18ff2007a305a0156aa preflight and deploy",
-      "revalidate": "/usr/sbin/visudo -c"
+      "revalidate": "/usr/sbin/visudo -c",
+      "restored_by_rollback": false
     },
     {
       "target": "/usr/local/sbin/backbond-real-agent-demo-deploy",
       "expected_sha256": "956065275defd2abcc95a7d2e14d8e70ee54c10aa799578aa00602f29c9af723",
       "reason": "root deploy wrapper pinned to a68e7e09; deploy.sh now runs unprivileged, so no root release runner remains",
-      "revalidate": null
+      "revalidate": null,
+      "restored_by_rollback": false
     }
   ],
   "must_not_change": [
@@ -98,6 +135,17 @@
       "on_mismatch": "stop and report to BEAAA-23702"
     }
   ],
+  "failed_install": {
+    "rule": "stop at the first non-zero exit",
+    "steps": [
+      "STOP. Do not continue, do not retry the remaining steps, do not arm, do not deploy.",
+      "run the rollback procedure in INSTALL.md with BK set to the backup directory printed in step 1",
+      "confirm /usr/sbin/visudo -c parses",
+      "confirm /etc/sudoers.d/backbond-real-agent-demo and /usr/local/sbin/backbond-real-agent-demo-deploy are still absent",
+      "attest the final state on BEAAA-23705 and report the failing step to BEAAA-23702"
+    ],
+    "why_this_is_coherent": "the removals precede the replacements, so an abort part-way through leaves the host with strictly fewer privileges than it started with; the a68 sudo authority and root deploy wrapper are gone and the one-shot requirement is either in place or the canonical d9 preflight is"
+  },
   "post_install_verification": [
     {
       "check": "the helper still reports the names-only secret preflight and then fails closed because nothing is armed",
@@ -114,6 +162,11 @@
       "check": "sudoers parses",
       "command": "/usr/sbin/visudo -c",
       "expect": "parsed OK"
+    },
+    {
+      "check": "no bytecode cache was left beside either helper",
+      "command": "find /usr/local/sbin -maxdepth 1 \\( -name '__pycache__' -o -name '*.pyc' \\) -print",
+      "expect": "no output"
     }
   ],
   "arming": {
@@ -123,13 +176,24 @@
     "mode": "0600",
     "content": "d9d680f53db7de263f026be5284c97229126872c",
     "consumed_path": "/etc/backbond/real-agent-demo-deploy.consumed",
-    "note": "Installation MUST NOT create this file, and install_host_gate.py refuses to run while it exists. Arming is a separate operator action taken only after BEAAA-23702 returns READY and the Founder decision stands."
+    "note": "Installation MUST NOT create this file. The procedure in INSTALL.md never creates it and one of the preconditions stops if it already exists. Arming is a separate operator action taken only after BEAAA-23702 returns READY and the Founder decision stands."
   },
-  "rollback": [
-    "install_host_gate.py --rollback --confirm restores every backed-up target from the root-owned 0700 backup set by the same same-directory atomic rename",
-    "restore /usr/local/sbin/backbond-real-agent-demo-secret-preflight to the backed-up e1d50aec40829636e2ab68488c8887d1bd0e796c8aef9b62f2b66a07445f1542 bytes; this alone removes the one-shot behaviour and returns the host to canonical d9 preflight",
-    "restore /usr/local/sbin/backbond-real-agent-demo-ssh-gate to the backed-up 44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f bytes, or remove it to leave the key with no runnable forced command",
-    "restore /etc/sudoers.d/backbond-real-agent-demo and /usr/local/sbin/backbond-real-agent-demo-deploy from backup only if a return to the stale a68 posture is explicitly decided, then re-run /usr/sbin/visudo -c",
-    "remove /etc/backbond/real-agent-demo-deploy.allow if it exists; with nothing armed the deployment path is closed in every case"
-  ]
+  "rollback": {
+    "bounded": true,
+    "restores": [
+      "/usr/local/sbin/backbond-real-agent-demo-secret-preflight to the backed-up e1d50aec40829636e2ab68488c8887d1bd0e796c8aef9b62f2b66a07445f1542 bytes; this alone removes the one-shot behaviour and returns the host to canonical d9 preflight",
+      "/usr/local/sbin/backbond-real-agent-demo-ssh-gate to the backed-up 44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f bytes, a forced command pinned to a68 that denies every d9 command"
+    ],
+    "never_restores": [
+      "/etc/sudoers.d/backbond-real-agent-demo",
+      "/usr/local/sbin/backbond-real-agent-demo-deploy"
+    ],
+    "asserts_absent_after": [
+      "/etc/sudoers.d/backbond-real-agent-demo",
+      "/usr/local/sbin/backbond-real-agent-demo-deploy"
+    ],
+    "revalidate": "/usr/sbin/visudo -c",
+    "then": "re-attest both restored files with sha256sum and stat, and remove /etc/backbond/real-agent-demo-deploy.allow if it exists",
+    "note": "The rollback procedure contains no step that recreates the stale a68 sudo authority or the root deploy wrapper, and it stops if either is present. A return to the a68 posture would be a new privileged change and must go back through BEAAA-23702."
+  }
 }
