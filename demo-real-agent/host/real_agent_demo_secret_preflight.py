@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Validate the fixed passive-demo secret file without disclosing values."""
 
 from __future__ import annotations
@@ -42,7 +42,13 @@ def _read_fixed_file(path: Path = ENV_PATH) -> str:
         _fail("secret_file: open_rejected")
     try:
         opened = os.fstat(fd)
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+        if not stat.S_ISREG(opened.st_mode):
+            _fail("secret_file: opened_not_regular")
+        if (opened.st_uid, opened.st_gid) != (EXPECTED_UID, EXPECTED_GID):
+            _fail("secret_file: opened_wrong_owner")
+        if stat.S_IMODE(opened.st_mode) != EXPECTED_MODE:
+            _fail("secret_file: opened_wrong_mode")
+        if (opened.st_dev, opened.st_ino) != (
             before.st_dev,
             before.st_ino,
         ):
