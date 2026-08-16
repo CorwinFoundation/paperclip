@@ -1,0 +1,12 @@
+{
+  "artifact_id": "BEAAA-18123-design-partner-quick-start-v2",
+  "brand_backbone_sha256": "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090",
+  "brand_backbone_verified": true,
+  "brand_backbone_version": "v1.6",
+  "contract_version": "are-scanner-api-v1@v1.0",
+  "corpus_version": "2026.6.24",
+  "persona_audience": "external",
+  "probe-set-version": "unchanged",
+  "rubric_point_id": "N/A",
+  "scanner_version": "0.5.0"
+}
