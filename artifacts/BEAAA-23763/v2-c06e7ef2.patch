@@ -1,0 +1,762 @@
+From c06e7ef25d4df9108dd95bc48ad1e7560f7f59fc Mon Sep 17 00:00:00 2001
+From: BackBond Scanner Engineer <scanner-engineer@backbond.invalid>
+Date: Sun, 16 Aug 2026 21:00:44 +0000
+Subject: [PATCH] Repair judge readiness with zero new privilege (BEAAA-23759)
+
+---
+ artifacts/BEAAA-23759/v2/README.md            |  52 ++++
+ artifacts/BEAAA-23759/v2/SHA256SUMS           |   5 +
+ .../backbond-real-agent-demo-secret-preflight | 242 ++++++++++++++++++
+ ...nt-demo-secret-preflight.baseline-927fca8b | 223 ++++++++++++++++
+ artifacts/BEAAA-23759/v2/install-helper.sh    |  21 ++
+ artifacts/BEAAA-23759/v2/rollback-helper.sh   |  18 ++
+ demo-real-agent/deploy.sh                     |  25 +-
+ .../test_deploy_judge_socket_beaaa23759_v2.py |  90 +++++++
+ 8 files changed, 674 insertions(+), 2 deletions(-)
+ create mode 100644 artifacts/BEAAA-23759/v2/README.md
+ create mode 100644 artifacts/BEAAA-23759/v2/SHA256SUMS
+ create mode 100755 artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight
+ create mode 100755 artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight.baseline-927fca8b
+ create mode 100755 artifacts/BEAAA-23759/v2/install-helper.sh
+ create mode 100755 artifacts/BEAAA-23759/v2/rollback-helper.sh
+ create mode 100644 demo-real-agent/tests/test_deploy_judge_socket_beaaa23759_v2.py
+
+diff --git a/artifacts/BEAAA-23759/v2/README.md b/artifacts/BEAAA-23759/v2/README.md
+new file mode 100644
+index 00000000..77e00ff1
+--- /dev/null
++++ b/artifacts/BEAAA-23759/v2/README.md
+@@ -0,0 +1,52 @@
++# BEAAA-23759 V2: zero-new-privilege judge readiness repair
++
++BLUF: `demo-real-agent/deploy.sh` no longer stats the protected host socket. It accepts exactly one `JUDGE_SOCKET: ready` or `JUDGE_SOCKET: missing` line from the existing fixed, empty-argument root preflight helper. Missing, unknown, duplicate, contradictory, or helper-failure output stops before Docker.
++
++## Immutable base and compatibility
++
++- Review branch: `beaaa-23759-zero-privilege-v2`
++- Local `origin/master` base: `d9d680f53db7de263f026be5284c97229126872c`
++- Refresh caveat: `git fetch origin master --prune` failed authentication on 2026-08-16. The candidate is bound to the locally recorded remote-tracking commit and must be ancestry-revalidated by QA in an authenticated checkout.
++- Actual installed helper baseline recorded by BEAAA-23705 and recovered from the staged BEAAA-23703 index: `927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8`.
++- V2 helper is that exact baseline plus a fixed `/run/backbond-claude-judge/judge.sock` `lstat`, a names-only result, and invocation only when `DEMO_JUDGE_BACKEND` is configured. The empty argument contract, sudo command path, secret validation, one-shot consume behavior, and existing names-only outputs remain intact.
++- The earlier referenced candidate `3dfc576598c74c54155cf211b46927ea490b5c8f0e67560af01d4cb4f01b49cf` was independently recomputed from separate workspace bytes but is not treated as installed or reused. V2 helper SHA is `9ecc60538c9904a2e9c1583c7af2ffed9d37f9775fa3888b02313237a53874e2`.
++
++## Security boundary
++
++V2 grants `passive-demo-deploy` zero new host access. There is no new group, ACL, socket permission, sudo entry, SSH permission, secret read, service permission, container mount, container user, or restart. The deploy principal continues to call the one existing fixed-path, empty-argument sudo helper. Only that root helper evaluates the fixed socket pathname; it emits no path metadata, owner, mode, token, environment value, or socket content.
++
++The container remains uid/gid `10001:10001`, with the existing read-only directory bind and in-container socket path. V2 changes readiness observation only.
++
++## Exact installation
++
++Do not install from this issue. After fresh QA approval of the exact candidate commit and archive, the authorized host installer runs:
++
++```sh
++sudo artifacts/BEAAA-23759/v2/install-helper.sh artifacts/BEAAA-23759/v2
++```
++
++The installer fails unless the live helper is exactly the recorded `927fca…` baseline with `root:root 0755`. It verifies V2 bytes, stages in the target directory, then atomically renames. It does not touch any other host state and does not restart the service.
++
++## Exact rollback
++
++```sh
++sudo artifacts/BEAAA-23759/v2/rollback-helper.sh artifacts/BEAAA-23759/v2
++```
++
++Rollback fails unless the live helper is exactly V2 and the packaged baseline is exactly `927fca…`; it restores the baseline atomically as `root:root 0755`. Repository rollback is `git revert` of the V2 commit. Leave all one-shot authorization absent.
++
++## Verification
++
++`demo-real-agent/tests/test_deploy_judge_socket_beaaa23759_v2.py` executes ready, missing, non-socket, OS-denial, exact-ready, exact-missing, absent, unknown, duplicate, contradictory, prefixed-output, syntax, and forbidden-privilege cases. Five seeded runs pass. Host verification remains the canonical QA child's responsibility; this issue performed no host mutation.
++
++## Operational metadata
++
++- Contract: `contracts/are-scanner-api-v1.md@v1.3.0`
++- Classification: rule-change because the tamper-resistance boundary changes; CTO co-sign required before merge
++- scanner_version: `0.5.0` unchanged
++- corpus_version: `0.1.0` unchanged
++- probe-set-version: `passive-demo-host-gate-d9` unchanged
++- rubric_point_id: `N/A_INFRA_TAMPER_BOUNDARY`
++- N=5 calibration delta: `0` across all four pillars; no scoring import or mutation path
++- cto_cosign_ref: pending
++- FAL audit: internal engineering candidate; authority and evidence are BEAAA-23759 and canonical QA STOP BEAAA-23763
+diff --git a/artifacts/BEAAA-23759/v2/SHA256SUMS b/artifacts/BEAAA-23759/v2/SHA256SUMS
+new file mode 100644
+index 00000000..742e4a87
+--- /dev/null
++++ b/artifacts/BEAAA-23759/v2/SHA256SUMS
+@@ -0,0 +1,5 @@
++b27429cb082899a0fe3ef966ffa7785abfacd433f04a6cc74e9d2631ab75ef4e  README.md
++9ecc60538c9904a2e9c1583c7af2ffed9d37f9775fa3888b02313237a53874e2  backbond-real-agent-demo-secret-preflight
++927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8  backbond-real-agent-demo-secret-preflight.baseline-927fca8b
++12ac6c347cd5c802ee78db537128ce86acdf43deb9bd78a5ec7e2f1fa50f450b  install-helper.sh
++873fde957ea021e863d07586e4d9b959f235c50364834a351fbcd5fc4a48fd26  rollback-helper.sh
+diff --git a/artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight b/artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight
+new file mode 100755
+index 00000000..928f9440
+--- /dev/null
++++ b/artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight
+@@ -0,0 +1,242 @@
++#!/usr/bin/python3
++"""Validate the fixed passive-demo secret file without disclosing values, then
++consume the one-shot exact-d9 deployment authorization.
++
++BEAAA-23703 candidate. This is the only root action in the repaired gate and it
++keeps the fixed path, the zero-argument contract and the stdout contract of the
++helper it replaces, so `demo-real-agent/deploy.sh` at commit
++d9d680f53db7de263f026be5284c97229126872c calls it exactly as it does today and
++the existing single sudoers rule is unchanged.
++
++Added behaviour: after the names-only preflight has been reported, the helper
++requires a root-owned one-shot authorization naming exactly d9 and consumes it
++by a same-directory rename. Consumption is atomic, so a replay finds nothing and
++fails closed, and with nothing armed the helper exits non-zero before deploy.sh
++reaches docker. An authorization naming any other release is refused and left in
++place.
++
++The preflight is reported before the authorization is consumed so that an
++unarmed post-install verification still exercises and prints the secret boundary
++result, then stops with `deploy_authorization: absent`.
++"""
++
++from __future__ import annotations
++
++import os
++import stat
++import sys
++from pathlib import Path
++
++
++ENV_PATH = Path("/etc/backbond/real-agent-demo.env")
++JUDGE_SOCKET_PATH = Path("/run/backbond-claude-judge/judge.sock")
++EXPECTED_UID = 10001
++EXPECTED_GID = 10001
++EXPECTED_MODE = 0o600
++
++RELEASE_SHA = "d9d680f53db7de263f026be5284c97229126872c"
++STATE_DIR = Path("/etc/backbond")
++ALLOW_PATH = Path("/etc/backbond/real-agent-demo-deploy.allow")
++CONSUMED_PATH = Path("/etc/backbond/real-agent-demo-deploy.consumed")
++AUTH_UID = 0
++AUTH_GID = 0
++AUTH_MODE = 0o600
++AUTH_MAX_BYTES = 128
++
++
++class PreflightError(Exception):
++    pass
++
++
++def _fail(status: str) -> None:
++    raise PreflightError(status)
++
++
++def _read_fixed_file(path: Path = ENV_PATH) -> str:
++    try:
++        before = path.lstat()
++    except FileNotFoundError:
++        _fail("secret_file: missing")
++    if not stat.S_ISREG(before.st_mode):
++        _fail("secret_file: not_regular")
++    if (before.st_uid, before.st_gid) != (EXPECTED_UID, EXPECTED_GID):
++        _fail("secret_file: wrong_owner")
++    if stat.S_IMODE(before.st_mode) != EXPECTED_MODE:
++        _fail("secret_file: wrong_mode")
++
++    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
++    try:
++        fd = os.open(path, flags)
++    except OSError:
++        _fail("secret_file: open_rejected")
++    try:
++        opened = os.fstat(fd)
++        if not stat.S_ISREG(opened.st_mode):
++            _fail("secret_file: opened_not_regular")
++        if (opened.st_uid, opened.st_gid) != (EXPECTED_UID, EXPECTED_GID):
++            _fail("secret_file: opened_wrong_owner")
++        if stat.S_IMODE(opened.st_mode) != EXPECTED_MODE:
++            _fail("secret_file: opened_wrong_mode")
++        if (opened.st_dev, opened.st_ino) != (
++            before.st_dev,
++            before.st_ino,
++        ):
++            _fail("secret_file: changed_during_check")
++        with os.fdopen(fd, "r", encoding="utf-8", errors="strict") as handle:
++            fd = -1
++            return handle.read()
++    finally:
++        if fd >= 0:
++            os.close(fd)
++
++
++def _parse_names(text: str) -> dict[str, str]:
++    values: dict[str, str] = {}
++    for raw_line in text.splitlines():
++        line = raw_line.strip()
++        if not line or line.startswith("#") or "=" not in line:
++            continue
++        name, value = line.split("=", 1)
++        name = name.strip()
++        if name:
++            values[name] = value.strip()
++    return values
++
++
++def validate(path: Path = ENV_PATH) -> list[str]:
++    values = _parse_names(_read_fixed_file(path))
++    configured: list[str] = []
++    for name in ("DEMO_ACCESS_TOKEN", "ARE_BUNDLE_SIGNING_KEY"):
++        if not values.get(name):
++            _fail(f"{name}: missing_or_empty")
++        configured.append(name)
++
++    if values.get("DEMO_JUDGE_BACKEND") == "claude-code-proxy":
++        if not values.get("CLAUDE_JUDGE_PROXY_TOKEN"):
++            _fail("CLAUDE_JUDGE_PROXY_TOKEN: missing_or_empty")
++        configured.extend(("DEMO_JUDGE_BACKEND", "CLAUDE_JUDGE_PROXY_TOKEN"))
++    else:
++        api_names = [
++            name
++            for name in ("OPENROUTER_API_KEY", "ANTHROPIC_API_KEY")
++            if values.get(name)
++        ]
++        if not api_names:
++            _fail("judge_configuration: missing_or_invalid")
++        configured.extend(api_names)
++    return configured
++
++
++def judge_socket_status(path: Path = JUDGE_SOCKET_PATH) -> str:
++    """Return only a readiness name for the fixed root-visible socket path."""
++    try:
++        mode = path.lstat().st_mode
++    except FileNotFoundError:
++        return "missing"
++    except OSError:
++        _fail("JUDGE_SOCKET: evaluation_failed")
++    return "ready" if stat.S_ISSOCK(mode) else "missing"
++
++
++def _validate_state_dir(directory: Path = STATE_DIR) -> None:
++    try:
++        st = directory.lstat()
++    except FileNotFoundError:
++        _fail("deploy_authorization: state_dir_missing")
++    if not stat.S_ISDIR(st.st_mode):
++        _fail("deploy_authorization: state_dir_not_directory")
++    if (st.st_uid, st.st_gid) != (AUTH_UID, AUTH_GID):
++        _fail("deploy_authorization: state_dir_wrong_owner")
++    if stat.S_IMODE(st.st_mode) & 0o022:
++        _fail("deploy_authorization: state_dir_writable")
++
++
++def _read_authorization(path: Path = ALLOW_PATH) -> None:
++    """Require a root-owned one-shot grant naming exactly the pinned release."""
++    try:
++        before = path.lstat()
++    except FileNotFoundError:
++        _fail("deploy_authorization: absent")
++    if not stat.S_ISREG(before.st_mode):
++        _fail("deploy_authorization: not_regular")
++    if (before.st_uid, before.st_gid) != (AUTH_UID, AUTH_GID):
++        _fail("deploy_authorization: wrong_owner")
++    if stat.S_IMODE(before.st_mode) != AUTH_MODE:
++        _fail("deploy_authorization: wrong_mode")
++
++    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
++    try:
++        fd = os.open(path, flags)
++    except OSError:
++        _fail("deploy_authorization: open_rejected")
++    try:
++        opened = os.fstat(fd)
++        if not stat.S_ISREG(opened.st_mode):
++            _fail("deploy_authorization: opened_not_regular")
++        if (opened.st_uid, opened.st_gid) != (AUTH_UID, AUTH_GID):
++            _fail("deploy_authorization: opened_wrong_owner")
++        if stat.S_IMODE(opened.st_mode) != AUTH_MODE:
++            _fail("deploy_authorization: opened_wrong_mode")
++        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
++            _fail("deploy_authorization: changed_during_check")
++        payload = os.read(fd, AUTH_MAX_BYTES + 1)
++    finally:
++        os.close(fd)
++
++    if len(payload) > AUTH_MAX_BYTES:
++        _fail("deploy_authorization: oversized")
++    try:
++        text = payload.decode("ascii")
++    except UnicodeDecodeError:
++        _fail("deploy_authorization: not_ascii")
++    if text.strip() != RELEASE_SHA:
++        _fail("deploy_authorization: wrong_release")
++
++
++def consume_authorization(
++    directory: Path = STATE_DIR,
++    path: Path = ALLOW_PATH,
++    consumed: Path = CONSUMED_PATH,
++) -> str:
++    """Spend the one-shot grant. The rename is the atomic consumption."""
++    if os.geteuid() != 0:
++        _fail("deploy_authorization: not_root")
++    _validate_state_dir(directory)
++    _read_authorization(path)
++    try:
++        os.rename(path, consumed)
++    except OSError:
++        _fail("deploy_authorization: consume_failed")
++    return RELEASE_SHA
++
++
++def main(argv: list[str]) -> int:
++    if argv:
++        print("arguments: rejected", file=sys.stderr)
++        return 2
++    try:
++        configured = validate()
++    except (PreflightError, UnicodeError) as exc:
++        print(str(exc) if isinstance(exc, PreflightError) else "secret_file: invalid_encoding", file=sys.stderr)
++        return 1
++    print("secret_file: valid")
++    for name in configured:
++        print(f"{name}: configured")
++    if "DEMO_JUDGE_BACKEND" in configured:
++        try:
++            socket_status = judge_socket_status()
++        except PreflightError as exc:
++            print(str(exc), file=sys.stderr)
++            return 1
++        print(f"JUDGE_SOCKET: {socket_status}")
++    try:
++        released = consume_authorization()
++    except PreflightError as exc:
++        print(str(exc), file=sys.stderr)
++        return 1
++    print(f"deploy_authorization: consumed {released}")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main(sys.argv[1:]))
+diff --git a/artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight.baseline-927fca8b b/artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight.baseline-927fca8b
+new file mode 100755
+index 00000000..eca7fc65
+--- /dev/null
++++ b/artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight.baseline-927fca8b
+@@ -0,0 +1,223 @@
++#!/usr/bin/python3
++"""Validate the fixed passive-demo secret file without disclosing values, then
++consume the one-shot exact-d9 deployment authorization.
++
++BEAAA-23703 candidate. This is the only root action in the repaired gate and it
++keeps the fixed path, the zero-argument contract and the stdout contract of the
++helper it replaces, so `demo-real-agent/deploy.sh` at commit
++d9d680f53db7de263f026be5284c97229126872c calls it exactly as it does today and
++the existing single sudoers rule is unchanged.
++
++Added behaviour: after the names-only preflight has been reported, the helper
++requires a root-owned one-shot authorization naming exactly d9 and consumes it
++by a same-directory rename. Consumption is atomic, so a replay finds nothing and
++fails closed, and with nothing armed the helper exits non-zero before deploy.sh
++reaches docker. An authorization naming any other release is refused and left in
++place.
++
++The preflight is reported before the authorization is consumed so that an
++unarmed post-install verification still exercises and prints the secret boundary
++result, then stops with `deploy_authorization: absent`.
++"""
++
++from __future__ import annotations
++
++import os
++import stat
++import sys
++from pathlib import Path
++
++
++ENV_PATH = Path("/etc/backbond/real-agent-demo.env")
++EXPECTED_UID = 10001
++EXPECTED_GID = 10001
++EXPECTED_MODE = 0o600
++
++RELEASE_SHA = "d9d680f53db7de263f026be5284c97229126872c"
++STATE_DIR = Path("/etc/backbond")
++ALLOW_PATH = Path("/etc/backbond/real-agent-demo-deploy.allow")
++CONSUMED_PATH = Path("/etc/backbond/real-agent-demo-deploy.consumed")
++AUTH_UID = 0
++AUTH_GID = 0
++AUTH_MODE = 0o600
++AUTH_MAX_BYTES = 128
++
++
++class PreflightError(Exception):
++    pass
++
++
++def _fail(status: str) -> None:
++    raise PreflightError(status)
++
++
++def _read_fixed_file(path: Path = ENV_PATH) -> str:
++    try:
++        before = path.lstat()
++    except FileNotFoundError:
++        _fail("secret_file: missing")
++    if not stat.S_ISREG(before.st_mode):
++        _fail("secret_file: not_regular")
++    if (before.st_uid, before.st_gid) != (EXPECTED_UID, EXPECTED_GID):
++        _fail("secret_file: wrong_owner")
++    if stat.S_IMODE(before.st_mode) != EXPECTED_MODE:
++        _fail("secret_file: wrong_mode")
++
++    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
++    try:
++        fd = os.open(path, flags)
++    except OSError:
++        _fail("secret_file: open_rejected")
++    try:
++        opened = os.fstat(fd)
++        if not stat.S_ISREG(opened.st_mode):
++            _fail("secret_file: opened_not_regular")
++        if (opened.st_uid, opened.st_gid) != (EXPECTED_UID, EXPECTED_GID):
++            _fail("secret_file: opened_wrong_owner")
++        if stat.S_IMODE(opened.st_mode) != EXPECTED_MODE:
++            _fail("secret_file: opened_wrong_mode")
++        if (opened.st_dev, opened.st_ino) != (
++            before.st_dev,
++            before.st_ino,
++        ):
++            _fail("secret_file: changed_during_check")
++        with os.fdopen(fd, "r", encoding="utf-8", errors="strict") as handle:
++            fd = -1
++            return handle.read()
++    finally:
++        if fd >= 0:
++            os.close(fd)
++
++
++def _parse_names(text: str) -> dict[str, str]:
++    values: dict[str, str] = {}
++    for raw_line in text.splitlines():
++        line = raw_line.strip()
++        if not line or line.startswith("#") or "=" not in line:
++            continue
++        name, value = line.split("=", 1)
++        name = name.strip()
++        if name:
++            values[name] = value.strip()
++    return values
++
++
++def validate(path: Path = ENV_PATH) -> list[str]:
++    values = _parse_names(_read_fixed_file(path))
++    configured: list[str] = []
++    for name in ("DEMO_ACCESS_TOKEN", "ARE_BUNDLE_SIGNING_KEY"):
++        if not values.get(name):
++            _fail(f"{name}: missing_or_empty")
++        configured.append(name)
++
++    if values.get("DEMO_JUDGE_BACKEND") == "claude-code-proxy":
++        if not values.get("CLAUDE_JUDGE_PROXY_TOKEN"):
++            _fail("CLAUDE_JUDGE_PROXY_TOKEN: missing_or_empty")
++        configured.extend(("DEMO_JUDGE_BACKEND", "CLAUDE_JUDGE_PROXY_TOKEN"))
++    else:
++        api_names = [
++            name
++            for name in ("OPENROUTER_API_KEY", "ANTHROPIC_API_KEY")
++            if values.get(name)
++        ]
++        if not api_names:
++            _fail("judge_configuration: missing_or_invalid")
++        configured.extend(api_names)
++    return configured
++
++
++def _validate_state_dir(directory: Path = STATE_DIR) -> None:
++    try:
++        st = directory.lstat()
++    except FileNotFoundError:
++        _fail("deploy_authorization: state_dir_missing")
++    if not stat.S_ISDIR(st.st_mode):
++        _fail("deploy_authorization: state_dir_not_directory")
++    if (st.st_uid, st.st_gid) != (AUTH_UID, AUTH_GID):
++        _fail("deploy_authorization: state_dir_wrong_owner")
++    if stat.S_IMODE(st.st_mode) & 0o022:
++        _fail("deploy_authorization: state_dir_writable")
++
++
++def _read_authorization(path: Path = ALLOW_PATH) -> None:
++    """Require a root-owned one-shot grant naming exactly the pinned release."""
++    try:
++        before = path.lstat()
++    except FileNotFoundError:
++        _fail("deploy_authorization: absent")
++    if not stat.S_ISREG(before.st_mode):
++        _fail("deploy_authorization: not_regular")
++    if (before.st_uid, before.st_gid) != (AUTH_UID, AUTH_GID):
++        _fail("deploy_authorization: wrong_owner")
++    if stat.S_IMODE(before.st_mode) != AUTH_MODE:
++        _fail("deploy_authorization: wrong_mode")
++
++    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
++    try:
++        fd = os.open(path, flags)
++    except OSError:
++        _fail("deploy_authorization: open_rejected")
++    try:
++        opened = os.fstat(fd)
++        if not stat.S_ISREG(opened.st_mode):
++            _fail("deploy_authorization: opened_not_regular")
++        if (opened.st_uid, opened.st_gid) != (AUTH_UID, AUTH_GID):
++            _fail("deploy_authorization: opened_wrong_owner")
++        if stat.S_IMODE(opened.st_mode) != AUTH_MODE:
++            _fail("deploy_authorization: opened_wrong_mode")
++        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
++            _fail("deploy_authorization: changed_during_check")
++        payload = os.read(fd, AUTH_MAX_BYTES + 1)
++    finally:
++        os.close(fd)
++
++    if len(payload) > AUTH_MAX_BYTES:
++        _fail("deploy_authorization: oversized")
++    try:
++        text = payload.decode("ascii")
++    except UnicodeDecodeError:
++        _fail("deploy_authorization: not_ascii")
++    if text.strip() != RELEASE_SHA:
++        _fail("deploy_authorization: wrong_release")
++
++
++def consume_authorization(
++    directory: Path = STATE_DIR,
++    path: Path = ALLOW_PATH,
++    consumed: Path = CONSUMED_PATH,
++) -> str:
++    """Spend the one-shot grant. The rename is the atomic consumption."""
++    if os.geteuid() != 0:
++        _fail("deploy_authorization: not_root")
++    _validate_state_dir(directory)
++    _read_authorization(path)
++    try:
++        os.rename(path, consumed)
++    except OSError:
++        _fail("deploy_authorization: consume_failed")
++    return RELEASE_SHA
++
++
++def main(argv: list[str]) -> int:
++    if argv:
++        print("arguments: rejected", file=sys.stderr)
++        return 2
++    try:
++        configured = validate()
++    except (PreflightError, UnicodeError) as exc:
++        print(str(exc) if isinstance(exc, PreflightError) else "secret_file: invalid_encoding", file=sys.stderr)
++        return 1
++    print("secret_file: valid")
++    for name in configured:
++        print(f"{name}: configured")
++    try:
++        released = consume_authorization()
++    except PreflightError as exc:
++        print(str(exc), file=sys.stderr)
++        return 1
++    print(f"deploy_authorization: consumed {released}")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main(sys.argv[1:]))
+diff --git a/artifacts/BEAAA-23759/v2/install-helper.sh b/artifacts/BEAAA-23759/v2/install-helper.sh
+new file mode 100755
+index 00000000..377cdad8
+--- /dev/null
++++ b/artifacts/BEAAA-23759/v2/install-helper.sh
+@@ -0,0 +1,21 @@
++#!/bin/sh
++set -eu
++
++test "$(id -u)" -eq 0
++candidate_dir=${1:?candidate directory required}
++target=/usr/local/sbin/backbond-real-agent-demo-secret-preflight
++baseline=927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8
++replacement=9ecc60538c9904a2e9c1583c7af2ffed9d37f9775fa3888b02313237a53874e2
++
++test "$(sha256sum "$target" | awk '{print $1}')" = "$baseline"
++test "$(sha256sum "$candidate_dir/backbond-real-agent-demo-secret-preflight" | awk '{print $1}')" = "$replacement"
++test "$(stat -c '%U:%G:%a' "$target")" = root:root:755
++
++stage=$(mktemp /usr/local/sbin/.backbond-preflight.v2.XXXXXX)
++trap 'rm -f "$stage"' EXIT HUP INT TERM
++install -o root -g root -m 0755 "$candidate_dir/backbond-real-agent-demo-secret-preflight" "$stage"
++test "$(sha256sum "$stage" | awk '{print $1}')" = "$replacement"
++mv -f "$stage" "$target"
++trap - EXIT HUP INT TERM
++
++# No sudoers, SSH, group, ACL, socket, service, marker, or GitHub state changes.
+diff --git a/artifacts/BEAAA-23759/v2/rollback-helper.sh b/artifacts/BEAAA-23759/v2/rollback-helper.sh
+new file mode 100755
+index 00000000..3b535a99
+--- /dev/null
++++ b/artifacts/BEAAA-23759/v2/rollback-helper.sh
+@@ -0,0 +1,18 @@
++#!/bin/sh
++set -eu
++
++test "$(id -u)" -eq 0
++candidate_dir=${1:?candidate directory required}
++target=/usr/local/sbin/backbond-real-agent-demo-secret-preflight
++replacement=9ecc60538c9904a2e9c1583c7af2ffed9d37f9775fa3888b02313237a53874e2
++baseline=927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8
++
++test "$(sha256sum "$target" | awk '{print $1}')" = "$replacement"
++test "$(sha256sum "$candidate_dir/backbond-real-agent-demo-secret-preflight.baseline-927fca8b" | awk '{print $1}')" = "$baseline"
++
++stage=$(mktemp /usr/local/sbin/.backbond-preflight.rollback.XXXXXX)
++trap 'rm -f "$stage"' EXIT HUP INT TERM
++install -o root -g root -m 0755 "$candidate_dir/backbond-real-agent-demo-secret-preflight.baseline-927fca8b" "$stage"
++test "$(sha256sum "$stage" | awk '{print $1}')" = "$baseline"
++mv -f "$stage" "$target"
++trap - EXIT HUP INT TERM
+diff --git a/demo-real-agent/deploy.sh b/demo-real-agent/deploy.sh
+index ec1b2f41..97c74536 100644
+--- a/demo-real-agent/deploy.sh
++++ b/demo-real-agent/deploy.sh
+@@ -15,15 +15,36 @@ JUDGE_SOCKET_DIR="${CLAUDE_JUDGE_SOCKET_DIR:-/run/backbond-claude-judge}"
+ JUDGE_SOCKET_HOST="${JUDGE_SOCKET_DIR}/judge.sock"
+ CLAUDE_PROXY_ENABLED=false
+ 
++parse_judge_socket_status() {
++  local output="$1"
++  local -a status_lines=()
++  mapfile -t status_lines < <(grep '^JUDGE_SOCKET:' <<<"$output" || true)
++  if (( ${#status_lines[@]} != 1 )); then
++    return 2
++  fi
++  case "${status_lines[0]}" in
++    'JUDGE_SOCKET: ready') printf 'ready\n' ;;
++    'JUDGE_SOCKET: missing') printf 'missing\n' ;;
++    *) return 2 ;;
++  esac
++}
++
+ if [[ ! -x "$PREFLIGHT_HELPER" ]]; then
+   echo "fixed secret preflight helper is not installed" >&2
+   exit 1
+ fi
+-PREFLIGHT_STATUS="$(sudo --non-interactive "$PREFLIGHT_HELPER")"
++if ! PREFLIGHT_STATUS="$(sudo --non-interactive "$PREFLIGHT_HELPER")"; then
++  echo "secret preflight evaluation failed" >&2
++  exit 1
++fi
+ printf '%s\n' "$PREFLIGHT_STATUS"
+ if grep -Fxq 'DEMO_JUDGE_BACKEND: configured' <<<"$PREFLIGHT_STATUS"; then
+   CLAUDE_PROXY_ENABLED=true
+-  if [[ ! -S "$JUDGE_SOCKET_HOST" ]]; then
++  if ! JUDGE_SOCKET_STATUS="$(parse_judge_socket_status "$PREFLIGHT_STATUS")"; then
++    echo "secret preflight returned malformed judge-socket status" >&2
++    exit 1
++  fi
++  if [[ "$JUDGE_SOCKET_STATUS" == missing ]]; then
+     echo "Claude judge socket is not ready: $JUDGE_SOCKET_HOST" >&2
+     exit 1
+   fi
+diff --git a/demo-real-agent/tests/test_deploy_judge_socket_beaaa23759_v2.py b/demo-real-agent/tests/test_deploy_judge_socket_beaaa23759_v2.py
+new file mode 100644
+index 00000000..c4687b1d
+--- /dev/null
++++ b/demo-real-agent/tests/test_deploy_judge_socket_beaaa23759_v2.py
+@@ -0,0 +1,90 @@
++from __future__ import annotations
++
++import importlib.machinery
++import importlib.util
++from pathlib import Path
++import re
++import socket
++import subprocess
++
++import pytest
++
++
++ROOT = Path(__file__).resolve().parents[2]
++HELPER = ROOT / "artifacts/BEAAA-23759/v2/backbond-real-agent-demo-secret-preflight"
++DEPLOY = ROOT / "demo-real-agent/deploy.sh"
++
++
++def load_helper():
++    loader = importlib.machinery.SourceFileLoader("beaaa23759_v2_helper", str(HELPER))
++    spec = importlib.util.spec_from_loader(loader.name, loader)
++    module = importlib.util.module_from_spec(spec)
++    loader.exec_module(module)
++    return module
++
++
++helper = load_helper()
++
++
++def parse_status(output: str) -> subprocess.CompletedProcess[str]:
++    source = DEPLOY.read_text()
++    match = re.search(r"(?ms)^parse_judge_socket_status\(\) \{.*?^\}", source)
++    assert match
++    script = match.group(0) + '\nparse_judge_socket_status "$1"\n'
++    return subprocess.run(["bash", "-c", script, "parser", output], text=True, capture_output=True)
++
++
++def test_helper_ready_for_socket(tmp_path):
++    path = tmp_path / "judge.sock"
++    server = socket.socket(socket.AF_UNIX)
++    try:
++        server.bind(str(path))
++        assert helper.judge_socket_status(path) == "ready"
++    finally:
++        server.close()
++
++
++def test_helper_missing_for_absent_path(tmp_path):
++    assert helper.judge_socket_status(tmp_path / "judge.sock") == "missing"
++
++
++def test_helper_missing_for_non_socket(tmp_path):
++    path = tmp_path / "judge.sock"
++    path.write_text("not a socket")
++    assert helper.judge_socket_status(path) == "missing"
++
++
++def test_helper_evaluation_denial_fails_closed():
++    class DeniedPath:
++        def lstat(self):
++            raise PermissionError("denied")
++
++    with pytest.raises(helper.PreflightError, match="JUDGE_SOCKET: evaluation_failed"):
++        helper.judge_socket_status(DeniedPath())
++
++
++@pytest.mark.parametrize(
++    ("output", "expected", "success"),
++    [
++        ("JUDGE_SOCKET: ready", "ready\n", True),
++        ("JUDGE_SOCKET: missing", "missing\n", True),
++        ("", "", False),
++        ("JUDGE_SOCKET: unknown", "", False),
++        ("JUDGE_SOCKET: ready\nJUDGE_SOCKET: ready", "", False),
++        ("JUDGE_SOCKET: ready\nJUDGE_SOCKET: missing", "", False),
++        ("prefix JUDGE_SOCKET: ready", "", False),
++    ],
++)
++def test_deploy_parser_exactly_one_names_only_status(output, expected, success):
++    result = parse_status(output)
++    assert (result.returncode == 0) is success
++    assert result.stdout == expected
++
++
++def test_repository_change_grants_no_new_host_privilege():
++    source = DEPLOY.read_text()
++    assert '[[ ! -S "$JUDGE_SOCKET_HOST" ]]' not in source
++    for forbidden in ("setfacl", "groupadd", "usermod", "chmod", "chown"):
++        assert forbidden not in source
++    assert 'sudo --non-interactive "$PREFLIGHT_HELPER"' in source
++    assert subprocess.run(["bash", "-n", str(DEPLOY)]).returncode == 0
+-- 
+2.43.0
+
