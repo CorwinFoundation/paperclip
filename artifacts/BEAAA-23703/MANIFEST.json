@@ -1,0 +1,67 @@
+{
+  "ancestor": "BEAAA-23667",
+  "armed": false,
+  "classification": "rule-execution; no scoring path touched",
+  "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "deployed": false,
+  "files": {
+    "REPORT.md": {
+      "sha256": "60afd97ffe3a182a00610698f595034308093f1186999ab9501c0bacea16a277"
+    },
+    "candidate/SHA256SUMS": {
+      "sha256": "061b4f7565d80c31202241e816de898f310b5e29393105c58bebdd57a5240d6a"
+    },
+    "candidate/backbond-real-agent-demo-secret-preflight": {
+      "installed_path": "/usr/local/sbin/backbond-real-agent-demo-secret-preflight",
+      "mode": "0755",
+      "owner": "root:root",
+      "sha256": "5e228cb1a66d03d1576d348014aa8644fcf5061f7fa8f5594854b015a20fe914"
+    },
+    "candidate/backbond-real-agent-demo-ssh-gate": {
+      "installed_path": "/usr/local/sbin/backbond-real-agent-demo-ssh-gate",
+      "mode": "0755",
+      "owner": "root:root",
+      "sha256": "6ab6920cdf878419b8cc001f89e4e2175651688ce1f9698390144034315966c1"
+    },
+    "candidate/install_host_gate.py": {
+      "mode": "0700",
+      "owner": "root:root",
+      "sha256": "58a2dd2ae995fd91e3fe7a62e88428687aafe1941de4f421feacecfe5fae452b"
+    },
+    "candidate/sudoers-backbond-real-agent-demo": {
+      "installed_path": "/etc/sudoers.d/backbond-real-agent-demo",
+      "mode": "0440",
+      "owner": "root:root",
+      "sha256": "8544421bd725325d54c61729dabbe0eacf5b0572eaa5f84c351b00dd783304ae"
+    },
+    "candidate/verify_release_manifest.py": {
+      "sha256": "43c0b292c5b69a27753adf19ee8515491b7f5d51d8f7d3d99d7f11cac9df971a"
+    },
+    "tests/test_beaaa_23703_host_gate.py": {
+      "sha256": "3e5852f9d52837d6f050076e188f88ef6b87d76863d29f0584f8081007276420"
+    }
+  },
+  "github_state_changed": false,
+  "installed": false,
+  "issue": "BEAAA-23703",
+  "parent": "BEAAA-23702",
+  "pinned_commit": "d9d680f53db7de263f026be5284c97229126872c",
+  "release_manifest": {
+    "archive_name": "real-agent-demo-release.tgz",
+    "files": 906,
+    "roots_source": "d9 .github/workflows/real-agent-demo.yml line 117",
+    "symlinks": 0,
+    "tree_sha256": "5d6398a3cbf567778a8ca9ae7254b82a286a782dbd2874f0f711e9292bf16c17"
+  },
+  "root_actions": [
+    "/usr/local/sbin/backbond-real-agent-demo-secret-preflight (no arguments)"
+  ],
+  "secret_values_accessed": false,
+  "stale_authority_removed": "a68e7e0969b45e7eb8add18ff2007a305a0156aa",
+  "tests": {
+    "failed": 0,
+    "file": "tests/test_beaaa_23703_host_gate.py",
+    "passed": 71,
+    "rejection_cases": 33
+  }
+}
