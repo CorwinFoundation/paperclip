@@ -1,0 +1,356 @@
+{
+  "adr": "ADR-0067",
+  "all_reconstructions_match": true,
+  "any_preexisting_dim_moved": false,
+  "bind_eligibility_transitions": [],
+  "candidate": "516078e2ac7a1ffd012f8498533bb27b048277ba",
+  "fixtures": [
+    {
+      "active_dim_count": {
+        "current": 6,
+        "historical": 3
+      },
+      "are": {
+        "current": 33,
+        "delta": 0,
+        "historical": 33
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": false,
+          "eligible": false,
+          "min_active_raw": 0.0,
+          "min_dim_ok": false
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": false,
+          "eligible": false,
+          "min_active_raw": 1.0,
+          "min_dim_ok": false
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 0.0,
+        "P3.6": 0.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 0.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "B1",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 4.1667,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 4.1667,
+        "delta": 0.4167,
+        "historical": 3.75,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 5,
+        "historical": 2
+      },
+      "are": {
+        "current": 60,
+        "delta": 0,
+        "historical": 60
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": false,
+          "eligible": false,
+          "min_active_raw": 0.0,
+          "min_dim_ok": false
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": false,
+          "eligible": false,
+          "min_active_raw": 1.0,
+          "min_dim_ok": false
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 0.0,
+        "P3.6": 0.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 2.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "B3",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 6.25,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 6.25,
+        "delta": 0.0,
+        "historical": 6.25,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 5,
+        "historical": 2
+      },
+      "are": {
+        "current": 81,
+        "delta": 0,
+        "historical": 81
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 3.5,
+          "min_dim_ok": true
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 3.5,
+          "min_dim_ok": true
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 4.0,
+        "P3.6": 4.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 4.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "G1",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 24.375,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 24.375,
+        "delta": 0.0,
+        "historical": 24.375,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 5,
+        "historical": 2
+      },
+      "are": {
+        "current": 78,
+        "delta": 0,
+        "historical": 78
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 3.5,
+          "min_dim_ok": true
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 3.5,
+          "min_dim_ok": true
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 4.0,
+        "P3.6": 4.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 4.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "G2",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 24.375,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 24.375,
+        "delta": 0.0,
+        "historical": 24.375,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 5,
+        "historical": 2
+      },
+      "are": {
+        "current": 75,
+        "delta": 0,
+        "historical": 75
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 2.5,
+          "min_dim_ok": true
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 2.5,
+          "min_dim_ok": true
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 4.0,
+        "P3.6": 4.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 3.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "G3",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 21.25,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 21.25,
+        "delta": 0.0,
+        "historical": 21.25,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 6,
+        "historical": 3
+      },
+      "are": {
+        "current": 57,
+        "delta": -1,
+        "historical": 58
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 1.5,
+          "min_dim_ok": true
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": true,
+          "eligible": true,
+          "min_active_raw": 1.5,
+          "min_dim_ok": true
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 2.0,
+        "P3.6": 2.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 2.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "M1",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 12.5,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 12.5,
+        "delta": -0.625,
+        "historical": 13.125,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 6,
+        "historical": 3
+      },
+      "are": {
+        "current": 45,
+        "delta": -1,
+        "historical": 46
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": true,
+          "eligible": false,
+          "min_active_raw": 1.0,
+          "min_dim_ok": false
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": true,
+          "eligible": false,
+          "min_active_raw": 1.0,
+          "min_dim_ok": false
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 2.0,
+        "P3.6": 2.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 1.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "M2",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 13.0208,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 13.0208,
+        "delta": -1.3542,
+        "historical": 14.375,
+        "weight": 25
+      }
+    },
+    {
+      "active_dim_count": {
+        "current": 6,
+        "historical": 3
+      },
+      "are": {
+        "current": 57,
+        "delta": -3,
+        "historical": 60
+      },
+      "bind_eligibility": {
+        "current": {
+          "aggregate_ok": true,
+          "eligible": false,
+          "min_active_raw": 0.0,
+          "min_dim_ok": false
+        },
+        "floor_min_dim_raw": 1.5,
+        "floor_min_pillar_score": 9.375,
+        "historical": {
+          "aggregate_ok": true,
+          "eligible": false,
+          "min_active_raw": 0.0,
+          "min_dim_ok": false
+        }
+      },
+      "dims_added_since_baseline": {
+        "P3.5": 2.0,
+        "P3.6": 2.0,
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION": 4.0
+      },
+      "dims_removed_since_baseline": [],
+      "fixture_id": "M3",
+      "preexisting_dims_whose_raw_moved": {},
+      "reconstructed_current_from_mean_of_active": 10.9375,
+      "reconstruction_matches_emitted": true,
+      "robustness": {
+        "current": 10.9375,
+        "delta": -2.1875,
+        "historical": 13.125,
+        "weight": 25
+      }
+    }
+  ],
+  "issue": "BEAAA-23757",
+  "rubric_version": "1.3.0",
+  "scanner_version": "0.5.0"
+}
