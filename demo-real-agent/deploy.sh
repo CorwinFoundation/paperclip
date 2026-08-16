@@ -2,7 +2,8 @@
 set -euo pipefail
 
 SOURCE_DIR="${1:?usage: deploy.sh SOURCE_DIR}"
-ENV_FILE="${REAL_AGENT_DEMO_ENV_FILE:-/etc/backbond/real-agent-demo.env}"
+ENV_FILE="/etc/backbond/real-agent-demo.env"
+PREFLIGHT_HELPER="/usr/local/sbin/backbond-real-agent-demo-secret-preflight"
 CONTAINER="backbond-passive-monitor-demo"
 CANDIDATE="${CONTAINER}-candidate"
 ROLLBACK="${CONTAINER}-rollback"
@@ -14,40 +15,18 @@ JUDGE_SOCKET_DIR="${CLAUDE_JUDGE_SOCKET_DIR:-/run/backbond-claude-judge}"
 JUDGE_SOCKET_HOST="${JUDGE_SOCKET_DIR}/judge.sock"
 CLAUDE_PROXY_ENABLED=false
 
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "missing $ENV_FILE; configure demo access, signing, and judge credentials" >&2
+if [[ ! -x "$PREFLIGHT_HELPER" ]]; then
+  echo "fixed secret preflight helper is not installed" >&2
   exit 1
 fi
-if [[ "$(stat -c '%a' "$ENV_FILE")" != "600" ]]; then
-  echo "$ENV_FILE must be mode 600" >&2
-  exit 1
-fi
-if [[ "$(stat -c '%u' "$ENV_FILE")" != "10001" ]]; then
-  echo "$ENV_FILE must be owned by uid 10001 for the unprivileged container" >&2
-  exit 1
-fi
-
-require_env_name() {
-  local name="$1"
-  if ! grep -Eq "^${name}=.+" "$ENV_FILE"; then
-    echo "$ENV_FILE is missing $name" >&2
-    exit 1
-  fi
-}
-
-require_env_name DEMO_ACCESS_TOKEN
-require_env_name ARE_BUNDLE_SIGNING_KEY
-if grep -Eq '^DEMO_JUDGE_BACKEND=claude-code-proxy$' "$ENV_FILE"; then
+PREFLIGHT_STATUS="$(sudo --non-interactive "$PREFLIGHT_HELPER")"
+printf '%s\n' "$PREFLIGHT_STATUS"
+if grep -Fxq 'DEMO_JUDGE_BACKEND: configured' <<<"$PREFLIGHT_STATUS"; then
   CLAUDE_PROXY_ENABLED=true
-  require_env_name CLAUDE_JUDGE_PROXY_TOKEN
-  bash "$SOURCE_DIR/demo-real-agent/install_claude_judge_proxy.sh" "$SOURCE_DIR"
   if [[ ! -S "$JUDGE_SOCKET_HOST" ]]; then
     echo "Claude judge socket is not ready: $JUDGE_SOCKET_HOST" >&2
     exit 1
   fi
-elif ! grep -Eq '^(OPENROUTER_API_KEY|ANTHROPIC_API_KEY)=.+' "$ENV_FILE"; then
-  echo "$ENV_FILE requires an API judge or DEMO_JUDGE_BACKEND=claude-code-proxy" >&2
-  exit 1
 fi
 
 container_args() {
