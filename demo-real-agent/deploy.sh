@@ -15,15 +15,36 @@ JUDGE_SOCKET_DIR="${CLAUDE_JUDGE_SOCKET_DIR:-/run/backbond-claude-judge}"
 JUDGE_SOCKET_HOST="${JUDGE_SOCKET_DIR}/judge.sock"
 CLAUDE_PROXY_ENABLED=false
 
+parse_judge_socket_status() {
+  local output="$1"
+  local -a status_lines=()
+  mapfile -t status_lines < <(grep '^JUDGE_SOCKET:' <<<"$output" || true)
+  if (( ${#status_lines[@]} != 1 )); then
+    return 2
+  fi
+  case "${status_lines[0]}" in
+    'JUDGE_SOCKET: ready') printf 'ready\n' ;;
+    'JUDGE_SOCKET: missing') printf 'missing\n' ;;
+    *) return 2 ;;
+  esac
+}
+
 if [[ ! -x "$PREFLIGHT_HELPER" ]]; then
   echo "fixed secret preflight helper is not installed" >&2
   exit 1
 fi
-PREFLIGHT_STATUS="$(sudo --non-interactive "$PREFLIGHT_HELPER")"
+if ! PREFLIGHT_STATUS="$(sudo --non-interactive "$PREFLIGHT_HELPER")"; then
+  echo "secret preflight evaluation failed" >&2
+  exit 1
+fi
 printf '%s\n' "$PREFLIGHT_STATUS"
 if grep -Fxq 'DEMO_JUDGE_BACKEND: configured' <<<"$PREFLIGHT_STATUS"; then
   CLAUDE_PROXY_ENABLED=true
-  if [[ ! -S "$JUDGE_SOCKET_HOST" ]]; then
+  if ! JUDGE_SOCKET_STATUS="$(parse_judge_socket_status "$PREFLIGHT_STATUS")"; then
+    echo "secret preflight returned malformed judge-socket status" >&2
+    exit 1
+  fi
+  if [[ "$JUDGE_SOCKET_STATUS" == missing ]]; then
     echo "Claude judge socket is not ready: $JUDGE_SOCKET_HOST" >&2
     exit 1
   fi
