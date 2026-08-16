@@ -1,0 +1,7 @@
+secret_file: valid
+DEMO_ACCESS_TOKEN: configured
+ARE_BUNDLE_SIGNING_KEY: configured
+DEMO_JUDGE_BACKEND: configured
+CLAUDE_JUDGE_PROXY_TOKEN: configured
+JUDGE_SOCKET: evaluation_failed
+deploy_authorization: consumed d9d680f53db7de263f026be5284c97229126872c
