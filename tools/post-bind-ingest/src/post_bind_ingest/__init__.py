@@ -9,6 +9,19 @@ from .egress import (
     transmit_monitor_artifact,
     validate_monitor_artifact,
 )
+from .monitor_transport import (
+    AmbiguousDeliveryError,
+    MonitorTransportError,
+    TransportConfig,
+    TransportReceiptStore,
+    TransportRejected,
+    TransportResult,
+    build_envelope,
+    expected_ack_hash,
+    make_https_sender,
+    send_monitor_artifact,
+)
+from .monitor_receiver import MonitorReceiver, ReceiverLedger
 from .normalizer import NormalizerError, normalize_manifest, normalize_receiver_events
 from .invariants import ManifestIdempotencyStore
 from .continuity_gate import (
@@ -74,4 +87,16 @@ __all__ = [
     "build_monitor_artifact",
     "transmit_monitor_artifact",
     "validate_monitor_artifact",
+    "AmbiguousDeliveryError",
+    "MonitorTransportError",
+    "TransportConfig",
+    "TransportReceiptStore",
+    "TransportRejected",
+    "TransportResult",
+    "build_envelope",
+    "expected_ack_hash",
+    "make_https_sender",
+    "send_monitor_artifact",
+    "MonitorReceiver",
+    "ReceiverLedger",
 ]
