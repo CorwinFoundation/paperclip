@@ -1,0 +1,41 @@
+# BEAAA-23763 pre-candidate baseline
+
+Captured 2026-08-16T20:42:32Z on host AriClaw by QA agent cd1e82a0.
+Read-only. No install, restart, arm, dispatch, or deploy was performed.
+
+## Principal under test
+uid=1002(passive-demo-deploy) gid=1002(passive-demo-deploy) groups=1002(passive-demo-deploy),987(docker)
+QA observer (privilege analogue: docker group, not backbond-demo): uid=1001(beai-agent) gid=1001(beai-agent) groups=1001(beai-agent),987(docker)
+
+## Judge runtime boundary
+backbond-demo:x:10001:
+drwxr-x--- 2 root backbond-demo 60 Aug  5 15:36 /run/backbond-claude-judge
+u_str LISTEN 0      5                                                   /run/backbond-claude-judge/judge.sock 2996                 * 0          
+active
+User=root
+Group=backbond-demo
+RuntimeDirectoryMode=0750
+RuntimeDirectory=backbond-claude-judge
+FragmentPath=/etc/systemd/system/backbond-claude-judge.service
+
+## Installed host boundary (SHA-256)
+927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8  /usr/local/sbin/backbond-real-agent-demo-secret-preflight
+bd564caf524ccec27cdf00d1b85e7ef18cadbcdc2e4163a605565c19578cab93  /usr/local/sbin/backbond-real-agent-demo-ssh-gate
+-rwxr-xr-x 1 root root  7777 Aug 16 16:42 /usr/local/sbin/backbond-real-agent-demo-secret-preflight
+-rwxr-xr-x 1 root root 19837 Aug 16 16:42 /usr/local/sbin/backbond-real-agent-demo-ssh-gate
+
+## Protected env boundary
+drwx------ 2 root root 4096 Aug 16 17:04 /etc/backbond
+/etc/backbond/real-agent-demo.env: read attempt as uid 1001 -> cat: /etc/backbond/real-agent-demo.env: Permission denied
+
+## Arm markers
+/etc/backbond/real-agent-demo-deploy.allow: absent
+/etc/backbond/passive-demo-deploy.armed: absent
+/var/lib/backbond/one-shot.armed: absent
+/run/backbond/armed: absent
+
+## Live demo containers
+f4938b7e4adb backbond/passive-monitor-demo:dcea859ef502db9973fc98c62d6b6d144a8f0a65 Up 11 days (healthy) backbond-passive-monitor-demo
+71af0f7932ab backbond/passive-monitor-demo:beaaa15424-qa-v6 Up 11 days (healthy) backbond-passive-monitor-demo-qa-v6
+6aa631110f00 backbond/passive-monitor-demo:beaaa15424-qa-v5 Up 11 days (healthy) backbond-passive-monitor-demo-qa-v5
+fdb64db3f387 backbond/passive-monitor-demo:beaaa15373-qa-v4 Up 11 days (healthy) backbond-passive-monitor-demo-qa-v4
