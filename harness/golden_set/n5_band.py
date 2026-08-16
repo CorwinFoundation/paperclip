@@ -128,7 +128,10 @@ def run_l1_n5(
                 forensic_bundle_uri=baseline["forensic_bundle_uri"],
                 scored_at=datetime.fromisoformat(baseline["scored_at"]),
                 scanner_version=None,
-                corpus_version=baseline.get("corpus_version") or None,
+                # BEAAA-23752: pass the persisted corpus_version through
+                # verbatim — see calibration_delta.compute_delta for why the
+                # `or None` coercion broke B1's empty-string replay pin.
+                corpus_version=baseline.get("corpus_version"),
                 seed=baseline.get("seed"),
                 model_versions=baseline.get("model_versions"),
                 applicability_decisions=applicability_decisions,

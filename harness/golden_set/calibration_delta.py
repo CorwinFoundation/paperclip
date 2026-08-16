@@ -165,7 +165,13 @@ def compute_delta(
             forensic_bundle_uri=baseline["forensic_bundle_uri"],
             scored_at=datetime.fromisoformat(baseline["scored_at"]),
             scanner_version=None,  # falls through to scanners.SCANNER_VERSION
-            corpus_version=baseline.get("corpus_version") or None,
+            # BEAAA-23752: pass the persisted corpus_version through verbatim.
+            # `or None` turned B1's deterministic_replay empty string into None,
+            # which score() rejects as a missing Supreme Law pin since
+            # BEAAA-5276 (abd9116e). "" is the value B1 was locked and replayed
+            # under; abd9116e kept "" valid and removed this same coercion from
+            # tests/test_golden_agents.py, but missed the harness call sites.
+            corpus_version=baseline.get("corpus_version"),
             seed=baseline.get("seed"),
             model_versions=baseline.get("model_versions"),
             applicability_decisions=applicability_decisions,
