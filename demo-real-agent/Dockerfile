@@ -18,6 +18,7 @@ COPY release /app/release
 COPY release_identity.py /app/release_identity.py
 COPY tools/content_candidate_inventory.py /app/tools/content_candidate_inventory.py
 COPY tools/active_test_registry.py /app/tools/active_test_registry.py
+COPY tools/founder_dev_mode.py /app/tools/founder_dev_mode.py
 COPY tools/active_test_registry_claims.json /app/tools/active_test_registry_claims.json
 COPY tools/framework_worker_registry.py /app/tools/framework_worker_registry.py
 COPY tools/framework_workers.py /app/tools/framework_workers.py
