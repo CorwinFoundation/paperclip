@@ -1,5 +1,0 @@
-# BEAAA-23703: the single privileged step of the exact d9 Real Agent demo deploy.
-# Fixed helper, fixed arguments (none). No wildcard argument, no repository
-# content, no shell. Replaces the BEAAA-23669 pair of entries that elevated a
-# release runner for a68e7e0969b45e7eb8add18ff2007a305a0156aa.
-passive-demo-deploy ALL=(root) NOPASSWD: /usr/local/sbin/backbond-real-agent-demo-secret-preflight ""

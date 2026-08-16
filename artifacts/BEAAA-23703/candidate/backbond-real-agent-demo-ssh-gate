@@ -6,13 +6,17 @@ that `.github/workflows/real-agent-demo.yml` emits at commit
 d9d680f53db7de263f026be5284c97229126872c and rejects every other SHA,
 argument and command.
 
-This program never runs repository content as root. The one privileged step it
-takes is a fixed no-argument call to
-`/usr/local/sbin/backbond-real-agent-demo-authorize`, which atomically consumes
-the root-owned one-shot d9 authorization. That call happens only after the
-extracted release is proved byte for byte against the pinned d9 tree, and the
-deploy script itself is then executed under the unprivileged account. With no
-authorization armed, deployment is impossible and the gate fails closed.
+This program never elevates and never runs repository content as root. It proves
+the extracted release is the pinned d9 tree byte for byte and then executes
+deploy.sh under the unprivileged deployment account.
+
+The deployment's single root action stays where d9 already puts it: deploy.sh
+calls the fixed no-argument helper
+`/usr/local/sbin/backbond-real-agent-demo-secret-preflight` through the one
+existing sudoers rule. That helper reports the names-only secret preflight and
+then atomically consumes the root-owned one-shot d9 authorization, so with
+nothing armed the deployment fails closed before docker is reached. The gate
+adds no second sudo entry point and no second root action.
 """
 
 import errno
@@ -44,9 +48,6 @@ MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_SFTP_PACKET = 256 * 1024
 TAR = "/bin/tar"
 BASH = "/bin/bash"
-SUDO = "/usr/bin/sudo"
-AUTHORIZE_HELPER = "/usr/local/sbin/backbond-real-agent-demo-authorize"
-AUTHORIZE_GRANT = f"authorized: {SHA}"
 SAFE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 MKDIR_SHAPE = f"mkdir -p {RELEASE_DIR}"
@@ -512,32 +513,13 @@ def verify_pinned_tree() -> tuple[int, str]:
     return count, digest
 
 
-def consume_one_shot_authorization() -> None:
-    """Spend the root-owned one-shot d9 grant, or refuse to deploy.
-
-    The helper takes no arguments, so nothing the client controls reaches the
-    privileged step. It is the only elevation in this program.
-    """
-    result = subprocess.run(
-        [SUDO, "--non-interactive", AUTHORIZE_HELPER],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise reject("one-shot d9 deployment authorization was not granted")
-    if result.stdout.strip() != AUTHORIZE_GRANT:
-        raise reject("authorization helper did not confirm the pinned release")
-
-
 def do_deploy(deployed_at: str) -> None:
     owned_release_dir()
     script = Path(DEPLOY_SCRIPT)
     if script.is_symlink() or not script.is_file():
         raise reject("pinned deploy script is absent")
     count, digest = verify_pinned_tree()
-    consume_one_shot_authorization()
-    print(f"authorization=CONSUMED sha={SHA} files={count} tree_sha256={digest}", flush=True)
+    print(f"release_pin=PASS sha={SHA} files={count} tree_sha256={digest}", flush=True)
     try:
         entry = pwd.getpwuid(os.getuid())
         home, account = entry.pw_dir, entry.pw_name

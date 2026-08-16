@@ -4,7 +4,7 @@
 #
 #   tests/e2e_forced_command.sh <path-to-d9-release.tgz>
 #
-# The archive argument is the tarball the d9 deploy job builds:
+# Build the archive exactly as the d9 deploy job does:
 #
 #   git worktree add --detach /tmp/d9wt d9d680f53db7de263f026be5284c97229126872c
 #   cd /tmp/d9wt && tar -czf /tmp/real-agent-demo-release.tgz \
@@ -15,11 +15,14 @@
 #
 # Isolation: the gate's own bytes are loaded unmodified, but a shim relocates
 # the release root into a temporary directory, so nothing under
-# /opt/backbond-real-agent-demo is created, read, or removed. The shim also
-# replaces os.execve with a recorder, so deploy.sh can never run from this
-# harness even if every gate check passes. The d9 SHA binding, the allowlist,
-# the confined upload sinks, the 906-file tree pin and the one-shot
-# authorization are all exercised for real.
+# /opt/backbond-real-agent-demo is created, read, or removed. The shim replaces
+# os.execve with a recorder, so deploy.sh can never run from this harness. The
+# machine that produced this candidate is the demo host itself, so both
+# protections matter.
+#
+# The one-shot authorization is not exercised here: it lives in the root helper
+# that deploy.sh invokes, which needs root and the protected env file. Its
+# behaviour is covered by tests/test_d9_host_gate.py.
 set -u
 
 ARCHIVE="${1:?usage: e2e_forced_command.sh <release.tgz>}"
@@ -57,9 +60,7 @@ expect_output() { # expect_output <name> <needle> <haystack>
 
 mkdir -p "$RELEASES"
 
-# --- shim: exact gate bytes, relocated release root, execution blocked -------
-write_shim() { # write_shim <file> <sudo-binary-or-empty>
-  cat > "$1" <<EOF
+cat > "$WORK/shim" <<EOF
 #!/usr/bin/python3
 import importlib.machinery, importlib.util, os, sys
 
@@ -78,8 +79,6 @@ gate.SCP_SINK_SHAPES = frozenset({
     "scp -t " + gate.RELEASE_DIR + "/", "scp -t " + gate.RELEASE_DIR,
     "scp -t -- " + gate.RELEASE_DIR + "/", "scp -t -- " + gate.RELEASE_DIR,
 })
-if "$2":
-    gate.SUDO = "$2"
 
 def blocked(path, argv, env):
     print("WOULD_EXEC " + " ".join(argv), file=sys.stderr)
@@ -89,31 +88,20 @@ def blocked(path, argv, env):
 os.execve = blocked
 gate.main()
 EOF
-  chmod 755 "$1"
-}
+chmod 755 "$WORK/shim"
 
-cat > "$WORK/fake-sudo" <<EOF
+# Any attempt to elevate would land here instead of the real binary.
+mkdir -p "$WORK/bin"
+cat > "$WORK/bin/sudo" <<EOF
 #!/bin/sh
-# Stands in for: sudo --non-interactive /usr/local/sbin/backbond-real-agent-demo-authorize
-[ "\$1" = "--non-interactive" ] || exit 1
-[ "\$2" = "/usr/local/sbin/backbond-real-agent-demo-authorize" ] || exit 1
-[ "\$#" -eq 2 ] || exit 1
-[ -f "$WORK/armed" ] || exit 1
-rm -f "$WORK/armed"
-echo "authorized: $SHA"
+echo "\$@" >> "$WORK/sudo-was-called"
+exit 1
 EOF
-chmod 755 "$WORK/fake-sudo"
-
-write_shim "$WORK/shim-unarmed" ""
-write_shim "$WORK/shim-armed" "$WORK/fake-sudo"
+chmod 755 "$WORK/bin/sudo"
 
 ssh-keygen -q -t ed25519 -N '' -f "$WORK/host_ed25519"
 ssh-keygen -q -t ed25519 -N '' -f "$WORK/client"
-ssh-keygen -q -t ed25519 -N '' -f "$WORK/client_armed"
-{
-  printf 'restrict,command="%s" %s\n' "$WORK/shim-unarmed" "$(cat "$WORK/client.pub")"
-  printf 'restrict,command="%s" %s\n' "$WORK/shim-armed" "$(cat "$WORK/client_armed.pub")"
-} > "$WORK/authorized_keys"
+printf 'restrict,command="%s" %s\n' "$WORK/shim" "$(cat "$WORK/client.pub")" > "$WORK/authorized_keys"
 chmod 600 "$WORK/authorized_keys" "$WORK/host_ed25519"
 cat > "$WORK/sshd_config" <<EOF
 Port $PORT
@@ -129,14 +117,13 @@ EOF
 
 common=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR)
 ssh_opts=(-i "$WORK/client" -p "$PORT" "${common[@]}")
-armed_opts=(-i "$WORK/client_armed" -p "$PORT" "${common[@]}")
 
-/usr/sbin/sshd -f "$WORK/sshd_config" -E "$WORK/sshd.log" || exit 1
+PATH="$WORK/bin:$PATH" /usr/sbin/sshd -f "$WORK/sshd_config" -E "$WORK/sshd.log" || exit 1
 sleep 1
 
 live_before="$(docker ps --format '{{.ID}} {{.Names}} {{.Image}}' 2>/dev/null | sort)"
 
-echo "--- the four permitted d9 shapes"
+echo "--- the permitted d9 shapes"
 ssh "${ssh_opts[@]}" 127.0.0.1 "mkdir -p $RELEASE_DIR" >/dev/null 2>&1
 check "mkdir release directory" 0 $?
 [ -d "$RELEASE_DIR" ] && { PASS=$((PASS + 1)); echo "PASS  release directory exists"; } \
@@ -161,27 +148,17 @@ expect_output "extract proves the pinned d9 tree" \
   "files=906 tree_sha256=5d6398a3cbf567778a8ca9ae7254b82a286a782dbd2874f0f711e9292bf16c17" \
   "$extract_out"
 
-echo "--- the one-shot authorization"
+echo "--- the deploy leg stays unprivileged"
 deploy_cmd="DEMO_GIT_SHA='$SHA' DEMO_DEPLOYED_AT='2026-08-16T15:04:05Z' bash '$RELEASE_DIR/demo-real-agent/deploy.sh' '$RELEASE_DIR'"
-unarmed_out="$(ssh "${ssh_opts[@]}" 127.0.0.1 "$deploy_cmd" 2>&1)"
-check "unarmed deploy fails closed" 1 $?
-expect_output "denial names the missing one-shot grant" \
-  "one-shot d9 deployment authorization was not granted" "$unarmed_out"
-
-touch "$WORK/armed"
-armed_out="$(ssh "${armed_opts[@]}" 127.0.0.1 "$deploy_cmd" 2>&1)"
-check "armed deploy reaches execution" 97 $?
-expect_output "authorization is consumed after the tree is proved" "authorization=CONSUMED" "$armed_out"
-expect_output "deploy runs unprivileged" "privilege=unprivileged" "$armed_out"
+deploy_out="$(ssh "${ssh_opts[@]}" 127.0.0.1 "$deploy_cmd" 2>&1)"
+check "deploy shape reaches execution" 97 $?
+expect_output "release pin is proved before execution" \
+  "release_pin=PASS sha=$SHA files=906" "$deploy_out"
+expect_output "deploy runs unprivileged" "privilege=unprivileged" "$deploy_out"
 expect_output "exec argv is bash deploy.sh <release>" \
-  "WOULD_EXEC /bin/bash $RELEASE_DIR/demo-real-agent/deploy.sh $RELEASE_DIR" "$armed_out"
+  "WOULD_EXEC /bin/bash $RELEASE_DIR/demo-real-agent/deploy.sh $RELEASE_DIR" "$deploy_out"
 expect_output "exec env carries only the six fixed names" \
-  "WOULD_EXEC_ENV DEMO_DEPLOYED_AT DEMO_GIT_SHA HOME LOGNAME PATH USER" "$armed_out"
-
-replay_out="$(ssh "${armed_opts[@]}" 127.0.0.1 "$deploy_cmd" 2>&1)"
-check "replay of the consumed grant is denied" 1 $?
-expect_output "replay denial names the missing grant" \
-  "one-shot d9 deployment authorization was not granted" "$replay_out"
+  "WOULD_EXEC_ENV DEMO_DEPLOYED_AT DEMO_GIT_SHA HOME LOGNAME PATH USER" "$deploy_out"
 
 echo "--- denials"
 for command in \
@@ -192,6 +169,7 @@ for command in \
   "cd $RELEASE_DIR && tar -xzf other.tgz" \
   "whoami" \
   "cat /etc/passwd" \
+  "sudo -n /usr/local/sbin/backbond-real-agent-demo-secret-preflight" \
   "DEMO_GIT_SHA='$A68' DEMO_DEPLOYED_AT='2026-08-16T15:04:05Z' bash '$RELEASE_DIR/demo-real-agent/deploy.sh' '$RELEASE_DIR'"
 do
   ssh "${ssh_opts[@]}" 127.0.0.1 "$command" >/dev/null 2>&1
@@ -215,27 +193,30 @@ printf 'put %s /tmp/d9-e2e-sftp-escape.tgz\n' "$ARCHIVE" > "$WORK/batch"
 rm -f /tmp/d9-e2e-sftp-escape.tgz
 sftp -b "$WORK/batch" -i "$WORK/client" -P "$PORT" "${common[@]}" 127.0.0.1 >/dev/null 2>&1
 [ -e /tmp/d9-e2e-sftp-escape.tgz ] && { FAIL=$((FAIL + 1)); echo "FAIL  sftp put escaped"; } \
-                                   || { PASS=$((PASS + 1)); echo "PASS  deny: interactive sftp put outside the pinned path"; }
+                                   || { PASS=$((PASS + 1)); echo "PASS  deny: sftp put outside the pinned path"; }
 
 printf 'get %s/real-agent-demo-release.tgz %s/stolen.tgz\n' "$RELEASE_DIR" "$WORK" > "$WORK/batch-get"
 sftp -b "$WORK/batch-get" -i "$WORK/client" -P "$PORT" "${common[@]}" 127.0.0.1 >/dev/null 2>&1
-[ -e "$WORK/stolen.tgz" ] && { FAIL=$((FAIL + 1)); echo "FAIL  sink allowed a read"; } \
+[ -e "$WORK/stolen.tgz" ] && { FAIL=$((FAIL + 1)); echo "FAIL  the sink allowed a read"; } \
                           || { PASS=$((PASS + 1)); echo "PASS  deny: the sink is write-only"; }
 
 echo "--- tamper detection"
-touch "$WORK/armed"
 echo "backdoor" > "$RELEASE_DIR/api/backdoor.py"
-tampered_out="$(ssh "${armed_opts[@]}" 127.0.0.1 "$deploy_cmd" 2>&1)"
+tampered_out="$(ssh "${ssh_opts[@]}" 127.0.0.1 "$deploy_cmd" 2>&1)"
 check "deny: tampered release" 1 $?
 expect_output "tamper denial names the tree mismatch" "is not the pinned d9 tree" "$tampered_out"
-[ -f "$WORK/armed" ] && { PASS=$((PASS + 1)); echo "PASS  a tampered release never spends the grant"; } \
-                     || { FAIL=$((FAIL + 1)); echo "FAIL  the grant was spent on a tampered release"; }
-rm -f "$RELEASE_DIR/api/backdoor.py" "$WORK/armed"
+rm -f "$RELEASE_DIR/api/backdoor.py"
 
-echo "--- host is untouched"
+echo "--- privilege and host state"
+[ -e "$WORK/sudo-was-called" ] \
+  && { FAIL=$((FAIL + 1)); echo "FAIL  the gate invoked sudo: $(cat "$WORK/sudo-was-called")"; } \
+  || { PASS=$((PASS + 1)); echo "PASS  the gate never invoked sudo"; }
 [ -e "/opt/backbond-real-agent-demo/releases/$SHA" ] \
   && { FAIL=$((FAIL + 1)); echo "FAIL  a d9 release directory was created on the host"; } \
   || { PASS=$((PASS + 1)); echo "PASS  no d9 release directory exists on the host"; }
+[ -e "/etc/backbond/real-agent-demo-deploy.allow" ] \
+  && { FAIL=$((FAIL + 1)); echo "FAIL  an arm file exists"; } \
+  || { PASS=$((PASS + 1)); echo "PASS  nothing is armed"; }
 if [ "$live_before" = "$(docker ps --format '{{.ID}} {{.Names}} {{.Image}}' 2>/dev/null | sort)" ]; then
   PASS=$((PASS + 1)); echo "PASS  running containers are unchanged"
 else

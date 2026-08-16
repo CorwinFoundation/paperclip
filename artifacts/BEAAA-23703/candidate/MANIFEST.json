@@ -1,0 +1,135 @@
+{
+  "version": 2,
+  "issue": "BEAAA-23703",
+  "parent": "BEAAA-23702",
+  "supersedes": [
+    "521c413802b3b86f0b3b4e8fadcfdb616b1b4b4c",
+    "711d3e76"
+  ],
+  "release": {
+    "commit": "d9d680f53db7de263f026be5284c97229126872c",
+    "tree": "da7883541fa77ec9712a07c5d4683bcd054c1e91",
+    "release_files": 906,
+    "release_tree_sha256": "5d6398a3cbf567778a8ca9ae7254b82a286a782dbd2874f0f711e9292bf16c17"
+  },
+  "root_actions": {
+    "count": 1,
+    "command": "/usr/local/sbin/backbond-real-agent-demo-secret-preflight",
+    "arguments": "none",
+    "invoked_by": "demo-real-agent/deploy.sh at d9, through the existing sudoers rule",
+    "note": "The gate adds no sudo entry point. The single existing root action is enhanced in place to consume the one-shot authorization."
+  },
+  "install": [
+    {
+      "source": "backbond-real-agent-demo-ssh-gate",
+      "source_sha256": "bd564caf524ccec27cdf00d1b85e7ef18cadbcdc2e4163a605565c19578cab93",
+      "target": "/usr/local/sbin/backbond-real-agent-demo-ssh-gate",
+      "owner_uid": 0,
+      "owner_gid": 0,
+      "mode": "0755",
+      "replaces_sha256": "44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f",
+      "placement": "same_directory_temporary_file_then_atomic_rename",
+      "validator": "/usr/bin/python3 -m py_compile",
+      "reason": "stale forced-command gate pinned to a68e7e09; replaced by the exact-d9 gate"
+    },
+    {
+      "source": "backbond-real-agent-demo-secret-preflight",
+      "source_sha256": "927fca8b796e7e868a319ab2fffb4372e34bb29228723090f31f6b994a46f6f8",
+      "target": "/usr/local/sbin/backbond-real-agent-demo-secret-preflight",
+      "owner_uid": 0,
+      "owner_gid": 0,
+      "mode": "0755",
+      "replaces_sha256": "e1d50aec40829636e2ab68488c8887d1bd0e796c8aef9b62f2b66a07445f1542",
+      "placement": "same_directory_temporary_file_then_atomic_rename",
+      "validator": "/usr/bin/python3 -m py_compile",
+      "reason": "the single root action, enhanced in place: unchanged names-only preflight, then atomic consumption of the one-shot exact-d9 authorization"
+    }
+  ],
+  "remove": [
+    {
+      "target": "/etc/sudoers.d/backbond-real-agent-demo",
+      "expected_sha256": "37b24501a7470ba37e2002d6f0a219c3b2222f82a6ca559fd71c3cefc73c02bf",
+      "reason": "stale sudo authority for a68e7e0969b45e7eb8add18ff2007a305a0156aa preflight and deploy",
+      "revalidate": "/usr/sbin/visudo -c"
+    },
+    {
+      "target": "/usr/local/sbin/backbond-real-agent-demo-deploy",
+      "expected_sha256": "956065275defd2abcc95a7d2e14d8e70ee54c10aa799578aa00602f29c9af723",
+      "reason": "root deploy wrapper pinned to a68e7e09; deploy.sh now runs unprivileged, so no root release runner remains",
+      "revalidate": null
+    }
+  ],
+  "must_not_change": [
+    {
+      "path": "/etc/sudoers.d/backbond-real-agent-demo-secret-preflight",
+      "sha256": "2a56c29ce2f315d29816bbb7a7ce035ed69d93c4d7531829f06b2ed5a37e0407",
+      "note": "the one and only sudoers rule, unchanged by this candidate: uid 1002 may run the fixed helper with an empty argument list"
+    }
+  ],
+  "preconditions": [
+    {
+      "check": "the forced command in the deployment account's authorized_keys is exactly /usr/local/sbin/backbond-real-agent-demo-ssh-gate",
+      "command": "awk '{print}' ~passive-demo-deploy/.ssh/authorized_keys",
+      "on_mismatch": "stop; this candidate does not authorize an authorized_keys edit"
+    },
+    {
+      "check": "sshd's sftp subsystem is one of the shapes the gate accepts",
+      "command": "grep -i '^[[:space:]]*subsystem' /etc/ssh/sshd_config",
+      "on_mismatch": "stop and report the exact configured value; the upload leg would fail closed"
+    },
+    {
+      "check": "/etc/backbond is root-owned and not group or world writable",
+      "command": "stat -c '%U %G %a' /etc/backbond",
+      "on_mismatch": "stop; the helper refuses to consume a grant from a writable directory"
+    },
+    {
+      "check": "the protected env file is unchanged at uid/gid 10001:10001 mode 0600",
+      "command": "stat -c '%u %g %a' /etc/backbond/real-agent-demo.env",
+      "on_mismatch": "stop and report to BEAAA-23702; do not print any value from this file"
+    },
+    {
+      "check": "the deployment account reaches docker without sudo, as deploy.sh at d9 requires",
+      "command": "runuser -u passive-demo-deploy -- docker info >/dev/null",
+      "on_mismatch": "stop and report; this candidate does not broaden docker access"
+    },
+    {
+      "check": "no arm file and no d9 release directory exist before installation",
+      "command": "ls -l /etc/backbond/real-agent-demo-deploy.allow /opt/backbond-real-agent-demo/releases/d9d680f53db7de263f026be5284c97229126872c",
+      "on_mismatch": "stop and report to BEAAA-23702"
+    }
+  ],
+  "post_install_verification": [
+    {
+      "check": "the helper still reports the names-only secret preflight and then fails closed because nothing is armed",
+      "command": "runuser -u passive-demo-deploy -- sudo -n /usr/local/sbin/backbond-real-agent-demo-secret-preflight",
+      "expect": "stdout 'secret_file: valid' plus '<NAME>: configured' lines, stderr 'deploy_authorization: absent', exit status 1",
+      "note": "exit 1 while unarmed is the correct fail-closed result, not an installation failure"
+    },
+    {
+      "check": "the deployment account holds exactly one sudo authority",
+      "command": "sudo -l -U passive-demo-deploy",
+      "expect": "only /usr/local/sbin/backbond-real-agent-demo-secret-preflight with an empty argument list; no a68 deploy entry"
+    },
+    {
+      "check": "sudoers parses",
+      "command": "/usr/sbin/visudo -c",
+      "expect": "parsed OK"
+    }
+  ],
+  "arming": {
+    "path": "/etc/backbond/real-agent-demo-deploy.allow",
+    "owner_uid": 0,
+    "owner_gid": 0,
+    "mode": "0600",
+    "content": "d9d680f53db7de263f026be5284c97229126872c",
+    "consumed_path": "/etc/backbond/real-agent-demo-deploy.consumed",
+    "note": "Installation MUST NOT create this file, and install_host_gate.py refuses to run while it exists. Arming is a separate operator action taken only after BEAAA-23702 returns READY and the Founder decision stands."
+  },
+  "rollback": [
+    "install_host_gate.py --rollback --confirm restores every backed-up target from the root-owned 0700 backup set by the same same-directory atomic rename",
+    "restore /usr/local/sbin/backbond-real-agent-demo-secret-preflight to the backed-up e1d50aec40829636e2ab68488c8887d1bd0e796c8aef9b62f2b66a07445f1542 bytes; this alone removes the one-shot behaviour and returns the host to canonical d9 preflight",
+    "restore /usr/local/sbin/backbond-real-agent-demo-ssh-gate to the backed-up 44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f bytes, or remove it to leave the key with no runnable forced command",
+    "restore /etc/sudoers.d/backbond-real-agent-demo and /usr/local/sbin/backbond-real-agent-demo-deploy from backup only if a return to the stale a68 posture is explicitly decided, then re-run /usr/sbin/visudo -c",
+    "remove /etc/backbond/real-agent-demo-deploy.allow if it exists; with nothing armed the deployment path is closed in every case"
+  ]
+}

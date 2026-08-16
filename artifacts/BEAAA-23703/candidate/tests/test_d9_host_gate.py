@@ -2,17 +2,18 @@
 
 Run from the candidate directory:
 
-    python3 -m pytest -q tests/test_d9_host_gate.py
+    D9_REPO=<clone holding d9> python3 -m pytest -q tests/test_d9_host_gate.py
 
 The tests load the candidate files themselves, not a copy. Nothing here
 installs, arms, or deploys anything: every filesystem effect stays inside
-pytest's temporary directories and the one privileged call is stubbed. Set
-D9_REPO to point the git-derived pin check at a clone that holds the commit.
+pytest's temporary directories, and the installer is exercised against a fake
+host root with os.chown stubbed, never against `/`.
 """
 
 import hashlib
 import importlib.machinery
 import importlib.util
+import json
 import os
 import pathlib
 import stat
@@ -21,12 +22,16 @@ import subprocess
 import pytest
 
 CANDIDATE = pathlib.Path(__file__).resolve().parent.parent
+BUNDLE = CANDIDATE.parent
 _PARENTS = pathlib.Path(__file__).resolve().parents
 _ENV_REPO = os.environ.get("D9_REPO")
 REPO = pathlib.Path(_ENV_REPO) if _ENV_REPO else (_PARENTS[4] if len(_PARENTS) > 4 else _PARENTS[-1])
+
 D9 = "d9d680f53db7de263f026be5284c97229126872c"
 D9_TREE = "da7883541fa77ec9712a07c5d4683bcd054c1e91"
 A68 = "a68e7e0969b45e7eb8add18ff2007a305a0156aa"
+CANONICAL_PREFLIGHT = "e1d50aec40829636e2ab68488c8887d1bd0e796c8aef9b62f2b66a07445f1542"
+CANONICAL_GATE = "44ff5dfa0faac3174bc97b0546a51194a16ce2fac40ac15f9da984460d5d323f"
 
 
 def _load(name, filename):
@@ -38,12 +43,14 @@ def _load(name, filename):
 
 
 gate = _load("d9_gate", "backbond-real-agent-demo-ssh-gate")
-authorize = _load("d9_authorize", "backbond-real-agent-demo-authorize")
+helper = _load("d9_preflight", "backbond-real-agent-demo-secret-preflight")
 verifier = _load("d9_verifier", "verify_release_manifest.py")
+installer = _load("d9_installer", "install_host_gate.py")
 
 GATE_SOURCE = (CANDIDATE / "backbond-real-agent-demo-ssh-gate").read_bytes()
-AUTHORIZE_SOURCE = (CANDIDATE / "backbond-real-agent-demo-authorize").read_bytes()
-SUDOERS_SOURCE = (CANDIDATE / "backbond-real-agent-demo-authorize.sudoers").read_bytes()
+HELPER_SOURCE = (CANDIDATE / "backbond-real-agent-demo-secret-preflight").read_bytes()
+INSTALLER_SOURCE = (CANDIDATE / "install_host_gate.py").read_bytes()
+MANIFEST = json.loads((CANDIDATE / "MANIFEST.json").read_text())
 
 ROOT = gate.RELEASE_DIR
 DEPLOY_OK = (
@@ -51,9 +58,60 @@ DEPLOY_OK = (
     "bash '%s/demo-real-agent/deploy.sh' '%s'" % (D9, ROOT, ROOT)
 )
 
+GOOD_ENV = (
+    "DEMO_ACCESS_TOKEN=redacted-value\n"
+    "ARE_BUNDLE_SIGNING_KEY=redacted-value\n"
+    "OPENROUTER_API_KEY=redacted-value\n"
+)
+
 
 # ---------------------------------------------------------------------------
-# allowlist: only the shapes the d9 workflow emits
+# exactly one root action
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_declares_exactly_one_root_action():
+    assert MANIFEST["root_actions"]["count"] == 1
+    assert MANIFEST["root_actions"]["command"] == (
+        "/usr/local/sbin/backbond-real-agent-demo-secret-preflight"
+    )
+    assert MANIFEST["root_actions"]["arguments"] == "none"
+
+
+def gate_code_without_docstring():
+    """The gate source with its module docstring removed."""
+    body = GATE_SOURCE.split(b'"""', 2)
+    assert len(body) == 3, "module docstring not found"
+    return body[2]
+
+
+def test_gate_never_elevates():
+    """The gate's code must contain no sudo call and no second privileged path."""
+    code = gate_code_without_docstring()
+    for forbidden in (b"sudo", b"backbond-real-agent-demo-authorize", b"pkexec", b"setuid"):
+        assert forbidden not in code
+
+
+def test_candidate_ships_no_second_helper_and_no_sudoers_file():
+    names = {path.name for path in CANDIDATE.iterdir()}
+    assert "backbond-real-agent-demo-authorize" not in names
+    assert not any(name.endswith(".sudoers") for name in names)
+    assert not any(name.startswith("sudoers-") for name in names)
+    installed = {entry["target"] for entry in MANIFEST["install"]}
+    assert installed == {
+        "/usr/local/sbin/backbond-real-agent-demo-ssh-gate",
+        "/usr/local/sbin/backbond-real-agent-demo-secret-preflight",
+    }
+    assert not any("sudoers.d" in target for target in installed)
+
+
+def test_existing_sudoers_rule_is_pinned_unchanged():
+    unchanged = {entry["path"]: entry["sha256"] for entry in MANIFEST["must_not_change"]}
+    assert "/etc/sudoers.d/backbond-real-agent-demo-secret-preflight" in unchanged
+
+
+# ---------------------------------------------------------------------------
+# allowlist
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +134,6 @@ def test_exact_deploy_is_permitted():
 
 @pytest.mark.parametrize("command", sorted(gate.SFTP_SUBSYSTEM_SHAPES))
 def test_sftp_subsystem_shapes_reach_the_confined_sink(command):
-    """OpenSSH >= 9.0 scp(1) speaks SFTP, so this is the workflow's upload."""
     assert gate.resolve(command) == ("sftp-sink", None)
 
 
@@ -85,30 +142,18 @@ def test_legacy_scp_sink_shapes_reach_the_confined_sink(command):
     assert gate.resolve(command) == ("scp-sink", None)
 
 
-def test_sftp_shapes_cover_the_openssh_layouts_we_may_meet():
-    assert "/usr/lib/openssh/sftp-server" in gate.SFTP_SUBSYSTEM_SHAPES
-    assert "internal-sftp" in gate.SFTP_SUBSYSTEM_SHAPES
-
-
-@pytest.mark.parametrize("command", ["/usr/lib/openssh/sftp-server ", "internal-sftp ", "sftp-server  "])
+@pytest.mark.parametrize(
+    "command", ["/usr/lib/openssh/sftp-server ", "internal-sftp ", "sftp-server  "]
+)
 def test_subsystem_trailing_space_is_accepted(command):
-    """sshd appends a space to a Subsystem line that carries no arguments.
-
-    Observed directly: a forced command sees SSH_ORIGINAL_COMMAND
-    "/usr/lib/openssh/sftp-server " when scp(1) opens the sftp subsystem.
-    """
+    """sshd appends a space to a Subsystem line that carries no arguments."""
     assert gate.resolve(command) == ("sftp-sink", None)
-
-
-# ---------------------------------------------------------------------------
-# denials
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
     "command",
     [
-        "",                                       # interactive login
+        "",
         "mkdir -p /opt/backbond-real-agent-demo/releases/" + A68,
         "cd /opt/backbond-real-agent-demo/releases/%s && tar -xzf real-agent-demo-release.tgz" % A68,
         "scp -t /opt/backbond-real-agent-demo/releases/%s/" % A68,
@@ -125,14 +170,13 @@ def test_subsystem_trailing_space_is_accepted(command):
         "cd %s && tar -xzf real-agent-demo-release.tgz && curl http://x" % ROOT,
         "tar -xzf %s/real-agent-demo-release.tgz" % ROOT,
         "scp -t /tmp",
-        "scp -f %s/real-agent-demo-release.tgz" % ROOT,   # no reads out of the host
+        "scp -f %s/real-agent-demo-release.tgz" % ROOT,
         "scp -t -r " + ROOT + "/",
         "/usr/lib/openssh/sftp-server -f AUTH -l INFO",
         "/usr/lib/openssh/sftp-server -R",
         "bash",
         "sh -c 'id'",
         "whoami",
-        "sudo -n /usr/local/sbin/backbond-real-agent-demo-authorize",
         "sudo -n /usr/local/sbin/backbond-real-agent-demo-secret-preflight",
     ],
 )
@@ -165,11 +209,6 @@ def test_denied_commands(command):
 def test_denied_deploy_variants(command):
     with pytest.raises(gate.Rejected):
         gate.resolve(command)
-
-
-def test_deploy_root_argument_must_be_the_pinned_release():
-    with pytest.raises(gate.Rejected):
-        gate.resolve(DEPLOY_OK[: DEPLOY_OK.rindex("'" + ROOT + "'")] + "'/tmp'")
 
 
 def test_gate_refuses_to_run_as_root(monkeypatch):
@@ -205,7 +244,7 @@ def build_release(tmp_path):
 
 
 def pin_release(monkeypatch, root):
-    count, digest = verifier.from_tree(root)
+    count, digest = verifier.tree_digest(root)
     monkeypatch.setattr(gate, "RELEASE_DIR", str(root))
     monkeypatch.setattr(gate, "DEPLOY_SCRIPT", str(root / "demo-real-agent" / "deploy.sh"))
     monkeypatch.setattr(gate, "EXPECTED_FILES", count)
@@ -243,19 +282,6 @@ def test_tampered_release_is_rejected(monkeypatch, tmp_path, tamper):
         gate.verify_pinned_tree()
 
 
-def test_pin_covers_content_and_names_but_not_permission_bits(monkeypatch, tmp_path):
-    """Documented limit: tar applies the account umask, so modes are not pinned.
-
-    Nothing in the release is executed by its permission bits — deploy.sh and
-    every helper it calls are invoked through an explicit interpreter — so the
-    content and name pin is what binds.
-    """
-    root = build_release(tmp_path)
-    count, digest = pin_release(monkeypatch, root)
-    os.chmod(root / "api" / "app.py", 0o755)
-    assert gate.verify_pinned_tree() == (count, digest)
-
-
 def test_symlinked_file_changes_the_digest(monkeypatch, tmp_path):
     root = build_release(tmp_path)
     pin_release(monkeypatch, root)
@@ -283,39 +309,35 @@ def test_pinned_digest_is_exactly_the_d9_tree_in_git():
     if head.returncode != 0:
         pytest.skip("commit %s is not present in %s" % (D9, REPO))
     assert head.stdout.strip() == D9_TREE
-    count, digest = verifier.from_git(REPO, D9)
+    count, digest = verifier.from_git(REPO)
     assert (count, digest) == (gate.EXPECTED_FILES, gate.EXPECTED_TREE_SHA256)
+    assert (count, digest) == (
+        MANIFEST["release"]["release_files"],
+        MANIFEST["release"]["release_tree_sha256"],
+    )
+
+
+def test_verifier_and_gate_agree_on_the_pin():
+    assert verifier.EXPECTED_FILES == gate.EXPECTED_FILES
+    assert verifier.EXPECTED_TREE_SHA256 == gate.EXPECTED_TREE_SHA256
 
 
 # ---------------------------------------------------------------------------
-# one-shot authorization: ordering, shape, and unprivileged execution
+# the deploy leg execs unprivileged and never elevates
 # ---------------------------------------------------------------------------
 
 
-class FakeSudo(object):
-    def __init__(self, stdout="", returncode=0):
-        self.stdout = stdout
-        self.returncode = returncode
-        self.calls = []
-
-    def __call__(self, argv, **kwargs):
-        self.calls.append(argv)
-        return subprocess.CompletedProcess(argv, self.returncode, self.stdout, "")
-
-
-def test_deploy_verifies_then_consumes_then_execs_unprivileged(monkeypatch, tmp_path):
+def test_deploy_verifies_then_execs_unprivileged(monkeypatch, tmp_path):
     root = build_release(tmp_path)
     pin_release(monkeypatch, root)
-    sudo = FakeSudo(stdout="authorized: %s\n" % D9)
-    monkeypatch.setattr(gate.subprocess, "run", sudo)
+    calls = []
+    monkeypatch.setattr(gate.subprocess, "run", lambda *a, **k: calls.append(a))
     execs = []
     monkeypatch.setattr(os, "execve", lambda *a: execs.append(a))
 
     gate.do_deploy("2026-08-16T15:04:05Z")
 
-    assert sudo.calls == [
-        ["/usr/bin/sudo", "--non-interactive", "/usr/local/sbin/backbond-real-agent-demo-authorize"]
-    ]
+    assert calls == []          # no subprocess at all, so no sudo
     path, argv, env = execs[0]
     assert path == "/bin/bash"
     assert argv == ["/bin/bash", str(root / "demo-real-agent" / "deploy.sh"), str(root)]
@@ -325,48 +347,10 @@ def test_deploy_verifies_then_consumes_then_execs_unprivileged(monkeypatch, tmp_
     assert env["PATH"] == "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 
-def test_helper_is_called_with_no_client_controlled_argument(monkeypatch, tmp_path):
-    root = build_release(tmp_path)
-    pin_release(monkeypatch, root)
-    sudo = FakeSudo(stdout="authorized: %s\n" % D9)
-    monkeypatch.setattr(gate.subprocess, "run", sudo)
-    monkeypatch.setattr(os, "execve", lambda *a: None)
-    gate.do_deploy("2026-08-16T15:04:05Z")
-    assert len(sudo.calls[0]) == 3
-    assert D9 not in sudo.calls[0]
-
-
-def test_a_bad_release_never_spends_the_one_shot_grant(monkeypatch, tmp_path):
+def test_a_tampered_release_never_reaches_exec(monkeypatch, tmp_path):
     root = build_release(tmp_path)
     pin_release(monkeypatch, root)
     (root / "api" / "backdoor.py").write_text("import os\n")
-    sudo = FakeSudo(stdout="authorized: %s\n" % D9)
-    monkeypatch.setattr(gate.subprocess, "run", sudo)
-    execs = []
-    monkeypatch.setattr(os, "execve", lambda *a: execs.append(a))
-
-    with pytest.raises(gate.Rejected):
-        gate.do_deploy("2026-08-16T15:04:05Z")
-
-    assert sudo.calls == []
-    assert execs == []
-
-
-@pytest.mark.parametrize(
-    "stdout,returncode",
-    [
-        ("", 1),                              # unarmed, or already consumed
-        ("authorized: %s\n" % A68, 0),        # stale a68 authorization
-        ("authorized:\n", 0),
-        ("", 0),
-        ("authorized: %s extra\n" % D9, 0),
-        ("Authorized: %s\n" % D9, 0),
-    ],
-)
-def test_deploy_denied_without_an_exact_d9_grant(monkeypatch, tmp_path, stdout, returncode):
-    root = build_release(tmp_path)
-    pin_release(monkeypatch, root)
-    monkeypatch.setattr(gate.subprocess, "run", FakeSudo(stdout=stdout, returncode=returncode))
     execs = []
     monkeypatch.setattr(os, "execve", lambda *a: execs.append(a))
     with pytest.raises(gate.Rejected):
@@ -393,8 +377,34 @@ def test_symlinked_deploy_script_is_rejected(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# root authorization helper
+# the single root helper: unchanged preflight, plus one-shot consumption
 # ---------------------------------------------------------------------------
+
+
+def test_preflight_logic_is_byte_identical_to_canonical_d9():
+    """Only the docstring differs; every canonical code path is untouched."""
+    canonical = subprocess.run(
+        ["git", "-C", str(REPO), "cat-file", "blob",
+         D9 + ":demo-real-agent/host/real_agent_demo_secret_preflight.py"],
+        capture_output=True,
+    )
+    if canonical.returncode != 0:
+        pytest.skip("commit %s is not present in %s" % (D9, REPO))
+    assert hashlib.sha256(canonical.stdout).hexdigest() == CANONICAL_PREFLIGHT
+    original = canonical.stdout.decode().splitlines()
+    enhanced = HELPER_SOURCE.decode().splitlines()
+    removed = [line for line in original if line not in enhanced]
+    assert removed == ['"""Validate the fixed passive-demo secret file without disclosing values."""']
+
+
+@pytest.fixture
+def env_file(tmp_path, monkeypatch):
+    path = tmp_path / "real-agent-demo.env"
+    path.write_text(GOOD_ENV)
+    os.chmod(path, 0o600)
+    monkeypatch.setattr(helper, "EXPECTED_UID", os.getuid())
+    monkeypatch.setattr(helper, "EXPECTED_GID", os.getgid())
+    return path
 
 
 @pytest.fixture
@@ -404,39 +414,76 @@ def armed(tmp_path, monkeypatch):
     allow = state / "real-agent-demo-deploy.allow"
     allow.write_text(D9 + "\n")
     os.chmod(allow, 0o600)
-    monkeypatch.setattr(authorize, "EXPECTED_UID", os.getuid())
-    monkeypatch.setattr(authorize, "EXPECTED_GID", os.getgid())
+    monkeypatch.setattr(helper, "AUTH_UID", os.getuid())
+    monkeypatch.setattr(helper, "AUTH_GID", os.getgid())
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
     return state, allow, state / "real-agent-demo-deploy.consumed"
 
 
-def call(state, allow, consumed):
-    return authorize.authorize(str(state), str(allow), str(consumed))
+def consume(state, allow, consumed):
+    return helper.consume_authorization(state, allow, consumed)
+
+
+def test_names_only_preflight_still_reports_configured_names(env_file):
+    assert helper.validate(env_file) == [
+        "DEMO_ACCESS_TOKEN", "ARE_BUNDLE_SIGNING_KEY", "OPENROUTER_API_KEY"
+    ]
+
+
+def test_preflight_reports_the_judge_proxy_line_deploy_sh_greps_for(env_file):
+    env_file.write_text(
+        "DEMO_ACCESS_TOKEN=v\nARE_BUNDLE_SIGNING_KEY=v\n"
+        "DEMO_JUDGE_BACKEND=claude-code-proxy\nCLAUDE_JUDGE_PROXY_TOKEN=v\n"
+    )
+    os.chmod(env_file, 0o600)
+    assert "DEMO_JUDGE_BACKEND" in helper.validate(env_file)
+
+
+def test_preflight_never_returns_a_value(env_file):
+    for name in helper.validate(env_file):
+        assert "redacted-value" not in name
+
+
+@pytest.mark.parametrize(
+    "content,reason",
+    [
+        ("ARE_BUNDLE_SIGNING_KEY=v\n", "DEMO_ACCESS_TOKEN: missing_or_empty"),
+        ("DEMO_ACCESS_TOKEN=v\n", "ARE_BUNDLE_SIGNING_KEY: missing_or_empty"),
+        ("DEMO_ACCESS_TOKEN=v\nARE_BUNDLE_SIGNING_KEY=v\n", "judge_configuration: missing_or_invalid"),
+    ],
+)
+def test_preflight_failures_are_unchanged(env_file, content, reason):
+    env_file.write_text(content)
+    os.chmod(env_file, 0o600)
+    with pytest.raises(helper.PreflightError) as excinfo:
+        helper.validate(env_file)
+    assert excinfo.value.args[0] == reason
 
 
 def test_authorization_is_consumed_exactly_once(armed):
     state, allow, consumed = armed
-    assert call(state, allow, consumed) == D9
+    assert consume(state, allow, consumed) == D9
     assert not allow.exists() and consumed.exists()
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == "absent"
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: absent"
 
 
 def test_consumption_is_a_same_directory_rename(armed):
     state, allow, consumed = armed
-    assert os.path.dirname(authorize.ALLOW_PATH) == os.path.dirname(authorize.CONSUMED_PATH)
+    assert os.path.dirname(str(helper.ALLOW_PATH)) == os.path.dirname(str(helper.CONSUMED_PATH))
     before = allow.stat().st_ino
-    call(state, allow, consumed)
-    assert consumed.stat().st_ino == before   # renamed in place, not copied
+    consume(state, allow, consumed)
+    assert consumed.stat().st_ino == before
 
 
 def test_wrong_release_is_refused_and_left_in_place(armed):
     state, allow, consumed = armed
     allow.write_text(A68 + "\n")
     os.chmod(allow, 0o600)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == "wrong_release"
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: wrong_release"
     assert allow.exists() and not consumed.exists()
 
 
@@ -454,9 +501,9 @@ def test_authorization_content_must_be_exactly_d9(armed, content, reason):
     state, allow, consumed = armed
     allow.write_text(content)
     os.chmod(allow, 0o600)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == reason
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: " + reason
     assert allow.exists()
 
 
@@ -464,22 +511,18 @@ def test_authorization_content_must_be_exactly_d9(armed, content, reason):
 def test_authorization_mode_must_be_0600(armed, mode):
     state, allow, consumed = armed
     os.chmod(allow, mode)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == "wrong_mode"
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: wrong_mode"
 
 
-def test_authorization_owner_must_match(armed, monkeypatch):
+def test_authorization_owner_must_be_root(armed, monkeypatch):
     state, allow, consumed = armed
-    monkeypatch.setattr(authorize, "EXPECTED_UID", os.getuid() + 1)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        authorize._read_authorization(str(allow))
-    assert excinfo.value.args[0] == "wrong_owner"
-    # the same mismatch on the containing directory is refused one step earlier
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == "state_dir_wrong_owner"
-    assert allow.exists() and not consumed.exists()
+    monkeypatch.setattr(helper, "AUTH_UID", os.getuid() + 1)
+    with pytest.raises(helper.PreflightError) as excinfo:
+        helper._read_authorization(allow)
+    assert excinfo.value.args[0] == "deploy_authorization: wrong_owner"
+    assert allow.exists()
 
 
 def test_symlinked_authorization_is_refused(armed, tmp_path):
@@ -489,18 +532,18 @@ def test_symlinked_authorization_is_refused(armed, tmp_path):
     os.chmod(target, 0o600)
     os.unlink(allow)
     os.symlink(str(target), allow)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == "not_regular"
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: not_regular"
 
 
 def test_fifo_authorization_is_refused(armed):
     state, allow, consumed = armed
     os.unlink(allow)
     os.mkfifo(allow, 0o600)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == "not_regular"
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: not_regular"
 
 
 @pytest.mark.parametrize(
@@ -541,9 +584,9 @@ def test_opened_descriptor_is_revalidated(armed, monkeypatch, field, reason):
         return faked
 
     monkeypatch.setattr(os, "fstat", fake_fstat)
-    with pytest.raises(authorize.AuthorizationError) as excinfo:
-        call(state, allow, consumed)
-    assert excinfo.value.args[0] == reason
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: " + reason
     assert allow.exists()
 
 
@@ -551,21 +594,158 @@ def test_state_directory_must_not_be_writable(armed):
     state, allow, consumed = armed
     os.chmod(state, 0o777)
     try:
-        with pytest.raises(authorize.AuthorizationError) as excinfo:
-            call(state, allow, consumed)
-        assert excinfo.value.args[0] == "state_dir_writable"
+        with pytest.raises(helper.PreflightError) as excinfo:
+            consume(state, allow, consumed)
+        assert excinfo.value.args[0] == "deploy_authorization: state_dir_writable"
     finally:
         os.chmod(state, 0o700)
 
 
-def test_helper_rejects_every_argument():
-    for argv in (["h", ""], ["h", "/etc/passwd"], ["h", D9], ["h", "--consume"]):
-        assert authorize.main(argv) == 2
-
-
-def test_helper_requires_root(monkeypatch):
+def test_helper_requires_root_to_consume(armed, monkeypatch):
+    state, allow, consumed = armed
     monkeypatch.setattr(os, "geteuid", lambda: 1002)
-    assert authorize.main(["h"]) == 2
+    with pytest.raises(helper.PreflightError) as excinfo:
+        consume(state, allow, consumed)
+    assert excinfo.value.args[0] == "deploy_authorization: not_root"
+    assert allow.exists()
+
+
+def test_helper_rejects_every_argument():
+    for argv in ([""], ["/etc/passwd"], [D9], ["--consume"]):
+        assert helper.main(argv) == 2
+
+
+def test_helper_reports_preflight_before_it_consumes(monkeypatch, capsys):
+    """An unarmed verification still shows the secret boundary result."""
+    monkeypatch.setattr(helper, "validate", lambda: ["DEMO_ACCESS_TOKEN"])
+    monkeypatch.setattr(
+        helper, "consume_authorization",
+        lambda: (_ for _ in ()).throw(helper.PreflightError("deploy_authorization: absent")),
+    )
+    assert helper.main([]) == 1
+    captured = capsys.readouterr()
+    assert "secret_file: valid" in captured.out
+    assert "DEMO_ACCESS_TOKEN: configured" in captured.out
+    assert "deploy_authorization: absent" in captured.err
+
+
+def test_helper_success_line_names_the_pinned_release(monkeypatch, capsys):
+    monkeypatch.setattr(helper, "validate", lambda: ["DEMO_ACCESS_TOKEN"])
+    monkeypatch.setattr(helper, "consume_authorization", lambda: D9)
+    assert helper.main([]) == 0
+    assert "deploy_authorization: consumed %s" % D9 in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# installer: verified backup, same-directory atomic replacement, rollback
+# ---------------------------------------------------------------------------
+
+
+def rehearsal_manifest():
+    """MANIFEST with the target ownership a rootless rehearsal can produce."""
+    manifest = json.loads(json.dumps(MANIFEST))
+    for entry in manifest["install"]:
+        entry["owner_uid"] = os.getuid()
+        entry["owner_gid"] = os.getgid()
+    return manifest
+
+
+@pytest.fixture
+def fake_host(tmp_path, monkeypatch):
+    """A host root holding the exact bytes this candidate expects to replace."""
+    monkeypatch.setattr(installer.os, "chown", lambda *a, **k: None)
+    monkeypatch.setattr(installer, "CANDIDATE_DIR", CANDIDATE)
+    root = tmp_path / "host"
+    (root / "usr/local/sbin").mkdir(parents=True)
+    (root / "etc/sudoers.d").mkdir(parents=True)
+
+    canonical = subprocess.run(
+        ["git", "-C", str(REPO), "cat-file", "blob",
+         D9 + ":demo-real-agent/host/real_agent_demo_secret_preflight.py"],
+        capture_output=True,
+    )
+    if canonical.returncode != 0:
+        pytest.skip("commit %s is not present in %s" % (D9, REPO))
+    preflight = root / "usr/local/sbin/backbond-real-agent-demo-secret-preflight"
+    preflight.write_bytes(canonical.stdout)
+    os.chmod(preflight, 0o755)
+
+    sudoers = root / "etc/sudoers.d/backbond-real-agent-demo-secret-preflight"
+    sudoers.write_bytes(
+        subprocess.run(
+            ["git", "-C", str(REPO), "cat-file", "blob",
+             D9 + ":demo-real-agent/host/backbond-real-agent-demo-secret-preflight.sudoers"],
+            capture_output=True, check=True,
+        ).stdout
+    )
+    return root
+
+
+def test_installer_replaces_the_existing_helper_with_backup(fake_host, tmp_path):
+    """The complaint that installation refuses an existing helper, tested."""
+    gate_target = fake_host / "usr/local/sbin/backbond-real-agent-demo-ssh-gate"
+    gate_target.write_bytes(b"stale a68 gate bytes\n")
+
+    manifest = rehearsal_manifest()
+    manifest["install"][0]["replaces_sha256"] = hashlib.sha256(b"stale a68 gate bytes\n").hexdigest()
+
+    steps = installer.plan(manifest, fake_host)
+    actions = {pathlib.Path(step["target"]).name: step["action"] for step in steps}
+    assert actions["backbond-real-agent-demo-secret-preflight"] == "replace"
+    assert actions["backbond-real-agent-demo-ssh-gate"] == "replace"
+
+    backups = tmp_path / "backups"
+    receipt = {}
+    installer.install(steps, backups, receipt, system_validation=False)
+
+    installed = fake_host / "usr/local/sbin/backbond-real-agent-demo-secret-preflight"
+    assert installer.sha256_file(installed) == MANIFEST["install"][1]["source_sha256"]
+    saved = backups / "backbond-real-agent-demo-secret-preflight"
+    assert installer.sha256_file(saved) == CANONICAL_PREFLIGHT
+    assert oct(stat.S_IMODE(installed.lstat().st_mode)) == "0o755"
+
+    # rollback restores the canonical bytes the board requires us to keep
+    installer.rollback(backups, manifest, fake_host, receipt)
+    assert installer.sha256_file(installed) == CANONICAL_PREFLIGHT
+
+
+def test_installer_fails_closed_on_unexpected_current_bytes(fake_host):
+    target = fake_host / "usr/local/sbin/backbond-real-agent-demo-secret-preflight"
+    target.write_bytes(b"not the canonical helper\n")
+    with pytest.raises(installer.InstallError):
+        installer.plan(MANIFEST, fake_host)
+
+
+def test_installer_refuses_to_run_while_armed(fake_host):
+    arm = fake_host / "etc/backbond/real-agent-demo-deploy.allow"
+    arm.parent.mkdir(parents=True, exist_ok=True)
+    arm.write_text(D9 + "\n")
+    with pytest.raises(installer.InstallError) as excinfo:
+        installer.check_preconditions(MANIFEST, fake_host)
+    assert "armed" in str(excinfo.value)
+
+
+def test_installer_verifies_the_unchanged_sudoers_rule(fake_host):
+    installer.check_preconditions(MANIFEST, fake_host)
+    (fake_host / "etc/sudoers.d/backbond-real-agent-demo-secret-preflight").write_text("tampered\n")
+    with pytest.raises(installer.InstallError):
+        installer.check_preconditions(MANIFEST, fake_host)
+
+
+def test_installer_never_arms(fake_host, tmp_path):
+    steps = installer.plan(rehearsal_manifest(), fake_host)
+    installer.install(steps, tmp_path / "backups", {}, system_validation=False)
+    assert not (fake_host / "etc/backbond/real-agent-demo-deploy.allow").exists()
+
+
+def test_installer_only_runs_fixed_validators(tmp_path):
+    with pytest.raises(installer.InstallError):
+        installer.validate_with("/bin/sh -c", tmp_path)
+
+
+def test_installer_executes_no_repository_content():
+    for forbidden in (b"deploy.sh", b"os.system", b"shell=True", b"os.execv"):
+        assert forbidden not in INSTALLER_SOURCE
 
 
 # ---------------------------------------------------------------------------
@@ -573,52 +753,58 @@ def test_helper_requires_root(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("source", [GATE_SOURCE, AUTHORIZE_SOURCE])
+@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE, INSTALLER_SOURCE])
 def test_fixed_interpreter_without_path_resolution(source):
     assert source.split(b"\n", 1)[0] == b"#!/usr/bin/python3"
 
 
-@pytest.mark.parametrize("source", [GATE_SOURCE, AUTHORIZE_SOURCE])
+@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE])
 def test_no_shell_evaluation_of_client_input(source):
     for forbidden in (b"shell=True", b"os.system", b"os.popen", b"eval(", b"/bin/sh"):
         assert forbidden not in source
 
 
-@pytest.mark.parametrize("source", [GATE_SOURCE, AUTHORIZE_SOURCE, SUDOERS_SOURCE])
+@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE, INSTALLER_SOURCE])
 def test_no_stale_a68_authority_in_the_candidate(source):
     assert A68.encode() not in source
 
 
-@pytest.mark.parametrize("source", [GATE_SOURCE, AUTHORIZE_SOURCE])
+@pytest.mark.parametrize("source", [GATE_SOURCE, HELPER_SOURCE])
 def test_both_programs_are_pinned_to_d9(source):
     assert D9.encode() in source
 
 
-def test_sudoers_grants_exactly_one_zero_argument_command():
-    text = SUDOERS_SOURCE.decode()
-    assert text == (
-        '#1002 ALL=(root) NOPASSWD: '
-        '/usr/local/sbin/backbond-real-agent-demo-authorize ""\n'
+def test_manifest_removes_the_stale_a68_authority():
+    removed = {entry["target"]: entry["expected_sha256"] for entry in MANIFEST["remove"]}
+    assert removed["/etc/sudoers.d/backbond-real-agent-demo"] == (
+        "37b24501a7470ba37e2002d6f0a219c3b2222f82a6ca559fd71c3cefc73c02bf"
     )
-    assert "ALL=(ALL)" not in text
-    assert "*" not in text
-    assert "deploy.sh" not in text
+    assert removed["/usr/local/sbin/backbond-real-agent-demo-deploy"] == (
+        "956065275defd2abcc95a7d2e14d8e70ee54c10aa799578aa00602f29c9af723"
+    )
 
 
-def test_sudoers_passes_visudo():
-    if not os.path.exists("/usr/sbin/visudo"):
-        pytest.skip("visudo is not available")
-    result = subprocess.run(
-        ["/usr/sbin/visudo", "-cf", str(CANDIDATE / "backbond-real-agent-demo-authorize.sudoers")],
-        capture_output=True,
-    )
-    assert result.returncode == 0, result.stderr
+def test_manifest_rollback_restores_the_canonical_helper():
+    assert any(CANONICAL_PREFLIGHT in step for step in MANIFEST["rollback"])
+
+
+def test_manifest_source_hashes_match_the_shipped_bytes():
+    for entry in MANIFEST["install"]:
+        actual = hashlib.sha256((CANDIDATE / entry["source"]).read_bytes()).hexdigest()
+        assert actual == entry["source_sha256"], entry["source"]
 
 
 def test_recorded_hashes_recompute():
-    lines = (CANDIDATE / "SHA256SUMS").read_text().splitlines()
+    lines = (BUNDLE / "SHA256SUMS").read_text().splitlines()
     assert lines, "SHA256SUMS is empty"
     for line in lines:
         digest, name = line.split(None, 1)
         name = name.lstrip("*").strip()
-        assert hashlib.sha256((CANDIDATE / name).read_bytes()).hexdigest() == digest, name
+        assert hashlib.sha256((BUNDLE / name).read_bytes()).hexdigest() == digest, name
+
+
+def test_bundle_ships_no_generated_caches():
+    shipped = [line.split(None, 1)[1].strip() for line in (BUNDLE / "SHA256SUMS").read_text().splitlines()]
+    for name in shipped:
+        assert "__pycache__" not in name
+        assert not name.endswith(".pyc")

@@ -1,176 +1,312 @@
 #!/usr/bin/python3
-"""Transition the passive-demo host gate from the a68e7e09 shape to exact d9.
+"""Install the reviewed BEAAA-23703 host-gate bytes, or verify an installation.
 
-NOT RUN BY BEAAA-23703. This file is candidate bytes only. It is the reviewable
-encoding of the transition for BEAAA-23702 to attest and for a host owner to
-run later, as root, with the candidate directory bind-mounted at /staging.
+Runs as root, on the host, under BEAAA-23705, after exact-byte QA approval. It
+copies reviewed bytes into fixed root-owned targets and never executes any
+repository content: the only programs it runs are the fixed system validators
+named in MANIFEST.json, `/usr/bin/python3 -m py_compile` and
+`/usr/sbin/visudo -cf`, neither of which executes the file it checks.
 
-It replaces two files, installs one, and removes two. It does not touch the SSH
-key material or its options, does not create a deployment authorization, does
-not pull an image, and does not start or stop a container. Deployment stays
-fail-closed afterwards until a host owner creates the one-shot authorization
-under a separate explicit decision.
+    install_host_gate.py --verify-only            # default, mutates nothing
+    install_host_gate.py --confirm                # perform the installation
+    install_host_gate.py --rollback --confirm     # restore from a backup set
+
+Every install entry is handled the same way, whether or not the target already
+exists:
+
+    verify source bytes against MANIFEST.json
+    verify the current target against its pinned replaces_sha256
+    copy the current target into a root-owned 0700 backup directory
+    write the reviewed bytes to a temporary file in the SAME directory
+    set uid, gid and mode on that temporary file, then fsync it
+    run the manifest's validator against the temporary file
+    atomically rename it over the target
+    re-attest the target: regular file, uid, gid, mode, sha256
+
+The installation never creates the deployment authorization. Arming is a
+separate operator action and this program refuses to run if an arm file is
+already present.
 """
 
-import base64
+from __future__ import annotations
+
+import argparse
 import hashlib
+import json
 import os
-from pathlib import Path
 import shutil
 import stat
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
-HOST = Path(os.environ.get("HOST_ROOT", "/"))
-STAGING = Path(os.environ.get("STAGING_ROOT", "/staging"))
-
-DEPLOY_ACCOUNT = "passive-demo-deploy"
-DEPLOY_UID = 1002
-DEPLOY_GID = 1002
-EXPECTED_KEY_FP = "SHA256:z0GzuYG3rnNtFjMKeOsG36kDWrsXeG0larXTHd9V3Dg"
-GATE_PATH = "/usr/local/sbin/backbond-real-agent-demo-ssh-gate"
-HELPER_PATH = "/usr/local/sbin/backbond-real-agent-demo-secret-preflight"
-SUDOERS_PATH = "/etc/sudoers.d/backbond-real-agent-demo"
-STALE_RUNNER = "/usr/local/sbin/backbond-real-agent-demo-deploy"
-STALE_SEALED = "/opt/backbond-real-agent-demo/sealed"
-BACKUP_DIR = "/var/backups/backbond-demo/BEAAA-23703"
-
-REPLACE = [
-    ("backbond-real-agent-demo-ssh-gate", GATE_PATH, 0o755),
-    ("backbond-real-agent-demo-secret-preflight", HELPER_PATH, 0o755),
-    ("sudoers-backbond-real-agent-demo", SUDOERS_PATH, 0o440),
-]
+CANDIDATE_DIR = Path(__file__).resolve().parent
+BACKUP_ROOT = Path("/var/backups/backbond-real-agent-demo")
+ARM_PATH = "/etc/backbond/real-agent-demo-deploy.allow"
 
 
-def fail(message: str) -> "NoReturn":
-    print(f"install: {message}", file=sys.stderr)
-    raise SystemExit(1)
+class InstallError(Exception):
+    """Fail closed: nothing is mutated after this is raised."""
 
 
-def under(target: str) -> Path:
-    return HOST / target.lstrip("/")
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
-def digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def host_path(host_root: Path, target: str) -> Path:
+    return host_root / target.lstrip("/")
 
 
-def fingerprint(line: str) -> str:
-    parts = line.split()
-    index = next(i for i, value in enumerate(parts) if value.startswith(("ssh-", "ecdsa-", "sk-")))
-    raw = base64.b64decode(parts[index + 1])
-    return "SHA256:" + base64.b64encode(hashlib.sha256(raw).digest()).decode().rstrip("=")
+def attest(path: Path) -> dict:
+    st = path.lstat()
+    if not stat.S_ISREG(st.st_mode):
+        raise InstallError(f"{path} is not a regular file")
+    return {
+        "path": str(path),
+        "uid": st.st_uid,
+        "gid": st.st_gid,
+        "mode": oct(stat.S_IMODE(st.st_mode)),
+        "sha256": sha256_file(path),
+    }
 
 
-def check_authorized_key() -> None:
-    """The key and its options must already be correct, and must not change."""
-    auth = under(f"/home/{DEPLOY_ACCOUNT}/.ssh/authorized_keys")
-    lines = [line for line in auth.read_text().splitlines() if line.strip()]
-    if len(lines) != 1:
-        fail("the deployment key file does not hold exactly one key")
-    if fingerprint(lines[0]) != EXPECTED_KEY_FP:
-        fail("the deployment key fingerprint changed")
-    parts = lines[0].split()
-    index = next(i for i, value in enumerate(parts) if value.startswith(("ssh-", "ecdsa-", "sk-")))
-    options = " ".join(parts[:index])
-    if options != f'restrict,command="{GATE_PATH}"':
-        fail(f"unexpected authorized_keys options: {options}")
+def validate_with(validator: str | None, path: Path) -> None:
+    """Run a fixed system validator. Neither validator executes the file."""
+    if validator is None:
+        return
+    if validator == "/usr/bin/python3 -m py_compile":
+        argv = ["/usr/bin/python3", "-m", "py_compile", str(path)]
+    elif validator == "/usr/sbin/visudo -cf":
+        argv = ["/usr/sbin/visudo", "-cf", str(path)]
+    elif validator == "/usr/sbin/visudo -c":
+        argv = ["/usr/sbin/visudo", "-c"]
+    else:
+        raise InstallError(f"validator is not on the fixed list: {validator}")
+    result = subprocess.run(argv, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise InstallError(f"validator failed for {path}: {result.stderr.strip()}")
 
 
-def atomic_install(source: Path, target: Path, mode: int) -> None:
-    """Same-directory temp plus rename, so the path is never partially written."""
-    temporary = target.with_name(target.name + ".beaaa-23703.tmp")
-    data = source.read_bytes()
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    try:
-        os.write(descriptor, data)
-        os.fchown(descriptor, 0, 0)
-        os.fchmod(descriptor, mode)
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-    if hashlib.sha256(temporary.read_bytes()).hexdigest() != hashlib.sha256(data).hexdigest():
-        os.unlink(temporary)
-        fail(f"staged bytes for {target} did not survive the write")
-    os.replace(temporary, target)
-
-
-def verify_staging() -> None:
-    """Refuse to install anything whose bytes drifted from the attested manifest."""
-    manifest = STAGING / "SHA256SUMS"
-    if not manifest.is_file():
-        fail("candidate SHA256SUMS is missing from staging")
-    recorded = {}
-    for line in manifest.read_text().splitlines():
-        if not line.strip():
-            continue
-        expected, name = line.split(maxsplit=1)
-        recorded[name.strip().lstrip("*")] = expected
-    for name, _, _ in REPLACE:
-        candidate = STAGING / name
-        if not candidate.is_file():
-            fail(f"candidate file is missing from staging: {name}")
-        if name not in recorded:
-            fail(f"candidate file is absent from SHA256SUMS: {name}")
-        actual = digest(candidate)
-        if actual != recorded[name]:
-            fail(f"candidate {name} sha256 {actual} does not match the attested manifest")
-        print(f"verified {name} sha256={actual}")
-
-
-def main() -> None:
-    if os.geteuid() != 0:
-        fail("must run as root")
-    verify_staging()
-
-    check_authorized_key()
-
-    sudoers_candidate = STAGING / "sudoers-backbond-real-agent-demo"
-    check = subprocess.run(
-        ["/usr/sbin/visudo", "-c", "-f", str(sudoers_candidate)], capture_output=True, text=True
+def backup(path: Path, backups: Path, receipt: list) -> None:
+    if not path.exists():
+        receipt.append({"path": str(path), "backed_up": False, "reason": "absent"})
+        return
+    st = path.lstat()
+    if not stat.S_ISREG(st.st_mode):
+        raise InstallError(f"refusing to back up non-regular {path}")
+    destination = backups / path.name
+    shutil.copy2(path, destination)
+    os.chown(destination, st.st_uid, st.st_gid)
+    os.chmod(destination, stat.S_IMODE(st.st_mode))
+    receipt.append(
+        {
+            "path": str(path),
+            "backed_up": True,
+            "backup": str(destination),
+            "uid": st.st_uid,
+            "gid": st.st_gid,
+            "mode": oct(stat.S_IMODE(st.st_mode)),
+            "sha256": sha256_file(path),
+        }
     )
-    if check.returncode != 0:
-        fail(f"candidate sudoers failed validation: {check.stderr.strip()}")
 
-    backups = under(BACKUP_DIR)
-    if backups.exists():
-        fail(f"{BACKUP_DIR} already exists; a previous transition was recorded")
-    backups.mkdir(mode=0o700, parents=True)
+
+def place(source: Path, target: Path, uid: int, gid: int, mode: int, validator: str | None) -> None:
+    """Same-directory staging, validation, then atomic rename over the target."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    handle, staged_name = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.")
+    staged = Path(staged_name)
+    try:
+        with os.fdopen(handle, "wb") as out:
+            out.write(source.read_bytes())
+            out.flush()
+            os.fsync(out.fileno())
+        os.chown(staged, uid, gid)
+        os.chmod(staged, mode)
+        validate_with(validator, staged)
+        if sha256_file(staged) != sha256_file(source):
+            raise InstallError(f"staged bytes for {target} do not match the source")
+        os.rename(staged, target)
+    except BaseException:
+        staged.unlink(missing_ok=True)
+        raise
+    directory = os.open(target.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+def check_preconditions(manifest: dict, host_root: Path) -> None:
+    arm = host_path(host_root, ARM_PATH)
+    if arm.exists():
+        raise InstallError(
+            f"{arm} is present; installation must not run while a deployment is armed"
+        )
+    for entry in manifest.get("must_not_change", []):
+        target, expected = entry.get("path"), entry.get("sha256")
+        if not target or not expected:
+            continue
+        path = host_path(host_root, target)
+        if not path.exists():
+            raise InstallError(f"{path} is required to be present and unchanged, but is absent")
+        actual = sha256_file(path)
+        if actual != expected:
+            raise InstallError(f"{path} sha256 {actual} does not match the pinned {expected}")
+
+
+def plan(manifest: dict, host_root: Path) -> list:
+    steps = []
+    for entry in manifest["install"]:
+        source = CANDIDATE_DIR / entry["source"]
+        if not source.is_file():
+            raise InstallError(f"candidate source is missing: {source}")
+        actual = sha256_file(source)
+        if actual != entry["source_sha256"]:
+            raise InstallError(
+                f"{entry['source']} sha256 {actual} does not match the manifest {entry['source_sha256']}"
+            )
+        target = host_path(host_root, entry["target"])
+        current = sha256_file(target) if target.is_file() else None
+        expected_current = entry.get("replaces_sha256")
+        if current is not None and expected_current is not None and current != expected_current:
+            raise InstallError(
+                f"{target} currently holds {current}, not the pinned {expected_current}"
+            )
+        if current is not None and expected_current is None:
+            raise InstallError(
+                f"{target} already exists but the manifest records no replaces_sha256"
+            )
+        steps.append(
+            {
+                "action": "replace" if current is not None else "create",
+                "source": str(source),
+                "target": str(target),
+                "source_sha256": actual,
+                "current_sha256": current,
+                "uid": entry["owner_uid"],
+                "gid": entry["owner_gid"],
+                "mode": int(entry["mode"], 8),
+                "validator": entry.get("validator"),
+            }
+        )
+    for entry in manifest.get("remove", []):
+        target = host_path(host_root, entry["target"])
+        current = sha256_file(target) if target.is_file() else None
+        if current is None:
+            steps.append({"action": "remove", "target": str(target), "current_sha256": None,
+                          "note": "already absent", "revalidate": entry.get("revalidate")})
+            continue
+        if current != entry["expected_sha256"]:
+            raise InstallError(
+                f"{target} currently holds {current}, not the pinned {entry['expected_sha256']}"
+            )
+        steps.append({"action": "remove", "target": str(target), "current_sha256": current,
+                      "revalidate": entry.get("revalidate")})
+    return steps
+
+
+def install(steps: list, backups: Path, receipt: dict, system_validation: bool = True) -> None:
+    """system_validation runs whole-system checks such as `visudo -c`, which are
+    only meaningful when the targets are the real root."""
+    backups.mkdir(parents=True, exist_ok=True)
     os.chown(backups, 0, 0)
-    for target in (GATE_PATH, SUDOERS_PATH, STALE_RUNNER):
-        existing = under(target)
-        if existing.exists():
-            saved = backups / (Path(target).name + ".before")
-            shutil.copy2(existing, saved)
-            os.chown(saved, 0, 0)
-            os.chmod(saved, 0o600)
-            print(f"backup {target} sha256={digest(saved)}")
+    os.chmod(backups, 0o700)
+    receipt["backups"] = []
+    for step in steps:
+        target = Path(step["target"])
+        backup(target, backups, receipt["backups"])
+    receipt["installed"] = []
+    for step in steps:
+        target = Path(step["target"])
+        if step["action"] == "remove":
+            target.unlink(missing_ok=True)
+            if system_validation:
+                validate_with(step.get("revalidate"), target)
+            receipt["installed"].append({"action": "remove", "path": str(target), "present": target.exists()})
+            continue
+        place(Path(step["source"]), target, step["uid"], step["gid"], step["mode"], step["validator"])
+        after = attest(target)
+        if after["sha256"] != step["source_sha256"]:
+            raise InstallError(f"post-install sha256 mismatch for {target}")
+        if (after["uid"], after["gid"]) != (step["uid"], step["gid"]):
+            raise InstallError(f"post-install ownership mismatch for {target}")
+        if after["mode"] != oct(step["mode"]):
+            raise InstallError(f"post-install mode mismatch for {target}")
+        receipt["installed"].append({"action": step["action"], **after})
 
-    if under(HELPER_PATH).exists():
-        fail(f"{HELPER_PATH} already exists; refusing to replace the privileged helper")
 
-    for name, target, mode in REPLACE:
-        atomic_install(STAGING / name, under(target), mode)
-        installed = under(target)
-        st = installed.lstat()
-        if st.st_uid != 0 or st.st_gid != 0 or stat.S_IMODE(st.st_mode) != mode:
-            fail(f"{target} did not land with root ownership and mode {mode:04o}")
-        print(f"install {target} mode={mode:04o} sha256={digest(installed)}")
+def rollback(backups: Path, manifest: dict, host_root: Path, receipt: dict) -> None:
+    if not backups.is_dir():
+        raise InstallError(f"backup directory {backups} does not exist")
+    restored = []
+    targets = [host_path(host_root, e["target"]) for e in manifest["install"]]
+    targets += [host_path(host_root, e["target"]) for e in manifest.get("remove", [])]
+    for target in targets:
+        saved = backups / target.name
+        if not saved.is_file():
+            continue
+        st = saved.lstat()
+        place(saved, target, st.st_uid, st.st_gid, stat.S_IMODE(st.st_mode), None)
+        restored.append(attest(target))
+    receipt["restored"] = restored
 
-    runner = under(STALE_RUNNER)
-    if runner.exists():
-        os.unlink(runner)
-        print(f"remove {STALE_RUNNER}")
-    sealed = under(STALE_SEALED)
-    if sealed.is_dir():
-        if any(sealed.iterdir()):
-            fail(f"{STALE_SEALED} is not empty; a host owner must review its contents")
-        os.rmdir(sealed)
-        print(f"remove {STALE_SEALED}")
 
-    check_authorized_key()
-    print("install=PASS armed=false deployed=false key_fingerprint=" + EXPECTED_KEY_FP)
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Install or verify the BEAAA-23703 host gate.")
+    parser.add_argument("--confirm", action="store_true", help="perform the change")
+    parser.add_argument("--verify-only", action="store_true", help="report the plan and exit")
+    parser.add_argument("--rollback", action="store_true", help="restore from a backup set")
+    parser.add_argument("--host-root", default="/", help="filesystem root, for rehearsal")
+    parser.add_argument("--backup-dir", default=None, help="backup set directory")
+    parser.add_argument("--receipt", default=None, help="write a JSON receipt here")
+    arguments = parser.parse_args()
+
+    host_root = Path(arguments.host_root)
+    backups = Path(arguments.backup_dir) if arguments.backup_dir else host_path(host_root, str(BACKUP_ROOT))
+    manifest = json.loads((CANDIDATE_DIR / "MANIFEST.json").read_text())
+    receipt: dict = {"manifest_sha256": sha256_file(CANDIDATE_DIR / "MANIFEST.json"),
+                     "release": manifest["release"], "host_root": str(host_root)}
+
+    try:
+        if arguments.rollback:
+            if not arguments.confirm:
+                print("rollback requires --confirm", file=sys.stderr)
+                return 2
+            if os.geteuid() != 0 and arguments.host_root == "/":
+                raise InstallError("rollback must run as root")
+            rollback(backups, manifest, host_root, receipt)
+        else:
+            check_preconditions(manifest, host_root)
+            steps = plan(manifest, host_root)
+            receipt["plan"] = steps
+            for step in steps:
+                print(f"{step['action']:>7}  {step['target']}")
+            if not arguments.confirm or arguments.verify_only:
+                print("verify-only: nothing was changed")
+                receipt["applied"] = False
+                return 0
+            if os.geteuid() != 0 and arguments.host_root == "/":
+                raise InstallError("installation must run as root")
+            install(steps, backups, receipt, system_validation=(host_root == Path("/")))
+            receipt["applied"] = True
+            if host_path(host_root, ARM_PATH).exists():
+                raise InstallError("an arm file appeared during installation")
+    except InstallError as error:
+        print(f"install=FAIL {error}", file=sys.stderr)
+        return 1
+    finally:
+        if arguments.receipt:
+            Path(arguments.receipt).write_text(json.dumps(receipt, indent=2) + "\n")
+
+    print(f"install=PASS release={manifest['release']['commit']} armed=no")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
