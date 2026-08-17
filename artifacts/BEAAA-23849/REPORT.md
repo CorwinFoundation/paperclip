@@ -575,3 +575,66 @@ into BEAAA-23953 since that ticket already edits the same function.
 
 F4, the description's "29 tests, up from 28" against a baseline of 18, is superseded by the
 QA correction note now appended to the description.
+
+---
+
+## Post-merge verification (2026-08-17, after promotion `40abb5cb`)
+
+The gate stayed `done` and APPROVED throughout; nothing below reopens it. This section
+records that the approval still describes the tree after the merge, verified from the
+remote rather than from the close-out comment.
+
+Merged master fetched directly (`git fetch <remote> master`), tip
+`40abb5cb821718641f3322b0eb656c50f462e46b`.
+
+| Check | Result |
+|---|---|
+| Second parent of `40abb5cb` | `4acd94ef4870a904aefa3baa81691687df9d0741` — the approved SHA, exactly |
+| `4acd94ef` ancestor of master tip | yes (`git merge-base --is-ancestor`) |
+| First parent | `b66694b5`, matching the "master advanced during promotion" account |
+| Blob identity, approved files vs merged tree | 6 of 6 IDENTICAL |
+| Path overlap, candidate's 27 files vs master's side | **0**, as a set intersection |
+| `artifacts/beaaa-387/` tree hash | `e6edbe7a11ea0101d99f0e07520afcdc68935bf5` at `ee8af4cd`, `b7cb9a99`, `4acd94ef` and `40abb5cb` |
+
+Blob hashes: `scripts/release_gate_n5.py` `1fe5b2a1`, `tests/test_release_gate_n5_beaaa10187.py`
+`f7167873`, `…2026-07-31-4c36de2-vs-a9dc724.json` `24835c7b`, `…2026-07-31-4c36de2-vs-a9dc724.md`
+`2a085e64`, `…2026-08-01-f9a60012-vs-cd464001.json` `e0c855ac`,
+`artifacts/beaaa-23845/provenance-correction-ledger.json` `dfa662a5`.
+
+One identical `artifacts/beaaa-387/` tree hash across all four commits is the load-bearing
+fact for Supreme Law Layer 2 here: `_frozen_input_hashes` reads only that directory, so the
+plus-or-minus-0 N=5 measured at `b7cb9a99` describes the merged tree. That is stronger than
+"untouched by master's 86 commits", which is a statement about a commit range rather than
+about the tree the gate actually reads.
+
+### Residual recount on the merged tree, and a correction for BEAAA-23947
+
+Counted independently, not inherited: **25** JSON with `"cto_cosign_ref": "BEAAA-14867"` and
+**21** markdown with a co-sign line — **46 total**, reproducing the handover. Exactly **3**
+files carry a live `"issue": "BEAAA-17963"` key
+(`artifacts/beaaa-21704/n5/2026-08-10-8562e9a5…-vs-HEAD.json`,
+`artifacts/beaaa-21704/n5/calibration_delta.json`,
+`tools/calibration-deltas/2026-07-27-beaaa18123-partner-kit-n5.json`); every other hit is
+`correction_note` prose, so a bare `BEAAA-17963` grep is not a safe selector.
+
+The handover's "22 files whose only mention is `approval_provenance[].decision_ref`" is
+inverted. Measured:
+
+| Set | Count | Sweep action |
+|---|---|---|
+| Cite `BEAAA-14867` in a `decision_ref` | 46 | 45 JSON plus `scripts/release_gate_n5.py` |
+| **Also carry the false `cto_cosign_ref`** | **22** | Edit one field, preserve another, same file |
+| Cite it **only** in `decision_ref` | **24** | Do not open at all |
+
+22 is the overlap set; the only-mention set is 24. Taken as written, a sweep owner would
+build a 22-file exclusion list, then edit 22 files that list was meant to protect, while 24
+hands-off files never appear on it.
+
+Safe selector: the two uses are distinguishable by exact value. `decision_ref` is always
+`BEAAA-14867#comment-<uuid>` on this tree — the bare `"decision_ref": "BEAAA-14867"` occurs
+zero times — while the false co-sign is always the bare `"cto_cosign_ref": "BEAAA-14867"`.
+Sweeping the exact key-and-value pair cannot catch a true citation even inside the 22
+overlap files; a bare-id replace would touch 46 and corrupt 24.
+
+Reported on BEAAA-23845 (BEAAA-23947 returns 403 from the QA seat) for carry-across to the
+sweep ticket.
