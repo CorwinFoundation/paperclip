@@ -919,8 +919,7 @@
     "passed": true
   },
   "attribution_basis": "Owning ticket verified, not inferred: the co-located sibling receipt tools/calibration-deltas/2026-08-01-f9a60012-vs-cd464001.md is a hand-authored BEAAA-20137 report whose recorded command names this exact file as its --json-out target, and whose baseline commit f9a60012fa84e3905add75132ef9cb717b4236bd matches this receipt's baseline_commit. Its H1 and body match the Paperclip title of BEAAA-20137, 'Integrate only QA-approved atomic activation delta onto frozen Scanner master'. artifacts/beaaa-20137/integration-evidence.md cites that .md as its release N=5 proof.",
-  "authoritative": false,
-  "authoritative_pending": "BEAAA-23845: excluded from the authoritative calibration-receipt set, and from any receipt index or evidence collector, until the CTO confirms the amendment to ruling item 2 recorded on BEAAA-23845. The ruling directed quarantine on the premise that these two receipts were unattributable; attribution has since been verified against the sibling receipts and Paperclip ticket titles, so the header records the verified owner rather than asserting an unknown one. Flip authoritative to true on confirmation.",
+  "authoritative": true,
   "baseline": "f9a60012fa84e3905add75132ef9cb717b4236bd",
   "baseline_commit": "f9a60012fa84e3905add75132ef9cb717b4236bd",
   "baseline_tree": "7db00140af71b0372e1a97d854179de629054879",

@@ -11,10 +11,11 @@
       "added_fields": [
         "attribution_basis",
         "authoritative",
-        "authoritative_pending",
+        "authoritative_scope",
         "correction_note",
         "original_false_attribution"
       ],
+      "authoritative": true,
       "fields": [
         {
           "after": "BEAAA-19084",
@@ -29,15 +30,16 @@
       ],
       "file": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.json",
       "measured_values_changed": false,
-      "sha256_after": "bc2266ced4de326905eefdd05be06c02126ba33b817409ed2c9c8797920478d3",
+      "sha256_after": "42e18c8d8ca52bd7cb84b431136c0520c3cc43fcb47929d450fcee81c9e0f253",
       "sha256_before": "fb9fbc14a44a83a43ef3d14b4b024c4fd90c67647b21e0e9f516b2f88a093f54"
     },
     {
       "added_fields": [
         "authoritative",
-        "authoritative_pending",
+        "authoritative_scope",
         "correction_note"
       ],
+      "authoritative": true,
       "fields": [
         {
           "after": "unrecovered-pending-BEAAA-23845",
@@ -47,17 +49,17 @@
       ],
       "file": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.md",
       "measured_values_changed": false,
-      "sha256_after": "330230b4d31e189175c240f362b4fc8ffcb97de93da69db2f2a17f6ecbcc2f94",
+      "sha256_after": "8e1d7388bb33163752057032e9baf6167e7a42c194ab20fdb459039f461d2ece",
       "sha256_before": "493baea5d1d433346f40de93e2d1d05d1cc70d0e49c2570063d0a12a82303779"
     },
     {
       "added_fields": [
         "attribution_basis",
         "authoritative",
-        "authoritative_pending",
         "correction_note",
         "original_false_attribution"
       ],
+      "authoritative": true,
       "fields": [
         {
           "after": "BEAAA-20137",
@@ -72,11 +74,19 @@
       ],
       "file": "tools/calibration-deltas/2026-08-01-f9a60012-vs-cd464001.json",
       "measured_values_changed": false,
-      "sha256_after": "d891c103d61c3e7366efde813641a6ec4c9b6e3899c34a1e034eaa83658f1913",
+      "sha256_after": "f873797617db121eee025e2f53443721167e97ff4ff6346dabec5ac340c1381f",
       "sha256_before": "3f2a5fb7b2307e003aafd83b108b64ffe9fc2112f31bc6db7e3f11b4735fbc72"
     }
   ],
   "cto_cosign_ref": "not-required-rule-execution",
+  "cto_ruling": {
+    "binding_2026_07_31": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.{json,md} are authoritative as a MEASUREMENT RECORD ONLY. Not approval evidence. May not be cited to satisfy any co-sign, promotion, or release check. Anyone needing a co-signed N=5 on that lineage re-runs the gate.",
+    "binding_2026_08_01": "No equivalent limitation. Its sibling .md records classification rule-execution and cto_cosign_ref N/A-rule-execution, so the absence of a co-sign is recoverable rather than unknown, and the canonical value not-required-rule-execution is recorded.",
+    "effect": "The quarantine rested on a premise the CTO subsequently withdrew: that these two receipts had no recoverable owner. Attribution was verified against sibling receipts and live Paperclip ticket titles, so the headers record the verified owner. authoritative is true on all three files and the quarantine key is removed. The CTO independently re-derived both attributions rather than accepting the chain on trust. The word the original ruling used for that premise is deliberately absent from every artifact in this correction set, per the ruling.",
+    "marker_not_emittable": "unrecovered-pending-BEAAA-23845 cannot be produced by any live run. COSIGN_RE at scripts/release_gate_n5.py accepts only ^BEAAA-\\d+(#comment-[0-9A-Za-z._-]+)?$ or the literal not-required-rule-execution. This is what makes the marker safe to carry on an authoritative receipt, and it is why QA finding F3 (committed corpus not self-consistent with the invariant the same commit introduces) is explicitly ACCEPTED rather than resolved.",
+    "non_operative_flag_finding": "The authoritative flag is read by no code. Verified independently by the CTO at 190553b2 and by QA on master fb2cf1ef across all file types, not just *.py: zero JSON/schema-key occurrences outside artifacts/ and tools/calibration-deltas/, and no property, subscript or .get() access in py/sh/yml/js/ts/go/sql. The quarantine half of the original ruling was therefore never load-bearing; the only thing protecting the record is whether the header text is true. It also means this flip cannot move N=5, so any measured movement at this SHA is a hard stop rather than something to reconcile.",
+    "ruling": "BEAAA-23845 comment 3cdc164f, 2026-08-17. Amendment to ruling item 2 CONFIRMED (option 1)."
+  },
   "cto_ruling_ref": "BEAAA-23845#comment 2026-08-17T05:12:16.842Z",
   "defect": {
     "issue_literal_history": [
