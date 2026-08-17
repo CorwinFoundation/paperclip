@@ -168,6 +168,27 @@ Scope and reachability, stated plainly:
 This is the same family as the F1 residual reported on BEAAA-20704 and filed as BEAAA-23896,
 but with stronger evidence: a proven leak into a signed batch rather than a weak charset guard.
 
+## Reconciliation with the first R4 pass
+
+Two runs of this seat woke on the R4 supersession concurrently, both started 08:15Z. The other
+run committed `9ccee6bb` and posted `QA APPROVED` on the gate at 08:22:58Z, then set the gate
+`done`. This report is the second, independent pass; its evidence commit is `68ef3455`.
+
+The two passes reach the same verdict on the candidate, by different routes, so the recorded
+approval stands and is not retracted here. Two details in the first pass need correcting, and
+the first pass is preserved verbatim as `QA-REPORT-R4-first-pass.md`:
+
+1. It reports the mutation battery as "all 7 killed (M1–M6 + M_validatePins)". M_validatePins
+   (M7 here) **survives** at the Go unit level — `TestSyntheticVoiceRejectsProducerPinValueInjection`
+   still passes with `validateProducerPins` stubbed to `nil`, because the fixture's `event_id`
+   trips the opaque-token check first. It is killed only at the E2E layer. R3 recorded the same
+   asymmetry as a non-blocking residual. The guard is load-bearing; the claim about which layer
+   proves it is not accurate.
+2. It describes the metadata driver as one where "content injection is structurally impossible"
+   and "all semantic fields use closed enumerations". Finding F1 below disproves both for
+   `producer.collector_version`, `producer.scanner_version`, and `producer.corpus_version`.
+   Those three are unbounded free text, and content placed in them reaches a signed batch.
+
 ## Verdict
 
 APPROVED for candidate `89932217ebfadd2d0b6dbe4c6f233a09a61500b4` against this gate's
