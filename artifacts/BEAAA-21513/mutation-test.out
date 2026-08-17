@@ -1,0 +1,15 @@
+=== Mutation test of the acceptance-scope suite ===
+[SURVIVED ] M1 drop resolved-digest check in main()
+            6 passed in 0.37s
+[SURVIVED ] M2 drop frozen-manifest SHA check in main()
+            6 passed in 0.29s
+[KILLED   ] M3 drop OCI label comparison
+            2 failed, 4 passed in 0.49s
+[KILLED   ] M4 drop artifact archive SHA check
+            1 failed, 5 passed in 0.37s
+[SURVIVED ] M5 drop inspect single-image shape guard
+            6 passed in 0.31s
+[KILLED   ] M6 drop bundled image-tar checksum comparison
+            1 failed, 5 passed in 0.47s
+
+3/6 mutants killed; 3 SURVIVED
