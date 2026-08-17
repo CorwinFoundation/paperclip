@@ -1,0 +1,25 @@
+==========================================================================
+QA BEAAA-18614 — ISOLATION-PROPERTY PROOF (ruling D.4 / E)
+==========================================================================
+lane-C rows under proof: 44
+
+PART 1 — property on the real build
+  [real] cohorts run: 6; rows/cohort: 44
+  [real] numeric multiset all_pass : {'1.0': 44}
+  [real] numeric multiset all_fail : {'0.0': 44}
+  [real] aggregation surface       : {'score_contribution': [False], 'disposition': ['report-only'], 'bind_eligibility': 'eligible'}
+  -> isolation property holds: True
+
+PART 2 — sabotage self-test (does this proof detect a real leak?)
+  [sabotaged] cohorts run: 6; rows/cohort: 44
+  [sabotaged] numeric multiset all_pass : {'1.0': 44}
+  [sabotaged] numeric multiset all_fail : {'0.0': 44}
+  [sabotaged] aggregation surface       : {'score_contribution': [True], 'disposition': ['report-only'], 'bind_eligibility': 'eligible'}
+  -> proof DETECTED the sabotage: True
+     detected: cohort all_pass_1.0: score_contribution not uniformly False -> [True]
+     detected: cohort all_fail_0.0: score_contribution not uniformly False -> [True]
+     detected: cohort alternating: score_contribution not uniformly False -> [True]
+     detected: cohort huge_positive: score_contribution not uniformly False -> [True]
+
+==========================================================================
+RESULT: ISOLATION PROPERTY PROVEN, and the proof is demonstrably non-inert.
