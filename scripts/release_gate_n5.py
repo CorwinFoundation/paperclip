@@ -17,11 +17,13 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import statistics
 import subprocess
 import sys
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -530,12 +532,68 @@ def _frozen_input_hashes(repo: Path = REPO) -> dict[str, str]:
     }
 
 
+# BEAAA-23845: receipt provenance is a run input, never a template literal.
+# 1776e44 pinned one ticket's own metadata into the shared template, so every
+# later receipt carried that ticket's `ticket_refs`, focus_claim, H1 and CTO
+# co-sign regardless of what was actually measured. `ticket_refs` is required
+# under canon/artifact-metadata-schema.md, so a stale literal is a false
+# attribution an Auditor reads as fact. These values now fail closed.
+TICKET_RE = re.compile(r"^BEAAA-\d+$")
+COSIGN_RE = re.compile(r"^BEAAA-\d+(#comment-[0-9A-Za-z._-]+)?$")
+
+
+def _validate_receipt_provenance(
+    *,
+    issue: str,
+    cto_cosign_ref: str,
+    focus_claim: str,
+    ticket_refs: Sequence[str],
+) -> tuple[str, str, str, list[str]]:
+    """Reject absent or malformed receipt provenance rather than defaulting."""
+    issue = (issue or "").strip()
+    cto_cosign_ref = (cto_cosign_ref or "").strip()
+    focus_claim = (focus_claim or "").strip()
+    refs = [ref.strip() for ref in (ticket_refs or []) if ref and ref.strip()]
+
+    if not TICKET_RE.match(issue):
+        raise ValueError(
+            f"issue must be a BEAAA-NNN ticket id identifying this run; got {issue!r}"
+        )
+    if not COSIGN_RE.match(cto_cosign_ref):
+        raise ValueError(
+            "cto_cosign_ref must be BEAAA-NNN or BEAAA-NNN#comment-<id>; "
+            f"got {cto_cosign_ref!r}"
+        )
+    if not focus_claim:
+        raise ValueError("focus_claim must state what this receipt evidences")
+    if not refs:
+        raise ValueError(
+            "ticket_refs must list at least the owning ticket; it is required "
+            "under canon/artifact-metadata-schema.md"
+        )
+    malformed = [ref for ref in refs if not TICKET_RE.match(ref)]
+    if malformed:
+        raise ValueError(f"ticket_refs entries must be BEAAA-NNN; got {malformed!r}")
+    # The observed defect was an H1 naming one ticket while the body measured
+    # another. Requiring the owning ticket in ticket_refs makes that unwritable.
+    if issue not in refs:
+        raise ValueError(
+            f"issue {issue} must appear in ticket_refs {refs}; "
+            "the receipt header would otherwise disagree with its own provenance"
+        )
+    return issue, cto_cosign_ref, focus_claim, refs
+
+
 def run_gate(
     *,
     manifest_path: Path = MANIFEST_PATH,
     out_dir: Path = OUT_DIR,
     baseline_label: str,
     candidate_label: str,
+    issue: str,
+    cto_cosign_ref: str,
+    focus_claim: str,
+    ticket_refs: Sequence[str],
     phase: str = "development",
     today: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
@@ -544,6 +602,12 @@ def run_gate(
             "production/underwriting drift policy is not configured; "
             "a named baseline and explicitly approved review policy are required"
         )
+    issue, cto_cosign_ref, focus_claim, ticket_refs = _validate_receipt_provenance(
+        issue=issue,
+        cto_cosign_ref=cto_cosign_ref,
+        focus_claim=focus_claim,
+        ticket_refs=ticket_refs,
+    )
     manifest = _load_json(manifest_path)
     today = today or datetime.now(timezone.utc).date().isoformat()
     results: list[AgentGateResult] = []
@@ -652,7 +716,9 @@ def run_gate(
         )
     ]
     report = {
-        "issue": "BEAAA-17963",
+        "issue": issue,
+        "focus_claim": focus_claim,
+        "ticket_refs": list(ticket_refs),
         "contract": "are-scanner-api-v1@v1.3.0",
         "scanner_version": "0.5.0",
         "corpus_version": RELEASE_GATE_CORPUS_VERSION,
@@ -661,7 +727,7 @@ def run_gate(
             "GOVERNANCE.PII.HANDLING_ATTESTATION",
             "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
         ],
-        "cto_cosign_ref": "BEAAA-14867",
+        "cto_cosign_ref": cto_cosign_ref,
         "movement_accounting_decision_ref": MOVEMENT_ACCOUNTING_DECISION_REF,
         "phase": phase,
         "founder_directive": "2026-07-24 phase-aware score drift",
@@ -762,6 +828,12 @@ def _spread_text(spread: dict[str, float]) -> str:
 
 
 def _render_markdown(report: dict[str, Any]) -> str:
+    # BEAAA-23845: read provenance off the report so the header describes the
+    # run that produced it. Missing keys fail loudly instead of falling back to
+    # a literal, which is how the stale attribution went unnoticed.
+    missing = [key for key in ("issue", "focus_claim", "ticket_refs") if not report.get(key)]
+    if missing:
+        raise ValueError(f"receipt provenance missing from report: {missing}")
     lines = [
         "---",
         "artifact_type: other",
@@ -769,9 +841,11 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "persona_audience: internal",
         f"phase: {report['phase']}",
         "canonical_terms_only: true",
-        'focus_claim: "BEAAA-17963 discloses measured development score drift while preserving reproducibility and evidence integrity."',
+        f'focus_claim: "{report["focus_claim"]}"',
         'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
-        'ticket_refs: ["BEAAA-17963", "BEAAA-17956", "BEAAA-17386"]',
+        "ticket_refs: ["
+        + ", ".join(f'"{ref}"' for ref in report["ticket_refs"])
+        + "]",
         'proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]',
         "version: 0.2",
         'prior_version: "BEAAA-14874 receipt v0.1"',
@@ -779,7 +853,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         'escalations_noted: ["Founder directive 2026-07-24 makes measured score and pillar deltas informational for development builds. Production or underwriting transition requires a named frozen baseline and separately approved review policy."]',
         "---",
         "",
-        "# BEAAA-17963 Development N=5 Replay",
+        f"# {report['issue']} Development N=5 Replay",
         "",
         f"- Contract: `{report['contract']}`",
         f"- Scanner version: `{report['scanner_version']}`",
@@ -926,6 +1000,30 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=("development",),
         help="Explicit lifecycle phase. Production/underwriting requires a separately approved drift policy.",
     )
+    # BEAAA-23845: receipt provenance is required, with no default. A run that
+    # cannot say which ticket it evidences must not emit a receipt at all.
+    parser.add_argument(
+        "--issue",
+        required=True,
+        help="BEAAA-NNN ticket this run evidences. Sets the receipt H1.",
+    )
+    parser.add_argument(
+        "--cto-cosign-ref",
+        required=True,
+        help="CTO co-sign for this run: BEAAA-NNN or BEAAA-NNN#comment-<id>.",
+    )
+    parser.add_argument(
+        "--focus-claim",
+        required=True,
+        help="One sentence stating what this receipt evidences.",
+    )
+    parser.add_argument(
+        "--ticket-refs",
+        required=True,
+        nargs="+",
+        metavar="BEAAA-NNN",
+        help="Tickets this receipt attributes to, including --issue.",
+    )
     parser.add_argument("--today", default=None, help="YYYY-MM-DD override for deterministic tests.")
     parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
@@ -940,6 +1038,10 @@ def main(argv: list[str] | None = None) -> int:
         out_dir=args.out_dir,
         baseline_label=args.baseline,
         candidate_label=args.candidate,
+        issue=args.issue,
+        cto_cosign_ref=args.cto_cosign_ref,
+        focus_claim=args.focus_claim,
+        ticket_refs=args.ticket_refs,
         phase=args.phase,
         today=args.today,
     )
