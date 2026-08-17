@@ -275,6 +275,55 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
     return True
 
 
+#: Provenance a lane-C row must carry before ``target_bound`` may be true
+#: (BEAAA-23860): who was executed, what class of target it was, and the
+#: per-seed record of the runs that produced the verdict.
+LANE_C_TARGET_PROVENANCE_FIELDS = ("target_identity", "target_class", "run_provenance")
+
+
+def _is_lane_c_family(benchmark: str) -> bool:
+    from harness.lane_c_adapter import is_lane_c_family
+
+    return is_lane_c_family(benchmark)
+
+
+def _lane_c_runner_bound(benchmark: str, case_id: Any) -> bool:
+    """Whether the registered executor has a bound adapter for this case.
+
+    An unrecognized lane-C family or case must not fall through as executable,
+    so this gates ``production_runner_executable`` rather than trusting the
+    mapping's own declaration.
+    """
+
+    from harness.lane_c_adapter import has_bound_case
+
+    return has_bound_case(benchmark, str(case_id))
+
+
+def _has_lane_c_run_provenance(
+    probe: dict[str, Any],
+    mapping: dict[str, Any],
+) -> bool:
+    """Whether this probe's evidence names a real target and real runs."""
+
+    evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    if not isinstance(evidence, dict):
+        return False
+    if any(not evidence.get(field) for field in LANE_C_TARGET_PROVENANCE_FIELDS):
+        return False
+    runs = evidence.get("run_provenance")
+    if not isinstance(runs, list) or not runs:
+        return False
+    return all(
+        isinstance(run, dict)
+        and run.get("seed") in (0, 1, 2, 3, 4)
+        and bool(run.get("sha256"))
+        and bool(run.get("evidence_uri"))
+        and bool(run.get("verdict"))
+        for run in runs
+    )
+
+
 def _execution_evidence_status(
     probe: dict[str, Any],
     mapping: dict[str, Any],
@@ -419,6 +468,27 @@ def build_registry(
             if materializable and not execution_evidenced:
                 evidence_status = "target_bound_evidence_pending"
             executable_for_count = executable and target_bound and execution_evidenced
+            if _is_lane_c_family(benchmark):
+                # BEAAA-23860: for lane C, target_bound is derived only from
+                # captured target identity/class plus run provenance, and the row
+                # is executable only when the registered runner can actually run
+                # it. Mapping membership alone is not enough for either flag.
+                target_bound = execution_evidenced and _has_lane_c_run_provenance(
+                    probe, data
+                )
+                if not target_bound:
+                    execution_evidenced = False
+                    evidence_status = "lane_c_evidence_not_target_derived"
+                executable_for_count = (
+                    executable
+                    and target_bound
+                    and execution_evidenced
+                    and _lane_c_runner_bound(benchmark, probe_id)
+                )
+                if not executable_for_count and evidence_status == (
+                    "target_bound_and_evidenced"
+                ):
+                    evidence_status = "lane_c_registered_runner_not_bound"
             direct_pillar = probe.get("pillar")
             direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
             if direct_pillar and direct_rubric_id:
@@ -518,7 +588,23 @@ def _merge_content_candidate_inventory(
         }
         current = existing.get(key)
         if current is not None and current.get("production_runner_executable") is True:
+            # The mapping row already has a bound production runner, so it wins
+            # and the row stays on its SPEC runner (BEAAA-23860 accepts this
+            # re-homing for lane C). The inventory still owns the row's distinct
+            # -coverage identity: dropping it here would silently shrink the
+            # distinct-case count by one row per graduated case, so carry it
+            # across unchanged.
             current.update(candidate_metadata)
+            if _is_lane_c_family(family_id) and not current.get(
+                "runtime_case_identity"
+            ):
+                current["runtime_case_identity"] = candidate_runtime_identity(candidate)
+                # ``canonical_runtime_case`` defaults to False on a mapping row,
+                # so this has to be assigned rather than defaulted: the graduated
+                # row *is* the one canonical carrier of that identity, and
+                # leaving it False drops the canonical count by one per row.
+                current["canonical_runtime_case"] = True
+                current["alias_of_runtime_case_identity"] = None
             continue
 
         runtime_identity = candidate_runtime_identity(candidate)

@@ -360,8 +360,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     canonical_manifest = json.dumps(
         pinned_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+    # Refreshed for the lane-C adapter (BEAAA-23860): the manifest embeds
+    # pins.evaluator, which is the sha256 of tools/registered_case_executor.py.
+    # Substituting the previous evaluator hash back into this manifest
+    # reproduces ac670e51... exactly, so that pin is the only field that moved;
+    # budget (180 target calls, 0 judge calls), the three families and every
+    # zero-weight invariant are unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "ac670e5133d6020182b733c32b084192b224fdd52ac7982991baa66d823b05ef"
+        "02f41c25e0131803c1f7f01a80e203fee732ad3b660e94c21e0042d3f99ba4e6"
     )
 
 

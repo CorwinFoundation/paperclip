@@ -65,9 +65,12 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     assert len(rows) == 2_242
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
+    # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
+    # executed by the registered lane-C adapter, so they are counted under
+    # bench_wrapper. 1_782/218 was the pre-graduation split.
     assert Counter(row["runner"] for row in candidates) == {
-        "content_candidate_worker": 1_782,
-        "bench_wrapper": 218,
+        "content_candidate_worker": 1_738,
+        "bench_wrapper": 262,
     }
     assert all(row["production_runner_executable"] is True for row in candidates)
     registration_statuses = Counter(
@@ -107,15 +110,22 @@ def test_candidate_materializer_handles_pairs_and_conversation_events() -> None:
 
 
 def test_candidate_adapter_calls_target_and_pinned_judge(tmp_path: Path) -> None:
+    # Fixture moved off human_escalation_flagging/esc-01: that row graduated to
+    # the lane-C SPEC runner under BEAAA-23860 and is no longer executed by this
+    # adapter. out_of_scope_containment/oosc-001 is the equivalent row still on
+    # content_candidate_worker — same deterministic_field_assertion oracle, one
+    # prompt, ensemble of one. The lane-C path is covered by
+    # tests/test_beaaa21723_lane_c_registered_runner.py.
     rows = build_registry()
     row = next(
         row
         for row in rows
-        if row["test_id"] == "human_escalation_flagging"
-        and row["case_id"] == "esc-01"
+        if row["test_id"] == "out_of_scope_containment"
+        and row["case_id"] == "oosc-001"
     )
+    assert row["runner"] == "content_candidate_worker"
     executor = RegisteredCaseExecutor(
-        subject=MockRunner("target", lambda _prompt: '{"escalate":true}'),
+        subject=MockRunner("target", lambda _prompt: '{"contained_to_scope":true}'),
         judge=MockRunner(
             "judge",
             lambda _prompt: '{"verdict":"pass","score":1.0}',
@@ -127,7 +137,7 @@ def test_candidate_adapter_calls_target_and_pinned_judge(tmp_path: Path) -> None
     outcome = executor._execute_content_candidate(row["test_id"], row["case_id"])
 
     assert outcome["verdict"] == "pass"
-    assert outcome["responses"] == ['{"escalate":true}']
+    assert outcome["responses"] == ['{"contained_to_scope":true}']
     assert outcome["judge"]["oracle_type"] == "deterministic_field_assertion"
     assert outcome["judge"]["computed_runtime_case_identity"] == row[
         "runtime_case_identity"
@@ -272,10 +282,16 @@ def test_nonallowlisted_candidate_cannot_forge_measured_permission(
     sha = _candidate_sha()
     monkeypatch.setenv("BACKBOND_RUNTIME_COMMIT_SHA", sha)
     monkeypatch.setenv("BACKBOND_TRANCHE1_AUTHORIZED_COMMIT_SHA", sha)
+    # Was starved by the lane-C graduation: no human_escalation_flagging row is
+    # on content_candidate_worker any more, so this selection died on
+    # StopIteration. It now guards the content-candidate path on a row that
+    # still uses it. The same rejection is asserted against a graduated
+    # bench_wrapper row in test_beaaa21723_lane_c_registered_runner.py, so the
+    # guard covers both runners rather than being narrowed to one.
     row = next(
         row
         for row in build_registry()
-        if row["test_id"] == "human_escalation_flagging"
+        if row["test_id"] == "out_of_scope_containment"
         and row["runner"] == "content_candidate_worker"
     )
     forged = copy.deepcopy(row)
@@ -408,8 +424,11 @@ def test_default_budget_covers_the_registered_candidate_adapter_calls() -> None:
     candidate_judge_calls = sum(candidate_judge_ensemble_n(spec) for spec in specs)
     budget = ScanBudget()
 
-    assert candidate_target_calls == 2_805
-    assert candidate_judge_calls == 2_468
+    # Repinned by the BEAAA-23860 ruling: the 44 lane-C rows left this worker,
+    # so they no longer draw on the content-candidate call budget. They are
+    # budgeted by the registered lane-C adapter instead (5 seeds x 44 rows).
+    assert candidate_target_calls == 2_748
+    assert candidate_judge_calls == 2_424
     assert candidate_target_calls < budget.max_target_calls
     assert candidate_judge_calls < budget.max_judge_calls
 
@@ -422,7 +441,7 @@ def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> Non
         if worker["worker_id"] == "content_candidate"
     )
 
-    assert worker["active_registry_rows"] == 1_782
+    assert worker["active_registry_rows"] == 1_738
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True
