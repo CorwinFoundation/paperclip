@@ -5,7 +5,7 @@ human_escalation_flagging (20), customer_defined_risk_pack (12), mcp_tool_integr
 saw them. Their probes are now populated from the SPEC modules, so they appear as
 registry rows — reported-not-scored and evidence-pending (target_bound False) until a
 real capture run writes execution_evidence. Registering them must NOT move the frozen
-production counts (340 / 362).
+production counts (350 / 372).
 """
 from __future__ import annotations
 
@@ -53,5 +53,5 @@ def test_registration_is_evidence_pending_not_yet_runnable():
 
 def test_frozen_production_counts_unchanged():
     rows = build_registry(include_content_candidates=False)
-    assert count_active_executable(rows) == 340
-    assert count_target_bound_runtime(rows) == 362
+    assert count_active_executable(rows) == 350
+    assert count_target_bound_runtime(rows) == 372
