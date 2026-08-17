@@ -21,3 +21,10 @@ tokens and before leaving any comment on the issue.
 3. Let next heartbeat wake fresh (no decomposition needed — this is session hygiene, not scope).
 
 Verdict: **close as not productive / session reset required**.
+
+## API status
+
+Paperclip API (port 3100) was down across all 3 heartbeats (2026-08-17 ~19:17–19:25 UTC).
+Issue cannot be marked `done` until the API recovers. Disposition is server-side durable on GitHub
+branch `agent/beaaa-23699-monitor-transport` (commit `12a9136a`). Background poster (PID 3150671)
+will mark done on recovery. **Blocker: Paperclip API down — unblock owner: infrastructure/harness.**
