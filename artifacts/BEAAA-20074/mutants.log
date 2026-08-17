@@ -1,0 +1,3 @@
+M2 inspect_no_content -> no-op        : PASS | no_content_recursive= True
+M3 zero normalized events            : PASS | log_tracker_interface= True | continuity= True
+M4 chain broken (control)            : FAIL | prev_batch_hash_chain= False

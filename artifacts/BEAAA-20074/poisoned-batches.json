@@ -1,0 +1,164 @@
+[
+  {
+    "agent": "voice-agent",
+    "batch_id": "voice-batch-1",
+    "batch_sha256": "sha256:1675fb134757212ffef2f2ae087cde7c9a23442aa2bbc650c78c9df9a85f13ac",
+    "customer_id": "synthetic-voice",
+    "event_count": 1,
+    "events": [
+      {
+        "event_id": "voice-1",
+        "event_type": "agent_invocation",
+        "logged_at": "2026-07-31T00:01:00Z",
+        "payload": {
+          "action_class": "voice_metadata",
+          "agent_id": "voice-agent",
+          "attributes": {
+            "producer_pins": {
+              "caller_phone_number": "<SYNTH-PHONE-REDACTED>",
+              "fixture": "synthetic-voice-fixture-v1.0",
+              "mapping": "synthetic-voice-map-v1.0",
+              "recording_uri": "s3://calls/abc.wav",
+              "source_driver": "source-driver-v0.1",
+              "speech_text": "my social is <SYNTH-SSN-REDACTED>, card <SYNTH-PAN-REDACTED>",
+              "transcript_url": "https://cdn.example/calls/abc.txt"
+            },
+            "schema_event_type": "agent_invocation",
+            "voice_event_class": "session_summary"
+          },
+          "billable": false,
+          "deployment_id": "voice-reference",
+          "mapping_version": "synthetic-voice-map-v1.0",
+          "operation_name": "observe_voice_session",
+          "outcome_status": "ok",
+          "session_id": "session-synthetic",
+          "source_integrity": {
+            "driver_version": "source-driver-v0.1",
+            "source_pin": "synthetic-voice-fixture-v1.0"
+          }
+        },
+        "redaction_applied": [],
+        "schema_version": "log-event-schema-v1.0",
+        "source_kind": "numbat"
+      }
+    ],
+    "issued_at": "2026-08-17T04:11:34Z",
+    "jwt": "eyJhbGciOiJFZERTQSIsImtpZCI6InN5bnRoZXRpYy12b2ljZS1lMmUiLCJ0eXAiOiJKV1QifQ.eyJhZ2VudCI6InZvaWNlLWFnZW50IiwiYmF0Y2hfaWQiOiJ2b2ljZS1iYXRjaC0xIiwiYmF0Y2hfc2hhMjU2Ijoic2hhMjU2OjE2NzVmYjEzNDc1NzIxMmZmZWYyZjJhZTA4N2NkZTdjOWEyMzQ0MmFhMmJiYzY1MGM3OGM5ZGY5YTg1ZjEzYWMiLCJjdXN0b21lcl9pZCI6InN5bnRoZXRpYy12b2ljZSIsImV2ZW50X2NvdW50IjoxLCJleHAiOjE3ODY5NDA0OTQsImlzcyI6ImFyZS1jb2xsZWN0b3IiLCJpc3N1ZWRfYXQiOiIyMDI2LTA4LTE3VDA0OjExOjM0WiIsInByZXZfYmF0Y2hfaGFzaCI6bnVsbCwicHJvZHVjZXJfcGlucyI6eyJmaXh0dXJlIjoic3ludGhldGljLXZvaWNlLWZpeHR1cmUtdjEuMCIsIm1hcHBpbmciOiJzeW50aGV0aWMtdm9pY2UtbWFwLXYxLjAiLCJzb3VyY2VfZHJpdmVyIjoic291cmNlLWRyaXZlci12MC4xIn0sInNjaGVtYV92ZXJzaW9uIjoibG9nLWV2ZW50LXNjaGVtYS12MS4wIiwic2VxdWVuY2UiOjEsInN1YiI6InN5bnRoZXRpYy12b2ljZSJ9.Mxhrqa4c29Ws-5EFFhu3hyH20tmnOdMQ5lVjD6VxHCI_xDikQiD1lynhqSZTdJdzYQ__qmKO2nQ3LHOhkrl2Cg",
+    "prev_batch_hash": null,
+    "producer_pins": {
+      "fixture": "synthetic-voice-fixture-v1.0",
+      "mapping": "synthetic-voice-map-v1.0",
+      "source_driver": "source-driver-v0.1"
+    },
+    "schema_version": "log-event-schema-v1.0",
+    "sequence": 1
+  },
+  {
+    "agent": "voice-agent",
+    "batch_id": "voice-batch-2",
+    "batch_sha256": "sha256:f5d4208b16acbd5e4cbbd49e57590fa5a3cdc25e364b9d52c06945ada61ca642",
+    "customer_id": "synthetic-voice",
+    "event_count": 1,
+    "events": [
+      {
+        "event_id": "voice-2",
+        "event_type": "agent_invocation",
+        "logged_at": "2026-07-31T00:02:00Z",
+        "payload": {
+          "action_class": "voice_metadata",
+          "agent_id": "voice-agent",
+          "attributes": {
+            "producer_pins": {
+              "caller_phone_number": "<SYNTH-PHONE-REDACTED>",
+              "fixture": "synthetic-voice-fixture-v1.0",
+              "mapping": "synthetic-voice-map-v1.0",
+              "recording_uri": "s3://calls/abc.wav",
+              "source_driver": "source-driver-v0.1",
+              "speech_text": "my social is <SYNTH-SSN-REDACTED>, card <SYNTH-PAN-REDACTED>",
+              "transcript_url": "https://cdn.example/calls/abc.txt"
+            },
+            "schema_event_type": "agent_invocation",
+            "voice_event_class": "session_summary"
+          },
+          "billable": false,
+          "deployment_id": "voice-reference",
+          "mapping_version": "synthetic-voice-map-v1.0",
+          "operation_name": "observe_voice_session",
+          "outcome_status": "ok",
+          "session_id": "session-synthetic",
+          "source_integrity": {
+            "driver_version": "source-driver-v0.1",
+            "source_pin": "synthetic-voice-fixture-v1.0"
+          }
+        },
+        "redaction_applied": [],
+        "schema_version": "log-event-schema-v1.0",
+        "source_kind": "numbat"
+      }
+    ],
+    "issued_at": "2026-08-17T04:11:36Z",
+    "jwt": "eyJhbGciOiJFZERTQSIsImtpZCI6InN5bnRoZXRpYy12b2ljZS1lMmUiLCJ0eXAiOiJKV1QifQ.eyJhZ2VudCI6InZvaWNlLWFnZW50IiwiYmF0Y2hfaWQiOiJ2b2ljZS1iYXRjaC0yIiwiYmF0Y2hfc2hhMjU2Ijoic2hhMjU2OmY1ZDQyMDhiMTZhY2JkNWU0Y2JiZDQ5ZTU3NTkwZmE1YTNjZGMyNWUzNjRiOWQ1MmMwNjk0NWFkYTYxY2E2NDIiLCJjdXN0b21lcl9pZCI6InN5bnRoZXRpYy12b2ljZSIsImV2ZW50X2NvdW50IjoxLCJleHAiOjE3ODY5NDA0OTYsImlzcyI6ImFyZS1jb2xsZWN0b3IiLCJpc3N1ZWRfYXQiOiIyMDI2LTA4LTE3VDA0OjExOjM2WiIsInByZXZfYmF0Y2hfaGFzaCI6InNoYTI1NjoxNjc1ZmIxMzQ3NTcyMTJmZmVmMmYyYWUwODdjZGU3YzlhMjM0NDJhYTJiYmM2NTBjNzhjOWRmOWE4NWYxM2FjIiwicHJvZHVjZXJfcGlucyI6eyJmaXh0dXJlIjoic3ludGhldGljLXZvaWNlLWZpeHR1cmUtdjEuMCIsIm1hcHBpbmciOiJzeW50aGV0aWMtdm9pY2UtbWFwLXYxLjAiLCJzb3VyY2VfZHJpdmVyIjoic291cmNlLWRyaXZlci12MC4xIn0sInNjaGVtYV92ZXJzaW9uIjoibG9nLWV2ZW50LXNjaGVtYS12MS4wIiwic2VxdWVuY2UiOjIsInN1YiI6InN5bnRoZXRpYy12b2ljZSJ9.RG744tWhHgedVeSdz-44_tgzyWSNgtQCH9ovd8W3Nsf6-d447-SUyblS4OfJ3DV4wlC5IapQ_6hX7_CDfyO6Cw",
+    "prev_batch_hash": "sha256:1675fb134757212ffef2f2ae087cde7c9a23442aa2bbc650c78c9df9a85f13ac",
+    "producer_pins": {
+      "fixture": "synthetic-voice-fixture-v1.0",
+      "mapping": "synthetic-voice-map-v1.0",
+      "source_driver": "source-driver-v0.1"
+    },
+    "schema_version": "log-event-schema-v1.0",
+    "sequence": 2
+  },
+  {
+    "agent": "voice-agent",
+    "batch_id": "voice-batch-3",
+    "batch_sha256": "sha256:33caf8d833cc3313266df2d8f3c8072aa6a89d5a4ff4b642f260fceb1ca5defa",
+    "customer_id": "synthetic-voice",
+    "event_count": 1,
+    "events": [
+      {
+        "event_id": "voice-3",
+        "event_type": "agent_invocation",
+        "logged_at": "2026-07-31T00:03:00Z",
+        "payload": {
+          "action_class": "voice_metadata",
+          "agent_id": "voice-agent",
+          "attributes": {
+            "producer_pins": {
+              "caller_phone_number": "<SYNTH-PHONE-REDACTED>",
+              "fixture": "synthetic-voice-fixture-v1.0",
+              "mapping": "synthetic-voice-map-v1.0",
+              "recording_uri": "s3://calls/abc.wav",
+              "source_driver": "source-driver-v0.1",
+              "speech_text": "my social is <SYNTH-SSN-REDACTED>, card <SYNTH-PAN-REDACTED>",
+              "transcript_url": "https://cdn.example/calls/abc.txt"
+            },
+            "schema_event_type": "agent_invocation",
+            "voice_event_class": "session_summary"
+          },
+          "billable": false,
+          "deployment_id": "voice-reference",
+          "mapping_version": "synthetic-voice-map-v1.0",
+          "operation_name": "observe_voice_session",
+          "outcome_status": "ok",
+          "session_id": "session-synthetic",
+          "source_integrity": {
+            "driver_version": "source-driver-v0.1",
+            "source_pin": "synthetic-voice-fixture-v1.0"
+          }
+        },
+        "redaction_applied": [],
+        "schema_version": "log-event-schema-v1.0",
+        "source_kind": "numbat"
+      }
+    ],
+    "issued_at": "2026-08-17T04:11:37Z",
+    "jwt": "eyJhbGciOiJFZERTQSIsImtpZCI6InN5bnRoZXRpYy12b2ljZS1lMmUiLCJ0eXAiOiJKV1QifQ.eyJhZ2VudCI6InZvaWNlLWFnZW50IiwiYmF0Y2hfaWQiOiJ2b2ljZS1iYXRjaC0zIiwiYmF0Y2hfc2hhMjU2Ijoic2hhMjU2OjMzY2FmOGQ4MzNjYzMzMTMyNjZkZjJkOGYzYzgwNzJhYTZhODlkNWE0ZmY0YjY0MmYyNjBmY2ViMWNhNWRlZmEiLCJjdXN0b21lcl9pZCI6InN5bnRoZXRpYy12b2ljZSIsImV2ZW50X2NvdW50IjoxLCJleHAiOjE3ODY5NDA0OTcsImlzcyI6ImFyZS1jb2xsZWN0b3IiLCJpc3N1ZWRfYXQiOiIyMDI2LTA4LTE3VDA0OjExOjM3WiIsInByZXZfYmF0Y2hfaGFzaCI6InNoYTI1NjpmNWQ0MjA4YjE2YWNiZDVlNGNiYmQ0OWU1NzU5MGZhNWEzY2RjMjVlMzY0YjlkNTJjMDY5NDVhZGE2MWNhNjQyIiwicHJvZHVjZXJfcGlucyI6eyJmaXh0dXJlIjoic3ludGhldGljLXZvaWNlLWZpeHR1cmUtdjEuMCIsIm1hcHBpbmciOiJzeW50aGV0aWMtdm9pY2UtbWFwLXYxLjAiLCJzb3VyY2VfZHJpdmVyIjoic291cmNlLWRyaXZlci12MC4xIn0sInNjaGVtYV92ZXJzaW9uIjoibG9nLWV2ZW50LXNjaGVtYS12MS4wIiwic2VxdWVuY2UiOjMsInN1YiI6InN5bnRoZXRpYy12b2ljZSJ9.4RxXvZoLie0YgM3SGt-ZaUK-GDxQSnEqzZdm_qAwRLSMef8ptFJRlnKdGlmq65vq1AyfiETeAGtxEga_ogASBA",
+    "prev_batch_hash": "sha256:f5d4208b16acbd5e4cbbd49e57590fa5a3cdc25e364b9d52c06945ada61ca642",
+    "producer_pins": {
+      "fixture": "synthetic-voice-fixture-v1.0",
+      "mapping": "synthetic-voice-map-v1.0",
+      "source_driver": "source-driver-v0.1"
+    },
+    "schema_version": "log-event-schema-v1.0",
+    "sequence": 3
+  }
+]

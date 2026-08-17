@@ -1,0 +1,18 @@
+REPORT STATUS: PASS
+{
+  "content_injection_rejected": true,
+  "continuity": true,
+  "idempotency_replay_rejected": true,
+  "log_tracker_interface": true,
+  "no_content_recursive": true,
+  "prev_batch_hash_chain": true,
+  "producer_pins": true,
+  "signed_sequential_batches": true,
+  "tamper_rejected": true
+}
+
+== poison present in EMITTED signed batches.json ==
+  transcript_url         present=True
+  recording_uri          present=True
+  caller_phone_number    present=True
+  speech_text            present=True

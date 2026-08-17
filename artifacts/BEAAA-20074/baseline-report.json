@@ -1,0 +1,24 @@
+{
+  "assertions": {
+    "content_injection_rejected": true,
+    "continuity": true,
+    "idempotency_replay_rejected": true,
+    "log_tracker_interface": true,
+    "no_content_recursive": true,
+    "prev_batch_hash_chain": true,
+    "producer_pins": true,
+    "signed_sequential_batches": true,
+    "tamper_rejected": true
+  },
+  "counts": {
+    "batches": 3,
+    "normalized_events": 3
+  },
+  "platform": "synthetic-generic-reference",
+  "producer_pins": {
+    "fixture": "synthetic-voice-fixture-v1.0",
+    "mapping": "synthetic-voice-map-v1.0",
+    "source_driver": "source-driver-v0.1"
+  },
+  "status": "PASS"
+}
