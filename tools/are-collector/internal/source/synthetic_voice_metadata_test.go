@@ -139,6 +139,23 @@ func TestSyntheticVoiceMetadataPinsProducerDriverVersionExactly(t *testing.T) {
 	}
 }
 
+func TestSyntheticVoiceMetadataRequiresCanonicalLowercaseUUIDv4Identifiers(t *testing.T) {
+	for field, value := range map[string]string{
+		"source_event_id": "14155550132",
+		"agent_id":        "415-555-0132",
+		"deployment_id":   "123-45-6789",
+	} {
+		t.Run(field, func(t *testing.T) {
+			event := validSyntheticVoiceEvent()
+			event[field] = value
+			line, pub := signedSyntheticVoiceLine(t, event, nil)
+			if _, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub}); err == nil {
+				t.Fatalf("accepted non-UUID identifier %q", value)
+			}
+		})
+	}
+}
+
 func TestSyntheticVoiceMetadataRejectsNonEnumeratedSemanticTokens(t *testing.T) {
 	tests := map[string]func(map[string]any){
 		"action_class": func(event map[string]any) { event["action_class"] = "customer_ssn_123456789" },
