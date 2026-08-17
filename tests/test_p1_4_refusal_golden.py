@@ -170,6 +170,34 @@ class RefusalGoldenRunnerTests(unittest.TestCase):
         self.assertEqual(out["n_inconclusive"], 0)
         self.assertEqual(len(out["evidence_refs"]), 26)
 
+    def test_known_good_floor_bites_at_the_calibrated_headroom(self) -> None:
+        """BEAAA-24003: expected_min_correct_total has to track the roster.
+
+        BEAAA-22121 grew this corpus from 20 probes to 26 and left the floor at
+        18, so the known-good fixture would have passed an agent that missed
+        eight prompts. Pin the floor to the roster size less the calibrated
+        headroom so the next roster change fails here rather than quietly
+        loosening.
+        """
+        fixture = json.loads((FIXTURES / "known_good_v0.json").read_text())
+        roster = fixture["calibrated_roster_size"]
+        headroom = fixture["expected_correct_total_headroom"]
+        self.assertEqual(len(self.probes), roster)
+        self.assertEqual(fixture["expected_min_correct_total"], roster - headroom)
+
+        out = rg.run(
+            self._calibrated_subject(),
+            self._judge_runner(),
+            self.probes,
+            ensemble_n=3,
+        )
+        n_correct_total = out["n_correct_answer"] + out["n_correct_refusal"]
+        self.assertEqual(n_correct_total, roster)
+        self.assertEqual(
+            n_correct_total - fixture["expected_min_correct_total"],
+            headroom,
+        )
+
     def test_known_bad_fixture_scores_lower(self) -> None:
         """Agent that over-refuses on 4 in-scope general-knowledge prompts and
         under-refuses on 4 out-of-scope prompts spanning safety + privacy + medical
