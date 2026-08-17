@@ -1,0 +1,120 @@
+== entry counts ==
+ci_entries       = 14840
+alt_entries      = 14840
+only_in_ci       = 0 []
+only_in_alt      = 0 []
+common           = 14840
+identical        = 12392
+differing        = 2448
+pyc_header_only  = 2446
+other_differing  = 2
+
+== non-pyc differing entries ==
+   etc/group- type f / f size 434 / 434
+   etc/shadow type f / f size 496 / 496
+
+== /app differences ==
+app_differing = 0
+
+== named-file spot checks ==
+  etc/group-: identical=False
+     ci : root:*:0:
+     alt: root:x:0:
+     ci : daemon:*:1:
+     alt: daemon:x:1:
+     ci : bin:*:2:
+     alt: bin:x:2:
+     ci : sys:*:3:
+     alt: sys:x:3:
+     ci : adm:*:4:
+     alt: adm:x:4:
+     ci : tty:*:5:
+     alt: tty:x:5:
+     ci : disk:*:6:
+     alt: disk:x:6:
+     ci : lp:*:7:
+     alt: lp:x:7:
+     ci : mail:*:8:
+     alt: mail:x:8:
+     ci : news:*:9:
+     alt: news:x:9:
+     ci : uucp:*:10:
+     alt: uucp:x:10:
+     ci : man:*:12:
+     alt: man:x:12:
+     ci : proxy:*:13:
+     alt: proxy:x:13:
+     ci : kmem:*:15:
+     alt: kmem:x:15:
+     ci : dialout:*:20:
+     alt: dialout:x:20:
+     ci : fax:*:21:
+     alt: fax:x:21:
+     ci : voice:*:22:
+     alt: voice:x:22:
+     ci : cdrom:*:24:
+     alt: cdrom:x:24:
+     ci : floppy:*:25:
+     alt: floppy:x:25:
+     ci : tape:*:26:
+     alt: tape:x:26:
+     ci : sudo:*:27:
+     alt: sudo:x:27:
+     ci : audio:*:29:
+     alt: audio:x:29:
+     ci : dip:*:30:
+     alt: dip:x:30:
+     ci : www-data:*:33:
+     alt: www-data:x:33:
+     ci : backup:*:34:
+     alt: backup:x:34:
+     ci : operator:*:37:
+     alt: operator:x:37:
+     ci : list:*:38:
+     alt: list:x:38:
+     ci : irc:*:39:
+     alt: irc:x:39:
+     ci : src:*:40:
+     alt: src:x:40:
+     ci : shadow:*:42:
+     alt: shadow:x:42:
+     ci : utmp:*:43:
+     alt: utmp:x:43:
+     ci : video:*:44:
+     alt: video:x:44:
+     ci : sasl:*:45:
+     alt: sasl:x:45:
+     ci : plugdev:*:46:
+     alt: plugdev:x:46:
+     ci : staff:*:50:
+     alt: staff:x:50:
+     ci : games:*:60:
+     alt: games:x:60:
+     ci : users:*:100:
+     alt: users:x:100:
+     ci : nogroup:*:65534:
+     alt: nogroup:x:65534:
+  etc/shadow: identical=False
+     ci : scanner:!:20682::::::
+     alt: scanner:!:20679::::::
+  etc/group: identical=True
+  etc/passwd: identical=True
+
+== pyc header sanity (first 5) ==
+   opt/venv/lib/python3.11/site-packages/PIL/__pycache__/AvifImagePlugin.cpython-311.pyc a70d0d0a00000000b5c6826a22230000 -> a70d0d0a00000000842f7f6a22230000
+   opt/venv/lib/python3.11/site-packages/PIL/__pycache__/BdfFontFile.cpython-311.pyc a70d0d0a00000000b5c6826ad50c0000 -> a70d0d0a00000000842f7f6ad50c0000
+   opt/venv/lib/python3.11/site-packages/PIL/__pycache__/BlpImagePlugin.cpython-311.pyc a70d0d0a00000000b5c6826a95400000 -> a70d0d0a00000000842f7f6a95400000
+   opt/venv/lib/python3.11/site-packages/PIL/__pycache__/BmpImagePlugin.cpython-311.pyc a70d0d0a00000000b5c6826a8f4d0000 -> a70d0d0a00000000842f7f6a8f4d0000
+   opt/venv/lib/python3.11/site-packages/PIL/__pycache__/BufrStubImagePlugin.cpython-311.pyc a70d0d0a00000000b5c6826ac2060000 -> a70d0d0a00000000842f7f6ac2060000
+
+== config comparison ==
+ci_diff_ids ==alt_diff_ids: False
+positionally identical diff_ids: 4 [0, 1, 2, 3]
+ci_labels==alt_labels: True
+
+== release manifest / source commit ==
+  candidate manifest path: app/config/release-gate/beaaa-16747-scope-v1.json identical= True
+  candidate manifest path: app/release/backbond-scanner-release.json identical= True
+  candidate manifest path: app/release/backbond-scanner-release.schema.json identical= True
+  candidate manifest path: app/tools/calibration-deltas/2026-07-07-0.4.1-vs-beaaa-12394-jadepuffer-release-wire.json identical= True
+   app/.backbond-source-commit identical= True content= b'$Format:%H$\n'
