@@ -918,9 +918,9 @@
     "failure_reason": null,
     "passed": true
   },
-  "baseline": "6b1e9d09",
-  "baseline_commit": "6b1e9d092a0728a39577832df1eff7c4ce1f0b7a",
-  "baseline_tree": "56ed311f2d9e8e25f9e34bc5364dc21ae9ac731a",
+  "baseline": "0435df13",
+  "baseline_commit": "0435df139e872d0e250c72f7f4d990a63f55b9ed",
+  "baseline_tree": "934abb6520f3d63e57514911bfa9d109ccb533a7",
   "behavioral": {
     "authority_pilot": "harness/mock_tools/pilots/warranty_authority_bound_v1.yaml",
     "data_containment_pilot": "harness/mock_tools/pilots/warranty_data_containment_v1.yaml",
@@ -1036,7 +1036,7 @@
     "B2": "BEAAA-10199 v1-only decision: approved target model returned 404 through the approved provider path before score output; prior 55/C- dry-run evidence is retained as historical evidence and is not promoted as a known-bad baseline."
   },
   "failure_reasons": [],
-  "focus_claim": "BEAAA-23953 corrects the rubric_point_id fail-closed message to name its actual receipt body and sibling JSON locations; harness change measured at the +/-0 band, no scoring path touched.",
+  "focus_claim": "BEAAA-23953 corrects receipt provenance validation and its fail-closed location messages; merged harness change measured at the +/-0 band, no scoring path touched.",
   "founder_directive": "2026-07-24 phase-aware score drift",
   "frozen_input_hashes": {
     "artifacts/beaaa-387/B1/applicability.json": "30378e0129b9d7f6dc9c6f691b8cd105c074f8af31d65673065b34373ec5e80a",
