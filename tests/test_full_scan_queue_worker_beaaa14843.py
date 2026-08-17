@@ -95,8 +95,8 @@ def test_default_registry_loader_uses_live_production_registry(monkeypatch):
 def test_default_registry_loader_matches_standard_production_count():
     rows = list(load_default_full_scan_registry_rows())
 
-    assert len(rows) == count_active_executable(rows) == 2_202
-    assert distinct_case_counts(rows)["total"] == 2_201
+    assert len(rows) == count_active_executable(rows) == 2_212
+    assert distinct_case_counts(rows)["total"] == 2_211
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)
         == 2_000
