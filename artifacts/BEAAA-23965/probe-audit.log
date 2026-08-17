@@ -1,0 +1,91 @@
+2026-08-17T10:18:49Z verb=start port=8290 wttl=900 sid_bytes=16
+2026-08-17T10:18:50Z verb=wnew sid=yhDXDe1T live=1
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=0 n=1 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=1 n=2 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=3 n=3 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=4 n=4 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=5 n=5 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=6 n=6 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=7 n=7 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=8 n=8 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=9 n=9 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=10 n=10 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=11 n=11 chunk_len=34 rewrite=0
+2026-08-17T10:18:50Z verb=wgo sid=yhDXDe1T n=11 body_sha=None result=assembly_refused
+2026-08-17T10:18:50Z verb=wput sid=yhDXDe1T seq=2 n=12 chunk_len=40 rewrite=0
+2026-08-17T10:18:50Z verb=wgo sid=yhDXDe1T n=12 body_bytes=355 body_sha=073b400317b8 path=api/companies/X/issues declared=0
+2026-08-17T10:18:50Z verb=wgo sid=yhDXDe1T status=201 resp_bytes=26 resp_sha=e673211f5f4a attempt=1 committed=1
+2026-08-17T10:18:51Z verb=wgo sid=yhDXDe1T result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=yhDXDe1T result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=yhDXDe1T result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wput sid=yhDXDe1T seq=0 result=already_committed
+2026-08-17T10:18:51Z verb=wshow sid=yhDXDe1T status=201
+2026-08-17T10:18:51Z verb=wnew sid=lTuHZomJ live=2
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=0 n=1 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=1 n=2 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=2 n=3 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=3 n=4 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=4 n=5 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=5 n=6 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=6 n=7 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=7 n=8 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=8 n=9 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=9 n=10 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=10 n=11 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=lTuHZomJ seq=11 n=12 chunk_len=34 rewrite=0
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ n=12 body_bytes=355 body_sha=073b400317b8 path=api/companies/X/issues declared=0
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=commit_in_flight
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=commit_in_flight
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=commit_in_flight
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=commit_in_flight
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ status=201 resp_bytes=26 resp_sha=e673211f5f4a attempt=1 committed=1
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wgo sid=lTuHZomJ result=replay_refused prior_status=201
+2026-08-17T10:18:51Z verb=wnew sid=bpSUvpQL live=3
+2026-08-17T10:18:51Z verb=wput sid=bpSUvpQL seq=0 n=1 chunk_len=4 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=bpSUvpQL seq=1 n=2 chunk_len=4 rewrite=0
+2026-08-17T10:18:51Z verb=wnew sid=fqVaBXWg live=4
+2026-08-17T10:18:51Z verb=wput sid=fqVaBXWg seq=0 n=1 chunk_len=4 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=fqVaBXWg seq=1 n=2 chunk_len=4 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=fqVaBXWg seq=9 n=3 chunk_len=4 rewrite=0
+2026-08-17T10:18:51Z verb=wgo sid=fqVaBXWg n=3 body_sha=None result=assembly_refused
+2026-08-17T10:18:51Z verb=wnew sid=O40e3IId live=5
+2026-08-17T10:18:51Z verb=wput sid=O40e3IId seq=1 n=1 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=O40e3IId seq=2 n=2 chunk_len=40 rewrite=0
+2026-08-17T10:18:51Z verb=wput sid=O40e3IId seq=3 n=3 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=4 n=4 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=5 n=5 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=6 n=6 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=7 n=7 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=8 n=8 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=9 n=9 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=10 n=10 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=11 n=11 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=O40e3IId seq=12 n=12 chunk_len=34 rewrite=0
+2026-08-17T10:18:52Z verb=wgo sid=O40e3IId n=12 body_bytes=355 body_sha=073b400317b8 path=api/companies/X/issues declared=0
+2026-08-17T10:18:52Z verb=wgo sid=O40e3IId status=201 resp_bytes=26 resp_sha=e673211f5f4a attempt=1 committed=1
+2026-08-17T10:18:52Z verb=wnew sid=kaV2vq2B live=6
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=0 n=1 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=1 n=2 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=2 n=3 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=3 n=4 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=4 n=5 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=5 n=6 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=6 n=7 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=7 n=8 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=8 n=9 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=9 n=10 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=10 n=11 chunk_len=40 rewrite=0
+2026-08-17T10:18:52Z verb=wput sid=kaV2vq2B seq=11 n=12 chunk_len=34 rewrite=0
+2026-08-17T10:18:52Z verb=wgo sid=kaV2vq2B n=12 body_sha=073b400317b8 result=count_mismatch want_n=99
+2026-08-17T10:18:52Z verb=wgo sid=kaV2vq2B n=12 body_sha=073b400317b8 result=digest_mismatch want_sha=deadbeefcafe
+2026-08-17T10:18:52Z verb=wgo sid=kaV2vq2B n=12 body_bytes=355 body_sha=073b400317b8 path=api/companies/X/issues declared=1
+2026-08-17T10:18:52Z verb=wgo sid=kaV2vq2B status=201 resp_bytes=26 resp_sha=e673211f5f4a attempt=1 committed=1
+2026-08-17T10:18:52Z verb=wnew sid=Hp9U5ZNs live=7
+2026-08-17T10:18:52Z verb=wgo sid=Hp9U5ZNs n=0 body_sha=None result=assembly_refused
+2026-08-17T10:18:52Z verb=wgo sid=deadsid result=no_session
