@@ -10,12 +10,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const SyntheticVoiceMetadataMappingVersion = "synthetic-voice-metadata-map-v1.0"
+
+var (
+	syntheticVoiceOpaqueID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
+	syntheticVoiceToken    = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+)
 
 type SyntheticVoiceDetermination struct {
 	Class  string `json:"class"`
@@ -129,21 +135,32 @@ func decodeClosed(raw []byte, target any) error {
 }
 
 func validateSyntheticVoiceEvent(event SyntheticVoiceMetadataEvent) error {
-	if event.SourceEventID == "" || event.AgentID == "" || event.DeploymentID == "" {
-		return fmt.Errorf("source_event_id, agent_id, and deployment_id are required")
+	for name, value := range map[string]string{
+		"source_event_id": event.SourceEventID,
+		"agent_id":        event.AgentID,
+		"deployment_id":   event.DeploymentID,
+	} {
+		if !syntheticVoiceOpaqueID.MatchString(value) {
+			return fmt.Errorf("%s must be a bounded opaque identifier", name)
+		}
 	}
 	if _, err := time.Parse(time.RFC3339, event.ObservedAt); err != nil {
 		return fmt.Errorf("observed_at must be RFC3339: %w", err)
 	}
-	if event.Count < 1 || event.ActionClass == "" || event.OutcomeStatus == "" {
-		return fmt.Errorf("positive count, action_class, and outcome_status are required")
+	if event.Count < 1 {
+		return fmt.Errorf("positive count is required")
+	}
+	for name, value := range map[string]string{"action_class": event.ActionClass, "outcome_status": event.OutcomeStatus} {
+		if !syntheticVoiceToken.MatchString(value) {
+			return fmt.Errorf("%s must be a bounded closed token", name)
+		}
 	}
 	if len(event.Determinations) == 0 {
 		return fmt.Errorf("at least one determination is required")
 	}
 	for _, determination := range event.Determinations {
-		if determination.Class == "" || determination.Result == "" {
-			return fmt.Errorf("determination class and result are required")
+		if !syntheticVoiceToken.MatchString(determination.Class) || !syntheticVoiceToken.MatchString(determination.Result) {
+			return fmt.Errorf("determination class and result must be bounded closed tokens")
 		}
 	}
 	for name, value := range map[string]string{"commitments.evidence_sha256": event.Commitments.EvidenceSHA256, "continuity.previous_event_sha256": event.Continuity.PreviousEventSHA256} {

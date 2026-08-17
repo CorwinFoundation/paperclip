@@ -103,6 +103,42 @@ func TestSyntheticVoiceMetadataRejectsUnknownAndForbiddenBeforeAcquire(t *testin
 	}
 }
 
+func TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues(t *testing.T) {
+	pii := "Caller Jane Doe, SSN 123-45-6789, said: I want a refund now"
+	tests := map[string]func(map[string]any){
+		"source_event_id": func(event map[string]any) { event["source_event_id"] = pii },
+		"agent_id":        func(event map[string]any) { event["agent_id"] = "+1-415-555-0132" },
+		"deployment_id":   func(event map[string]any) { event["deployment_id"] = "verbatim call recording" },
+		"action_class":    func(event map[string]any) { event["action_class"] = "TRANSCRIPT: card 4111 1111 1111 1111" },
+		"outcome_status":  func(event map[string]any) { event["outcome_status"] = "customer response content" },
+		"determination_class": func(event map[string]any) {
+			event["determinations"].([]any)[0].(map[string]any)["class"] = "spoken PII"
+		},
+		"determination_result": func(event map[string]any) {
+			event["determinations"].([]any)[0].(map[string]any)["result"] = strings.Repeat("verbatim call recording ", 300)
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			event := validSyntheticVoiceEvent()
+			mutate(event)
+			line, pub := signedSyntheticVoiceLine(t, event, nil)
+			if _, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub}); err == nil {
+				t.Fatal("accepted transcript/content/PII-bearing free text")
+			}
+		})
+	}
+}
+
+func TestSyntheticVoiceMetadataPinsProducerDriverVersionExactly(t *testing.T) {
+	event := validSyntheticVoiceEvent()
+	event["producer"].(map[string]any)["driver_version"] = SyntheticVoiceMetadataMappingVersion + "-mutated"
+	line, pub := signedSyntheticVoiceLine(t, event, nil)
+	if _, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub}); err == nil {
+		t.Fatal("accepted producer.driver_version other than SyntheticVoiceMetadataMappingVersion")
+	}
+}
+
 func TestSyntheticVoiceMetadataRejectsSignatureReplayAndCheckpointFork(t *testing.T) {
 	event := validSyntheticVoiceEvent()
 	line, pub := signedSyntheticVoiceLine(t, event, nil)
