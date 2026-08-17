@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from tools.wave0_case_inventory import (
     FAMILY_PATHS,
@@ -70,16 +71,19 @@ def test_pinned_sources_match_their_recorded_hashes() -> None:
     assert verify_source_pin() == {"pinned_sources": len(FAMILY_PATHS) + 1}
 
 
-def test_pinned_source_read_fails_closed_on_tamper(tmp_path: Path) -> None:
+def test_pinned_source_read_fails_closed_on_tamper() -> None:
     rel = "rubric/probe_mappings/p1_1_factuality_golden.yaml"
-    original = (SOURCE_PIN_DIR / rel).read_bytes()
-    try:
-        (SOURCE_PIN_DIR / rel).write_bytes(original + b"\n# tamper\n")
+    manifest = pin_manifest()
+    manifest["files"][rel] = {**manifest["files"][rel], "sha256": "0" * 64}
+    with patch("tools.wave0_case_inventory.pin_manifest", return_value=manifest):
         with pytest.raises(ValueError, match="pinned sha256="):
             pinned_bytes(rel)
-    finally:
-        (SOURCE_PIN_DIR / rel).write_bytes(original)
-    assert pinned_bytes(rel) == original
+    assert pinned_bytes(rel) == (SOURCE_PIN_DIR / rel).read_bytes()
+
+
+def test_unpinned_source_is_refused() -> None:
+    with pytest.raises(ValueError, match="is not pinned by"):
+        pinned_bytes("rubric/probe_mappings/does_not_exist.yaml")
 
 
 def test_source_pin_is_byte_identical_to_source_revision() -> None:
@@ -117,17 +121,17 @@ def test_drift_reports_all_mismatches_not_just_the_first() -> None:
     assert {"p1_1_factuality_golden", "p1_3_consistency_golden"} <= set(drifted)
 
 
-def test_live_rubric_growth_does_not_change_the_frozen_inventory() -> None:
+def live_probe_count(rel: str) -> int:
+    return len(yaml.safe_load((ROOT / rel).read_text(encoding="utf-8"))["probes"])
+
+
+@pytest.mark.parametrize(
+    "family", ["p1_1_factuality_golden", "p1_4_refusal_golden"]
+)
+def test_live_rubric_growth_does_not_change_the_frozen_inventory(family: str) -> None:
     """BEAAA-24052 regression: the P1.1/P1.4 rosters grew in BEAAA-22121 and the
     derivation followed the live tree, so a frozen artifact went red on a change
     it does not describe. Derivation must read the pin only."""
-    live = yaml_probe_count("rubric/probe_mappings/p1_1_factuality_golden.yaml")
-    pinned = FAMILY_PATHS["p1_1_factuality_golden"][0]
-    assert live >= pinned, "roster shrank; the pin no longer describes a prefix of the live tree"
-    assert sum(1 for row in mapping_rows() if row["family_id"] == "p1_1_factuality_golden") == pinned
-
-
-def yaml_probe_count(rel: str) -> int:
-    import yaml
-
-    return len(yaml.safe_load((ROOT / rel).read_text(encoding="utf-8"))["probes"])
+    pinned, rel, _ = FAMILY_PATHS[family]
+    assert live_probe_count(rel) >= pinned, "roster shrank below the pinned snapshot"
+    assert sum(1 for row in mapping_rows() if row["family_id"] == family) == pinned
