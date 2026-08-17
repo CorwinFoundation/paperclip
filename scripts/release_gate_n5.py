@@ -540,6 +540,10 @@ def _frozen_input_hashes(repo: Path = REPO) -> dict[str, str]:
 # attribution an Auditor reads as fact. These values now fail closed.
 TICKET_RE = re.compile(r"^BEAAA-\d+$")
 COSIGN_RE = re.compile(r"^BEAAA-\d+(#comment-[0-9A-Za-z._-]+)?$")
+# A rule-execution run carries no CTO co-sign. Forcing a ticket id into the
+# field would manufacture the false provenance this guard exists to prevent,
+# so the absence has to be stated explicitly rather than filled in.
+COSIGN_NOT_REQUIRED = "not-required-rule-execution"
 
 
 def _validate_receipt_provenance(
@@ -559,9 +563,10 @@ def _validate_receipt_provenance(
         raise ValueError(
             f"issue must be a BEAAA-NNN ticket id identifying this run; got {issue!r}"
         )
-    if not COSIGN_RE.match(cto_cosign_ref):
+    if cto_cosign_ref != COSIGN_NOT_REQUIRED and not COSIGN_RE.match(cto_cosign_ref):
         raise ValueError(
-            "cto_cosign_ref must be BEAAA-NNN or BEAAA-NNN#comment-<id>; "
+            "cto_cosign_ref must be BEAAA-NNN, BEAAA-NNN#comment-<id>, or "
+            f"{COSIGN_NOT_REQUIRED!r} for a rule-execution run; "
             f"got {cto_cosign_ref!r}"
         )
     if not focus_claim:
@@ -1010,7 +1015,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--cto-cosign-ref",
         required=True,
-        help="CTO co-sign for this run: BEAAA-NNN or BEAAA-NNN#comment-<id>.",
+        help=(
+            "CTO co-sign for this run: BEAAA-NNN, BEAAA-NNN#comment-<id>, or "
+            f"'{COSIGN_NOT_REQUIRED}' when the run is rule-execution."
+        ),
     )
     parser.add_argument(
         "--focus-claim",

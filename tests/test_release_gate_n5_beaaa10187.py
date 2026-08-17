@@ -264,6 +264,19 @@ def test_receipt_provenance_fails_closed(kwargs, match):
         release_gate_n5._validate_receipt_provenance(**{**base, **kwargs})
 
 
+def test_rule_execution_states_absent_cosign_rather_than_inventing_one():
+    """BEAAA-23845: a rule-execution run must not borrow a ticket id as co-sign."""
+    issue, cosign, _claim, refs = release_gate_n5._validate_receipt_provenance(
+        issue="BEAAA-23845",
+        cto_cosign_ref=release_gate_n5.COSIGN_NOT_REQUIRED,
+        focus_claim="BEAAA-23845 parameterises receipt provenance.",
+        ticket_refs=["BEAAA-23845"],
+    )
+    assert issue == "BEAAA-23845"
+    assert cosign == "not-required-rule-execution"
+    assert refs == ["BEAAA-23845"]
+
+
 def test_receipt_provenance_is_required_by_the_cli():
     """BEAAA-23845: the CLI cannot be invoked without provenance."""
     with pytest.raises(SystemExit):
