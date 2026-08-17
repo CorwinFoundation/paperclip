@@ -96,6 +96,31 @@ ck "--report exits clean" "$($W --report >/dev/null 2>&1; echo $?)" "0"
 # 8. Bad mode is rejected rather than silently defaulting to --apply.
 ck "unknown mode rejected with EX_USAGE" "$($W --frobnicate >/dev/null 2>&1; echo $?)" "64"
 
+# 9. Disposable same-UID apply/revert: nice remains raised, while the observed
+#    reversible OOM adjustment and the captured I/O priority are restored.
+state_dir=$(mktemp -d)
+bash -c 'exec -a "/usr/bin/codex exec --json rollback-fixture" sleep 600' & rollback_pid=$!
+sleep 0.1
+before_nice=$(awk '{print $19}' /proc/$rollback_pid/stat)
+before_oom=$(cat /proc/$rollback_pid/oom_score_adj)
+before_io=$(LC_ALL=C ionice -p $rollback_pid)
+WARDEN_STATE_DIR="$state_dir" WARDEN_SEAT_ROOTS="$rollback_pid" $W --apply >/dev/null 2>&1
+applied_nice=$(awk '{print $19}' /proc/$rollback_pid/stat)
+applied_oom=$(cat /proc/$rollback_pid/oom_score_adj)
+applied_io=$(LC_ALL=C ionice -p $rollback_pid)
+WARDEN_STATE_DIR="$state_dir" WARDEN_SEAT_ROOTS="$rollback_pid" $W --revert >/dev/null 2>&1
+after_nice=$(awk '{print $19}' /proc/$rollback_pid/stat)
+after_oom=$(cat /proc/$rollback_pid/oom_score_adj)
+after_io=$(LC_ALL=C ionice -p $rollback_pid)
+kill $rollback_pid 2>/dev/null
+rm -rf "$state_dir"
+ck "same-UID apply raises nice" "$applied_nice" "10"
+ck "same-UID apply raises OOM adjustment" "$applied_oom" "500"
+ck "same-UID apply sets best-effort I/O priority" "$applied_io" "best-effort: prio 7"
+ck "same-UID revert documents irreducible nice residual" "$after_nice" "10"
+ck "same-UID revert restores OOM adjustment" "$after_oom" "$before_oom"
+ck "same-UID revert restores I/O priority" "$after_io" "$before_io"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

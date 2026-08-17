@@ -31,6 +31,7 @@ MODE="${1:---dry-run}"
 AGENT_NICE="${AGENT_NICE:-10}"
 AGENT_OOM_ADJ="${AGENT_OOM_ADJ:-500}"
 PORT="${PAPERCLIP_LISTEN_PORT:-3100}"
+STATE_DIR="${WARDEN_STATE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/backbond-agent-priority-warden-$(id -u)}"
 
 case "$MODE" in
   --dry-run|--apply|--revert|--report) ;;
@@ -65,7 +66,13 @@ for p in $(pgrep -u "$(id -u)" -f 'corepack pnpm|tsx src/index.ts' 2>/dev/null);
 is_protected() { case " $protected " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # ---- identify agent seats and their descendant trees ------------------------
-seat_roots=$(pgrep -u "$(id -u)" -f 'local/bin/claude --print|/usr/bin/codex exec --json' 2>/dev/null | sort -un)
+# WARDEN_SEAT_ROOTS is a test-only injection used to constrain mutation to a
+# disposable process. Production callers leave it unset and use discovery.
+if [ -n "${WARDEN_SEAT_ROOTS:-}" ]; then
+  seat_roots=$(printf '%s\n' "$WARDEN_SEAT_ROOTS" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un)
+else
+  seat_roots=$(pgrep -u "$(id -u)" -f 'local/bin/claude --print|/usr/bin/codex exec --json' 2>/dev/null | sort -un)
+fi
 
 descendants() { # emit pid + all descendants, breadth-first
   local queue="$1" out="" cur kids
@@ -91,6 +98,39 @@ done
 n_ok=0; n_skip=0; n_fail=0
 want_nice="$AGENT_NICE"; want_oom="$AGENT_OOM_ADJ"
 if [ "$MODE" = "--revert" ]; then want_nice=0; want_oom=0; fi
+
+start_time() { awk '{print $22}' /proc/"$1"/stat 2>/dev/null; }
+
+read_ioprio() {
+  local value
+  value=$(LC_ALL=C ionice -p "$1" 2>/dev/null) || return 1
+  case "$value" in
+    "none: prio "*) printf '0 %s\n' "${value##* }" ;;
+    "realtime: prio "*) printf '1 %s\n' "${value##* }" ;;
+    "best-effort: prio "*) printf '2 %s\n' "${value##* }" ;;
+    idle) printf '3 0\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+capture_state() {
+  local p="$1" file="$STATE_DIR/$1.state" io tmp
+  if [ -r "$file" ]; then
+    read -r recorded_start _ < "$file"
+    [ "$recorded_start" = "$(start_time "$p")" ] && return 0
+    rm -f "$file" || return 1
+  fi
+  io=$(read_ioprio "$p") || return 1
+  [ ! -L "$STATE_DIR" ] || return 1
+  mkdir -p "$STATE_DIR" || return 1
+  chmod 700 "$STATE_DIR" || return 1
+  [ "$(stat -c %u "$STATE_DIR" 2>/dev/null)" = "$(id -u)" ] || return 1
+  tmp="$file.$$"
+  (umask 077; printf '%s %s %s %s\n' "$(start_time "$p")" \
+    "$(awk '{print $19}' /proc/"$p"/stat)" \
+    "$(cat /proc/"$p"/oom_score_adj)" "$io" > "$tmp") || return 1
+  mv -n "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
+}
 
 printf 'mode=%s listener_pid=%s protected=%s seat_roots=%s targets=%s\n' \
   "$MODE" "${listener:-unknown}" "$(echo $protected | wc -w)" "$(echo $seat_roots | wc -w)" "$(echo $targets | wc -w)"
@@ -119,11 +159,39 @@ for p in $targets; do
     n_ok=$((n_ok+1)); continue
   fi
   ok=1
-  # Lowering nice or oom_score_adj needs privilege; --revert is therefore
-  # expected to fail on those and is a best-effort restore only.
-  renice -n "$want_nice" -p "$p" >/dev/null 2>&1 || ok=0
-  echo "$want_oom" > /proc/"$p"/oom_score_adj 2>/dev/null || ok=0
-  ionice -c 2 -n 7 -p "$p" >/dev/null 2>&1 || true
+  if [ "$MODE" = "--apply" ]; then
+    capture_state "$p" || { n_fail=$((n_fail+1)); continue; }
+    renice -n "$want_nice" -p "$p" >/dev/null 2>&1 || ok=0
+    echo "$want_oom" > /proc/"$p"/oom_score_adj 2>/dev/null || ok=0
+    ionice -c 2 -n 7 -p "$p" >/dev/null 2>&1 || ok=0
+  else
+    state="$STATE_DIR/$p.state"
+    if [ ! -r "$state" ]; then
+      printf '  cannot revert pid=%s: no captured state\n' "$p" >&2
+      ok=0
+    else
+      read -r saved_start saved_nice saved_oom saved_class saved_prio < "$state"
+      if [ "$(start_time "$p")" != "$saved_start" ]; then
+        printf '  cannot revert pid=%s: PID was reused\n' "$p" >&2
+        ok=0
+      else
+        # Same-UID Linux processes can restore oom_score_adj and I/O priority.
+        # They cannot decrease a raised nice value without CAP_SYS_NICE.
+        echo "$saved_oom" > /proc/"$p"/oom_score_adj 2>/dev/null || ok=0
+        if [ "$saved_class" = 3 ]; then
+          ionice -c 3 -p "$p" >/dev/null 2>&1 || ok=0
+        else
+          ionice -c "$saved_class" -n "$saved_prio" -p "$p" >/dev/null 2>&1 || ok=0
+        fi
+        cur_ni=$(awk '{print $19}' /proc/"$p"/stat 2>/dev/null)
+        if [ "$cur_ni" != "$saved_nice" ]; then
+          printf '  residual pid=%s nice=%s (prior=%s; CAP_SYS_NICE required)\n' \
+            "$p" "$cur_ni" "$saved_nice" >&2
+        fi
+        [ "$ok" = 1 ] && rm -f "$state"
+      fi
+    fi
+  fi
   if [ "$ok" = 1 ]; then n_ok=$((n_ok+1)); else n_fail=$((n_fail+1)); fi
 done
 

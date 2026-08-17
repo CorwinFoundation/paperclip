@@ -45,15 +45,20 @@ prior value back; capture it first.
 - Forward: `./agent-priority-warden.sh --apply`
 - Rollback: `./agent-priority-warden.sh --revert`
 
-Rollback is **best-effort and asymmetric**, which is the one thing to know
-before applying it. Raising `nice` and `oom_score_adj` is unprivileged;
-*lowering* them back is not. `--revert` will therefore fail to restore
-already-running processes and reports them in its `failed=` count. This is
-acceptable because the values are per-process and every agent seat is
-short-lived: the true rollback is to stop running `--apply`, after which all
-new seats spawn at the default nice 0 / oom_score_adj 0. If an immediate full
-restore is required, it needs root (`renice -n 0` as root) or a control-plane
-restart.
+`--apply` captures each process's start time, nice value, `oom_score_adj`, and
+I/O class/priority in a uid-private runtime directory before changing it.
+`--revert` rejects reused PIDs, then restores the captured `oom_score_adj` and
+I/O priority. On the observed uid 1001 host, `oom_score_adj 500 -> 0` is
+reversible by the same uid without effective capabilities.
+
+Nice restoration is different: after the same uid raises niceness from 0 to
+10, Linux requires `CAP_SYS_NICE` to lower it to 0. `--revert` therefore leaves
+the running process at nice 10 and prints an explicit residual. Complete
+operational rollback is: stop scheduling `--apply`; run `--revert` to restore
+OOM and I/O state; then allow affected short-lived seats to exit normally. New
+seats inherit nice 0. An immediate nice restore requires a privileged operator
+to run `renice -n <captured-prior-value> -p <pid>` or restart the affected seat,
+not the control plane.
 
 The warden never targets the listener, its ancestors, or postgres; that
 property is asserted by `test_warden_safety.sh` (10/10 on 2026-08-17,
