@@ -1,0 +1,23 @@
+MODULE: /tmp/qa23964/cand/scripts/release_gate_n5.py
+
+=== AC3: rejection + message names the character ===
+  double quote   REJECTED: focus_claim is emitted as a double-quoted YAML scalar and cannot contain a double quote; got 'B
+  backslash      REJECTED: focus_claim is emitted as a double-quoted YAML scalar and cannot contain a backslash; got 'BEAA
+  newline        REJECTED: focus_claim is emitted as a double-quoted YAML scalar and cannot contain a control character; g
+  tab            REJECTED: focus_claim is emitted as a double-quoted YAML scalar and cannot contain a control character; g
+  CR             REJECTED: focus_claim is emitted as a double-quoted YAML scalar and cannot contain a control character; g
+  DEL 0x7F       REJECTED: focus_claim is emitted as a double-quoted YAML scalar and cannot contain a control character; g
+
+=== AC4: round-trip through the REAL renderer ===
+  identical: True | "BEAAA-23953: rejects a claim's unsafe chars (#1 priority, 100%) -- see [BEAAA-23845]."
+
+=== ADVERSARIAL: chars PyYAML treats specially, NOT caught by (ord<0x20 or ==0x7F) ===
+  U+0085 NEL       ACCEPTED; frontmatter PARSED; round-trip-intact=False
+       claim in  : 'BEAAA-1 real claim.\x85owner: attacker'
+       claim out : 'BEAAA-1 real claim. owner: attacker'   <-- MUTATED
+       injected keys: ['artifact_type', 'escalations_noted', 'self_audit_passed']
+  U+2028 LINE SEP  ACCEPTED; frontmatter PARSED; round-trip-intact=True
+  U+2029 PARA SEP  ACCEPTED; frontmatter PARSED; round-trip-intact=True
+  U+00A0 NBSP      ACCEPTED; frontmatter PARSED; round-trip-intact=True
+  U+FEFF BOM       ACCEPTED; frontmatter PARSED; round-trip-intact=True
+  U+200B ZWSP      ACCEPTED; frontmatter PARSED; round-trip-intact=True

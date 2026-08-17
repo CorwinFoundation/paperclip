@@ -1,0 +1,9 @@
+baseline frontmatter keys (13): ['artifact_type', 'canonical_terms_only', 'contracts_referenced', 'escalations_noted', 'focus_claim', 'owner', 'persona_audience', 'phase', 'prior_version', 'proof_points_cited', 'self_audit_passed', 'ticket_refs', 'version']
+
+C1 range U+0080-U+009F (32 code points), fed to the guard then the renderer:
+  REJECTED by guard      : 0  []
+  accepted, receipt CLEAN: 0  []
+  accepted, FRONTMATTER UNPARSEABLE: 31
+      [('0x80', 'ReaderError'), ('0x81', 'ReaderError'), ('0x82', 'ReaderError'), ('0x83', 'ReaderError'), ('0x84', 'ReaderError'), ('0x86', 'ReaderError'), ('0x87', 'ReaderError'), ('0x88', 'ReaderError')] ...
+  accepted, claim SILENTLY MUTATED : 1
+      0x85 -> 'BEAAA-1 real claim. owner: attacker'   injected keys: NONE
