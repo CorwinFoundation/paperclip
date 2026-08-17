@@ -1,0 +1,189 @@
+{
+  "adr": "ADR-0067 \u00a74",
+  "candidate": "516078e2ac7a1ffd012f8498533bb27b048277ba",
+  "fields_differing_across_seeds_any_fixture": [
+    "seed"
+  ],
+  "fixtures": [
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "B1",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 33,
+        "1": 33,
+        "2": 33,
+        "3": 33,
+        "4": 33
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "B3",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 60,
+        "1": 60,
+        "2": 60,
+        "3": 60,
+        "4": 60
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "G1",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 81,
+        "1": 81,
+        "2": 81,
+        "3": 81,
+        "4": 81
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "G2",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 78,
+        "1": 78,
+        "2": 78,
+        "3": 78,
+        "4": 78
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "G3",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 75,
+        "1": 75,
+        "2": 75,
+        "3": 75,
+        "4": 75
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "M1",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 57,
+        "1": 57,
+        "2": 57,
+        "3": 57,
+        "4": 57
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "M2",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 45,
+        "1": 45,
+        "2": 45,
+        "3": 45,
+        "4": 45
+      }
+    },
+    {
+      "fields_differing_across_seeds": [
+        "seed"
+      ],
+      "fixture_id": "M3",
+      "persisted_seed": 42,
+      "pillar_spread": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0,
+      "totals_by_seed": {
+        "0": 57,
+        "1": 57,
+        "2": 57,
+        "3": 57,
+        "4": 57
+      }
+    }
+  ],
+  "issue": "BEAAA-23757",
+  "max_pillar_spread": 0.0,
+  "max_total_spread": 0,
+  "rubric_version": "1.3.0",
+  "scanner_version": "0.5.0",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

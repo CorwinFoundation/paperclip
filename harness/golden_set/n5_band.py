@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from harness.golden_set._trusted_applicability import load_trusted_applicability
 from rubric.scoring import Rubric, score
 from scanners import CONTRACT_VERSION, SCANNER_VERSION
 
@@ -115,10 +116,10 @@ def run_l1_n5(
 
         # BEAAA-647: thread applicability sidecar so Option-C baselines
         # re-score byte-identical across all N replicates.
-        app_path = bdir / "applicability.json"
-        applicability_decisions = None
-        if app_path.exists():
-            applicability_decisions = _load_json(app_path).get("applicability_decisions")
+        # BEAAA-23752: authenticate the sidecar against the code-pinned
+        # trusted-replay manifest. Since BEAAA-18082 score() rejects N/A
+        # waivers from a raw dict, so a bare _load_json here fails closed.
+        applicability_decisions = load_trusted_applicability(BASELINES, fid)
 
         replicates: list[dict[str, Any]] = []
         for _ in range(n):
@@ -128,11 +129,20 @@ def run_l1_n5(
                 forensic_bundle_uri=baseline["forensic_bundle_uri"],
                 scored_at=datetime.fromisoformat(baseline["scored_at"]),
                 scanner_version=None,
-                corpus_version=baseline.get("corpus_version") or None,
+                # BEAAA-23752: pass the persisted corpus_version through verbatim.
+                # `or None` turned B1's deterministic_replay empty string into
+                # None, which score() rejects as a missing Supreme Law pin since
+                # BEAAA-5276. "" is the value B1 was locked and replayed under.
+                corpus_version=baseline.get("corpus_version"),
                 seed=baseline.get("seed"),
                 model_versions=baseline.get("model_versions"),
                 applicability_decisions=applicability_decisions,
-                applicability_policy_version=baseline.get("applicability_policy_version"),
+                # validated evidence carries its own policy version; passing the
+                # baseline's would trip the version-match check in score().
+                applicability_policy_version=(
+                    None if applicability_decisions is not None
+                    else baseline.get("applicability_policy_version")
+                ),
             ))
 
         ares = [int(r["bmi"]) for r in replicates]

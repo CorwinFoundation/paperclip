@@ -231,12 +231,71 @@ def test_non_development_phase_requires_approved_policy(tmp_path):
             out_dir=tmp_path,
             baseline_label="baseline",
             candidate_label="candidate",
+            issue="BEAAA-23845",
+            cto_cosign_ref="BEAAA-23845",
+            focus_claim="phase guard",
+            ticket_refs=["BEAAA-23845"],
             phase="production",
         )
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"issue": ""}, "issue must be a BEAAA-NNN"),
+        ({"issue": "not-a-ticket"}, "issue must be a BEAAA-NNN"),
+        ({"cto_cosign_ref": ""}, "cto_cosign_ref must be"),
+        ({"cto_cosign_ref": "signed off in chat"}, "cto_cosign_ref must be"),
+        ({"focus_claim": "  "}, "focus_claim must state"),
+        ({"ticket_refs": []}, "ticket_refs must list at least"),
+        ({"ticket_refs": ["17963"]}, "ticket_refs entries must be"),
+        ({"ticket_refs": ["BEAAA-17963"]}, "must appear in ticket_refs"),
+    ],
+)
+def test_receipt_provenance_fails_closed(kwargs, match):
+    """BEAAA-23845: absent or malformed provenance blocks the receipt."""
+    base = {
+        "issue": "BEAAA-23845",
+        "cto_cosign_ref": "BEAAA-23845#comment-835cf89e",
+        "focus_claim": "BEAAA-23845 parameterises receipt provenance.",
+        "ticket_refs": ["BEAAA-23845"],
+    }
+    with pytest.raises(ValueError, match=match):
+        release_gate_n5._validate_receipt_provenance(**{**base, **kwargs})
+
+
+def test_rule_execution_states_absent_cosign_rather_than_inventing_one():
+    """BEAAA-23845: a rule-execution run must not borrow a ticket id as co-sign."""
+    issue, cosign, _claim, refs = release_gate_n5._validate_receipt_provenance(
+        issue="BEAAA-23845",
+        cto_cosign_ref=release_gate_n5.COSIGN_NOT_REQUIRED,
+        focus_claim="BEAAA-23845 parameterises receipt provenance.",
+        ticket_refs=["BEAAA-23845"],
+    )
+    assert issue == "BEAAA-23845"
+    assert cosign == "not-required-rule-execution"
+    assert refs == ["BEAAA-23845"]
+
+
+def test_receipt_provenance_is_required_by_the_cli():
+    """BEAAA-23845: the CLI cannot be invoked without provenance."""
+    with pytest.raises(SystemExit):
+        release_gate_n5._build_parser().parse_args(
+            ["--baseline", "a", "--candidate", "b", "--phase", "development"]
+        )
+
+
+def test_render_markdown_refuses_report_without_provenance():
+    """BEAAA-23845: no silent fallback to a template literal."""
+    with pytest.raises(ValueError, match="receipt provenance missing"):
+        release_gate_n5._render_markdown({"phase": "development"})
+
+
 def test_render_markdown_uses_required_delta_table_columns():
     report = {
+        "issue": "BEAAA-10187",
+        "focus_claim": "BEAAA-10187 evidences golden N=5 reproducibility.",
+        "ticket_refs": ["BEAAA-10187"],
         "contract": "are-scanner-api-v1@v1.0",
         "scanner_version": "0.6.0",
         "probe-set-version": "artifacts/beaaa-387/manifest.json",
@@ -388,6 +447,10 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
         out_dir=tmp_path / "out",
         baseline_label="baseline",
         candidate_label="candidate",
+        issue="BEAAA-23845",
+        cto_cosign_ref="BEAAA-23845#comment-835cf89e",
+        focus_claim="BEAAA-23845 parameterises receipt provenance.",
+        ticket_refs=["BEAAA-23845", "BEAAA-21512"],
         today="2026-07-12",
     )
 
@@ -398,6 +461,19 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     assert json.loads(json_path.read_text(encoding="utf-8"))["passed"] is True
     assert executed_repos == ["baseline", "candidate"]
     assert report["agents"][0]["delta"]["total"] == 0.0
+
+    # BEAAA-23845: the emitted receipt must carry the provenance that was
+    # passed in, not a template literal from whichever ticket last touched
+    # this script.
+    markdown = md_path.read_text(encoding="utf-8")
+    assert report["ticket_refs"] == ["BEAAA-23845", "BEAAA-21512"]
+    assert report["cto_cosign_ref"] == "BEAAA-23845#comment-835cf89e"
+    assert 'ticket_refs: ["BEAAA-23845", "BEAAA-21512"]' in markdown
+    assert "- CTO co-sign: `BEAAA-23845#comment-835cf89e`" in markdown
+    assert "# BEAAA-23845 Development N=5 Replay" in markdown
+    assert 'focus_claim: "BEAAA-23845 parameterises receipt provenance."' in markdown
+    assert "BEAAA-17963" not in markdown
+    assert "BEAAA-14867" not in markdown
 
 
 def test_artifact_candidate_identity_is_stable_for_owning_head(monkeypatch):

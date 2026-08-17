@@ -36,6 +36,9 @@ COMPANY_ID = "59f8876e-e729-4dda-98f9-1317c2b50492"
 COMPANY_SLUG = "BEAAA"
 ONBOARDING_PROJECT_ID = "8e61a25d-a945-4569-9f9c-4bce1cfef97b"
 ONBOARDING_GOAL_ID = "4688e2e2-c857-4ef1-b5a7-28356f7f5c00"
+OUTBOUND_DELIVERY_RETENTION = 2000
+COMMENT_PAGE_LIMIT = 100
+COMMENT_CURSOR_STATE_VERSION = 1
 
 CEO_ID = "ca0edebc-6f54-4a19-b836-4d306e3a3c48"
 HEAD_OF_UW_ID = "93e0b62b-2d87-4dc7-990a-5808079e1c4e"
@@ -161,11 +164,12 @@ def load_bridge_config() -> tuple[str, set[int]]:
 
 def load_state() -> dict[str, Any]:
     if not STATE_FILE.exists():
-        return {"offset": 0, "chats": {}}
+        return {"offset": 0, "chats": {}, "outbound_deliveries": []}
     with STATE_FILE.open(encoding="utf-8") as handle:
         state = json.load(handle)
     state.setdefault("offset", 0)
     state.setdefault("chats", {})
+    state.setdefault("outbound_deliveries", [])
     return state
 
 
@@ -185,6 +189,57 @@ def save_state(state: dict[str, Any]) -> None:
     finally:
         if os.path.exists(temporary_name):
             os.unlink(temporary_name)
+
+
+def reserve_outbound_delivery(
+    state: dict[str, Any],
+    chat_id: int,
+    issue_id: str,
+    comment_id: str,
+    *,
+    chunk_count: int = 1,
+    retention: int = OUTBOUND_DELIVERY_RETENTION,
+) -> dict[str, Any]:
+    """Durably reserve one comment and return its write-ahead chunk cursor.
+
+    Telegram's Bot API has no caller-supplied idempotency key. Persisting the
+    next chunk index before each send makes restart behavior at-most-once: an
+    uncertain chunk is suppressed rather than replayed.
+    """
+    if retention < 1:
+        raise ValueError("outbound delivery retention must be positive")
+    if chunk_count < 1:
+        raise ValueError("outbound delivery chunk count must be positive")
+    key = {
+        "chat_id": int(chat_id),
+        "issue_id": str(issue_id),
+        "comment_id": str(comment_id),
+    }
+    deliveries = state.setdefault("outbound_deliveries", [])
+    for delivery in deliveries:
+        if all(delivery.get(field) == value for field, value in key.items()):
+            if "next_chunk_index" not in delivery:
+                delivery["next_chunk_index"] = int(
+                    delivery.get("chunk_count", chunk_count)
+                )
+            delivery.setdefault("chunk_count", chunk_count)
+            return delivery
+    delivery = {
+        **key,
+        "next_chunk_index": 0,
+        "chunk_count": int(chunk_count),
+    }
+    deliveries.append(delivery)
+    del deliveries[:-retention]
+    save_state(state)
+    return delivery
+
+
+def set_outbound_delivery_chunk(
+    state: dict[str, Any], delivery: dict[str, Any], next_chunk_index: int
+) -> None:
+    delivery["next_chunk_index"] = int(next_chunk_index)
+    save_state(state)
 
 
 class Telegram:
@@ -275,11 +330,41 @@ class Paperclip:
     def issue(self, issue_id: str) -> dict[str, Any]:
         return self.get(f"/issues/{urllib.parse.quote(issue_id)}")
 
-    def comments(self, issue_id: str) -> list[dict[str, Any]]:
-        comments = self.get(
-            f"/issues/{urllib.parse.quote(issue_id)}/comments?order=asc&limit=100"
-        )
-        return comments if isinstance(comments, list) else []
+    def comments(
+        self, issue_id: str, *, after: str | None = None
+    ) -> list[dict[str, Any]]:
+        issue_path = f"/issues/{urllib.parse.quote(issue_id)}/comments"
+        comments: list[dict[str, Any]] = []
+        seen_ids = {after} if after is not None else set()
+        cursor = after
+
+        while True:
+            query = f"order=asc&limit={COMMENT_PAGE_LIMIT}"
+            if cursor is not None:
+                query += f"&after={urllib.parse.quote(cursor)}"
+            page = self.get(f"{issue_path}?{query}")
+            if not isinstance(page, list) or not page:
+                break
+
+            for comment in page:
+                if not isinstance(comment, dict):
+                    continue
+                comment_id = comment.get("id")
+                if isinstance(comment_id, str):
+                    if comment_id in seen_ids:
+                        continue
+                    seen_ids.add(comment_id)
+                comments.append(comment)
+
+            if len(page) < COMMENT_PAGE_LIMIT:
+                break
+            next_after = page[-1].get("id") if isinstance(page[-1], dict) else None
+            if not isinstance(next_after, str) or next_after == cursor:
+                LOG.error("stopped comment pagination issue=%s", issue_id)
+                break
+            cursor = next_after
+
+        return comments
 
 
 def route_owner(text: str) -> str:
@@ -326,6 +411,8 @@ def start_conversation(
         "identifier": identifier,
         "last_status": issue.get("status", "todo"),
         "seen_comment_ids": [],
+        "last_comment_id": None,
+        "comment_cursor_state_version": COMMENT_CURSOR_STATE_VERSION,
         "updated_at": int(time.time()),
     }
     save_state(state)
@@ -452,7 +539,33 @@ def relay_paperclip_updates(
         issue_id = chat_state["active_issue_id"]
         try:
             issue = paperclip.issue(issue_id)
-            comments = paperclip.comments(issue_id)
+            if (
+                chat_state.get("comment_cursor_state_version")
+                != COMMENT_CURSOR_STATE_VERSION
+            ):
+                existing_comments = paperclip.comments(issue_id)
+                existing_ids = [
+                    str(comment["id"])
+                    for comment in existing_comments
+                    if isinstance(comment, dict) and comment.get("id")
+                ]
+                chat_state["seen_comment_ids"] = existing_ids[-200:]
+                chat_state["last_comment_id"] = (
+                    existing_ids[-1] if existing_ids else None
+                )
+                chat_state["comment_cursor_state_version"] = (
+                    COMMENT_CURSOR_STATE_VERSION
+                )
+                save_state(state)
+                LOG.info(
+                    "initialized comment cursor issue=%s comment_count=%d",
+                    chat_state.get("identifier"),
+                    len(existing_ids),
+                )
+                continue
+            comments = paperclip.comments(
+                issue_id, after=chat_state.get("last_comment_id")
+            )
         except Exception:
             LOG.exception("could not poll Paperclip issue=%s", chat_state.get("identifier"))
             continue
@@ -468,16 +581,43 @@ def relay_paperclip_updates(
             body = comment.get("body")
             if author_agent_id and isinstance(body, str) and body.strip():
                 role = AGENT_NAMES.get(author_agent_id, "Paperclip agent")
-                telegram.send(
-                    chat_id,
-                    f"{role} · {chat_state['identifier']}\n\n{body.strip()}",
+                chunks = split_message(
+                    f"{role} · {chat_state['identifier']}\n\n{body.strip()}"
                 )
+                delivery = reserve_outbound_delivery(
+                    state,
+                    chat_id,
+                    issue_id,
+                    str(comment_id),
+                    chunk_count=len(chunks),
+                )
+                if int(delivery["chunk_count"]) != len(chunks):
+                    LOG.error(
+                        "suppressed changed outbound comment issue=%s",
+                        chat_state["identifier"],
+                    )
+                    continue
+                next_chunk_index = int(delivery["next_chunk_index"])
+                for chunk_index in range(next_chunk_index, len(chunks)):
+                    set_outbound_delivery_chunk(state, delivery, chunk_index + 1)
+                    try:
+                        telegram.send(chat_id, chunks[chunk_index])
+                    except RemoteError as error:
+                        if error.service == "Telegram" and error.status in {409, 429}:
+                            set_outbound_delivery_chunk(
+                                state, delivery, chunk_index
+                            )
+                        raise
                 LOG.info(
                     "relayed agent comment issue=%s role=%s",
                     chat_state["identifier"],
                     role,
                 )
         chat_state["seen_comment_ids"] = list(seen)[-200:]
+        if comments:
+            last_comment_id = comments[-1].get("id")
+            if last_comment_id:
+                chat_state["last_comment_id"] = str(last_comment_id)
         status = issue.get("status")
         if status and status != chat_state.get("last_status"):
             previous_status = chat_state.get("last_status")

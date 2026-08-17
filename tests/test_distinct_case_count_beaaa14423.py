@@ -55,14 +55,14 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_distinct_case_count_is_below_runnable_case_count(self) -> None:
         counts = distinct_case_counts(self.rows)
         runnable = count_target_bound_runtime(self.rows)
-        self.assertEqual(runnable, 362)
+        self.assertEqual(runnable, 372)
         # The current target-bound registry rows still execute — they are
         # simply not all distinct.
-        self.assertEqual(counts["declared_total"], 362)
+        self.assertEqual(counts["declared_total"], 372)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs follow the current registry
-        # source of truth: 362 declared - 23 dupes = 339.
-        self.assertEqual(counts["total"], 339)
+        # source of truth: 372 declared - 23 dupes = 349.
+        self.assertEqual(counts["total"], 349)
         self.assertEqual(counts["declared_total"] - counts["total"], 23)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
@@ -149,12 +149,12 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_non_strict_validation_warns_but_does_not_fail(self) -> None:
         # Scan path: collapse is surfaced as evidence, not a hard error — the
         # 287 target-bound rows still execute.
-        errors = validate_registry(self.rows, published_count=340)
+        errors = validate_registry(self.rows, published_count=350)
         self.assertFalse([e for e in errors if "distinct coverage" in e], errors)
 
     def test_strict_mode_fails_closed_on_over_declared_distinct_coverage(self) -> None:
         errors = validate_registry(
-            self.rows, published_count=340, strict=True
+            self.rows, published_count=350, strict=True
         )
         collapse_errors = [e for e in errors if "distinct coverage" in e]
         self.assertFalse(collapse_errors, msg=errors)

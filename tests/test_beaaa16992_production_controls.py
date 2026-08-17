@@ -195,8 +195,8 @@ def test_beaaa17073_committed_instrumentation_store_is_rebuilt_idempotently(
 
 def test_beaaa16992_rollback_hash_proof_fails_on_tamper_or_absent_retained_evidence() -> None:
     source = {
-        "active_executable_before": 340,
-        "active_executable_after": 305,
+        "active_executable_before": 350,
+        "active_executable_after": 315,
         "unrelated_active_rows_unchanged": True,
         "rolled_back_families": ["cross_session_data_leak"],
     }

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from scanners.live_probe_orchestrator import ScanResult
+from tools.founder_dev_mode import assert_production_emission_allowed
 
 
 def scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
@@ -34,6 +35,10 @@ def uw_payload(result: ScanResult) -> dict[str, Any]:
 
 
 def customer_payload(result: ScanResult) -> dict[str, Any]:
+    # Production boundary: never emit a customer-facing payload from a
+    # founder-dev-mode session (fails closed until dev-scored families are
+    # re-attested with a production signature). No-op in production.
+    assert_production_emission_allowed()
     payload: dict[str, Any] = {
         "scan_id": result.scan_id,
         "status": result.status,

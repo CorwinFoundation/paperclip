@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import copy
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
+import urllib.parse
 
 
 MODULE_PATH = Path(__file__).with_name("bridge.py")
@@ -64,6 +67,337 @@ class AddFollowUpTests(unittest.TestCase):
             },
         )
 
+
+class PaginatedPaperclip(bridge.Paperclip):
+    def __init__(self, comments: list[dict]) -> None:
+        self._comments = comments
+        self.paths: list[str] = []
+
+    def get(self, path: str):
+        self.paths.append(path)
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(path).query)
+        limit = int(query["limit"][0])
+        after = query.get("after", [None])[0]
+        start = 0
+        if after is not None:
+            start = next(
+                index
+                for index, comment in enumerate(self._comments)
+                if comment["id"] == after
+            )
+        return copy.deepcopy(self._comments[start : start + limit])
+
+
+class CommentPaginationTests(unittest.TestCase):
+    def test_comments_fetches_every_page_and_deduplicates_inclusive_cursor(self) -> None:
+        expected = [{"id": f"comment-{index}"} for index in range(205)]
+        paperclip = PaginatedPaperclip(expected)
+
+        actual = paperclip.comments("issue/1")
+
+        self.assertEqual(actual, expected)
+        self.assertEqual(
+            paperclip.paths,
+            [
+                "/issues/issue/1/comments?order=asc&limit=100",
+                "/issues/issue/1/comments?order=asc&limit=100&after=comment-99",
+                "/issues/issue/1/comments?order=asc&limit=100&after=comment-198",
+            ],
+        )
+
+    def test_comments_after_cursor_excludes_inclusive_boundary(self) -> None:
+        expected = [{"id": f"comment-{index}"} for index in range(105)]
+        paperclip = PaginatedPaperclip(expected)
+
+        actual = paperclip.comments("issue-1", after="comment-99")
+
+        self.assertEqual(actual, expected[100:])
+        self.assertEqual(
+            paperclip.paths,
+            ["/issues/issue-1/comments?order=asc&limit=100&after=comment-99"],
+        )
+
+
+class RecordingTelegram:
+    def __init__(self, *, crash_after_send: bool = False) -> None:
+        self.crash_after_send = crash_after_send
+        self.sent: list[tuple[int, str]] = []
+
+    def send(self, chat_id: int, text: str) -> None:
+        self.sent.append((chat_id, text))
+        if self.crash_after_send:
+            raise SimulatedCrash
+
+
+class RateLimitedTelegram:
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.sent: list[tuple[int, str]] = []
+
+    def send(self, chat_id: int, text: str) -> None:
+        self.attempts += 1
+        if self.attempts == 1:
+            raise bridge.RemoteError("Telegram", 429, "retry later")
+        self.sent.append((chat_id, text))
+
+
+class SecondChunkRateLimitedTelegram:
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.sent: list[tuple[int, str]] = []
+
+    def send(self, chat_id: int, text: str) -> None:
+        self.attempts += 1
+        if self.attempts == 2:
+            raise bridge.RemoteError("Telegram", 429, "retry later")
+        self.sent.append((chat_id, text))
+
+
+class SecondChunkCrashTelegram:
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.sent: list[tuple[int, str]] = []
+
+    def send(self, chat_id: int, text: str) -> None:
+        self.attempts += 1
+        self.sent.append((chat_id, text))
+        if self.attempts == 2:
+            raise SimulatedCrash
+
+
+class SimulatedCrash(BaseException):
+    pass
+
+
+class RelayPaperclip:
+    def __init__(self, comments: list[dict]) -> None:
+        self._comments = comments
+
+    def issue(self, issue_id: str) -> dict:
+        return {"id": issue_id, "status": "in_progress"}
+
+    def comments(self, issue_id: str, *, after: str | None = None) -> list[dict]:
+        comments = copy.deepcopy(self._comments)
+        if after is None:
+            return comments
+        for index, comment in enumerate(comments):
+            if comment.get("id") == after:
+                return comments[index + 1 :]
+        return comments
+
+
+def relay_state() -> dict:
+    return {
+        "offset": 41,
+        "chats": {
+            "1234": {
+                "active_issue_id": "issue-1",
+                "identifier": "BEAAA-1",
+                "last_status": "in_progress",
+                "seen_comment_ids": [],
+                "last_comment_id": None,
+                "comment_cursor_state_version": bridge.COMMENT_CURSOR_STATE_VERSION,
+            }
+        },
+        "outbound_deliveries": [],
+    }
+
+
+class OutboundIdempotencyTests(unittest.TestCase):
+    def test_legacy_state_baselines_existing_comments_before_forwarding(self) -> None:
+        state = relay_state()
+        chat_state = state["chats"]["1234"]
+        chat_state.pop("last_comment_id")
+        chat_state.pop("comment_cursor_state_version")
+        telegram = RecordingTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": "old"}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            paperclip._comments.append(
+                {"id": "comment-2", "authorAgentId": "agent-1", "body": "new"}
+            )
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(telegram.sent, [(1234, "Paperclip agent · BEAAA-1\n\nnew")])
+        self.assertEqual(chat_state["last_comment_id"], "comment-2")
+        self.assertEqual(
+            chat_state["comment_cursor_state_version"],
+            bridge.COMMENT_CURSOR_STATE_VERSION,
+        )
+
+    def test_repeated_polling_sends_comment_once(self) -> None:
+        state = relay_state()
+        telegram = RecordingTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": "answer"}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(len(telegram.sent), 1)
+        self.assertEqual(state["offset"], 41)
+
+    def test_existing_seen_comment_is_not_replayed_during_state_upgrade(self) -> None:
+        state = relay_state()
+        state["chats"]["1234"]["seen_comment_ids"] = ["comment-1"]
+        state.pop("outbound_deliveries")
+        telegram = RecordingTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": "answer"}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(telegram.sent, [])
+        self.assertEqual(state["offset"], 41)
+
+    def test_restart_after_uncertain_send_does_not_replay_comment(self) -> None:
+        state = relay_state()
+        persisted: list[dict] = []
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": "answer"}]
+        )
+        first_process = RecordingTelegram(crash_after_send=True)
+
+        def record_save(current_state: dict) -> None:
+            persisted.append(copy.deepcopy(current_state))
+
+        with mock.patch.object(bridge, "save_state", side_effect=record_save):
+            with self.assertRaises(SimulatedCrash):
+                bridge.relay_paperclip_updates(first_process, paperclip, state)
+
+        restarted_state = persisted[-1]
+        restarted_process = RecordingTelegram()
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(
+                restarted_process, paperclip, restarted_state
+            )
+
+        self.assertEqual(len(first_process.sent), 1)
+        self.assertEqual(restarted_process.sent, [])
+        self.assertEqual(restarted_state["offset"], 41)
+
+    def test_distinct_comments_each_send_once(self) -> None:
+        state = relay_state()
+        telegram = RecordingTelegram()
+        paperclip = RelayPaperclip(
+            [
+                {"id": "comment-1", "authorAgentId": "agent-1", "body": "one"},
+                {"id": "comment-2", "authorAgentId": "agent-1", "body": "two"},
+            ]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(len(telegram.sent), 2)
+        self.assertEqual(
+            [entry["comment_id"] for entry in state["outbound_deliveries"]],
+            ["comment-1", "comment-2"],
+        )
+
+    def test_explicit_rate_limit_rewinds_unsent_chunk_for_retry(self) -> None:
+        state = relay_state()
+        telegram = RateLimitedTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": "answer"}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            with self.assertRaises(bridge.RemoteError):
+                bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(telegram.attempts, 2)
+        self.assertEqual(len(telegram.sent), 1)
+        self.assertEqual(state["offset"], 41)
+
+    def test_later_chunk_rate_limit_does_not_replay_prior_chunk(self) -> None:
+        state = relay_state()
+        body = "A" * 4000
+        rendered = f"Paperclip agent · BEAAA-1\n\n{body}"
+        expected_chunks = bridge.split_message(rendered)
+        self.assertEqual(len(expected_chunks), 2)
+        telegram = SecondChunkRateLimitedTelegram()
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": body}]
+        )
+
+        with mock.patch.object(bridge, "save_state"):
+            with self.assertRaises(bridge.RemoteError):
+                bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+            bridge.relay_paperclip_updates(telegram, paperclip, state)
+
+        self.assertEqual(telegram.attempts, 3)
+        self.assertEqual(
+            telegram.sent,
+            [(1234, expected_chunks[0]), (1234, expected_chunks[1])],
+        )
+        self.assertEqual(state["outbound_deliveries"][0]["next_chunk_index"], 2)
+        self.assertEqual(state["offset"], 41)
+
+    def test_restart_after_later_uncertain_chunk_resumes_without_replay(self) -> None:
+        state = relay_state()
+        body = "A" * 7500
+        rendered = f"Paperclip agent · BEAAA-1\n\n{body}"
+        expected_chunks = bridge.split_message(rendered)
+        self.assertEqual(len(expected_chunks), 3)
+        persisted: list[dict] = []
+        paperclip = RelayPaperclip(
+            [{"id": "comment-1", "authorAgentId": "agent-1", "body": body}]
+        )
+        first_process = SecondChunkCrashTelegram()
+
+        def record_save(current_state: dict) -> None:
+            persisted.append(copy.deepcopy(current_state))
+
+        with mock.patch.object(bridge, "save_state", side_effect=record_save):
+            with self.assertRaises(SimulatedCrash):
+                bridge.relay_paperclip_updates(first_process, paperclip, state)
+
+        restarted_state = persisted[-1]
+        restarted_process = RecordingTelegram()
+        with mock.patch.object(bridge, "save_state"):
+            bridge.relay_paperclip_updates(
+                restarted_process, paperclip, restarted_state
+            )
+            bridge.relay_paperclip_updates(
+                restarted_process, paperclip, restarted_state
+            )
+
+        self.assertEqual(
+            first_process.sent,
+            [(1234, expected_chunks[0]), (1234, expected_chunks[1])],
+        )
+        self.assertEqual(restarted_process.sent, [(1234, expected_chunks[2])])
+        self.assertEqual(
+            restarted_state["outbound_deliveries"][0]["next_chunk_index"], 3
+        )
+        self.assertEqual(restarted_state["offset"], 41)
+
+    def test_outbound_delivery_retention_is_bounded(self) -> None:
+        state = relay_state()
+
+        with mock.patch.object(bridge, "save_state"):
+            for comment_id in ("comment-1", "comment-2", "comment-3"):
+                bridge.reserve_outbound_delivery(
+                    state, 1234, "issue-1", comment_id, retention=2
+                )
+
+        self.assertEqual(
+            [entry["comment_id"] for entry in state["outbound_deliveries"]],
+            ["comment-2", "comment-3"],
+        )
 
 if __name__ == "__main__":
     unittest.main()

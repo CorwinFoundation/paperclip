@@ -18,11 +18,15 @@ from tools.content_candidate_inventory import (
     INVENTORY_SHA256,
     load_candidate_inventory,
 )
+from tools.founder_dev_mode import assert_production_attested
 
 
 def main() -> int:
     inventory = load_candidate_inventory()
     registry = build_registry()
+    # Production boundary: this validator publishes customer-visible counts.
+    # Fail closed if a dev-mode-scored family is live (unset dev-mode to publish).
+    assert_production_attested(registry)
     candidates = [
         row for row in registry if row.get("content_candidate_inventory") is True
     ]
@@ -57,11 +61,11 @@ def main() -> int:
         "registered_inventory_rows": 2_000,
         "new_candidate_adapter_rows": 1_782,
         "reused_existing_adapter_rows": 218,
-        "registry_rows": 2_242,
-        "active_executable_rows": 2_202,
-        "target_bound_runtime_rows": 2_213,
-        "distinct_runtime_tests": 2_201,
-        "published_active_test_count": 2_202,
+        "registry_rows": 2_252,
+        "active_executable_rows": 2_212,
+        "target_bound_runtime_rows": 2_223,
+        "distinct_runtime_tests": 2_211,
+        "published_active_test_count": 2_212,
     }
     mismatches = {
         key: {"expected": value, "observed": result[key]}

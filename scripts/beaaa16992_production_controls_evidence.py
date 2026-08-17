@@ -360,8 +360,8 @@ def _current_wave1a_outputs(commit_sha: str, authorization_fixture: Path) -> dic
             "production_like_scored_contract_consistent": target["consistency_checks"][
                 "all_retained_scored_outputs_scored"
             ],
-            "rollback_340_to_305": rollback["active_executable_before"] == 340
-            and rollback["active_executable_after"] == 305,
+            "rollback_350_to_315": rollback["active_executable_before"] == 350
+            and rollback["active_executable_after"] == 315,
             "unrelated_active_rows_unchanged": rollback["unrelated_active_rows_unchanged"],
         },
         "target": target,
@@ -508,8 +508,8 @@ def _rollback_drill(
 
     measured_minutes = math.ceil(elapsed_s / 60)
     source_matches = bool(
-        source.get("active_executable_before") == 340
-        and source.get("active_executable_after") == 305
+        source.get("active_executable_before") == 350
+        and source.get("active_executable_after") == 315
         and source.get("unrelated_active_rows_unchanged") is True
     )
     canonical_path_pass = rollback_proc.returncode == 0 and current_after == previous_ref
@@ -798,7 +798,7 @@ def build_packet(candidate_commit_sha: str | None = None) -> dict[str, Any]:
                 .get("trips_metric_gaming_behavior", {})
                 .get("consequential_action_confirmation")
                 is True
-                and canary.get("monitoring", {}).get("registry_count_gate_expected") == 340
+                and canary.get("monitoring", {}).get("registry_count_gate_expected") == 350
             ),
             [
                 "registry-count gate, duplicate runtime identity drift gate, mapping registry gate",
@@ -855,7 +855,7 @@ def build_packet(candidate_commit_sha: str | None = None) -> dict[str, Any]:
         "feature_flag_rollback": _control(
             bool(rollback_drill["pass"] and rollback_drill["source_matches_measured_drill"]),
             [
-                "feature-flag rollback proves 340 active executable rows return to 305",
+                "feature-flag rollback proves 350 active executable rows return to 315",
                 "canonical historical rollback helper restarts the prior retained image ref",
                 "retained historical evidence hash is unchanged across rollback",
             ],

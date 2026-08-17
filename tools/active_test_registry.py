@@ -9,7 +9,9 @@ that are active and production-runner executable.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import re
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -17,6 +19,15 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+
+from tools.founder_dev_mode import (
+    ATTESTATION_FOUNDER_DEV,
+    ATTESTATION_PRODUCTION_SIGNED,
+    assert_production_attested,
+    attestation_tier as _attestation_tier,
+    dev_scoring_declared as _dev_scoring_declared,
+    is_dev_mode as _is_dev_mode,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +59,7 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
     "verdict",
     "github_provenance",
 }
+EXTERNAL_EVIDENCE_PATH = REPO_ROOT / "artifacts" / "beaaa-21704" / "execution_evidence.json"
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
 LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
@@ -82,6 +94,99 @@ AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
         "cross_session_data_leak",
         "consequential_action_confirmation",
     }
+)
+# Families promoted to scored (underwriting-eligibility, zero score weight) under
+# Founder-Dev-Mode only: scored when BACKBOND_FOUNDER_DEV_MODE=on, reported-not-
+# scored otherwise, never production-attested. See tools/founder_dev_mode.py.
+#
+# FOUNDER_DEV_SCORED_FAMILIES drives the scoring resolution for all dev-promoted
+# families. It is split by flag-OFF countability so promotion never shifts the
+# frozen production count (340) when the flag is off:
+#   * ..._FOUNDER_DEV_SCORING_ACTIVE_FAMILIES — non-countable while reported-not-
+#     scored; joined to the non-countable union so the flag-off count is unchanged
+#     and they become countable only when the dev flag is on.
+#   * FOUNDER_DEV_LEGACY_SCORED_FAMILIES — ALREADY counted in the 340 as reported-
+#     not-scored; the dev flag only flips them scored (count unchanged).
+AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES = frozenset(
+    {
+        "p3_5_multiturn_jailbreak",
+        "p3_6_output_attack",
+        "system_prompt_extraction",
+        "insecure_code_generation",
+        "crescendo",
+        "backbond-output-attack-fixtures",
+    }
+)
+FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
+    {
+        "ai_disclosure",
+        "cbrn_refusal",
+        "cyber_misuse_refusal",
+        "harmful_output_golden",
+        "out_of_scope_containment",
+        "voice_adversarial_pack",
+    }
+)
+FOUNDER_DEV_SCORED_FAMILIES = (
+    AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES | FOUNDER_DEV_LEGACY_SCORED_FAMILIES
+)
+BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
+    {
+        ("agentdojo", "docs.attachment.rendered_html.command_hijack"),
+        ("agentdojo", "retrieval.citation_card.canary_exfil"),
+        ("agentdojo", "tools.email_thread.injected_followup"),
+        ("agentdojo", "workspace.write_then_summarize.indirect_system_override"),
+        ("garak", "dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.dan.AntiDAN"),
+        ("garak_beaaa152", "garak.dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.malwaregen.Evasion"),
+        ("garak_beaaa152", "garak.misleading.FalseAssertion"),
+        ("garak_beaaa152", "garak.promptinject.HijackHateHumans"),
+        ("garak_beaaa152", "garak.snowball.GraphConnectivity"),
+        ("garak_beaaa152", "garak.xss.MarkdownImageExfil"),
+        ("jailbreakbench", "jbb.privacy.injection"),
+        ("privacybench", "privacybench.direct_regurg"),
+        ("privacybench", "privacybench.indirect_inference.exfil"),
+        ("privacybench", "privacybench.jailbreak_pii.exfil"),
+        ("sentiment_skew", "ss.bold_subset"),
+        ("sentiment_skew", "ss.holisticbias_subset"),
+        ("sentiment_skew", "ss.legal_intake_counterfactual"),
+        ("demographic_parity", "dp.bbq_disambig"),
+        ("demographic_parity", "dp.legal_intake_counterfactual"),
+        ("equal_opportunity", "eo.uw_labeled_subset"),
+        ("counterfactual_stability", "cs.all_axes"),
+        ("eval_representation", "er.derived_coverage"),
+    }
+)
+# These rows were already target-bound runtime aliases before BEAAA-21704 added
+# external execution evidence.  Report-only status keeps them out of the scored
+# executable total, but must not erase their pre-existing runtime coverage.
+BEAAA_21704_RETAINED_RUNTIME_CASES = frozenset(
+    {
+        ("garak", "dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.dan.AntiDAN"),
+        ("garak_beaaa152", "garak.dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.malwaregen.Evasion"),
+        ("garak_beaaa152", "garak.misleading.FalseAssertion"),
+        ("garak_beaaa152", "garak.promptinject.HijackHateHumans"),
+        ("garak_beaaa152", "garak.snowball.GraphConnectivity"),
+        ("garak_beaaa152", "garak.xss.MarkdownImageExfil"),
+        ("jailbreakbench", "jbb.privacy.injection"),
+        ("privacybench", "privacybench.direct_regurg"),
+        ("privacybench", "privacybench.indirect_inference.exfil"),
+        ("privacybench", "privacybench.jailbreak_pii.exfil"),
+    }
+)
+BEAAA_21704_PROVENANCE = "BEAAA-21704"
+BEAAA_21704_ALLOWED_TARGET_CLASSES = frozenset(
+    {
+        "approved_non_customer_production_like_bounded_agent",
+        "self_hosted_agentdojo_native_task_suite_gateway",
+    }
+)
+_NON_EXECUTION_MARKERS = re.compile(
+    r"(?:^|[\s_:-])(placeholder|fixture|fabricated|synthetic[-_ ]?response|todo|n/?a)(?:$|[\s_.,:-])",
+    re.IGNORECASE,
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
@@ -154,6 +259,7 @@ class RegistryRow:
     alias_of_runtime_case_identity: str | None = None
     source_aliases: tuple[dict[str, str], ...] = ()
     execution_mode: str | None = None
+    attestation_tier: str = ATTESTATION_PRODUCTION_SIGNED
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -233,8 +339,18 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
 def _execution_evidence_status(
     probe: dict[str, Any],
     mapping: dict[str, Any],
+    *,
+    allow_external_evidence: bool = True,
 ) -> tuple[bool, str]:
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    external_evidence = False
+    benchmark = str(mapping.get("benchmark") or "")
+    probe_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if allow_external_evidence and (not evidence) and EXTERNAL_EVIDENCE_PATH.exists():
+        records = json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        if len(records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+            evidence = records.get(f"{benchmark}:{probe_id}") or {}
+            external_evidence = bool(evidence)
     if not isinstance(evidence, dict):
         return False, "execution_evidence_not_object"
     missing = sorted(
@@ -244,6 +360,24 @@ def _execution_evidence_status(
     )
     if missing:
         return False, "missing_execution_evidence:" + ",".join(missing)
+    response = str(evidence.get("recorded_target_response") or "").strip()
+    if external_evidence:
+        if _NON_EXECUTION_MARKERS.search(response):
+            return False, "invalid_execution_evidence:non_execution_response"
+        if str(evidence.get("github_provenance") or "") != BEAAA_21704_PROVENANCE:
+            return False, "invalid_execution_evidence:provenance"
+        if not str(evidence.get("target_identity") or "").strip():
+            return False, "invalid_execution_evidence:missing_target_identity"
+        target_class = str(evidence.get("target_class") or "").strip()
+        if target_class not in BEAAA_21704_ALLOWED_TARGET_CLASSES:
+            return False, "invalid_execution_evidence:target_class"
+        executed_at = str(evidence.get("executed_at") or "").strip()
+        try:
+            parsed = dt.datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
+        except ValueError:
+            return False, "invalid_execution_evidence:executed_at"
+        if parsed.tzinfo is None:
+            return False, "invalid_execution_evidence:executed_at"
     return True, "target_bound_and_evidenced"
 
 
@@ -271,6 +405,14 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def _scoring_active(data: Mapping[str, Any]) -> bool:
+    # Founder-Dev-Mode override: dev-scored only when the env opt-in is set;
+    # otherwise fail closed to not-scored so production defaults are unchanged.
+    # A family opts in via the registry frozenset OR via its mapping binding.
+    if (
+        str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
+        or (_attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data))
+    ):
+        return _is_dev_mode()
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
         return False
@@ -284,6 +426,11 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
 
 
 def _reporting_status(data: Mapping[str, Any]) -> str:
+    if (
+        str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
+        or (_attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data))
+    ):
+        return "scoring_active" if _is_dev_mode() else "reported_not_scored"
     value = data.get("reporting_status")
     if isinstance(value, str) and value:
         return value
@@ -344,6 +491,7 @@ def build_registry(
                     surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                     canary_registration=canary_registration,
                     applicability_gate=applicability_gate,
+                    attestation_tier=_attestation_tier(data),
                 )
             )
         activation_blocker = data.get("activation_blocker")
@@ -353,7 +501,13 @@ def build_registry(
             if not probe_id:
                 continue
             execution_evidenced, evidence_status = _execution_evidence_status(
-                probe, data
+                probe,
+                data,
+                allow_external_evidence=(
+                    mapping_dir.resolve() == MAPPING_DIR.resolve()
+                    and (benchmark, str(probe_id))
+                    not in BEAAA_21704_RETAINED_RUNTIME_CASES
+                ),
             )
             materializable = executable and _case_has_bound_execution(benchmark, probe)
             target_bound = execution_evidenced or materializable
@@ -409,9 +563,30 @@ def build_registry(
                         surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                         canary_registration=canary_registration,
                         applicability_gate=applicability_gate,
+                        attestation_tier=_attestation_tier(data),
                     )
                 )
     reconciled = _reconcile_runtime_identities([asdict(row) for row in rows])
+    evidence_records = (
+        json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        if EXTERNAL_EVIDENCE_PATH.exists()
+        else {}
+    )
+    if len(evidence_records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+        for row in reconciled:
+            key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            if key not in BEAAA_21704_REPORTED_NOT_SCORED_CASES:
+                continue
+            row["scoring_active"] = False
+            row["reporting_status"] = "reported_not_scored"
+            if f"{key[0]}:{key[1]}" in evidence_records:
+                row["external_execution_evidenced"] = True
+                if key in BEAAA_21704_RETAINED_RUNTIME_CASES:
+                    continue
+                row["production_runner_executable"] = True
+                row["execution_evidenced"] = True
+                row["execution_evidence_status"] = "target_bound_and_evidenced"
+                row["activation_blocker"] = None
     if (
         include_content_candidates
         and mapping_dir.resolve() == MAPPING_DIR.resolve()
@@ -648,11 +823,15 @@ def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
     if row.get("content_candidate_inventory") is True:
         return False
     return (
-        row.get("test_id")
-        in (
+        (
+            (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            in BEAAA_21704_REPORTED_NOT_SCORED_CASES
+            or row.get("test_id") in (
             AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
             | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+            | AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES
             | REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES
+        )
         )
         and row.get("reporting_status") == "reported_not_scored"
         and row.get("scoring_active") is False
@@ -670,7 +849,11 @@ def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
 def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
-    if _is_non_countable_reported_not_scored(row):
+    key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+    if (
+        _is_non_countable_reported_not_scored(row)
+        and key not in BEAAA_21704_RETAINED_RUNTIME_CASES
+    ):
         return False
     return (
         row.get("status") == "active"
@@ -846,6 +1029,9 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = build_registry()
+    # Production boundary: the published active-test count is customer-visible.
+    # Refuse to reconcile/publish it while any dev-mode-scored family is live.
+    assert_production_attested(rows)
     published_count = load_published_count()
     summary = summarize(rows, published_count)
     # --check is the strict / CI fail-closed gate: an over-declared distinct

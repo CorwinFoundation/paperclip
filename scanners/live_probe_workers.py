@@ -736,6 +736,7 @@ def run_scorer(
     on_validation_error: Callable[[Any, Exception], None] | None = None,
     score_runtime: Any = None,
     score_inputs: dict[str, Any] | None = None,
+    behavioral_receipt_ingestors: tuple[Any, ...] = (),
     row_recv_timeout_seconds: float | None = None,
 ) -> None:
     """Scorer subprocess entrypoint.
@@ -860,6 +861,8 @@ def run_scorer(
                         )
                 envelope = score_runtime.compute_envelope(
                     accumulated_rows=accumulated,
+                    behavioral_receipt_ingestors=behavioral_receipt_ingestors,
+                    behavioral_activation_enabled=bool(behavioral_receipt_ingestors),
                     **(score_inputs or {}),
                 )
                 channel.send_score_envelope(("ok", envelope))
@@ -914,6 +917,7 @@ def spawn_scorer(
     on_validation_error: Callable[[Any, Exception], None] | None = None,
     score_runtime: Any = None,
     score_inputs: dict[str, Any] | None = None,
+    behavioral_receipt_ingestors: tuple[Any, ...] = (),
     row_recv_timeout_seconds: float | None = DEFAULT_SCORER_ROW_RECV_TIMEOUT_SECONDS,
     name: str = "are-scorer",
 ) -> mp_context.SpawnProcess:
@@ -940,6 +944,7 @@ def spawn_scorer(
             "on_validation_error": on_validation_error,
             "score_runtime": score_runtime,
             "score_inputs": score_inputs,
+            "behavioral_receipt_ingestors": behavioral_receipt_ingestors,
             "row_recv_timeout_seconds": row_recv_timeout_seconds,
         },
         name=name,

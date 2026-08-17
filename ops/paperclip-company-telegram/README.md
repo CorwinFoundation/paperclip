@@ -14,3 +14,17 @@ Promotion is gated on independent QA approval for the exact immutable commit. In
 `paperclip-company-telegram.service`. Before replacing files, record their hashes and keep
 recoverable copies outside the install directory. Roll back by restoring both prior files,
 restarting the service, and rechecking its active state and logs.
+
+Outbound Paperclip comments use a write-ahead delivery ledger keyed by Telegram chat,
+Paperclip issue, and comment. Each ledger entry stores the next chunk cursor, and the bridge
+keeps the newest 2,000 keys. The cursor advances before each Telegram call; an explicit
+`409` or `429` response rewinds only the rejected chunk for retry, so earlier chunks are not
+replayed. Telegram's Bot API does not accept a caller idempotency key, so an ambiguous
+failure is treated as at-most-once and the uncertain chunk is suppressed on restart.
+
+The bridge reads Paperclip comments in ascending pages of 100. Paperclip's `after` cursor is
+inclusive, so page-boundary comment IDs are deduplicated before outbound processing.
+Each active chat stores the last processed comment ID and requests only newer comments.
+When upgrading legacy state without that cursor, the bridge baselines the existing thread
+once without relaying its historical backlog; comments created afterward follow the normal
+write-ahead delivery path.

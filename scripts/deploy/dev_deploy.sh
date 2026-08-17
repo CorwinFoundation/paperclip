@@ -14,6 +14,7 @@ SCANNER_DEPLOY_BIN="${BACKBOND_SCANNER_DEPLOY_BIN:-/usr/local/sbin/scanner-deplo
 REMOTE_DIR="${BACKBOND_REMOTE_STAGING_DIR:-/var/tmp}"
 IMAGE_REPOSITORY="${BACKBOND_IMAGE_REPOSITORY:-ghcr.io/corwinfoundation/are-scanner}"
 STAGE_ROOT="${BACKBOND_DEPLOY_STAGE_ROOT:-artifacts/dev-deploy}"
+CANDIDATE_ID="${BACKBOND_CANDIDATE_ID:?BACKBOND_CANDIDATE_ID is required (for example BEAAA-22801)}"
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
@@ -28,6 +29,7 @@ REMOTE_ARCHIVE="${REMOTE_DIR}/backbond-scanner-${SHA}.tar"
 
 [ "${BRANCH}" = master ] || { echo "refusing deploy: branch is ${BRANCH}, expected master" >&2; exit 2; }
 [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "refusing deploy: tracked worktree is dirty" >&2; exit 2; }
+[[ "${CANDIDATE_ID}" =~ ^BEAAA-[0-9]+$ ]] || { echo "invalid BACKBOND_CANDIDATE_ID: ${CANDIDATE_ID}" >&2; exit 2; }
 git fetch origin master --quiet
 ORIGIN_MASTER="$(git rev-parse origin/master)"
 [ "${SHA}" = "${ORIGIN_MASTER}" ] || {
@@ -62,9 +64,12 @@ printf -v Q_TARGET_ARCHIVE '%q' "${TARGET}:${REMOTE_ARCHIVE}"
 printf -v Q_TARGET '%q' "${TARGET}"
 printf -v Q_REMOTE_ARCHIVE '%q' "${REMOTE_ARCHIVE}"
 printf -v Q_SHA '%q' "${SHA}"
+printf -v Q_DIGEST '%q' "${IMMUTABLE_REF}"
+printf -v Q_ARCHIVE_SHA '%q' "${ARCHIVE_SHA}"
+printf -v Q_CANDIDATE '%q' "${CANDIDATE_ID}"
 printf -v Q_HELPER '%q' "${SCANNER_DEPLOY_BIN}"
 
-COMMAND="scp ${Q_ARCHIVE} ${Q_TARGET_ARCHIVE} && ssh ${Q_TARGET} 'set -euo pipefail; cleanup() { rm -f ${Q_REMOTE_ARCHIVE}; }; trap cleanup EXIT; sudo ${Q_HELPER} ${Q_SHA} ${Q_REMOTE_ARCHIVE}'"
+COMMAND="scp ${Q_ARCHIVE} ${Q_TARGET_ARCHIVE} && ssh ${Q_TARGET} 'set -euo pipefail; cleanup() { rm -f ${Q_REMOTE_ARCHIVE}; }; trap cleanup EXIT; sudo ${Q_HELPER} ${Q_SHA} ${Q_REMOTE_ARCHIVE} ${Q_DIGEST} ${Q_ARCHIVE_SHA} ${Q_CANDIDATE}'"
 
 echo "[dev_deploy] staged ${IMMUTABLE_REF} archive_sha256=${ARCHIVE_SHA}"
 echo "[dev_deploy] operator command (agent side stops here; no box credential required):"

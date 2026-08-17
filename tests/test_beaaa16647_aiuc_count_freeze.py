@@ -8,6 +8,8 @@ import yaml
 from tools.active_test_registry import (
     AIUC_PATH_B_SCORING_ACTIVE_FAMILIES,
     AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES,
+    BEAAA_21704_REPORTED_NOT_SCORED_CASES,
+    BEAAA_21704_RETAINED_RUNTIME_CASES,
     build_registry,
     count_active_executable,
     count_target_bound_runtime,
@@ -21,13 +23,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     rows = build_registry(include_content_candidates=False)
-    summary = summarize(rows, published_count=340)
+    summary = summarize(rows, published_count=350)
 
-    assert count_active_executable(rows) == 340
-    assert summary["active_executable_count"] == 340
-    assert count_target_bound_runtime(rows) == 362
-    assert summary["target_bound_runtime_count"] == 362
-    assert summary["published_active_test_count"] == 340
+    assert count_active_executable(rows) == 350
+    assert summary["active_executable_count"] == 350
+    assert count_target_bound_runtime(rows) == 372
+    assert summary["target_bound_runtime_count"] == 372
+    assert summary["published_active_test_count"] == 350
+
+
+def test_beaaa21704_report_only_cases_keep_runtime_coverage_not_score_countability() -> None:
+    rows = build_registry(include_content_candidates=False)
+    cases = [
+        row
+        for row in rows
+        if (row["test_id"], row["case_id"])
+        in BEAAA_21704_REPORTED_NOT_SCORED_CASES
+    ]
+
+    assert len(cases) == 24
+    assert count_active_executable(cases) == 0
+    assert len(BEAAA_21704_RETAINED_RUNTIME_CASES) == 12
+    assert count_target_bound_runtime(cases) == 12
+    assert {row["reporting_status"] for row in cases} == {"reported_not_scored"}
+    assert {row["scoring_active"] for row in cases} == {False}
 
 
 def test_beaaa16647_non_promoted_aiuc_families_remain_reported_not_scored_and_non_countable() -> None:

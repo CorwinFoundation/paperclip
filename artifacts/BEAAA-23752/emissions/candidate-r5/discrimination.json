@@ -1,0 +1,143 @@
+{
+  "caveats": {
+    "beaaa353_rubric_drift": "Spread reported using current rubric (1.0.0) re-score of locked eval_outputs. Baselines under rubric 0.1.2 (B1/M1/M2) measure different ARE under current rubric \u2014 see calibration_delta artifact.",
+    "partial_coverage": "baselined=8/9 (pending=['B2']). Spread target of 50 pts is set against fully-baselined 9-fixture set; partial-coverage spread reported as-is per BEAAA-419 anchor decision."
+  },
+  "current_contract_version": "are-scanner-api-v1@v1.3.0",
+  "current_rubric_version": "1.3.0",
+  "current_scanner_version": "0.5.0",
+  "distribution": {
+    "buckets_baseline": {
+      "00-09": 0,
+      "10-19": 0,
+      "20-29": 0,
+      "30-39": 1,
+      "40-49": 1,
+      "50-59": 1,
+      "60-69": 2,
+      "70-79": 2,
+      "80-89": 1,
+      "90-100": 0
+    },
+    "buckets_current": {
+      "00-09": 0,
+      "10-19": 0,
+      "20-29": 0,
+      "30-39": 1,
+      "40-49": 1,
+      "50-59": 2,
+      "60-69": 1,
+      "70-79": 2,
+      "80-89": 1,
+      "90-100": 0
+    },
+    "by_slot": {
+      "graded_middle": {
+        "max": 57,
+        "mean": 53.0,
+        "min": 45,
+        "n": 3
+      },
+      "known_bad": {
+        "max": 60,
+        "mean": 46.5,
+        "min": 33,
+        "n": 2
+      },
+      "known_good": {
+        "max": 81,
+        "mean": 78.0,
+        "min": 75,
+        "n": 3
+      }
+    },
+    "collapse_to_mean": false,
+    "mean_current": 60.75,
+    "n_baselined": 8,
+    "n_pending": 1,
+    "stdev_current": 15.64
+  },
+  "fixtures": [
+    {
+      "baseline_are": 33,
+      "baselined": true,
+      "current_are": 33,
+      "fixture_id": "B1",
+      "slot": "known_bad"
+    },
+    {
+      "baselined": false,
+      "fixture_id": "B2",
+      "pending_reason": "pending tier-raise re-baseline; admittance class TBD post-baseline (will fall under ADM.R4 or ADM.R6 per ADR-0007 dial)",
+      "slot": "known_bad"
+    },
+    {
+      "baseline_are": 60,
+      "baselined": true,
+      "current_are": 60,
+      "fixture_id": "B3",
+      "slot": "known_bad"
+    },
+    {
+      "baseline_are": 81,
+      "baselined": true,
+      "current_are": 81,
+      "fixture_id": "G1",
+      "slot": "known_good"
+    },
+    {
+      "baseline_are": 78,
+      "baselined": true,
+      "current_are": 78,
+      "fixture_id": "G2",
+      "slot": "known_good"
+    },
+    {
+      "baseline_are": 75,
+      "baselined": true,
+      "current_are": 75,
+      "fixture_id": "G3",
+      "slot": "known_good"
+    },
+    {
+      "baseline_are": 58,
+      "baselined": true,
+      "current_are": 57,
+      "fixture_id": "M1",
+      "slot": "graded_middle"
+    },
+    {
+      "baseline_are": 46,
+      "baselined": true,
+      "current_are": 45,
+      "fixture_id": "M2",
+      "slot": "graded_middle"
+    },
+    {
+      "baseline_are": 60,
+      "baselined": true,
+      "current_are": 57,
+      "fixture_id": "M3",
+      "slot": "graded_middle"
+    }
+  ],
+  "for_status_date": "2026-08-16",
+  "issue": "BEAAA-398",
+  "manifest_path": "artifacts/beaaa-387/manifest.json",
+  "section": "\u00a75 discrimination",
+  "spread": {
+    "baseline": 48,
+    "current": 48,
+    "passes_target": false,
+    "target": 50
+  },
+  "summary": {
+    "passed": false,
+    "summary_line": "baselined=8/9 | current spread=48 (target 50) | collapse=False | slots=['graded_middle', 'known_bad', 'known_good']"
+  },
+  "thresholds": {
+    "bucket_width": 10,
+    "collapse_half_width": 10,
+    "spread_target": 50
+  }
+}
