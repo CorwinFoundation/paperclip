@@ -1,0 +1,18 @@
+=== run 1 ===
+baseline (no mutation)                   PASS expected    status=PASS
+
+M1 inspect_no_content -> no-op           KILLED           status=EXC:TypeError          no_content_recursive=n/a
+M1b scanner -> fake clean count          KILLED           status=EXC:KeyError           no_content_recursive=n/a
+M4 hash chain broken (control)           KILLED           status=FAIL                   prev_batch_hash_chain=False
+M5 log tracker zero rows                 KILLED           status=FAIL                   log_tracker_determinations_persisted=False
+M6 continuity gate -> None               KILLED           status=EXC:AttributeError     continuity_gate_healthy=n/a
+M10 batch hash -> constant               KILLED           status=EXC:ReceiverSchemaError tamper_rejected=n/a
+=== run 2 (must be identical - proves no cross-run contamination) ===
+baseline (no mutation)                   PASS expected    status=PASS
+
+M1 inspect_no_content -> no-op           KILLED           status=EXC:TypeError          no_content_recursive=n/a
+M1b scanner -> fake clean count          KILLED           status=EXC:KeyError           no_content_recursive=n/a
+M4 hash chain broken (control)           KILLED           status=FAIL                   prev_batch_hash_chain=False
+M5 log tracker zero rows                 KILLED           status=FAIL                   log_tracker_determinations_persisted=False
+M6 continuity gate -> None               KILLED           status=EXC:AttributeError     continuity_gate_healthy=n/a
+M10 batch hash -> constant               KILLED           status=EXC:ReceiverSchemaError tamper_rejected=n/a
