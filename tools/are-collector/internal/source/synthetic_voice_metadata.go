@@ -22,6 +22,9 @@ var (
 	// Identifiers are independently minted UUIDv4 values. Producers must never
 	// derive, hash, or encode telephone or PII metadata into these fields.
 	syntheticVoiceOpaqueID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	// Producer version pins are bounded dotted triples. The driver contract is
+	// content-free, so these fields carry a release pin and nothing else.
+	syntheticVoicePinnedVersion = regexp.MustCompile(`^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$`)
 	// Action classes are the Evidence Profile v1 vocabulary pinned by
 	// contracts/standard-agent-interface-v1.md.
 	syntheticVoiceActionClasses = map[string]struct{}{
@@ -192,8 +195,20 @@ func validateSyntheticVoiceEvent(event SyntheticVoiceMetadataEvent) error {
 		return fmt.Errorf("continuity.sequence must be positive")
 	}
 	producer := event.Producer
-	if producer.CollectorVersion == "" || producer.DriverVersion != SyntheticVoiceMetadataMappingVersion || producer.ScannerVersion == "" || producer.CorpusVersion == "" {
-		return fmt.Errorf("complete, pinned producer metadata is required")
+	for _, field := range []struct {
+		name  string
+		value string
+	}{
+		{"producer.collector_version", producer.CollectorVersion},
+		{"producer.scanner_version", producer.ScannerVersion},
+		{"producer.corpus_version", producer.CorpusVersion},
+	} {
+		if !syntheticVoicePinnedVersion.MatchString(field.value) {
+			return fmt.Errorf("%s must use a bounded dotted triple", field.name)
+		}
+	}
+	if producer.DriverVersion != SyntheticVoiceMetadataMappingVersion {
+		return fmt.Errorf("producer.driver_version must equal %q", SyntheticVoiceMetadataMappingVersion)
 	}
 	return nil
 }
