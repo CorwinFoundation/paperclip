@@ -1,0 +1,26 @@
+{
+  "issue": "BEAAA-23802",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "scanner_version": "0.5.0",
+  "rubric_version": "1.3.0",
+  "corpus_version": "per-fixture persisted pins; no corpus mutation",
+  "probe_set_version": "unchanged",
+  "rubric_point_id": "golden-checkpoint-enforcement",
+  "checkpoint_id": "adr-0067-v1.1-scanner-0.5.0-rubric-1.3.0",
+  "seeds": [0, 1, 2, 3, 4],
+  "result": "PASS",
+  "max_total_delta": 0,
+  "max_pillar_delta": 0.0,
+  "fixture_results": {
+    "B1": [0, 0, 0, 0, 0],
+    "B3": [0, 0, 0, 0, 0],
+    "G1": [0, 0, 0, 0, 0],
+    "G2": [0, 0, 0, 0, 0],
+    "G3": [0, 0, 0, 0, 0],
+    "M1": [0, 0, 0, 0, 0],
+    "M2": [0, 0, 0, 0, 0],
+    "M3": [0, 0, 0, 0, 0]
+  },
+  "interpretation": "Deterministic locked replay only; seed does not control sampling on this path.",
+  "cto_cosign_ref": "BEAAA-23800; BEAAA-23801"
+}

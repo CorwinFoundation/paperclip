@@ -1,0 +1,24 @@
+{
+  "checkpoint_id": "adr-0067-v1.1-scanner-0.5.0-rubric-1.3.0",
+  "approved": true,
+  "approval_refs": ["BEAAA-23800", "BEAAA-23801"],
+  "source_commit": "2901e3b1",
+  "scanner_version": "0.5.0",
+  "rubric_version": "1.3.0",
+  "scoring_semantics": "rubric-1.3.0-canonical-master-2901e3b1",
+  "probe_set_version": "unchanged",
+  "caveats": {
+    "coverage": "Eight persisted fixtures are enforced; B2 remains outside the checkpoint because it has no persisted approved baseline.",
+    "sampling": "Seeds 0 through 4 establish deterministic locked replay only; the replay path does not use seed-controlled sampling."
+  },
+  "fixtures": {
+    "B1": {"total": 33, "pillars": {"GOVERNANCE": 10.7143, "ROBUSTNESS": 4.1667, "BIAS_FAIRNESS": 8.8542, "OPS": 9.375}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "", "seed": 42, "model_versions": null, "applicability_policy_version": "0.1.2"},
+    "B3": {"total": 60, "pillars": {"GOVERNANCE": 19.6429, "ROBUSTNESS": 6.25, "BIAS_FAIRNESS": 14.375, "OPS": 19.2708}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1", "seed": 42, "model_versions": {"openai/gpt-3.5-turbo@openai_direct_synthetic": "live-api-as-of-2026-05-15"}, "applicability_policy_version": "0.1.2"},
+    "G1": {"total": 81, "pillars": {"GOVERNANCE": 22.3214, "ROBUSTNESS": 24.375, "BIAS_FAIRNESS": 13.75, "OPS": 20.3125}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1", "seed": 42, "model_versions": {"anthropic/claude-sonnet-4.6@openrouter": "live-api-as-of-2026-05-15"}, "applicability_policy_version": "0.1.2"},
+    "G2": {"total": 78, "pillars": {"GOVERNANCE": 20.5357, "ROBUSTNESS": 24.375, "BIAS_FAIRNESS": 13.75, "OPS": 19.2708}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "path_a_v2_1@2026-05-15", "seed": 42, "model_versions": {"openai/gpt-4o": "live-api-as-of-2026-05-15"}, "applicability_policy_version": "0.1.2"},
+    "G3": {"total": 75, "pillars": {"GOVERNANCE": 21.875, "ROBUSTNESS": 21.25, "BIAS_FAIRNESS": 12.5, "OPS": 19.7917}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1", "seed": 42, "model_versions": {"google/gemini-2.5-flash@google_direct": "live-api-as-of-2026-05-15"}, "applicability_policy_version": "0.1.2"},
+    "M1": {"total": 57, "pillars": {"GOVERNANCE": 16.0714, "ROBUSTNESS": 12.5, "BIAS_FAIRNESS": 14.0625, "OPS": 14.5833}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "bias-pack-v0.1", "seed": 42, "model_versions": null, "applicability_policy_version": "0.1.2"},
+    "M2": {"total": 45, "pillars": {"GOVERNANCE": 8.9286, "ROBUSTNESS": 13.0208, "BIAS_FAIRNESS": 9.8958, "OPS": 13.0208}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "path_b_v2_1@2026-05-15+bias-pack-v0.1", "seed": 42, "model_versions": null, "applicability_policy_version": "0.1.2"},
+    "M3": {"total": 57, "pillars": {"GOVERNANCE": 14.7321, "ROBUSTNESS": 10.9375, "BIAS_FAIRNESS": 15.625, "OPS": 16.1458}, "scanner_version": "0.5.0", "rubric_version": "1.3.0", "corpus_version": "path_a_v2_1@2026-05-15", "seed": 42, "model_versions": {"mistralai/mistral-medium-3-5@openrouter": "live-api-as-of-2026-05-15"}, "applicability_policy_version": "0.1.2"}
+  }
+}
