@@ -25,8 +25,10 @@ verification: >-
   full focused test modules run with no -k selection; N=5 golden gate over
   seeds 0-4 returned PASS with maximum total delta 0 and maximum pillar delta
   0 on all eight in-roster golden agents. Remaining uncertainty is stated in
-  section 7: thirteen pre-existing frozen-registry-count assertions were
-  already red on canonical master before this change and are left red.
+  section 7: sixteen pre-existing assertions across twelve modules were
+  already red on canonical master before this change and are left red. Thirteen
+  are stale registry-count assertions; three show the production-controls
+  packet at `overall_pass: false` with `feature_flag_rollback: FAIL`.
 approvals:
   - "CTO co-sign: not required — rule execution per scanner-implementation-supervision-v1@v1.1, table row 'Implement a new probe inside an existing rubric_point_id'."
   - "QA Engineer (cd1e82a0-d1cf-4b44-a8ea-a8b312120baa): REQUIRED before any promotion to canonical master. Not yet obtained."
@@ -184,11 +186,13 @@ so adding registry rows cannot move a golden score. Each family additionally
 proves its own N=5 byte-identity — five replays of the full family envelope
 collapse to a single fingerprint.
 
-## 7. Disclosure — thirteen pre-existing red count gates, not caused by this change
+## 7. Disclosure — sixteen pre-existing red assertions, not caused by this change
 
-Thirteen assertions across nine modules fail on the candidate. **All thirteen
-already fail on canonical master `fb2cf1ef` before this change.** They are
-frozen registry-count assertions, each stale by exactly +10 on master:
+Sixteen assertions across twelve modules fail on the candidate. **All sixteen
+already fail on canonical master `fb2cf1ef` before this change.** Thirteen are
+frozen registry-count assertions made stale by BEAAA-22121. The other three
+are production-controls tests whose packet now reports a failed rollback
+control:
 
 | Module | Frozen value | Observed on `fb2cf1ef` | Observed on `20c1c2be` |
 |---|---:|---:|---:|
@@ -203,12 +207,21 @@ frozen registry-count assertions, each stale by exactly +10 on master:
 | `test_beaaa18720_content_candidate_registration` (2 tests) | 2242 / 2202 | 2252 / 2212 | 2284 / 2244 |
 | `test_beaaa16972_wave1a_scored_activation` | 305-basis | stale | stale |
 | `test_distinct_case_count_beaaa14423` | 362 | 372 | 404 |
+| `test_beaaa16992_production_controls` (3 tests) | `overall_pass: True`; `feature_flag_rollback: PASS` | `overall_pass: False`; `feature_flag_rollback: FAIL` | `overall_pass: False`; `feature_flag_rollback: FAIL` |
 
 Root cause, located and confirmed: at `b0499f97`, the commit immediately
 before BEAAA-22121, `count_active_executable` is exactly **340** — the frozen
 value. BEAAA-22121 (`1a1ce3c0`) added ten cases to
 `p1_1_factuality_golden` and `p1_4_refusal_golden` without refreshing these
 count constants, and they have been red on canonical master since.
+
+At that same pre-BEAAA-22121 commit, the production-controls acceptance packet
+reports `overall_pass: True` with no non-PASS controls. On both `fb2cf1ef` and
+`20c1c2be`, it reports `overall_pass: False` and
+`feature_flag_rollback: FAIL`. The control evidence still expects 340 active
+executable rows to roll back to 305. This is a pre-existing production-control
+failure, not merely a stale assertion constant, and the three failing tests
+are now disclosed explicitly.
 
 These constants are the frozen **published** production count. Re-freezing
 them asserts a new published number, which acceptance item 6 puts out of scope
