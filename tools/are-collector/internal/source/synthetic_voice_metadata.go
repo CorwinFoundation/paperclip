@@ -20,7 +20,21 @@ const SyntheticVoiceMetadataMappingVersion = "synthetic-voice-metadata-map-v1.0"
 
 var (
 	syntheticVoiceOpaqueID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
-	syntheticVoiceToken    = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+	// Action classes are the Evidence Profile v1 vocabulary pinned by
+	// contracts/standard-agent-interface-v1.md.
+	syntheticVoiceActionClasses = map[string]struct{}{
+		"message_send": {}, "transaction": {}, "data_access": {}, "tool_call": {},
+		"human_escalation": {}, "admin_change": {}, "other": {},
+	}
+	// Outcome statuses are the complete collector drift vocabulary exercised by
+	// internal/triggers and its fixtures.
+	syntheticVoiceOutcomeStatuses = map[string]struct{}{
+		"completed": {}, "failed": {}, "reversed": {}, "escalated": {},
+	}
+	// synthetic-voice-metadata-map-v1.0 currently approves one aggregate
+	// determination, as pinned by the source and pipeline fixtures.
+	syntheticVoiceDeterminationClasses = map[string]struct{}{"availability": {}}
+	syntheticVoiceDeterminationResults = map[string]struct{}{"pass": {}, "fail": {}}
 )
 
 type SyntheticVoiceDetermination struct {
@@ -150,17 +164,21 @@ func validateSyntheticVoiceEvent(event SyntheticVoiceMetadataEvent) error {
 	if event.Count < 1 {
 		return fmt.Errorf("positive count is required")
 	}
-	for name, value := range map[string]string{"action_class": event.ActionClass, "outcome_status": event.OutcomeStatus} {
-		if !syntheticVoiceToken.MatchString(value) {
-			return fmt.Errorf("%s must be a bounded closed token", name)
-		}
+	if _, ok := syntheticVoiceActionClasses[event.ActionClass]; !ok {
+		return fmt.Errorf("action_class is not in the Evidence Profile vocabulary")
+	}
+	if _, ok := syntheticVoiceOutcomeStatuses[event.OutcomeStatus]; !ok {
+		return fmt.Errorf("outcome_status is not in the synthetic voice mapping vocabulary")
 	}
 	if len(event.Determinations) == 0 {
 		return fmt.Errorf("at least one determination is required")
 	}
 	for _, determination := range event.Determinations {
-		if !syntheticVoiceToken.MatchString(determination.Class) || !syntheticVoiceToken.MatchString(determination.Result) {
-			return fmt.Errorf("determination class and result must be bounded closed tokens")
+		if _, ok := syntheticVoiceDeterminationClasses[determination.Class]; !ok {
+			return fmt.Errorf("determination class is not in the synthetic voice mapping vocabulary")
+		}
+		if _, ok := syntheticVoiceDeterminationResults[determination.Result]; !ok {
+			return fmt.Errorf("determination result is not in the synthetic voice mapping vocabulary")
 		}
 	}
 	for name, value := range map[string]string{"commitments.evidence_sha256": event.Commitments.EvidenceSHA256, "continuity.previous_event_sha256": event.Continuity.PreviousEventSHA256} {

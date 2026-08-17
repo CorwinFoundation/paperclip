@@ -34,7 +34,7 @@ func validSyntheticVoiceEvent() map[string]any {
 	return map[string]any{
 		"source_event_id": "voice-evt-1", "observed_at": "2026-08-08T12:00:00Z",
 		"agent_id": "agent-fixture", "deployment_id": "deploy-fixture", "count": 1,
-		"action_class": "message", "outcome_status": "completed",
+		"action_class": "message_send", "outcome_status": "completed",
 		"determinations": []any{map[string]any{"class": "availability", "result": "pass"}},
 		"commitments":    map[string]any{"evidence_sha256": "sha256:" + strings.Repeat("a", 64)},
 		"continuity":     map[string]any{"sequence": 1, "previous_event_sha256": "sha256:" + strings.Repeat("0", 64)},
@@ -136,6 +136,31 @@ func TestSyntheticVoiceMetadataPinsProducerDriverVersionExactly(t *testing.T) {
 	line, pub := signedSyntheticVoiceLine(t, event, nil)
 	if _, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub}); err == nil {
 		t.Fatal("accepted producer.driver_version other than SyntheticVoiceMetadataMappingVersion")
+	}
+}
+
+func TestSyntheticVoiceMetadataRejectsNonEnumeratedSemanticTokens(t *testing.T) {
+	tests := map[string]func(map[string]any){
+		"action_class": func(event map[string]any) { event["action_class"] = "customer_ssn_123456789" },
+		"outcome_status": func(event map[string]any) {
+			event["outcome_status"] = "customer_ssn_123456789"
+		},
+		"determination_class": func(event map[string]any) {
+			event["determinations"].([]any)[0].(map[string]any)["class"] = "customer_ssn_123456789"
+		},
+		"determination_result": func(event map[string]any) {
+			event["determinations"].([]any)[0].(map[string]any)["result"] = "customer_ssn_123456789"
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			event := validSyntheticVoiceEvent()
+			mutate(event)
+			line, pub := signedSyntheticVoiceLine(t, event, nil)
+			if _, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub}); err == nil {
+				t.Fatal("accepted syntactically valid but non-enumerated semantic token")
+			}
+		})
 	}
 }
 

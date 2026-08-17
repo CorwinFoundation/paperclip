@@ -22,7 +22,7 @@ func TestSyntheticVoiceMetadataUsesCanonicalPipelineAndHashChain(t *testing.T) {
 	event := map[string]any{
 		"source_event_id": "voice-evt-pipeline", "observed_at": "2026-08-08T12:00:00Z",
 		"agent_id": "agent-fixture", "deployment_id": "deploy-fixture", "count": 1,
-		"action_class": "message", "outcome_status": "completed",
+		"action_class": "message_send", "outcome_status": "completed",
 		"determinations": []any{map[string]any{"class": "availability", "result": "pass"}},
 		"commitments":    map[string]any{"evidence_sha256": "sha256:" + strings.Repeat("a", 64)},
 		"continuity":     map[string]any{"sequence": 1, "previous_event_sha256": egress.GenesisBatchHash},
