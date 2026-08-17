@@ -1,0 +1,29 @@
+package collector
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestQADumpBaselineLeak(t *testing.T) {
+	payload := "Caller Jane Doe, SSN 123-45-6789, card 4111 1111 1111 1111, transcript: I want a refund now"
+	batch, err := qaSignedBatchFor(t, map[string]any{"collector_version": payload})
+	if err != nil {
+		t.Skipf("refused (guard active): %v", err)
+	}
+	for _, marker := range []string{"Jane Doe", "123-45-6789", "4111 1111 1111 1111", "transcript"} {
+		t.Logf("marker %q present in signed batch: %v", marker, strings.Contains(batch, marker))
+	}
+	idx := strings.Index(batch, "Jane Doe")
+	if idx > 0 {
+		lo := idx - 220
+		if lo < 0 {
+			lo = 0
+		}
+		hi := idx + 160
+		if hi > len(batch) {
+			hi = len(batch)
+		}
+		t.Logf("signed-batch excerpt:\n...%s...", batch[lo:hi])
+	}
+}

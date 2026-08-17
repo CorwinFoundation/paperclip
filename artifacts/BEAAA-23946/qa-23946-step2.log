@@ -1,0 +1,86 @@
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/source_event_id
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/deployment_id
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/outcome_status
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/scanner_version
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_result
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/agent_id
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/action_class
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/collector_version
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/corpus_version
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_class
+--- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues (0.01s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/source_event_id (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/deployment_id (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/outcome_status (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/scanner_version (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_result (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/agent_id (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/action_class (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/collector_version (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/corpus_version (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_class (0.00s)
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0_
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/2026.6.24
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/12345.0.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/01.2.3
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/123-45-6789
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/2026.6.24
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/12345.0.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0_
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/01.2.3
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/123-45-6789
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/01.2.3
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/123-45-6789
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/12345.0.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0_
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/2026.6.24
+--- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins (0.02s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0_ (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/2026.6.24 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/12345.0.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/01.2.3 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/123-45-6789 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/2026.6.24 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/12345.0.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0_ (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/01.2.3 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/123-45-6789 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/01.2.3 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/123-45-6789 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/12345.0.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0_ (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/2026.6.24 (0.00s)
+PASS
+ok  	backbond/are-collector/internal/source	0.030s

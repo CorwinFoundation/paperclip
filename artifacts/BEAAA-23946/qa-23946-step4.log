@@ -1,0 +1,9 @@
+ok  	backbond/are-collector/cmd/are-collector	0.033s
+?   	backbond/are-collector/internal/redaction	[no test files]
+?   	backbond/are-collector/internal/schemav1	[no test files]
+ok  	backbond/are-collector/internal/adapter	0.011s
+ok  	backbond/are-collector/internal/collector	0.024s
+ok  	backbond/are-collector/internal/egress	0.009s
+ok  	backbond/are-collector/internal/source	0.042s
+ok  	backbond/are-collector/internal/triggers	0.010s
+ok  	backbond/are-collector/tests	0.006s
