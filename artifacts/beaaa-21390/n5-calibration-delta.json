@@ -1029,7 +1029,8 @@
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
-  "cto_cosign_ref": "BEAAA-14867",
+  "correction_note": "Header regenerated under BEAAA-23845. The original header was emitted from a template that hardcoded BEAAA-17963 provenance and a BEAAA-14867 co-sign onto every receipt (introduced in 1776e44). Attribution fields are corrected to the owning ticket. The measured deltas in the body are unchanged and were always correct. The true CTO co-sign for this run was not recoverable from the repository and is marked rather than guessed.",
+  "cto_cosign_ref": "unrecovered-pending-BEAAA-23845",
   "delta_tolerance": 1.0,
   "development_drift_disposition": "direct_same_lineage_blocking",
   "excluded": {
@@ -1075,7 +1076,7 @@
     "B2",
     "B3"
   ],
-  "issue": "BEAAA-17963",
+  "issue": "BEAAA-21390",
   "material_deltas": [],
   "movement_accounting_decision_ref": "BEAAA-14949#decision@f7aacc18",
   "passed": true,

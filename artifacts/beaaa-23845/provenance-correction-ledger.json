@@ -1,0 +1,141 @@
+{
+  "artifact_type": "provenance_correction_ledger",
+  "classification": "rule-execution",
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
+  "corpus_version": "0.2.0",
+  "corrections": [
+    {
+      "added_fields": [
+        "attribution_basis",
+        "authoritative",
+        "authoritative_scope",
+        "correction_note",
+        "original_false_attribution"
+      ],
+      "authoritative": true,
+      "fields": [
+        {
+          "after": "BEAAA-19084",
+          "before": "BEAAA-17963",
+          "field": "issue"
+        },
+        {
+          "after": "unrecovered-pending-BEAAA-23845",
+          "before": "BEAAA-14867",
+          "field": "cto_cosign_ref"
+        }
+      ],
+      "file": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.json",
+      "measured_values_changed": false,
+      "sha256_after": "42e18c8d8ca52bd7cb84b431136c0520c3cc43fcb47929d450fcee81c9e0f253",
+      "sha256_before": "fb9fbc14a44a83a43ef3d14b4b024c4fd90c67647b21e0e9f516b2f88a093f54"
+    },
+    {
+      "added_fields": [
+        "authoritative",
+        "authoritative_scope",
+        "correction_note"
+      ],
+      "authoritative": true,
+      "fields": [
+        {
+          "after": "unrecovered-pending-BEAAA-23845",
+          "before": "BEAAA-14867",
+          "field": "CTO co-sign line"
+        }
+      ],
+      "file": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.md",
+      "measured_values_changed": false,
+      "sha256_after": "8e1d7388bb33163752057032e9baf6167e7a42c194ab20fdb459039f461d2ece",
+      "sha256_before": "493baea5d1d433346f40de93e2d1d05d1cc70d0e49c2570063d0a12a82303779"
+    },
+    {
+      "added_fields": [
+        "attribution_basis",
+        "authoritative",
+        "correction_note",
+        "original_false_attribution"
+      ],
+      "authoritative": true,
+      "fields": [
+        {
+          "after": "BEAAA-20137",
+          "before": "BEAAA-17963",
+          "field": "issue"
+        },
+        {
+          "after": "not-required-rule-execution",
+          "before": "BEAAA-14867",
+          "field": "cto_cosign_ref"
+        }
+      ],
+      "file": "tools/calibration-deltas/2026-08-01-f9a60012-vs-cd464001.json",
+      "measured_values_changed": false,
+      "sha256_after": "f873797617db121eee025e2f53443721167e97ff4ff6346dabec5ac340c1381f",
+      "sha256_before": "3f2a5fb7b2307e003aafd83b108b64ffe9fc2112f31bc6db7e3f11b4735fbc72"
+    }
+  ],
+  "cto_cosign_ref": "not-required-rule-execution",
+  "cto_ruling": {
+    "binding_2026_07_31": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.{json,md} are authoritative as a MEASUREMENT RECORD ONLY. Not approval evidence. May not be cited to satisfy any co-sign, promotion, or release check. Anyone needing a co-signed N=5 on that lineage re-runs the gate.",
+    "binding_2026_08_01": "No equivalent limitation. Its sibling .md records classification rule-execution and cto_cosign_ref N/A-rule-execution, so the absence of a co-sign is recoverable rather than unknown, and the canonical value not-required-rule-execution is recorded.",
+    "effect": "The quarantine rested on a premise the CTO subsequently withdrew: that these two receipts had no recoverable owner. Attribution was verified against sibling receipts and live Paperclip ticket titles, so the headers record the verified owner. authoritative is true on all three files and the quarantine key is removed. The CTO independently re-derived both attributions rather than accepting the chain on trust. The word the original ruling used for that premise is deliberately absent from every artifact in this correction set, per the ruling.",
+    "marker_not_emittable": "unrecovered-pending-BEAAA-23845 cannot be produced by any live run. COSIGN_RE at scripts/release_gate_n5.py accepts only ^BEAAA-\\d+(#comment-[0-9A-Za-z._-]+)?$ or the literal not-required-rule-execution. This is what makes the marker safe to carry on an authoritative receipt, and it is why QA finding F3 (committed corpus not self-consistent with the invariant the same commit introduces) is explicitly ACCEPTED rather than resolved.",
+    "non_operative_flag_finding": "The authoritative flag is read by no code. Verified independently by the CTO at 190553b2 and by QA on master fb2cf1ef across all file types, not just *.py: zero JSON/schema-key occurrences outside artifacts/ and tools/calibration-deltas/, and no property, subscript or .get() access in py/sh/yml/js/ts/go/sql. The quarantine half of the original ruling was therefore never load-bearing; the only thing protecting the record is whether the header text is true. It also means this flip cannot move N=5, so any measured movement at this SHA is a hard stop rather than something to reconcile.",
+    "ruling": "BEAAA-23845 comment 3cdc164f, 2026-08-17. Amendment to ruling item 2 CONFIRMED (option 1)."
+  },
+  "cto_ruling_ref": "BEAAA-23845#comment 2026-08-17T05:12:16.842Z",
+  "defect": {
+    "issue_literal_history": [
+      {
+        "commit": "5904383",
+        "value": "BEAAA-10488/BEAAA-10485"
+      },
+      {
+        "commit": "69ac8d2",
+        "value": "BEAAA-10459/BEAAA-10453"
+      },
+      {
+        "commit": "c427650",
+        "value": "BEAAA-13650"
+      },
+      {
+        "commit": "5f6afac",
+        "value": "BEAAA-14874 era; cto_cosign_ref pinned to BEAAA-14867 here and never changed"
+      },
+      {
+        "commit": "1776e44",
+        "value": "BEAAA-17963"
+      },
+      {
+        "commit": "6a55e72",
+        "value": "parameterised; no literal"
+      }
+    ],
+    "legitimate_beaaa14867_use": "scripts/release_gate_n5.py:129,139 cite BEAAA-14867#comment-<id> as approval_provenance decision_refs. BEAAA-14867 is a real CTO decision ticket ('classify/isolate BEAAA-14849 residual N=5 deltas') and those citations are correct. Only its use as a per-run cto_cosign_ref was false.",
+    "summary": "scripts/release_gate_n5.py carried receipt provenance as template literals from its first commit until 6a55e72 parameterised it."
+  },
+  "issue": "BEAAA-23845",
+  "marker_rejection_demonstrated": "Verified in this workspace against scripts/release_gate_n5.py at this SHA: _validate_receipt_provenance rejects 'unrecovered-pending-BEAAA-23845' and the empty string, and accepts only BEAAA-NNN, BEAAA-NNN#comment-<id>, or not-required-rule-execution.",
+  "n5_calibration_delta": "0.0000 all pillars all fixtures; measured at b7cb9a9, artifacts/beaaa-23845/n5-calibration-delta.json. This revision is artifact-only and changes no executable code, so that measurement still governs.",
+  "owner": "scanner_engineer_2",
+  "persona_audience": "internal",
+  "probe-set-version": "artifacts/beaaa-387/manifest.json",
+  "rubric_point_id": [
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+  ],
+  "scanner_version": "0.5.0",
+  "self_audit_passed": true,
+  "supersedes_candidate": "a51f285f6b83bd099939428b65aca5a2935ff781",
+  "unrecovered_marker": {
+    "enforcement": "scripts/release_gate_n5.py COSIGN_RE (line 542) accepts only BEAAA-NNN, BEAAA-NNN#comment-<id>, or not-required-rule-execution, so the generator cannot emit this marker.",
+    "not_a_cosign": true,
+    "satisfies_no_approval_or_promotion_check": true,
+    "status": "historical correction marker only",
+    "value": "unrecovered-pending-BEAAA-23845"
+  }
+}
