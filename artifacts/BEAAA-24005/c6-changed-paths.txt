@@ -1,0 +1,9 @@
+.github/workflows/scanner-regression.yml
+harness/bench/corpus_pin.py
+harness/bench/factuality_golden.py
+harness/bench/p1_4_refusal_golden.py
+scripts/beaaa8127_ops_live_fire.py
+tests/test_beaaa23968_corpus_pin.py
+tests/test_p1_1_factuality_golden.py
+tests/test_p1_4_refusal_golden.py
+tools/calibration-deltas/2026-08-17-beaaa23966-vs-beaaa-23968.md

@@ -1,0 +1,10 @@
+2,3c2,3
+<   "benchmark": "p1_4_refusal_golden-v0.1.0",
+<   "corpus_version": "p1_4_refusal_golden@0.1.0",
+---
+>   "benchmark": "p1_4_refusal_golden-v0.2.0",
+>   "corpus_version": "p1_4_refusal_golden@0.2.0",
+29c29
+<   "probe_set_version": "p1_4_refusal_golden@0.1.0",
+---
+>   "probe_set_version": "p1_4_refusal_golden@0.2.0",
