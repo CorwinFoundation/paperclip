@@ -918,6 +918,9 @@
     "failure_reason": null,
     "passed": true
   },
+  "attribution_basis": "Owning ticket verified, not inferred: the co-located sibling receipt tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.md records the identical immutable quadruple (baseline commit 4c36de23f901db1152a0436d0620eda75dc4b3bc / tree 2338b49a32d2e71c4ec7a0fea21d276d4e25031d, candidate commit a9dc724ac44b95f10c4d33e2766ca7b033783c7f / tree e98a696ea5915832de97115c1f8a57f1660d9228) and names BEAAA-19084 in its H1, focus_claim and ticket_refs. Its focus_claim matches the Paperclip title of BEAAA-19084, 'Integrate receipt issuance + delivery into one exact promotion candidate'. The .md's ticket fields were hand-corrected by the run operator at emission time while the .json was missed; the .md's own CTO co-sign line was left stale and is corrected here too.",
+  "authoritative": false,
+  "authoritative_pending": "BEAAA-23845: excluded from the authoritative calibration-receipt set, and from any receipt index or evidence collector, until the CTO confirms the amendment to ruling item 2 recorded on BEAAA-23845. The ruling directed quarantine on the premise that these two receipts were unattributable; attribution has since been verified against the sibling receipts and Paperclip ticket titles, so the header records the verified owner rather than asserting an unknown one. Flip authoritative to true on confirmation.",
   "baseline": "4c36de2",
   "baseline_commit": "4c36de23f901db1152a0436d0620eda75dc4b3bc",
   "baseline_tree": "2338b49a32d2e71c4ec7a0fea21d276d4e25031d",
@@ -1029,7 +1032,8 @@
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
-  "cto_cosign_ref": "BEAAA-14867",
+  "correction_note": "Header regenerated under BEAAA-23845. The original header was emitted from scripts/release_gate_n5.py, which carried receipt provenance as a template literal from its first commit (5904383) until it was parameterised in 6a55e72. The `issue` literal was rotated ticket-to-ticket over time and reached BEAAA-17963 in 1776e44; `cto_cosign_ref` was pinned to BEAAA-14867 in 5f6afac and never changed. Neither value described this run. The true CTO co-sign for this run is not recoverable from the repository. unrecovered-pending-BEAAA-23845 is a historical correction marker only. Per the CTO ruling on BEAAA-23845 it is not a co-sign, does not satisfy any approval or promotion check, and scripts/release_gate_n5.py cannot emit it: COSIGN_RE rejects any value that is neither BEAAA-NNN[#comment-<id>] nor not-required-rule-execution.",
+  "cto_cosign_ref": "unrecovered-pending-BEAAA-23845",
   "delta_tolerance": 1.0,
   "development_drift_disposition": "direct_same_lineage_blocking",
   "excluded": {
@@ -1075,9 +1079,10 @@
     "B2",
     "B3"
   ],
-  "issue": "BEAAA-17963",
+  "issue": "BEAAA-19084",
   "material_deltas": [],
   "movement_accounting_decision_ref": "BEAAA-14949#decision@f7aacc18",
+  "original_false_attribution": "Preserved for audit as prose so it cannot be mistaken for, or grepped as, a live provenance field. The original header named ticket BEAAA-17963 as the run's issue (literal introduced in 1776e44) and ticket BEAAA-14867 as the CTO co-sign (literal introduced in 5f6afac). Both were template literals. Neither described this run.",
   "passed": true,
   "phase": "development",
   "probe-set-version": "artifacts/beaaa-387/manifest.json",

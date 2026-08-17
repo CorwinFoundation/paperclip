@@ -918,6 +918,9 @@
     "failure_reason": null,
     "passed": true
   },
+  "attribution_basis": "Owning ticket verified, not inferred: the co-located sibling receipt tools/calibration-deltas/2026-08-01-f9a60012-vs-cd464001.md is a hand-authored BEAAA-20137 report whose recorded command names this exact file as its --json-out target, and whose baseline commit f9a60012fa84e3905add75132ef9cb717b4236bd matches this receipt's baseline_commit. Its H1 and body match the Paperclip title of BEAAA-20137, 'Integrate only QA-approved atomic activation delta onto frozen Scanner master'. artifacts/beaaa-20137/integration-evidence.md cites that .md as its release N=5 proof.",
+  "authoritative": false,
+  "authoritative_pending": "BEAAA-23845: excluded from the authoritative calibration-receipt set, and from any receipt index or evidence collector, until the CTO confirms the amendment to ruling item 2 recorded on BEAAA-23845. The ruling directed quarantine on the premise that these two receipts were unattributable; attribution has since been verified against the sibling receipts and Paperclip ticket titles, so the header records the verified owner rather than asserting an unknown one. Flip authoritative to true on confirmation.",
   "baseline": "f9a60012fa84e3905add75132ef9cb717b4236bd",
   "baseline_commit": "f9a60012fa84e3905add75132ef9cb717b4236bd",
   "baseline_tree": "7db00140af71b0372e1a97d854179de629054879",
@@ -1029,7 +1032,8 @@
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
-  "cto_cosign_ref": "BEAAA-14867",
+  "correction_note": "Header regenerated under BEAAA-23845. The original header was emitted from scripts/release_gate_n5.py, which carried receipt provenance as a template literal from its first commit (5904383) until it was parameterised in 6a55e72. The `issue` literal was rotated ticket-to-ticket over time and reached BEAAA-17963 in 1776e44; `cto_cosign_ref` was pinned to BEAAA-14867 in 5f6afac and never changed. Neither value described this run. The sibling .md records classification: rule-execution and cto_cosign_ref: N/A-rule-execution, so the absence of a co-sign is recoverable rather than unknown. Recorded with the canonical value not-required-rule-execution.",
+  "cto_cosign_ref": "not-required-rule-execution",
   "delta_tolerance": 1.0,
   "development_drift_disposition": "direct_same_lineage_blocking",
   "excluded": {
@@ -1075,9 +1079,10 @@
     "B2",
     "B3"
   ],
-  "issue": "BEAAA-17963",
+  "issue": "BEAAA-20137",
   "material_deltas": [],
   "movement_accounting_decision_ref": "BEAAA-14949#decision@f7aacc18",
+  "original_false_attribution": "Preserved for audit as prose so it cannot be mistaken for, or grepped as, a live provenance field. The original header named ticket BEAAA-17963 as the run's issue (literal introduced in 1776e44) and ticket BEAAA-14867 as the CTO co-sign (literal introduced in 5f6afac). Both were template literals. Neither described this run.",
   "passed": true,
   "phase": "development",
   "probe-set-version": "artifacts/beaaa-387/manifest.json",

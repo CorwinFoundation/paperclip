@@ -1,0 +1,131 @@
+{
+  "artifact_type": "provenance_correction_ledger",
+  "classification": "rule-execution",
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
+  "corpus_version": "0.2.0",
+  "corrections": [
+    {
+      "added_fields": [
+        "attribution_basis",
+        "authoritative",
+        "authoritative_pending",
+        "correction_note",
+        "original_false_attribution"
+      ],
+      "fields": [
+        {
+          "after": "BEAAA-19084",
+          "before": "BEAAA-17963",
+          "field": "issue"
+        },
+        {
+          "after": "unrecovered-pending-BEAAA-23845",
+          "before": "BEAAA-14867",
+          "field": "cto_cosign_ref"
+        }
+      ],
+      "file": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.json",
+      "measured_values_changed": false,
+      "sha256_after": "bc2266ced4de326905eefdd05be06c02126ba33b817409ed2c9c8797920478d3",
+      "sha256_before": "fb9fbc14a44a83a43ef3d14b4b024c4fd90c67647b21e0e9f516b2f88a093f54"
+    },
+    {
+      "added_fields": [
+        "authoritative",
+        "authoritative_pending",
+        "correction_note"
+      ],
+      "fields": [
+        {
+          "after": "unrecovered-pending-BEAAA-23845",
+          "before": "BEAAA-14867",
+          "field": "CTO co-sign line"
+        }
+      ],
+      "file": "tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.md",
+      "measured_values_changed": false,
+      "sha256_after": "330230b4d31e189175c240f362b4fc8ffcb97de93da69db2f2a17f6ecbcc2f94",
+      "sha256_before": "493baea5d1d433346f40de93e2d1d05d1cc70d0e49c2570063d0a12a82303779"
+    },
+    {
+      "added_fields": [
+        "attribution_basis",
+        "authoritative",
+        "authoritative_pending",
+        "correction_note",
+        "original_false_attribution"
+      ],
+      "fields": [
+        {
+          "after": "BEAAA-20137",
+          "before": "BEAAA-17963",
+          "field": "issue"
+        },
+        {
+          "after": "not-required-rule-execution",
+          "before": "BEAAA-14867",
+          "field": "cto_cosign_ref"
+        }
+      ],
+      "file": "tools/calibration-deltas/2026-08-01-f9a60012-vs-cd464001.json",
+      "measured_values_changed": false,
+      "sha256_after": "d891c103d61c3e7366efde813641a6ec4c9b6e3899c34a1e034eaa83658f1913",
+      "sha256_before": "3f2a5fb7b2307e003aafd83b108b64ffe9fc2112f31bc6db7e3f11b4735fbc72"
+    }
+  ],
+  "cto_cosign_ref": "not-required-rule-execution",
+  "cto_ruling_ref": "BEAAA-23845#comment 2026-08-17T05:12:16.842Z",
+  "defect": {
+    "issue_literal_history": [
+      {
+        "commit": "5904383",
+        "value": "BEAAA-10488/BEAAA-10485"
+      },
+      {
+        "commit": "69ac8d2",
+        "value": "BEAAA-10459/BEAAA-10453"
+      },
+      {
+        "commit": "c427650",
+        "value": "BEAAA-13650"
+      },
+      {
+        "commit": "5f6afac",
+        "value": "BEAAA-14874 era; cto_cosign_ref pinned to BEAAA-14867 here and never changed"
+      },
+      {
+        "commit": "1776e44",
+        "value": "BEAAA-17963"
+      },
+      {
+        "commit": "6a55e72",
+        "value": "parameterised; no literal"
+      }
+    ],
+    "legitimate_beaaa14867_use": "scripts/release_gate_n5.py:129,139 cite BEAAA-14867#comment-<id> as approval_provenance decision_refs. BEAAA-14867 is a real CTO decision ticket ('classify/isolate BEAAA-14849 residual N=5 deltas') and those citations are correct. Only its use as a per-run cto_cosign_ref was false.",
+    "summary": "scripts/release_gate_n5.py carried receipt provenance as template literals from its first commit until 6a55e72 parameterised it."
+  },
+  "issue": "BEAAA-23845",
+  "marker_rejection_demonstrated": "Verified in this workspace against scripts/release_gate_n5.py at this SHA: _validate_receipt_provenance rejects 'unrecovered-pending-BEAAA-23845' and the empty string, and accepts only BEAAA-NNN, BEAAA-NNN#comment-<id>, or not-required-rule-execution.",
+  "n5_calibration_delta": "0.0000 all pillars all fixtures; measured at b7cb9a9, artifacts/beaaa-23845/n5-calibration-delta.json. This revision is artifact-only and changes no executable code, so that measurement still governs.",
+  "owner": "scanner_engineer_2",
+  "persona_audience": "internal",
+  "probe-set-version": "artifacts/beaaa-387/manifest.json",
+  "rubric_point_id": [
+    "GOVERNANCE.PII.HANDLING_ATTESTATION",
+    "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+  ],
+  "scanner_version": "0.5.0",
+  "self_audit_passed": true,
+  "supersedes_candidate": "a51f285f6b83bd099939428b65aca5a2935ff781",
+  "unrecovered_marker": {
+    "enforcement": "scripts/release_gate_n5.py COSIGN_RE (line 542) accepts only BEAAA-NNN, BEAAA-NNN#comment-<id>, or not-required-rule-execution, so the generator cannot emit this marker.",
+    "not_a_cosign": true,
+    "satisfies_no_approval_or_promotion_check": true,
+    "status": "historical correction marker only",
+    "value": "unrecovered-pending-BEAAA-23845"
+  }
+}
