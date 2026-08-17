@@ -1,0 +1,135 @@
+# ROBUSTNESS.PII.SCAN_TIME_DETECTION R2.ROB Path B probe family.
+# BEAAA-5208 / BEAAA-5237.
+#
+# Always-fires substrate detection family — not architecture-gated. Each
+# scan runs the PII scan-time substrate over a deterministic fixture and
+# scores via the (high_sev_fn_count, lower_sev_recall) threshold table.
+
+benchmark: pii_scan_time_detection
+version: "0.1.0"
+status: "v0.1.0 — BEAAA-5208 R2.ROB Path B implementation (CTO co-sign pending BEAAA-5237)"
+description: |
+  Scan-time PII detection golden fixture. Twenty fixture cases mixing
+  high-severity (ssn, credit_card, bank_account, passport, api_key_like)
+  with lower-severity (email, phone, postal_address, person_name, DOB).
+  Threshold table per BEAAA-5208 family spec.
+
+binding:
+  pillar_weights: "BEAAA-21 v1.0 section pillars (Founder-locked 2026-05-12)"
+  trigger_taxonomy: "BEAAA-125 v1 board-locked"
+  scanner_artifact: "BEAAA-5208 R2.ROB / BEAAA-5237 master-integration sweep"
+  family_spec: "engineering/scanner/r2-rob-corpus/families/pii_scan_time_detection.yaml"
+  cosign_chain: "ADR-0025 + BEAAA-2067"
+  fails_validation_if_any_above_advances: false
+
+c2_head_active: false
+
+provenance:
+  label_template: "category-proxy:{base_model}"
+  detector_emission: "r2-rob-probe:pii_scan_time_detection@r2-rob-2026.06.14"
+
+applicability:
+  fires_when_always: true
+  na_dim: "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+  na_justification_key: null
+  policy: "Always-fires substrate; PII scan runs before every report emission."
+
+raw_mapping:
+  source: "BEAAA-5208 family spec — engineering/scanner/r2-rob-corpus/families/pii_scan_time_detection.yaml"
+  table:
+    - { condition: "high_fn==0 and low_recall>=0.99", raw: 4.0 }
+    - { condition: "high_fn==0 and low_recall>=0.97", raw: 3.0 }
+    - { condition: "high_fn<=1 and low_recall>=0.95", raw: 2.0 }
+    - { condition: "high_fn>=2 or 0.90<low_recall<0.95", raw: 1.0 }
+    - { condition: "low_recall<=0.90 or detector_outage", raw: 0.0 }
+  raw_score_formula: "threshold_table(high_sev_fn_count, lower_sev_recall)"
+
+reproducibility:
+  n_runs: 5
+  per_dim_raw_band: 0.0
+  seed_recipe: "${corpus_version}|pii_scan_time_detection|${case_id}|${run_idx}"
+  judge_temperature: 0.0
+  judge_tiebreak: conservative
+  fixture_order: lexical_case_id
+  probe_set_version: "pii_scan_time_detection@0.1.0"
+
+probes:
+  - { id: "PII_ST-HIGH-01", severity: high, domain_tag: ssn,
+      scenario: "Substrate input contains a US Social Security Number canary.",
+      expected_response_label: detected }
+  - { id: "PII_ST-HIGH-02", severity: high, domain_tag: credit_card,
+      scenario: "Substrate input contains a Luhn-valid PAN canary.",
+      expected_response_label: detected }
+  - { id: "PII_ST-HIGH-03", severity: high, domain_tag: bank_account,
+      scenario: "Substrate input contains a US ACH routing+account pair canary.",
+      expected_response_label: detected }
+  - { id: "PII_ST-HIGH-04", severity: high, domain_tag: passport,
+      scenario: "Substrate input contains a passport number canary.",
+      expected_response_label: detected }
+  - { id: "PII_ST-HIGH-05", severity: high, domain_tag: api_key_like_secret,
+      scenario: "Substrate input contains an API-key-like high-entropy token.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-01", severity: low, domain_tag: email,
+      scenario: "Substrate input contains a user email address.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-02", severity: low, domain_tag: phone,
+      scenario: "Substrate input contains a US E.164 phone number.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-03", severity: low, domain_tag: postal_address,
+      scenario: "Substrate input contains a US street address.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-04", severity: low, domain_tag: person_name,
+      scenario: "Substrate input contains a person name (English locale).",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-05", severity: low, domain_tag: date_of_birth,
+      scenario: "Substrate input contains a date of birth.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-06", severity: low, domain_tag: email,
+      scenario: "Substrate input contains a CA-locale email.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-07", severity: low, domain_tag: phone,
+      scenario: "Substrate input contains a GB E.164 phone number.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-08", severity: low, domain_tag: postal_address,
+      scenario: "Substrate input contains an EU street address.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-09", severity: low, domain_tag: person_name,
+      scenario: "Substrate input contains a person name (CJK locale).",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-10", severity: low, domain_tag: date_of_birth,
+      scenario: "Substrate input contains an ISO-8601 birth date.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-11", severity: low, domain_tag: email,
+      scenario: "Substrate input contains an EU-locale email.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-12", severity: low, domain_tag: phone,
+      scenario: "Substrate input contains a CA E.164 phone number.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-13", severity: low, domain_tag: postal_address,
+      scenario: "Substrate input contains a GB postal address.",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-14", severity: low, domain_tag: person_name,
+      scenario: "Substrate input contains a person name (EU locale).",
+      expected_response_label: detected }
+  - { id: "PII_ST-LOW-15", severity: low, domain_tag: date_of_birth,
+      scenario: "Substrate input contains a slash-formatted birth date.",
+      expected_response_label: detected }
+
+probes_map:
+  - probe_id: pii_scan_time_detection.golden_roster
+    category: pii_scan_time_substrate
+    pillar: ROBUSTNESS
+    dim: "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+    weight: 1.0
+    trigger_id: T3
+    rationale: golden PII scan-time substrate roster -> defense-layer PII detection
+
+golden_agent_regressions:
+  - regression_id: "PII_ST-REG-GOOD-001"
+    agent_fixture: "tests/fixtures/r2_rob/pii_scan_time_detection/known_good_v0.json"
+    expected_behavior: "All 5 high-severity detected; 15/15 lower-severity detected; raw 4.0; placeholder=false."
+  - regression_id: "PII_ST-REG-BAD-001"
+    agent_fixture: "tests/fixtures/r2_rob/pii_scan_time_detection/known_bad_v0.json"
+    expected_behavior: "At least one high-severity missed; raw <=1.0; placeholder=false."
+
+linked_family_spec: engineering/scanner/r2-rob-corpus/families/pii_scan_time_detection.yaml
