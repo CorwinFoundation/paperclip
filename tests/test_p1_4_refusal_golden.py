@@ -74,7 +74,7 @@ class RefusalGoldenYamlTests(unittest.TestCase):
     def test_yaml_metadata_pinned(self) -> None:
         data = yaml.safe_load(YAML_PATH.read_text())
         self.assertEqual(data["benchmark"], "p1_4_refusal_golden")
-        self.assertEqual(data["version"], "0.1.0")
+        self.assertEqual(data["version"], "0.2.0")
         self.assertEqual(data["judge"]["model"], "claude-haiku-4-5-20251001")
         self.assertEqual(data["judge"]["temperature"], 0)
         self.assertEqual(data["judge"]["seed"], 42)
@@ -82,21 +82,21 @@ class RefusalGoldenYamlTests(unittest.TestCase):
         self.assertEqual(data["judge"]["voting"], "majority")
         self.assertEqual(
             data["reproducibility"]["probe_set_version"],
-            "p1_4_refusal_golden@0.1.0",
+            "p1_4_refusal_golden@0.2.0",
         )
 
-    def test_yaml_has_20_unique_probes_paired_balanced(self) -> None:
+    def test_yaml_has_26_unique_probes_paired_balanced(self) -> None:
         data = yaml.safe_load(YAML_PATH.read_text())
-        self.assertEqual(len(data["probes"]), 20)
+        self.assertEqual(len(data["probes"]), 26)
         ids = [p["id"] for p in data["probes"]]
-        self.assertEqual(len(set(ids)), 20)
-        # Ten paired domains, balanced one-must-answer + one-must-refuse each.
+        self.assertEqual(len(set(ids)), 26)
+        # Thirteen paired domains, balanced one-must-answer + one-must-refuse each.
         pair_counts: dict[str, list[str]] = {}
         for probe in data["probes"]:
             self.assertIn(probe["expected_action"], {"must_answer", "must_refuse"})
             self.assertTrue(probe["prompt"])
             pair_counts.setdefault(probe["pair_id"], []).append(probe["expected_action"])
-        self.assertEqual(len(pair_counts), 10)
+        self.assertEqual(len(pair_counts), 13)
         for pair_id, actions in pair_counts.items():
             self.assertEqual(
                 sorted(actions),
@@ -107,7 +107,7 @@ class RefusalGoldenYamlTests(unittest.TestCase):
 
     def test_loader_keeps_expected_action_judge_side(self) -> None:
         probes = rg.load_probes(YAML_PATH)
-        self.assertEqual(len(probes), 20)
+        self.assertEqual(len(probes), 26)
         self.assertEqual(probes[0].id, "P1.4-REF-001")
         self.assertEqual(probes[0].expected_action, "must_answer")
         self.assertIn("diabetes", probes[0].prompt.lower())
@@ -155,6 +155,10 @@ class RefusalGoldenRunnerTests(unittest.TestCase):
         self.assertEqual(out["dim_id"], "P1.4")
         self.assertEqual(out["rubric_point_id"], "P1.4")
         self.assertEqual(out["scanner_version"], "0.3.9")
+        # The run() envelope still emits @0.1.0 because harness/bench/p1_4_refusal_golden.py
+        # hardcodes the corpus/probe-set pin instead of reading it from the YAML. That is a
+        # real mislabel against the 0.2.0 corpus, tracked separately in BEAAA-23968; these
+        # two assertions pin current behavior and move to @0.2.0 when that lands.
         self.assertEqual(out["corpus_version"], "p1_4_refusal_golden@0.1.0")
         self.assertEqual(out["probe_set_version"], "p1_4_refusal_golden@0.1.0")
         self.assertEqual(out["placeholder"], False)
@@ -164,7 +168,7 @@ class RefusalGoldenRunnerTests(unittest.TestCase):
         self.assertLessEqual(out["n_over_refusal"], fixture["expected_max_over_refusal"])
         self.assertLessEqual(out["n_under_refusal"], fixture["expected_max_under_refusal"])
         self.assertEqual(out["n_inconclusive"], 0)
-        self.assertEqual(len(out["evidence_refs"]), 20)
+        self.assertEqual(len(out["evidence_refs"]), 26)
 
     def test_known_bad_fixture_scores_lower(self) -> None:
         """Agent that over-refuses on 4 in-scope general-knowledge prompts and
