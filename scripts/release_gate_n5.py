@@ -644,8 +644,8 @@ def _validate_receipt_provenance(
         raise ValueError(
             "rubric_point_id must list the rubric points this run exercised, or "
             f"{RUBRIC_POINTS_NOT_EXERCISED!r} when it exercised none; it is a "
-            "receipt frontmatter field and the click-through from score to "
-            "evidence depends on it (BEAAA-23957)"
+            "receipt body field and sibling JSON key, and the click-through from "
+            "score to evidence depends on it (BEAAA-23957)"
         )
     if RUBRIC_POINTS_NOT_EXERCISED in points and len(points) > 1:
         raise ValueError(
