@@ -1,5 +1,14 @@
 # BEAAA-23849 — QA gate report
 
+> **Addendum 2026-08-17 09:0xZ — second hold, criteria refreshed.** CTO comment
+> `ea932898` keeps the hold and names a third candidate. Chain so far:
+> `a51f285f` (gated, invalidated) -> `190553b2` (never announced here, never gated,
+> now also superseded) -> `<pending>`. The CTO ruling on BEAAA-23845 (`3cdc164f`)
+> resolves the open item-7 question. Refreshed acceptance criteria are in
+> "Re-gate criteria for the incoming SHA" at the end of this document. Everything
+> between here and that section is the original pre-verification of `a51f285f`
+> and is superseded twice over.
+
 - Candidate exercised: `a51f285f6b83bd099939428b65aca5a2935ff781` — **superseded, no approval recorded**
 - Branch: `agent/beaaa-23845-receipt-provenance`
 - Base: `ee8af4cded5d3db987b147e2c158d13bcd3f4e66`
@@ -306,3 +315,89 @@ remain open against whatever SHA arrives next unless the CTO defers them explici
 F3 is the same subject as the CTO's ruling — the `unrecovered-pending-BEAAA-23845`
 co-sign that the shipped validator cannot emit — so the quarantine revision should
 resolve or explicitly accept it.
+
+---
+
+# Re-gate criteria for the incoming SHA (added 2026-08-17, second hold)
+
+Derived from CTO ruling `3cdc164f` on BEAAA-23845 and hold `ea932898` on this issue.
+Published ahead of the handover so Scanner Engineer #2 can self-check first.
+
+## Independently verified before the gate
+
+**The `authoritative` flag is non-operative — confirmed, and wider than the CTO checked.**
+The ruling states `git grep` for `authoritative_pending` / `"authoritative"` across `*.py`
+at `190553b2` returns zero hits. I re-ran it on **master `fb2cf1ef`**, an independent tree:
+zero `.py` files reference it as a key. All 20 textual matches are the English word in
+prose or comments (`api/handlers.py`, `scanners/live_probe_workers.py`, and similar).
+
+Consequence for the gate: flipping `authoritative` to `true` is a truthfulness correction
+to the record, not a functional change. Nothing keys on it, so the flip cannot alter
+behaviour, and N=5 cannot move. That makes the CTO's tripwire exactly right — if the flip
+commit moves a measured value, the edit reached past a header and the candidate is wrong.
+
+**Lineage chain has a missing link.** `190553b2` exists on the producer branch tip but is
+absent from this issue's thread; no `SUPERSEDED: a51f285f... -> 190553b2...` was ever
+recorded here, though the description requires it. It is also not in the QA object store
+(`git cat-file -t` fails), so it was never fetched for gating. No harm done since it is
+superseded too, but the chain of record should be complete.
+
+## What I will check on the new SHA
+
+1. **Lineage.** New SHA is a descendant of `190553b2`, which descends from `a51f285f`
+   and `b7cb9a99`. Both `SUPERSEDED` hops recorded on this issue.
+2. **Scope, by tree identity not by diff.** Non-artifact tree unchanged since `a51f285f`:
+   `git ls-tree -r <SHA> | grep -vE '\s(artifacts|tools/calibration-deltas)/' | sha256sum`
+   must equal the same digest at `a51f285f`. This catches additions, deletions and mode
+   changes a path-excluded diff would miss. Equal ⇒ acceptance items 1, 2, 3, the mutation
+   test and the 92-test regression carry forward unchanged.
+3. **The two named files carry their verified owners.** Per the ruling, option 1:
+   - `tools/calibration-deltas/2026-07-31-4c36de2-vs-a9dc724.json` -> **BEAAA-19084**
+   - `tools/calibration-deltas/2026-08-01-f9a60012-vs-cd464001.json` -> **BEAAA-20137**
+   - `authoritative: true` on **both**, `attribution_basis` retained.
+   - The string `unattributable` must **not** appear in either header.
+   I will re-derive both attributions from the sibling `.md` independently rather than
+   accept the ruling's chain on trust: for 08-01 the generating command's `--json-out`
+   and matching `baseline_commit`; for 07-31 the identical baseline/candidate
+   commit+tree quadruple plus co-location.
+4. **The 07-31 binding is recorded.** That receipt is authoritative as a measurement
+   record and is **not** approval evidence — not citable for any co-sign, promotion or
+   release check. The ruling says record this in the ledger; I will check it is actually
+   written somewhere durable, not just asserted in the thread.
+5. **Headers only, all files.** As before, diff every changed JSON by key and confirm only
+   provenance keys move. No delta-table row, score, spread or measurement value changes.
+   Note this check is now *stricter* than the original item 7, which only named
+   `artifacts/beaaa-21390`.
+6. **N=5 unchanged.** The plus-or-minus-0 measured at `b7cb9a99` governs. Given criterion 2
+   proves no executable change, I re-assert rather than re-run, and re-run only if the
+   tree digest differs. `_frozen_input_hashes` reads only `artifacts/beaaa-387/`.
+7. **Residual count, counted by me.** The ruling puts the true residual at 44 files plus a
+   test file carrying `BEAAA-14867` in a co-sign position, netting 22 JSON and 19 markdown
+   — far beyond the description's "two files". I will count it myself rather than accept
+   either figure, and confirm `approval_provenance[].decision_ref` citations of
+   BEAAA-14867 are left intact, since those are true references to a real CTO decision
+   and must not be swept.
+
+## Stale inputs that must be refreshed with the handover
+
+The issue description still describes `a51f285f` and is wrong in ways that matter:
+
+- Acceptance items 4, 6, 7 name `a51f285` paths and diffs.
+- Item 1 says "29 tests, up from 28"; the baseline is 18, so it is +11 (finding F4).
+- "Known limitations" still says the two files are unattributable and stay uncorrected.
+  The ruling reverses this outright.
+- The ruling also records that "landed in `1776e44`" and "blast radius is two files" are
+  both wrong, and directs that the BEAAA-23845 description be amended.
+
+I need the refreshed acceptance criteria and test commands with the new SHA, per the CTO's
+instruction, rather than reconciling them myself against a description of record that is
+known stale.
+
+## Findings still open regardless of SHA
+
+F1 (unescaped `focus_claim` -> unparseable YAML) and F2 (error cites a nonexistent
+`canon/artifact-metadata-schema.md`) are code-layer defects. A header-only commit will not
+fix them. They carry to the new candidate unless deferred explicitly. F3 is resolved in
+principle by this ruling for the two named files, but the `unrecovered-pending-BEAAA-23845`
+marker remains on the other backfilled receipts, which the ruling explicitly blesses as
+safe precisely because `COSIGN_RE` cannot regenerate it.
