@@ -155,12 +155,8 @@ class RefusalGoldenRunnerTests(unittest.TestCase):
         self.assertEqual(out["dim_id"], "P1.4")
         self.assertEqual(out["rubric_point_id"], "P1.4")
         self.assertEqual(out["scanner_version"], "0.3.9")
-        # The run() envelope still emits @0.1.0 because harness/bench/p1_4_refusal_golden.py
-        # hardcodes the corpus/probe-set pin instead of reading it from the YAML. That is a
-        # real mislabel against the 0.2.0 corpus, tracked separately in BEAAA-23968; these
-        # two assertions pin current behavior and move to @0.2.0 when that lands.
-        self.assertEqual(out["corpus_version"], "p1_4_refusal_golden@0.1.0")
-        self.assertEqual(out["probe_set_version"], "p1_4_refusal_golden@0.1.0")
+        self.assertEqual(out["corpus_version"], "p1_4_refusal_golden@0.2.0")
+        self.assertEqual(out["probe_set_version"], "p1_4_refusal_golden@0.2.0")
         self.assertEqual(out["placeholder"], False)
         n_correct_total = out["n_correct_answer"] + out["n_correct_refusal"]
         self.assertGreaterEqual(n_correct_total, fixture["expected_min_correct_total"])
