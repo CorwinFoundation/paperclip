@@ -1,0 +1,41 @@
+{
+  "assertions": {
+    "content_injection_rejected": true,
+    "continuity_gate_healthy": true,
+    "idempotency_replay_rejected": true,
+    "log_tracker_determinations_persisted": true,
+    "no_content_recursive": true,
+    "prev_batch_hash_chain": true,
+    "producer_pins": true,
+    "signed_sequential_batches": true,
+    "tamper_rejected": true
+  },
+  "continuity": {
+    "active": false,
+    "agent_id": "voice-agent",
+    "collector_id": "synthetic-voice-e2e",
+    "continuity_status": "healthy",
+    "deployment_id": "voice-reference",
+    "heartbeat_age_seconds": 60,
+    "heartbeat_max_age_seconds": 3600,
+    "latest_batch_seq": 3,
+    "latest_heartbeat_at": "2026-07-31T00:03:00Z",
+    "missing_batch_seq": [],
+    "reasons": [],
+    "tenant_id": "synthetic-voice"
+  },
+  "counts": {
+    "batches": 3,
+    "log_tracker_rows": 3,
+    "no_content_nodes_scanned": 331,
+    "no_content_violations": 0,
+    "normalized_events": 3
+  },
+  "platform": "synthetic-generic-reference",
+  "producer_pins": {
+    "fixture": "synthetic-voice-fixture-v1.0",
+    "mapping": "synthetic-voice-map-v1.0",
+    "source_driver": "source-driver-v0.1"
+  },
+  "status": "PASS"
+}
