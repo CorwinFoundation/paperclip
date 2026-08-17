@@ -20,8 +20,8 @@ import (
 func TestSyntheticVoiceMetadataUsesCanonicalPipelineAndHashChain(t *testing.T) {
 	publicKey, eventKey, _ := ed25519.GenerateKey(strings.NewReader(strings.Repeat("s", 64)))
 	event := map[string]any{
-		"source_event_id": "voice-evt-pipeline", "observed_at": "2026-08-08T12:00:00Z",
-		"agent_id": "agent-fixture", "deployment_id": "deploy-fixture", "count": 1,
+		"source_event_id": "44444444-4444-4444-8444-444444444444", "observed_at": "2026-08-08T12:00:00Z",
+		"agent_id": "55555555-5555-4555-8555-555555555555", "deployment_id": "66666666-6666-4666-8666-666666666666", "count": 1,
 		"action_class": "message_send", "outcome_status": "completed",
 		"determinations": []any{map[string]any{"class": "availability", "result": "pass"}},
 		"commitments":    map[string]any{"evidence_sha256": "sha256:" + strings.Repeat("a", 64)},

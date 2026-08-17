@@ -19,7 +19,9 @@ import (
 const SyntheticVoiceMetadataMappingVersion = "synthetic-voice-metadata-map-v1.0"
 
 var (
-	syntheticVoiceOpaqueID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
+	// Identifiers are independently minted UUIDv4 values. Producers must never
+	// derive, hash, or encode telephone or PII metadata into these fields.
+	syntheticVoiceOpaqueID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	// Action classes are the Evidence Profile v1 vocabulary pinned by
 	// contracts/standard-agent-interface-v1.md.
 	syntheticVoiceActionClasses = map[string]struct{}{
@@ -155,7 +157,7 @@ func validateSyntheticVoiceEvent(event SyntheticVoiceMetadataEvent) error {
 		"deployment_id":   event.DeploymentID,
 	} {
 		if !syntheticVoiceOpaqueID.MatchString(value) {
-			return fmt.Errorf("%s must be a bounded opaque identifier", name)
+			return fmt.Errorf("%s must be an independently minted canonical lowercase UUIDv4", name)
 		}
 	}
 	if _, err := time.Parse(time.RFC3339, event.ObservedAt); err != nil {

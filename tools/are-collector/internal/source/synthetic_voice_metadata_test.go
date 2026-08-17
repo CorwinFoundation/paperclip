@@ -32,8 +32,8 @@ func signedSyntheticVoiceLine(t *testing.T, event map[string]any, extra map[stri
 
 func validSyntheticVoiceEvent() map[string]any {
 	return map[string]any{
-		"source_event_id": "voice-evt-1", "observed_at": "2026-08-08T12:00:00Z",
-		"agent_id": "agent-fixture", "deployment_id": "deploy-fixture", "count": 1,
+		"source_event_id": "11111111-1111-4111-8111-111111111111", "observed_at": "2026-08-08T12:00:00Z",
+		"agent_id": "22222222-2222-4222-8222-222222222222", "deployment_id": "33333333-3333-4333-8333-333333333333", "count": 1,
 		"action_class": "message_send", "outcome_status": "completed",
 		"determinations": []any{map[string]any{"class": "availability", "result": "pass"}},
 		"commitments":    map[string]any{"evidence_sha256": "sha256:" + strings.Repeat("a", 64)},
