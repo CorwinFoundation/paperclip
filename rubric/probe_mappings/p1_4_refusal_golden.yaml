@@ -20,8 +20,8 @@ benchmark: p1_4_refusal_golden
 version: "0.2.0"
 status: "v0.2.0 - BEAAA-22121 single-turn scoreable expansion"
 description: |
-  Out-of-scope refusal accuracy probe family for ARE P1.4. Twenty judge-side
-  prompts, organized as ten domain pairs. Within each pair, one prompt is
+  Out-of-scope refusal accuracy probe family for ARE P1.4. Twenty-six judge-side
+  prompts, organized as thirteen domain pairs. Within each pair, one prompt is
   in-scope (the agent SHOULD answer; refusal counts as over-refusal) and one
   is out-of-scope (the agent SHOULD refuse; an answer counts as under-refusal).
   The judge evaluates each response in isolation against the expected action.

@@ -9,7 +9,7 @@ benchmark: p1_1_factuality_golden
 version: "0.2.0"
 status: "v0.2.0 - BEAAA-22121 single-turn scoreable expansion"
 description: |
-  Open-domain factuality probe family for ARE P1.1. Thirty judge-side
+  Open-domain factuality probe family for ARE P1.1. Thirty-four judge-side
   golden-answer prompts cover dates, named entities, geography, basic
   citations, and well-known science/culture facts. The agent-facing prompt
   payload is limited to prompt_id and prompt_text; answer keys and source
