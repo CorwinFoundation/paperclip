@@ -140,19 +140,38 @@ func TestSyntheticVoiceMetadataPinsProducerDriverVersionExactly(t *testing.T) {
 }
 
 func TestSyntheticVoiceMetadataRequiresCanonicalLowercaseUUIDv4Identifiers(t *testing.T) {
-	for field, value := range map[string]string{
-		"source_event_id": "14155550132",
-		"agent_id":        "415-555-0132",
-		"deployment_id":   "123-45-6789",
-	} {
-		t.Run(field, func(t *testing.T) {
-			event := validSyntheticVoiceEvent()
-			event[field] = value
-			line, pub := signedSyntheticVoiceLine(t, event, nil)
-			if _, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub}); err == nil {
-				t.Fatalf("accepted non-UUID identifier %q", value)
-			}
-		})
+	values := map[string]struct {
+		value string
+		valid bool
+	}{
+		"canonical_lowercase_v4": {"77777777-7777-4777-a777-777777777777", true},
+		"uuid_v1":                {"77777777-7777-1777-a777-777777777777", false},
+		"uuid_v3":                {"77777777-7777-3777-a777-777777777777", false},
+		"uuid_v5":                {"77777777-7777-5777-a777-777777777777", false},
+		"uuid_v7":                {"77777777-7777-7777-a777-777777777777", false},
+		"uppercase":              {"77777777-7777-4777-A777-777777777777", false},
+		"braces":                 {"{77777777-7777-4777-a777-777777777777}", false},
+		"noncanonical":           {"7777777777774777a777777777777777", false},
+		"bare_digits":            {"14155550132", false},
+		"dashed_digits":          {"415-555-0132", false},
+		"email_like":             {"caller@example.invalid", false},
+		"sha256":                 {"sha256:" + strings.Repeat("a", 64), false},
+	}
+	for _, field := range []string{"source_event_id", "agent_id", "deployment_id"} {
+		for name, test := range values {
+			t.Run(field+"/"+name, func(t *testing.T) {
+				event := validSyntheticVoiceEvent()
+				event[field] = test.value
+				line, pub := signedSyntheticVoiceLine(t, event, nil)
+				_, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub})
+				if test.valid && err != nil {
+					t.Fatalf("rejected canonical UUIDv4: %v", err)
+				}
+				if !test.valid && err == nil {
+					t.Fatalf("accepted forbidden identifier form %q", test.value)
+				}
+			})
+		}
 	}
 }
 
