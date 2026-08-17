@@ -1,0 +1,131 @@
+{
+  "files": {
+    "corpus/wave0/beaaa-15688-authored-scenarios.jsonl": {
+      "bytes": 23846,
+      "git_blob_sha1": null,
+      "note": "Authored by BEAAA-15688 itself; postdates source_revision, so it is read from its canonical path and hash-pinned here rather than vendored.",
+      "sha256": "40b8fddc20d6f54d34885483f5526e1c69ad6085e7d0f0b5dd86505c33a55214"
+    },
+    "rubric/probe_mappings/citation_integrity_legal.yaml": {
+      "bytes": 38771,
+      "git_blob_sha1": "e5a8248d87d9e9271a0f11d4bfc692142edf5333",
+      "sha256": "f6f9a0c022d2f9312662b5edbee08ac1649fed85550285a31c7f666458a202f8"
+    },
+    "rubric/probe_mappings/confidence_calibration.yaml": {
+      "bytes": 22414,
+      "git_blob_sha1": "124e7390298d26455c3e818123f8bf3226da8cdf",
+      "sha256": "f46dffa92d1e476a829a2b57f25d1bfc729810fe1c3a39ff0c47e358c7a0bf46"
+    },
+    "rubric/probe_mappings/counterfactual_stability.yaml": {
+      "bytes": 29543,
+      "git_blob_sha1": "dbab12daf63aca49dee596e8e668ed7867b982d1",
+      "sha256": "acd6ea2b942e524c78ad70c071e2afe6bb7f481b15a3a4955485f5f65e623d9a"
+    },
+    "rubric/probe_mappings/hallucination_legal.yaml": {
+      "bytes": 69850,
+      "git_blob_sha1": "58d205f0bdec0285107c6762250fcb7f36d00853",
+      "sha256": "a831d723c08b0dfd85852cc23c3358a9fcd583d5147a17745c609d6acd6bc522"
+    },
+    "rubric/probe_mappings/indirect_injection.yaml": {
+      "bytes": 6335,
+      "git_blob_sha1": "e4fd3a43b100f832597cd9f32ab52b4c095d6d07",
+      "sha256": "15ef6862a5d42ccfc644f3a116f87a63e3e201fd1bc763bcb1e45fd453cc850f"
+    },
+    "rubric/probe_mappings/p1_1_factuality_golden.yaml": {
+      "bytes": 14462,
+      "git_blob_sha1": "db4e753b2fefd2b180f72d98c5ac13dc16930c6e",
+      "sha256": "4f89e11fb6450185bd17cd5f61630c747623aa1eb883db622606ebe118b83ab3"
+    },
+    "rubric/probe_mappings/p1_3_consistency_golden.yaml": {
+      "bytes": 12653,
+      "git_blob_sha1": "461e51f850247bdccb7169d804e522f8b5eb1d30",
+      "sha256": "7bfa73d19b4da2329fd97bd886743ce77b9406ba7fef7b944e132d561a109986"
+    },
+    "rubric/probe_mappings/p1_4_refusal_golden.yaml": {
+      "bytes": 14144,
+      "git_blob_sha1": "4fc49a8a3c1d3efe041c65aecd432116bb55892f",
+      "sha256": "94f0f414f53b47dce5bfa80393f1c150576f362ad399d68fbf6916a30a5e599f"
+    },
+    "rubric/probe_mappings/p1_5_calibration_golden.yaml": {
+      "bytes": 8408,
+      "git_blob_sha1": "12aa117ae6c9dd89cdff77d63ed5abfd5e643c8b",
+      "sha256": "9a27260aa7c2069bc0c4a7796f981785f1cc896ecfefdf65009b981e12943d22"
+    },
+    "rubric/probe_mappings/p2_1_demographic_parity_gap.yaml": {
+      "bytes": 6583,
+      "git_blob_sha1": "707a8b221716680fd77533e375cc28decd30cb31",
+      "sha256": "fca88ec0e41b0c8d0c72fcc190299c58d0a461cc4d7a85191e41049441f08cc5"
+    },
+    "rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml": {
+      "bytes": 6040,
+      "git_blob_sha1": "2fce4118b081829b50252e99f04d84e71012c414",
+      "sha256": "104a1bc9461a011766ca8f2989da8e593b53e032039dcff28be17894a9ace3c1"
+    },
+    "rubric/probe_mappings/p2_3_counterfactual_stability.yaml": {
+      "bytes": 6056,
+      "git_blob_sha1": "fc941a486729fd12bf356472ff34a97d7958df64",
+      "sha256": "bd487de313cedd3c2c6b224ccb27cb3b863e94b72bbd42f1e00ff20999f4175f"
+    },
+    "rubric/probe_mappings/p2_4_eval_representation.yaml": {
+      "bytes": 5789,
+      "git_blob_sha1": "adaf674a4cd6640213225ee4e3f42461d110c051",
+      "sha256": "d8398a9202d88a0caf2dfd9d256d8dfe33585579edc21d7b6ed1d36ea70de0ef"
+    },
+    "rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml": {
+      "bytes": 6222,
+      "git_blob_sha1": "51c7e74fb11cb2ed109eee8eafbb0f0751c27134",
+      "sha256": "c1b1f6547d6014cfe49f43ebde66392d8d2e34a450c987ea68a733ba0d205af7"
+    },
+    "rubric/probe_mappings/p2_6_mitigation_evidence.yaml": {
+      "bytes": 6210,
+      "git_blob_sha1": "a6d826e5334a17a949f4e3ea63fc15011d1ecb10",
+      "sha256": "bfaf0977d36d68ae48f9329c4569858494c49c10930413ea07599cc83031089d"
+    },
+    "rubric/probe_mappings/p3_2_indirect_injection_rob.yaml": {
+      "bytes": 6831,
+      "git_blob_sha1": "f2effb21a2b51de55eed7701432d4304a3583abf",
+      "sha256": "589595d4f1c4f10766b77277528b9406e85aec2d7243cbbf7478f7c15fac8360"
+    },
+    "rubric/probe_mappings/p3_3_secret_exfiltration_rob.yaml": {
+      "bytes": 6565,
+      "git_blob_sha1": "bcd99d3594d8b88b17ae53655869b17123bb3e40",
+      "sha256": "9ff985eca1cb8d0c756cd0e6a061839ea158ac28067b81c86888d5a6129a3ca3"
+    },
+    "rubric/probe_mappings/pii_scan_time_detection.yaml": {
+      "bytes": 6749,
+      "git_blob_sha1": "4bea0589ee624f7cdf0736cb0f99a9306f6f15b0",
+      "sha256": "f7e30af84649e0e4321cd04e146d5013654ef12b6e76654fbc94b9b754ae7122"
+    },
+    "rubric/probe_mappings/secret_exfil.yaml": {
+      "bytes": 5349,
+      "git_blob_sha1": "176ecd8a6814c09257923df8e1f959937c79b59f",
+      "sha256": "545eb8b6d55890f056ebbb49d8b93314a77bcd7237d72d5a1ea0f2b0af38f78b"
+    },
+    "rubric/probe_mappings/self_contradiction_pairs.yaml": {
+      "bytes": 36595,
+      "git_blob_sha1": "b17578d678fc21f4166426dae91000877e8cda62",
+      "sha256": "d45d5b114cec296fea3ab4b01a6b746b916905ccefdef9e9307b38d91a62f4e4"
+    },
+    "rubric/probe_mappings/tool_misuse_param_tamper.yaml": {
+      "bytes": 6107,
+      "git_blob_sha1": "779bf11bcfb05b148413b1ad66d5146af4129a7a",
+      "sha256": "7971904f196e98811da8be404aad5cfd5562bf3ccdb517caca9b07b5800d25f4"
+    },
+    "rubric/probe_mappings/tool_misuse_scope_escape.yaml": {
+      "bytes": 6740,
+      "git_blob_sha1": "e889795cf506cbc98d5fdc06023ef50f5f3d507f",
+      "sha256": "983c7812c36766370c9d5fa7b4f1b131c0c2fcb2aa4804ca83a0e757c960e102"
+    },
+    "rubric/probe_mappings/tool_misuse_unauthorized_call.yaml": {
+      "bytes": 6780,
+      "git_blob_sha1": "4ee2b95a9b09da511ab82ea962b97aef86504be4",
+      "sha256": "b23d76996314a31579df9d09f297956389555c6697072dd8dfc3285d55b6f533"
+    }
+  },
+  "pin_root": "artifacts/beaaa-15688/source-pin",
+  "purpose": "Byte-exact snapshot of the Wave 0 mapping sources at source_revision, so artifacts/beaaa-15688/wave0-case-inventory.jsonl stays reproducible after the live rubric fixtures move on.",
+  "schema": "backbond-wave0-source-pin/v1",
+  "source_contract": "BEAAA-15697/superseding-wave0-contract@v1.0",
+  "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+  "ticket_ref": "BEAAA-24052"
+}
