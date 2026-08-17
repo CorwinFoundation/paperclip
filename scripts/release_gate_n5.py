@@ -535,9 +535,20 @@ def _frozen_input_hashes(repo: Path = REPO) -> dict[str, str]:
 # BEAAA-23845: receipt provenance is a run input, never a template literal.
 # 1776e44 pinned one ticket's own metadata into the shared template, so every
 # later receipt carried that ticket's `ticket_refs`, focus_claim, H1 and CTO
-# co-sign regardless of what was actually measured. `ticket_refs` is required
-# under canon/artifact-metadata-schema.md, so a stale literal is a false
-# attribution an Auditor reads as fact. These values now fail closed.
+# co-sign regardless of what was actually measured. A stale literal is a false
+# attribution an Auditor reads as fact, so these values now fail closed.
+#
+# BEAAA-23953: this comment and the fail-closed message below used to cite a
+# `canon/` schema path as though it sat in this repository. It does not, and
+# never did. That document is real but lives in the BackBond company canon set
+# distributed to each seat's instruction directory, and it names the
+# traceability field `source_refs` — it requires durable release evidence to
+# carry retrievable refs without fixing the field name. `ticket_refs` is the
+# receipt frontmatter's own field, carried by every receipt in this series since
+# v0.1 (BEAAA-14874) and by the frontmatter on `contracts/are-scanner-api-v1.md`.
+# The requirement below is therefore cited to the receipt schema it comes from.
+# Full trace on BEAAA-23953; the path is deliberately not repeated here so it
+# cannot be mistaken for a live citation again.
 TICKET_RE = re.compile(r"^BEAAA-\d+$")
 COSIGN_RE = re.compile(r"^BEAAA-\d+(#comment-[0-9A-Za-z._-]+)?$")
 # A rule-execution run carries no CTO co-sign. Forcing a ticket id into the
@@ -553,6 +564,22 @@ RUBRIC_POINT_RE = re.compile(r"^[A-Z][A-Z0-9_]*(\.[A-Z0-9_]+)+$")
 # A metadata-only or harness-plumbing run exercises no rubric point. Naming one
 # anyway is the false claim this guard exists to prevent, so absence is stated.
 RUBRIC_POINTS_NOT_EXERCISED = "none-exercised"
+# BEAAA-23953: `focus_claim` is the only free-text provenance value interpolated
+# into a double-quoted YAML scalar — `issue` and every `ticket_refs` entry are
+# held to TICKET_RE. A `"` closes the scalar early and the frontmatter stops
+# parsing; a `\` is consumed as a YAML escape, so the header parses cleanly and
+# reports a claim the operator never wrote. Rejecting here rather than escaping
+# at render time keeps one code path, matching how the rest of this guard
+# already behaves.
+FOCUS_CLAIM_YAML_SPECIALS = {'"': "a double quote", "\\": "a backslash"}
+# Everything else that can break the header is stated as a property rather than
+# a range, because a range is what went wrong on the first pass: it rejected C0
+# and DEL and let all 32 C1 code points through, of which 31 make the receipt
+# unparseable and U+0085 folds to a space and silently rewrites the claim (QA
+# on BEAAA-23964). `str.isprintable()` is false for exactly the categories that
+# hurt here — Cc, Cf, Cs, Cn, Zl, Zp and non-ASCII spaces — which also covers
+# U+2028 and U+2029, the other two separators PyYAML folds. A claim sentence
+# has no use for any of them.
 
 
 def _validate_receipt_provenance(
@@ -584,10 +611,24 @@ def _validate_receipt_provenance(
         )
     if not focus_claim:
         raise ValueError("focus_claim must state what this receipt evidences")
+    offenders = [
+        name for char, name in FOCUS_CLAIM_YAML_SPECIALS.items() if char in focus_claim
+    ]
+    offenders.extend(
+        f"a non-printable character (U+{ord(char):04X})"
+        for char in dict.fromkeys(focus_claim)
+        if not char.isprintable()
+    )
+    if offenders:
+        raise ValueError(
+            "focus_claim is emitted as a double-quoted YAML scalar and cannot "
+            f"contain {', '.join(offenders)}; got {focus_claim!r}"
+        )
     if not refs:
         raise ValueError(
-            "ticket_refs must list at least the owning ticket; it is required "
-            "under canon/artifact-metadata-schema.md"
+            "ticket_refs must list at least the owning ticket; the receipt "
+            "frontmatter carries the run's traceability refs and the owning "
+            "ticket is what makes the header checkable (BEAAA-23845)"
         )
     malformed = [ref for ref in refs if not TICKET_RE.match(ref)]
     if malformed:
@@ -602,8 +643,9 @@ def _validate_receipt_provenance(
     if not points:
         raise ValueError(
             "rubric_point_id must list the rubric points this run exercised, or "
-            f"{RUBRIC_POINTS_NOT_EXERCISED!r} when it exercised none; it is "
-            "required under canon/artifact-metadata-schema.md"
+            f"{RUBRIC_POINTS_NOT_EXERCISED!r} when it exercised none; it is a "
+            "receipt frontmatter field and the click-through from score to "
+            "evidence depends on it (BEAAA-23957)"
         )
     if RUBRIC_POINTS_NOT_EXERCISED in points and len(points) > 1:
         raise ValueError(
@@ -888,6 +930,10 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "persona_audience: internal",
         f"phase: {report['phase']}",
         "canonical_terms_only: true",
+        # Safe unescaped only because _validate_receipt_provenance refuses every
+        # character that would not survive this scalar (BEAAA-23953). Every other
+        # value here is a literal or matched against a regex that admits none of
+        # them. Do not widen what reaches this line without widening that guard.
         f'focus_claim: "{report["focus_claim"]}"',
         'contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]',
         "ticket_refs: ["

@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from scripts import release_gate_n5
 
@@ -259,6 +260,33 @@ def test_non_development_phase_requires_approved_policy(tmp_path):
             {"rubric_point_id": ["none-exercised", "P1.1"]},
             "cannot combine",
         ),
+        # BEAAA-23953: the characters YAML reads specially inside a
+        # double-quoted scalar. The quote breaks the parse loudly; the
+        # backslash is the silent one, because escape processing yields valid
+        # YAML holding a different sentence.
+        (
+            {"focus_claim": 'BEAAA-23845 fixes the "hardcoded" template.'},
+            "cannot contain a double quote",
+        ),
+        (
+            {"focus_claim": r"BEAAA-23845 fixes the \x41 template."},
+            "cannot contain a backslash",
+        ),
+        (
+            {"focus_claim": "BEAAA-23845 fixes provenance.\nowner: someone_else"},
+            r"cannot contain a non-printable character \(U\+000A\)",
+        ),
+        # BEAAA-23964: C1 was the range the first guard missed. U+0080 stands
+        # for the 31 that make the header unparseable; U+0085 is the one that
+        # folds to a space and rewrites the claim without any parse error.
+        (
+            {"focus_claim": "BEAAA-23845 fixes\x80provenance."},
+            r"cannot contain a non-printable character \(U\+0080\)",
+        ),
+        (
+            {"focus_claim": "BEAAA-1 real claim.\x85owner: attacker"},
+            r"cannot contain a non-printable character \(U\+0085\)",
+        ),
     ],
 )
 def test_receipt_provenance_fails_closed(kwargs, match):
@@ -372,7 +400,8 @@ def test_render_markdown_refuses_report_without_rubric_points():
         release_gate_n5._render_markdown(report)
 
 
-def test_render_markdown_uses_required_delta_table_columns():
+def _renderable_report(**overrides) -> dict:
+    """A report complete enough for _render_markdown, for tests to vary."""
     report = {
         "issue": "BEAAA-10187",
         "focus_claim": "BEAAA-10187 evidences golden N=5 reproducibility.",
@@ -451,14 +480,119 @@ def test_render_markdown_uses_required_delta_table_columns():
             }
         ],
     }
+    report.update(overrides)
+    return report
 
-    markdown = release_gate_n5._render_markdown(report)
+
+def test_render_markdown_uses_required_delta_table_columns():
+    markdown = release_gate_n5._render_markdown(_renderable_report())
 
     assert "| Agent | Δ total | Δ GOV | Δ ROB | Δ BIAS | Δ OPS | spread (baseline) | spread (candidate) |" in markdown
     assert "| G1 | 0 | 0 | 0 | 0 | 0 | total=0" in markdown
     assert "Claim: `8/9 baselined`" in markdown
     assert "B2 is explicitly excluded from the v1 gate" in markdown
     assert "Historical Approved-Movement Provenance" in markdown
+
+
+def _frontmatter(markdown: str) -> dict:
+    opening, block, _body = markdown.split("---\n", 2)
+    assert opening == ""
+    return yaml.safe_load(block)
+
+
+def test_receipt_frontmatter_round_trips_an_accepted_focus_claim():
+    """BEAAA-23953: the header an operator can write is the header YAML reads.
+
+    A colon, a hash and quoting punctuation are ordinary in an English claim
+    sentence and all carry meaning to a YAML parser outside a quoted scalar.
+    Inside the double-quoted scalar this renderer emits they are literal, so
+    the guard rejects only what it has to and this text survives verbatim.
+    """
+    claim = (
+        "BEAAA-23953: rejects a claim's unsafe characters "
+        "(#1 priority, 100% of receipts) -- see [BEAAA-23845]."
+    )
+
+    frontmatter = _frontmatter(
+        release_gate_n5._render_markdown(_renderable_report(focus_claim=claim))
+    )
+
+    assert frontmatter["focus_claim"] == claim
+    assert frontmatter["ticket_refs"] == ["BEAAA-10187"]
+    assert frontmatter["canonical_terms_only"] is True
+
+
+def test_a_rejected_double_quote_would_have_broken_the_frontmatter():
+    """BEAAA-23953: the guard is load-bearing, and this is what it prevents.
+
+    QA (BEAAA-23964, N2) found the first version of this test could not detect
+    removal of the guard, because it only edited already-rendered markdown. It
+    now asserts the rejection first, so deleting the guard fails it, and then
+    shows the header that rejection avoids.
+    """
+    claim = 'BEAAA-23845 fixes the "hardcoded" template.'
+
+    with pytest.raises(ValueError, match="cannot contain a double quote"):
+        release_gate_n5._validate_receipt_provenance(
+            issue="BEAAA-23953",
+            cto_cosign_ref=release_gate_n5.COSIGN_NOT_REQUIRED,
+            focus_claim=claim,
+            ticket_refs=["BEAAA-23953"],
+            rubric_point_id=[release_gate_n5.RUBRIC_POINTS_NOT_EXERCISED],
+        )
+
+    unguarded = release_gate_n5._render_markdown(
+        _renderable_report(focus_claim="ordinary")
+    ).replace('focus_claim: "ordinary"', f'focus_claim: "{claim}"')
+    with pytest.raises(yaml.YAMLError):
+        _frontmatter(unguarded)
+
+
+def test_no_accepted_focus_claim_survives_the_header_changed_or_broken():
+    """BEAAA-23964: the invariant, asserted as a property rather than a range.
+
+    Enumerating bad ranges is exactly what failed the first pass — C0 and DEL
+    were rejected while all 32 C1 code points went through, 31 emitting an
+    unparseable header and U+0085 folding to a space and rewriting the claim.
+    So this asserts the thing that actually has to hold: for every code point,
+    either the validator refuses it, or the receipt reads back byte for byte.
+    """
+    suspects = list(range(0x00, 0x100)) + [0x2028, 0x2029, 0x200B, 0xFEFF, 0xFFFE]
+    survived_changed = []
+
+    for code_point in suspects:
+        claim = f"BEAAA-23953 keeps{chr(code_point)}the claim readable."
+        try:
+            # Unpacked by name, not by position: the R2 version used a starred
+            # slice that would have silently bound the wrong element when
+            # BEAAA-23957 widened the return to five (QA on BEAAA-23964, F-A).
+            (
+                _issue,
+                _cosign,
+                accepted,
+                _refs,
+                _points,
+            ) = release_gate_n5._validate_receipt_provenance(
+                issue="BEAAA-23953",
+                cto_cosign_ref=release_gate_n5.COSIGN_NOT_REQUIRED,
+                focus_claim=claim,
+                ticket_refs=["BEAAA-23953"],
+                rubric_point_id=[release_gate_n5.RUBRIC_POINTS_NOT_EXERCISED],
+            )
+        except ValueError:
+            continue  # refused at the validator, which is the guard working
+        markdown = release_gate_n5._render_markdown(
+            _renderable_report(focus_claim=accepted)
+        )
+        try:
+            read_back = _frontmatter(markdown)["focus_claim"]
+        except yaml.YAMLError:
+            survived_changed.append((f"U+{code_point:04X}", "unparseable"))
+            continue
+        if read_back != accepted:
+            survived_changed.append((f"U+{code_point:04X}", repr(read_back)))
+
+    assert survived_changed == []
 
 
 def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
