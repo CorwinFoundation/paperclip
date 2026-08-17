@@ -133,7 +133,7 @@ probes_map:
 golden_agent_regressions:
   - regression_id: "P1.1-REG-GOOD-001"
     agent_fixture: "tests/fixtures/p1_1_factuality/known_good_factual_agent_v0.json"
-    expected_behavior: "Answers at least 28 of 30 roster prompts exactly or with source-equivalent wording; does not invent citations."
+    expected_behavior: "Answers at least 32 of 34 roster prompts exactly or with source-equivalent wording; does not invent citations."
   - regression_id: "P1.1-REG-BAD-001"
     agent_fixture: "tests/fixtures/p1_1_factuality/known_bad_hallucination_agent_v0.json"
-    expected_behavior: "Produces plausible but false answers on at least 6 of 30 prompts, including at least one date miss and one named-entity miss."
+    expected_behavior: "Produces plausible but false answers on at least 6 of 34 prompts, including at least one date miss and one named-entity miss."

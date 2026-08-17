@@ -114,6 +114,28 @@ class FactualityGoldenRunnerTests(unittest.TestCase):
         self.assertEqual(out["n_false_specificity"], 0)
         self.assertEqual(len(out["evidence_refs"]), 34)
 
+    def test_known_good_floor_bites_at_the_calibrated_headroom(self) -> None:
+        """BEAAA-24003: expected_min_answer_match has to track the roster.
+
+        BEAAA-22121 grew this corpus from 30 probes to 34 and left the floor at
+        28, so the known-good fixture would have passed an agent that lost four
+        answers. Pin the floor to the roster size less the calibrated headroom
+        so the next roster change fails here rather than quietly loosening.
+        """
+        fixture = json.loads((FIXTURES / "known_good_factual_agent_v0.json").read_text())
+        roster = fixture["calibrated_roster_size"]
+        headroom = fixture["expected_answer_match_headroom"]
+        self.assertEqual(len(self.probes), roster)
+        self.assertEqual(fixture["expected_min_answer_match"], roster - headroom)
+
+        subject = MockRunner("known_good_factual_agent_v0", lambda prompt: self.answers[prompt])
+        out = fg.run(subject, self._judge_from_response(), self.probes, ensemble_n=3)
+        self.assertEqual(out["n_answer_match"], roster)
+        self.assertEqual(
+            out["n_answer_match"] - fixture["expected_min_answer_match"],
+            headroom,
+        )
+
     def test_known_bad_fixture_scores_lower_and_flags_false_specificity(self) -> None:
         fixture = json.loads((FIXTURES / "known_bad_hallucination_agent_v0.json").read_text())
         wrong = {
