@@ -1,0 +1,274 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/01_BackBond_Backbone_Policy_Development_Work_Package.pdf",
+  "sha256": "1f034234247a9eacfebc21216167c72d55ed97bc781f7dd2efaec6348176a274",
+  "size_bytes": 1322991,
+  "page_count": 18,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 472,
+      "minimum_font_pt": 7.4
+    },
+    {
+      "page": 2,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1379,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 3,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1426,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 4,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2484,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 5,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2858,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 6,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2093,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 7,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2260,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 8,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2997,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 9,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 3436,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 10,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2842,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 11,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2875,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 12,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 3017,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 13,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2144,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 14,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2288,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 15,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2522,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 16,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 3094,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 17,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1912,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 18,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1152,
+      "minimum_font_pt": 7.0
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en",
+    "title": "BackBond Backbone Policy Development Work Package",
+    "outline_items": 4
+  },
+  "fonts": [
+    {
+      "name": "DEVBAD+Inter-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "name": "QUWLDS+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "name": "UUNZFJ+IBM-Plex-Mono-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}

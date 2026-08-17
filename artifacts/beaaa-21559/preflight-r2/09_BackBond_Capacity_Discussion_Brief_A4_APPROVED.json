@@ -1,0 +1,63 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/09_BackBond_Capacity_Discussion_Brief_A4_APPROVED.pdf",
+  "sha256": "f653738e4c41321c7e4e88358f56f3af0e625c34ac236b067d41ebd24417e0c1",
+  "size_bytes": 24859,
+  "page_count": 1,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2926,
+      "minimum_font_pt": 7.0
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en",
+    "title": "BackBond capacity diligence discussion v0.5",
+    "outline_items": 2
+  },
+  "fonts": [
+    {
+      "name": "HQGBRP+IBMPlexMono-Bold",
+      "embedded": true,
+      "pages": [
+        1
+      ]
+    },
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1
+      ]
+    },
+    {
+      "name": "LQKAUR+IBMPlexMono",
+      "embedded": true,
+      "pages": [
+        1
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}

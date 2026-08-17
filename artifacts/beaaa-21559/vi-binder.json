@@ -1,0 +1,699 @@
+{
+  "type": "visual_integrity_report",
+  "schema_version": 1,
+  "status": "pass",
+  "candidate_sha256": "268f24b3e2414a3cd9f25c99151f42776865d4d18b84fd751aa55cf2e9f740d7",
+  "renderer_output_sha256": "268f24b3e2414a3cd9f25c99151f42776865d4d18b84fd751aa55cf2e9f740d7",
+  "page_count": 114,
+  "body_target_pt": 9.0,
+  "below_target_pages": 22,
+  "scored_body_pages": 113,
+  "below_target_ratio": 0.1947,
+  "pages": [
+    {
+      "page": 1,
+      "text_chars": 412,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": true
+    },
+    {
+      "page": 2,
+      "text_chars": 1035,
+      "weighted_median_font_pt": 8.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 3,
+      "text_chars": 778,
+      "weighted_median_font_pt": 8.6,
+      "body_target_exempt": false
+    },
+    {
+      "page": 4,
+      "text_chars": 425,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 5,
+      "text_chars": 1364,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 6,
+      "text_chars": 1408,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 7,
+      "text_chars": 2466,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 8,
+      "text_chars": 2838,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 9,
+      "text_chars": 2075,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 10,
+      "text_chars": 2251,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 11,
+      "text_chars": 2979,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 12,
+      "text_chars": 3417,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 13,
+      "text_chars": 2823,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 14,
+      "text_chars": 2864,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 15,
+      "text_chars": 2997,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 16,
+      "text_chars": 2127,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 17,
+      "text_chars": 2273,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 18,
+      "text_chars": 2504,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 19,
+      "text_chars": 3077,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 20,
+      "text_chars": 1910,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 21,
+      "text_chars": 1132,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 22,
+      "text_chars": 239,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 23,
+      "text_chars": 1293,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 24,
+      "text_chars": 748,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 25,
+      "text_chars": 1697,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 26,
+      "text_chars": 2388,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 27,
+      "text_chars": 2576,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 28,
+      "text_chars": 2295,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 29,
+      "text_chars": 2425,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 30,
+      "text_chars": 1659,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 31,
+      "text_chars": 2366,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 32,
+      "text_chars": 356,
+      "weighted_median_font_pt": 8.6,
+      "body_target_exempt": false
+    },
+    {
+      "page": 33,
+      "text_chars": 221,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 34,
+      "text_chars": 1257,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 35,
+      "text_chars": 781,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 36,
+      "text_chars": 2348,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 37,
+      "text_chars": 2919,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 38,
+      "text_chars": 2791,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 39,
+      "text_chars": 1348,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 40,
+      "text_chars": 254,
+      "weighted_median_font_pt": 10.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 41,
+      "text_chars": 1268,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 42,
+      "text_chars": 741,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 43,
+      "text_chars": 1826,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 44,
+      "text_chars": 1983,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 45,
+      "text_chars": 2405,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 46,
+      "text_chars": 2589,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 47,
+      "text_chars": 1547,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 48,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 49,
+      "text_chars": 1302,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 50,
+      "text_chars": 565,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 51,
+      "text_chars": 2062,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 52,
+      "text_chars": 1381,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 53,
+      "text_chars": 1702,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 54,
+      "text_chars": 1518,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 55,
+      "text_chars": 1773,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 56,
+      "text_chars": 1491,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 57,
+      "text_chars": 1433,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 58,
+      "text_chars": 1500,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 59,
+      "text_chars": 1141,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 60,
+      "text_chars": 229,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 61,
+      "text_chars": 1183,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 62,
+      "text_chars": 812,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 63,
+      "text_chars": 2198,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 64,
+      "text_chars": 2463,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 65,
+      "text_chars": 2427,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 66,
+      "text_chars": 2482,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 67,
+      "text_chars": 2222,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 68,
+      "text_chars": 2803,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 69,
+      "text_chars": 2560,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 70,
+      "text_chars": 2522,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 71,
+      "text_chars": 1774,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 72,
+      "text_chars": 2249,
+      "weighted_median_font_pt": 9.0,
+      "body_target_exempt": false
+    },
+    {
+      "page": 73,
+      "text_chars": 1602,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 74,
+      "text_chars": 249,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 75,
+      "text_chars": 1224,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 76,
+      "text_chars": 1400,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 77,
+      "text_chars": 2348,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 78,
+      "text_chars": 1964,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 79,
+      "text_chars": 1647,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 80,
+      "text_chars": 1911,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 81,
+      "text_chars": 1981,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 82,
+      "text_chars": 1975,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 83,
+      "text_chars": 1487,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 84,
+      "text_chars": 1762,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 85,
+      "text_chars": 1258,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 86,
+      "text_chars": 1502,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 87,
+      "text_chars": 1539,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 88,
+      "text_chars": 2212,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 89,
+      "text_chars": 593,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 90,
+      "text_chars": 280,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 91,
+      "text_chars": 1303,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 92,
+      "text_chars": 784,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 93,
+      "text_chars": 1941,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 94,
+      "text_chars": 1864,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 95,
+      "text_chars": 2031,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 96,
+      "text_chars": 2177,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 97,
+      "text_chars": 2218,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 98,
+      "text_chars": 2210,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 99,
+      "text_chars": 2573,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 100,
+      "text_chars": 1873,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 101,
+      "text_chars": 639,
+      "weighted_median_font_pt": 9.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 102,
+      "text_chars": 240,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 103,
+      "text_chars": 231,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 104,
+      "text_chars": 238,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 105,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 106,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 107,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 108,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 109,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 110,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 111,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 112,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 113,
+      "text_chars": 230,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    },
+    {
+      "page": 114,
+      "text_chars": 231,
+      "weighted_median_font_pt": 7.4,
+      "body_target_exempt": false
+    }
+  ],
+  "errors": []
+}

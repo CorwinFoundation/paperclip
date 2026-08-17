@@ -1,0 +1,228 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/07_Warranty_Remedy_Workflow_Evidence_Gates_v0.1.pdf",
+  "sha256": "7645e70700569aaadc55f70d87005178df3d7d6930296d811637aaed340d558c",
+  "size_bytes": 1102614,
+  "page_count": 16,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 472,
+      "minimum_font_pt": 7.4
+    },
+    {
+      "page": 2,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1238,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 3,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1419,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 4,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2359,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 5,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1967,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 6,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1650,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 7,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1906,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 8,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1971,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 9,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1970,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 10,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1478,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 11,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1761,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 12,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1251,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 13,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1500,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 14,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1543,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 15,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2216,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 16,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 610,
+      "minimum_font_pt": 7.2
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en",
+    "title": "Warranty Remedy Workflow and Evidence Gates v0.1",
+    "outline_items": 4
+  },
+  "fonts": [
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ]
+    },
+    {
+      "name": "QUWLDS+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ]
+    },
+    {
+      "name": "UUNZFJ+IBM-Plex-Mono-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}
