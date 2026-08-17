@@ -50,6 +50,13 @@ _CEL = re.compile(
     r'\? "indeterminate" : e\.(?P=left) > 0 \? "fail" : "pass"$'
 )
 _COMMITMENT_REF = re.compile(r"sha256:[0-9a-f]{64}")
+
+#: The one closed CEL subset every determination lane compiles against.  Adjacent
+#: lanes import these rather than restating the grammar, so no lane can widen the
+#: evaluator or loosen the commitment format without widening it for all of them
+#: under one review.
+CLOSED_SUBSET = _CEL
+COMMITMENT_REF_PATTERN = _COMMITMENT_REF
 SOURCE_STATES = frozenset({"healthy", "grace", "gap", "stale_ineligible"})
 
 
@@ -61,18 +68,24 @@ def _normalise_key(key: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
 
 
-def reject_forbidden_keys(value: Any, path: str = "$") -> None:
-    """Reject content-bearing keys recursively, including nested lists."""
+def reject_forbidden_keys(
+    value: Any, path: str = "$", forbidden: frozenset[str] = FORBIDDEN_KEYS
+) -> None:
+    """Reject content-bearing keys recursively, including nested lists.
+
+    `forbidden` defaults to the voice lane's set.  Adjacent lanes pass a wider
+    set so every lane shares one audited traversal instead of forking it.
+    """
     if isinstance(value, Mapping):
         for key, child in value.items():
             if not isinstance(key, str):
                 raise VoiceCelError(f"non-string key at {path}")
-            if _normalise_key(key) in FORBIDDEN_KEYS:
+            if _normalise_key(key) in forbidden:
                 raise VoiceCelError(f"forbidden key at {path}.{key}")
-            reject_forbidden_keys(child, f"{path}.{key}")
+            reject_forbidden_keys(child, f"{path}.{key}", forbidden)
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            reject_forbidden_keys(child, f"{path}[{index}]")
+            reject_forbidden_keys(child, f"{path}[{index}]", forbidden)
 
 
 def _validate_output_metadata(commitment_ref: str, source_state: str) -> None:
@@ -160,4 +173,12 @@ class VoiceCelPack:
         return output
 
 
-__all__ = ["FORBIDDEN_KEYS", "SOURCE_STATES", "VoiceCelError", "VoiceCelPack", "reject_forbidden_keys"]
+__all__ = [
+    "CLOSED_SUBSET",
+    "COMMITMENT_REF_PATTERN",
+    "FORBIDDEN_KEYS",
+    "SOURCE_STATES",
+    "VoiceCelError",
+    "VoiceCelPack",
+    "reject_forbidden_keys",
+]
