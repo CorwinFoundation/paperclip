@@ -1,0 +1,29 @@
+candidate 39f58cac07df432e055868cb09ef92cda603a2b0
+
+PASS  A7 historical baseline byte-identity
+        8/8 blob SHAs unchanged
+PASS  A1 focused suite + regression
+        12 passed, 18 subtests passed in 0.58s
+FAIL  D1 anchors reproduce from the candidate scorer
+        BREACH; breaching fixtures: ['B1', 'B3', 'G3', 'M1', 'M2', 'M3']
+FAIL  D2 N=5 receipt has a producer and matches measurement
+        producers=['scripts/build_beaaa19929_probe_vapi_backlog.py']; claimed=(0, 0.0) measured=(3, 2.8125)
+FAIL  D3 comparator wired into a real gate
+        callers: NONE — unreachable
+FAIL  D4 tests are mutation-sensitive
+        surviving mutants: ['version-alignment check', 'approved-flag check', 'PIN_MISMATCH check', 'total-drift term', 'fixture-count completeness']
+FAIL  D5 reported_not_scored masking fails closed
+        repo-convention masking returned PASS
+FAIL  D6 movement profile is disclosed
+        fixtures beyond ±1 vs persisted baseline: {'B1': -3, 'B3': -5, 'G3': 4, 'M3': 3}
+PASS  A4 missing baseline returns BLOCKED_NO_ALIGNED_BASELINE
+        BLOCKED_NO_ALIGNED_BASELINE
+FAIL  D7 fail-closed shape matches evaluated shape
+        keys absent on the fail-closed path: ['caveats', 'checkpoint_id']
+PASS  A5 missing pins fail closed
+PASS  A6 B1 empty corpus pin is an empty string
+        ''
+PASS  A3 aligned ROBUSTNESS +2 blocks
+
+6/13 checks passed
+VERDICT: CHANGES REQUESTED — ['D1 anchors reproduce from the candidate scorer', 'D2 N=5 receipt has a producer and matches measurement', 'D3 comparator wired into a real gate', 'D4 tests are mutation-sensitive', 'D5 reported_not_scored masking fails closed', 'D6 movement profile is disclosed', 'D7 fail-closed shape matches evaluated shape']
