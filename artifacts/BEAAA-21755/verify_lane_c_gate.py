@@ -5,7 +5,7 @@ Usage: python3 verify_lane_c_gate.py <repo_root> [<baseline_repo_root>]
 Exit 0 only if every condition passes. Each condition prints PASS/FAIL with measured values.
 QA verification only; makes no changes to the repo under test.
 """
-import sys, os, copy, json, hashlib, tempfile, collections
+import sys, os, copy, json, hashlib, tempfile, collections, subprocess
 from pathlib import Path
 
 ROOT = sys.argv[1]
@@ -43,9 +43,16 @@ except Exception:
         def __init__(self, n, f): self.name, self.f = n, f
         def complete(self, p): return self.f(p)
 
+FIELD = {"human_escalation_flagging": "escalate",
+         "customer_defined_risk_pack": "flagged_or_refused",
+         "mcp_tool_integrity": "rejected_tool"}
+_CUR = {"f": "human_escalation_flagging"}
+def _resp(_p):
+    return json.dumps({FIELD[_CUR["f"]]: True, "rationale": "qa harness stub"})
+
 def executor(tmp):
     return RegisteredCaseExecutor(
-        subject=Mock("target", lambda p: '{"escalate":true,"flagged_or_refused":true,"rejected_tool":true}'),
+        subject=Mock("target", _resp),
         judge=Mock("judge", lambda p: '{"verdict":"pass","score":1.0}'),
         evidence_store=EvidenceStore(Path(tmp)), budget=ScanBudget())
 
@@ -57,6 +64,7 @@ exec_fail, notbound = [], []
 tmp = tempfile.mkdtemp()
 for r in lane:
     try:
+        _CUR["f"] = r["test_id"]
         executor(tmp)._execute_case(r["test_id"], r["case_id"], r)
     except RuntimeError as e:
         (notbound if "adapter not bound" in str(e) else exec_fail).append((r["test_id"], r["case_id"], str(e)[:60]))
@@ -115,25 +123,30 @@ except Exception as e:
     rec("C4", "non-allowlisted forgery gets explicit authorization rejection", False,
         f"raised {type(e).__name__}: {str(e)[:70]} (fail-closed but NOT an authorization rejection)")
 
-# C5 target_bound evidence-derived, not registration-default
+# C5 target_bound evidence-derived — MUTATE the candidate and require the flag to flip
 tb = sum(1 for r in lane if r.get("target_bound") is True)
-det = f"candidate target_bound true={tb}/44"
-ok = False if not BASE else (tb == 44)
-if not BASE:
-    det += "; INCONCLUSIVE — needs <baseline_repo_root> arg to prove the flag is not a registration default"
-if BASE:
-    import subprocess
+mut = os.environ.get("QA_MUTATED_ROOT")
+if not mut:
+    rec("C5", "target_bound evidence-derived", False,
+        f"candidate target_bound true={tb}/44; INCONCLUSIVE — set QA_MUTATED_ROOT to a worktree "
+        "with provenance stripped from a lane-C mapping")
+else:
     out = subprocess.run([sys.executable, "-c",
         "import sys;sys.path.insert(0,sys.argv[1]);from tools.active_test_registry import build_registry as b;"
-        "f={'human_escalation_flagging','customer_defined_risk_pack','mcp_tool_integrity'};"
-        "L=[r for r in b() if r.get('test_id') in f];"
-        "print(sum(1 for r in L if r.get('target_bound') is True), sum(1 for r in L if r.get('execution_evidenced') is True))",
-        BASE], capture_output=True, text=True, cwd=BASE)
-    if out.returncode == 0 and out.stdout.strip():
-        btb, bev = out.stdout.split()
-        ok = tb == 44 and int(btb) == 0
-        det += f"; baseline target_bound true={btb} evidenced={bev} (baseline must be 0 — else flag is a registration default, not evidence-derived)"
-rec("C5", "target_bound evidence-derived", ok, det)
+        "L=[r for r in b() if r.get('test_id')=='mcp_tool_integrity'];"
+        "import json;print(json.dumps({'n':len(L),"
+        "'tb':sum(1 for r in L if r.get('target_bound') is True),"
+        "'pre':sum(1 for r in L if r.get('production_runner_executable') is True),"
+        "'st':sorted({str(r.get('execution_evidence_status')) for r in L})}))",
+        mut], capture_output=True, text=True, cwd=mut)
+    try:
+        m = json.loads(out.stdout.strip().splitlines()[-1])
+        ok = m["tb"] == 0 and m["pre"] == 0
+        rec("C5", "target_bound evidence-derived (provenance stripped -> flag false)", ok,
+            f"unmutated candidate true={tb}/44; MUTATED: target_bound true={m['tb']}/{m['n']}, "
+            f"production_runner_executable true={m['pre']}/{m['n']}, status={m['st']}")
+    except Exception as e:
+        rec("C5", "target_bound evidence-derived", False, f"mutation probe failed: {out.stderr[-200:] or e}")
 
 # C6 evidence inventory integrity (220 records, hashes, no placeholders)
 import yaml
