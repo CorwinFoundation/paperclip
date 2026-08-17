@@ -251,7 +251,7 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
             },
         },
         "monitoring": {
-            "registry_count_gate_expected": 340,
+            "registry_count_gate_expected": 350,
             "duplicate_runtime_identity_drift_gate": "covered by tests/test_active_test_registry_beaaa13644.py",
             "mapping_registry_disagreement_gate": "covered by tests/test_beaaa16972_wave1a_scored_activation.py",
             "fail_closed_controls_gate": "covered by tests/test_beaaa16945_wave1a_candidate.py",
@@ -336,8 +336,8 @@ def main() -> int:
         "production_like_scored_contract_consistent": outputs["production_like_target_output.json"][
             "consistency_checks"
         ]["all_retained_scored_outputs_scored"],
-        "rollback_340_to_305": outputs["rollback_drill_output.json"]["active_executable_before"] == 340
-        and outputs["rollback_drill_output.json"]["active_executable_after"] == 305,
+        "rollback_350_to_315": outputs["rollback_drill_output.json"]["active_executable_before"] == 350
+        and outputs["rollback_drill_output.json"]["active_executable_after"] == 315,
         "unrelated_active_rows_unchanged": outputs["rollback_drill_output.json"][
             "unrelated_active_rows_unchanged"
         ],

@@ -23,13 +23,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     rows = build_registry(include_content_candidates=False)
-    summary = summarize(rows, published_count=340)
+    summary = summarize(rows, published_count=350)
 
-    assert count_active_executable(rows) == 340
-    assert summary["active_executable_count"] == 340
-    assert count_target_bound_runtime(rows) == 362
-    assert summary["target_bound_runtime_count"] == 362
-    assert summary["published_active_test_count"] == 340
+    assert count_active_executable(rows) == 350
+    assert summary["active_executable_count"] == 350
+    assert count_target_bound_runtime(rows) == 372
+    assert summary["target_bound_runtime_count"] == 372
+    assert summary["published_active_test_count"] == 350
 
 
 def test_beaaa21704_report_only_cases_keep_runtime_coverage_not_score_countability() -> None:

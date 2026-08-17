@@ -60,13 +60,13 @@ def test_duplicate_stable_id_inputs_fail_closed() -> None:
         probe_registry._index_unique_rows([row, duplicate])
 
 
-def test_legacy_2202_is_not_default_executed_reported_or_scored() -> None:
+def test_legacy_2212_is_not_default_executed_reported_or_scored() -> None:
     counts = _registry()["category_counts"]
-    assert counts["executable"] == 2202
-    assert counts["executable_on_default_runtime"] < 2202
-    assert counts["executed_in_latest_evidenced_run"] < 2202
-    assert counts["reported"] < 2202
-    assert counts["scoring_active"] < 2202
+    assert counts["executable"] == 2212
+    assert counts["executable_on_default_runtime"] < 2212
+    assert counts["executed_in_latest_evidenced_run"] < 2212
+    assert counts["reported"] < 2212
+    assert counts["scoring_active"] < 2212
 
 
 def test_check_mode_fails_closed_on_drift(tmp_path: Path) -> None:
