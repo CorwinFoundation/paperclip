@@ -544,6 +544,15 @@ COSIGN_RE = re.compile(r"^BEAAA-\d+(#comment-[0-9A-Za-z._-]+)?$")
 # field would manufacture the false provenance this guard exists to prevent,
 # so the absence has to be stated explicitly rather than filled in.
 COSIGN_NOT_REQUIRED = "not-required-rule-execution"
+# BEAAA-23957: `rubric_point_id` was the one provenance field 6a55e72 did not
+# reach, so every receipt kept asserting the two BEAAA-781 PII points whatever
+# the run measured. A receipt naming rubric points it never exercised breaks
+# the click-through from score to evidence, so this is a run input too.
+# Matches both id shapes in rubric/rubric.yaml: `P1.1` and `PILLAR.FAMILY.NAME`.
+RUBRIC_POINT_RE = re.compile(r"^[A-Z][A-Z0-9_]*(\.[A-Z0-9_]+)+$")
+# A metadata-only or harness-plumbing run exercises no rubric point. Naming one
+# anyway is the false claim this guard exists to prevent, so absence is stated.
+RUBRIC_POINTS_NOT_EXERCISED = "none-exercised"
 
 
 def _validate_receipt_provenance(
@@ -552,12 +561,16 @@ def _validate_receipt_provenance(
     cto_cosign_ref: str,
     focus_claim: str,
     ticket_refs: Sequence[str],
-) -> tuple[str, str, str, list[str]]:
+    rubric_point_id: Sequence[str],
+) -> tuple[str, str, str, list[str], list[str]]:
     """Reject absent or malformed receipt provenance rather than defaulting."""
     issue = (issue or "").strip()
     cto_cosign_ref = (cto_cosign_ref or "").strip()
     focus_claim = (focus_claim or "").strip()
     refs = [ref.strip() for ref in (ticket_refs or []) if ref and ref.strip()]
+    points = [
+        point.strip() for point in (rubric_point_id or []) if point and point.strip()
+    ]
 
     if not TICKET_RE.match(issue):
         raise ValueError(
@@ -586,7 +599,27 @@ def _validate_receipt_provenance(
             f"issue {issue} must appear in ticket_refs {refs}; "
             "the receipt header would otherwise disagree with its own provenance"
         )
-    return issue, cto_cosign_ref, focus_claim, refs
+    if not points:
+        raise ValueError(
+            "rubric_point_id must list the rubric points this run exercised, or "
+            f"{RUBRIC_POINTS_NOT_EXERCISED!r} when it exercised none; it is "
+            "required under canon/artifact-metadata-schema.md"
+        )
+    if RUBRIC_POINTS_NOT_EXERCISED in points and len(points) > 1:
+        raise ValueError(
+            f"rubric_point_id cannot combine {RUBRIC_POINTS_NOT_EXERCISED!r} with "
+            f"named rubric points; got {points!r}"
+        )
+    if points != [RUBRIC_POINTS_NOT_EXERCISED]:
+        malformed_points = [
+            point for point in points if not RUBRIC_POINT_RE.match(point)
+        ]
+        if malformed_points:
+            raise ValueError(
+                "rubric_point_id entries must be rubric ids shaped like P1.1 or "
+                f"PILLAR.FAMILY.NAME; got {malformed_points!r}"
+            )
+    return issue, cto_cosign_ref, focus_claim, refs, points
 
 
 def run_gate(
@@ -599,6 +632,7 @@ def run_gate(
     cto_cosign_ref: str,
     focus_claim: str,
     ticket_refs: Sequence[str],
+    rubric_point_id: Sequence[str],
     phase: str = "development",
     today: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
@@ -607,11 +641,18 @@ def run_gate(
             "production/underwriting drift policy is not configured; "
             "a named baseline and explicitly approved review policy are required"
         )
-    issue, cto_cosign_ref, focus_claim, ticket_refs = _validate_receipt_provenance(
+    (
+        issue,
+        cto_cosign_ref,
+        focus_claim,
+        ticket_refs,
+        rubric_point_id,
+    ) = _validate_receipt_provenance(
         issue=issue,
         cto_cosign_ref=cto_cosign_ref,
         focus_claim=focus_claim,
         ticket_refs=ticket_refs,
+        rubric_point_id=rubric_point_id,
     )
     manifest = _load_json(manifest_path)
     today = today or datetime.now(timezone.utc).date().isoformat()
@@ -728,10 +769,7 @@ def run_gate(
         "scanner_version": "0.5.0",
         "corpus_version": RELEASE_GATE_CORPUS_VERSION,
         "probe-set-version": "artifacts/beaaa-387/manifest.json",
-        "rubric_point_id": [
-            "GOVERNANCE.PII.HANDLING_ATTESTATION",
-            "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
-        ],
+        "rubric_point_id": list(rubric_point_id),
         "cto_cosign_ref": cto_cosign_ref,
         "movement_accounting_decision_ref": MOVEMENT_ACCOUNTING_DECISION_REF,
         "phase": phase,
@@ -836,7 +874,11 @@ def _render_markdown(report: dict[str, Any]) -> str:
     # BEAAA-23845: read provenance off the report so the header describes the
     # run that produced it. Missing keys fail loudly instead of falling back to
     # a literal, which is how the stale attribution went unnoticed.
-    missing = [key for key in ("issue", "focus_claim", "ticket_refs") if not report.get(key)]
+    missing = [
+        key
+        for key in ("issue", "focus_claim", "ticket_refs", "rubric_point_id")
+        if not report.get(key)
+    ]
     if missing:
         raise ValueError(f"receipt provenance missing from report: {missing}")
     lines = [
@@ -1032,6 +1074,18 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="BEAAA-NNN",
         help="Tickets this receipt attributes to, including --issue.",
     )
+    # BEAAA-23957: the run states which rubric points it exercised. There is no
+    # default, because the default was two PII points most runs never measured.
+    parser.add_argument(
+        "--rubric-point-id",
+        required=True,
+        nargs="+",
+        metavar="RUBRIC_POINT",
+        help=(
+            "Rubric points this run exercised, or "
+            f"'{RUBRIC_POINTS_NOT_EXERCISED}' when it exercised none."
+        ),
+    )
     parser.add_argument("--today", default=None, help="YYYY-MM-DD override for deterministic tests.")
     parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
@@ -1050,6 +1104,7 @@ def main(argv: list[str] | None = None) -> int:
         cto_cosign_ref=args.cto_cosign_ref,
         focus_claim=args.focus_claim,
         ticket_refs=args.ticket_refs,
+        rubric_point_id=args.rubric_point_id,
         phase=args.phase,
         today=args.today,
     )
