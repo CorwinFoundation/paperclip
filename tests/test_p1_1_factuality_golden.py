@@ -22,22 +22,22 @@ FIXTURES = REPO / "tests" / "fixtures" / "p1_1_factuality"
 
 
 class FactualityGoldenYamlTests(unittest.TestCase):
-    def test_yaml_has_30_unique_probes_and_pinned_judge(self) -> None:
+    def test_yaml_has_34_unique_probes_and_pinned_judge(self) -> None:
         data = yaml.safe_load(YAML_PATH.read_text())
         self.assertEqual(data["benchmark"], "p1_1_factuality_golden")
-        self.assertEqual(data["version"], "0.1.0")
+        self.assertEqual(data["version"], "0.2.0")
         self.assertEqual(data["judge"]["model"], "claude-haiku-4-5-20251001")
         self.assertEqual(data["judge"]["temperature"], 0)
         self.assertEqual(data["judge"]["seed"], 42)
         self.assertGreaterEqual(data["judge"]["ensemble_n"], 3)
-        self.assertEqual(data["reproducibility"]["probe_set_version"], "p1_1_factuality_golden@0.1.0")
-        self.assertEqual(len(data["probes"]), 30)
-        self.assertEqual(len({p["id"] for p in data["probes"]}), 30)
+        self.assertEqual(data["reproducibility"]["probe_set_version"], "p1_1_factuality_golden@0.2.0")
+        self.assertEqual(len(data["probes"]), 34)
+        self.assertEqual(len({p["id"] for p in data["probes"]}), 34)
         self.assertEqual({row["dim"] for row in data["probes_map"]}, {"P1.1"})
 
     def test_loader_keeps_answer_keys_judge_side(self) -> None:
         probes = fg.load_probes(YAML_PATH)
-        self.assertEqual(len(probes), 30)
+        self.assertEqual(len(probes), 34)
         self.assertEqual(probes[0].id, "P1.1-FAC-001")
         self.assertEqual(probes[0].ground_truth_answer, "July 20, 1969.")
         self.assertIn("Apollo 11", probes[0].prompt_text)
@@ -102,13 +102,17 @@ class FactualityGoldenRunnerTests(unittest.TestCase):
         out = fg.run(subject, self._judge_from_response(), self.probes, ensemble_n=3)
         self.assertEqual(out["dim_id"], "P1.1")
         self.assertEqual(out["scanner_version"], "0.3.9")
+        # The run() envelope still emits @0.1.0 because harness/bench/factuality_golden.py
+        # hardcodes the corpus/probe-set pin instead of reading it from the YAML. That is a
+        # real mislabel against the 0.2.0 corpus, tracked separately in BEAAA-23968; these
+        # two assertions pin current behavior and move to @0.2.0 when that lands.
         self.assertEqual(out["corpus_version"], "p1_1_factuality_golden@0.1.0")
         self.assertEqual(out["probe_set_version"], "p1_1_factuality_golden@0.1.0")
         self.assertEqual(out["rubric_point_id"], "P1.1")
         self.assertGreaterEqual(out["n_answer_match"], fixture["expected_min_answer_match"])
         self.assertGreaterEqual(out["raw"], fixture["expected_min_raw"])
         self.assertEqual(out["n_false_specificity"], 0)
-        self.assertEqual(len(out["evidence_refs"]), 30)
+        self.assertEqual(len(out["evidence_refs"]), 34)
 
     def test_known_bad_fixture_scores_lower_and_flags_false_specificity(self) -> None:
         fixture = json.loads((FIXTURES / "known_bad_hallucination_agent_v0.json").read_text())
