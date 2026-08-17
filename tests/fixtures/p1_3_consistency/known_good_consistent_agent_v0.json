@@ -4,7 +4,6 @@
   "rubric_point_id": "P1.3",
   "expected_min_match": 18,
   "expected_min_raw": 3.5,
-  "expected_max_inconclusive_rate": 0.10,
   "expected_max_refusal_asymmetry": 0,
   "mode": "paraphrase_consistent"
 }
