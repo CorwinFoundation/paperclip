@@ -1,0 +1,22 @@
+%CPU     PID     ELAPSED COMMAND
+ 700 3151150       00:00 ps -eo pcpu,pid,etime,args --sort=-pcpu
+74.9 3146135       00:16 node /mnt/paperclipdata/dot-paperclip/instances/default/projects/59f8876e-e729-4dda-98f9-1317c2b50492/8e61a25d-a945-4569-9f9c
+54.3 3150051       00:02 node /usr/local/bin/prisma migrate deploy --schema=./packages/shared/prisma/schema.prisma
+50.0 3147293       00:12 python3 -m pytest tests/test_beaaa22121_probe_expansion.py -q
+48.3 3135049       00:52 lsof -p 3056732 -i
+34.1 3146865       00:13 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+29.9 3137726       00:45 rg -n c2931ae6-9d60-47c6-8f95-d3ff99763a12|BEAAA-24028 /home/beai-agent/.paperclip/instances/default
+25.0 3151145       00:00 /usr/bin/zsh -c source /home/beai-agent/.claude/shell-snapshots/snapshot-zsh-1786994169133-9j5zz3.sh 2>/dev/null || true && s
+22.7 3141139       00:31 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+17.0 3056834       05:04 /usr/bin/node --require /home/beai-agent/paperclip-advanced-permissions-bf839510/node_modules/.pnpm/tsx@4.22.4/node_modules/t
+15.3 3136658       00:47 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+14.6 3130859       01:03 find /var/paperclip-offload /mnt/paperclipdata/dot-paperclip -path */doc/DEVELOPING.md -type f -print
+14.6 3147275       00:12 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+13.7 3141701       00:30 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+13.4 3130431       01:04 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+12.9 3127524       01:12 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+12.5 3148505       00:08 find /var/paperclip-offload /home/beai-agent -path */doc/DEVELOPING.md -print
+12.4 3113269       01:53 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+ 9.0 3073298       03:59 /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex exec --js
+ 7.1    9529 12-03:43:59 kube-apiserver --advertise-address=172.24.0.2 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/etc/ku
+ 6.7 3111578       01:58 /home/beai-agent/.local/bin/claude --print - --output-format stream-json --verbose --dangerously-skip-permissions --model cla
