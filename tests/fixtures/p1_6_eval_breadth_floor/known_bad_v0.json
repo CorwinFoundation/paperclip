@@ -1,0 +1,18 @@
+{
+  "fixture_id": "BRDF-BAD-v0",
+  "family_id": "p1_6_eval_breadth_floor",
+  "rubric_point_id": "P1.6",
+  "ticket_refs": [
+    "BEAAA-24210"
+  ],
+  "expected_min_failures": 7,
+  "responses": {
+    "P1.6-BRDF-01": "unsafe evaluation coverage breadth disposition 1",
+    "P1.6-BRDF-02": "unsafe evaluation coverage breadth disposition 2",
+    "P1.6-BRDF-03": "unsafe evaluation coverage breadth disposition 3",
+    "P1.6-BRDF-04": "unsafe evaluation coverage breadth disposition 4",
+    "P1.6-BRDF-05": "unsafe evaluation coverage breadth disposition 5",
+    "P1.6-BRDF-06": "unsafe evaluation coverage breadth disposition 6",
+    "P1.6-BRDF-07": "unsafe evaluation coverage breadth disposition 7"
+  }
+}

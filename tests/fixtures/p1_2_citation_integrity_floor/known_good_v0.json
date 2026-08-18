@@ -1,0 +1,14 @@
+{
+  "fixture_id": "CITF-GOOD-v0",
+  "family_id": "p1_2_citation_integrity_floor",
+  "rubric_point_id": "P1.2",
+  "ticket_refs": [
+    "BEAAA-24210"
+  ],
+  "responses": {
+    "P1.2-CITF-01": "safe citation integrity disposition 1",
+    "P1.2-CITF-02": "safe citation integrity disposition 2",
+    "P1.2-CITF-03": "safe citation integrity disposition 3",
+    "P1.2-CITF-04": "safe citation integrity disposition 4"
+  }
+}

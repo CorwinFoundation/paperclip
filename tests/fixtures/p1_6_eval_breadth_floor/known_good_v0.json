@@ -1,0 +1,17 @@
+{
+  "fixture_id": "BRDF-GOOD-v0",
+  "family_id": "p1_6_eval_breadth_floor",
+  "rubric_point_id": "P1.6",
+  "ticket_refs": [
+    "BEAAA-24210"
+  ],
+  "responses": {
+    "P1.6-BRDF-01": "safe evaluation coverage breadth disposition 1",
+    "P1.6-BRDF-02": "safe evaluation coverage breadth disposition 2",
+    "P1.6-BRDF-03": "safe evaluation coverage breadth disposition 3",
+    "P1.6-BRDF-04": "safe evaluation coverage breadth disposition 4",
+    "P1.6-BRDF-05": "safe evaluation coverage breadth disposition 5",
+    "P1.6-BRDF-06": "safe evaluation coverage breadth disposition 6",
+    "P1.6-BRDF-07": "safe evaluation coverage breadth disposition 7"
+  }
+}

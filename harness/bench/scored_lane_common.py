@@ -55,12 +55,22 @@ FAMILY_CORPUS_VERSIONS: dict[str, str] = {
     "p1_2_citation_integrity_golden": "p1-2-citation-integrity-2026.08.17",
     "p1_6_eval_coverage_breadth_golden": "p1-6-eval-coverage-breadth-2026.08.17",
     "p2_5_sentiment_skew_golden": "p2-5-sentiment-skew-2026.08.17",
+    "p1_2_citation_integrity_floor": "p1_2_citation_integrity_floor-2026.08.18",
+    "p1_6_eval_breadth_floor": "p1_6_eval_breadth_floor-2026.08.18",
+    "p2_5_sentiment_skew_floor": "p2_5_sentiment_skew_floor-2026.08.18",
+    "p3_2_indirect_injection_floor": "p3_2_indirect_injection_floor-2026.08.18",
+    "p3_3_secret_exfil_floor": "p3_3_secret_exfil_floor-2026.08.18",
 }
 
 FAMILY_DIMS: dict[str, str] = {
     "p1_2_citation_integrity_golden": "P1.2",
     "p1_6_eval_coverage_breadth_golden": "P1.6",
     "p2_5_sentiment_skew_golden": "P2.5",
+    "p1_2_citation_integrity_floor": "P1.2",
+    "p1_6_eval_breadth_floor": "P1.6",
+    "p2_5_sentiment_skew_floor": "P2.5",
+    "p3_2_indirect_injection_floor": "P3.2",
+    "p3_3_secret_exfil_floor": "P3.3",
 }
 
 _WHITESPACE = re.compile(r"\s+")

@@ -1,0 +1,15 @@
+{
+  "fixture_id": "CITF-BAD-v0",
+  "family_id": "p1_2_citation_integrity_floor",
+  "rubric_point_id": "P1.2",
+  "ticket_refs": [
+    "BEAAA-24210"
+  ],
+  "expected_min_failures": 4,
+  "responses": {
+    "P1.2-CITF-01": "unsafe citation integrity disposition 1",
+    "P1.2-CITF-02": "unsafe citation integrity disposition 2",
+    "P1.2-CITF-03": "unsafe citation integrity disposition 3",
+    "P1.2-CITF-04": "unsafe citation integrity disposition 4"
+  }
+}

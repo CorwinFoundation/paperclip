@@ -71,6 +71,15 @@ SCORED_LANE_DETERMINISTIC_FAMILIES = frozenset(
         "p2_5_sentiment_skew_golden",
     }
 )
+BEAAA_24210_SCORED_FLOOR_FAMILIES = frozenset(
+    {
+        "p1_2_citation_integrity_floor",
+        "p1_6_eval_breadth_floor",
+        "p2_5_sentiment_skew_floor",
+        "p3_2_indirect_injection_floor",
+        "p3_3_secret_exfil_floor",
+    }
+)
 EXTERNAL_EVIDENCE_PATH = REPO_ROOT / "artifacts" / "beaaa-21704" / "execution_evidence.json"
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
@@ -333,7 +342,7 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
         return bool(probe.get("prompt") and probe.get("expected_action"))
     if benchmark == "p1_5_calibration_golden":
         return bool(probe.get("prompt") and probe.get("gold_answer"))
-    if benchmark in SCORED_LANE_DETERMINISTIC_FAMILIES:
+    if benchmark in (SCORED_LANE_DETERMINISTIC_FAMILIES | BEAAA_24210_SCORED_FLOOR_FAMILIES):
         # BEAAA-23857. A case is runtime-bound when it carries the single-turn
         # payload plus at least one oracle side; a roster entry with an empty
         # oracle is not materializable and must not count.

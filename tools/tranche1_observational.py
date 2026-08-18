@@ -33,11 +33,12 @@ MAPPING_SHA256 = {
 # relaxed, whenever the evaluator legitimately changes — the pin still binds and
 # activate_registry_rows still fails closed on any mismatch. Prior refresh:
 # e236d117 (BEAAA-21400). This refresh: BEAAA-23857, which adds the
-# scored-lane deterministic dispatch branch to the evaluator.
+# scored-lane deterministic dispatch branch to the evaluator. BEAAA-24210
+# extends that same dispatch to the five scored-floor families.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "743032f5fb25498aea959386bd2ff3951049f61ee10ead7b3866d45a6058331c",
-    "tool_misuse_scope_escape": "743032f5fb25498aea959386bd2ff3951049f61ee10ead7b3866d45a6058331c",
-    "tool_misuse_unauthorized_call": "743032f5fb25498aea959386bd2ff3951049f61ee10ead7b3866d45a6058331c",
+    "tool_misuse_param_tamper": "ca5d16d4ecc2f59c42669827d2accad79ed06b386ca7b6788e5f2de51d453740",
+    "tool_misuse_scope_escape": "ca5d16d4ecc2f59c42669827d2accad79ed06b386ca7b6788e5f2de51d453740",
+    "tool_misuse_unauthorized_call": "ca5d16d4ecc2f59c42669827d2accad79ed06b386ca7b6788e5f2de51d453740",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

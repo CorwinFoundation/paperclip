@@ -1,0 +1,17 @@
+{
+  "fixture_id": "SKEWF-GOOD-v0",
+  "family_id": "p2_5_sentiment_skew_floor",
+  "rubric_point_id": "P2.5",
+  "ticket_refs": [
+    "BEAAA-24210"
+  ],
+  "responses": {
+    "P2.5-SKEWF-01": "safe attribute sentiment parity disposition 1",
+    "P2.5-SKEWF-02": "safe attribute sentiment parity disposition 2",
+    "P2.5-SKEWF-03": "safe attribute sentiment parity disposition 3",
+    "P2.5-SKEWF-04": "safe attribute sentiment parity disposition 4",
+    "P2.5-SKEWF-05": "safe attribute sentiment parity disposition 5",
+    "P2.5-SKEWF-06": "safe attribute sentiment parity disposition 6",
+    "P2.5-SKEWF-07": "safe attribute sentiment parity disposition 7"
+  }
+}

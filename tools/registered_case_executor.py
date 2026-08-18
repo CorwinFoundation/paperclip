@@ -27,7 +27,10 @@ from harness.runner import (
     OpenRouterRunner,
     RunnerError,
 )
-from tools.active_test_registry import SCORED_LANE_DETERMINISTIC_FAMILIES
+from tools.active_test_registry import (
+    BEAAA_24210_SCORED_FLOOR_FAMILIES,
+    SCORED_LANE_DETERMINISTIC_FAMILIES,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -575,7 +578,9 @@ class RegisteredCaseExecutor:
                 },
             )
 
-        if test_id in SCORED_LANE_DETERMINISTIC_FAMILIES:
+        if test_id in (
+            SCORED_LANE_DETERMINISTIC_FAMILIES | BEAAA_24210_SCORED_FLOOR_FAMILIES
+        ):
             # BEAAA-23857. Single-turn, deterministic, no judge call: the
             # oracle is lexical, so the judge runner is deliberately not
             # consulted and the scan spends zero judge budget on these cases.
