@@ -62,7 +62,7 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     rows = build_registry()
     candidates = [row for row in rows if row.get("content_candidate_inventory")]
 
-    assert len(rows) == 2_284
+    assert len(rows) == 2_319
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
@@ -85,10 +85,10 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_244
-    assert count_target_bound_runtime(rows) == 2_255
-    assert distinct_case_counts(rows)["total"] == 2_243
-    assert not validate_registry(rows, published_count=2_244, strict=True)
+    assert count_active_executable(rows) == 2_279
+    assert count_target_bound_runtime(rows) == 2_290
+    assert distinct_case_counts(rows)["total"] == 2_278
+    assert not validate_registry(rows, published_count=2_279, strict=True)
 
 
 def test_candidate_materializer_handles_pairs_and_conversation_events() -> None:

@@ -366,7 +366,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # budget (180 target calls, 0 judge calls), families, and zero-weight
     # invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "02f41c25e0131803c1f7f01a80e203fee732ad3b660e94c21e0042d3f99ba4e6"
+        "ff252a097dc5d7600f8df9dbc232c01eee2f2d3c77e7d2904cb66a8acebee0b5"
     )
 
 

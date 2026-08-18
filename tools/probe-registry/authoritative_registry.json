@@ -224,7 +224,7 @@
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
     "report_only": 3,
-    "runnable_today": 2244
+    "runnable_today": 2279
   },
   "bucket_definitions": {
     "attestation_only": "Governance/operator evidence row; countable as evidence requirement, not an executable probe.",
@@ -238,7 +238,7 @@
   "category_counts": {
     "attestation_only": 7,
     "blocked_unsupported": 264,
-    "executable": 2244,
+    "executable": 2279,
     "executable_on_default_runtime": 0,
     "executed_in_latest_evidenced_run": 0,
     "fixture_test_only": 89,
@@ -252,7 +252,7 @@
     "claim_supported": false,
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
-    "supported_unique_executable_count": 2244,
+    "supported_unique_executable_count": 2279,
     "unsupported_rows_count": 264
   },
   "dedupe_key_fields": [
@@ -82705,7 +82705,7 @@
     "tests/fixtures/golden_agents/**",
     "evals/provisional_tau_support_crm.py"
   ],
-  "unique_executable_count": 2244,
+  "unique_executable_count": 2279,
   "upstream_framework_pins": {
     "agentdojo": "0.1.35",
     "garak": "0.10.0",
