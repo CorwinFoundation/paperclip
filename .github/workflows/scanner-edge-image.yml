@@ -55,6 +55,12 @@ jobs:
           assert manifest["corpus_version"] == "0.2.0"
           assert manifest["build_sha"] == os.environ["BACKBOND_BUILD_SHA"]
           assert manifest["release_tag"] == "sha-" + os.environ["BACKBOND_BUILD_SHA"]
+          marker = manifest["registry_marker"]
+          assert marker["schema_version"] == "backbond-scanner-registry-marker@1"
+          assert marker["published_executable_count"] == 2212
+          assert marker["generated_executable_count"] == 2212
+          assert marker["distinct_runtime_count"] == 2211
+          assert len(marker["normalized_registry_sha256"]) == 64
           '
 
       - name: Verify runtime import closure
