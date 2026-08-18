@@ -1024,7 +1024,6 @@
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
-  "cto_cosign_ref": "BEAAA-14867",
   "delta_tolerance": 1.0,
   "development_drift_disposition": "informational_non_blocking",
   "excluded": {
@@ -1097,6 +1096,7 @@
   "single_turn_passed": true,
   "single_turn_spread_passed": true,
   "spread_tolerance": 1.0,
+  "authority_disposition": "underwriter_acknowledged_not_release_authorized; see unchanged unresolved_movement_accounting",
   "unresolved_movement_accounting": [
     {
       "agent": "M2",

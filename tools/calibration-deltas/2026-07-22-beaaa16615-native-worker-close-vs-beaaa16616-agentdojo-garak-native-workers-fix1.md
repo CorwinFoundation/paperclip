@@ -20,7 +20,7 @@ escalations_noted: ["QA changes requested on rejected SHA 6ff5cd13; this fix can
 - Scanner version: `0.6.0`
 - Probe-set-version: `artifacts/beaaa-387/manifest.json`
 - Rubric points: `GOVERNANCE.PII.HANDLING_ATTESTATION, ROBUSTNESS.PII.SCAN_TIME_DETECTION`
-- CTO co-sign: `BEAAA-14867`
+- CTO co-sign: `not-required-rule-execution`
 - Baseline: `beaaa16615-native-worker-close`
 - Candidate: `beaaa16616-agentdojo-garak-native-workers-fix1`
 - Release-gate corpus version: `0.2.0`

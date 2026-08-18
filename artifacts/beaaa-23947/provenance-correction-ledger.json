@@ -1,0 +1,1151 @@
+{
+  "artifact_type": "provenance_correction_ledger",
+  "issue": "BEAAA-24250",
+  "parent": "BEAAA-23947",
+  "classification": "rule-execution",
+  "scanner_version": "0.5.0",
+  "corpus_version": "0.2.0",
+  "probe-set-version": "artifacts/beaaa-387/manifest.json",
+  "rubric_point_id": "historical values preserved per receipt; not retro-corrected",
+  "n5_calibration_delta": "0.0000; artifact-only header correction, governed by merged BEAAA-23953 R5 receipt at base adbf9cb5",
+  "cto_cosign_ref": "not-required-rule-execution",
+  "contracts_referenced": [
+    "are-scanner-api-v1@v1.3.0",
+    "scanner-implementation-supervision-v1@v1.1"
+  ],
+  "base_commit": "adbf9cb520c151269a67365d796a0603ecd44012",
+  "inventory": {
+    "json": 26,
+    "markdown": 22,
+    "total": 48,
+    "ordered_path_pre_edit_sha256_digest": "fb88ae246ec672ad582adf3d529a6459a54981b8bade646adfa18e07812a27b7",
+    "recomputed_local_digest": "efdab278b0ced28fbfc04d796f8715a754bbb605b965a342e0a893835e88c1ad"
+  },
+  "edit_method": "field-scoped hand edit; generator not invoked",
+  "invariants": {
+    "approved_header_keys_only": true,
+    "measured_values_unchanged": true,
+    "nested_decision_refs_byte_identical": true
+  },
+  "known_residuals": [
+    "rubric_point_id not retro-corrected",
+    "receipts do not pin rubric version"
+  ],
+  "files": [
+    {
+      "path": "artifacts/beaaa-14948/2026-07-16-current-master-vs-beaaa14948-accounting-reconciliation.json",
+      "kind": "json",
+      "sha256_before": "e52f78a9747c382866a4e1b7f665ee0fac93e3d129aaac95ea3573decf063ddf",
+      "sha256_after": "e52f78a9747c382866a4e1b7f665ee0fac93e3d129aaac95ea3573decf063ddf",
+      "signals": {
+        "S3_path_filename": "BEAAA-14948",
+        "S4_intro_commit": "BEAAA-14948"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-14948",
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-14948/2026-07-16-current-master-vs-beaaa14948-accounting-reconciliation.md",
+      "kind": "markdown",
+      "sha256_before": "cdab2c4306ddd5db1c55a67b253ef8d0830040bc1bd9673bf5b93a68635cac9a",
+      "sha256_after": "cdab2c4306ddd5db1c55a67b253ef8d0830040bc1bd9673bf5b93a68635cac9a",
+      "signals": {
+        "S3_path_filename": "BEAAA-14948",
+        "S4_intro_commit": "BEAAA-14948"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-14948",
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19046/n5/2026-07-29-2b0abd950edd9d7e633b612c42ea2475245da1d6-vs-HEAD.json",
+      "kind": "json",
+      "sha256_before": "ecfcf68f552a8f7807b1c6f870fe798a3377b38b93c813c28a458b75b0d17e4c",
+      "sha256_after": "2058991eec6f505b3550dee41aab62a57fd339e608c4205379e9b1b87ffd0e4a",
+      "signals": {
+        "S4_intro_commit": "BEAAA-19046",
+        "S1_sibling_quadruple": "BEAAA-19046"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-19046",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19046/n5/2026-07-29-2b0abd950edd9d7e633b612c42ea2475245da1d6-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "ef12f3dc1e7fa7767a9fa138fcddf9e45894bdddf60a1f8c2b621c10c6a5a769",
+      "sha256_after": "685da082c3a1b13bfb0cac4ece5ad0c563c8c3194f399852e8d18ba4645134e4",
+      "signals": {
+        "S3_path_filename": "BEAAA-19046",
+        "S4_intro_commit": "BEAAA-19046",
+        "S1_sibling_quadruple": "BEAAA-19046"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-19046",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19052/n5/2026-07-29-5f7980c8-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "ddc3ca14afec040a77f190f79dfbcd0f7c0a5c2dc95b11c370b1cfd01de36795",
+      "sha256_after": "193edfb9d49a300deba051474ed6a7a59a5f832867da50d4a3bd46569b470916",
+      "signals": {
+        "S3_path_filename": "BEAAA-19052",
+        "S4_intro_commit": "BEAAA-19052",
+        "S1_sibling_quadruple": "BEAAA-19052"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-19052",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19422/n5/2026-07-30-frozen-0.5.0-vs-beaaa-19422-final-adjudication.json",
+      "kind": "json",
+      "sha256_before": "8346e84b7111e24e6d16c6f3fe69b5521eaba5105e5701ed60b4eb3b3142aab5",
+      "sha256_after": "8cbcc4439aeb2fa71cc829bc424ff58da4ff6a891c993524529f09238414f156",
+      "signals": {
+        "S3_path_filename": "BEAAA-19422",
+        "S4_intro_commit": "BEAAA-19422"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-19422",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19422/n5/2026-07-30-frozen-0.5.0-vs-beaaa-19422-final-adjudication.md",
+      "kind": "markdown",
+      "sha256_before": "c54c9700cf596898df1e0c47cfba6052962b23deef55989387dcce80b49ab230",
+      "sha256_after": "83a369a83095c5385a8f3327ff69751a1ddd7c7a47e1473605735736755d1647",
+      "signals": {
+        "S3_path_filename": "BEAAA-19422",
+        "S4_intro_commit": "BEAAA-19422"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-19422",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19422/n5/n5-calibration.json",
+      "kind": "json",
+      "sha256_before": "8346e84b7111e24e6d16c6f3fe69b5521eaba5105e5701ed60b4eb3b3142aab5",
+      "sha256_after": "8cbcc4439aeb2fa71cc829bc424ff58da4ff6a891c993524529f09238414f156",
+      "signals": {
+        "S3_path_filename": "BEAAA-19422",
+        "S4_intro_commit": "BEAAA-19422"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-19422",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19931/n5-calibration-delta.json",
+      "kind": "json",
+      "sha256_before": "310990e608a7a992fb4a07b83df45077674f68fcbd5c55c075b71cc20533c107",
+      "sha256_after": "f7d56d67b70aa4b1b86edc25f27cad6342de77a69a5f949d1426bf9065bc050c",
+      "signals": {
+        "S3_path_filename": "BEAAA-19931",
+        "S4_intro_commit": "BEAAA-19931"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-19931",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19931/n5/2026-07-31-HEAD-vs-BEAAA-19931-spec-only.json",
+      "kind": "json",
+      "sha256_before": "310990e608a7a992fb4a07b83df45077674f68fcbd5c55c075b71cc20533c107",
+      "sha256_after": "f7d56d67b70aa4b1b86edc25f27cad6342de77a69a5f949d1426bf9065bc050c",
+      "signals": {
+        "S3_path_filename": "BEAAA-19931",
+        "S4_intro_commit": "BEAAA-19931"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-19931",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-19931/n5/2026-07-31-HEAD-vs-BEAAA-19931-spec-only.md",
+      "kind": "markdown",
+      "sha256_before": "706d7d382b289194f72a8c5d1bb2f3f8aed35cd46df49617bce479e569fd7eca",
+      "sha256_after": "f3eb342e480e220506f6be2aa831920f7f667210277dd5ced75145e5cde0f83d",
+      "signals": {
+        "S3_path_filename": "BEAAA-19931",
+        "S4_intro_commit": "BEAAA-19931"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-19931",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-20139/n5/2026-08-01-c3e2fa385a55-vs-beaaa-20139-report-only-lineage.json",
+      "kind": "json",
+      "sha256_before": "397c5014c1751f0765ddf3524dab0f31723abb794bdabba99a3d48972dfdc051",
+      "sha256_after": "0d8c38b356af721a7da62eef4107d0d8d4048e02c1d8fe3c667415f1cf65ee1b",
+      "signals": {
+        "S3_path_filename": "BEAAA-20139",
+        "S4_intro_commit": "BEAAA-20139"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-20139",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-20139/n5/2026-08-01-c3e2fa385a55-vs-beaaa-20139-report-only-lineage.md",
+      "kind": "markdown",
+      "sha256_before": "f5a090d7c556d3c41d48598e6978fdb264b839bb6be2cec7cd9d5ec864fba1e8",
+      "sha256_after": "b04ef6f052192b5f74c71230ddc338a18346ed7ac9ca8b0a2c9150f306d15e67",
+      "signals": {
+        "S3_path_filename": "BEAAA-20139",
+        "S4_intro_commit": "BEAAA-20139"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-20139",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-20139/n5/result.json",
+      "kind": "json",
+      "sha256_before": "397c5014c1751f0765ddf3524dab0f31723abb794bdabba99a3d48972dfdc051",
+      "sha256_after": "0d8c38b356af721a7da62eef4107d0d8d4048e02c1d8fe3c667415f1cf65ee1b",
+      "signals": {
+        "S3_path_filename": "BEAAA-20139",
+        "S4_intro_commit": "BEAAA-20139"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-20139",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-21704/n5/2026-08-10-8562e9a5dd83e1147fceeaf6f2a0c4c012c69eb3-vs-HEAD.json",
+      "kind": "json",
+      "sha256_before": "cfacde40f7a4ed9caaeacbf2b1b570eabd3cbf4f7f37b835505390a12d6e75b4",
+      "sha256_after": "cc3aa106ad3f53257b00538d11cc8a2bcc61d13ceee7bf762ac0c957d94dd23e",
+      "signals": {
+        "S3_path_filename": "BEAAA-21704",
+        "S4_intro_commit": "BEAAA-21704"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-21704",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-21704/n5/2026-08-10-8562e9a5dd83e1147fceeaf6f2a0c4c012c69eb3-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "d6141509482cc19d1dad9d06ee6b8b75afe76787ac16bdfc4e5268423c11bb1a",
+      "sha256_after": "51c95e310b64a0dc980a6802acf5fa8271e216705b92737209c61eebfb1b63ec",
+      "signals": {
+        "S3_path_filename": "BEAAA-21704",
+        "S4_intro_commit": "BEAAA-21704"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-21704",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "artifacts/beaaa-21704/n5/calibration_delta.json",
+      "kind": "json",
+      "sha256_before": "cfacde40f7a4ed9caaeacbf2b1b570eabd3cbf4f7f37b835505390a12d6e75b4",
+      "sha256_after": "cc3aa106ad3f53257b00538d11cc8a2bcc61d13ceee7bf762ac0c957d94dd23e",
+      "signals": {
+        "S3_path_filename": "BEAAA-21704",
+        "S4_intro_commit": "BEAAA-21704"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-21704",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-22-beaaa16615-native-worker-close-vs-beaaa16616-agentdojo-garak-native-workers-fix1.md",
+      "kind": "markdown",
+      "sha256_before": "7105993fa62137892f031f383595d2418446931c89a27e09e7d972287f935c93",
+      "sha256_after": "31443676900bdb97d08cbcddb14d5efedcfe1f037a0396ccca07bec4f2281df9",
+      "signals": {
+        "S3_path_filename": "BEAAA-16616",
+        "S4_intro_commit": "BEAAA-16616"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-16616",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-22-beaaa16615-native-worker-close-vs-beaaa16616-agentdojo-garak-native-workers.md",
+      "kind": "markdown",
+      "sha256_before": "b363efa1bccd7b874a93696b104ab3203f2dc784ab26aa556aa1fb9f805ba801",
+      "sha256_after": "6b190c95d6081f8a7be2ecb5b28fe8741416835ee834aaca2cdad447c006b60c",
+      "signals": {
+        "S3_path_filename": "BEAAA-16616",
+        "S4_intro_commit": "BEAAA-16616"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-16616",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-22-beaaa16616-agentdojo-garak-native-workers-fix1-n5.json",
+      "kind": "json",
+      "sha256_before": "85a4fa9d3e82caa8a01af5a995b2ff81e7fee817ebfddadb09595d0ae1b76b20",
+      "sha256_after": "02b72885d75e7692aa53e3e684d1fc48a42bcb2262c632b147aed58fe5f6b055",
+      "signals": {
+        "S3_path_filename": "BEAAA-16616",
+        "S4_intro_commit": "BEAAA-16616"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-16616",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-22-beaaa16616-agentdojo-garak-native-workers-n5.json",
+      "kind": "json",
+      "sha256_before": "efc4a2242cbd351728ae5166a5a3397ed226589e5b1f4c694a5fc0e6c243b0f0",
+      "sha256_after": "362af193d45c18cba3e794817879737a98d1518ffc3f4883eb7f873ce1196927",
+      "signals": {
+        "S3_path_filename": "BEAAA-16616",
+        "S4_intro_commit": "BEAAA-16616"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-16616",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17051-source-bound-repair.json",
+      "kind": "json",
+      "sha256_before": "3a0c59655592b45be31cfe8e302c5f2927808dc3c28185d597645eb9ed3633dc",
+      "sha256_after": "3a0c59655592b45be31cfe8e302c5f2927808dc3c28185d597645eb9ed3633dc",
+      "signals": {
+        "S3_path_filename": "BEAAA-17051",
+        "S4_intro_commit": "BEAAA-17052"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17051-source-bound-repair.md",
+      "kind": "markdown",
+      "sha256_before": "1d5bff6048c42ea7fe7893881648a0572bfbb0c2300a4d4d988c9b0296ca7319",
+      "sha256_after": "1d5bff6048c42ea7fe7893881648a0572bfbb0c2300a4d4d988c9b0296ca7319",
+      "signals": {
+        "S3_path_filename": "BEAAA-17051",
+        "S4_intro_commit": "BEAAA-17052"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17075-production-controls-residual-repair.json",
+      "kind": "json",
+      "sha256_before": "b7782e988e2859329b1b5fbf695ebd58563b7063ac782181d7974e6e62891385",
+      "sha256_after": "b7782e988e2859329b1b5fbf695ebd58563b7063ac782181d7974e6e62891385",
+      "signals": {
+        "S3_path_filename": "BEAAA-17075"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-1b93c090-beaaa17051-pre-repair-vs-beaaa17075-production-controls-residual-repair.md",
+      "kind": "markdown",
+      "sha256_before": "7cc589bb67556cc7b581ea12b0bf3fdfb015ba863e0975c2340c099f6fff54d1",
+      "sha256_after": "7cc589bb67556cc7b581ea12b0bf3fdfb015ba863e0975c2340c099f6fff54d1",
+      "signals": {
+        "S3_path_filename": "BEAAA-17075",
+        "S2_recorded_command": "BEAAA-16992"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-91db1b97-vs-beaaa17046-count-fix.json",
+      "kind": "json",
+      "sha256_before": "cfbf7bff55a138a2930db6c8a6d43261cce1de55df486e18e5a456d268edd769",
+      "sha256_after": "b38d7f98e481d32089c529c919d16437d46e87c35edfc3ff330cdeb2e8425940",
+      "signals": {
+        "S3_path_filename": "BEAAA-17046",
+        "S4_intro_commit": "BEAAA-17046"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-17046",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-91db1b97-vs-beaaa17046-count-fix.md",
+      "kind": "markdown",
+      "sha256_before": "84f6acf63193c400195305e20d6a30b4c6cea8479ef36ef4cf1ea22fd5f7b904",
+      "sha256_after": "b5628aa39ff9be536e042ed7713f68abcf4ed7ad5a0ce056a014ea8112c6529d",
+      "signals": {
+        "S3_path_filename": "BEAAA-17046",
+        "S4_intro_commit": "BEAAA-17046"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-14948, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-17046",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-23-beaaa17046-wave1a-count-fix-n5.json",
+      "kind": "json",
+      "sha256_before": "cfbf7bff55a138a2930db6c8a6d43261cce1de55df486e18e5a456d268edd769",
+      "sha256_after": "b38d7f98e481d32089c529c919d16437d46e87c35edfc3ff330cdeb2e8425940",
+      "signals": {
+        "S3_path_filename": "BEAAA-17046",
+        "S4_intro_commit": "BEAAA-17046"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-17046",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-24-41207e40902a4ce76c108eec685ebfc5b2786407-vs-HEAD.json",
+      "kind": "json",
+      "sha256_before": "5800fa1fac0cf682d49b12b6dc0b9f112644052df3c260fe867c27ebbf5d95e7",
+      "sha256_after": "29f90fbbf101f8a4d957e5f6207ff6283bcf2a93b369d85a09b07b2c097cb2ea",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17580"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-24-41207e40902a4ce76c108eec685ebfc5b2786407-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "4c9f7b1a9b417973008d60c8f2b9b6cee378cd967adfdec9c50af64f6ecab9ad",
+      "sha256_after": "b47d1277bb1d76fd19c8e753f530c2e25282829112986cb4b4f58314c6e243ed",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17580"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-24-c6a4e43c5644633601213d2b87c1c4a3f09a03df-vs-41207e40902a4ce76c108eec685ebfc5b2786407.json",
+      "kind": "json",
+      "sha256_before": "c8fff853a6e82bae300baa798767f3cfa6675d1edd79159150b1840e36545e92",
+      "sha256_after": "5e7b704b641854232c3a6a51519bebb727c775efa0507008c1b6b82d819a54c5",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17557"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-24-c6a4e43c5644633601213d2b87c1c4a3f09a03df-vs-41207e40902a4ce76c108eec685ebfc5b2786407.md",
+      "kind": "markdown",
+      "sha256_before": "ab6769d3dc55aa45c7361933f2362328af404c09984d0fa23fb1dfbd797dbe5e",
+      "sha256_after": "f259f32483f6269b1a4cd8459d9f53e4bb57cb0deda65d6a0a1e0ab2bf6159c3",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17557"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-24-origin-master-268f18e3-vs-beaaa17382-july31.json",
+      "kind": "json",
+      "sha256_before": "6c5abc52d5d04679a9f7b0553ed0d0cb23ed75717a5fb27429025add5036791c",
+      "sha256_after": "43270eb2a272baa7246b85ea59bb829948437e93d358b9144e7b8ab079b9f4e2",
+      "signals": {
+        "S3_path_filename": "BEAAA-17382",
+        "S4_intro_commit": "BEAAA-17382"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-17382",
+      "cosign_disposition": "omitted_over_band_unresolved_movement_accounting",
+      "changed_header_keys": [
+        "authority_disposition_added",
+        "cto_cosign_ref_omitted"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-24-origin-master-268f18e3-vs-beaaa17382-july31.md",
+      "kind": "markdown",
+      "sha256_before": "d20f28dbc240145720476c2b5f8845522bcb32f684b801cba79d6185b2c8fc7b",
+      "sha256_after": "2df2547a0d73b6b4df76a59ba9d6a8d34b6d86ac293721a5254716a8db2b41ea",
+      "signals": {
+        "S3_path_filename": "BEAAA-17382",
+        "S4_intro_commit": "BEAAA-17382"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "verified_owner_retained",
+      "attributed_owner": "BEAAA-17382",
+      "cosign_disposition": "omitted_over_band_unresolved_movement_accounting",
+      "changed_header_keys": [
+        "CTO_co-sign_line_replaced_with_authority_disposition"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-25-2663f51d-vs-real-wiring-n5.json",
+      "kind": "json",
+      "sha256_before": "52607d6d4e33d7c1ce787cf408df7a727a8a3a902ff0b287f30c65ddc5fdc256",
+      "sha256_after": "45b6589ef8bb276552ad0397aec65851c9ba1f6b85b6007890f0ca53d22ad9d6",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17907"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-25-2663f51d-vs-real-wiring-n5.md",
+      "kind": "markdown",
+      "sha256_before": "dbd78814deff2e1299358d52fb6398959ffc8ee2fa85a6debf35bd682102b708",
+      "sha256_after": "3abe82c667795344d095a82a8dd87812ba787c89a1996491acfcb126ae61a4a5",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17907"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-25-97f61cbf-vs-HEAD.json",
+      "kind": "json",
+      "sha256_before": "c26bdb592a90476108f1b603a6b0e3d02dfda1a0b4d421463c86f32c2fdf8346",
+      "sha256_after": "31b752fe222685d490538399b4c7804e34beb772cf78360eaff64c986b5c62ff",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17849"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-25-97f61cbf-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "fa87448e4db42fe6f1763ce72d8cd0ef9e3efce766e10d89c6114b3903d40a21",
+      "sha256_after": "83de1d6d3afa04453e75c586fa7e674d598b4e1941e1eb99259a23b2d8a097dd",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17849"
+      },
+      "s1_s5_evidence_disposition": [
+        "S1 rejected: sibling asserts BEAAA-17382, a template literal echoed by the same defect"
+      ],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-26-2663f51d-vs-6a81629-golden-n5.json",
+      "kind": "json",
+      "sha256_before": "e7a65821792e735031eb3b183b939d2f89a4196ebe4937d986283ca7e8cf4d51",
+      "sha256_after": "732da0ec175aa782606ad5e469ed5fdcfaf5f00a7156de086a83302eeffaef05",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17907"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-26-2663f51d-vs-6a81629-golden-n5.md",
+      "kind": "markdown",
+      "sha256_before": "099b1a30a7537aa89e625cddad91dc70bad3b7df5aa837ba2e6d3343a558d5db",
+      "sha256_after": "5f076711c2f0cde0dcd475a094f46cd38b86cafc0e04383f309085e9f852add2",
+      "signals": {
+        "S4_intro_commit": "BEAAA-17907"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-26-beaaa18008-wave3-driver-n5.json",
+      "kind": "json",
+      "sha256_before": "c4d027ff91f8882af0f3c81862ce2ce30d8bd4c515fde92d88619a7013ef451b",
+      "sha256_after": "63591ee996edb3089aa99e60a168696463def3ac73d3214397dfc4457b46e174",
+      "signals": {
+        "S4_intro_commit": "BEAAA-18008",
+        "S2_recorded_command": "BEAAA-18008"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-18008",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-27-83472cb8b127c27f816414ef5aba09b368de7c07-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "eda659af64c64aca178ce71207377c68cd13a4af33eb0cdae3cd1d45f0119c1f",
+      "sha256_after": "75abf17075ae5651d98e8862511e5475c0be48f4e161a35f9d5316ecd4cc5851",
+      "signals": {
+        "S3_path_filename": "BEAAA-18123",
+        "S4_intro_commit": "BEAAA-18123"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-18123",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-27-beaaa18123-partner-kit-n5.json",
+      "kind": "json",
+      "sha256_before": "2ac92001f9a9348e3a6cf8f07b7cec546be3aa7e42588f06bfc455076cb670c5",
+      "sha256_after": "7314283ac351a9fd537e226276a3829a96891acc12121d2046bf4fc9d1935d1a",
+      "signals": {
+        "S3_path_filename": "BEAAA-18123",
+        "S4_intro_commit": "BEAAA-18123"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-18123",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-29-af148a15-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "bba9c8f6734ee2b1c577be6f9b7f48a08ded40136539eb942989232a9ebd6e6a",
+      "sha256_after": "0996b7a9e8606767ae8c7af827b068de3a9a44fec1391a745ffd3ef06ddd1ac0",
+      "signals": {
+        "S4_intro_commit": "BEAAA-18819"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-30-beaaa19390-saved-judge-adjudication-n5.json",
+      "kind": "json",
+      "sha256_before": "893530ed59c8ca626be158bf532eba030f1f649c9395a6c47c3ce43afc6cdd0a",
+      "sha256_after": "893530ed59c8ca626be158bf532eba030f1f649c9395a6c47c3ce43afc6cdd0a",
+      "signals": {
+        "S3_path_filename": "BEAAA-19390"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "keep_BEAAA-14867_true_run_authorization",
+      "changed_header_keys": [],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-07-30-frozen-0.5.0-vs-beaaa-19390-saved-judge-adjudication.md",
+      "kind": "markdown",
+      "sha256_before": "7dc6133be64a5f3361038fccccb63c67d05b201622c5df891248001c8c20160b",
+      "sha256_after": "9e78288445babe51b55667c32cdc2823baa5abf3c35fc766dae26dca818c2018",
+      "signals": {
+        "S3_path_filename": "BEAAA-19390"
+      },
+      "s1_s5_evidence_disposition": [],
+      "owner_disposition": "quarantined_insufficient_two_signal_attribution",
+      "attributed_owner": null,
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-08-17-ee8af4cded5d3db987b147e2c158d13bcd3f4e66-vs-HEAD.json",
+      "kind": "json",
+      "sha256_before": "3f88e834252484ca1c03b99c948ec561070f636b9ae5176f01b608e4f1b3ea12",
+      "sha256_after": "4e9de2a9e63b86800680b7d0ca8e847a25e14d90bfee3b007889e42b5f425b1f",
+      "signals": {
+        "S3_path_filename": "BEAAA-20177",
+        "S4_intro_commit": "BEAAA-20177"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-20177",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "cto_cosign_ref",
+        "issue"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    },
+    {
+      "path": "tools/calibration-deltas/2026-08-17-ee8af4cded5d3db987b147e2c158d13bcd3f4e66-vs-HEAD.md",
+      "kind": "markdown",
+      "sha256_before": "b6a7877caacc9bdffe36603f37a9e596564bb1ac3c05b94f727f3776db18e297",
+      "sha256_after": "d0110c852b19e1e7fdb934bd73603fc9893431d125878420f5b82d5977572bb4",
+      "signals": {
+        "S3_path_filename": "BEAAA-20177",
+        "S4_intro_commit": "BEAAA-20177"
+      },
+      "s1_s5_evidence_disposition": [
+        "S3 path/filename and S4 introducing commit agree"
+      ],
+      "owner_disposition": "verified_owner_corrected",
+      "attributed_owner": "BEAAA-20177",
+      "cosign_disposition": "not-required-rule-execution",
+      "changed_header_keys": [
+        "CTO_co-sign_line",
+        "owner_header_fields"
+      ],
+      "measured_values_changed": false,
+      "nested_decision_refs_changed": false,
+      "residuals": [
+        "rubric_point_id intentionally not retro-corrected"
+      ]
+    }
+  ]
+}
