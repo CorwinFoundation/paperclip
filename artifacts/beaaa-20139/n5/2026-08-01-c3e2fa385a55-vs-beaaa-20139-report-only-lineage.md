@@ -4,9 +4,9 @@ owner: scanner_engineer_2
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "BEAAA-14948 preserves BackBond Scanner pricing discipline by reporting acknowledged M2/M3 residual movement without authorizing release reliance."
+focus_claim: "BEAAA-20139 preserves BackBond Scanner pricing discipline by reporting acknowledged M2/M3 residual movement without authorizing release reliance."
 contracts_referenced: ["are-scanner-api-v1@v1.3.0", "scanner-implementation-supervision-v1@v1.1"]
-ticket_refs: ["BEAAA-16864", "BEAAA-14948", "BEAAA-14949", "BEAAA-14950", "BEAAA-14874", "BEAAA-14867", "BEAAA-14868", "BEAAA-14798", "BEAAA-13412"]
+ticket_refs: ["BEAAA-20139", "BEAAA-14948", "BEAAA-14949", "BEAAA-14950", "BEAAA-14874", "BEAAA-14867", "BEAAA-14868", "BEAAA-14798", "BEAAA-13412"]
 proof_points_cited: ["artifacts/beaaa-387/manifest.json", "bin/are-scan", "scripts/release_gate_n5.py", "scripts/behavioral_golden_fixtures.py"]
 version: 0.2
 prior_version: "BEAAA-14874 receipt v0.1"
@@ -14,13 +14,13 @@ self_audit_passed: true
 escalations_noted: ["BEAAA-16864 remediates approved-movement provenance accounting without rebaseline, scoring math, applicability, or tamper-resistance changes; BEAAA-14949 revision f7aacc18 and BEAAA-14950 remain accounting-only and do not authorize release or pricing reliance outside the +/-1 gate."]
 ---
 
-# BEAAA-14948 Golden N=5 Release Gate Reconciliation
+# BEAAA-20139 Golden N=5 Release Gate Reconciliation
 
 - Contract: `are-scanner-api-v1@v1.3.0`
 - Scanner version: `0.6.0`
 - Probe-set-version: `artifacts/beaaa-387/manifest.json`
 - Rubric points: `GOVERNANCE.PII.HANDLING_ATTESTATION, ROBUSTNESS.PII.SCAN_TIME_DETECTION`
-- CTO co-sign: `BEAAA-14867`
+- CTO co-sign: `not-required-rule-execution`
 - Movement-accounting decision: `BEAAA-14949#decision@f7aacc18`
 - Baseline: `c3e2fa385a55`
 - Candidate: `beaaa-20139-report-only-lineage`

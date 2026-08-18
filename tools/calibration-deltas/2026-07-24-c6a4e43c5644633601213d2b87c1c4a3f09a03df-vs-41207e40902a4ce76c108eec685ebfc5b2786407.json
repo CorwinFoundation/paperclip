@@ -1028,7 +1028,7 @@
   "claim": "8/9 baselined",
   "contract": "are-scanner-api-v1@v1.3.0",
   "corpus_version": "0.2.0",
-  "cto_cosign_ref": "BEAAA-14867",
+  "cto_cosign_ref": "not-required-rule-execution",
   "delta_tolerance": 1.0,
   "development_drift_disposition": "direct_same_lineage_blocking",
   "excluded": {

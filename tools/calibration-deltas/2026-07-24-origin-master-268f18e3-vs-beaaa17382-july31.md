@@ -20,7 +20,7 @@ escalations_noted: ["Founder directive 2026-07-24 makes measured score and pilla
 - Scanner version: `0.5.0`
 - Probe-set-version: `artifacts/beaaa-387/manifest.json`
 - Rubric points: `GOVERNANCE.PII.HANDLING_ATTESTATION, ROBUSTNESS.PII.SCAN_TIME_DETECTION`
-- CTO co-sign: `BEAAA-14867`
+- Authority disposition: `underwriter_acknowledged_not_release_authorized`; see unchanged `unresolved_movement_accounting` in JSON sibling
 - Movement-accounting decision: `BEAAA-14949#decision@f7aacc18`
 - Baseline: `origin-master-268f18e3`
 - Candidate: `beaaa17382-july31`
