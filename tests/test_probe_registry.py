@@ -7,8 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+from tests.probe_registry_test_support import copy_registry_fixture
 
+REPO = Path(__file__).resolve().parents[1]
 
 class ProbeRegistryBaselineTest(unittest.TestCase):
     _cached_registry: dict | None = None
@@ -71,12 +72,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
     def test_added_probe_without_active_regeneration_fails_check(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             clone = Path(tmp) / "repo"
-            subprocess.check_call(
-                ["git", "clone", "--quiet", "--no-hardlinks", str(REPO), str(clone)]
-            )
-            (clone / "tools" / "probe_registry.py").write_bytes(
-                (REPO / "tools" / "probe_registry.py").read_bytes()
-            )
+            copy_registry_fixture(REPO, clone)
             mapping = clone / "rubric" / "probe_mappings" / "p1_1_factuality_golden.yaml"
             text = mapping.read_text(encoding="utf-8")
             marker = "\n  - probe_id: BEAAA-23954-DRIFT-REGRESSION\n    dim: P1.1\n"

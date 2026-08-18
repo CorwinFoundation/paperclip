@@ -41,16 +41,16 @@ The prior active artifact omitted `countable_as_executable` and `stable_executab
 | --- | ---: | ---: |
 | GOVERNANCE.PII.HANDLING_ATTESTATION | 0 | 1 |
 | P1.1 | 0 | 46 |
-| P1.2 | 0 | 6 |
+| P1.2 | 0 | 16 |
 | P1.3 | 0 | 28 |
 | P1.4 | 0 | 27 |
 | P1.5 | 0 | 21 |
-| P1.6 | 0 | 1 |
+| P1.6 | 0 | 13 |
 | P2.1 | 0 | 0 |
 | P2.2 | 0 | 0 |
 | P2.3 | 0 | 0 |
 | P2.4 | 0 | 0 |
-| P2.5 | 0 | 3 |
+| P2.5 | 0 | 13 |
 | P2.6 | 0 | 0 |
 | P3.1 | 0 | 27 |
 | P3.2 | 0 | 13 |
@@ -67,7 +67,7 @@ The prior active artifact omitted `countable_as_executable` and `stable_executab
 | ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER | 0 | 0 |
 | ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL | 0 | 0 |
 
-Active-point total recognized by the lifecycle consumer: `0 → 271`. The registry-wide executable inventory is `2202 → 2212`; the difference includes rows outside the 27 active lifecycle panels.
+Active-point total recognized by the lifecycle consumer: `0 → 303`. The registry-wide executable inventory is `2202 → 2244`; the difference includes rows outside the 27 active lifecycle panels.
 
 ## Guardrails
 
