@@ -499,6 +499,11 @@ class RegisteredCaseExecutor:
         if registry_row.get("runner") == "content_candidate_worker":
             return self._execute_content_candidate(test_id, case_id, registry_row)
 
+        from harness.lane_c_adapter import is_lane_c_family
+
+        if is_lane_c_family(test_id):
+            return self._execute_lane_c_case(test_id, case_id, registry_row)
+
         source = REPO_ROOT / str(registry_row["source_pack"])
         if test_id == "p1_1_factuality_golden":
             from harness.bench import factuality_golden as bench
@@ -676,6 +681,100 @@ class RegisteredCaseExecutor:
             )
 
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
+
+    def _execute_lane_c_case(
+        self,
+        test_id: str,
+        case_id: str,
+        registry_row: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Run one lane-C behavioral case through the registered production runner.
+
+        The BEAAA-23860 ruling makes ``bench_wrapper`` executed here canonical for
+        ``human_escalation_flagging``, ``customer_defined_risk_pack`` and
+        ``mcp_tool_integrity``; ``harness/lane_c_capture`` is evidence tooling, not
+        the production runner.  Send shape, decision contract and grader are shared
+        with the capture path via :mod:`harness.lane_c_adapter`, so the two cannot
+        drift.  The seed set comes from what the registry row declares, and one
+        INVALID or malformed decision fails the case closed.
+
+        These rows stay reported-not-scored: the outcome carries a ``score`` of
+        ``None`` and never reaches a rubric raw score.
+        """
+
+        from harness.lane_c_adapter import (
+            FIELDS,
+            build_instruction,
+            declared_seeds,
+            grade_decision,
+            lane_c_case,
+            read_decision,
+        )
+
+        case = lane_c_case(test_id, case_id)
+
+        # Same row-authorization chokepoint the content-candidate path uses. A
+        # forged row that claims measured permission is rejected before any
+        # scoring or evidence acceptance, rather than raising (BEAAA-23860).
+        if registry_row is not None and registry_row.get("scoring_active") is True:
+            from tools.tranche1_observational import measured_output_allowed
+
+            if not measured_output_allowed(registry_row):
+                return {
+                    **_case_outcome(
+                        payloads=[],
+                        responses=[],
+                        judge={
+                            "type": "lane_c_registered_runner",
+                            "family_id": test_id,
+                            "reported_not_scored": True,
+                        },
+                        score=None,
+                        expected=dict(case.oracle),
+                        verdict="unresolved",
+                    ),
+                    "observational_rejection": (
+                        "content-candidate measured output is not row-authorized"
+                    ),
+                }
+
+        payloads: list[str] = []
+        responses: list[str] = []
+        seed_results: list[dict[str, Any]] = []
+        for seed in declared_seeds(registry_row):
+            instruction = build_instruction(test_id, case, seed)
+            response = self.subject.complete(instruction)
+            decision = read_decision(test_id, response)
+            verdict = grade_decision(test_id, case, decision)
+            payloads.append(instruction)
+            responses.append(response)
+            seed_results.append({"seed": seed, "verdict": verdict, "decision": decision})
+
+        verdicts = [result["verdict"] for result in seed_results]
+        judged = {
+            "type": "lane_c_registered_runner",
+            "family_id": test_id,
+            "decision_field": FIELDS[test_id],
+            "reported_not_scored": True,
+            "seed_results": seed_results,
+            "verdict_counts": {
+                verdict: verdicts.count(verdict) for verdict in sorted(set(verdicts))
+            },
+            "replication_verdict": verdicts[0] if len(set(verdicts)) == 1 else "DIVERGENT",
+            "computed_runtime_case_identity": (
+                registry_row.get("runtime_case_identity")
+                if registry_row is not None
+                else None
+            ),
+        }
+        return _case_outcome(
+            payloads=payloads,
+            responses=responses,
+            judge=judged,
+            score=None,
+            expected=dict(case.oracle),
+            verdict=judged["replication_verdict"],
+        )
 
     def _execute_content_candidate(
         self,
