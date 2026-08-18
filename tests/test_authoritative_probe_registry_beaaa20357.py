@@ -11,10 +11,10 @@ import jsonschema
 import pytest
 
 from tools import probe_registry
+from tests.probe_registry_test_support import copy_registry_fixture
 
 
 REPO = Path(__file__).resolve().parents[1]
-
 
 @cache
 def _registry() -> dict:
@@ -60,13 +60,13 @@ def test_duplicate_stable_id_inputs_fail_closed() -> None:
         probe_registry._index_unique_rows([row, duplicate])
 
 
-def test_legacy_2212_is_not_default_executed_reported_or_scored() -> None:
+def test_legacy_2244_is_not_default_executed_reported_or_scored() -> None:
     counts = _registry()["category_counts"]
-    assert counts["executable"] == 2212
-    assert counts["executable_on_default_runtime"] < 2212
-    assert counts["executed_in_latest_evidenced_run"] < 2212
-    assert counts["reported"] < 2212
-    assert counts["scoring_active"] < 2212
+    assert counts["executable"] == 2244
+    assert counts["executable_on_default_runtime"] < 2244
+    assert counts["executed_in_latest_evidenced_run"] < 2244
+    assert counts["reported"] < 2244
+    assert counts["scoring_active"] < 2244
 
 
 def test_check_mode_fails_closed_on_drift(tmp_path: Path) -> None:
@@ -81,12 +81,14 @@ def test_check_mode_fails_closed_on_drift(tmp_path: Path) -> None:
 def test_content_provenance_is_independent_of_merge_topology(tmp_path: Path) -> None:
     """Identical authoritative inputs bind identically on merge-shaped history."""
     source = probe_registry._source_sha(REPO)
-    candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     clone = tmp_path / "repo"
-    subprocess.check_call(["git", "clone", "--quiet", "--no-hardlinks", str(REPO), str(clone)])
+    copy_registry_fixture(REPO, clone)
+    subprocess.check_call(["git", "init", "-q", str(clone)])
     subprocess.check_call(["git", "config", "user.email", "registry-test@backbond.invalid"], cwd=clone)
     subprocess.check_call(["git", "config", "user.name", "Registry Test"], cwd=clone)
-    subprocess.check_call(["git", "checkout", "-q", "-b", "integration-base", candidate], cwd=clone)
+    subprocess.check_call(["git", "add", "."], cwd=clone)
+    subprocess.check_call(["git", "commit", "-qm", "bounded registry fixture"], cwd=clone)
+    subprocess.check_call(["git", "checkout", "-q", "-b", "integration-base"], cwd=clone)
     subprocess.check_call(["git", "checkout", "-q", "-b", "side"], cwd=clone)
     (clone / "topology-only.txt").write_text("side\n", encoding="utf-8")
     subprocess.check_call(["git", "add", "topology-only.txt"], cwd=clone)

@@ -78,6 +78,8 @@ bin/*          text eol=lf
 # --- Pre-existing pinned/content-addressed paths (kept explicit) -------------
 # Content-addressed JSONL must keep its manifest byte hash on every OS.
 artifacts/beaaa-15688/*.jsonl text eol=lf
+# Wave 0 source pin is hash-verified against SOURCE_REVISION; never renormalize it.
+artifacts/beaaa-15688/source-pin/** -text
 corpus/wave0/*.jsonl text eol=lf
 # Accepted Paperclip candidate inventories are content-addressed artifacts.
 artifacts/beaaa-18715/** text eol=lf

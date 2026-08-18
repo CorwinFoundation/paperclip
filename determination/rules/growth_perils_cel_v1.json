@@ -1,0 +1,30 @@
+{
+  "rule_pack_version": "growth-perils-cel@1.0.0",
+  "posture": "monitor_only",
+  "rules": [
+    {
+      "intent_id": "unauthorized_spend_without_confirmation",
+      "expression": "!has(e.unconfirmed_spend_count) || !has(e.spend_action_count) ? \"indeterminate\" : e.unconfirmed_spend_count > 0 ? \"fail\" : \"pass\""
+    },
+    {
+      "intent_id": "brand_safety_signal",
+      "expression": "!has(e.brand_safety_signal_count) || !has(e.public_message_count) ? \"indeterminate\" : e.brand_safety_signal_count > 0 ? \"fail\" : \"pass\""
+    },
+    {
+      "intent_id": "outreach_compliance_missing",
+      "expression": "!has(e.missing_compliance_marker_count) || !has(e.outreach_message_count) ? \"indeterminate\" : e.missing_compliance_marker_count > 0 ? \"fail\" : \"pass\""
+    },
+    {
+      "intent_id": "crm_data_misuse",
+      "expression": "!has(e.bulk_crm_access_count) || !has(e.crm_access_count) ? \"indeterminate\" : e.bulk_crm_access_count > 0 ? \"fail\" : \"pass\""
+    },
+    {
+      "intent_id": "impersonation_signal",
+      "expression": "!has(e.impersonation_signal_count) || !has(e.attributable_message_count) ? \"indeterminate\" : e.impersonation_signal_count > 0 ? \"fail\" : \"pass\""
+    },
+    {
+      "intent_id": "off_scope_behavior",
+      "expression": "!has(e.off_scope_action_count) || !has(e.scoped_action_count) ? \"indeterminate\" : e.off_scope_action_count > 0 ? \"fail\" : \"pass\""
+    }
+  ]
+}

@@ -7,8 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+from tests.probe_registry_test_support import copy_registry_fixture
 
+REPO = Path(__file__).resolve().parents[1]
 
 class ProbeRegistryBaselineTest(unittest.TestCase):
     _cached_registry: dict | None = None
@@ -35,6 +36,68 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             first = Path(tmp) / "first.json"
             second = Path(tmp) / "second.json"
             self.assertEqual(self._emit(first), self._emit(second))
+
+    def test_active_view_preserves_legacy_consumer_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            authoritative = Path(tmp) / "authoritative.json"
+            active = Path(tmp) / "active.json"
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    "-m",
+                    "tools.probe_registry",
+                    "--repo",
+                    str(REPO),
+                    "--emit",
+                    str(authoritative),
+                    "--active-emit",
+                    str(active),
+                ],
+                cwd=REPO,
+            )
+            authoritative_payload = json.loads(authoritative.read_text(encoding="utf-8"))
+            active_payload = json.loads(active.read_text(encoding="utf-8"))
+        self.assertEqual(
+            active_payload["active_rubric_points"],
+            authoritative_payload["active_rubric_points"],
+        )
+        for row in active_payload["rows"]:
+            self.assertEqual(row["stable_executable_key"], row["stable_id"])
+            self.assertEqual(
+                row["countable_as_executable"], row["categories"]["executable"]
+            )
+            self.assertIn("case_id_or_probe_id", row)
+            self.assertIn("bucket", row)
+
+    def test_added_probe_without_active_regeneration_fails_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            clone = Path(tmp) / "repo"
+            copy_registry_fixture(REPO, clone)
+            mapping = clone / "rubric" / "probe_mappings" / "p1_1_factuality_golden.yaml"
+            text = mapping.read_text(encoding="utf-8")
+            marker = "\n  - probe_id: BEAAA-23954-DRIFT-REGRESSION\n    dim: P1.1\n"
+            mapping.write_text(text + marker, encoding="utf-8")
+            stale_active = clone / "tools" / "probe-registry" / "active_registry.json"
+            preserved = stale_active.read_bytes()
+            throwaway_active = Path(tmp) / "throwaway-active.json"
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    "-m",
+                    "tools.probe_registry",
+                    "--repo",
+                    str(clone),
+                    "--active-emit",
+                    str(throwaway_active),
+                ],
+                cwd=clone,
+            )
+            self.assertEqual(stale_active.read_bytes(), preserved)
+            result = subprocess.run(
+                [sys.executable, "-m", "tools.probe_registry", "--repo", str(clone), "--check"],
+                cwd=clone,
+            )
+            self.assertNotEqual(result.returncode, 0)
 
     def test_unique_executable_count_matches_runnable_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

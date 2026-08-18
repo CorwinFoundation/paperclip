@@ -2,6 +2,13 @@
 
 This tool is inventory-only. It never imports a target/judge runner and never
 changes Scanner scoring, rubric, corpus activation, or API state.
+
+Sources are read from the pinned snapshot under ``artifacts/beaaa-15688/source-pin``,
+not from the live rubric tree. Every row of the inventory asserts
+``source_provenance.source_revision == SOURCE_REVISION``, so re-deriving it from
+whatever the rubric happens to look like today would either falsify that claim or
+renumber a signed, content-addressed artifact. The live rubric is free to grow;
+use ``drift`` to see how far it has moved from the snapshot (BEAAA-24052).
 """
 from __future__ import annotations
 
@@ -17,6 +24,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_REVISION = "6e78dae48131f590cdd59fada023089c53a45236"
 SPEC_REF = "BEAAA-15697/superseding-wave0-contract@v1.0"
+ARTIFACT_DIR = ROOT / "artifacts/beaaa-15688"
+SOURCE_PIN_DIR = ARTIFACT_DIR / "source-pin"
+SOURCE_PIN_MANIFEST = ARTIFACT_DIR / "wave0-source-pin-manifest.json"
+SCENARIO_PATH = "corpus/wave0/beaaa-15688-authored-scenarios.jsonl"
 SCANNER_VERSION = "1.2.0"
 CORPUS_VERSION = "scanner-test-registry-baseline-2026-07-13"
 PROBE_SET_VERSION = f"{CORPUS_VERSION}/v0.1"
@@ -61,6 +72,56 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def pin_manifest() -> dict[str, Any]:
+    return json.loads(SOURCE_PIN_MANIFEST.read_text(encoding="utf-8"))
+
+
+def pinned_bytes(rel: str) -> bytes:
+    """Read a Wave 0 source at SOURCE_REVISION and fail closed on tampering.
+
+    The mapping fixtures are vendored under SOURCE_PIN_DIR; the authored-scenario
+    corpus postdates SOURCE_REVISION and is read from its canonical path. Both are
+    hash-pinned by the manifest.
+    """
+    entry = pin_manifest()["files"].get(rel)
+    if entry is None:
+        raise ValueError(f"{rel} is not pinned by {SOURCE_PIN_MANIFEST.name}")
+    path = ROOT / rel if rel == SCENARIO_PATH else SOURCE_PIN_DIR / rel
+    raw = path.read_bytes()
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != entry["sha256"]:
+        raise ValueError(f"{rel}: pinned sha256={entry['sha256']} actual={actual}")
+    return raw
+
+
+def pinned_text(rel: str) -> str:
+    return pinned_bytes(rel).decode("utf-8")
+
+
+def family_drift() -> list[dict[str, Any]]:
+    """Report how far every live rubric family has moved from the pinned snapshot.
+
+    Reporting only, never raising: the snapshot is what the inventory is derived
+    from, so live growth is expected and is not a failure. Unlike the derivation
+    path this reports *every* family, so one stale family cannot mask another.
+    """
+    report: list[dict[str, Any]] = []
+    for family, (target, rel, paths) in FAMILY_PATHS.items():
+        row: dict[str, Any] = {"family_id": family, "path": rel, "pinned_objects": target}
+        try:
+            doc = yaml.safe_load((ROOT / rel).read_text(encoding="utf-8"))
+            row["live_objects"] = sum(len(at_path(doc, dotted)) for dotted in paths)
+            row["pinned_version"] = str(yaml.safe_load(pinned_text(rel)).get("version") or "source-pinned")
+            row["live_version"] = str(doc.get("version") or "source-pinned")
+        except (OSError, KeyError, ValueError, yaml.YAMLError) as exc:
+            row["error"] = f"{type(exc).__name__}: {exc}"
+        row["drifted"] = row.get("error") is not None or (
+            row.get("live_objects") != target or row.get("live_version") != row.get("pinned_version")
+        )
+        report.append(row)
+    return report
 
 
 def at_path(data: dict[str, Any], dotted: str) -> list[dict[str, Any]]:
@@ -150,7 +211,7 @@ def build_row(family: str, obj: dict[str, Any], path: str, locator: str, version
 
 def mapping_rows() -> Iterable[dict[str, Any]]:
     for family, (target, rel, paths) in FAMILY_PATHS.items():
-        doc = yaml.safe_load((ROOT / rel).read_text(encoding="utf-8"))
+        doc = yaml.safe_load(pinned_text(rel))
         version = str(doc.get("version") or doc.get("corpus", {}).get("version") or "source-pinned")
         oracle_type, oracle_spec = oracle_for(family, doc)
         objects: list[tuple[dict[str, Any], str]] = []
@@ -166,11 +227,9 @@ def mapping_rows() -> Iterable[dict[str, Any]]:
 
 
 def scenario_rows() -> Iterable[dict[str, Any]]:
-    rel = "corpus/wave0/beaaa-15688-authored-scenarios.jsonl"
+    rel = SCENARIO_PATH
     by_family: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for line_no, line in enumerate(
-        (ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1
-    ):
+    for line_no, line in enumerate(pinned_text(rel).splitlines(), start=1):
         if line.strip():
             obj = json.loads(line)
             obj["_line"] = line_no
@@ -215,6 +274,33 @@ def verify(rows: list[dict[str, Any]], reconciliation: dict[str, Any] | None = N
     return result
 
 
+def verify_signed_artifact(inventory: Path | None = None) -> dict[str, str]:
+    """Check the committed inventory still hashes to its signed manifest value.
+
+    The manifest signs ``inventory_sha256`` over the artifact bytes. Nothing
+    verified that before BEAAA-24052, so a row edit paired with a dedupe_sha256
+    edit would have passed verify().
+    """
+    manifest = json.loads((ARTIFACT_DIR / "wave0-inventory-manifest.json").read_text(encoding="utf-8"))
+    path = inventory or (ROOT / manifest["inventory_path"])
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    for field in ("inventory_sha256", "signature"):
+        signed = manifest[field]["value"] if field == "signature" else manifest[field]
+        if signed != actual:
+            raise ValueError(f"{field}: signed={signed} actual={actual}")
+    if manifest["source_revision"] != SOURCE_REVISION:
+        raise ValueError(f"manifest source_revision={manifest['source_revision']} tool={SOURCE_REVISION}")
+    return {"inventory_sha256": actual, "source_revision": SOURCE_REVISION}
+
+
+def verify_source_pin() -> dict[str, int]:
+    """Fail closed if any pinned Wave 0 source no longer matches its recorded hash."""
+    files = pin_manifest()["files"]
+    for rel in files:
+        pinned_bytes(rel)
+    return {"pinned_sources": len(files)}
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -234,8 +320,20 @@ def main() -> None:
     check = sub.add_parser("verify")
     check.add_argument("--inventory", type=Path, required=True)
     check.add_argument("--reconciliation", type=Path)
+    sub.add_parser("drift")
     args = parser.parse_args()
-    if args.command == "materialize":
+    if args.command == "drift":
+        report = family_drift()
+        for row in report:
+            state = "DRIFT" if row["drifted"] else "pinned"
+            detail = row.get("error") or (
+                f"objects {row['pinned_objects']}->{row['live_objects']} "
+                f"version {row['pinned_version']}->{row['live_version']}"
+            )
+            print(f"{state:6} {row['family_id']:32} {detail}")
+        print(json.dumps({"families": len(report), "drifted": sum(r["drifted"] for r in report)}, sort_keys=True))
+    elif args.command == "materialize":
+        verify_source_pin()
         rows = list(mapping_rows()) + list(scenario_rows())
         verify(rows)
         write_jsonl(args.output, rows)

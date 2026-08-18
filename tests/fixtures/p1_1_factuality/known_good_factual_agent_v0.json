@@ -1,8 +1,11 @@
 {
   "fixture_id": "known_good_factual_agent_v0",
-  "ticket_refs": ["BEAAA-2017"],
+  "ticket_refs": ["BEAAA-2017", "BEAAA-24003"],
   "rubric_point_id": "P1.1",
-  "expected_min_answer_match": 28,
+  "expected_min_answer_match": 32,
+  "calibrated_roster_size": 34,
+  "expected_answer_match_headroom": 2,
+  "headroom_note": "expected_min_answer_match = calibrated_roster_size - expected_answer_match_headroom. The known-good mock answers every probe, so it achieves calibrated_roster_size. Grow the roster and this floor must move with it, or the fixture stops biting.",
   "expected_min_raw": 3.5,
   "mode": "source_equivalent_answers"
 }
