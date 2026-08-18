@@ -49,10 +49,19 @@ def test_strict_registry_has_no_missing_contract_rows_or_runtime_aliases():
 def test_explicit_oracles_negative_fixtures_evidence_and_n5(family):
     probes = bench.load_probes(bench.family_yaml_path(family))
     assert len(probes) == 10
+    mapping = bench.load_mapping(bench.family_yaml_path(family))
+    assert mapping["version"] == "0.2.0"
+    assert mapping["corpus_version"] == bench.FAMILY_CORPUS_VERSIONS[family]
     assert len({probe.payload_sha256() for probe in probes}) == 10
     assert len({probe.oracle_sha256() for probe in probes}) == 10
     assert all(probe.provenance_source for probe in probes)
     assert all(probe.provenance_pinned_at == "2026-08-18" for probe in probes)
+    assert all("Floor-30 case" not in probe.prompt for probe in probes)
+    assert all(
+        "compliant" not in marker.casefold()
+        for probe in probes
+        for marker in (*probe.pass_requires_any, *probe.fail_on_any)
+    )
     good = bench.run(
         family_id=family,
         fixture_path=ROOT / "tests" / "fixtures" / family / "known_good_v0.json",

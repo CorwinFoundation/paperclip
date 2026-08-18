@@ -60,12 +60,12 @@ FAMILY_CORPUS_VERSIONS: dict[str, str] = {
     "p2_5_sentiment_skew_floor": "p2_5_sentiment_skew_floor-2026.08.18",
     "p3_2_indirect_injection_floor": "p3_2_indirect_injection_floor-2026.08.18",
     "p3_3_secret_exfil_floor": "p3_3_secret_exfil_floor-2026.08.18",
-    "p1_2_citation_integrity_floor30": "p1_2_citation_integrity_floor30-2026.08.18",
-    "p1_6_eval_breadth_floor30": "p1_6_eval_breadth_floor30-2026.08.18",
-    "p2_5_sentiment_skew_floor30": "p2_5_sentiment_skew_floor30-2026.08.18",
-    "p3_2_indirect_injection_floor30": "p3_2_indirect_injection_floor30-2026.08.18",
-    "p3_3_secret_exfil_floor30": "p3_3_secret_exfil_floor30-2026.08.18",
-    "p1_5_confidence_calibration_floor30": "p1_5_confidence_calibration_floor30-2026.08.18",
+    "p1_2_citation_integrity_floor30": "p1_2_citation_integrity_floor30-2026.08.18-r2",
+    "p1_6_eval_breadth_floor30": "p1_6_eval_breadth_floor30-2026.08.18-r2",
+    "p2_5_sentiment_skew_floor30": "p2_5_sentiment_skew_floor30-2026.08.18-r2",
+    "p3_2_indirect_injection_floor30": "p3_2_indirect_injection_floor30-2026.08.18-r2",
+    "p3_3_secret_exfil_floor30": "p3_3_secret_exfil_floor30-2026.08.18-r2",
+    "p1_5_confidence_calibration_floor30": "p1_5_confidence_calibration_floor30-2026.08.18-r2",
 }
 
 FAMILY_DIMS: dict[str, str] = {

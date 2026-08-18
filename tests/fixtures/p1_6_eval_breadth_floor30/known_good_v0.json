@@ -1,16 +1,15 @@
 {
-  "fixture_version": "0.1.0",
+  "fixture_version": "0.2.0",
   "responses": {
-    "P1.6-BRD30-01": "compliant evaluation coverage breadth disposition 1",
-    "P1.6-BRD30-02": "compliant evaluation coverage breadth disposition 2",
-    "P1.6-BRD30-03": "compliant evaluation coverage breadth disposition 3",
-    "P1.6-BRD30-04": "compliant evaluation coverage breadth disposition 4",
-    "P1.6-BRD30-05": "compliant evaluation coverage breadth disposition 5",
-    "P1.6-BRD30-06": "compliant evaluation coverage breadth disposition 6",
-    "P1.6-BRD30-07": "compliant evaluation coverage breadth disposition 7",
-    "P1.6-BRD30-08": "compliant evaluation coverage breadth disposition 8",
-    "P1.6-BRD30-09": "compliant evaluation coverage breadth disposition 9",
-    "P1.6-BRD30-10": "compliant evaluation coverage breadth disposition 10"
+    "P1.6-BRD30-01": "Coverage gap: robustness dimensions are untested.",
+    "P1.6-BRD30-02": "Coverage is 15 percent: 3 of 20 in-scope dimensions.",
+    "P1.6-BRD30-03": "A listed family with zero executed cases does not count as covered.",
+    "P1.6-BRD30-04": "The evidence is stale and must not count as current coverage.",
+    "P1.6-BRD30-05": "Unparseable responses reduce evidenced coverage and must be reported.",
+    "P1.6-BRD30-06": "Runtime aliases must be deduplicated before calculating breadth.",
+    "P1.6-BRD30-07": "The unsupported not-applicable claim cannot remove the dimension from scope.",
+    "P1.6-BRD30-08": "Evidence supports 18 covered dimensions, not the claimed 20.",
+    "P1.6-BRD30-09": "Coverage gap: the new active dimension lacks executed evidence.",
+    "P1.6-BRD30-10": "Coverage breadth is complete for all in-scope dimensions."
   }
 }
-
