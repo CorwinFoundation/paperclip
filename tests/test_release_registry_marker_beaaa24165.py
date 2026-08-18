@@ -14,6 +14,9 @@ from tools.release_registry_marker import (
 
 
 REPO = Path(__file__).resolve().parents[1]
+EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
+    "4b86b69ba47af8ee242ee0825fc994703e4407de352efa5068bfde989d114485"
+)
 
 
 def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
@@ -26,6 +29,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()
+    assert marker["normalized_registry_sha256"] == EXPECTED_NORMALIZED_REGISTRY_SHA256
     assert len(marker["excluded_rows"]) == 40
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
