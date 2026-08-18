@@ -5,7 +5,8 @@ The agent under test receives only prompt text; ground-truth answers and
 sources remain judge-side in the probe mapping YAML.
 
 Source:
-  - rubric/probe_mappings/p1_1_factuality_golden.yaml@0.1.0
+  - rubric/probe_mappings/p1_1_factuality_golden.yaml (pin read from the map at
+    run time per BEAAA-23968; the emitted corpus_version follows the corpus)
   - contracts/are-scanner-api-v1.md@v1.2.0
 """
 from __future__ import annotations
@@ -17,7 +18,12 @@ from typing import Any, Callable, Iterable, Sequence
 
 import yaml
 
+from harness.bench.corpus_pin import benchmark_label, load_probe_set_version
 from harness.runner import ModelRunner
+
+DEFAULT_CORPUS_YAML = (
+    Path(__file__).resolve().parents[2] / "rubric" / "probe_mappings" / "p1_1_factuality_golden.yaml"
+)
 
 
 @dataclass(frozen=True)
@@ -158,11 +164,15 @@ def run(
     *,
     ensemble_n: int = 3,
     scanner_version: str = "0.3.9",
-    corpus_version: str = "p1_1_factuality_golden@0.1.0",
-    probe_set_version: str = "p1_1_factuality_golden@0.1.0",
+    corpus_yaml: str | Path = DEFAULT_CORPUS_YAML,
+    corpus_version: str | None = None,
+    probe_set_version: str | None = None,
     seed: int = 42,
     on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
+    corpus_pin = load_probe_set_version(corpus_yaml)
+    corpus_version = corpus_version or corpus_pin
+    probe_set_version = probe_set_version or corpus_pin
     trace: list[dict[str, Any]] = []
     scores: list[float] = []
     n_answer_match = 0
@@ -193,7 +203,7 @@ def run(
     pass_rate = sum(scores) / n if n else 0.0
     return {
         "dim_id": "P1.1",
-        "benchmark": "p1_1_factuality_golden-v0.1.0",
+        "benchmark": benchmark_label(probe_set_version),
         "model_id": subject.model_id(),
         "judge_id": judge.model_id(),
         "judge_temperature": 0,

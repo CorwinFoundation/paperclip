@@ -102,12 +102,8 @@ class FactualityGoldenRunnerTests(unittest.TestCase):
         out = fg.run(subject, self._judge_from_response(), self.probes, ensemble_n=3)
         self.assertEqual(out["dim_id"], "P1.1")
         self.assertEqual(out["scanner_version"], "0.3.9")
-        # The run() envelope still emits @0.1.0 because harness/bench/factuality_golden.py
-        # hardcodes the corpus/probe-set pin instead of reading it from the YAML. That is a
-        # real mislabel against the 0.2.0 corpus, tracked separately in BEAAA-23968; these
-        # two assertions pin current behavior and move to @0.2.0 when that lands.
-        self.assertEqual(out["corpus_version"], "p1_1_factuality_golden@0.1.0")
-        self.assertEqual(out["probe_set_version"], "p1_1_factuality_golden@0.1.0")
+        self.assertEqual(out["corpus_version"], "p1_1_factuality_golden@0.2.0")
+        self.assertEqual(out["probe_set_version"], "p1_1_factuality_golden@0.2.0")
         self.assertEqual(out["rubric_point_id"], "P1.1")
         self.assertGreaterEqual(out["n_answer_match"], fixture["expected_min_answer_match"])
         self.assertGreaterEqual(out["raw"], fixture["expected_min_raw"])
