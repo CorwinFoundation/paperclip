@@ -73,7 +73,12 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             clone = Path(tmp) / "repo"
             copy_registry_fixture(REPO, clone)
-            mapping = clone / "rubric" / "probe_mappings" / "p1_1_factuality_golden.yaml"
+            mapping = (
+                clone
+                / "rubric"
+                / "probe_mappings"
+                / "p1_1_factuality_golden.yaml"
+            )
             text = mapping.read_text(encoding="utf-8")
             marker = "\n  - probe_id: BEAAA-23954-DRIFT-REGRESSION\n    dim: P1.1\n"
             mapping.write_text(text + marker, encoding="utf-8")
@@ -98,6 +103,44 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
                 cwd=clone,
             )
             self.assertNotEqual(result.returncode, 0)
+
+    def test_active_view_uses_canonical_probe_set_pin(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            clone = Path(tmp) / "repo"
+            copy_registry_fixture(REPO, clone)
+            mapping = clone / "rubric" / "probe_mappings" / "p1_1_factuality_golden.yaml"
+            text = mapping.read_text(encoding="utf-8")
+            mapping.write_text(
+                text.replace('version: "0.2.0"', 'version: "9.9.9"', 1),
+                encoding="utf-8",
+            )
+            active = Path(tmp) / "active.json"
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    "-m",
+                    "tools.probe_registry",
+                    "--repo",
+                    str(clone),
+                    "--emit",
+                    str(Path(tmp) / "authoritative.json"),
+                    "--active-emit",
+                    str(active),
+                ],
+                cwd=clone,
+            )
+            payload = json.loads(active.read_text(encoding="utf-8"))
+
+        rows = [
+            row
+            for row in payload["rows"]
+            if row["corpus_or_family"] == "p1_1_factuality_golden"
+        ]
+        self.assertEqual(len(rows), 34)
+        self.assertEqual(
+            {row["version_pin"] for row in rows},
+            {"p1_1_factuality_golden@0.2.0"},
+        )
 
     def test_unique_executable_count_matches_runnable_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
