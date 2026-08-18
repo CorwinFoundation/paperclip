@@ -26,3 +26,13 @@ def test_deterministic_happy_path_and_fail_closed_backstop(tmp_path: Path):
     assert by_target["BACKSTOP_KNOWN_BAD"]["verdict_distribution"]["fail"] == 240
     assert all(row["spread_candidate"] <= 1 for row in summary["targets"])
     assert all(set(row["delta"].values()) == {0.0} for row in summary["targets"])
+    assert summary["registry_counts_observed_2026_07_29_at_46409d97"] == {
+        "before": [2242, 2213, 2202, 2201],
+        "after": [2242, 2213, 2202, 2201],
+    }
+    assert summary["core_cohort_observed_2026_07_29_at_46409d97"] == [
+        527,
+        362,
+        340,
+        339,
+    ]

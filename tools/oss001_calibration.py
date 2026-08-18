@@ -198,8 +198,11 @@ def run(output_dir: Path) -> dict[str, Any]:
             "path": evidence_display_path,
         },
         "targets": target_summaries,
-        "registry_delta": {"before": [2242, 2213, 2202, 2201], "after": [2242, 2213, 2202, 2201]},
-        "historical_core_cohort": [527, 362, 340, 339],
+        "registry_counts_observed_2026_07_29_at_46409d97": {
+            "before": [2242, 2213, 2202, 2201],
+            "after": [2242, 2213, 2202, 2201],
+        },
+        "core_cohort_observed_2026_07_29_at_46409d97": [527, 362, 340, 339],
         "scoring_status": "reported_not_scored",
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")

@@ -39,6 +39,7 @@ SOURCE_INPUTS = [
     "evals/provisional_tau_support_crm.py",
 ]
 AUTHORITATIVE_PATH = "tools/probe-registry/authoritative_registry.json"
+ACTIVE_PATH = "tools/probe-registry/active_registry.json"
 SCHEMA_PATH = "tools/probe-registry/authoritative_registry.schema.json"
 DEDUPE_FIELDS = (
     "framework",
@@ -412,25 +413,53 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
     }
 
 
+def build_active_registry_view(registry: dict[str, Any]) -> dict[str, Any]:
+    """Return the schema-valid legacy view consumed by registry readers."""
+    view = json.loads(json.dumps(registry))
+    for row in view["rows"]:
+        row["stable_executable_key"] = row["stable_id"]
+        row["countable_as_executable"] = bool(row["categories"]["executable"])
+    return view
+
+
+def _resolve_output(repo: Path, value: str) -> Path:
+    output = Path(value)
+    return output if output.is_absolute() else repo / output
+
+
+def _write_or_check(output: Path, payload: dict[str, Any], *, check: bool) -> bool:
+    rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if check:
+        if not output.exists() or output.read_text(encoding="utf-8") != rendered:
+            print(f"authoritative probe registry drift: regenerate {output}", file=sys.stderr)
+            return False
+        return True
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(rendered, encoding="utf-8")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=str(REPO_DEFAULT))
     parser.add_argument("--emit", default=AUTHORITATIVE_PATH)
+    parser.add_argument("--active-emit")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    registry = build_registry(Path(args.repo))
-    output = Path(args.emit)
-    if not output.is_absolute():
-        output = Path(args.repo) / output
-    rendered = json.dumps(registry, indent=2, sort_keys=True) + "\n"
-    if args.check:
-        if not output.exists() or output.read_text(encoding="utf-8") != rendered:
-            print(f"authoritative probe registry drift: regenerate {output}", file=sys.stderr)
-            return 1
-        return 0
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(rendered, encoding="utf-8")
-    return 0
+    repo = Path(args.repo)
+    registry = build_registry(repo)
+    outputs = [(_resolve_output(repo, args.emit), registry)]
+    active_emit = args.active_emit
+    if active_emit is None and args.emit == AUTHORITATIVE_PATH:
+        active_emit = ACTIVE_PATH
+    if active_emit is not None:
+        outputs.append(
+            (_resolve_output(repo, active_emit), build_active_registry_view(registry))
+        )
+    return 0 if all(
+        _write_or_check(output, payload, check=args.check)
+        for output, payload in outputs
+    ) else 1
 
 
 if __name__ == "__main__":

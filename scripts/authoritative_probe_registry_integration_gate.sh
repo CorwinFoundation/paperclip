@@ -5,6 +5,10 @@ repo=${1:-.}
 cd "$repo"
 
 python3 -m tools.probe_registry --repo . --check
+python3 -m tools.probe_registry --repo . \
+  --emit tools/probe-registry/authoritative_registry.json \
+  --active-emit tools/probe-registry/active_registry.json \
+  --check
 python3 -m pytest -q tests/test_probe_registry.py
 python3 -m pytest -q \
   tests/test_authoritative_probe_registry_beaaa20357.py::test_schema_and_sha_binding \
@@ -22,14 +26,15 @@ from pathlib import Path
 import jsonschema
 
 root = Path(".")
-registry = json.loads((root / "tools/probe-registry/authoritative_registry.json").read_text())
 schema = json.loads((root / "tools/probe-registry/authoritative_registry.schema.json").read_text())
-jsonschema.validate(registry, schema)
-rows = registry["rows"]
-counts = registry["category_counts"]
-assert counts["registered"] == len(rows)
-for category, count in counts.items():
-    assert count == sum(bool(row["categories"][category]) for row in rows)
-assert registry["unique_executable_count"] == counts["executable"]
+for registry_name in ("authoritative_registry.json", "active_registry.json"):
+    registry = json.loads((root / "tools/probe-registry" / registry_name).read_text())
+    jsonschema.validate(registry, schema)
+    rows = registry["rows"]
+    counts = registry["category_counts"]
+    assert counts["registered"] == len(rows)
+    for category, count in counts.items():
+        assert count == sum(bool(row["categories"][category]) for row in rows)
+    assert registry["unique_executable_count"] == counts["executable"]
 PY
 git diff --check HEAD
