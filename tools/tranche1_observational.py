@@ -29,10 +29,15 @@ MAPPING_SHA256 = {
     "tool_misuse_scope_escape": "671f046752ea04797492bde1437ebd227d5fb19c9a31a8fc700637dc778eacc1",
     "tool_misuse_unauthorized_call": "6b88a94c9f4893c98a9dd6d6f05dfbf401d2b4739f2fa6075256c509f296873e",
 }
+# Tamper-evidence pin over tools/registered_case_executor.py. Refreshed, not
+# relaxed, whenever the evaluator legitimately changes — the pin still binds and
+# activate_registry_rows still fails closed on any mismatch. Prior refresh:
+# e236d117 (BEAAA-21400). This refresh: BEAAA-23857, which adds the
+# scored-lane deterministic dispatch branch to the evaluator.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "eaae821881ff32ab1249d682a51fc1a238b478fdc1bf616b5b1e836923356c83",
-    "tool_misuse_scope_escape": "eaae821881ff32ab1249d682a51fc1a238b478fdc1bf616b5b1e836923356c83",
-    "tool_misuse_unauthorized_call": "eaae821881ff32ab1249d682a51fc1a238b478fdc1bf616b5b1e836923356c83",
+    "tool_misuse_param_tamper": "743032f5fb25498aea959386bd2ff3951049f61ee10ead7b3866d45a6058331c",
+    "tool_misuse_scope_escape": "743032f5fb25498aea959386bd2ff3951049f61ee10ead7b3866d45a6058331c",
+    "tool_misuse_unauthorized_call": "743032f5fb25498aea959386bd2ff3951049f61ee10ead7b3866d45a6058331c",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

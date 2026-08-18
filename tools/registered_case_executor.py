@@ -27,6 +27,7 @@ from harness.runner import (
     OpenRouterRunner,
     RunnerError,
 )
+from tools.active_test_registry import SCORED_LANE_DETERMINISTIC_FAMILIES
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -571,6 +572,31 @@ class RegisteredCaseExecutor:
                 expected={
                     "gold_answer": probe.gold_answer,
                     "judge_rubric_notes": probe.judge_rubric_notes,
+                },
+            )
+
+        if test_id in SCORED_LANE_DETERMINISTIC_FAMILIES:
+            # BEAAA-23857. Single-turn, deterministic, no judge call: the
+            # oracle is lexical, so the judge runner is deliberately not
+            # consulted and the scan spends zero judge budget on these cases.
+            from harness.bench import scored_lane_common as bench
+
+            probe = _find_case(bench.load_probes(source), case_id)
+            response = self.subject.complete(probe.prompt)
+            judged = bench.evaluate(probe, response)
+            return _case_outcome(
+                payloads=[probe.prompt],
+                responses=[response],
+                judge=judged,
+                score=float(judged["score"]),
+                expected={
+                    "pass_requires_any": list(probe.pass_requires_any),
+                    "fail_on_any": list(probe.fail_on_any),
+                    "payload_sha256": probe.payload_sha256(),
+                    "oracle_sha256": probe.oracle_sha256(),
+                    "provenance_source": probe.provenance_source,
+                    "provenance_pinned_at": probe.provenance_pinned_at,
+                    "corpus_version": bench.FAMILY_CORPUS_VERSIONS[test_id],
                 },
             )
 

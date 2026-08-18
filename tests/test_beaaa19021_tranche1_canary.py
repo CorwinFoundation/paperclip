@@ -360,8 +360,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     canonical_manifest = json.dumps(
         pinned_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+    # The canary manifest embeds the tranche-1 evaluator pin, so this digest
+    # moves whenever tools/registered_case_executor.py legitimately changes.
+    # Refreshed by BEAAA-23857 (scored-lane deterministic dispatch branch);
+    # prior value ac670e5133d6020182b733c32b084192b224fdd52ac7982991baa66d823b05ef.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "ac670e5133d6020182b733c32b084192b224fdd52ac7982991baa66d823b05ef"
+        "ba14910f0d43566ef3c3d3264a7f751c38ede94b05ce1f43ac674d4ce8db60df"
     )
 
 

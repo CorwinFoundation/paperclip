@@ -59,6 +59,16 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
     "verdict",
     "github_provenance",
 }
+# BEAAA-23857 scored-lane expansion at the thinnest rubric points. These
+# families are single-turn and judge-model-free; the runtime binding check is
+# "prompt + a non-empty oracle", not the text_case_materializer path.
+SCORED_LANE_DETERMINISTIC_FAMILIES = frozenset(
+    {
+        "p1_2_citation_integrity_golden",
+        "p1_6_eval_coverage_breadth_golden",
+        "p2_5_sentiment_skew_golden",
+    }
+)
 EXTERNAL_EVIDENCE_PATH = REPO_ROOT / "artifacts" / "beaaa-21704" / "execution_evidence.json"
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
@@ -321,6 +331,15 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
         return bool(probe.get("prompt") and probe.get("expected_action"))
     if benchmark == "p1_5_calibration_golden":
         return bool(probe.get("prompt") and probe.get("gold_answer"))
+    if benchmark in SCORED_LANE_DETERMINISTIC_FAMILIES:
+        # BEAAA-23857. A case is runtime-bound when it carries the single-turn
+        # payload plus at least one oracle side; a roster entry with an empty
+        # oracle is not materializable and must not count.
+        oracle = probe.get("oracle") or {}
+        return bool(
+            probe.get("prompt")
+            and (oracle.get("pass_requires_any") or oracle.get("fail_on_any"))
+        )
 
     from tools.text_case_materializer import (
         is_text_compatible_test,
