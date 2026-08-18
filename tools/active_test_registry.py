@@ -20,6 +20,8 @@ from typing import Any, Mapping
 
 import yaml
 
+from harness.bench.corpus_pin import load_probe_set_version
+
 from tools.founder_dev_mode import (
     ATTESTATION_FOUNDER_DEV,
     ATTESTATION_PRODUCTION_SIGNED,
@@ -469,6 +471,11 @@ def build_registry(
         scoring_active = _scoring_active(data)
         reporting_status = _reporting_status(data)
         reproducibility = data.get("reproducibility") if isinstance(data.get("reproducibility"), dict) else {}
+        version_pin = (
+            load_probe_set_version(path)
+            if "probe_set_version" in reproducibility
+            else f"{benchmark}@{version}"
+        )
         k_replicates = int(reproducibility.get("n_runs") or 1)
         surface_seed_rotation_enabled = bool(data.get("surface_seed_rotation_enabled", False))
         canary_registration = str(data.get("canary_registration") or "")
@@ -493,7 +500,7 @@ def build_registry(
                     runner=runner,
                     underwriting_trigger=synthetic["underwriting_trigger"],
                     required_or_optional="required",
-                    version_pin=f"{benchmark}@{version}",
+                    version_pin=version_pin,
                     expected_result="deterministic verdict mapped to a rubric raw score",
                     evidence_uri_template="evidence://{scan_id}/{test_id}/{case_id}.json",
                     owner="scanner_engineer",
@@ -565,7 +572,7 @@ def build_registry(
                         runner=runner,
                         underwriting_trigger=binding["trigger"],
                         required_or_optional="required",
-                        version_pin=f"{benchmark}@{version}",
+                        version_pin=version_pin,
                         expected_result="deterministic verdict mapped to a rubric raw score",
                         evidence_uri_template="evidence://{scan_id}/{test_id}/{case_id}.json",
                         owner="scanner_engineer",
