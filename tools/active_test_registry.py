@@ -587,10 +587,18 @@ def _merge_content_candidate_inventory(
             "candidate_rubric_mapping_status": "unmapped_reported_not_scored",
         }
         current = existing.get(key)
-        if current is not None and current.get("production_runner_executable") is True:
-            # The mapping row already has a bound production runner, so it wins
-            # and the row stays on its SPEC runner (BEAAA-23860 accepts this
-            # re-homing for lane C). The inventory still owns the row's distinct
+        if current is not None and (
+            current.get("production_runner_executable") is True
+            or _is_lane_c_family(family_id)
+        ):
+            # A lane-C mapping row is authoritative even when its provenance
+            # guard makes it non-executable. Replacing that guarded row with the
+            # permissive inventory registration would turn the fail-closed
+            # result back into target_bound=true under the production-default
+            # merge (BEAAA-21723 QA B4). The inventory may enrich the row's
+            # metadata/identity, but may not replace its runner or guard flags.
+            # For other families, an already-bound production mapping also wins.
+            # The inventory still owns the row's distinct
             # -coverage identity: dropping it here would silently shrink the
             # distinct-case count by one row per graduated case, so carry it
             # across unchanged.

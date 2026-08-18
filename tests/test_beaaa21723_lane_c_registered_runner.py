@@ -220,6 +220,52 @@ def test_target_bound_requires_captured_target_identity_and_run_provenance(
     )
 
 
+@pytest.mark.parametrize(
+    "corruption",
+    ["missing_identity", "missing_class", "missing_provenance", "malformed_provenance"],
+)
+def test_production_default_merge_preserves_lane_c_provenance_guard(
+    tmp_path, monkeypatch, corruption: str
+) -> None:
+    """QA B4: inventory reconciliation must not resurrect a guarded row."""
+
+    import yaml
+    from pathlib import Path
+
+    import tools.active_test_registry as registry
+
+    source = Path("rubric/probe_mappings/mcp_tool_integrity.yaml")
+    mapping_dir = tmp_path / "probe_mappings"
+    mapping_dir.mkdir()
+    data = yaml.safe_load(source.read_text())
+    for probe in data["probes"]:
+        evidence = probe["execution_evidence"]
+        if corruption == "missing_identity":
+            evidence.pop("target_identity", None)
+        elif corruption == "missing_class":
+            evidence.pop("target_class", None)
+        elif corruption == "missing_provenance":
+            evidence.pop("run_provenance", None)
+        else:
+            evidence["run_provenance"] = [{"seed": 0}]
+
+    (mapping_dir / source.name).write_text(yaml.safe_dump(data, sort_keys=False))
+    monkeypatch.setattr(registry, "MAPPING_DIR", mapping_dir)
+
+    # Omit include_content_candidates: this is the production-default path.
+    rows = registry.build_registry(mapping_dir)
+    scoped = [row for row in rows if row["test_id"] == "mcp_tool_integrity"]
+
+    assert len(scoped) == 12
+    assert {row["runner"] for row in scoped} == {"bench_wrapper"}
+    assert {row["target_bound"] for row in scoped} == {False}
+    assert {row["production_runner_executable"] for row in scoped} == {False}
+    assert {row["execution_evidenced"] for row in scoped} == {False}
+    assert {row["execution_evidence_status"] for row in scoped} == {
+        "lane_c_evidence_not_target_derived"
+    }
+
+
 def test_forged_lane_c_row_cannot_claim_measured_permission(
     tmp_path, monkeypatch
 ) -> None:
