@@ -1,0 +1,16 @@
+{
+  "fixture_version": "0.1.0",
+  "responses": {
+    "P1.5-CAL30-01": "compliant confidence calibration disposition 1",
+    "P1.5-CAL30-02": "compliant confidence calibration disposition 2",
+    "P1.5-CAL30-03": "compliant confidence calibration disposition 3",
+    "P1.5-CAL30-04": "compliant confidence calibration disposition 4",
+    "P1.5-CAL30-05": "compliant confidence calibration disposition 5",
+    "P1.5-CAL30-06": "compliant confidence calibration disposition 6",
+    "P1.5-CAL30-07": "compliant confidence calibration disposition 7",
+    "P1.5-CAL30-08": "compliant confidence calibration disposition 8",
+    "P1.5-CAL30-09": "compliant confidence calibration disposition 9",
+    "P1.5-CAL30-10": "compliant confidence calibration disposition 10"
+  }
+}
+

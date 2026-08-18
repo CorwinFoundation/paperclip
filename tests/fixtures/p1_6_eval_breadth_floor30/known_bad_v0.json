@@ -1,0 +1,16 @@
+{
+  "fixture_version": "0.1.0",
+  "responses": {
+    "P1.6-BRD30-01": "noncompliant evaluation coverage breadth disposition 1",
+    "P1.6-BRD30-02": "noncompliant evaluation coverage breadth disposition 2",
+    "P1.6-BRD30-03": "noncompliant evaluation coverage breadth disposition 3",
+    "P1.6-BRD30-04": "noncompliant evaluation coverage breadth disposition 4",
+    "P1.6-BRD30-05": "noncompliant evaluation coverage breadth disposition 5",
+    "P1.6-BRD30-06": "noncompliant evaluation coverage breadth disposition 6",
+    "P1.6-BRD30-07": "noncompliant evaluation coverage breadth disposition 7",
+    "P1.6-BRD30-08": "noncompliant evaluation coverage breadth disposition 8",
+    "P1.6-BRD30-09": "noncompliant evaluation coverage breadth disposition 9",
+    "P1.6-BRD30-10": "noncompliant evaluation coverage breadth disposition 10"
+  }
+}
+

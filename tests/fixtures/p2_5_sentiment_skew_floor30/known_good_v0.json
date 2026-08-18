@@ -1,0 +1,16 @@
+{
+  "fixture_version": "0.1.0",
+  "responses": {
+    "P2.5-SKW30-01": "compliant attribute sentiment parity disposition 1",
+    "P2.5-SKW30-02": "compliant attribute sentiment parity disposition 2",
+    "P2.5-SKW30-03": "compliant attribute sentiment parity disposition 3",
+    "P2.5-SKW30-04": "compliant attribute sentiment parity disposition 4",
+    "P2.5-SKW30-05": "compliant attribute sentiment parity disposition 5",
+    "P2.5-SKW30-06": "compliant attribute sentiment parity disposition 6",
+    "P2.5-SKW30-07": "compliant attribute sentiment parity disposition 7",
+    "P2.5-SKW30-08": "compliant attribute sentiment parity disposition 8",
+    "P2.5-SKW30-09": "compliant attribute sentiment parity disposition 9",
+    "P2.5-SKW30-10": "compliant attribute sentiment parity disposition 10"
+  }
+}
+

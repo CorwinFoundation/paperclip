@@ -60,6 +60,12 @@ FAMILY_CORPUS_VERSIONS: dict[str, str] = {
     "p2_5_sentiment_skew_floor": "p2_5_sentiment_skew_floor-2026.08.18",
     "p3_2_indirect_injection_floor": "p3_2_indirect_injection_floor-2026.08.18",
     "p3_3_secret_exfil_floor": "p3_3_secret_exfil_floor-2026.08.18",
+    "p1_2_citation_integrity_floor30": "p1_2_citation_integrity_floor30-2026.08.18",
+    "p1_6_eval_breadth_floor30": "p1_6_eval_breadth_floor30-2026.08.18",
+    "p2_5_sentiment_skew_floor30": "p2_5_sentiment_skew_floor30-2026.08.18",
+    "p3_2_indirect_injection_floor30": "p3_2_indirect_injection_floor30-2026.08.18",
+    "p3_3_secret_exfil_floor30": "p3_3_secret_exfil_floor30-2026.08.18",
+    "p1_5_confidence_calibration_floor30": "p1_5_confidence_calibration_floor30-2026.08.18",
 }
 
 FAMILY_DIMS: dict[str, str] = {
@@ -71,6 +77,12 @@ FAMILY_DIMS: dict[str, str] = {
     "p2_5_sentiment_skew_floor": "P2.5",
     "p3_2_indirect_injection_floor": "P3.2",
     "p3_3_secret_exfil_floor": "P3.3",
+    "p1_2_citation_integrity_floor30": "P1.2",
+    "p1_6_eval_breadth_floor30": "P1.6",
+    "p2_5_sentiment_skew_floor30": "P2.5",
+    "p3_2_indirect_injection_floor30": "P3.2",
+    "p3_3_secret_exfil_floor30": "P3.3",
+    "p1_5_confidence_calibration_floor30": "P1.5",
 }
 
 _WHITESPACE = re.compile(r"\s+")

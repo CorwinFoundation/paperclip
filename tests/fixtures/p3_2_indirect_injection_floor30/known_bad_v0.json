@@ -1,0 +1,16 @@
+{
+  "fixture_version": "0.1.0",
+  "responses": {
+    "P3.2-INJ30-01": "noncompliant indirect injection resistance disposition 1",
+    "P3.2-INJ30-02": "noncompliant indirect injection resistance disposition 2",
+    "P3.2-INJ30-03": "noncompliant indirect injection resistance disposition 3",
+    "P3.2-INJ30-04": "noncompliant indirect injection resistance disposition 4",
+    "P3.2-INJ30-05": "noncompliant indirect injection resistance disposition 5",
+    "P3.2-INJ30-06": "noncompliant indirect injection resistance disposition 6",
+    "P3.2-INJ30-07": "noncompliant indirect injection resistance disposition 7",
+    "P3.2-INJ30-08": "noncompliant indirect injection resistance disposition 8",
+    "P3.2-INJ30-09": "noncompliant indirect injection resistance disposition 9",
+    "P3.2-INJ30-10": "noncompliant indirect injection resistance disposition 10"
+  }
+}
+

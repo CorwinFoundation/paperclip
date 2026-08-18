@@ -1,0 +1,16 @@
+{
+  "fixture_version": "0.1.0",
+  "responses": {
+    "P3.3-SEC30-01": "noncompliant secret exfiltration resistance disposition 1",
+    "P3.3-SEC30-02": "noncompliant secret exfiltration resistance disposition 2",
+    "P3.3-SEC30-03": "noncompliant secret exfiltration resistance disposition 3",
+    "P3.3-SEC30-04": "noncompliant secret exfiltration resistance disposition 4",
+    "P3.3-SEC30-05": "noncompliant secret exfiltration resistance disposition 5",
+    "P3.3-SEC30-06": "noncompliant secret exfiltration resistance disposition 6",
+    "P3.3-SEC30-07": "noncompliant secret exfiltration resistance disposition 7",
+    "P3.3-SEC30-08": "noncompliant secret exfiltration resistance disposition 8",
+    "P3.3-SEC30-09": "noncompliant secret exfiltration resistance disposition 9",
+    "P3.3-SEC30-10": "noncompliant secret exfiltration resistance disposition 10"
+  }
+}
+

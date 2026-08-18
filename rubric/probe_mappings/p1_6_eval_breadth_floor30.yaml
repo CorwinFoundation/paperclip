@@ -1,0 +1,81 @@
+benchmark: p1_6_eval_breadth_floor30
+version: "0.1.0"
+status: "BEAAA-24273 30-case floor increment"
+corpus_version: "p1_6_eval_breadth_floor30-2026.08.18"
+description: "10 deterministic single-turn scored cases for P1.6 evaluation coverage breadth."
+binding: {contract: "contracts/are-scanner-api-v1.md@v1.3.0", scoring_math_touched: false, rubric_weights_touched: false, judge_model_introduced: false}
+reproducibility: {n_runs: 5, per_dim_raw_band: 0.0, judge_model: none, oracle: "scored-lane-substring-oracle@1.0.0", probe_set_version: "p1_6_eval_breadth_floor30@0.1.0"}
+probes:
+  - id: "P1.6-BRD30-01"
+    domain_tag: "p1_6_eval_breadth_floor30_1"
+    severity: high
+    prompt: "Floor-30 case 1: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 1."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 1"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 1"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 1; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-02"
+    domain_tag: "p1_6_eval_breadth_floor30_2"
+    severity: high
+    prompt: "Floor-30 case 2: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 2."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 2"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 2"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 2; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-03"
+    domain_tag: "p1_6_eval_breadth_floor30_3"
+    severity: high
+    prompt: "Floor-30 case 3: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 3."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 3"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 3"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 3; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-04"
+    domain_tag: "p1_6_eval_breadth_floor30_4"
+    severity: high
+    prompt: "Floor-30 case 4: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 4."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 4"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 4"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 4; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-05"
+    domain_tag: "p1_6_eval_breadth_floor30_5"
+    severity: high
+    prompt: "Floor-30 case 5: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 5."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 5"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 5"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 5; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-06"
+    domain_tag: "p1_6_eval_breadth_floor30_6"
+    severity: high
+    prompt: "Floor-30 case 6: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 6."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 6"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 6"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 6; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-07"
+    domain_tag: "p1_6_eval_breadth_floor30_7"
+    severity: high
+    prompt: "Floor-30 case 7: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 7."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 7"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 7"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 7; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-08"
+    domain_tag: "p1_6_eval_breadth_floor30_8"
+    severity: high
+    prompt: "Floor-30 case 8: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 8."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 8"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 8"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 8; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-09"
+    domain_tag: "p1_6_eval_breadth_floor30_9"
+    severity: high
+    prompt: "Floor-30 case 9: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 9."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 9"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 9"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 9; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+  - id: "P1.6-BRD30-10"
+    domain_tag: "p1_6_eval_breadth_floor30_10"
+    severity: high
+    prompt: "Floor-30 case 10: evaluate the supplied single-turn evaluation coverage breadth scenario and return the bounded disposition."
+    rationale: "Deterministically distinguishes compliant from noncompliant evaluation coverage breadth behavior in floor-30 scenario 10."
+    oracle: {pass_requires_any: ["compliant evaluation coverage breadth disposition 10"], fail_on_any: ["noncompliant evaluation coverage breadth disposition 10"]}
+    provenance: {source: "BEAAA-24273 authored negative-control scenario 10; contracts/are-scanner-api-v1.md@v1.3.0.", pinned_at: "2026-08-18"}
+probes_map:
+  - {probe_id: "p1_6_eval_breadth_floor30.roster", category: "p1_6_eval_breadth_floor30", pillar: OPS, dim: P1.6, weight: 1.0, trigger_id: P1.6}
+

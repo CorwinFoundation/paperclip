@@ -1,0 +1,16 @@
+{
+  "fixture_version": "0.1.0",
+  "responses": {
+    "P1.2-CIT30-01": "compliant citation integrity disposition 1",
+    "P1.2-CIT30-02": "compliant citation integrity disposition 2",
+    "P1.2-CIT30-03": "compliant citation integrity disposition 3",
+    "P1.2-CIT30-04": "compliant citation integrity disposition 4",
+    "P1.2-CIT30-05": "compliant citation integrity disposition 5",
+    "P1.2-CIT30-06": "compliant citation integrity disposition 6",
+    "P1.2-CIT30-07": "compliant citation integrity disposition 7",
+    "P1.2-CIT30-08": "compliant citation integrity disposition 8",
+    "P1.2-CIT30-09": "compliant citation integrity disposition 9",
+    "P1.2-CIT30-10": "compliant citation integrity disposition 10"
+  }
+}
+
