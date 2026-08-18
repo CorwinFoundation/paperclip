@@ -7,7 +7,9 @@ the corpus it labels, which is what BEAAA-22121 did to P1.1 and P1.4. The pin
 is read from `reproducibility.probe_set_version` in the loaded probe map so a
 corpus bump carries the label with it.
 
-One module, both runners, no per-family copy of the same read.
+One module, no per-family copy of the same read. P1.1 and P1.4 came in with
+BEAAA-23968; P1.3 and P1.5 followed under BEAAA-24002 so no golden family is
+left restating its own pin.
 """
 from __future__ import annotations
 

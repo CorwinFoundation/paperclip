@@ -44,6 +44,7 @@ jobs:
           python -m pytest \
             tests/test_golden_agents.py \
             tests/test_beaaa23968_corpus_pin.py \
+            tests/test_beaaa24002_corpus_pin_p13_p15.py \
             tests/test_cli_runner_beaaa464.py \
             tests/test_p1_1_factuality_golden.py \
             tests/test_p1_3_consistency_golden.py \

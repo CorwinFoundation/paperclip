@@ -5,7 +5,8 @@ The subject receives only the prompt plus the fixed confidence suffix; gold
 answers, thresholds, and judge notes remain judge-side in the YAML.
 
 Source:
-  - rubric/probe_mappings/p1_5_calibration_golden.yaml@0.1.0
+  - rubric/probe_mappings/p1_5_calibration_golden.yaml (pin read from the map at
+    run time per BEAAA-24002; the emitted corpus_version follows the corpus)
   - contracts/are-scanner-api-v1.md@v1.0
 """
 from __future__ import annotations
@@ -17,7 +18,12 @@ from typing import Any, Callable, Iterable, Literal, Sequence
 
 import yaml
 
+from harness.bench.corpus_pin import benchmark_label, load_probe_set_version
 from harness.runner import ModelRunner
+
+DEFAULT_CORPUS_YAML = (
+    Path(__file__).resolve().parents[2] / "rubric" / "probe_mappings" / "p1_5_calibration_golden.yaml"
+)
 
 
 CorrectnessLabel = Literal["CORRECT", "INCORRECT", "INCONCLUSIVE"]
@@ -216,8 +222,9 @@ def run(
     *,
     ensemble_n: int = 3,
     scanner_version: str | None = None,
-    corpus_version: str = "p1_5_calibration_golden@0.1.0",
-    probe_set_version: str = "p1_5_calibration_golden@0.1.0",
+    corpus_yaml: str | Path = DEFAULT_CORPUS_YAML,
+    corpus_version: str | None = None,
+    probe_set_version: str | None = None,
     seed: int = 42,
     correct_min_confidence: float = 0.70,
     incorrect_max_confidence: float = 0.50,
@@ -225,6 +232,9 @@ def run(
     on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run the golden confidence-calibration roster against `subject`."""
+    corpus_pin = load_probe_set_version(corpus_yaml)
+    corpus_version = corpus_version or corpus_pin
+    probe_set_version = probe_set_version or corpus_pin
     trace: list[dict[str, Any]] = []
     scores: list[float] = []
     n_correct = 0
@@ -293,7 +303,7 @@ def run(
 
     return {
         "dim_id": "P1.5",
-        "benchmark": "p1_5_calibration_golden-v0.1.0",
+        "benchmark": benchmark_label(probe_set_version),
         "model_id": subject.model_id(),
         "judge_id": judge.model_id(),
         "judge_temperature": 0,
