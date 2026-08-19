@@ -1,6 +1,6 @@
 {
   "baseline": "71c5124d994ac007837712f51c4b21dbb17d9aa8",
-  "candidate_tree": "956a9f648d20db07e0bba9ef3afc66d4ba08c179",
+  "candidate_tree": "d3e224f399d09cd15c2d510d519143a87885b8a1",
   "classification": "rule-execution",
   "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
   "corpus_version": "fixture-pinned per golden expected_score.json",
