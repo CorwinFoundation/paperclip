@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
+import re
 import sqlite3
+import threading
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Collection, Mapping, Any
 
@@ -41,6 +45,17 @@ FIRST_BATCH_SEQ = 1
 # requires the node to be the object batch["counts"]["by_action_class"] itself.
 ACTION_CLASS_HISTOGRAM_KEYS = ("counts", "by_action_class")
 ACTION_CLASS_HISTOGRAM_PATH = "$.counts.by_action_class"  # rendered, for reporting only
+
+
+# The nine keys the sealed verifier rebuilds the signed body from
+# (backbond-appliance-0.1.0/backbond-appliance/appliance/batch.py: verify_batch,
+# matching BatchBuilder._make_batch), plus the three the signer appends after
+# hashing. Twelve keys, and a sealed 0.1.0 envelope carries no thirteenth.
+SIGNED_BODY_FIELDS = (
+    "batch_id", "appliance_id", "batch_seq", "prev_batch_hash", "window",
+    "events", "determinations", "counts", "producer",
+)
+SEALED_ENVELOPE_FIELDS = frozenset(SIGNED_BODY_FIELDS + ("batch_hash", "signature", "key_id"))
 
 
 class IngestRejected(ValueError):
@@ -147,6 +162,20 @@ def _histogram_violation(batch: Mapping) -> str | None:
     return None
 
 
+def _unknown_envelope_field(batch: Mapping) -> bool:
+    """True when the envelope carries a key no sealed 0.1.0 batch has.
+
+    A set comparison against the pinned allowlist, never a denylist: the residual
+    this closes is precisely the field nobody thought to name. ``verify_batch``
+    rebuilds the signed body from nine named keys, so any extra top-level key is
+    outside both the signature and ``batch_hash`` and still verifies. Today it is
+    caught only if its own name, or a name in its subtree, is in the sealed
+    CONTENT_FIELDS -- an ``evidence_tier`` rider is in neither and rides through
+    (BEAAA-24623 ruling 1). Inert-because-no-consumer-exists is not a control.
+    """
+    return bool(set(batch) - SEALED_ENVELOPE_FIELDS)
+
+
 def _require_seq(value: Any) -> int:
     if not _plain_int(value) or value < FIRST_BATCH_SEQ:
         raise IngestRejected("malformed_batch_seq")
@@ -158,6 +187,115 @@ def _require_count(counts: Mapping, key: str) -> int:
     if not _plain_int(value) or value < 0:
         raise IngestRejected(f"malformed_counts:{key}")
     return value
+
+
+# ---------------------------------------------------------------------------
+# P1 observability surface (BEAAA-24623 ruling 4).
+#
+# /healthz + /metrics as they stood is not the surface: a tenant that has
+# delivered nothing and a tenant whose every delivery is rejected returned
+# identical counters, so the failure mode the pilot is most likely to hit was
+# the one nothing surfaced. Two additions close that -- a structured line per
+# request outcome on stderr, which journald already carries under the existing
+# unit, and rejection/duplicate/outage counters plus the chain tip on /metrics.
+# Paging, alert routing, scraping and retention stay out of P1.
+# ---------------------------------------------------------------------------
+
+INGEST_OUTCOMES = ("accepted", "duplicate", "rejected", "unavailable")
+
+# Identifier alphabet an enrolled appliance_id is drawn from. The value in a log
+# line comes off the wire, and the sender names it, so it is bounded to this
+# before it is written: JSON encoding already stops a forged newline from
+# splitting one record into two, and the bound stops the field being used as a
+# free-text channel into the operator's log the way a rendered path would be.
+_SAFE_APPLIANCE_ID = re.compile(r"\A[A-Za-z0-9._:-]{1,64}\Z")
+
+
+def reason_class(reason: str | None) -> str | None:
+    """The class of a rejection reason, never its rendered detail.
+
+    ``content_boundary_violated:$.a.b`` embeds keys the sender named, so the
+    suffix is dropped before the reason reaches a log line or a counter label.
+    """
+    if reason is None:
+        return None
+    return reason.split(":", 1)[0]
+
+
+def _safe_appliance_id(value: Any) -> str | None:
+    return value if isinstance(value, str) and _SAFE_APPLIANCE_ID.match(value) else None
+
+
+def outcome_log_line(
+    *,
+    outcome: str,
+    reason: str | None = None,
+    appliance_id: Any = None,
+    batch_seq: Any = None,
+    now: datetime | None = None,
+) -> str:
+    """One structured line per request outcome, for stderr and thence journald.
+
+    Carries an ISO-8601 UTC timestamp, the outcome, the reason *class*,
+    ``appliance_id`` and ``batch_seq`` where known. ``tenant_id`` never appears,
+    in clear or otherwise: the appliance_id is bound to exactly one tenant by
+    enrollment, so it is the identifier an operator needs and the tenant stays
+    off the log.
+    """
+    if outcome not in INGEST_OUTCOMES:
+        raise ValueError("unknown ingest outcome")
+    moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    record = {
+        "ts": moment.strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z",
+        "event": "appliance_ingest",
+        "outcome": outcome,
+        "reason_class": reason_class(reason),
+        "appliance_id": _safe_appliance_id(appliance_id),
+        "batch_seq": batch_seq if _plain_int(batch_seq) else None,
+    }
+    return json.dumps(record, sort_keys=True, separators=(",", ":"))
+
+
+class OutcomeCounters:
+    """Process-local, per-tenant request-outcome tallies.
+
+    Process-local is deliberate for P1: journald and the append-only receipt
+    table are the durable record, so these need no migration and are expected to
+    reset with the unit. They are keyed by the tenant the request *claimed*,
+    which is the only tenant known when a delivery is refused before enrollment
+    resolves; reading them still requires that tenant's enrolled token, so an
+    attempt naming a tenant it cannot authenticate as is visible to that tenant
+    and to nobody else.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._tenants: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    def _empty() -> dict[str, Any]:
+        return {"rejected_total": {}, "duplicates_total": 0, "unavailable_total": 0,
+                "accepted_total": 0}
+
+    def record(self, tenant_id_hash: str, outcome: str, reason: str | None = None) -> None:
+        if outcome not in INGEST_OUTCOMES:
+            raise ValueError("unknown ingest outcome")
+        with self._lock:
+            tally = self._tenants.setdefault(tenant_id_hash, self._empty())
+            if outcome == "rejected":
+                label = reason_class(reason) or "unclassified"
+                tally["rejected_total"][label] = tally["rejected_total"].get(label, 0) + 1
+            elif outcome == "duplicate":
+                tally["duplicates_total"] += 1
+            elif outcome == "unavailable":
+                tally["unavailable_total"] += 1
+            else:
+                tally["accepted_total"] += 1
+
+    def snapshot(self, tenant_id_hash: str) -> dict[str, Any]:
+        with self._lock:
+            tally = self._tenants.get(tenant_id_hash) or self._empty()
+            return {**tally, "rejected_total": dict(tally["rejected_total"])}
 
 
 class ApplianceIngestStore:
@@ -174,6 +312,7 @@ class ApplianceIngestStore:
         self.database = str(database)
         self.verify_batch = verify_batch
         self.prohibited_fields = frozenset(prohibited_fields)
+        self.counters = OutcomeCounters()
         with self._connect() as db:
             db.executescript(Path(migration).read_text(encoding="utf-8"))
 
@@ -237,6 +376,17 @@ class ApplianceIngestStore:
         if leaked_path:
             raise IngestRejected(f"content_boundary_violated:{leaked_path}")
 
+        # Ordered after the content scan deliberately. Both checks refuse the same
+        # delivery, so the order decides only which reason class an injected key
+        # reports under, and a key whose subtree carries prohibited content is
+        # better reported as the leak it is; that also keeps the BEAAA-24478
+        # item 1 forgery regressions reporting content_boundary_violated. The
+        # reason names no field: the sender chose that key, and a sender-chosen
+        # string echoed into a rejection is the same content channel the rendered
+        # path was (BEAAA-24623 ruling 4).
+        if _unknown_envelope_field(batch):
+            raise IngestRejected("unknown_envelope_field")
+
         events = batch.get("events", [])
         determinations = batch.get("determinations", [])
         for item in [*events, *determinations]:
@@ -283,6 +433,25 @@ class ApplianceIngestStore:
                 raise
         return IngestResult(True, False, batch_hash)
 
+    def record_outcome(self, *, tenant_id: str, outcome: str, reason: str | None = None) -> None:
+        """Tally one request outcome against the tenant the request claimed."""
+        self.counters.record(_digest(tenant_id), outcome, reason)
+
+    def _chain_tips(self, tenant_id_hash: str) -> dict[str, int]:
+        """Highest accepted batch_seq per appliance, for this tenant only.
+
+        The durable half of the surface: counters reset with the process, this
+        does not, so an operator can tell a quiet appliance from a stalled one
+        after a restart.
+        """
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT appliance_id,MAX(batch_seq) FROM appliance_ingest_receipts "
+                "WHERE tenant_id_hash=? GROUP BY appliance_id",
+                (tenant_id_hash,),
+            ).fetchall()
+        return {appliance_id: seq for appliance_id, seq in rows}
+
     def status(self, *, tenant_id_hash: str | None = None) -> dict[str, int]:
         """Unscoped by default; not reachable over HTTP. See scoped_status."""
         sql = ("SELECT COUNT(*),COALESCE(SUM(events_count),0),"
@@ -296,7 +465,7 @@ class ApplianceIngestStore:
         return {"batches_accepted": batches, "events_accepted": events,
                 "determinations_accepted": determinations}
 
-    def scoped_status(self, *, token: str, tenant_id: str) -> dict[str, int]:
+    def scoped_status(self, *, token: str, tenant_id: str) -> dict[str, Any]:
         """Authenticated, single-tenant counts. The only status path on the wire (F5)."""
         tenant_hash = _digest(tenant_id)
         expected = _digest(token)
@@ -307,4 +476,8 @@ class ApplianceIngestStore:
             ).fetchall()
         if not any(hmac.compare_digest(row[0], expected) for row in rows):
             raise IngestRejected("unauthorized_scope")
-        return self.status(tenant_id_hash=tenant_hash)
+        return {
+            **self.status(tenant_id_hash=tenant_hash),
+            **self.counters.snapshot(tenant_hash),
+            "chain_tip_batch_seq": self._chain_tips(tenant_hash),
+        }

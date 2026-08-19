@@ -6,13 +6,21 @@ import gzip
 import importlib
 import json
 import os
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .appliance_ingest import ApplianceIngestStore, IngestRejected
+from .appliance_ingest import ApplianceIngestStore, IngestRejected, outcome_log_line
 
 
 MAX_BODY_BYTES = 2 * 1024 * 1024
+
+
+def emit_outcome(stream=None, **fields) -> None:
+    """Write one structured outcome line to stderr, which journald carries under
+    the existing unit. The default access log stays silenced (``log_message``);
+    this replaces it with something deliberate rather than adding to it."""
+    print(outcome_log_line(**fields), file=stream or sys.stderr, flush=True)
 
 
 def load_sealed_contract(module_root: Path):
@@ -28,7 +36,10 @@ def load_sealed_contract(module_root: Path):
     return batch.verify_batch, pipeline.CONTENT_FIELDS
 
 
-def make_handler(store: ApplianceIngestStore):
+def make_handler(store: ApplianceIngestStore, *, log_stream=None):
+    """``log_stream`` defaults to stderr, which journald carries under the unit.
+    It is a parameter so the outcome log is exercisable at the HTTP boundary
+    rather than only at the writer."""
     class Handler(BaseHTTPRequestHandler):
         server_version = "BackBondApplianceIngest/0.1"
 
@@ -53,7 +64,14 @@ def make_handler(store: ApplianceIngestStore):
                 body = gzip.decompress(body)
                 if len(body) > MAX_BODY_BYTES:
                     raise IngestRejected("body_size_invalid")
-            return json.loads(body)
+            payload = json.loads(body)
+            if not isinstance(payload, dict):
+                # A JSON scalar or array is a permanently malformed envelope, not
+                # an outage. Without this it reached the store and died on
+                # ``batch.get`` inside the catch-all, answering a deterministic
+                # defect with a retryable 503 and inflating unavailable_total.
+                raise IngestRejected("malformed_body")
+            return payload
 
         def _bearer(self) -> str:
             authorization = self.headers.get("Authorization", "")
@@ -79,20 +97,35 @@ def make_handler(store: ApplianceIngestStore):
             if self.path != "/ingest":
                 self._send(404, {"error": "not_found"}); return
             token = self._bearer()
+            tenant_id = self.headers.get("X-BackBond-Tenant", "")
+            outcome, reason, appliance_id, batch_seq = "unavailable", None, None, None
             try:
+                batch = self._body()
+                appliance_id, batch_seq = batch.get("appliance_id"), batch.get("batch_seq")
                 result = store.ingest(
-                    self._body(), token=token,
-                    tenant_id=self.headers.get("X-BackBond-Tenant", ""),
+                    batch, token=token, tenant_id=tenant_id,
                     source_id=self.headers.get("X-BackBond-Source", ""),
                 )
+                outcome = "duplicate" if result.duplicate else "accepted"
                 self._send(200, {"accepted": result.accepted,
                                  "duplicate": result.duplicate,
                                  "batch_hash": result.batch_hash})
             except (IngestRejected, json.JSONDecodeError, gzip.BadGzipFile) as exc:
+                outcome = "rejected"
+                # A decoder's message is not ours and is not a class; only an
+                # IngestRejected carries a reason from the pinned taxonomy.
+                reason = str(exc) if isinstance(exc, IngestRejected) else "malformed_body"
                 self._send(422, {"accepted": False, "error": str(exc)})
             except Exception:
                 # Retryable outage response; internal details and payload stay off wire.
+                outcome, reason = "unavailable", "persistence_unavailable"
                 self._send(503, {"accepted": False, "error": "persistence_unavailable"})
+            finally:
+                # In ``finally`` so an outcome is always recorded, including when
+                # writing the response itself fails on a dropped connection.
+                store.record_outcome(tenant_id=tenant_id, outcome=outcome, reason=reason)
+                emit_outcome(stream=log_stream, outcome=outcome, reason=reason,
+                             appliance_id=appliance_id, batch_seq=batch_seq)
     return Handler
 
 
