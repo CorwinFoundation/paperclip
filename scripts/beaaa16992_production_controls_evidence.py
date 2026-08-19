@@ -329,6 +329,19 @@ def _tenant_retention_drill() -> dict[str, Any]:
     }
 
 
+_WAVE1A_EVIDENCE_PATH = REPO / "scripts" / "beaaa16976_wave1a_production_like_evidence.py"
+_WAVE1A_EVIDENCE: Any = None
+
+
+def _wave1a_evidence() -> Any:
+    """Wave-1A source module (BEAAA-16976), loaded once and cached."""
+
+    global _WAVE1A_EVIDENCE
+    if _WAVE1A_EVIDENCE is None:
+        _WAVE1A_EVIDENCE = _load_module(_WAVE1A_EVIDENCE_PATH, "beaaa16992_wave1a_current")
+    return _WAVE1A_EVIDENCE
+
+
 def _canonical_sha256(payload: dict[str, Any]) -> str:
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
@@ -336,10 +349,7 @@ def _canonical_sha256(payload: dict[str, Any]) -> str:
 
 
 def _current_wave1a_outputs(commit_sha: str, authorization_fixture: Path) -> dict[str, Any]:
-    wave_evidence = _load_module(
-        REPO / "scripts" / "beaaa16976_wave1a_production_like_evidence.py",
-        "beaaa16992_wave1a_current",
-    )
+    wave_evidence = _wave1a_evidence()
     previous = os.environ.get("WAVE1A_PRODUCTION_AUTHORIZATION_JSON")
     os.environ["WAVE1A_PRODUCTION_AUTHORIZATION_JSON"] = str(authorization_fixture)
     try:
@@ -360,8 +370,15 @@ def _current_wave1a_outputs(commit_sha: str, authorization_fixture: Path) -> dic
             "production_like_scored_contract_consistent": target["consistency_checks"][
                 "all_retained_scored_outputs_scored"
             ],
-            "rollback_350_to_315": rollback["active_executable_before"] == 350
-            and rollback["active_executable_after"] == 315,
+            "rollback_removes_expected_active_executable_delta": (
+                rollback["active_executable_before"] - rollback["active_executable_after"]
+            )
+            == wave_evidence.ROLLBACK_ACTIVE_EXECUTABLE_DELTA,
+            # Recorded as measurement, never asserted: the registry grows by design.
+            "measured_rollback_active_executable_pair": [
+                rollback["active_executable_before"],
+                rollback["active_executable_after"],
+            ],
             "unrelated_active_rows_unchanged": rollback["unrelated_active_rows_unchanged"],
         },
         "target": target,
@@ -507,9 +524,13 @@ def _rollback_drill(
         )
 
     measured_minutes = math.ceil(elapsed_s / 60)
+    before = source.get("active_executable_before")
+    after = source.get("active_executable_after")
+    measured_delta = (
+        before - after if isinstance(before, int) and isinstance(after, int) else None
+    )
     source_matches = bool(
-        source.get("active_executable_before") == 350
-        and source.get("active_executable_after") == 315
+        measured_delta == _wave1a_evidence().ROLLBACK_ACTIVE_EXECUTABLE_DELTA
         and source.get("unrelated_active_rows_unchanged") is True
     )
     canonical_path_pass = rollback_proc.returncode == 0 and current_after == previous_ref
@@ -519,6 +540,8 @@ def _rollback_drill(
         "feature_flag_disabled_families": source.get("rolled_back_families", []),
         "measured_active_executable_before": source.get("active_executable_before"),
         "measured_active_executable_after": source.get("active_executable_after"),
+        "measured_active_executable_delta": measured_delta,
+        "expected_active_executable_delta": _wave1a_evidence().ROLLBACK_ACTIVE_EXECUTABLE_DELTA,
         "source_matches_measured_drill": source_matches,
         "canonical_rollback_command": "scripts/deploy/history/box_deploy.sh rollback <previous_ref>",
         "current_ref_before": current_before,
@@ -798,7 +821,8 @@ def build_packet(candidate_commit_sha: str | None = None) -> dict[str, Any]:
                 .get("trips_metric_gaming_behavior", {})
                 .get("consequential_action_confirmation")
                 is True
-                and canary.get("monitoring", {}).get("registry_count_gate_expected") == 350
+                and canary.get("monitoring", {}).get("registry_count_gate_expected")
+                == _wave1a_evidence().production_default_active_executable()
             ),
             [
                 "registry-count gate, duplicate runtime identity drift gate, mapping registry gate",
@@ -855,7 +879,7 @@ def build_packet(candidate_commit_sha: str | None = None) -> dict[str, Any]:
         "feature_flag_rollback": _control(
             bool(rollback_drill["pass"] and rollback_drill["source_matches_measured_drill"]),
             [
-                "feature-flag rollback proves 350 active executable rows return to 315",
+                "feature-flag rollback removes exactly the scored-activation delta and leaves every unrelated active row unchanged",
                 "canonical historical rollback helper restarts the prior retained image ref",
                 "retained historical evidence hash is unchanged across rollback",
             ],
