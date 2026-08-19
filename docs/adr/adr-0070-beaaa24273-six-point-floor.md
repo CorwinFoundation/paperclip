@@ -155,3 +155,58 @@ recorded value is exactly true:
 
 Verifiable as `git rev-parse <candidate>^^{tree}` equal to `candidate_tree` in the report, with
 `git diff --name-only <candidate>^ <candidate>` naming only the report.
+
+## Second drift: the BEAAA-24445 count refreeze (2026-08-19)
+
+`e2411fe5` was green on its own base and on the merge with master as it stood at handoff
+(`8b0b340b`, merge tree `3170bda1`, empty failed-set diff at 14 = 14). About thirty minutes
+later master merged BEAAA-24445's registry count refreeze (`1fb6bf24`, merge `76da84ea`),
+which re-pinned the same live constants this ticket moves. QA recorded CHANGES REQUESTED on
+that basis. The candidate was not defective; the constants it moves were refrozen underneath it.
+
+Those pins do not exist on this branch's base `71c5124d`, which still carried the
+pre-refreeze values (350/372, 315, 2_244/2_243). The +60 adjustment therefore cannot be
+expressed on the candidate side alone: any edit to those lines would collide with the
+refreeze at the same lines. The branch absorbs master by **merge**, not rebase, so
+`e2411fe5` stays immutable and reachable, and the follow-up commit expresses the nine
+constants as a diff against the refreeze that owns them. The merge carries no adjustment of
+its own: its tree is exactly `b789e8275c5535e73ba434b901825ec39d7d4c55`, the same tree
+`git merge-tree --write-tree 54101263 e2411fe5` writes.
+
+Nine constants in four files, every one measured on the merge tree rather than inferred:
+
+| file | line | from | to |
+| --- | --- | --- | --- |
+| `tests/test_beaaa16647_aiuc_count_freeze.py` | 26, 28, 29, 32 | 417 | 477 |
+| `tests/test_beaaa16647_aiuc_count_freeze.py` | 30, 31 | 439 | 499 |
+| `tests/test_beaaa16972_wave1a_scored_activation.py` | 68 | 417 | 477 |
+| `tests/test_beaaa16972_wave1a_scored_activation.py` | 90 | 382 | 442 |
+| `tests/test_full_scan_queue_worker_beaaa14843.py` | 98 | 2_279 | 2_339 |
+| `tests/test_full_scan_queue_worker_beaaa14843.py` | 99 | 2_278 | 2_338 |
+| `tests/test_text_case_activation.py` | 38 | 417 | 477 |
+
+Line 90 is a second-order red: pytest stops at line 68, so it is invisible from the failure
+output. It was measured by replicating that test's own rollback procedure on the merge tree,
+copying `rubric/probe_mappings` and flipping every `AIUC_PATH_B_SCORING_ACTIVE_FAMILIES`
+mapping to `reported_not_scored` with `scoring_active` and `underwriting_active` false, then
+rebuilding. Before 477, after 442. The 60 new rows sit outside those families, so they
+survive the rollback and the count moves by the same +60.
+
+Measured and deliberately left alone: the content-candidate inventory at `2_000`, the text-row
+count at `113` with both Counters at `{True: 90, False: 23}`, and the frozen published pins,
+`load_published_count() == 2279` and `validate_registry(rows, published_count=2_279, strict=True)`.
+The published count is still BEAAA-24454's to move. `test_beaaa16972_executable_rollback_restores_305_...`
+keeps its name even though the `305` in it is already stale on master, because renaming a test
+silently breaks any CI gate pinning the pytest node id.
+
+### The acceptance set is now one command
+
+Three different numbers were quoted for "the tests that touch the registry" during this
+ticket: 30/31 from a flat grep, 34/35 from a partial import walk, and 60/61 from a full one.
+`scripts/beaaa24273_acceptance_closure.py` is the single definition, and it is what the
+acceptance runs. It walks first-party imports from every source root, not just the ones the
+registry happens to live under, so a test that reaches the registry only through
+`api.full_scan_worker` is in the set exactly as much as one that imports it directly. It
+yields 68 files on master and 69 on the candidate, the difference being this ticket's own
+test file.
+

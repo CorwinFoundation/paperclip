@@ -10,7 +10,11 @@ import sys
 from pathlib import Path
 
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
-BASELINE_SHA = "71c5124d994ac007837712f51c4b21dbb17d9aa8"
+# Derived from the baseline worktree rather than hard-coded. A pinned constant
+# went stale the moment master moved, which would have made the receipt name a
+# tree the run did not measure.
+def baseline_sha(root: Path) -> str:
+    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
 
 RUNNER = r'''
 import json
@@ -60,7 +64,7 @@ def main() -> int:
         cand_spreads = {p: max(cand_pillars[p]) - min(cand_pillars[p]) for p in PILLARS}
         if abs(total_delta) > 1 or any(abs(value) > 1 for value in deltas.values()): failures.append(agent)
         rows.append({"agent": agent, "seeds": [0, 1, 2, 3, 4], "baseline": {"totals": base_totals, "median_total": median(base_totals), "pillar_medians": {p: median(base_pillars[p]) for p in PILLARS}, "total_spread": max(base_totals)-min(base_totals), "pillar_spreads": base_spreads}, "candidate": {"totals": cand_totals, "median_total": median(cand_totals), "pillar_medians": {p: median(cand_pillars[p]) for p in PILLARS}, "total_spread": max(cand_totals)-min(cand_totals), "pillar_spreads": cand_spreads}, "delta": {"total": total_delta, "pillars": deltas}})
-    report = {"ticket": "BEAAA-24273", "classification": "rule-execution", "contract": "contracts/are-scanner-api-v1.md@v1.3.0", "supervision_contract": "scanner-implementation-supervision-v1@v1.1", "scanner_version": "0.5.0", "corpus_version": "fixture-pinned per golden expected_score.json", "probe_set_version": "beaaa24273-six-point-floor@0.2.0", "rubric_point_id": ["P1.2", "P1.6", "P2.5", "P3.2", "P3.3", "P1.5"], "baseline": BASELINE_SHA, "candidate_tree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=args.candidate_root, text=True).strip(), "result": "PASS" if not failures else "FAIL", "failures": failures, "rows": rows}
+    report = {"ticket": "BEAAA-24273", "classification": "rule-execution", "contract": "contracts/are-scanner-api-v1.md@v1.3.0", "supervision_contract": "scanner-implementation-supervision-v1@v1.1", "scanner_version": "0.5.0", "corpus_version": "fixture-pinned per golden expected_score.json", "probe_set_version": "beaaa24273-six-point-floor@0.2.0", "rubric_point_id": ["P1.2", "P1.6", "P2.5", "P3.2", "P3.3", "P1.5"], "baseline": baseline_sha(args.baseline_root.resolve()), "candidate_tree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=args.candidate_root, text=True).strip(), "result": "PASS" if not failures else "FAIL", "failures": failures, "rows": rows}
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if not failures else 1
