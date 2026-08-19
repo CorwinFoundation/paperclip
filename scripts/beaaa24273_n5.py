@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 PILLARS = ("GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS")
-BASELINE_SHA = "128e7e8f66ce1a38256d9c4aa22051dd6cdf41ab"
+BASELINE_SHA = "71c5124d994ac007837712f51c4b21dbb17d9aa8"
 
 RUNNER = r'''
 import json
