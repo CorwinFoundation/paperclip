@@ -74,12 +74,13 @@ def test_scope_is_exactly_the_44_registered_lane_c_rows() -> None:
     )
 
 
-def test_all_44_rows_reach_the_subject_through_the_registered_executor(
-    tmp_path,
-) -> None:
-    """The defect: every row raised instead of executing. None may raise now."""
+# A target that declares the MCP surface. mcp_tool_integrity is conditional on it
+# (BEAAA-24612), so a scan of a target without it legitimately runs fewer rows.
+MCP_DECLARED = {"has_mcp_tool_integration": True}
+GATED_ROWS = 12
 
-    rows = _lane_c_rows()
+
+def _run_all(tmp_path, rows, capability_manifest):
     sent: list[str] = []
 
     def responder(prompt: str) -> str:
@@ -89,8 +90,29 @@ def test_all_44_rows_reach_the_subject_through_the_registered_executor(
 
     executor = _executor(tmp_path, responder)
     outcomes = [
-        executor._execute_case(row["test_id"], row["case_id"], row) for row in rows
+        executor._execute_case(
+            row["test_id"],
+            row["case_id"],
+            {**row, "capability_manifest": capability_manifest},
+        )
+        for row in rows
     ]
+    return outcomes, sent
+
+
+def test_all_44_rows_reach_the_subject_through_the_registered_executor(
+    tmp_path,
+) -> None:
+    """The defect: every row raised instead of executing. None may raise now.
+
+    Scanned against a target that declares the MCP surface, so every one of the
+    44 is applicable and the original "all 44 execute" guarantee is unchanged.
+    The undeclared-surface case is the test below.
+    """
+
+    rows = _lane_c_rows()
+
+    outcomes, sent = _run_all(tmp_path, rows, MCP_DECLARED)
     expected_calls = sum(len(declared_seeds(row)) for row in rows)
 
     assert len(outcomes) == EXPECTED_LANE_C_ROWS
@@ -98,6 +120,39 @@ def test_all_44_rows_reach_the_subject_through_the_registered_executor(
     assert all(outcome["responses"] for outcome in outcomes)
     assert all(outcome["judge"]["type"] == "lane_c_registered_runner" for outcome in outcomes)
     assert all(outcome["verdict"] in {"PASS", "FAIL", "DIVERGENT"} for outcome in outcomes)
+
+
+def test_undeclared_mcp_surface_runs_the_other_32_and_na_s_the_gated_12(
+    tmp_path,
+) -> None:
+    """Applicability narrows the run; it must not silently narrow it further.
+
+    BEAAA-24612 F6: before the gate, all 44 ran against every target and the 12
+    mcp_tool_integrity rows returned graded verdicts about an integration the
+    target never declared. The gate must remove exactly those 12 and touch
+    nothing else - a gate that also suppressed hef/cdr would pass a bare
+    "fewer rows ran" assertion, so the split is pinned by family.
+    """
+
+    rows = _lane_c_rows()
+
+    outcomes, sent = _run_all(tmp_path, rows, {})
+
+    by_family = {}
+    for row, outcome in zip(rows, outcomes):
+        by_family.setdefault(row["test_id"], []).append(outcome)
+
+    na = [o for o in outcomes if o["verdict"] == "not_applicable"]
+    assert len(na) == GATED_ROWS
+    assert all(o["score"] is None for o in na)
+    assert {o["verdict"] for o in by_family["mcp_tool_integrity"]} == {"not_applicable"}
+    for family in ("human_escalation_flagging", "customer_defined_risk_pack"):
+        assert all(
+            o["verdict"] in {"PASS", "FAIL", "DIVERGENT"} for o in by_family[family]
+        )
+
+    executed_rows = [r for r in rows if r["test_id"] != "mcp_tool_integrity"]
+    assert len(sent) == sum(len(declared_seeds(r)) for r in executed_rows)
 
 
 def test_executed_seed_set_matches_what_the_registry_row_declares(tmp_path) -> None:

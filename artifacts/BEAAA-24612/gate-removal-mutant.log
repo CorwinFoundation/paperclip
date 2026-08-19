@@ -1,0 +1,296 @@
+FFFFFFFFF....F                                                           [100%]
+=================================== FAILURES ===================================
+_ test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[empty_manifest] _
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_undeclared_mcp_surface_is0')
+capability_manifest = {}
+
+    @pytest.mark.parametrize(
+        "capability_manifest",
+        [
+            pytest.param({}, id="empty_manifest"),
+            pytest.param(None, id="absent_manifest"),
+            pytest.param({"has_mcp_tool_integration": False}, id="explicitly_false"),
+            pytest.param({"has_tool_calling": True}, id="unrelated_flag_only"),
+            pytest.param("has_mcp_tool_integration", id="malformed_manifest"),
+            pytest.param({"has_mcp_tool_integration": "true"}, id="truthy_string_is_not_true"),
+        ],
+    )
+    def test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing(
+        tmp_path, capability_manifest
+    ) -> None:
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, capability_manifest)
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:97: AssertionError
+_ test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[absent_manifest] _
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_undeclared_mcp_surface_is1')
+capability_manifest = None
+
+    @pytest.mark.parametrize(
+        "capability_manifest",
+        [
+            pytest.param({}, id="empty_manifest"),
+            pytest.param(None, id="absent_manifest"),
+            pytest.param({"has_mcp_tool_integration": False}, id="explicitly_false"),
+            pytest.param({"has_tool_calling": True}, id="unrelated_flag_only"),
+            pytest.param("has_mcp_tool_integration", id="malformed_manifest"),
+            pytest.param({"has_mcp_tool_integration": "true"}, id="truthy_string_is_not_true"),
+        ],
+    )
+    def test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing(
+        tmp_path, capability_manifest
+    ) -> None:
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, capability_manifest)
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:97: AssertionError
+_ test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[explicitly_false] _
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_undeclared_mcp_surface_is2')
+capability_manifest = {'has_mcp_tool_integration': False}
+
+    @pytest.mark.parametrize(
+        "capability_manifest",
+        [
+            pytest.param({}, id="empty_manifest"),
+            pytest.param(None, id="absent_manifest"),
+            pytest.param({"has_mcp_tool_integration": False}, id="explicitly_false"),
+            pytest.param({"has_tool_calling": True}, id="unrelated_flag_only"),
+            pytest.param("has_mcp_tool_integration", id="malformed_manifest"),
+            pytest.param({"has_mcp_tool_integration": "true"}, id="truthy_string_is_not_true"),
+        ],
+    )
+    def test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing(
+        tmp_path, capability_manifest
+    ) -> None:
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, capability_manifest)
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:97: AssertionError
+_ test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[unrelated_flag_only] _
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_undeclared_mcp_surface_is3')
+capability_manifest = {'has_tool_calling': True}
+
+    @pytest.mark.parametrize(
+        "capability_manifest",
+        [
+            pytest.param({}, id="empty_manifest"),
+            pytest.param(None, id="absent_manifest"),
+            pytest.param({"has_mcp_tool_integration": False}, id="explicitly_false"),
+            pytest.param({"has_tool_calling": True}, id="unrelated_flag_only"),
+            pytest.param("has_mcp_tool_integration", id="malformed_manifest"),
+            pytest.param({"has_mcp_tool_integration": "true"}, id="truthy_string_is_not_true"),
+        ],
+    )
+    def test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing(
+        tmp_path, capability_manifest
+    ) -> None:
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, capability_manifest)
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:97: AssertionError
+_ test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[malformed_manifest] _
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_undeclared_mcp_surface_is4')
+capability_manifest = 'has_mcp_tool_integration'
+
+    @pytest.mark.parametrize(
+        "capability_manifest",
+        [
+            pytest.param({}, id="empty_manifest"),
+            pytest.param(None, id="absent_manifest"),
+            pytest.param({"has_mcp_tool_integration": False}, id="explicitly_false"),
+            pytest.param({"has_tool_calling": True}, id="unrelated_flag_only"),
+            pytest.param("has_mcp_tool_integration", id="malformed_manifest"),
+            pytest.param({"has_mcp_tool_integration": "true"}, id="truthy_string_is_not_true"),
+        ],
+    )
+    def test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing(
+        tmp_path, capability_manifest
+    ) -> None:
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, capability_manifest)
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:97: AssertionError
+_ test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[truthy_string_is_not_true] _
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_undeclared_mcp_surface_is5')
+capability_manifest = {'has_mcp_tool_integration': 'true'}
+
+    @pytest.mark.parametrize(
+        "capability_manifest",
+        [
+            pytest.param({}, id="empty_manifest"),
+            pytest.param(None, id="absent_manifest"),
+            pytest.param({"has_mcp_tool_integration": False}, id="explicitly_false"),
+            pytest.param({"has_tool_calling": True}, id="unrelated_flag_only"),
+            pytest.param("has_mcp_tool_integration", id="malformed_manifest"),
+            pytest.param({"has_mcp_tool_integration": "true"}, id="truthy_string_is_not_true"),
+        ],
+    )
+    def test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing(
+        tmp_path, capability_manifest
+    ) -> None:
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, capability_manifest)
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:97: AssertionError
+___________ test_gate_holds_under_both_founder_dev_mode_settings[on] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_gate_holds_under_both_fou0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75e1b039bf50>
+dev_mode = 'on'
+
+    @pytest.mark.parametrize("dev_mode", ["on", "off"])
+    def test_gate_holds_under_both_founder_dev_mode_settings(
+        tmp_path, monkeypatch, dev_mode
+    ) -> None:
+        """Dev mode changes whether these rows score, never whether they apply."""
+    
+        if dev_mode == "on":
+            monkeypatch.setenv("BACKBOND_FOUNDER_DEV_MODE", "on")
+        else:
+            monkeypatch.delenv("BACKBOND_FOUNDER_DEV_MODE", raising=False)
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, {})
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:118: AssertionError
+__________ test_gate_holds_under_both_founder_dev_mode_settings[off] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_gate_holds_under_both_fou1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75e1b0314050>
+dev_mode = 'off'
+
+    @pytest.mark.parametrize("dev_mode", ["on", "off"])
+    def test_gate_holds_under_both_founder_dev_mode_settings(
+        tmp_path, monkeypatch, dev_mode
+    ) -> None:
+        """Dev mode changes whether these rows score, never whether they apply."""
+    
+        if dev_mode == "on":
+            monkeypatch.setenv("BACKBOND_FOUNDER_DEV_MODE", "on")
+        else:
+            monkeypatch.delenv("BACKBOND_FOUNDER_DEV_MODE", raising=False)
+        row = _rows(GATED_FAMILY)[0]
+    
+        outcome, calls = _run(tmp_path, row, {})
+    
+>       assert outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:118: AssertionError
+_________ test_every_gated_case_goes_not_applicable_not_just_the_first _________
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_every_gated_case_goes_not0')
+
+    def test_every_gated_case_goes_not_applicable_not_just_the_first(tmp_path) -> None:
+        rows = _rows(GATED_FAMILY)
+        assert len(rows) == 12
+    
+        results = [_run(tmp_path, row, {}) for row in rows]
+    
+>       assert {outcome["verdict"] for outcome, _ in results} == {"not_applicable"}
+E       AssertionError: assert {'FAIL', 'PASS'} == {'not_applicable'}
+E         
+E         Extra items in the left set:
+E         'PASS'
+E         'FAIL'
+E         Extra items in the right set:
+E         'not_applicable'
+E         Use -v to get more diff
+
+tests/test_beaaa24612_mcp_applicability_gate.py:129: AssertionError
+______ test_removing_the_gate_makes_the_undeclared_surface_execute_again _______
+
+tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_removing_the_gate_makes_t0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75e1b0334980>
+
+    def test_removing_the_gate_makes_the_undeclared_surface_execute_again(
+        tmp_path, monkeypatch
+    ) -> None:
+        """Gate-removal mutant. If this test ever fails, the tests above prove nothing.
+    
+        Restores the pre-fix behaviour by neutralising _resolve_applicability and
+        asserts the observable flips back: the undeclared surface is probed and
+        graded. A test suite that still passes with the guard deleted is coverage
+        theatre; this is the check that says it isn't.
+        """
+    
+        row = _rows(GATED_FAMILY)[0]
+    
+        # baseline: gate present -> no execution
+        guarded_outcome, guarded_calls = _run(tmp_path, row, {})
+>       assert guarded_outcome["verdict"] == "not_applicable"
+E       AssertionError: assert 'PASS' == 'not_applicable'
+E         
+E         - not_applicable
+E         + PASS
+
+tests/test_beaaa24612_mcp_applicability_gate.py:201: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[empty_manifest]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[absent_manifest]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[explicitly_false]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[unrelated_flag_only]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[malformed_manifest]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_undeclared_mcp_surface_is_not_applicable_and_costs_nothing[truthy_string_is_not_true]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_gate_holds_under_both_founder_dev_mode_settings[on]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_gate_holds_under_both_founder_dev_mode_settings[off]
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_every_gated_case_goes_not_applicable_not_just_the_first
+FAILED tests/test_beaaa24612_mcp_applicability_gate.py::test_removing_the_gate_makes_the_undeclared_surface_execute_again
+10 failed, 4 passed in 59.80s

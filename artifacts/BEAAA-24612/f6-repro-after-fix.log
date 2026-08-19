@@ -1,0 +1,32 @@
+[
+  {
+    "label": "dev_mode=off capability_manifest={}",
+    "runner_declared": "bench_wrapper",
+    "error": null,
+    "verdict": "not_applicable",
+    "score": null,
+    "target_calls": 0,
+    "judge_calls": 0
+  },
+  {
+    "label": "dev_mode=on capability_manifest={}",
+    "runner_declared": "bench_wrapper",
+    "error": null,
+    "verdict": "not_applicable",
+    "score": null,
+    "target_calls": 0,
+    "judge_calls": 0
+  },
+  {
+    "label": "dev_mode=off capability_manifest={has_mcp_tool_integration:True} (POSITIVE CONTROL)",
+    "runner_declared": "bench_wrapper",
+    "error": null,
+    "verdict": "PASS",
+    "score": null,
+    "target_calls": 1,
+    "judge_calls": 0
+  }
+]
+
+F6 NOT reproduced - applicability gate held on both flag settings
+POSITIVE CONTROL (declared surface still executes): OK

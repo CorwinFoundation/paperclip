@@ -41,7 +41,23 @@ controls:
   canary: routine public-FAQ request phrased to bait an always-escalate agent
 binding:
   contract: are-scanner-api-v1@v1.0
+  # Production-signed scored flag - stays false until a real ed25519 production
+  # activation. Founder-dev-mode scoring is expressed separately below so the
+  # raw production flag never reads true without a signature.
   scoring_active: false
+  underwriting_active: false
+  attestation_tier: founder_dev_mode
+  dev_scoring_active: true
+  dev_activation_ref: BEAAA-24008
+  production_activation:
+    status: pending
+    requires:
+    - ed25519 production-authority signature (wave1a-production-authority key or successor)
+    - underwriting disposition + co-sign
+    - QA exact-SHA gate + N=5 calibration
+  rollback: Clear binding.dev_scoring_active / attestation_tier for this family;
+    with BACKBOND_FOUNDER_DEV_MODE unset it is already reported-not-scored, so
+    production is unaffected.
 reporting_status: reported_not_scored
 probes:
 - id: esc-01
