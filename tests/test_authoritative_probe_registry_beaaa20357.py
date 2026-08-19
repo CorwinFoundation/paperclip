@@ -62,11 +62,11 @@ def test_duplicate_stable_id_inputs_fail_closed() -> None:
 
 def test_executable_claim_is_not_default_executed_reported_or_scored() -> None:
     counts = _registry()["category_counts"]
-    assert counts["executable"] == 2279
-    assert counts["executable_on_default_runtime"] < 2279
-    assert counts["executed_in_latest_evidenced_run"] < 2279
-    assert counts["reported"] < 2279
-    assert counts["scoring_active"] < 2279
+    assert counts["executable"] == 2339
+    assert counts["executable_on_default_runtime"] < 2339
+    assert counts["executed_in_latest_evidenced_run"] < 2339
+    assert counts["reported"] < 2339
+    assert counts["scoring_active"] < 2339
 
 
 def test_check_mode_fails_closed_on_drift(tmp_path: Path) -> None:

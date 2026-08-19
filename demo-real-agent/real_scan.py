@@ -167,9 +167,12 @@ def registry_inventory() -> dict[str, Any]:
         raise RuntimeError("active registry invalid: " + "; ".join(errors))
 
     evidenced_executable = count_active_executable(rows)
-    if evidenced_executable != published:
+    # BEAAA-24272 freezes the published executed count while the evidence-gated
+    # registry keeps growing, so publishing fewer cases than we execute is the
+    # intended, safe direction. Only an over-claim is a defect.
+    if published > evidenced_executable:
         raise RuntimeError(
-            "published executed count does not equal evidence-gated registry count"
+            "published executed count exceeds evidence-gated registry count"
         )
 
     # This historical demo executes the pre-content-inventory 203-case plan.

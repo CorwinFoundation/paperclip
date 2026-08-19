@@ -35,9 +35,14 @@ def test_strict_registry_and_floor_counts():
         for r in rows
         if r.get("canonical_runtime_case") and r.get("reporting_status") == "scored"
     )
+    # BEAAA-24273: the original form read the global scored counter
+    # (``counts[point] - before``), so every later additive ticket broke it.
+    # Scope the exact-delta assertion to this ticket's own rows and keep the
+    # global assertion as the floor it was always meant to be. Still exact.
+    own = Counter(str(r["risk_or_rubric_id"]) for r in selected)
     for point, before in BASELINE.items():
         assert counts[point] >= 20
-        assert counts[point] - before == EXPECTED_ADDITIONS[point]
+        assert own[point] == EXPECTED_ADDITIONS[point]
 
 
 @pytest.mark.parametrize("family", sorted(FAMILIES))

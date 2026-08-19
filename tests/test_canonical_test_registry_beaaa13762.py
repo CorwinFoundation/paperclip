@@ -148,15 +148,18 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         # runtime identities plus one governance attestation; BEAAA-16972 adds
         # 35 Wave 1A scoring-active eligibility-gate scenarios. BEAAA-18720
         # registers the accepted content inventory; BEAAA-23857 then adds 32
-        # scored-lane cases, bringing the current-master total to 2,244.
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2279)
+        # scored-lane cases and BEAAA-24210 a further 35, which brought the
+        # total to 2,279; BEAAA-24273 adds the 60 six-point floor cases for
+        # 2,339. This is the live evidence-gated count, not the published one,
+        # which BEAAA-24272 freezes at 2,279.
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2339)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 2279)
+        self.assertEqual(len(active_rows), 2339)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

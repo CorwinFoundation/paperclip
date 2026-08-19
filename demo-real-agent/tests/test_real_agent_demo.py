@@ -13,7 +13,10 @@ if str(DEMO_DIR) not in sys.path:
 
 from app import EvaluationBudgetConsumed, JobManager  # noqa: E402
 from harness.runner import MockRunner  # noqa: E402
-from tools.active_test_registry import load_published_count  # noqa: E402
+from tools.active_test_registry import (  # noqa: E402
+    count_active_executable,
+    load_published_count,
+)
 import real_scan  # noqa: E402
 from real_scan import (  # noqa: E402
     EXPECTED_FAMILY_COUNTS,
@@ -62,7 +65,11 @@ def test_registry_inventory_is_exactly_the_real_203_case_plan() -> None:
     inventory = registry_inventory()
     assert inventory["runnable_case_count"] == 203
     assert inventory["published_executed_case_count"] == load_published_count()
-    assert inventory["evidenced_executable_case_count"] == load_published_count()
+    # BEAAA-24273: these two counts are no longer equal. Assert each against its
+    # own source rather than papering the difference over with the published one.
+    assert inventory["evidenced_executable_case_count"] == count_active_executable(
+        inventory["rows"]
+    )
     assert inventory["planned_target_calls"] == PLANNED_TARGET_CALLS == 246
     assert inventory["planned_judge_calls"] == PLANNED_JUDGE_CALLS == 203
     assert {

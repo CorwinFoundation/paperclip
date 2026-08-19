@@ -49,15 +49,22 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertFalse(validate_registry(self.rows, published_count=load_published_count()))
 
     def test_production_registry_counts_canonical_runtime_identities_once(self) -> None:
-        self.assertEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(count_active_executable(self.rows), 2279)
+        # BEAAA-24272 freezes the published executed count while BEAAA-24273
+        # adds 60 executable rows, so active executable now exceeds published.
+        # ``validate_registry`` only errors when published > active, so
+        # under-claiming is the legal and safe direction. The explicit pin below
+        # keeps a silent drop in the published count caught; BEAAA-24454 owns
+        # moving that pin when the deliberate re-publish happens.
+        self.assertGreaterEqual(count_active_executable(self.rows), load_published_count())
+        self.assertEqual(load_published_count(), 2279)
+        self.assertEqual(count_active_executable(self.rows), 2339)
         # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
         # coverage while external evidence remains separate from the canonical
         # runtime-identity evidence gate.
-        self.assertEqual(count_target_bound_runtime(self.rows), 2290)
+        self.assertEqual(count_target_bound_runtime(self.rows), 2350)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
-        self.assertEqual(len(promoted), 2031)
+        self.assertEqual(len(promoted), 2091)
         self.assertEqual(len(aliases), 12)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:
