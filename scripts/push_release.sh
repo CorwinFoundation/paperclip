@@ -36,11 +36,7 @@ if [[ ! "${BACKBOND_RELEASE_PUSH_REF:-}" =~ ^BEAAA-[0-9]+$ ]]; then
   exit 2
 fi
 
-push_cmd=(git)
-if [[ -n "${GITHUB_PAT_ARE_SCANNER:-}" ]]; then
-  push_cmd+=(-c "credential.helper=!f() { echo username=x-access-token; echo password=\$GITHUB_PAT_ARE_SCANNER; }; f")
-fi
-push_cmd+=(push --set-upstream origin "$branch")
+push_cmd=(git push --set-upstream origin "$branch")
 
 echo "[release-push] pushing '$branch' with ${BACKBOND_RELEASE_PUSH_APPROVER_ROLE} approval ${BACKBOND_RELEASE_PUSH_REF}" >&2
 "${push_cmd[@]}"

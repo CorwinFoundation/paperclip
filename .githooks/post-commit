@@ -18,8 +18,8 @@
 #   - detached HEAD → skip
 #   - only auto-pushes allowed agent feature branches
 #   - never auto-pushes master, main, release/*, or protected branches
-#   - GITHUB_PAT_ARE_SCANNER env var → injected via inline credential helper
-#     so token never persists to disk.
+#   - authenticates with the ambient git credential helper only; the hook
+#     never injects a token from the environment (BEAAA-24500)
 
 set -uo pipefail
 
@@ -91,11 +91,7 @@ if printf '%s\n' "$msg" | grep -qE '^[[:space:]]*\[skip push\][[:space:]]*$'; th
   exit 0
 fi
 
-push_cmd=(git)
-if [[ -n "${GITHUB_PAT_ARE_SCANNER:-}" ]]; then
-  push_cmd+=(-c "credential.helper=!f() { echo username=x-access-token; echo password=\$GITHUB_PAT_ARE_SCANNER; }; f")
-fi
-push_cmd+=(push --set-upstream origin "$branch")
+push_cmd=(git push --set-upstream origin "$branch")
 
 if "${push_cmd[@]}"; then
   echo "[auto-push] pushed $branch to origin" >&2

@@ -18,7 +18,6 @@ pytestmark = pytest.mark.skipif(
 
 def run(cmd, cwd, **kwargs):
     env = os.environ.copy()
-    env.pop("GITHUB_PAT_ARE_SCANNER", None)
     env.update(kwargs.pop("env", {}))
     return subprocess.run(cmd, cwd=cwd, env=env, text=True, capture_output=True, **kwargs)
 
@@ -120,3 +119,13 @@ def test_release_push_allows_cto_ack(tmp_path):
     assert "pushing 'release/2026-06-14' with CTO approval BEAAA-5283" in result.stderr
     refs = run(["git", "show-ref"], origin, check=True).stdout
     assert "refs/heads/release/2026-06-14" in refs
+
+
+def test_push_paths_do_not_inject_a_credential_from_the_environment():
+    """BEAAA-24500: both push paths authenticate with the ambient git credential
+    helper. Reintroducing an inline `credential.helper` fed from an environment
+    variable rebuilds the token-injection path BEAAA-24437 closed."""
+    for path in (HOOK, RELEASE_PUSH):
+        body = path.read_text()
+        assert "GITHUB_PAT_ARE_SCANNER" not in body, path
+        assert "credential.helper" not in body, path

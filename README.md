@@ -117,8 +117,8 @@ brings new hooks):
 
 This installs `.githooks/post-commit`, which auto-pushes commits on
 allowed agent feature branches (`beaaa-*` and `feature/beaaa-*`) to
-`origin`. The hook reads `GITHUB_PAT_ARE_SCANNER` from the environment
-via an inline credential helper, so no token is written to disk. To skip
+`origin`. The hook authenticates with whatever git credential helper the
+environment already provides; it never injects a token of its own. To skip
 the auto-push for a single commit, include `[skip push]` in the commit
 message. The hook also skips during in-flight rebase / cherry-pick /
 merge, on detached HEAD, on branches outside the allow-list, and on
