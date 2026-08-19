@@ -7,7 +7,9 @@ evidence. The drill found four defects in the install procedure and one in the
 rollback text; all five are fixed in `PRODUCTION-INGEST.md` and the drill was
 re-run clean afterwards.
 
-- Candidate: `a0ca6858146d6d8c7c2a1f43047f57f6ca84fe28`
+- Candidate: the tip of the branch below. A commit cannot name its own hash, so
+  the exact candidate SHA is recorded on BEAAA-24725 and in the QA brief; verify
+  it with `git rev-parse agent/beaaa-24725-p1-envelope-observability`.
 - Branch: `agent/beaaa-24725-p1-envelope-observability`
 - Base: `e8c5dc4463ee4cceaa98c7735c099a7a3dbb0808` (BEAAA-24534, tip of
   `origin/agent/beaaa-24534-boundary-structural-rekey`). Not rebased onto master;
