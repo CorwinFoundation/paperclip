@@ -1,7 +1,7 @@
 import { redactCommandText } from "@paperclipai/adapter-utils";
 
 const SECRET_FIELD_NAME_PATTERN =
-  String.raw`[A-Za-z0-9_-]*(?:api[-_]?key|access[-_]?token|auth(?:_?token)?|token|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)[A-Za-z0-9_-]*`;
+  String.raw`[A-Za-z0-9_-]*(?:api[-_]?key|github[-_]?pat|access[-_]?token|auth(?:_?token)?|token|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)[A-Za-z0-9_-]*`;
 
 const SECRET_PAYLOAD_KEY_RE = new RegExp(SECRET_FIELD_NAME_PATTERN, "i");
 const COMMAND_PAYLOAD_KEY_RE =
@@ -36,6 +36,7 @@ const SECRET_TEXT_HINTS = [
   "ghu_",
   "ghs_",
   "ghr_",
+  "github_pat_",
 ] as const;
 export const REDACTED_EVENT_VALUE = "***REDACTED***";
 
@@ -121,6 +122,52 @@ export function redactEventPayload(payload: Record<string, unknown> | null): Rec
   if (!payload) return null;
   if (!isPlainObject(payload)) return payload;
   return sanitizeRecord(payload);
+}
+
+/**
+ * Unambiguous credential shapes, safe to strip from any persisted text.
+ *
+ * This is deliberately narrower than `redactSensitiveText`: it is applied to every
+ * byte of run-log output at the persistence boundary, where the full name-driven
+ * battery would blank ordinary `NAME=value` output and JWT-shaped identifiers that
+ * operators need in order to read a failed run. These two shapes cannot occur in
+ * benign output.
+ *
+ * The GitHub expression carries no leading `\b` on purpose. Run logs are NDJSON, so
+ * a newline inside a captured chunk is stored as the two characters `\` and `n`; a
+ * token that starts a captured line is therefore preceded by the word character `n`
+ * and a leading boundary never fires. This is why 4 of 370 corpus lines survived the
+ * prefix-only version of this fix (BEAAA-24502).
+ */
+const PERSISTED_CREDENTIAL_TOKEN_RES = [
+  /(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{22,})\b/g,
+  /\bsk-[A-Za-z0-9_-]{12,}\b/g,
+] as const;
+
+// "gh" covers the classic ghp_/gho_/ghu_/ghs_/ghr_ prefixes. It does NOT cover the
+// fine-grained one: "github" is g-i-t-h-u-b and contains no "gh" digraph, so the
+// fine-grained prefix has to be listed in its own right.
+const PERSISTED_CREDENTIAL_HINTS = ["gh", "github_pat_", "sk-"] as const;
+
+/**
+ * Strip credential-shaped tokens from text that is about to be written to disk.
+ *
+ * Returns `input` unchanged when no hint is present, so the hot log path pays one
+ * substring scan on the overwhelming majority of chunks.
+ */
+export function redactCredentialTokens(
+  input: string,
+  redactedValue: string = REDACTED_EVENT_VALUE,
+): string {
+  if (!input) return input;
+  const lower = input.toLowerCase();
+  if (!PERSISTED_CREDENTIAL_HINTS.some((hint) => lower.includes(hint))) return input;
+  let result = input;
+  for (const re of PERSISTED_CREDENTIAL_TOKEN_RES) {
+    re.lastIndex = 0;
+    result = result.replace(re, redactedValue);
+  }
+  return result;
 }
 
 export function redactSensitiveText(input: string): string {

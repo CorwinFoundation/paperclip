@@ -3,6 +3,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { notFound } from "../errors.js";
 import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { redactCredentialTokens } from "../redaction.js";
 
 export type RunLogStoreType = "local_file";
 
@@ -109,10 +110,14 @@ function createLocalFileRunLogStore(basePath: string): RunLogStore {
     async append(handle, event) {
       if (handle.store !== "local_file") return 0;
       const absPath = resolveWithin(basePath, handle.logRef);
+      // Last line of defence. Callers are expected to redact, but this is the single
+      // choke point every persisted run-log byte passes through, so scrubbing
+      // credential-shaped tokens here holds regardless of which caller appends and
+      // covers tool output as well as command text (BEAAA-24614).
       const line = JSON.stringify({
         ts: event.ts,
         stream: event.stream,
-        chunk: event.chunk,
+        chunk: redactCredentialTokens(event.chunk),
       });
       const persisted = `${line}\n`;
       await fs.appendFile(absPath, persisted, "utf8");
