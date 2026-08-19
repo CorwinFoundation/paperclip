@@ -13,6 +13,11 @@
   "baseline_scan_due": "2026-05-11",
   "expected_band_range": "A- / A",
   "expected_bmi_range": [
+    70,
+    76
+  ],
+  "expected_bmi_range_source": "HUW co-sign, 2026-05-17, BEAAA-479 (\u00b13 post-Phase-2-expansion, ADR-0007 admittance-dial coverage)",
+  "expected_bmi_range_widened_from": [
     85,
     89
   ],
