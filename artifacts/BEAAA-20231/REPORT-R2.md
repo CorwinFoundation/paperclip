@@ -152,6 +152,11 @@ that isn't one).
 | M6 `scoped_status` ignores token/tenant (revert F5) | 1 failed |
 | M7 loader returns a stub verifier and a 1-field set (the round-1 blindness) | 4 failed |
 
+**Superseded.** The seven mutants above all mutate the *equality check*; none
+mutates the *path-keying*, which is where the F1 reduction actually lived. The
+re-key and mutant M8 are on BEAAA-24534; see `artifacts/BEAAA-24534/REPORT.md`
+for the re-run table (M1-M8, all killed).
+
 ### The suite now actually runs in CI
 
 `test_appliance_ingest_beaaa20231.py` was in no workflow — the round-1 suite could

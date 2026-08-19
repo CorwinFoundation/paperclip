@@ -28,7 +28,19 @@ FIRST_BATCH_SEQ = 1
 # to be exactly the per-class tally of batch["events"] -- already scanned by name
 # one step earlier. An exact-equality check leaves the map with no leak surface
 # of its own: it may hold nothing that the events do not already hold.
-ACTION_CLASS_HISTOGRAM_PATH = "$.counts.by_action_class"
+#
+# The exemption is addressed structurally, by the tuple of keys walked to reach
+# the node, and never by a rendered path string. A rendered string is forgeable:
+# the sender names its own keys, so a top-level key literally called
+# "counts.by_action_class" renders to the same dotted path and would carry its
+# whole subtree past the scan unread. Nothing else catches it -- verify_batch
+# rebuilds the signed body from nine named keys, so an injected extra top-level
+# key is unsigned and still verifies, and _histogram_violation reads
+# batch["counts"], a different key (BEAAA-20237 F7 / BEAAA-24478 item 1). A
+# tuple of keys cannot be forged by any key name, and the exemption additionally
+# requires the node to be the object batch["counts"]["by_action_class"] itself.
+ACTION_CLASS_HISTOGRAM_KEYS = ("counts", "by_action_class")
+ACTION_CLASS_HISTOGRAM_PATH = "$.counts.by_action_class"  # rendered, for reporting only
 
 
 class IngestRejected(ValueError):
@@ -50,20 +62,58 @@ def _plain_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def _find_prohibited(value: Any, prohibited: Collection[str], path: str = "$") -> str | None:
+def _render_path(keys: tuple) -> str:
+    """Render a walked key tuple for the rejection reason. Reporting only -- no
+    control decision is ever taken on this string."""
+    rendered = "$"
+    for key in keys:
+        if _plain_int(key):
+            rendered += f"[{key}]"
+        elif isinstance(key, str) and not any(char in key for char in ".[]'"):
+            rendered += f".{key}"
+        else:
+            # A key that would otherwise render ambiguously against a genuine
+            # address is bracket-quoted, so the reason names one node only.
+            rendered += f"[{str(key)!r}]"
+    return rendered
+
+
+def _histogram_node(batch: Mapping) -> Mapping | None:
+    """The one node the name scan may skip, resolved by structure up front."""
+    counts = batch.get("counts")
+    if isinstance(counts, Mapping):
+        node = counts.get("by_action_class")
+        if isinstance(node, Mapping):
+            return node
+    return None
+
+
+def _find_prohibited(
+    value: Any,
+    prohibited: Collection[str],
+    keys: tuple = (),
+    exempt: Mapping | None = None,
+) -> str | None:
+    """Name-scan every node for a prohibited field.
+
+    ``exempt`` is the action-class histogram resolved by ``_histogram_node``. It
+    is skipped only where both the walked key tuple and object identity say this
+    is that node; passing nothing exempts nothing, so a caller that forgets the
+    argument fails closed on genuine batches rather than opening the boundary.
+    """
     if isinstance(value, Mapping):
-        if path == ACTION_CLASS_HISTOGRAM_PATH:
+        if keys == ACTION_CLASS_HISTOGRAM_KEYS and exempt is not None and value is exempt:
             return None  # value-keyed; checked by _histogram_violation instead
         for key, child in value.items():
-            child_path = f"{path}.{key}"
+            child_keys = (*keys, key)
             if key in prohibited:
-                return child_path
-            found = _find_prohibited(child, prohibited, child_path)
+                return _render_path(child_keys)
+            found = _find_prohibited(child, prohibited, child_keys, exempt)
             if found:
                 return found
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            found = _find_prohibited(child, prohibited, f"{path}[{index}]")
+            found = _find_prohibited(child, prohibited, (*keys, index), exempt)
             if found:
                 return found
     return None
@@ -179,7 +229,9 @@ class ApplianceIngestStore:
         if not self.verify_batch(batch, public_key):
             raise IngestRejected("signature_or_batch_hash_invalid")
 
-        leaked_path = _find_prohibited(batch, self.prohibited_fields)
+        leaked_path = _find_prohibited(
+            batch, self.prohibited_fields, exempt=_histogram_node(batch)
+        )
         if leaked_path is None:
             leaked_path = _histogram_violation(batch)
         if leaked_path:
