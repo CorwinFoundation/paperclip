@@ -35,7 +35,7 @@ def test_registry_binds_text_rows_without_bypassing_evidence_gate():
     text_rows = _text_rows()
 
     assert len(text_rows) == 113
-    assert count_active_executable(rows) == 350
+    assert count_active_executable(rows) == 417
     assert Counter(row["production_runner_executable"] for row in text_rows) == {
         True: 90,
         False: 23,

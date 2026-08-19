@@ -11,7 +11,7 @@ IMAGE="backbond/real-agent-demo:${DEMO_GIT_SHA:?DEMO_GIT_SHA is required}"
 RUN_VOLUME="backbond-real-agent-demo-runs"
 PROD_PORT="8765"
 CANDIDATE_PORT="${CANDIDATE_PORT:-18765}"
-JUDGE_SOCKET_DIR="${CLAUDE_JUDGE_SOCKET_DIR:-/run/backbond-claude-judge}"
+JUDGE_SOCKET_DIR="/run/backbond-claude-judge"
 JUDGE_SOCKET_HOST="${JUDGE_SOCKET_DIR}/judge.sock"
 CLAUDE_PROXY_ENABLED=false
 
@@ -29,6 +29,10 @@ parse_judge_socket_status() {
   esac
 }
 
+if [[ -n "${CLAUDE_JUDGE_SOCKET_DIR+x}" && "$CLAUDE_JUDGE_SOCKET_DIR" != "$JUDGE_SOCKET_DIR" ]]; then
+  echo "CLAUDE_JUDGE_SOCKET_DIR must not override the fixed judge socket directory" >&2
+  exit 1
+fi
 if [[ ! -x "$PREFLIGHT_HELPER" ]]; then
   echo "fixed secret preflight helper is not installed" >&2
   exit 1

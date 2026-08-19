@@ -111,6 +111,15 @@ func TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues(t *testin
 		"deployment_id":   func(event map[string]any) { event["deployment_id"] = "verbatim call recording" },
 		"action_class":    func(event map[string]any) { event["action_class"] = "TRANSCRIPT: card 4111 1111 1111 1111" },
 		"outcome_status":  func(event map[string]any) { event["outcome_status"] = "customer response content" },
+		"collector_version": func(event map[string]any) {
+			event["producer"].(map[string]any)["collector_version"] = pii
+		},
+		"scanner_version": func(event map[string]any) {
+			event["producer"].(map[string]any)["scanner_version"] = pii
+		},
+		"corpus_version": func(event map[string]any) {
+			event["producer"].(map[string]any)["corpus_version"] = pii
+		},
 		"determination_class": func(event map[string]any) {
 			event["determinations"].([]any)[0].(map[string]any)["class"] = "spoken PII"
 		},
@@ -127,6 +136,37 @@ func TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues(t *testin
 				t.Fatal("accepted transcript/content/PII-bearing free text")
 			}
 		})
+	}
+}
+
+func TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins(t *testing.T) {
+	values := map[string]bool{
+		"0.5.0":       true,
+		"0.1.0":       true,
+		"0.1.1":       true,
+		"2026.6.24":   true,
+		"0.5":         false,
+		"0.5.0.1":     false,
+		"01.2.3":      false,
+		"12345.0.0":   false,
+		"0.5.0 ":      false,
+		"123-45-6789": false,
+	}
+	for _, field := range []string{"collector_version", "scanner_version", "corpus_version"} {
+		for value, valid := range values {
+			t.Run(field+"/"+value, func(t *testing.T) {
+				event := validSyntheticVoiceEvent()
+				event["producer"].(map[string]any)[field] = value
+				line, pub := signedSyntheticVoiceLine(t, event, nil)
+				_, err := NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture-key": pub})
+				if valid && err != nil {
+					t.Fatalf("rejected bounded producer version pin %q: %v", value, err)
+				}
+				if !valid && err == nil {
+					t.Fatalf("accepted producer version outside bounded pin form %q", value)
+				}
+			})
+		}
 	}
 }
 
