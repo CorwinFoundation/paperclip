@@ -1,0 +1,156 @@
+
+=== CANDIDATE UNDER DRILL
+$ echo "candidate: 113933f0d89996606422ee3e47b3873bea43f062"
+candidate: 113933f0d89996606422ee3e47b3873bea43f062
+$ sha256sum /candidate/ops/paperclip/numbat/PRODUCTION-INGEST.md
+86a7b4575a7324331567a4851351583d8cc77a26bc52dffe5e16903628fe9ea6  /candidate/ops/paperclip/numbat/PRODUCTION-INGEST.md
+$ sha256sum /candidate/tools/log-tracker/src/log_tracker/appliance_ingest.py
+5e5f858162d807ef8563c29029262f3514454c96d6f294c4cf52bac006f622e0  /candidate/tools/log-tracker/src/log_tracker/appliance_ingest.py
+$ sha256sum /candidate/tools/log-tracker/src/log_tracker/appliance_ingest_server.py
+e736cfbce1efdfdbfcdec69e03595799a0864d1c2f95bde355e1848e89f09469  /candidate/tools/log-tracker/src/log_tracker/appliance_ingest_server.py
+
+=== DOC STEP 1 -- sealed artifact
+$ sha256sum /candidate/ops/paperclip/numbat/backbond-appliance-0.1.0.zip
+dbef6e73a715adda40e7697c070a96b7844398e09c7925926b8e541e5c87ef8a  /candidate/ops/paperclip/numbat/backbond-appliance-0.1.0.zip
+/candidate/ops/paperclip/numbat/backbond-appliance-0.1.0.zip: OK
+$ unzip -q /candidate/ops/paperclip/numbat/backbond-appliance-0.1.0.zip -d /opt/backbond
+$ mv /opt/backbond/backbond-appliance /opt/backbond/appliance-0.1.0
+$ ls /opt/backbond/appliance-0.1.0/appliance/batch.py
+/opt/backbond/appliance-0.1.0/appliance/batch.py
+
+=== DOC STEP 2 -- virtualenv and the Log Tracker package
+$ python3 -m venv /opt/backbond/venv
+$ cp -r /candidate/tools/log-tracker /root/log-tracker-src
+$ /opt/backbond/venv/bin/python -m pip -q install /root/log-tracker-src
+$ /opt/backbond/venv/bin/python -c 'import log_tracker; print(log_tracker.__file__)'
+/opt/backbond/venv/lib/python3.12/site-packages/log_tracker/__init__.py
+
+=== DOC STEP 3 -- the sealed appliance's own dependencies
+$ /opt/backbond/venv/bin/python -m pip -q install -r /opt/backbond/appliance-0.1.0/requirements.txt
+$ /opt/backbond/venv/bin/python -c 'import cryptography; print(cryptography.__version__)'
+50.0.0
+
+=== DOC STEP 4 -- service identity and directories
+$ groupadd -r backbond
+$ useradd -r -g backbond -s /usr/sbin/nologin -d /var/lib/backbond backbond
+$ install -d -o backbond -g backbond -m 0750 /var/lib/backbond
+$ install -d -o root -g backbond -m 0750 /etc/backbond
+$ id backbond
+uid=997(backbond) gid=997(backbond) groups=997(backbond)
+
+=== DOC STEP 5 -- migration
+$ install -D -m 0644 /candidate/tools/log-tracker/migrations/0002_appliance_ingest.sql /opt/backbond/migrations/0002_appliance_ingest.sql
+
+=== PRODUCER -- customer-side signer, present only so the drill has genuine batches
+$ python3 -m venv /root/producer-venv
+$ /root/producer-venv/bin/pip -q install -r /opt/backbond/appliance-0.1.0/requirements.txt
+$ mkdir -p /root/drill
+$ cp /candidate/artifacts/BEAAA-24725/drill_producer.py /root/drill/producer.py
+$ /root/producer-venv/bin/python /root/drill/producer.py pubkey > /root/drill/appliance.pub
+
+=== DOC STEP 6 -- configuration files and their ownership
+$ printf 'BACKBOND_INGEST_TOKEN=drill-token\n' > /etc/backbond/appliance-ingest.env
+$ chown root:backbond /etc/backbond/appliance-enrollment.json
+$ chmod 0640 /etc/backbond/appliance-enrollment.json
+$ chmod 0600 /etc/backbond/appliance-ingest.env
+$ ls -l /etc/backbond/
+total 8
+-rw-r----- 1 root backbond 267 Aug 19 21:57 appliance-enrollment.json
+-rw------- 1 root root      34 Aug 19 21:57 appliance-ingest.env
+
+=== DOC STEP 7 -- install, enable, confirm serving
+$ install -m 0644 /candidate/ops/paperclip/numbat/backbond-appliance-ingest.service /etc/systemd/system/
+$ systemctl daemon-reload
+$ systemd-analyze verify /etc/systemd/system/backbond-appliance-ingest.service && echo 'unit verifies clean'
+unit verifies clean
+$ systemctl enable --now backbond-appliance-ingest.service
+Created symlink /etc/systemd/system/multi-user.target.wants/backbond-appliance-ingest.service → /etc/systemd/system/backbond-appliance-ingest.service.
+$ systemctl is-active backbond-appliance-ingest.service
+active
+$ systemctl is-enabled backbond-appliance-ingest.service
+enabled
+$ curl -sS -o /dev/null -w 'healthz http=%{http_code}\n' http://127.0.0.1:8787/healthz
+healthz http=200
+
+=== DELIVERY -- a genuine batch is accepted at seq 1
+$ /root/producer-venv/bin/python /root/drill/producer.py emit b1 /root/drill/batch1.json
+built batch_seq=1 prev=None -> /root/drill/batch1.json
+$ /root/producer-venv/bin/python /root/drill/producer.py deliver /root/drill/batch1.json
+{"http_status": 200, "response": {"accepted": true, "batch_hash": "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", "duplicate": false}}
+$ receipts
+[[1, "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", null, 2]]
+rows_sha256: 4d1453deed822de04e3fcad795b63fbd3a4a535e394bd3f3a588c057162aeb82
+
+=== PART A on the deployed service -- an unsigned rider is refused
+the rider shares the delivered batch_hash: sha256:e0b5508da71114e558b5
+$ ! /root/producer-venv/bin/python /root/drill/producer.py deliver /root/drill/rider.json
+{"http_status": 422, "response": {"accepted": false, "error": "unknown_envelope_field"}}
+$ receipts
+[[1, "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", null, 2]]
+rows_sha256: 4d1453deed822de04e3fcad795b63fbd3a4a535e394bd3f3a588c057162aeb82
+
+=== PART B on the deployed service -- the metrics surface and its scoping
+$ curl -sS -H 'Authorization: Bearer drill-token' -H 'X-BackBond-Tenant: tenantA' http://127.0.0.1:8787/metrics
+{"accepted_total": 1, "batches_accepted": 1, "chain_tip_batch_seq": {"a1": 1}, "determinations_accepted": 0, "duplicates_total": 0, "events_accepted": 2, "rejected_total": {"unknown_envelope_field": 1}, "unavailable_total": 0}
+$ curl -sS -o /dev/null -w 'cross-tenant read http=%{http_code}\n' -H 'Authorization: Bearer drill-token' -H 'X-BackBond-Tenant: tenantB' http://127.0.0.1:8787/metrics
+cross-tenant read http=403
+$ curl -sS -o /dev/null -w 'unauthenticated read http=%{http_code}\n' http://127.0.0.1:8787/metrics
+unauthenticated read http=403
+
+=== ROLLBACK -- stop and disable
+$ receipts > /root/drill/pre-rollback.txt; cat /root/drill/pre-rollback.txt
+[[1, "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", null, 2]]
+rows_sha256: 4d1453deed822de04e3fcad795b63fbd3a4a535e394bd3f3a588c057162aeb82
+$ systemctl disable --now backbond-appliance-ingest.service
+Removed "/etc/systemd/system/multi-user.target.wants/backbond-appliance-ingest.service".
+$ systemctl is-active backbond-appliance-ingest.service || true
+inactive
+$ systemctl is-enabled backbond-appliance-ingest.service || true
+disabled
+
+=== ROLLBACK -- delivery fails closed and visibly, and writes nothing
+$ /root/producer-venv/bin/python /root/drill/producer.py emit b2 /root/drill/batch2.json
+built batch_seq=2 prev=sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8 -> /root/drill/batch2.json
+$ ! /root/producer-venv/bin/python /root/drill/producer.py deliver /root/drill/batch2.json
+{"http_status": null, "response": {"client_error": "URLError", "detail": "<urlopen error [Errno 111] Connection refused>"}}
+$ curl -sS -o /dev/null -w 'healthz while rolled back: %{http_code}\n' --max-time 5 http://127.0.0.1:8787/healthz || echo "curl exited $? -- refused, not a slow success"
+curl: (7) Failed to connect to 127.0.0.1 port 8787 after 0 ms: Couldn't connect to server
+healthz while rolled back: 000
+curl exited 7 -- refused, not a slow success
+$ receipts > /root/drill/during-rollback.txt; cat /root/drill/during-rollback.txt
+[[1, "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", null, 2]]
+rows_sha256: 4d1453deed822de04e3fcad795b63fbd3a4a535e394bd3f3a588c057162aeb82
+$ diff /root/drill/pre-rollback.txt /root/drill/during-rollback.txt && echo 'receipt table unchanged across the rollback window'
+receipt table unchanged across the rollback window
+
+=== RESTORE -- the receipt table is reopened, not recreated
+$ systemctl enable --now backbond-appliance-ingest.service
+Created symlink /etc/systemd/system/multi-user.target.wants/backbond-appliance-ingest.service → /etc/systemd/system/backbond-appliance-ingest.service.
+$ systemctl is-active backbond-appliance-ingest.service
+active
+$ curl -sS -o /dev/null -w 'healthz after restore: %{http_code}\n' http://127.0.0.1:8787/healthz
+healthz after restore: 200
+-- the last pre-rollback batch must answer duplicate and write nothing --
+$ /root/producer-venv/bin/python /root/drill/producer.py deliver /root/drill/batch1.json
+{"http_status": 200, "response": {"accepted": true, "batch_hash": "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", "duplicate": true}}
+-- the batch built during the window must chain onto the pre-rollback tip --
+$ /root/producer-venv/bin/python /root/drill/producer.py deliver /root/drill/batch2.json
+{"http_status": 200, "response": {"accepted": true, "batch_hash": "sha256:3f557dd935cca1e3fc2d4b7e7783e3014309ca0509ff301830f341b640f9a22c", "duplicate": false}}
+$ receipts
+[[1, "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", null, 2], [2, "sha256:3f557dd935cca1e3fc2d4b7e7783e3014309ca0509ff301830f341b640f9a22c", "sha256:e0b5508da71114e558b516cf26f81f7a3ae04fb8e14b78aa4a70a7f82af902a8", 2]]
+rows_sha256: 39aec6dc218aa99ffaa810fc7d8c120823eae1d6edda064994d8e99be0449378
+chain intact across the rollback: seq 2 prev == pre-rollback tip
+$ curl -sS -H 'Authorization: Bearer drill-token' -H 'X-BackBond-Tenant: tenantA' http://127.0.0.1:8787/metrics
+{"accepted_total": 1, "batches_accepted": 2, "chain_tip_batch_seq": {"a1": 2}, "determinations_accepted": 0, "duplicates_total": 1, "events_accepted": 4, "rejected_total": {}, "unavailable_total": 0}
+
+=== JOURNALD -- one structured line per request outcome
+$ journalctl -u backbond-appliance-ingest.service --no-pager --output=cat | grep '"event":"appliance_ingest"'
+{"appliance_id":"a1","batch_seq":1,"event":"appliance_ingest","outcome":"accepted","reason_class":null,"ts":"2026-08-19T21:57:17.418Z"}
+{"appliance_id":"a1","batch_seq":1,"event":"appliance_ingest","outcome":"rejected","reason_class":"unknown_envelope_field","ts":"2026-08-19T21:57:17.733Z"}
+{"appliance_id":"a1","batch_seq":1,"event":"appliance_ingest","outcome":"duplicate","reason_class":null,"ts":"2026-08-19T21:57:23.125Z"}
+{"appliance_id":"a1","batch_seq":2,"event":"appliance_ingest","outcome":"accepted","reason_class":null,"ts":"2026-08-19T21:57:23.387Z"}
+$ journalctl -u backbond-appliance-ingest.service --no-pager --output=cat | grep -c 'tenantA' || echo 'tenant id appears in no line'
+0
+tenant id appears in no line
+
+=== DRILL PASSED

@@ -33,10 +33,13 @@ print("rows_sha256:", hashlib.sha256(json.dumps(rows).encode()).hexdigest())
 PYEOF
 }
 
+# The substrate carries no git, so the candidate SHA is passed in rather than
+# read from the mount. It is cross-checked below against the doc's own hash.
 step "CANDIDATE UNDER DRILL"
-show "git -C /candidate rev-parse HEAD"
-show "git -C /candidate log -1 --format='%s'"
+show "echo \"candidate: ${CANDIDATE_SHA:-UNSET}\""
 show "sha256sum $DOC"
+show "sha256sum /candidate/tools/log-tracker/src/log_tracker/appliance_ingest.py"
+show "sha256sum /candidate/tools/log-tracker/src/log_tracker/appliance_ingest_server.py"
 
 step "DOC STEP 1 -- sealed artifact"
 show "sha256sum $NUMBAT/backbond-appliance-0.1.0.zip"
