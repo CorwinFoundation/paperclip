@@ -75,20 +75,26 @@ def _imports(path: Path) -> set[str]:
 
 
 def closure(root: Path) -> list[str]:
-    modules = _module_index(root)
-    memo: dict[str, bool] = {}
+    """Modules that reach a target, by fixed point over the whole import graph.
 
-    def reaches(name: str, seen: frozenset[str] = frozenset()) -> bool:
-        if name in TARGETS:
-            return True
-        if name in memo:
-            return memo[name]
-        if name in seen or name not in modules:
-            return False
-        memo[name] = False  # cycle guard, refined below
-        result = any(reaches(dep, seen | {name}) for dep in _imports(modules[name]))
-        memo[name] = result
-        return result
+    Deliberately not a memoised depth-first walk. Seeding a cycle guard with
+    False and refining it after the recursion can cache a wrong False on an
+    intermediate module whose truth depended on the guarded edge, which would
+    silently drop tests from the acceptance set. A fixed point cannot do that:
+    it only ever adds members, so it converges on the same answer whatever
+    order the graph is walked in.
+    """
+    modules = _module_index(root)
+    edges = {name: _imports(path) for name, path in modules.items()}
+
+    reaching = set(TARGETS)
+    changed = True
+    while changed:
+        changed = False
+        for name, deps in edges.items():
+            if name not in reaching and deps & reaching:
+                reaching.add(name)
+                changed = True
 
     hits: list[str] = []
     for test_root in TEST_ROOTS:
@@ -96,7 +102,7 @@ def closure(root: Path) -> list[str]:
         if not base.exists():
             continue
         for path in sorted(base.rglob("test_*.py")):
-            if any(reaches(name) for name in _imports(path)):
+            if _imports(path) & reaching:
                 hits.append(str(path.relative_to(root)))
     return sorted(set(hits))
 
