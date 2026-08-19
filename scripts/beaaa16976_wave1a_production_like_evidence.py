@@ -27,6 +27,20 @@ from tools.active_test_registry import (  # noqa: E402
 OUT_DIR = REPO / "artifacts" / "beaaa-16979"
 MAPPING_DIR = REPO / "rubric" / "probe_mappings"
 
+# What the BEAAA-16979 rollback drill actually proves is the *delta* the feature
+# flag removes, plus the fact that no unrelated active row moves. Anchoring it to
+# an absolute active-executable pair re-reds the control on every authorized
+# registry addition (BEAAA-24458 Part 2), so the absolute pair is recorded as a
+# measurement and only the delta is asserted. The same 35 is independently
+# asserted by tests/test_beaaa16972_wave1a_scored_activation.py.
+ROLLBACK_ACTIVE_EXECUTABLE_DELTA = 35
+
+
+def production_default_active_executable() -> int:
+    """Live production-default active-executable count (flag off, no candidates)."""
+
+    return count_active_executable(build_registry(include_content_candidates=False))
+
 
 def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
@@ -251,7 +265,7 @@ def _monitoring_canary_false_positive_peril(commit_sha: str) -> dict[str, Any]:
             },
         },
         "monitoring": {
-            "registry_count_gate_expected": 350,
+            "registry_count_gate_expected": production_default_active_executable(),
             "duplicate_runtime_identity_drift_gate": "covered by tests/test_active_test_registry_beaaa13644.py",
             "mapping_registry_disagreement_gate": "covered by tests/test_beaaa16972_wave1a_scored_activation.py",
             "fail_closed_controls_gate": "covered by tests/test_beaaa16945_wave1a_candidate.py",
@@ -336,8 +350,16 @@ def main() -> int:
         "production_like_scored_contract_consistent": outputs["production_like_target_output.json"][
             "consistency_checks"
         ]["all_retained_scored_outputs_scored"],
-        "rollback_350_to_315": outputs["rollback_drill_output.json"]["active_executable_before"] == 350
-        and outputs["rollback_drill_output.json"]["active_executable_after"] == 315,
+        "rollback_removes_expected_active_executable_delta": (
+            outputs["rollback_drill_output.json"]["active_executable_before"]
+            - outputs["rollback_drill_output.json"]["active_executable_after"]
+        )
+        == ROLLBACK_ACTIVE_EXECUTABLE_DELTA,
+        # Recorded as measurement, never asserted: the registry grows by design.
+        "measured_rollback_active_executable_pair": [
+            outputs["rollback_drill_output.json"]["active_executable_before"],
+            outputs["rollback_drill_output.json"]["active_executable_after"],
+        ],
         "unrelated_active_rows_unchanged": outputs["rollback_drill_output.json"][
             "unrelated_active_rows_unchanged"
         ],
@@ -348,7 +370,7 @@ def main() -> int:
         summary["all_negative_cases_fail_closed"]
         and summary["valid_signed_manifest_passes"]
         and summary["production_like_scored_contract_consistent"]
-        and summary["rollback_340_to_305"]
+        and summary["rollback_removes_expected_active_executable_delta"]
         and summary["unrelated_active_rows_unchanged"]
     ) else 1
 

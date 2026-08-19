@@ -55,14 +55,14 @@ class DistinctCaseCountTests(unittest.TestCase):
     def test_distinct_case_count_is_below_runnable_case_count(self) -> None:
         counts = distinct_case_counts(self.rows)
         runnable = count_target_bound_runtime(self.rows)
-        self.assertEqual(runnable, 372)
+        self.assertEqual(runnable, 439)
         # The current target-bound registry rows still execute — they are
         # simply not all distinct.
-        self.assertEqual(counts["declared_total"], 372)
+        self.assertEqual(counts["declared_total"], 439)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs follow the current registry
-        # source of truth: 372 declared - 23 dupes = 349.
-        self.assertEqual(counts["total"], 349)
+        # source of truth: 439 declared - 23 dupes = 416.
+        self.assertEqual(counts["total"], 416)
         self.assertEqual(counts["declared_total"] - counts["total"], 23)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:

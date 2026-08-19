@@ -12,7 +12,7 @@ to scored (underwriting-eligibility, zero score weight):
 
 Invariants:
 * Flag OFF (production default): every family reported-not-scored; the frozen
-  active-executable count is unchanged (350). No production impact.
+  active-executable count is unchanged (417). No production impact.
 * Flag ON: every family scoring_active; the count rises only by the families that
   were previously non-countable (the legacy packs were already counted, so the
   flag only flips them scored — it does not double-count them).
@@ -30,10 +30,10 @@ from tools.active_test_registry import (
 )
 from tools.founder_dev_mode import FOUNDER_DEV_MODE_ENV, FounderDevModeError, assert_production_attested
 
-BASELINE_ACTIVE_EXECUTABLE = 350
+BASELINE_ACTIVE_EXECUTABLE = 417
 # Non-countable-while-reported families become countable on flag-on; legacy packs
 # were already counted, so they add nothing to the count (only flip to scored).
-EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 438
+EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 505
 
 
 def _rows_by_family(rows):
@@ -84,7 +84,7 @@ def test_flag_on_fails_closed_at_production_boundary(monkeypatch):
 
 
 def test_legacy_packs_stay_counted_across_flag(monkeypatch):
-    # legacy packs are already in the 350; the flag flips them scored without
+    # legacy packs are already in the 417; the flag flips them scored without
     # changing whether they are counted.
     monkeypatch.delenv(FOUNDER_DEV_MODE_ENV, raising=False)
     off = _rows_by_family(build_registry(include_content_candidates=False))
