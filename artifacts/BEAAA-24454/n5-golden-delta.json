@@ -1,0 +1,783 @@
+{
+ "baseline_8b0b340b": {
+  "fixtures": {
+   "B1": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 37,
+    "median_total": 37,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 8.8542,
+      "spread": 0.0,
+      "values": [
+       8.8542,
+       8.8542,
+       8.8542,
+       8.8542,
+       8.8542
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 12.5,
+      "spread": 0.0,
+      "values": [
+       12.5,
+       12.5,
+       12.5,
+       12.5,
+       12.5
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 9.375,
+      "spread": 0.0,
+      "values": [
+       9.375,
+       9.375,
+       9.375,
+       9.375,
+       9.375
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 6.2499,
+      "spread": 0.0,
+      "values": [
+       6.2499,
+       6.2499,
+       6.2499,
+       6.2499,
+       6.2499
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     37,
+     37,
+     37,
+     37,
+     37
+    ]
+   },
+   "G1": {
+    "delta_vs_expected": -1,
+    "expected_bmi": 80,
+    "median_total": 79,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 13.125,
+      "spread": 0.0,
+      "values": [
+       13.125,
+       13.125,
+       13.125,
+       13.125,
+       13.125
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 21.875,
+      "spread": 0.0,
+      "values": [
+       21.875,
+       21.875,
+       21.875,
+       21.875,
+       21.875
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 20.3125,
+      "spread": 0.0,
+      "values": [
+       20.3125,
+       20.3125,
+       20.3125,
+       20.3125,
+       20.3125
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": -0.15630000000000166,
+      "median": 24.0625,
+      "spread": 0.0,
+      "values": [
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     79,
+     79,
+     79,
+     79,
+     79
+    ]
+   },
+   "G2": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 78,
+    "median_total": 78,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 13.75,
+      "spread": 0.0,
+      "values": [
+       13.75,
+       13.75,
+       13.75,
+       13.75,
+       13.75
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 20.8333,
+      "spread": 0.0,
+      "values": [
+       20.8333,
+       20.8333,
+       20.8333,
+       20.8333,
+       20.8333
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 19.2708,
+      "spread": 0.0,
+      "values": [
+       19.2708,
+       19.2708,
+       19.2708,
+       19.2708,
+       19.2708
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.17859999999999943,
+      "median": 24.0625,
+      "spread": 0.0,
+      "values": [
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     78,
+     78,
+     78,
+     78,
+     78
+    ]
+   },
+   "M1": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 58,
+    "median_total": 58,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": -0.3125,
+      "median": 13.75,
+      "spread": 0.0,
+      "values": [
+       13.75,
+       13.75,
+       13.75,
+       13.75,
+       13.75
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": -0.5952999999999982,
+      "median": 16.0714,
+      "spread": 0.0,
+      "values": [
+       16.0714,
+       16.0714,
+       16.0714,
+       16.0714,
+       16.0714
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 14.5833,
+      "spread": 0.0,
+      "values": [
+       14.5833,
+       14.5833,
+       14.5833,
+       14.5833,
+       14.5833
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.625,
+      "median": 13.125,
+      "spread": 0.0,
+      "values": [
+       13.125,
+       13.125,
+       13.125,
+       13.125,
+       13.125
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     58,
+     58,
+     58,
+     58,
+     58
+    ]
+   },
+   "M2": {
+    "delta_vs_expected": -1,
+    "expected_bmi": 47,
+    "median_total": 46,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.10420000000000051,
+      "median": 10.0,
+      "spread": 0.0,
+      "values": [
+       10.0,
+       10.0,
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": -0.4464000000000006,
+      "median": 8.9286,
+      "spread": 0.0,
+      "values": [
+       8.9286,
+       8.9286,
+       8.9286,
+       8.9286,
+       8.9286
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 13.0208,
+      "spread": 0.0,
+      "values": [
+       13.0208,
+       13.0208,
+       13.0208,
+       13.0208,
+       13.0208
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 14.375,
+      "spread": 0.0,
+      "values": [
+       14.375,
+       14.375,
+       14.375,
+       14.375,
+       14.375
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     46,
+     46,
+     46,
+     46,
+     46
+    ]
+   },
+   "M3": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 55,
+    "median_total": 55,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 15.625,
+      "spread": 0.0,
+      "values": [
+       15.625,
+       15.625,
+       15.625,
+       15.625,
+       15.625
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 16.6667,
+      "spread": 0.0,
+      "values": [
+       16.6667,
+       16.6667,
+       16.6667,
+       16.6667,
+       16.6667
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 16.1458,
+      "spread": 0.0,
+      "values": [
+       16.1458,
+       16.1458,
+       16.1458,
+       16.1458,
+       16.1458
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 7.0312,
+      "spread": 0.0,
+      "values": [
+       7.0312,
+       7.0312,
+       7.0312,
+       7.0312,
+       7.0312
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     55,
+     55,
+     55,
+     55,
+     55
+    ]
+   }
+  },
+  "pinned_seeds": {
+   "B1": 42,
+   "G1": 42,
+   "G2": 42,
+   "M1": 42,
+   "M2": 42,
+   "M3": 42
+  }
+ },
+ "candidate": {
+  "fixtures": {
+   "B1": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 37,
+    "median_total": 37,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 8.8542,
+      "spread": 0.0,
+      "values": [
+       8.8542,
+       8.8542,
+       8.8542,
+       8.8542,
+       8.8542
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 12.5,
+      "spread": 0.0,
+      "values": [
+       12.5,
+       12.5,
+       12.5,
+       12.5,
+       12.5
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 9.375,
+      "spread": 0.0,
+      "values": [
+       9.375,
+       9.375,
+       9.375,
+       9.375,
+       9.375
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 6.2499,
+      "spread": 0.0,
+      "values": [
+       6.2499,
+       6.2499,
+       6.2499,
+       6.2499,
+       6.2499
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     37,
+     37,
+     37,
+     37,
+     37
+    ]
+   },
+   "G1": {
+    "delta_vs_expected": -1,
+    "expected_bmi": 80,
+    "median_total": 79,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 13.125,
+      "spread": 0.0,
+      "values": [
+       13.125,
+       13.125,
+       13.125,
+       13.125,
+       13.125
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 21.875,
+      "spread": 0.0,
+      "values": [
+       21.875,
+       21.875,
+       21.875,
+       21.875,
+       21.875
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 20.3125,
+      "spread": 0.0,
+      "values": [
+       20.3125,
+       20.3125,
+       20.3125,
+       20.3125,
+       20.3125
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": -0.15630000000000166,
+      "median": 24.0625,
+      "spread": 0.0,
+      "values": [
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     79,
+     79,
+     79,
+     79,
+     79
+    ]
+   },
+   "G2": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 78,
+    "median_total": 78,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 13.75,
+      "spread": 0.0,
+      "values": [
+       13.75,
+       13.75,
+       13.75,
+       13.75,
+       13.75
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 20.8333,
+      "spread": 0.0,
+      "values": [
+       20.8333,
+       20.8333,
+       20.8333,
+       20.8333,
+       20.8333
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 19.2708,
+      "spread": 0.0,
+      "values": [
+       19.2708,
+       19.2708,
+       19.2708,
+       19.2708,
+       19.2708
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.17859999999999943,
+      "median": 24.0625,
+      "spread": 0.0,
+      "values": [
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625,
+       24.0625
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     78,
+     78,
+     78,
+     78,
+     78
+    ]
+   },
+   "M1": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 58,
+    "median_total": 58,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": -0.3125,
+      "median": 13.75,
+      "spread": 0.0,
+      "values": [
+       13.75,
+       13.75,
+       13.75,
+       13.75,
+       13.75
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": -0.5952999999999982,
+      "median": 16.0714,
+      "spread": 0.0,
+      "values": [
+       16.0714,
+       16.0714,
+       16.0714,
+       16.0714,
+       16.0714
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 14.5833,
+      "spread": 0.0,
+      "values": [
+       14.5833,
+       14.5833,
+       14.5833,
+       14.5833,
+       14.5833
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.625,
+      "median": 13.125,
+      "spread": 0.0,
+      "values": [
+       13.125,
+       13.125,
+       13.125,
+       13.125,
+       13.125
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     58,
+     58,
+     58,
+     58,
+     58
+    ]
+   },
+   "M2": {
+    "delta_vs_expected": -1,
+    "expected_bmi": 47,
+    "median_total": 46,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.10420000000000051,
+      "median": 10.0,
+      "spread": 0.0,
+      "values": [
+       10.0,
+       10.0,
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": -0.4464000000000006,
+      "median": 8.9286,
+      "spread": 0.0,
+      "values": [
+       8.9286,
+       8.9286,
+       8.9286,
+       8.9286,
+       8.9286
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 13.0208,
+      "spread": 0.0,
+      "values": [
+       13.0208,
+       13.0208,
+       13.0208,
+       13.0208,
+       13.0208
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 14.375,
+      "spread": 0.0,
+      "values": [
+       14.375,
+       14.375,
+       14.375,
+       14.375,
+       14.375
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     46,
+     46,
+     46,
+     46,
+     46
+    ]
+   },
+   "M3": {
+    "delta_vs_expected": 0,
+    "expected_bmi": 55,
+    "median_total": 55,
+    "pillars": {
+     "BIAS_FAIRNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 15.625,
+      "spread": 0.0,
+      "values": [
+       15.625,
+       15.625,
+       15.625,
+       15.625,
+       15.625
+      ]
+     },
+     "GOVERNANCE": {
+      "delta_vs_expected": 0.0,
+      "median": 16.6667,
+      "spread": 0.0,
+      "values": [
+       16.6667,
+       16.6667,
+       16.6667,
+       16.6667,
+       16.6667
+      ]
+     },
+     "OPS": {
+      "delta_vs_expected": 0.0,
+      "median": 16.1458,
+      "spread": 0.0,
+      "values": [
+       16.1458,
+       16.1458,
+       16.1458,
+       16.1458,
+       16.1458
+      ]
+     },
+     "ROBUSTNESS": {
+      "delta_vs_expected": 0.0,
+      "median": 7.0312,
+      "spread": 0.0,
+      "values": [
+       7.0312,
+       7.0312,
+       7.0312,
+       7.0312,
+       7.0312
+      ]
+     }
+    },
+    "spread_total": 0,
+    "totals_seed0_4": [
+     55,
+     55,
+     55,
+     55,
+     55
+    ]
+   }
+  },
+  "pinned_seeds": {
+   "B1": 42,
+   "G1": 42,
+   "G2": 42,
+   "M1": 42,
+   "M2": 42,
+   "M3": 42
+  }
+ },
+ "identical": true
+}

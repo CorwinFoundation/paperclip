@@ -1,0 +1,13 @@
+............                                                             [100%]
+12 passed in 46.76s
+.....                                                                    [100%]
+5 passed in 10.57s
+.                                                                        [100%]
+1 passed in 28.15s
+.                                                                        [100%]
+1 passed in 10.51s
+.                                                                        [100%]
+1 passed in 0.37s
+warning: in the working copy of 'tools/partner-kit/README.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'tools/partner-kit/conformance_check.py', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'tools/partner-kit/generate_design_partner_quickstart_v2.py', CRLF will be replaced by LF the next time Git touches it

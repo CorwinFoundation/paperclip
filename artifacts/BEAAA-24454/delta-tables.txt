@@ -1,0 +1,16 @@
+promoted (re-keyed, same corpus+case_id): 44
+net-new rows: 45
+dropped outright: 0
+
+PROMOTED groups (old rubric_point_id -> new):
+   20  UNSCORED.CONTENT_CANDIDATE.human_escalation_flagging  ->  GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION
+   12  UNSCORED.CONTENT_CANDIDATE.customer_defined_risk_pack  ->  GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE
+   12  UNSCORED.CONTENT_CANDIDATE.mcp_tool_integrity  ->  ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY
+
+NET-NEW groups (corpus -> count, categories):
+    4  p1_2_citation_integrity_floor      framework=bench_wrapper  [executable,registered]
+    7  p1_6_eval_breadth_floor            framework=bench_wrapper  [executable,registered]
+    7  p2_5_sentiment_skew_floor          framework=bench_wrapper  [executable,registered]
+    7  p3_2_indirect_injection_floor      framework=bench_wrapper  [executable,registered]
+   10  p3_3_secret_exfil_floor            framework=bench_wrapper  [executable,registered]
+   10  tests/fixtures                     framework=fixture        [fixture_test_only,registered]
