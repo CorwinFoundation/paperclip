@@ -16,7 +16,11 @@ MAX_BODY_BYTES = 2 * 1024 * 1024
 
 
 def load_sealed_contract(module_root: Path):
-    """Load only the immutable 0.1.1 trust-core exports."""
+    """Load only the immutable 0.1.0 trust-core exports.
+
+    Returns ``(verify_batch, CONTENT_FIELDS)``; the signature is unchanged so the
+    BEAAA-20237 harnesses keep loading the contract the way the unit does.
+    """
     import sys
     sys.path.insert(0, str(module_root))
     batch = importlib.import_module("appliance.batch")
@@ -51,19 +55,30 @@ def make_handler(store: ApplianceIngestStore):
                     raise IngestRejected("body_size_invalid")
             return json.loads(body)
 
+        def _bearer(self) -> str:
+            authorization = self.headers.get("Authorization", "")
+            return authorization[7:] if authorization.startswith("Bearer ") else ""
+
         def do_GET(self):
             if self.path == "/healthz":
                 self._send(200, {"ok": True})
             elif self.path == "/metrics":
-                self._send(200, store.status())
+                # Counts are per-tenant and require the enrolled token; an
+                # unauthenticated caller never sees another tenant's volumes (F5).
+                try:
+                    self._send(200, store.scoped_status(
+                        token=self._bearer(),
+                        tenant_id=self.headers.get("X-BackBond-Tenant", ""),
+                    ))
+                except IngestRejected as exc:
+                    self._send(403, {"error": str(exc)})
             else:
                 self._send(404, {"error": "not_found"})
 
         def do_POST(self):
             if self.path != "/ingest":
                 self._send(404, {"error": "not_found"}); return
-            authorization = self.headers.get("Authorization", "")
-            token = authorization[7:] if authorization.startswith("Bearer ") else ""
+            token = self._bearer()
             try:
                 result = store.ingest(
                     self._body(), token=token,

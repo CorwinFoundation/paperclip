@@ -14,6 +14,23 @@ from pathlib import Path
 from typing import Callable, Collection, Mapping, Any
 
 
+# The appliance emits its first batch with ``batch_seq == 1``: BatchBuilder starts
+# ``_seq`` at 0 and increments before assembling a body
+# (backbond-appliance-0.1.0/backbond-appliance/appliance/batch.py:118). Chain state
+# is durable across restarts, so the origin is 1 exactly once per appliance.
+FIRST_BATCH_SEQ = 1
+
+# The one map in contract-v1.0 whose *keys* are data values rather than field
+# names. It is keyed by action_class, and "message" is both a legal action class
+# and a member of the appliance's CONTENT_FIELDS, so name-matching its keys
+# rejected every genuine batch (BEAAA-20237 F1). It is excluded from the
+# name-based scan and checked instead by _histogram_violation, which requires it
+# to be exactly the per-class tally of batch["events"] -- already scanned by name
+# one step earlier. An exact-equality check leaves the map with no leak surface
+# of its own: it may hold nothing that the events do not already hold.
+ACTION_CLASS_HISTOGRAM_PATH = "$.counts.by_action_class"
+
+
 class IngestRejected(ValueError):
     """A stable, content-free ingest rejection."""
 
@@ -29,8 +46,14 @@ def _digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _plain_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def _find_prohibited(value: Any, prohibited: Collection[str], path: str = "$") -> str | None:
     if isinstance(value, Mapping):
+        if path == ACTION_CLASS_HISTOGRAM_PATH:
+            return None  # value-keyed; checked by _histogram_violation instead
         for key, child in value.items():
             child_path = f"{path}.{key}"
             if key in prohibited:
@@ -44,6 +67,47 @@ def _find_prohibited(value: Any, prohibited: Collection[str], path: str = "$") -
             if found:
                 return found
     return None
+
+
+def _histogram_violation(batch: Mapping) -> str | None:
+    """The action-class histogram must be exactly the tally of this batch's events.
+
+    Run only after the name-based scan has cleared ``batch["events"]``. Exact
+    equality means every key is an action_class already carried by a scanned
+    event and every value is a count this adapter derived itself, so the map
+    cannot smuggle a byte the events did not already carry.
+    """
+    counts = batch.get("counts")
+    if not isinstance(counts, Mapping) or "by_action_class" not in counts:
+        return None
+    histogram = counts["by_action_class"]
+    if not isinstance(histogram, Mapping):
+        return ACTION_CLASS_HISTOGRAM_PATH
+    expected: dict[Any, int] = {}
+    events = batch.get("events")
+    for event in events if isinstance(events, list) else []:
+        if not isinstance(event, Mapping):
+            return ACTION_CLASS_HISTOGRAM_PATH
+        action_class = event.get("action_class")
+        if not isinstance(action_class, str):
+            return ACTION_CLASS_HISTOGRAM_PATH
+        expected[action_class] = expected.get(action_class, 0) + 1
+    if dict(histogram) != expected:
+        return ACTION_CLASS_HISTOGRAM_PATH
+    return None
+
+
+def _require_seq(value: Any) -> int:
+    if not _plain_int(value) or value < FIRST_BATCH_SEQ:
+        raise IngestRejected("malformed_batch_seq")
+    return value
+
+
+def _require_count(counts: Mapping, key: str) -> int:
+    value = counts.get(key, 0)
+    if not _plain_int(value) or value < 0:
+        raise IngestRejected(f"malformed_counts:{key}")
+    return value
 
 
 class ApplianceIngestStore:
@@ -116,6 +180,8 @@ class ApplianceIngestStore:
             raise IngestRejected("signature_or_batch_hash_invalid")
 
         leaked_path = _find_prohibited(batch, self.prohibited_fields)
+        if leaked_path is None:
+            leaked_path = _histogram_violation(batch)
         if leaked_path:
             raise IngestRejected(f"content_boundary_violated:{leaked_path}")
 
@@ -125,11 +191,13 @@ class ApplianceIngestStore:
             if item.get("tenant_id") != tenant_id:
                 raise IngestRejected("unauthorized_scope")
         counts = batch.get("counts") or {}
+        # Malformed shape is a deterministic 422, never a retryable 503 (F6).
+        batch_seq = _require_seq(batch.get("batch_seq"))
         receipt = (
-            batch_hash, appliance_id, int(batch.get("batch_seq", -1)),
+            batch_hash, appliance_id, batch_seq,
             batch.get("prev_batch_hash"), tenant_hash, source_hash,
             len(events), len(determinations),
-            int(counts.get("billable_actions", 0)), int(counts.get("tokens", 0)),
+            _require_count(counts, "billable_actions"), _require_count(counts, "tokens"),
         )
 
         with self._connect() as db:
@@ -147,8 +215,8 @@ class ApplianceIngestStore:
                     (appliance_id,),
                 ).fetchone()
                 expected_prev = tip[0] if tip else None
-                expected_seq = tip[1] + 1 if tip else 0
-                if batch.get("prev_batch_hash") != expected_prev or int(batch.get("batch_seq", -1)) != expected_seq:
+                expected_seq = tip[1] + 1 if tip else FIRST_BATCH_SEQ
+                if batch.get("prev_batch_hash") != expected_prev or batch_seq != expected_seq:
                     raise IngestRejected("broken_chain")
                 db.execute(
                     "INSERT INTO appliance_ingest_receipts "
@@ -163,11 +231,28 @@ class ApplianceIngestStore:
                 raise
         return IngestResult(True, False, batch_hash)
 
-    def status(self) -> dict[str, int]:
+    def status(self, *, tenant_id_hash: str | None = None) -> dict[str, int]:
+        """Unscoped by default; not reachable over HTTP. See scoped_status."""
+        sql = ("SELECT COUNT(*),COALESCE(SUM(events_count),0),"
+               "COALESCE(SUM(determinations_count),0) FROM appliance_ingest_receipts")
+        params: tuple = ()
+        if tenant_id_hash is not None:
+            sql += " WHERE tenant_id_hash=?"
+            params = (tenant_id_hash,)
         with self._connect() as db:
-            batches, events, determinations = db.execute(
-                "SELECT COUNT(*),COALESCE(SUM(events_count),0),"
-                "COALESCE(SUM(determinations_count),0) FROM appliance_ingest_receipts"
-            ).fetchone()
+            batches, events, determinations = db.execute(sql, params).fetchone()
         return {"batches_accepted": batches, "events_accepted": events,
                 "determinations_accepted": determinations}
+
+    def scoped_status(self, *, token: str, tenant_id: str) -> dict[str, int]:
+        """Authenticated, single-tenant counts. The only status path on the wire (F5)."""
+        tenant_hash = _digest(tenant_id)
+        expected = _digest(token)
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT token_hash FROM appliance_enrollments WHERE tenant_id_hash=?",
+                (tenant_hash,),
+            ).fetchall()
+        if not any(hmac.compare_digest(row[0], expected) for row in rows):
+            raise IngestRejected("unauthorized_scope")
+        return self.status(tenant_id_hash=tenant_hash)
