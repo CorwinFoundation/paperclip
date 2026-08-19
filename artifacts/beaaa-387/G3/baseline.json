@@ -2,10 +2,10 @@
   "applicability_policy_version": "0.1.2",
   "band": {
     "bands_version": "1.0",
-    "display": "B-",
+    "display": "B",
     "letter": "B",
-    "modifier": "-",
-    "modifier_factor": 1.07,
+    "modifier": "neutral",
+    "modifier_factor": 1.0,
     "posture": "Standard"
   },
   "bmi": 75,

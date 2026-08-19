@@ -780,3 +780,79 @@ def test_trusted_architecture_flags_env_rejects_non_bool_values(tmp_path):
 
     with pytest.raises(ValueError, match="string keys to bool values"):
         release_gate_n5._trusted_architecture_flags_json(input_dir)
+
+
+# BEAAA-24525: the BEAAA-19710 rebaseline (ffa6359) rewrote `bmi` and the pillar
+# `score` values on every persisted golden baseline and touched no `band`,
+# `display`, `modifier` or `posture` line. M3 crossed a letter cut in that move
+# and kept the old letter, so the persisted anchor read D+ / "Decline" for a
+# total of 60 that the frozen band table calls C / "Surplus". Nothing in the
+# scoring path reads these band blocks — `rubric/bands.py:assign_band` recomputes
+# the band at scoring time — so the drift was invisible to every gate while the
+# files were still being quoted to humans as the calibration range. These two
+# tests are the missing tie: a persisted band must always be derivable from the
+# total persisted beside it.
+def _band_drift(payload: dict, source: str) -> str | None:
+    """Return a human-readable mismatch line, or None when the band is consistent."""
+    from rubric.bands import assign_band, band_to_dict
+
+    bmi = payload.get("bmi")
+    if not isinstance(bmi, int):
+        return f"{source}: bmi is {bmi!r}, expected int"
+    persisted = payload.get("band")
+    if not isinstance(persisted, dict):
+        return f"{source}: band is {persisted!r}, expected object"
+    recomputed = band_to_dict(assign_band(bmi))
+    if recomputed == persisted:
+        return None
+    diffs = ", ".join(
+        f"{key}: persisted={persisted.get(key)!r} recomputed={recomputed.get(key)!r}"
+        for key in sorted(set(recomputed) | set(persisted))
+        if persisted.get(key) != recomputed.get(key)
+    )
+    return f"{source}: bmi={bmi} -> {diffs}"
+
+
+def test_persisted_golden_baseline_band_matches_its_own_total():
+    checked: list[str] = []
+    drift: list[str] = []
+    for agent_id in release_gate_n5.FULL_ROSTER:
+        path = release_gate_n5.BASELINES / agent_id / "baseline.json"
+        if not path.exists():
+            continue
+        checked.append(agent_id)
+        mismatch = _band_drift(
+            json.loads(path.read_text(encoding="utf-8")),
+            f"artifacts/beaaa-387/{agent_id}/baseline.json",
+        )
+        if mismatch:
+            drift.append(mismatch)
+
+    # Positive control: B2 alone carries no persisted baseline (BEAAA-10199), so
+    # a run that checks fewer than the other eight is looking at the wrong tree
+    # and would pass this test by finding nothing rather than by finding nothing
+    # wrong.
+    assert checked == ["G1", "G2", "G3", "M1", "M2", "M3", "B1", "B3"]
+    assert drift == []
+
+
+def test_golden_agent_expected_score_band_matches_its_own_total():
+    fixtures = release_gate_n5.REPO / "tests" / "fixtures" / "golden_agents"
+    checked: list[str] = []
+    drift: list[str] = []
+    for agent_id in release_gate_n5.FULL_ROSTER:
+        path = fixtures / agent_id / "expected_score.json"
+        if not path.exists():
+            continue
+        checked.append(agent_id)
+        mismatch = _band_drift(
+            json.loads(path.read_text(encoding="utf-8")),
+            f"tests/fixtures/golden_agents/{agent_id}/expected_score.json",
+        )
+        if mismatch:
+            drift.append(mismatch)
+
+    # Same positive control. Six of the nine roster fixtures carry an
+    # expected_score.json; G3, B2 and B3 carry agent.json only.
+    assert checked == ["G1", "G2", "M1", "M2", "M3", "B1"]
+    assert drift == []

@@ -1,0 +1,2 @@
+tests/test_release_gate_n5_beaaa10187.py::test_persisted_golden_baseline_band_matches_its_own_total
+tests/test_release_gate_n5_beaaa10187.py::test_golden_agent_expected_score_band_matches_its_own_total

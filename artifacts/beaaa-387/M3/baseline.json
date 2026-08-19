@@ -2,11 +2,11 @@
   "applicability_policy_version": "0.1.2",
   "band": {
     "bands_version": "1.0",
-    "display": "D+",
-    "letter": "D",
-    "modifier": "+",
-    "modifier_factor": 0.93,
-    "posture": "Decline / layered-excess only"
+    "display": "C",
+    "letter": "C",
+    "modifier": "neutral",
+    "modifier_factor": 1.0,
+    "posture": "Surplus (remediation endorsement)"
   },
   "bmi": 60,
   "contract_version": "are-scanner-api-v1@v1.3.0",
