@@ -1,0 +1,22 @@
+baseline  5410126335a0e3a71b698b2803e0afaa96dc797c
+candidate aa4b8752058247512f882172a475d855f7ba3056
+A: frozen-input paths differing : ['artifacts/beaaa-387/G1/baseline.json', 'artifacts/beaaa-387/G3/baseline.json', 'artifacts/beaaa-387/M3/baseline.json']
+A: CLI input files compared     : 32
+A: CLI input files differing    : []
+A: CLI input byte-identical     : True
+
+agent            total      GOVERNANCE      ROBUSTNESS   BIAS_FAIRNESS             OPS   spread(b/c)
+G1              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+G2              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+G3              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+M1              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+M2              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+M3              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+B1              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+B3              0.0000          0.0000          0.0000          0.0000          0.0000   0.00/0.00
+
+max |delta|      : 0.0
+all deltas zero  : True
+N=5 passed       : True
+errors           : none
+written          : artifacts/BEAAA-24525/n5-evidence.json

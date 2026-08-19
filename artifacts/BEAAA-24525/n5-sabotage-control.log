@@ -1,0 +1,9 @@
+control 1 (scoring input moved): G1 raw at GOVERNANCE.PII.HANDLING_ATTESTATION.raw 4.0 -> 0.0
+          deltas: {"total": -4.0, "GOVERNANCE": -3.5714000000000006, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}
+          harness detects a real move: True   <- must be True
+
+control 2 (band block set to a wrong D-, nothing else)
+          deltas: {"total": 0.0, "GOVERNANCE": 0.0, "ROBUSTNESS": 0.0, "BIAS_FAIRNESS": 0.0, "OPS": 0.0}
+          band is not a scoring input: True   <- must be True
+
+CONTROLS PASS
