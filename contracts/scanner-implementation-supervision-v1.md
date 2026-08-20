@@ -1,8 +1,10 @@
-# Scanner Implementation Supervision Contract (v2.0.1)
+# Scanner Implementation Supervision Contract (v2.1)
 
 **Parties:** Scanner Engineer (operational seat) ↔ CTO (strategic seat); Underwriter (Head of UW, co-counterparty on `contracts/are-scanner-api-v1.md`); Auditor (audits the supervision log).
 
-**Status:** Locked at v2.0.1 on 2026-08-20. Prior versions: v2.0 locked 2026-08-20, v1.1 locked 2026-06-14, v1.0 locked 2026-05-17. Changes require both engineering seats + CEO sign-off.
+**Status:** Locked at v2.1 on 2026-08-20. Prior versions: v2.0.1 locked 2026-08-20, v2.0 locked 2026-08-20, v1.1 locked 2026-06-14, v1.0 locked 2026-05-17. Changes require both engineering seats + CEO sign-off.
+
+**v2.1 amendment summary:** Pins the canonical scored-row inventory to `tools.active_test_registry.count_canonical_scored_rows`. A row counts only when all five predicates hold: active status, canonical runtime case, scored reporting status, execution evidenced, and target bound. `case_class != "attestation"` is not a substitute. The Auditor uses the same helper and `canonical_scored_row_count` summary field for close-over-close comparison. Accepted ruling: BEAAA-24536. Implementation: BEAAA-24975.
 
 **v1.1 amendment summary:** Adds `merged_sha_on_canon_master_at_close` closure-time field + Auditor reachability check + Strategic-seat guarantee 5 + Operational-seat guarantee 7. Closes the merge-verification gap surfaced by the BEAAA-3228 chain (BEAAA-5284 Founder escalation). Authored by CTO (ADR-0031 on BEAAA-5288), CEO sign-off via `request_confirmation 40b788f1` 2026-06-14T17:20:50Z, Scanner Engineer retroactive co-sign tracked in BEAAA-5320 per CEO ruling on BEAAA-5318.
 
@@ -54,6 +56,7 @@ Every BEAAA ticket the Scanner Engineer closes carries:
 * `N=5 calibration delta` on the golden set
 * `upstream_eval_version` if the action wraps an external eval framework
 * `cto_cosign_ref` — required iff the action is a rule change; pointer to the BEAAA-N ticket or ADR where CTO signed off
+* `scored_case_inventory_before_after` — required iff the action adds, removes, or re-floors scored cases at any `rubric_point_id`. Record the per-point before/after counts and canonical total. Produce the canonical total with `tools.active_test_registry.count_canonical_scored_rows`, whose five required predicates are active status, canonical runtime case, scored reporting status, execution evidenced, and target bound. `case_class != "attestation"` is not an allowed substitute.
 * `merged_sha_on_canon_master_at_close` — required iff the action involves a code commit (probe implementation, judge swap, scoring-math change, CLI behavior change, harness evidence-type change, refactor that touches an emission path, etc.). The cited sha MUST be reachable from canonical Scanner master HEAD at the time the ticket is closed `done`. Required on **both** rule-change and rule-execution tickets that ship code — the gate matches commit-shape, not classification-shape. The closing agent verifies reachability via `git fetch origin && git merge-base --is-ancestor <sha> origin/master` against the canonical workspace path (current pin: `/mnt/paperclipdata/dot-paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/projects/are-scanner`) and quotes the verification output in the closure comment. A code-commit ticket closed without this field, or with a sha not reachable from `origin/master` HEAD, is a contract breach. The Auditor flags it next pass.
 
 A ticket closed without these fields is a contract breach. The Auditor flags it next pass.
@@ -94,6 +97,7 @@ The Auditor (per `agents/auditor-os.md`) audits this contract nightly:
 * Scanner Engineer self-classification accuracy (vs. CTO veto rate).
 * Duplicate-logic drift between the CLI and the in-agent scanner (does the same probe family appear implemented twice?).
 * Upstream eval framework version drift (probes still pinned to the version declared in their wrap-ticket?).
+* Scored-case set changes closed without `scored_case_inventory_before_after` or `cto_cosign_ref`. Compare `canonical_scored_row_count`, produced by `tools.active_test_registry.count_canonical_scored_rows`, at close against the previous close. The Auditor must use the shipped helper rather than reimplementing its predicates.
 * `merged_sha_on_canon_master_at_close` reachability on every code-commit ticket closed in the last 24 hours. Run `git fetch origin && git merge-base --is-ancestor <sha> origin/master` against the canonical Scanner workspace. Non-ancestor shas are flagged **Founder-tier** (Supreme-Law adjacent: rule shipped without merge to canon). Tickets missing the field on a code-commit closure are flagged at the standard tier.
 
 ## Versioning
@@ -103,3 +107,17 @@ Semver. Major \= changes to the classification table. Minor \= SLA changes or ne
 ## Why this exists
 
 The Scanner Engineer ships throughput daily. Without explicit classification, every ticket either over-burdens the CTO (asks for sign-off on every probe wrap) or under-burdens it (silently merges rule changes). This contract is the seam. It mirrors `uw-rubric-supervision-v1.md` exactly — same pattern, different domain — because the bundle's discipline is uniform across strategic/operational seat pairs.
+
+## Artifact metadata
+
+```yaml
+owner: CEO
+artifact_type: contract
+status: final
+updated_at: 2026-08-20
+version: v2.1
+supersedes: scanner-implementation-supervision-v1@v2.0.1
+source_refs: [BEAAA-24975, BEAAA-24536, ADR-0070]
+claim_or_decision: The canonical scored-row total and Auditor close-over-close check use the same shipped five-predicate helper. ADR-0070 published count 2,279 remains distinct from executable count 2,339.
+approvals: ["F2 ruling accepted on BEAAA-24536", "implementation on BEAAA-24975"]
+```
