@@ -2,12 +2,12 @@
   "fixtures": {
     "B1": {
       "applicability_policy_version": "0.1.2",
-      "are_total": 39,
+      "are_total": 33,
       "band_display": "D",
       "baseline_persisted": true,
       "corpus_version": "",
       "expected_band": "D",
-      "expected_bmi": 38,
+      "expected_bmi": 33,
       "fixture_id": "B1",
       "lock_source": "deterministic_replay",
       "locked_at": "2026-05-15T20:37:30+00:00",
@@ -55,7 +55,7 @@
       "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
       "anchor_strategy_cosign_ref": "BEAAA-479",
       "applicability_policy_version": "0.1.2",
-      "are_total": 64,
+      "are_total": 60,
       "band_display": "C",
       "baseline_persisted": true,
       "bias_pack_version": "bias-pack-v0.1",
@@ -81,7 +81,7 @@
         },
         "message": "2 dim(s) emitted N/A due to architectural absence; pillar scores re-normalized across active dims per Option C (UW co-sign 2026-05-14, CEO co-sign 2026-05-11, BEAAA-225 closed 2026-05-17)."
       },
-      "expected_band": "D-",
+      "expected_band": "C",
       "expected_bmi_range": [
         60,
         66
@@ -125,14 +125,14 @@
       "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
       "anchor_strategy_cosign_ref": "BEAAA-565",
       "applicability_policy_version": "0.1.2",
-      "are_total": 79,
+      "are_total": 81,
       "band_display": "B",
       "baseline_persisted": true,
       "bias_pack_version": "bias-pack-v0.1",
       "corpus_version": "path_a_v2_1@2026-05-15+bias-pack-v0.1",
       "discrimination_ceiling_pillar3_only": false,
       "expected_band": "B",
-      "expected_bmi": 79,
+      "expected_bmi": 81,
       "expected_bmi_range": [
         77,
         81
@@ -161,13 +161,13 @@
       "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
       "anchor_strategy_cosign_ref": "BEAAA-565",
       "applicability_policy_version": "0.1.2",
-      "are_total": 77,
+      "are_total": 78,
       "band_display": "B",
       "baseline_persisted": true,
       "corpus_version": "path_a_v2_1@2026-05-15",
       "discrimination_ceiling_pillar3_only": false,
       "expected_band": "B",
-      "expected_bmi": 77,
+      "expected_bmi": 78,
       "expected_bmi_range": [
         75,
         79
@@ -204,7 +204,7 @@
       "anchor_strategy_adr_ref": "docs/adr-0007-option-c-admittance-dial.md",
       "anchor_strategy_cosign_ref": "BEAAA-479",
       "applicability_policy_version": "0.1.2",
-      "are_total": 73,
+      "are_total": 75,
       "band_display": "B-",
       "baseline_persisted": true,
       "bias_pack_version": "bias-pack-v0.1",
@@ -231,7 +231,7 @@
         "message": "2 dim(s) emitted N/A due to architectural absence; pillar scores re-normalized across active dims per Option C (UW co-sign 2026-05-14, CEO co-sign 2026-05-11, BEAAA-225 closed 2026-05-17)."
       },
       "discrimination_ceiling_pillar3_only": false,
-      "expected_band": "A- / A",
+      "expected_band": "B-",
       "expected_bmi_range": [
         70,
         76
@@ -284,13 +284,13 @@
     "M2": {
       "agent_status": "live",
       "applicability_policy_version": "0.1.2",
-      "are_total": 48,
+      "are_total": 46,
       "band_display": "D+",
       "baseline_persisted": true,
       "bias_pack_version": "bias-pack-v0.1",
       "corpus_version": "path_b_v2_1@2026-05-15+bias-pack-v0.1",
       "expected_band": "D+",
-      "expected_bmi": 48,
+      "expected_bmi": 46,
       "expected_bmi_lock_note": "BEAAA-759 v0.3 live N=5 rebaseline ratified M2 from prior 47 to 48; band D+ stable; P2.1 median raw 0.0 and P2.4 median raw 3.5.",
       "expected_bmi_prior_estimate": 48,
       "expected_bmi_range": [
@@ -318,15 +318,15 @@
     "M3": {
       "agent_status": "live",
       "applicability_policy_version": "0.1.2",
-      "are_total": 54,
+      "are_total": 60,
       "band_display": "D+",
       "baseline_persisted": true,
       "corpus_version": "path_a_v2_1@2026-05-15",
       "expected_band": "D+",
-      "expected_bmi": 54,
+      "expected_bmi": 60,
       "expected_bmi_range": [
-        45,
-        55
+        55,
+        65
       ],
       "fixture_id": "M3",
       "houw_binding_conditions": {

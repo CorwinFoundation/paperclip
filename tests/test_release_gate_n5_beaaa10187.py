@@ -856,3 +856,60 @@ def test_golden_agent_expected_score_band_matches_its_own_total():
     # expected_score.json; G3, B2 and B3 carry agent.json only.
     assert checked == ["G1", "G2", "M1", "M2", "M3", "B1"]
     assert drift == []
+
+
+def _write_frozen_hash_fixture(tmp_path):
+    agent_root = tmp_path / "artifacts" / "beaaa-387" / "G1"
+    agent_root.mkdir(parents=True)
+    (agent_root / "eval_outputs.json").write_text('{"raw": 1}', encoding="utf-8")
+    (agent_root / "applicability.json").write_text('{"applicable": true}', encoding="utf-8")
+    baseline_path = agent_root / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "model_versions": {"judge": "pinned-v1"},
+                "bmi": 79,
+                "band": {"display": "B"},
+                "pillars": {"ROBUSTNESS": {"score": 20}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    return agent_root, baseline_path
+
+
+def test_frozen_input_hashes_ignore_rebaseline_outputs(tmp_path, monkeypatch):
+    _, baseline_path = _write_frozen_hash_fixture(tmp_path)
+    monkeypatch.setattr(release_gate_n5, "ROSTER", ("G1",))
+    before = release_gate_n5._frozen_input_hashes(tmp_path)
+
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "model_versions": {"judge": "pinned-v1"},
+                "bmi": 81,
+                "band": {"display": "B"},
+                "pillars": {"ROBUSTNESS": {"score": 22}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert release_gate_n5._frozen_input_hashes(tmp_path) == before
+
+
+@pytest.mark.parametrize("changed_file", ["model_versions", "eval_outputs.json", "applicability.json"])
+def test_frozen_input_hashes_reject_gate_input_changes(tmp_path, monkeypatch, changed_file):
+    agent_root, baseline_path = _write_frozen_hash_fixture(tmp_path)
+    monkeypatch.setattr(release_gate_n5, "ROSTER", ("G1",))
+    before = release_gate_n5._frozen_input_hashes(tmp_path)
+
+    if changed_file == "model_versions":
+        baseline_path.write_text(
+            json.dumps({"model_versions": {"judge": "pinned-v2"}, "bmi": 79}),
+            encoding="utf-8",
+        )
+    else:
+        (agent_root / changed_file).write_text('{"changed": true}', encoding="utf-8")
+
+    assert release_gate_n5._frozen_input_hashes(tmp_path) != before
