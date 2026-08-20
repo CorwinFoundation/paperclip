@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Canonical BackBond Scanner active-test registry and count gate.
 
-The registry is derived from rubric/probe_mappings/*.yaml so probe/rubric
-bindings remain the single operational source. The gate only counts rows that
-are both active and production-runner executable.
+The scored registry is derived from ``rubric/probe_mappings/*.yaml``. Validated
+reported-not-scored content candidates may be merged through a pinned runtime
+adapter without implying a scoring/rubric mapping. The gate only counts rows
+that are active and production-runner executable.
 """
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import re
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -16,6 +19,17 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+
+from harness.bench.corpus_pin import load_probe_set_version
+
+from tools.founder_dev_mode import (
+    ATTESTATION_FOUNDER_DEV,
+    ATTESTATION_PRODUCTION_SIGNED,
+    assert_production_attested,
+    attestation_tier as _attestation_tier,
+    dev_scoring_declared as _dev_scoring_declared,
+    is_dev_mode as _is_dev_mode,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -47,6 +61,32 @@ EXECUTION_EVIDENCE_REQUIRED_FIELDS = {
     "verdict",
     "github_provenance",
 }
+# BEAAA-23857 scored-lane expansion at the thinnest rubric points. These
+# families are single-turn and judge-model-free; the runtime binding check is
+# "prompt + a non-empty oracle", not the text_case_materializer path.
+SCORED_LANE_DETERMINISTIC_FAMILIES = frozenset(
+    {
+        "p1_2_citation_integrity_golden",
+        "p1_6_eval_coverage_breadth_golden",
+        "p2_5_sentiment_skew_golden",
+    }
+)
+BEAAA_24210_SCORED_FLOOR_FAMILIES = frozenset(
+    {
+        "p1_2_citation_integrity_floor",
+        "p1_6_eval_breadth_floor",
+        "p2_5_sentiment_skew_floor",
+        "p3_2_indirect_injection_floor",
+        "p3_3_secret_exfil_floor",
+        "p1_2_citation_integrity_floor30",
+        "p1_6_eval_breadth_floor30",
+        "p2_5_sentiment_skew_floor30",
+        "p3_2_indirect_injection_floor30",
+        "p3_3_secret_exfil_floor30",
+        "p1_5_confidence_calibration_floor30",
+    }
+)
+EXTERNAL_EVIDENCE_PATH = REPO_ROOT / "artifacts" / "beaaa-21704" / "execution_evidence.json"
 HISTORIC_CLAIM_COUNT = 1180
 LAST_VERIFIED_AT = "2026-07-12"
 LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
@@ -70,11 +110,110 @@ AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
         "mcp_tool_integrity",
     }
 )
+REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES = frozenset(
+    {
+        "backbond-output-attack-fixtures",
+        "crescendo",
+    }
+)
 AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
     {
         "cross_session_data_leak",
         "consequential_action_confirmation",
     }
+)
+# Families promoted to scored (underwriting-eligibility, zero score weight) under
+# Founder-Dev-Mode only: scored when BACKBOND_FOUNDER_DEV_MODE=on, reported-not-
+# scored otherwise, never production-attested. See tools/founder_dev_mode.py.
+#
+# FOUNDER_DEV_SCORED_FAMILIES drives the scoring resolution for all dev-promoted
+# families. It is split by flag-OFF countability so promotion never shifts the
+# frozen production count (340) when the flag is off:
+#   * ..._FOUNDER_DEV_SCORING_ACTIVE_FAMILIES — non-countable while reported-not-
+#     scored; joined to the non-countable union so the flag-off count is unchanged
+#     and they become countable only when the dev flag is on.
+#   * FOUNDER_DEV_LEGACY_SCORED_FAMILIES — ALREADY counted in the 340 as reported-
+#     not-scored; the dev flag only flips them scored (count unchanged).
+AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES = frozenset(
+    {
+        "p3_5_multiturn_jailbreak",
+        "p3_6_output_attack",
+        "system_prompt_extraction",
+        "insecure_code_generation",
+        "crescendo",
+        "backbond-output-attack-fixtures",
+    }
+)
+FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
+    {
+        "ai_disclosure",
+        "cbrn_refusal",
+        "cyber_misuse_refusal",
+        "harmful_output_golden",
+        "out_of_scope_containment",
+        "voice_adversarial_pack",
+    }
+)
+FOUNDER_DEV_SCORED_FAMILIES = (
+    AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES | FOUNDER_DEV_LEGACY_SCORED_FAMILIES
+)
+BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
+    {
+        ("agentdojo", "docs.attachment.rendered_html.command_hijack"),
+        ("agentdojo", "retrieval.citation_card.canary_exfil"),
+        ("agentdojo", "tools.email_thread.injected_followup"),
+        ("agentdojo", "workspace.write_then_summarize.indirect_system_override"),
+        ("garak", "dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.dan.AntiDAN"),
+        ("garak_beaaa152", "garak.dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.malwaregen.Evasion"),
+        ("garak_beaaa152", "garak.misleading.FalseAssertion"),
+        ("garak_beaaa152", "garak.promptinject.HijackHateHumans"),
+        ("garak_beaaa152", "garak.snowball.GraphConnectivity"),
+        ("garak_beaaa152", "garak.xss.MarkdownImageExfil"),
+        ("jailbreakbench", "jbb.privacy.injection"),
+        ("privacybench", "privacybench.direct_regurg"),
+        ("privacybench", "privacybench.indirect_inference.exfil"),
+        ("privacybench", "privacybench.jailbreak_pii.exfil"),
+        ("sentiment_skew", "ss.bold_subset"),
+        ("sentiment_skew", "ss.holisticbias_subset"),
+        ("sentiment_skew", "ss.legal_intake_counterfactual"),
+        ("demographic_parity", "dp.bbq_disambig"),
+        ("demographic_parity", "dp.legal_intake_counterfactual"),
+        ("equal_opportunity", "eo.uw_labeled_subset"),
+        ("counterfactual_stability", "cs.all_axes"),
+        ("eval_representation", "er.derived_coverage"),
+    }
+)
+# These rows were already target-bound runtime aliases before BEAAA-21704 added
+# external execution evidence.  Report-only status keeps them out of the scored
+# executable total, but must not erase their pre-existing runtime coverage.
+BEAAA_21704_RETAINED_RUNTIME_CASES = frozenset(
+    {
+        ("garak", "dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.dan.AntiDAN"),
+        ("garak_beaaa152", "garak.dan.Dan_11_0"),
+        ("garak_beaaa152", "garak.malwaregen.Evasion"),
+        ("garak_beaaa152", "garak.misleading.FalseAssertion"),
+        ("garak_beaaa152", "garak.promptinject.HijackHateHumans"),
+        ("garak_beaaa152", "garak.snowball.GraphConnectivity"),
+        ("garak_beaaa152", "garak.xss.MarkdownImageExfil"),
+        ("jailbreakbench", "jbb.privacy.injection"),
+        ("privacybench", "privacybench.direct_regurg"),
+        ("privacybench", "privacybench.indirect_inference.exfil"),
+        ("privacybench", "privacybench.jailbreak_pii.exfil"),
+    }
+)
+BEAAA_21704_PROVENANCE = "BEAAA-21704"
+BEAAA_21704_ALLOWED_TARGET_CLASSES = frozenset(
+    {
+        "approved_non_customer_production_like_bounded_agent",
+        "self_hosted_agentdojo_native_task_suite_gateway",
+    }
+)
+_NON_EXECUTION_MARKERS = re.compile(
+    r"(?:^|[\s_:-])(placeholder|fixture|fabricated|synthetic[-_ ]?response|todo|n/?a)(?:$|[\s_.,:-])",
+    re.IGNORECASE,
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
@@ -147,6 +286,7 @@ class RegistryRow:
     alias_of_runtime_case_identity: str | None = None
     source_aliases: tuple[dict[str, str], ...] = ()
     execution_mode: str | None = None
+    attestation_tier: str = ATTESTATION_PRODUCTION_SIGNED
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -208,6 +348,15 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
         return bool(probe.get("prompt") and probe.get("expected_action"))
     if benchmark == "p1_5_calibration_golden":
         return bool(probe.get("prompt") and probe.get("gold_answer"))
+    if benchmark in (SCORED_LANE_DETERMINISTIC_FAMILIES | BEAAA_24210_SCORED_FLOOR_FAMILIES):
+        # BEAAA-23857. A case is runtime-bound when it carries the single-turn
+        # payload plus at least one oracle side; a roster entry with an empty
+        # oracle is not materializable and must not count.
+        oracle = probe.get("oracle") or {}
+        return bool(
+            probe.get("prompt")
+            and (oracle.get("pass_requires_any") or oracle.get("fail_on_any"))
+        )
 
     from tools.text_case_materializer import (
         is_text_compatible_test,
@@ -223,13 +372,70 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
     return True
 
 
+#: Provenance a lane-C row must carry before ``target_bound`` may be true
+#: (BEAAA-23860): who was executed, what class of target it was, and the
+#: per-seed record of the runs that produced the verdict.
+LANE_C_TARGET_PROVENANCE_FIELDS = ("target_identity", "target_class", "run_provenance")
+
+
+def _is_lane_c_family(benchmark: str) -> bool:
+    from harness.lane_c_adapter import is_lane_c_family
+
+    return is_lane_c_family(benchmark)
+
+
+def _lane_c_runner_bound(benchmark: str, case_id: Any) -> bool:
+    """Whether the registered executor has a bound adapter for this case.
+
+    An unrecognized lane-C family or case must not fall through as executable,
+    so this gates ``production_runner_executable`` rather than trusting the
+    mapping's own declaration.
+    """
+
+    from harness.lane_c_adapter import has_bound_case
+
+    return has_bound_case(benchmark, str(case_id))
+
+
+def _has_lane_c_run_provenance(
+    probe: dict[str, Any],
+    mapping: dict[str, Any],
+) -> bool:
+    """Whether this probe's evidence names a real target and real runs."""
+
+    evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    if not isinstance(evidence, dict):
+        return False
+    if any(not evidence.get(field) for field in LANE_C_TARGET_PROVENANCE_FIELDS):
+        return False
+    runs = evidence.get("run_provenance")
+    if not isinstance(runs, list) or not runs:
+        return False
+    return all(
+        isinstance(run, dict)
+        and run.get("seed") in (0, 1, 2, 3, 4)
+        and bool(run.get("sha256"))
+        and bool(run.get("evidence_uri"))
+        and bool(run.get("verdict"))
+        for run in runs
+    )
+
+
 def _execution_evidence_status(
     probe: dict[str, Any],
     mapping: dict[str, Any],
+    *,
+    allow_external_evidence: bool = True,
 ) -> tuple[bool, str]:
-    if probe.get("requires_retained_packet") is True and probe.get("retained_packet_valid") is not True:
-        return False, "retained_packet_invalid"
     evidence = probe.get("execution_evidence") or mapping.get("execution_evidence") or {}
+    external_evidence = False
+    benchmark = str(mapping.get("benchmark") or "")
+    probe_id = str(probe.get("probe_id") or probe.get("id") or "")
+    if allow_external_evidence and (not evidence) and EXTERNAL_EVIDENCE_PATH.exists():
+        records = json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        if len(records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+            evidence = records.get(f"{benchmark}:{probe_id}") or {}
+            external_evidence = bool(evidence)
     if not isinstance(evidence, dict):
         return False, "execution_evidence_not_object"
     missing = sorted(
@@ -239,6 +445,24 @@ def _execution_evidence_status(
     )
     if missing:
         return False, "missing_execution_evidence:" + ",".join(missing)
+    response = str(evidence.get("recorded_target_response") or "").strip()
+    if external_evidence:
+        if _NON_EXECUTION_MARKERS.search(response):
+            return False, "invalid_execution_evidence:non_execution_response"
+        if str(evidence.get("github_provenance") or "") != BEAAA_21704_PROVENANCE:
+            return False, "invalid_execution_evidence:provenance"
+        if not str(evidence.get("target_identity") or "").strip():
+            return False, "invalid_execution_evidence:missing_target_identity"
+        target_class = str(evidence.get("target_class") or "").strip()
+        if target_class not in BEAAA_21704_ALLOWED_TARGET_CLASSES:
+            return False, "invalid_execution_evidence:target_class"
+        executed_at = str(evidence.get("executed_at") or "").strip()
+        try:
+            parsed = dt.datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
+        except ValueError:
+            return False, "invalid_execution_evidence:executed_at"
+        if parsed.tzinfo is None:
+            return False, "invalid_execution_evidence:executed_at"
     return True, "target_bound_and_evidenced"
 
 
@@ -265,247 +489,15 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _aiuc_lane_c_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Materialize the three BEAAA-18610 lane-C families from their real specs."""
-
-    family = str(data.get("benchmark") or "")
-    if family not in {
-        "human_escalation_flagging",
-        "customer_defined_risk_pack",
-        "mcp_tool_integrity",
-    }:
-        return []
-    from evals.aiuc_path_b.manifest import FAMILY_MODULES
-
-    module = FAMILY_MODULES[family]
-    spec = module.SPEC
-    return [
-        {
-            "probe_id": case.case_id,
-            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
-            "rubric_point_id": case.rubric_point_ids[1],
-            "category": case.category,
-            "execution_evidence": {
-                "concrete_input_or_action": case.scenario_variants[0],
-                "expected_oracle": json.dumps(case.oracle, sort_keys=True),
-                "recorded_target_response": "captured_by_registered_case_executor",
-                "verdict": "deterministic_structured_decision pass/fail/invalid/not_applicable",
-                "github_provenance": "BEAAA-18611",
-            },
-        }
-        for case in spec.cases
-    ]
-
-
-def _wave1a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
-    if data.get("runner") != "evals/perils/wave1a/candidate.py":
-        return []
-    if not _scoring_active(data):
-        return []
-    from evals.perils.wave1a import candidate as wave
-
-    family = str(data["benchmark"])
-    specs = {spec.name: spec for spec in wave.FAMILIES}
-    spec = specs.get(family)
-    if spec is None:
-        return []
-    return [
-        {
-            "probe_id": case.case_id,
-            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
-            "rubric_point_id": case.rubric_point_ids[1],
-            "category": case.category,
-            "execution_evidence": {
-                "concrete_input_or_action": case.variants[0],
-                "expected_oracle": f"{case.oracle_field} == {case.expected}",
-                "recorded_target_response": "captured_by_wave1a_candidate_packet",
-                "verdict": "deterministic_local_oracle pass/fail",
-                "github_provenance": "BEAAA-17022",
-            },
-        }
-        for case in spec.cases
-    ]
-
-
-def _wave2_lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
-    if data.get("runner") != "evals/aiuc_path_b/lane_a_depth.py":
-        return []
-    from evals.aiuc_path_b import lane_a_depth as lane
-
-    family = str(data["benchmark"])
-    spec = lane.SPECS.get(family)
-    if spec is None:
-        return []
-    field = lane.FIELDS[family]
-    evidence = data.get("execution_evidence") if isinstance(data.get("execution_evidence"), Mapping) else {}
-    retained_path = str(evidence.get("retained_target_evidence") or "")
-    retained_sha = str(evidence.get("retained_target_evidence_sha256") or "")
-    retained_ok = False
-    if retained_path and retained_sha:
-        path = REPO_ROOT / retained_path
-        retained_ok = _validate_wave2_retained_packet(path, retained_sha, family, evidence)
-    return [
-        {
-            "probe_id": case.case_id,
-            "pillar": str(case.rubric_point_ids[1]).split(".", 1)[0],
-            "rubric_point_id": case.rubric_point_ids[1],
-            "category": case.category,
-            "requires_retained_packet": True,
-            "retained_packet_valid": retained_ok,
-            **(
-                {
-                    "execution_evidence": {
-                        "concrete_input_or_action": case.scenario_variants[0],
-                        "expected_oracle": f"{field} == {case.oracle[field]}",
-                        "recorded_target_response": (
-                            f"{retained_path}#{family}/{case.case_id}; "
-                            f"artifact_sha256={retained_sha}"
-                        ),
-                        "verdict": "deterministic_raw_response_evaluator pass/fail/invalid",
-                        "github_provenance": "BEAAA-17196",
-                    }
-                }
-                if retained_ok
-                else {}
-            ),
-        }
-        for case in spec.cases
-    ]
-
-
-def _target_auth_from_packet(packet: Mapping[str, Any]):
-    from evals.aiuc_path_b import lane_a_depth as lane
-
-    raw_auth = packet.get("target_authorization")
-    if not isinstance(raw_auth, Mapping):
-        raise lane.TargetExecutionError("target_authorization_missing")
-    return lane.TargetProductionAuthorization(
-        target_id=str(raw_auth.get("target_id") or ""),
-        candidate_commit_sha=str(raw_auth.get("candidate_commit_sha") or ""),
-        parent_sha=str(raw_auth.get("parent_sha") or ""),
-        authorization_ref=str(raw_auth.get("authorization_ref") or ""),
-        authorization_issued_at=str(raw_auth.get("authorization_issued_at") or ""),
-        authorization_expires_at=str(raw_auth.get("authorization_expires_at") or ""),
-        target_endpoint=str(raw_auth.get("target_endpoint") or ""),
-        lease_root=str(raw_auth.get("lease_root") or ""),
-        tenant_boundary=str(raw_auth.get("tenant_boundary") or ""),
-        session_boundary=str(raw_auth.get("session_boundary") or ""),
-        allowed_family_ids=tuple(raw_auth.get("allowed_family_ids") or ()),
-        evidence_immutable=bool(raw_auth.get("evidence_immutable")),
-        signature=str(raw_auth.get("signature") or ""),
-    )
-
-
-def _validate_wave2_retained_packet(
-    path: Path,
-    retained_sha: str,
-    family: str,
-    mapping_evidence: Mapping[str, Any],
-) -> bool:
-    from evals.aiuc_path_b import lane_a_depth as lane
-
-    try:
-        if not path.exists() or lane._sha256_file(path) != retained_sha:
-            return False
-        packet = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(packet, dict):
-            return False
-        auth = _target_auth_from_packet(packet)
-        candidate_sha = str(packet.get("candidate_commit_sha") or "")
-        parent_sha = str(packet.get("parent_sha") or "")
-        if candidate_sha != auth.candidate_commit_sha or parent_sha != auth.parent_sha:
-            return False
-        if packet.get("ticket_ref") != lane.FIX_TICKET_REF:
-            return False
-        lane.verify_authorization(auth, commit_sha=candidate_sha, parent_sha=parent_sha)
-        if packet.get("unique_scenario_count") != 72 or packet.get("execution_count_k5") != 360:
-            return False
-        evidence_by_family = packet.get("evidence_by_family")
-        if not isinstance(evidence_by_family, dict) or family not in evidence_by_family:
-            return False
-        if set(evidence_by_family) != set(lane.SPECS):
-            return False
-        family_hashes: dict[str, list[str]] = {}
-        row_count = 0
-        for family_name, runs in evidence_by_family.items():
-            spec = lane.SPECS.get(family_name)
-            if spec is None or not isinstance(runs, list) or len(runs) != 5:
-                return False
-            family_hashes[family_name] = []
-            for run in runs:
-                if not isinstance(run, dict):
-                    return False
-                if run.get("sha256") != lane._sha256_obj({k: v for k, v in run.items() if k != "sha256"}):
-                    return False
-                cases = run.get("case_results")
-                if not isinstance(cases, list) or len(cases) != len(spec.cases):
-                    return False
-                for row in cases:
-                    if not isinstance(row, dict):
-                        return False
-                    request = row.get("target_request")
-                    response = row.get("target_response")
-                    verdict = row.get("verdict")
-                    if not isinstance(request, dict) or not isinstance(response, dict) or not verdict:
-                        return False
-                    if row.get("target_request_sha256") != lane._sha256_obj(request):
-                        return False
-                    if row.get("target_response_sha256") != lane._sha256_obj(response):
-                        return False
-                    if row.get("execution_evidenced") is not True:
-                        return False
-                    row_count += 1
-                family_hashes[family_name].append(run["sha256"])
-        if row_count != 360:
-            return False
-        execution_sha = lane._sha256_obj(evidence_by_family)
-        auth_sha = lane._sha256_obj(lane.authorization_preimage(auth))
-        if packet.get("target_authorization_preimage_sha256") != auth_sha:
-            return False
-        preimage = packet.get("signed_manifest_preimage") or packet.get("manifest_preimage")
-        if not isinstance(preimage, dict):
-            return False
-        target_execution = preimage.get("target_execution")
-        if not isinstance(target_execution, dict):
-            return False
-        if preimage.get("candidate_commit_sha") != candidate_sha or preimage.get("parent_sha") != parent_sha:
-            return False
-        if target_execution.get("execution_evidence_sha256") != execution_sha:
-            return False
-        if target_execution.get("family_evidence_sha256") != family_hashes:
-            return False
-        if target_execution.get("target_authorization_preimage_sha256") != auth_sha:
-            return False
-        promotion_identity = packet.get("promotion_identity")
-        if not isinstance(promotion_identity, dict):
-            return False
-        promotion_sha = lane._sha256_obj(promotion_identity)
-        if packet.get("promotion_identity_sha256") != promotion_sha:
-            return False
-        if preimage.get("promotion_identity_sha256") != promotion_sha:
-            return False
-        expected_promotion_sha = mapping_evidence.get("promotion_identity_sha256")
-        if expected_promotion_sha and expected_promotion_sha != promotion_sha:
-            return False
-        if promotion_identity.get("identity_scheme") != lane.PROMOTION_IDENTITY_SCHEME:
-            return False
-        if promotion_identity.get("promotion_ticket_ref") != lane.FIX_TICKET_REF:
-            return False
-        if promotion_identity.get("candidate_commit_sha") != candidate_sha:
-            return False
-        if promotion_identity.get("parent_sha") != parent_sha:
-            return False
-        if promotion_identity.get("execution_evidence_sha256") != execution_sha:
-            return False
-        if promotion_identity.get("target_authorization_preimage_sha256") != auth_sha:
-            return False
-        signed_manifest = packet.get("signed_manifest")
-        return isinstance(signed_manifest, dict) and lane.verify_signed_manifest(preimage, signed_manifest)
-    except (OSError, ValueError, lane.TargetExecutionError):
-        return False
-
-
 def _scoring_active(data: Mapping[str, Any]) -> bool:
+    # Founder-Dev-Mode override: dev-scored only when the env opt-in is set;
+    # otherwise fail closed to not-scored so production defaults are unchanged.
+    # A family opts in via the registry frozenset OR via its mapping binding.
+    if (
+        str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
+        or (_attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data))
+    ):
+        return _is_dev_mode()
     binding = data.get("binding") if isinstance(data.get("binding"), Mapping) else {}
     if binding.get("scoring_active") is False:
         return False
@@ -515,19 +507,26 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
         return False
     if data.get("scoring_active") is True:
         return True
-    if str(data.get("scoring") or "").replace("-", "_") == "reported_not_scored":
-        return False
     return True
 
 
 def _reporting_status(data: Mapping[str, Any]) -> str:
+    if (
+        str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
+        or (_attestation_tier(data) == ATTESTATION_FOUNDER_DEV and _dev_scoring_declared(data))
+    ):
+        return "scoring_active" if _is_dev_mode() else "reported_not_scored"
     value = data.get("reporting_status")
     if isinstance(value, str) and value:
         return value
     return "reported_not_scored" if not _scoring_active(data) else "scored"
 
 
-def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
+def build_registry(
+    mapping_dir: Path = MAPPING_DIR,
+    *,
+    include_content_candidates: bool = True,
+) -> list[dict[str, Any]]:
     rows: list[RegistryRow] = []
     for path in sorted(mapping_dir.glob("*.yaml")):
         data = _load_yaml(path)
@@ -536,6 +535,11 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
         scoring_active = _scoring_active(data)
         reporting_status = _reporting_status(data)
         reproducibility = data.get("reproducibility") if isinstance(data.get("reproducibility"), dict) else {}
+        version_pin = (
+            load_probe_set_version(path)
+            if "probe_set_version" in reproducibility
+            else f"{benchmark}@{version}"
+        )
         k_replicates = int(reproducibility.get("n_runs") or 1)
         surface_seed_rotation_enabled = bool(data.get("surface_seed_rotation_enabled", False))
         canary_registration = str(data.get("canary_registration") or "")
@@ -560,7 +564,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     runner=runner,
                     underwriting_trigger=synthetic["underwriting_trigger"],
                     required_or_optional="required",
-                    version_pin=f"{benchmark}@{version}",
+                    version_pin=version_pin,
                     expected_result="deterministic verdict mapped to a rubric raw score",
                     evidence_uri_template="evidence://{scan_id}/{test_id}/{case_id}.json",
                     owner="scanner_engineer",
@@ -577,30 +581,50 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                     surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                     canary_registration=canary_registration,
                     applicability_gate=applicability_gate,
+                    attestation_tier=_attestation_tier(data),
                 )
             )
         activation_blocker = data.get("activation_blocker")
-        probes = (
-            data.get("probes")
-            or _lane_a_probes(data)
-            or _aiuc_lane_c_probes(data)
-            or _wave1a_probes(data)
-            or _wave2_lane_a_probes(data)
-        )
+        probes = data.get("probes") or _lane_a_probes(data)
         for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
                 continue
             execution_evidenced, evidence_status = _execution_evidence_status(
-                probe, data
+                probe,
+                data,
+                allow_external_evidence=(
+                    mapping_dir.resolve() == MAPPING_DIR.resolve()
+                    and (benchmark, str(probe_id))
+                    not in BEAAA_21704_RETAINED_RUNTIME_CASES
+                ),
             )
             materializable = executable and _case_has_bound_execution(benchmark, probe)
             target_bound = execution_evidenced or materializable
             if materializable and not execution_evidenced:
                 evidence_status = "target_bound_evidence_pending"
-            executable_for_count = (
-                executable and target_bound and execution_evidenced and scoring_active
-            )
+            executable_for_count = executable and target_bound and execution_evidenced
+            if _is_lane_c_family(benchmark):
+                # BEAAA-23860: for lane C, target_bound is derived only from
+                # captured target identity/class plus run provenance, and the row
+                # is executable only when the registered runner can actually run
+                # it. Mapping membership alone is not enough for either flag.
+                target_bound = execution_evidenced and _has_lane_c_run_provenance(
+                    probe, data
+                )
+                if not target_bound:
+                    execution_evidenced = False
+                    evidence_status = "lane_c_evidence_not_target_derived"
+                executable_for_count = (
+                    executable
+                    and target_bound
+                    and execution_evidenced
+                    and _lane_c_runner_bound(benchmark, probe_id)
+                )
+                if not executable_for_count and evidence_status == (
+                    "target_bound_and_evidenced"
+                ):
+                    evidence_status = "lane_c_registered_runner_not_bound"
             direct_pillar = probe.get("pillar")
             direct_rubric_id = probe.get("dim") or probe.get("rubric_point_id")
             if direct_pillar and direct_rubric_id:
@@ -633,7 +657,7 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         runner=runner,
                         underwriting_trigger=binding["trigger"],
                         required_or_optional="required",
-                        version_pin=f"{benchmark}@{version}",
+                        version_pin=version_pin,
                         expected_result="deterministic verdict mapped to a rubric raw score",
                         evidence_uri_template="evidence://{scan_id}/{test_id}/{case_id}.json",
                         owner="scanner_engineer",
@@ -650,9 +674,153 @@ def build_registry(mapping_dir: Path = MAPPING_DIR) -> list[dict[str, Any]]:
                         surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                         canary_registration=canary_registration,
                         applicability_gate=applicability_gate,
+                        attestation_tier=_attestation_tier(data),
                     )
                 )
-    return _reconcile_runtime_identities([asdict(row) for row in rows])
+    reconciled = _reconcile_runtime_identities([asdict(row) for row in rows])
+    evidence_records = (
+        json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        if EXTERNAL_EVIDENCE_PATH.exists()
+        else {}
+    )
+    if len(evidence_records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+        for row in reconciled:
+            key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            if key not in BEAAA_21704_REPORTED_NOT_SCORED_CASES:
+                continue
+            row["scoring_active"] = False
+            row["reporting_status"] = "reported_not_scored"
+            if f"{key[0]}:{key[1]}" in evidence_records:
+                row["external_execution_evidenced"] = True
+                if key in BEAAA_21704_RETAINED_RUNTIME_CASES:
+                    continue
+                row["production_runner_executable"] = True
+                row["execution_evidenced"] = True
+                row["execution_evidence_status"] = "target_bound_and_evidenced"
+                row["activation_blocker"] = None
+    if (
+        include_content_candidates
+        and mapping_dir.resolve() == MAPPING_DIR.resolve()
+    ):
+        return _merge_content_candidate_inventory(reconciled)
+    return reconciled
+
+
+def _merge_content_candidate_inventory(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Register all accepted candidates without duplicating existing case IDs."""
+
+    from tools.content_candidate_inventory import (
+        INVENTORY_RELATIVE_PATH,
+        INVENTORY_SHA256,
+        INVENTORY_VERSION,
+        candidate_pillar,
+        candidate_runtime_identity,
+        load_candidate_inventory,
+    )
+
+    existing = {
+        (str(row.get("test_id") or ""), str(row.get("case_id") or "")): row
+        for row in rows
+    }
+    for candidate in load_candidate_inventory():
+        family_id = str(candidate["family_id"])
+        case_id = str(candidate["stable_case_id"])
+        key = (family_id, case_id)
+        candidate_metadata = {
+            "content_candidate_inventory": True,
+            "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
+            "content_candidate_inventory_sha256": INVENTORY_SHA256,
+            "candidate_dedupe_sha256": str(candidate["dedupe_sha256"]),
+            "candidate_semantic_behavior_fingerprint": str(
+                candidate["semantic_behavior_fingerprint"]
+            ),
+            "candidate_oracle_type": str(
+                candidate["deterministic_oracle"].get("type") or ""
+            ),
+            "candidate_registration_status": "registered_reported_not_scored",
+            "candidate_rubric_mapping_status": "unmapped_reported_not_scored",
+        }
+        current = existing.get(key)
+        if current is not None and (
+            current.get("production_runner_executable") is True
+            or _is_lane_c_family(family_id)
+        ):
+            # A lane-C mapping row is authoritative even when its provenance
+            # guard makes it non-executable. Replacing that guarded row with the
+            # permissive inventory registration would turn the fail-closed
+            # result back into target_bound=true under the production-default
+            # merge (BEAAA-21723 QA B4). The inventory may enrich the row's
+            # metadata/identity, but may not replace its runner or guard flags.
+            # For other families, an already-bound production mapping also wins.
+            # The inventory still owns the row's distinct
+            # -coverage identity: dropping it here would silently shrink the
+            # distinct-case count by one row per graduated case, so carry it
+            # across unchanged.
+            current.update(candidate_metadata)
+            if _is_lane_c_family(family_id) and not current.get(
+                "runtime_case_identity"
+            ):
+                current["runtime_case_identity"] = candidate_runtime_identity(candidate)
+                # ``canonical_runtime_case`` defaults to False on a mapping row,
+                # so this has to be assigned rather than defaulted: the graduated
+                # row *is* the one canonical carrier of that identity, and
+                # leaving it False drops the canonical count by one per row.
+                current["canonical_runtime_case"] = True
+                current["alias_of_runtime_case_identity"] = None
+            continue
+
+        runtime_identity = candidate_runtime_identity(candidate)
+        registration = {
+            "test_id": family_id,
+            "case_id": case_id,
+            "status": "active",
+            "pillar": candidate_pillar(family_id),
+            "category": family_id,
+            "risk_or_rubric_id": f"UNSCORED.CONTENT_CANDIDATE.{family_id}",
+            "source_pack": INVENTORY_RELATIVE_PATH,
+            "runner": "content_candidate_worker",
+            "underwriting_trigger": "reported_not_scored",
+            "required_or_optional": "required",
+            "version_pin": (
+                f"{family_id}@{candidate['version']};"
+                f"{INVENTORY_VERSION}@sha256:{INVENTORY_SHA256}"
+            ),
+            "expected_result": "reported-not-scored pinned-oracle verdict",
+            "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+            "owner": "scanner_engineer",
+            "last_verified_at": "2026-07-28",
+            "case_class": "content_candidate_probe",
+            "production_runner_executable": True,
+            "target_bound": True,
+            "execution_evidenced": False,
+            "execution_evidence_status": "runtime_bound_evidence_pending",
+            "scoring_active": False,
+            "reporting_status": "reported_not_scored",
+            "activation_blocker": None,
+            "k_replicates": 1,
+            "surface_seed_rotation_enabled": False,
+            "canary_registration": "",
+            "applicability_gate": dict(candidate["applicability"]),
+            "runtime_case_identity": runtime_identity,
+            "canonical_runtime_case": True,
+            "alias_of_runtime_case_identity": None,
+            "source_aliases": (),
+            "execution_mode": "content_candidate_inventory_adapter",
+            **candidate_metadata,
+        }
+        if current is None:
+            rows.append(registration)
+            existing[key] = registration
+        else:
+            # The mapping row existed but had no runnable adapter (or was an
+            # identical-payload alias). Promote that same registry identity in
+            # place so family/case uniqueness remains fail-closed.
+            current.update(registration)
+    from tools.tranche1_observational import activate_registry_rows
+
+    return activate_registry_rows(rows)
 
 
 def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -660,24 +828,6 @@ def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, 
 
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
-        if (
-            row.get("status") == "active"
-            and row.get("test_id")
-            in {
-                "human_escalation_flagging",
-                "customer_defined_risk_pack",
-                "mcp_tool_integrity",
-            }
-        ):
-            row["target_bound"] = True
-            row["production_runner_executable"] = True
-            row["execution_evidenced"] = True
-            row["execution_evidence_status"] = "aiuc_lane_c_production_bound"
-            row["runtime_case_identity"] = (
-                f"{row['test_id']}:{row['case_id']}"
-            )
-            row["canonical_runtime_case"] = True
-            row["execution_mode"] = "structured_customer_agent_decision"
         if (
             row.get("status") == "active"
             and row.get("test_id") in LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES
@@ -804,28 +954,20 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
     )
 
 
-def is_canonical_scored_row(row: Mapping[str, Any]) -> bool:
-    """Return whether a row belongs to the canonical scored-case inventory."""
-
+def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
+    if row.get("content_candidate_inventory") is True:
+        return False
     return (
-        row.get("status") == "active"
-        and row.get("canonical_runtime_case") is True
-        and row.get("reporting_status") == "scored"
-        and row.get("execution_evidenced") is True
-        and row.get("target_bound") is True
-    )
-
-
-def count_canonical_scored_rows(rows: list[dict[str, Any]]) -> int:
-    """Count canonical scored rows using the contract's five-predicate gate."""
-
-    return sum(1 for row in rows if is_canonical_scored_row(row))
-
-
-def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
-    return (
-        row.get("test_id")
-        in (AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES)
+        (
+            (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+            in BEAAA_21704_REPORTED_NOT_SCORED_CASES
+            or row.get("test_id") in (
+            AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES
+            | AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+            | AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES
+            | REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES
+        )
+        )
         and row.get("reporting_status") == "reported_not_scored"
         and row.get("scoring_active") is False
     )
@@ -833,7 +975,7 @@ def _is_aiuc_path_b_reported_not_scored(row: Mapping[str, Any]) -> bool:
 
 def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
     return (
-        not _is_aiuc_path_b_reported_not_scored(row)
+        not _is_non_countable_reported_not_scored(row)
         and row.get("status") == "active"
         and row.get("production_runner_executable") is True
     )
@@ -842,14 +984,10 @@ def _is_countable_active_executable(row: Mapping[str, Any]) -> bool:
 def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     """Active rows the standard runtime can execute to generate evidence."""
 
+    key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
     if (
-        _is_aiuc_path_b_reported_not_scored(row)
-        and row.get("test_id")
-        not in {
-            "human_escalation_flagging",
-            "customer_defined_risk_pack",
-            "mcp_tool_integrity",
-        }
+        _is_non_countable_reported_not_scored(row)
+        and key not in BEAAA_21704_RETAINED_RUNTIME_CASES
     ):
         return False
     return (
@@ -887,6 +1025,10 @@ def runtime_case_identity(row: dict[str, Any]) -> str:
     the collapse.  Content is never mutated here — this only reads what the
     executor would send.
     """
+
+    bound_identity = row.get("runtime_case_identity")
+    if bound_identity:
+        return str(bound_identity)
 
     test_id = str(row.get("test_id") or "")
     case_id = str(row.get("case_id") or "")
@@ -985,13 +1127,11 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
     by_status = Counter(row["status"] for row in rows)
     by_case_class = Counter(row["case_class"] for row in rows)
     active_executable = count_active_executable(rows)
-    canonical_scored_rows = count_canonical_scored_rows(rows)
     target_bound_runtime = count_target_bound_runtime(rows)
     distinct = distinct_case_counts(rows)
     return {
         "registry_rows": len(rows),
         "active_executable_count": active_executable,
-        "canonical_scored_row_count": canonical_scored_rows,
         "target_bound_runtime_count": target_bound_runtime,
         "distinct_runtime_case_count": distinct["total"],
         "distinct_runtime_by_family": distinct["by_family"],
@@ -1024,6 +1164,9 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = build_registry()
+    # Production boundary: the published active-test count is customer-visible.
+    # Refuse to reconcile/publish it while any dev-mode-scored family is live.
+    assert_production_attested(rows)
     published_count = load_published_count()
     summary = summarize(rows, published_count)
     # --check is the strict / CI fail-closed gate: an over-declared distinct
