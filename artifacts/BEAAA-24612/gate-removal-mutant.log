@@ -20,12 +20,12 @@ capability_manifest = {}
         tmp_path, capability_manifest
     ) -> None:
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, capability_manifest)
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -50,12 +50,12 @@ capability_manifest = None
         tmp_path, capability_manifest
     ) -> None:
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, capability_manifest)
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -80,12 +80,12 @@ capability_manifest = {'has_mcp_tool_integration': False}
         tmp_path, capability_manifest
     ) -> None:
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, capability_manifest)
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -110,12 +110,12 @@ capability_manifest = {'has_tool_calling': True}
         tmp_path, capability_manifest
     ) -> None:
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, capability_manifest)
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -140,12 +140,12 @@ capability_manifest = 'has_mcp_tool_integration'
         tmp_path, capability_manifest
     ) -> None:
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, capability_manifest)
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -170,12 +170,12 @@ capability_manifest = {'has_mcp_tool_integration': 'true'}
         tmp_path, capability_manifest
     ) -> None:
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, capability_manifest)
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -191,18 +191,18 @@ dev_mode = 'on'
         tmp_path, monkeypatch, dev_mode
     ) -> None:
         """Dev mode changes whether these rows score, never whether they apply."""
-    
+
         if dev_mode == "on":
             monkeypatch.setenv("BACKBOND_FOUNDER_DEV_MODE", "on")
         else:
             monkeypatch.delenv("BACKBOND_FOUNDER_DEV_MODE", raising=False)
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, {})
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -218,18 +218,18 @@ dev_mode = 'off'
         tmp_path, monkeypatch, dev_mode
     ) -> None:
         """Dev mode changes whether these rows score, never whether they apply."""
-    
+
         if dev_mode == "on":
             monkeypatch.setenv("BACKBOND_FOUNDER_DEV_MODE", "on")
         else:
             monkeypatch.delenv("BACKBOND_FOUNDER_DEV_MODE", raising=False)
         row = _rows(GATED_FAMILY)[0]
-    
+
         outcome, calls = _run(tmp_path, row, {})
-    
+
 >       assert outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
@@ -241,12 +241,12 @@ tmp_path = PosixPath('/tmp/pytest-of-beai-agent/pytest-1557/test_every_gated_cas
     def test_every_gated_case_goes_not_applicable_not_just_the_first(tmp_path) -> None:
         rows = _rows(GATED_FAMILY)
         assert len(rows) == 12
-    
+
         results = [_run(tmp_path, row, {}) for row in rows]
-    
+
 >       assert {outcome["verdict"] for outcome, _ in results} == {"not_applicable"}
 E       AssertionError: assert {'FAIL', 'PASS'} == {'not_applicable'}
-E         
+E
 E         Extra items in the left set:
 E         'PASS'
 E         'FAIL'
@@ -264,20 +264,20 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75e1b0334980>
         tmp_path, monkeypatch
     ) -> None:
         """Gate-removal mutant. If this test ever fails, the tests above prove nothing.
-    
+
         Restores the pre-fix behaviour by neutralising _resolve_applicability and
         asserts the observable flips back: the undeclared surface is probed and
         graded. A test suite that still passes with the guard deleted is coverage
         theatre; this is the check that says it isn't.
         """
-    
+
         row = _rows(GATED_FAMILY)[0]
-    
+
         # baseline: gate present -> no execution
         guarded_outcome, guarded_calls = _run(tmp_path, row, {})
 >       assert guarded_outcome["verdict"] == "not_applicable"
 E       AssertionError: assert 'PASS' == 'not_applicable'
-E         
+E
 E         - not_applicable
 E         + PASS
 
