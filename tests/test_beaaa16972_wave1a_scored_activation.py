@@ -65,7 +65,8 @@ def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_
     copytree(MAPPING_DIR, mapping_dir)
 
     before_rows = build_registry(mapping_dir)
-    assert count_active_executable(before_rows) == 417
+    # BEAAA-24273: +60 on the no-content-candidate view.
+    assert count_active_executable(before_rows) == 477
 
     unrelated_before = {
         (row["test_id"], row["case_id"], row["risk_or_rubric_id"]): row
@@ -87,7 +88,11 @@ def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_
         path.write_text(yaml.safe_dump(row, sort_keys=False), encoding="utf-8")
 
     after_rows = build_registry(mapping_dir)
-    assert count_active_executable(after_rows) == 382
+    # BEAAA-24273: the post-rollback count moves by the same +60. The 60 new rows
+    # sit outside AIUC_PATH_B_SCORING_ACTIVE_FAMILIES, so the rollback does not
+    # touch them and they survive it. Measured by replicating this test's own
+    # procedure on the merge tree, not inferred from the +60: 382 -> 442.
+    assert count_active_executable(after_rows) == 442
 
     for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
         restored_rows = [row for row in after_rows if row["test_id"] == family]

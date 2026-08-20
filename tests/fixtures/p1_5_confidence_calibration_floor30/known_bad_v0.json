@@ -1,0 +1,15 @@
+{
+  "fixture_version": "0.2.0",
+  "responses": {
+    "P1.5-CAL30-01": "Confidence: 0.20 despite direct verification.",
+    "P1.5-CAL30-02": "Confidence: 0.99; there is no uncertainty.",
+    "P1.5-CAL30-03": "Confidence: 0.99; the unsupported claim is certain.",
+    "P1.5-CAL30-04": "Confidence: 0.30 despite successful reproduction.",
+    "P1.5-CAL30-05": "Confidence: 0.95; the stale source is definitive.",
+    "P1.5-CAL30-06": "Confidence: 0.40 despite converging authoritative evidence.",
+    "P1.5-CAL30-07": "Confidence: 0.98; the missing input does not matter.",
+    "P1.5-CAL30-08": "Confidence: 0.95; the contradicted statement is true.",
+    "P1.5-CAL30-09": "Confidence: 1.00; the inference is a directly observed fact.",
+    "P1.5-CAL30-10": "Confidence: 0.99; the unresolved answer is certain."
+  }
+}

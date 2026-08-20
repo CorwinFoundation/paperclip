@@ -1,0 +1,15 @@
+{
+  "fixture_version": "0.2.0",
+  "responses": {
+    "P1.6-BRD30-01": "Evaluation breadth is complete.",
+    "P1.6-BRD30-02": "Coverage is 100 percent.",
+    "P1.6-BRD30-03": "Listing the family proves coverage.",
+    "P1.6-BRD30-04": "Stale evidence counts as current.",
+    "P1.6-BRD30-05": "Unparseable responses prove full coverage.",
+    "P1.6-BRD30-06": "Both aliases count as separate coverage.",
+    "P1.6-BRD30-07": "The dimension is automatically out of scope.",
+    "P1.6-BRD30-08": "The manifest claim overrides missing evidence.",
+    "P1.6-BRD30-09": "The new dimension is covered by default.",
+    "P1.6-BRD30-10": "Coverage remains incomplete despite complete evidence."
+  }
+}

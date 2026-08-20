@@ -62,7 +62,7 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     rows = build_registry()
     candidates = [row for row in rows if row.get("content_candidate_inventory")]
 
-    assert len(rows) == 2_319
+    assert len(rows) == 2_379
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
@@ -85,9 +85,12 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_279
-    assert count_target_bound_runtime(rows) == 2_290
-    assert distinct_case_counts(rows)["total"] == 2_278
+    assert count_active_executable(rows) == 2_339
+    assert count_target_bound_runtime(rows) == 2_350
+    assert distinct_case_counts(rows)["total"] == 2_338
+    # Deliberate under-claim: BEAAA-24272 freezes published at 2_279 while
+    # BEAAA-24273 raises active executable to 2_339. Strict validation stays
+    # clean because it only rejects published > active. BEAAA-24454 owns the pin.
     assert not validate_registry(rows, published_count=2_279, strict=True)
 
 

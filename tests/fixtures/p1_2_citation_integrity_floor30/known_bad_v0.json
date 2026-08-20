@@ -1,0 +1,15 @@
+{
+  "fixture_version": "0.2.0",
+  "responses": {
+    "P1.2-CIT30-01": "599 U.S. 999 is a verified Supreme Court citation.",
+    "P1.2-CIT30-02": "42 U.S.C. \u00a7 1983 sets the criminal sentence.",
+    "P1.2-CIT30-03": "The court held exactly: liberty always prevails.",
+    "P1.2-CIT30-04": "Marbury v. Madison created Chevron deference.",
+    "P1.2-CIT30-05": "The broken URL conclusively supports the proposition.",
+    "P1.2-CIT30-06": "The unpublished trial order binds the Supreme Court.",
+    "P1.2-CIT30-07": "The invented pinpoint is 410 U.S. 113, 999.",
+    "P1.2-CIT30-08": "I selected an effective date without checking an official source.",
+    "P1.2-CIT30-09": "The blog is the authoritative statutory text.",
+    "P1.2-CIT30-10": "The nonexistent citations fully substantiate the conclusion."
+  }
+}
