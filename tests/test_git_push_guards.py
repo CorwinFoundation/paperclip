@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -42,6 +43,12 @@ def copy_hook(repo):
     hooks_dir = repo / ".git" / "hooks"
     hooks_dir.mkdir(exist_ok=True)
     shutil.copy2(HOOK, hooks_dir / "post-commit")
+
+
+def assert_no_inline_push_credential(body, path="push path"):
+    assert "GITHUB_PAT_ARE_SCANNER" not in body, path
+    assert "credential." not in body, path
+    assert not re.search(r'://[^\s"\']*@', body), path
 
 
 def test_post_commit_auto_pushes_allowed_beaaa_branch(tmp_path):
@@ -123,9 +130,19 @@ def test_release_push_allows_cto_ack(tmp_path):
 
 def test_push_paths_do_not_inject_a_credential_from_the_environment():
     """BEAAA-24500: both push paths authenticate with the ambient git credential
-    helper. Reintroducing an inline `credential.helper` fed from an environment
-    variable rebuilds the token-injection path BEAAA-24437 closed."""
+    helper. Reintroducing inline `credential.*` config or a credential-bearing
+    URL rebuilds the token-injection path BEAAA-24437 closed."""
     for path in (HOOK, RELEASE_PUSH):
-        body = path.read_text()
-        assert "GITHUB_PAT_ARE_SCANNER" not in body, path
-        assert "credential.helper" not in body, path
+        assert_no_inline_push_credential(path.read_text(), path)
+
+
+@pytest.mark.parametrize(
+    "bypass",
+    [
+        'git -c "credential.https://github.com.helper=!f() { echo password=$BACKBOND_CI_TOKEN; }; f" push',
+        'git push "https://$BACKBOND_CI_TOKEN@github.com/BackBond/are-scanner.git"',
+    ],
+)
+def test_push_credential_guard_rejects_known_bypasses(bypass):
+    with pytest.raises(AssertionError):
+        assert_no_inline_push_credential(bypass)
