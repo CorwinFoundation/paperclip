@@ -6,6 +6,7 @@ on:
     paths:
       - "tools/post-bind-ingest/**"
       - "tools/log-tracker/**"
+      - "ops/paperclip/numbat/backbond-appliance-0.1.0/**"
       - "api/**"
       - "ci_plugin/**"
       - "harness/**"
@@ -22,6 +23,7 @@ on:
     paths:
       - "tools/post-bind-ingest/**"
       - "tools/log-tracker/**"
+      - "ops/paperclip/numbat/backbond-appliance-0.1.0/**"
       - "api/**"
       - "ci_plugin/**"
       - "harness/**"
@@ -66,6 +68,7 @@ jobs:
         run: |
           python -m pytest -q \
             tools/log-tracker/tests/test_package_metadata.py \
+            tools/log-tracker/tests/test_appliance_ingest_beaaa20231.py \
             tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py \
             tools/post-bind-ingest/tests/test_lifecycle_demo.py \
             tools/post-bind-ingest/tests/test_demo_app.py \

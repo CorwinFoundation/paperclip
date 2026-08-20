@@ -1,0 +1,208 @@
+[
+  {
+    "id": "M1",
+    "property": "the envelope is closed at all",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_an_evidence_tier_rider_is_rejected"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.37s"
+  },
+  {
+    "id": "M2",
+    "property": "the allowlist is pinned to the sealed twelve",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_an_evidence_tier_rider_is_rejected",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_genuine_sealed_envelope_carries_exactly_the_pinned_keys"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "2 failed in 0.41s"
+  },
+  {
+    "id": "M3",
+    "property": "an allowlist, not a denylist",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_any_key_outside_the_pinned_set_is_refused"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "8 failed, 2 passed in 0.94s"
+  },
+  {
+    "id": "M4",
+    "property": "the reason echoes no sender-chosen key",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_the_rejection_names_no_sender_chosen_string"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.35s"
+  },
+  {
+    "id": "M5",
+    "property": "the refusal precedes the write transaction",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_refused_envelope_leaves_no_receipt_row",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_an_evidence_tier_rider_is_rejected"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "2 failed in 0.41s"
+  },
+  {
+    "id": "M6",
+    "property": "the check follows signature verification",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_the_envelope_check_runs_after_signature_verification"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.42s"
+  },
+  {
+    "id": "M7",
+    "property": "the BEAAA-24478 forgery still reports the leak",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_beaaa20231.py::test_a_dotted_top_level_key_cannot_forge_the_histogram_exemption",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_rider_whose_subtree_leaks_content_reports_the_leak"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "4 failed in 0.58s"
+  },
+  {
+    "id": "M8",
+    "property": "a log line carries the class, not the rendered path",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_the_line_carries_the_reason_class_never_the_rendered_path",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_content_leak_is_logged_as_a_class_and_never_as_a_path"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "2 failed in 0.85s"
+  },
+  {
+    "id": "M9",
+    "property": "a sender-named appliance_id cannot become a log channel",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_sender_named_appliance_id_cannot_become_a_log_channel"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "4 failed, 3 passed in 0.33s"
+  },
+  {
+    "id": "M10",
+    "property": "counters are per-tenant",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_metrics_counters_do_not_cross_tenants",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_silent_tenant_and_a_wholly_rejected_tenant_no_longer_look_identical"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "2 failed in 0.45s"
+  },
+  {
+    "id": "M11",
+    "property": "the chain tip is scoped to the reading tenant",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_the_chain_tip_is_per_appliance_and_survives_a_restart",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_tenant_with_no_receipts_reads_an_empty_chain_tip"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed, 1 passed in 0.64s"
+  },
+  {
+    "id": "M12",
+    "property": "a snapshot cannot be mutated through",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_snapshot_cannot_be_mutated_through"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.28s"
+  },
+  {
+    "id": "M13",
+    "property": "counter updates are atomic",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_counters_are_atomic_under_concurrent_requests"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.77s"
+  },
+  {
+    "id": "M14",
+    "property": "every request outcome is logged, including a failed send",
+    "file": "src/log_tracker/appliance_ingest_server.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_each_request_outcome_writes_exactly_one_line"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 5.88s"
+  },
+  {
+    "id": "M15",
+    "property": "a malformed body is deterministic, not a retryable outage",
+    "file": "src/log_tracker/appliance_ingest_server.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_a_non_object_body_is_a_deterministic_422_not_a_retryable_503"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "3 failed in 1.89s"
+  },
+  {
+    "id": "M16",
+    "property": "a decoder message is not a reason class",
+    "file": "src/log_tracker/appliance_ingest_server.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_undecodable_json_is_classified_without_echoing_the_decoder"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.84s"
+  },
+  {
+    "id": "M17",
+    "property": "/metrics is still tenant-scoped after the surface grew",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_the_extended_metrics_keep_the_f5_scoping",
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_metrics_is_still_refused_across_tenants_and_without_a_token",
+      "tests/test_appliance_ingest_beaaa20231.py::test_scoped_status_requires_the_enrolled_token_and_never_crosses_tenants"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "3 failed in 1.06s"
+  },
+  {
+    "id": "M18",
+    "property": "an unnamed outcome is refused rather than logged",
+    "file": "src/log_tracker/appliance_ingest.py",
+    "tests": [
+      "tests/test_appliance_ingest_p1_beaaa24725.py::test_an_unnamed_outcome_is_a_programming_error_not_a_log_line"
+    ],
+    "status": "KILLED",
+    "returncode": 1,
+    "detail": "1 failed in 0.25s"
+  }
+]
