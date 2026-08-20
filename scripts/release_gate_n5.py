@@ -520,16 +520,24 @@ def _archive_commit(commit: str, target: Path) -> None:
 
 def _frozen_input_hashes(repo: Path = REPO) -> dict[str, str]:
     baseline_root = repo / "artifacts" / "beaaa-387"
-    paths = [baseline_root / "manifest.json"]
+    hashes: dict[str, str] = {}
     for agent_id in ROSTER:
-        paths.extend(
-            (baseline_root / agent_id / name)
-            for name in ("eval_outputs.json", "applicability.json", "baseline.json")
-        )
-    return {
-        str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in paths
-    }
+        agent_root = baseline_root / agent_id
+        for name in ("eval_outputs.json", "applicability.json"):
+            path = agent_root / name
+            hashes[str(path.relative_to(repo))] = hashlib.sha256(path.read_bytes()).hexdigest()
+
+        baseline_path = agent_root / "baseline.json"
+        model_versions = _load_json(baseline_path).get("model_versions")
+        canonical_model_versions = json.dumps(
+            model_versions,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        hashes[f"{baseline_path.relative_to(repo)}#model_versions"] = hashlib.sha256(
+            canonical_model_versions
+        ).hexdigest()
+    return hashes
 
 
 # BEAAA-23845: receipt provenance is a run input, never a template literal.
