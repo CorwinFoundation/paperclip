@@ -222,6 +222,25 @@ const LIVENESS_BOOKKEEPING_ACTIVITY_ACTIONS = [
   "environment.lease_released",
 ];
 const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
+
+export function shouldSuppressDeferredCommentWake(input: {
+  issueStatus: string;
+  completedAt: Date | null;
+  cancelledAt: Date | null;
+  commentCreatedAt: Date | null;
+}) {
+  const terminalTransitionAt =
+    input.issueStatus === "done"
+      ? input.completedAt
+      : input.issueStatus === "cancelled"
+        ? input.cancelledAt
+        : null;
+  return Boolean(
+    input.commentCreatedAt &&
+    terminalTransitionAt &&
+    terminalTransitionAt.getTime() > input.commentCreatedAt.getTime(),
+  );
+}
 const WAKE_COMMENT_IDS_KEY = "wakeCommentIds";
 const PAPERCLIP_WAKE_PAYLOAD_KEY = "paperclipWake";
 const PAPERCLIP_HARNESS_CHECKOUT_KEY = "paperclipHarnessCheckedOut";
@@ -9776,9 +9795,14 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
         // Suppress reopen only when every referenced comment came from this run;
         // mixed batches must still reopen because they contain a real follow-up.
         let deferredCommentWakeIsSelfAuthored = false;
+        let latestDeferredComment: { id: string; createdAt: Date } | null = null;
         if (deferredCommentIds.length > 0) {
           const deferredComments = await tx
-            .select({ createdByRunId: issueComments.createdByRunId })
+            .select({
+              id: issueComments.id,
+              createdAt: issueComments.createdAt,
+              createdByRunId: issueComments.createdByRunId,
+            })
             .from(issueComments)
             .where(
               and(
@@ -9791,6 +9815,46 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
           deferredCommentWakeIsSelfAuthored =
             deferredComments.length > 0 &&
             deferredComments.every((comment) => comment.createdByRunId === run.id);
+          for (const comment of deferredComments) {
+            if (!latestDeferredComment || comment.createdAt.getTime() > latestDeferredComment.createdAt.getTime()) {
+              latestDeferredComment = { id: comment.id, createdAt: comment.createdAt };
+            }
+          }
+        }
+        const terminalTransitionAt =
+          issue.status === "done"
+            ? issue.completedAt
+            : issue.status === "cancelled"
+              ? issue.cancelledAt
+              : null;
+        const shouldSuppressStaleDeferredCommentWake = shouldSuppressDeferredCommentWake({
+          issueStatus: issue.status,
+          completedAt: issue.completedAt,
+          cancelledAt: issue.cancelledAt,
+          commentCreatedAt: latestDeferredComment?.createdAt ?? null,
+        });
+        if (shouldSuppressStaleDeferredCommentWake && latestDeferredComment && terminalTransitionAt) {
+          const now = new Date();
+          await tx
+            .update(agentWakeupRequests)
+            .set({
+              status: "cancelled",
+              finishedAt: now,
+              error: "Deferred comment wake suppressed because the issue reached a terminal state after the triggering comment",
+              updatedAt: now,
+            })
+            .where(eq(agentWakeupRequests.id, deferred.id));
+          logger.info(
+            {
+              issueId: issue.id,
+              commentId: latestDeferredComment.id,
+              commentCreatedAt: latestDeferredComment.createdAt.toISOString(),
+              terminalTransitionAt: terminalTransitionAt.toISOString(),
+              decision: "suppressed",
+            },
+            "suppressed stale deferred comment wake for terminal issue",
+          );
+          continue;
         }
         // Only human/comment-reopen interactions should revive completed issues;
         // system follow-ups such as retry or cleanup wakes must not reopen closed work.
