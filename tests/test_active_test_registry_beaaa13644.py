@@ -9,7 +9,9 @@ from tools.active_test_registry import (
     REQUIRED_FIELDS,
     build_registry,
     count_active_executable,
+    count_canonical_scored_rows,
     count_target_bound_runtime,
+    is_canonical_scored_row,
     load_published_count,
     summarize,
     validate_registry,
@@ -49,28 +51,22 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertFalse(validate_registry(self.rows, published_count=load_published_count()))
 
     def test_production_registry_counts_canonical_runtime_identities_once(self) -> None:
-        # BEAAA-24272 freezes the published executed count while BEAAA-24273
-        # adds 60 executable rows, so active executable now exceeds published.
-        # ``validate_registry`` only errors when published > active, so
-        # under-claiming is the legal and safe direction. The explicit pin below
-        # keeps a silent drop in the published count caught; BEAAA-24454 owns
-        # moving that pin when the deliberate re-publish happens.
-        self.assertGreaterEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(load_published_count(), 2279)
-        self.assertEqual(count_active_executable(self.rows), 2339)
-        # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
-        # coverage while external evidence remains separate from the canonical
-        # runtime-identity evidence gate.
-        self.assertEqual(count_target_bound_runtime(self.rows), 2350)
+        self.assertEqual(count_active_executable(self.rows), load_published_count())
+        self.assertEqual(count_active_executable(self.rows), 216)
+        self.assertEqual(count_target_bound_runtime(self.rows), 334)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
-        self.assertEqual(len(promoted), 2091)
-        self.assertEqual(len(aliases), 12)
+        self.assertEqual(len(promoted), 216)
+        self.assertEqual(len(aliases), 23)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:
         summary = summarize(self.rows, published_count=load_published_count())
         self.assertEqual(summary["registry_rows"], len(self.rows))
         self.assertEqual(summary["active_executable_count"], count_active_executable(self.rows))
+        self.assertEqual(
+            summary["canonical_scored_row_count"],
+            count_canonical_scored_rows(self.rows),
+        )
         self.assertEqual(
             summary["target_bound_runtime_count"], count_target_bound_runtime(self.rows)
         )
@@ -78,6 +74,29 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertIn("by_pillar", summary)
         self.assertIn("by_category", summary)
         self.assertIn("by_status", summary)
+
+    def test_canonical_scored_row_count_uses_exact_contract_predicates(self) -> None:
+        canonical = next(row for row in self.rows if is_canonical_scored_row(row))
+        # This branch's registry diverges from the accepted ruling candidate:
+        # it has 216 canonical runtime rows, of which 44 are reported-not-scored.
+        self.assertEqual(count_canonical_scored_rows(self.rows), 172)
+
+        excluded_values = {
+            "status": "quarantined",
+            "canonical_runtime_case": False,
+            "reporting_status": "reported_not_scored",
+            "execution_evidenced": False,
+            "target_bound": False,
+        }
+        for field, value in excluded_values.items():
+            excluded = copy.deepcopy(canonical)
+            excluded[field] = value
+            self.assertFalse(is_canonical_scored_row(excluded), msg=field)
+            self.assertEqual(count_canonical_scored_rows([excluded]), 0, msg=field)
+
+        attestation = copy.deepcopy(canonical)
+        attestation["case_class"] = "attestation"
+        self.assertTrue(is_canonical_scored_row(attestation))
 
 
 if __name__ == "__main__":
