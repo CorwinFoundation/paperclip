@@ -1,7 +1,0 @@
-............                                                             [100%]
-12 passed in 50.53s
-ERROR: not found: /mnt/paperclipdata/dot-paperclip/instances/default/projects/59f8876e-e729-4dda-98f9-1317c2b50492/8e61a25d-a945-4569-9f9c-4bce1cfef97b/_default/workspace/are-scanner-beaaa14142/.worktrees/beaaa-24454-base/tests/test_authoritative_probe_registry_beaaa20357.py::test_legacy_2244_is_not_default_executed_reported_or_scored
-(no match in any of [<Module test_authoritative_probe_registry_beaaa20357.py>])
-
-
-no tests ran in 0.36s
