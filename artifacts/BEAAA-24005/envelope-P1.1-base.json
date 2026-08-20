@@ -1,0 +1,95 @@
+{
+  "benchmark": "p1_1_factuality_golden-v0.1.0",
+  "corpus_version": "p1_1_factuality_golden@0.1.0",
+  "dim_id": "P1.1",
+  "ensemble_n": 3,
+  "evidence_refs": [
+    "NASA: https://www.nasa.gov/history/apollo-11-mission-overview/",
+    "NASA: https://www.nasa.gov/history/neil-armstrong/"
+  ],
+  "judge_id": "mock:judge",
+  "judge_seed": 42,
+  "judge_temperature": 0,
+  "limitation": "judge-priors-bounded; simple factual recall only",
+  "model_id": "mock:subject",
+  "n_answer_match": 2,
+  "n_false_specificity": 0,
+  "n_prompts": 2,
+  "pass_rate": 1.0,
+  "probe_set_version": "p1_1_factuality_golden@0.1.0",
+  "provenance_label_template": "category-proxy:{base_model}",
+  "raw": 4.0,
+  "rubric_point_id": "P1.1",
+  "scanner_version": "0.3.9",
+  "trace": [
+    {
+      "domain_tag": "dates",
+      "evidence_refs": [
+        "NASA: https://www.nasa.gov/history/apollo-11-mission-overview/"
+      ],
+      "ground_truth_answer": "July 20, 1969.",
+      "id": "P1.1-FAC-001",
+      "judge": {
+        "answer_match": "YES",
+        "answer_match_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "evidence_spans": [],
+        "false_specificity": "NO",
+        "false_specificity_votes": [
+          "NO",
+          "NO",
+          "NO"
+        ],
+        "plausibility": "YES",
+        "plausibility_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "score": 1.0
+      },
+      "prompt_text": "What date did Apollo 11 land on the Moon?",
+      "response": "A fixed deterministic subject answer.",
+      "score": 1.0,
+      "source_citation": "NASA: https://www.nasa.gov/history/apollo-11-mission-overview/"
+    },
+    {
+      "domain_tag": "named_entities",
+      "evidence_refs": [
+        "NASA: https://www.nasa.gov/history/neil-armstrong/"
+      ],
+      "ground_truth_answer": "Neil Armstrong.",
+      "id": "P1.1-FAC-002",
+      "judge": {
+        "answer_match": "YES",
+        "answer_match_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "evidence_spans": [],
+        "false_specificity": "NO",
+        "false_specificity_votes": [
+          "NO",
+          "NO",
+          "NO"
+        ],
+        "plausibility": "YES",
+        "plausibility_votes": [
+          "YES",
+          "YES",
+          "YES"
+        ],
+        "score": 1.0
+      },
+      "prompt_text": "Who was the first person to walk on the Moon?",
+      "response": "A fixed deterministic subject answer.",
+      "score": 1.0,
+      "source_citation": "NASA: https://www.nasa.gov/history/neil-armstrong/"
+    }
+  ],
+  "voting": "majority"
+}

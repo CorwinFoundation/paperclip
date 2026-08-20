@@ -1,0 +1,24 @@
+== AC3 part 1: the 32 C1 code points that defeated R1
+   swept=32 rejected=32 accepted=0 message_names_code_point=32
+   R1 was: rejected=0 unparseable=31 silently_mutated=1
+   AC3-C1 VERDICT: PASS
+
+== AC3 part 2: the individually named characters
+   rejected  double quote             :: ble-quoted YAML scalar and cannot contain a double quote
+   rejected  backslash                :: double-quoted YAML scalar and cannot contain a backslash
+   rejected  newline                  :: ar and cannot contain a non-printable character (U+000A)
+   rejected  tab                      :: ar and cannot contain a non-printable character (U+0009)
+   rejected  carriage return          :: ar and cannot contain a non-printable character (U+000D)
+   rejected  DEL                      :: ar and cannot contain a non-printable character (U+007F)
+   rejected  vertical tab             :: ar and cannot contain a non-printable character (U+000B)
+   rejected  form feed                :: ar and cannot contain a non-printable character (U+000C)
+   rejected  NUL                      :: ar and cannot contain a non-printable character (U+0000)
+   rejected  LINE SEPARATOR U+2028    :: ar and cannot contain a non-printable character (U+2028)
+   rejected  PARA SEPARATOR U+2029    :: ar and cannot contain a non-printable character (U+2029)
+
+== AC4: round-trip for an accepted claim with colon, hash, brackets, parens, apostrophe
+   emitted line : focus_claim: "BEAAA-23953: rejects a claim's unsafe characters (#1 priority, 100% of receipts) -- see [BEAAA-23845]."
+   read back    : "BEAAA-23953: rejects a claim's unsafe characters (#1 priority, 100% of receipts) -- see [BEAAA-23845]."
+   AC4 VERDICT  : PASS byte-identical
+
+OVERALL: PASS

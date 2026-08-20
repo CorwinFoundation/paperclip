@@ -1,0 +1,186 @@
+package collector
+
+// QA-authored probe for BEAAA-23946 (gate on BEAAA-23943 / candidate 63441702).
+// Not part of the candidate. Written by QA, run against the candidate and against
+// the baseline guard, then removed. It reproduces the parent's leak claim end to
+// end: producer.* free text -> driver -> Pipeline.CollectDriver -> signed batch.
+//
+// To replay: copy to tools/are-collector/internal/collector/qa_beaaa23946_probe_test.go
+// in a worktree at 63441702, then
+//   go test ./internal/collector/ -run TestQAProbe -v -count=1
+
+import (
+	"context"
+	"crypto/ed25519"
+	"encoding/base64"
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"backbond/are-collector/internal/egress"
+	"backbond/are-collector/internal/source"
+)
+
+func qaBuildSyntheticVoiceLine(producerOverrides map[string]any) (string, ed25519.PublicKey) {
+	publicKey, eventKey, _ := ed25519.GenerateKey(strings.NewReader(strings.Repeat("q", 64)))
+	producer := map[string]any{
+		"collector_version": "0.5.0",
+		"driver_version":    source.SyntheticVoiceMetadataMappingVersion,
+		"scanner_version":   "0.5.0",
+		"corpus_version":    "0.1.0",
+		"seed":              0,
+	}
+	for key, value := range producerOverrides {
+		producer[key] = value
+	}
+	event := map[string]any{
+		"source_event_id": "44444444-4444-4444-8444-444444444444", "observed_at": "2026-08-08T12:00:00Z",
+		"agent_id": "55555555-5555-4555-8555-555555555555", "deployment_id": "66666666-6666-4666-8666-666666666666", "count": 1,
+		"action_class": "message_send", "outcome_status": "completed",
+		"determinations": []any{map[string]any{"class": "availability", "result": "pass"}},
+		"commitments":    map[string]any{"evidence_sha256": "sha256:" + strings.Repeat("a", 64)},
+		"continuity":     map[string]any{"sequence": 1, "previous_event_sha256": egress.GenesisBatchHash},
+		"producer":       producer,
+	}
+	canonical, _ := json.Marshal(event)
+	envelope, _ := json.Marshal(map[string]any{
+		"key_id":    "fixture",
+		"event":     event,
+		"signature": base64.RawURLEncoding.EncodeToString(ed25519.Sign(eventKey, canonical)),
+	})
+	return string(envelope) + "\n", publicKey
+}
+
+// qaSignedBatchFor drives the full path and returns the serialized signed batch,
+// or the error that stopped it.
+func qaSignedBatchFor(t *testing.T, producerOverrides map[string]any) (string, error) {
+	t.Helper()
+	line, publicKey := qaBuildSyntheticVoiceLine(producerOverrides)
+	driver, err := source.NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture": publicKey})
+	if err != nil {
+		return "", err
+	}
+	events, err := (Pipeline{}).CollectDriver(context.Background(), driver, 10)
+	if err != nil {
+		return "", err
+	}
+	_, batchKey, _ := ed25519.GenerateKey(strings.NewReader(strings.Repeat("b", 64)))
+	batch, err := egress.NewSignedChainedBatch("synthetic", "agent-fixture", "batch-1", "batch-key", egress.GenesisBatchHash, time.Unix(0, 0).UTC(), events, batchKey)
+	if err != nil {
+		return "", err
+	}
+	raw, err := json.Marshal(batch)
+	if err != nil {
+		return "", err
+	}
+	// The JWT payload is where a leak would actually travel; decode and append it
+	// so a substring scan cannot be fooled by base64.
+	decoded := ""
+	if parts := strings.Split(batch.JWT, "."); len(parts) == 3 {
+		if claims, decodeErr := base64.RawURLEncoding.DecodeString(parts[1]); decodeErr == nil {
+			decoded = string(claims)
+		}
+	}
+	return string(raw) + "\n" + decoded, nil
+}
+
+// P1: the parent's exact leak claim. Free text in each of the three producer
+// fields must be refused before anything is signed.
+func TestQAProbeProducerFreeTextNeverReachesSignedBatch(t *testing.T) {
+	markers := []string{"Jane Doe", "123-45-6789", "4111 1111 1111 1111", "transcript", "I want a refund"}
+	payload := "Caller Jane Doe, SSN 123-45-6789, card 4111 1111 1111 1111, transcript: I want a refund now"
+	for _, field := range []string{"collector_version", "scanner_version", "corpus_version"} {
+		t.Run(field, func(t *testing.T) {
+			batch, err := qaSignedBatchFor(t, map[string]any{field: payload})
+			if err == nil {
+				t.Fatalf("producer.%s carrying free text was accepted and signed", field)
+			}
+			for _, marker := range markers {
+				if strings.Contains(batch, marker) {
+					t.Fatalf("marker %q leaked into signed batch via producer.%s", marker, field)
+				}
+			}
+			t.Logf("producer.%s refused before signing: %v", field, err)
+		})
+	}
+}
+
+// P2: baseline behaviour I am asserting the fix changed. Non-empty is not enough.
+// Each of these was accepted under the baseline non-emptiness check.
+func TestQAProbeUnboundedFormsAreRefused(t *testing.T) {
+	for name, value := range map[string]any{
+		"trailing_newline":      "0.5.0\n",
+		"embedded_newline_leak": "0.5.0\nSSN 123-45-6789",
+		"leading_space":         " 0.5.0",
+		"tab_suffix":            "0.5.0\t",
+		"v_prefix":              "v0.5.0",
+		"prerelease":            "0.5.0-rc1",
+		"build_metadata":        "0.5.0+build.commit-abc",
+		"five_digit_major":      "10000.0.0",
+		"empty":                 "",
+		"single_component":      "5",
+		"four_components":       "0.5.0.0",
+		"unicode_digits":        "٠.٥.٠",
+		"fullwidth_digits":      "０.５.０",
+		"long_free_text":        strings.Repeat("verbatim call recording ", 100),
+		"json_injection":        `0.5.0","transcript":"leak`,
+		"null_byte":             "0.5.0\x00SSN 123-45-6789",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := qaSignedBatchFor(t, map[string]any{"collector_version": value}); err == nil {
+				t.Fatalf("accepted producer.collector_version %q outside the bounded pin form", value)
+			}
+		})
+	}
+}
+
+// P3: the fix must not over-reject. Real release pins have to keep flowing, and
+// the whole path has to still produce a signed batch.
+func TestQAProbeLegitimatePinsStillFlowEndToEnd(t *testing.T) {
+	for name, pins := range map[string]map[string]any{
+		"fixture_pins":  {"collector_version": "0.5.0", "scanner_version": "0.5.0", "corpus_version": "0.1.0"},
+		"zero_pins":     {"collector_version": "0.0.0", "scanner_version": "0.0.0", "corpus_version": "0.0.0"},
+		"max_bound":     {"collector_version": "9999.9999.9999", "scanner_version": "9999.9999.9999", "corpus_version": "9999.9999.9999"},
+		"calendar_pins": {"collector_version": "2026.6.24", "scanner_version": "2026.8.17", "corpus_version": "2026.1.1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			batch, err := qaSignedBatchFor(t, pins)
+			if err != nil {
+				t.Fatalf("rejected legitimate release pins %v: %v", pins, err)
+			}
+			for _, pin := range []string{"collector_version", "scanner_version", "corpus_version"} {
+				if !strings.Contains(batch, pins[pin].(string)) {
+					t.Fatalf("%s pin %q did not survive into the signed batch", pin, pins[pin])
+				}
+			}
+		})
+	}
+}
+
+// P4: the guard must hold on the Normalize path too, not only at construction.
+// A record that bypassed the constructor must still be refused when normalized.
+func TestQAProbeNormalizeAlsoRefusesUnboundedPins(t *testing.T) {
+	line, publicKey := qaBuildSyntheticVoiceLine(nil)
+	built, err := source.NewSyntheticVoiceMetadataSourceDriver(strings.NewReader(line), map[string]ed25519.PublicKey{"fixture": publicKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, _, err := built.Acquire(context.Background(), "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	// Mutate the already-acquired raw payload the way a compromised or buggy
+	// upstream stage would, then normalize it.
+	producer := records[0].Payload["producer"].(map[string]any)
+	producer["collector_version"] = "Caller Jane Doe, SSN 123-45-6789"
+	normalized, err := built.Normalize(records[0])
+	if err == nil {
+		encoded, _ := json.Marshal(normalized)
+		t.Fatalf("Normalize accepted free text in producer.collector_version and emitted %s", encoded)
+	}
+	t.Logf("Normalize refused post-acquire mutation: %v", err)
+}

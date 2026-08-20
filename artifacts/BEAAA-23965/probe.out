@@ -1,0 +1,56 @@
+ping: bridge ok v6
+payload 355 bytes, sha12=073b400317b8, 12 slices
+
+### P1  gap in slice numbers must not reach upstream
+  wstat: {"sid": "yhDXDe1TXVvSzHi13Qu57g", "n": 11, "seqs": [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11], "age_s": 0.3, "idle_s": 0.0, "ttl_s": 900, "attempts": 0, "committed": false, "assembles": false, "assembly_error": "non-contiguous slices: have 11 seq 0..11, missing [2]", "body_bytes": null, "body_sha256_12": null}
+  wgo  : non-contiguous slices: have 11 seq 0..11, missing [2]; GET /wstat/yhDXDe1TXVvSzHi13Qu57g to inspect [HTTP 400]
+  upstream POSTs added: 0   (must be 0)
+  now fill the gap and commit honestly:
+  wgo  : {"ok": true, "bytes": 355} [HTTP 201]
+  upstream POSTs added: 1   (must be 1)
+  upstream body sha12: 073b400317b8  expect 073b400317b8
+
+### P2  second commit on a committed session must not reach upstream
+  replay wgo (same path)  : {"error": "already committed", "detail": "sid yhDXDe1TXVvSzHi13Qu57g was committed once and will not be POSTed again", "upstream_status": 201, "response_sha256_12": "e673211f5f4a", "hint": "GET /<toke
+  replay wgo (other path) :  [HTTP 409]
+  replay declared form    :  [HTTP 409]
+  wput onto committed sid : session yhDXDe1TXVvSzHi13Qu57g already committed; start a new one with /wnew [HTTP 409]
+  wshow (no re-POST)      : {"ok": true, "bytes": 355} [HTTP 201]
+  upstream POSTs added: 0   (must be 0)
+
+### P3  concurrent commits on one session must reach upstream exactly once
+  12 concurrent wgo -> codes:       1 201      11 409 
+  upstream POSTs added: 1   (must be 1)
+
+### P4  wput reply shape (acceptance 4)
+  reply 1: 'ok 1 sid=bpSUvpQLasC6MhR_5_KElg seq=0'
+  reply 2: 'ok 2 sid=bpSUvpQLasC6MhR_5_KElg seq=1'
+  legacy parser 'ok <n>' -> awk $1=ok $2=2
+  v5 shape was 'ok <n>' exactly; v6 appends fields after it
+
+### P5  a gap that is not at the start (seq 0,1 then 9)
+  wgo: non-contiguous slices: have 3 seq 0..9, missing [2]; GET /wstat/fqVaBXWgAnqnmS9tceBJfg to inspect [HTTP 400]
+  upstream POSTs added: 0   (must be 0)
+
+### P6  1-based slices (client that starts at seq 1) still work
+  wgo:  [HTTP 201]
+  upstream POSTs added: 1   (must be 1)
+  body sha12: 073b400317b8  expect 073b400317b8
+
+### P7  declared-count / declared-digest guard
+  wrong n   :  [HTTP 409]
+  wrong sha :  [HTTP 409]
+  upstream POSTs added so far: 0   (must be 0)
+  honest    :  [HTTP 201]
+  upstream POSTs added: 1   (must be 1)
+
+### P8  empty session / unknown sid
+  empty wgo : empty session: no slices stored; GET /wstat/Hp9U5ZNsiSHbg406fYo_qg to inspect [HTTP 400]
+  bogus sid : no session [HTTP 404]
+  upstream POSTs added: 0   (must be 0)
+
+### total upstream POSTs this run: 4
+/api/companies/X/issues 355 073b400317b8 {"title":"QA-23965 independent probe","description":"zzzzzzz
+/api/companies/X/issues 355 073b400317b8 {"title":"QA-23965 independent probe","description":"zzzzzzz
+/api/companies/X/issues 355 073b400317b8 {"title":"QA-23965 independent probe","description":"zzzzzzz
+/api/companies/X/issues 355 073b400317b8 {"title":"QA-23965 independent probe","description":"zzzzzzz

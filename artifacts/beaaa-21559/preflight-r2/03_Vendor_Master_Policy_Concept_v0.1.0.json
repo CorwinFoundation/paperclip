@@ -1,0 +1,129 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/03_Vendor_Master_Policy_Concept_v0.1.0.pdf",
+  "sha256": "0682634c45aa4796ba38618139f14523ba06e9f8411258f298749357e362c8ad",
+  "size_bytes": 1053031,
+  "page_count": 7,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 451,
+      "minimum_font_pt": 7.4
+    },
+    {
+      "page": 2,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1270,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 3,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 798,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 4,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2363,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 5,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2933,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 6,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2804,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 7,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1358,
+      "minimum_font_pt": 7.2
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en",
+    "title": "Vendor Master Policy Concept v0.1.0",
+    "outline_items": 4
+  },
+  "fonts": [
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "name": "QUWLDS+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "name": "UUNZFJ+IBM-Plex-Mono-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}

@@ -1,0 +1,28 @@
+=== Novel mutants (outside the producer's own set) ===
+[KILLED   ] N1 evidence falsely claims the cross-check was done
+            1 failed, 17 passed in 0.62s
+[KILLED   ] N2 evidence schema regressed to @1
+            1 failed, 17 passed in 0.78s
+[KILLED   ] N3 add id-token: write to permissions
+            2 failed, 16 passed in 0.91s
+[KILLED   ] N4 add an extra read scope
+            1 failed, 17 passed in 0.60s
+[SURVIVED ] N5 widen the trigger to pull_request_target
+            18 passed in 0.58s
+            RISK: auto-runs the verifier on untrusted PR context
+[SURVIVED ] N6 delete the fail-closed evidence seed step
+            18 passed in 0.80s
+            RISK: on early failure no evidence exists; upload is if-no-files-found: warn, so the run reports no FAIL document
+[SURVIVED ] N7 drop set -euo pipefail from the artifact download step
+            18 passed in 0.54s
+            RISK: swallows an artifact API failure; step continues on a truncated download
+[SURVIVED ] N8 drop --fail-with-body from the artifact zip download
+            18 passed in 0.63s
+            RISK: a 403/404 body would be saved as source-artifact.zip instead of failing
+[KILLED   ] N9 relax the bundled-checksum regex to accept any digest
+            1 failed, 17 passed in 0.64s
+[SURVIVED ] N10 evidence upload no longer runs on failure
+            18 passed in 0.53s
+            RISK: the FAIL evidence document is never uploaded, so failures leave no artifact
+
+5/10 killed; 5 SURVIVED

@@ -1,0 +1,154 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/04_Six_Event_Evidence_Incident_Proof_Schedule.pdf",
+  "sha256": "4d7c856dd48219dc8a8f3d93128c9d3110263ed41bb3ad44eca62132cd46873b",
+  "size_bytes": 1127050,
+  "page_count": 8,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 450,
+      "minimum_font_pt": 7.4
+    },
+    {
+      "page": 2,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1279,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 3,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 757,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 4,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1840,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 5,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1999,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 6,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2421,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 7,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2604,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 8,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1562,
+      "minimum_font_pt": 7.2
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en",
+    "title": "Six-Event Evidence and Incident-Proof Schedule Revalidation",
+    "outline_items": 4
+  },
+  "fonts": [
+    {
+      "name": "IAPHVP+IBM-Plex-Mono-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "QUWLDS+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "UUNZFJ+IBM-Plex-Mono-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}

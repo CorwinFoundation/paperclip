@@ -1,0 +1,71 @@
+{
+  "type": "candidate_bound_qa_disposition",
+  "schema_version": 1,
+  "status": "complete",
+  "role": "qa",
+  "decision": "APPROVED",
+  "scope": "internal review only",
+  "canonical_review_issue": "BEAAA-21559",
+  "producer_issue": "BEAAA-23838",
+  "reviewer_agent_id": "cd1e82a0-d1cf-4b44-a8ea-a8b312120baa",
+  "reviewed_at": "2026-08-17T06:20:00Z",
+  "supersedes": "0cb6e933f4031ddd9a3953d948bac726a0be11640b2784df6c0adcf786e47660",
+  "candidate_sha256": "268f24b3e2414a3cd9f25c99151f42776865d4d18b84fd751aa55cf2e9f740d7",
+  "candidate_pages": 114,
+  "release_authority": false,
+  "external_circulation_authorized": false,
+  "output_hashes": {
+    "01_BackBond_Backbone_Policy_Development_Work_Package.pdf": "1f034234247a9eacfebc21216167c72d55ed97bc781f7dd2efaec6348176a274",
+    "02_Warranty_Terms_v0.2_Working_Clause_Matrix.pdf": "ec7e2d7221f88b261dd40bafb5e915322ae0b4185c2ef5b199db65a5afc033d5",
+    "03_Vendor_Master_Policy_Concept_v0.1.0.pdf": "0682634c45aa4796ba38618139f14523ba06e9f8411258f298749357e362c8ad",
+    "04_Six_Event_Evidence_Incident_Proof_Schedule.pdf": "4d7c856dd48219dc8a8f3d93128c9d3110263ed41bb3ad44eca62132cd46873b",
+    "05_Declared_Agent_Exposure_Register_v0.1.pdf": "d5d87b8649138716bf43aa774dd904d8c098231ea3baac8208cdcb490dc6c120",
+    "06_Actuarial_Aggregation_Options_v0.2.pdf": "fe415ac595368826f595e22d3b35627e6f0e40a36eb9fedc02216c599fe5b75b",
+    "07_Warranty_Remedy_Workflow_Evidence_Gates_v0.1.pdf": "7645e70700569aaadc55f70d87005178df3d7d6930296d811637aaed340d558c",
+    "08_MGA_Capacity_Business_Plan_Shell_v0.1.pdf": "f9865dd0157acbbf0e499ad76e88d85db1623a8024df61f065faf399f1c1769a",
+    "09_BackBond_Capacity_Discussion_Brief_A4_APPROVED.pdf": "f653738e4c41321c7e4e88358f56f3af0e625c34ac236b067d41ebd24417e0c1",
+    "10_BackBond_Capacity_Meeting_Deck_16x9_APPROVED.pdf": "5d18c7c39f670e1572fa67d111169a7c41a17e4a9723970da9c8c12b3317a52d",
+    "BackBond_Sinan_Materials_Internal_Review_Binder.pdf": "268f24b3e2414a3cd9f25c99151f42776865d4d18b84fd751aa55cf2e9f740d7"
+  },
+  "gates": {
+    "hash_and_inventory": "pass",
+    "governed_mechanical_preflight": "pass (11/11, 0 errors, 0 warnings)",
+    "visual_integrity_gate": "pass (below-target ratio 0.1947 < 0.25; renderer hash equals candidate hash)",
+    "frozen_input_identity": "pass (09 and 10 byte-identical to frozen inputs and to the superseded candidate)",
+    "source_preservation": "pass (docs 02-08 text- and raster-identical to the superseded candidate; doc 01 body unchanged)",
+    "change_scope_control": "pass (binder pages 3-21 changed; 95 of 114 pages raster-identical)",
+    "cmo_p1_historical_source_treatment": "pass (page-local band on binder pages 4-21; outline entry renamed)",
+    "cmo_p2_frozen_page_note": "pass (page 3 note; pages 103 and 105-114 carry the exact approved-PDF SHA)",
+    "tagging_language_title_outline": "pass (tagged, /Lang en, DisplayDocTitle true, 165 outline items)",
+    "heading_semantics": "pass (29 H1 / 103 H2 / 33 H3, no level skips)",
+    "table_semantics": "pass (63 Table with THead and TBody, 394 TR, 250 TH, 1248 TD)",
+    "alt_text_semantics": "pass (22/22 figures carry /Alt; the eleven frozen preview pages carry full page copy as alt text)",
+    "blank_pages": "pass (no page below 40 non-whitespace characters)",
+    "links": "p2 (see findings)",
+    "role_disposition_reconciliation": "pass (Designer, CMO and technical owner receipts hash-verified and all bind this candidate)"
+  },
+  "findings": [
+    {
+      "id": "P2-NONPORTABLE-LINKS",
+      "severity": "P2",
+      "state": "open",
+      "blocks_internal_review": false,
+      "blocks_external_circulation": true,
+      "owner": "Document Production Composer",
+      "summary": "17 link annotations on binder pages 7, 19 and 20 (document 01 pages 4, 16 and 17) resolve to non-portable targets: 14 file:///mnt/paperclipdata/.../workspaces/2ad2741a-c08b-4d28-b8aa-d32757938863/BEAAA-23838/... paths and 3 http://127.0.0.1:3100/BEAAA/issues/... localhost URLs. They are dead for every reader and embed the producer workspace path and agent id in the document. Present in the same form in the superseded candidate, so this is not a regression from the current fix.",
+      "required_action": "Resolve link targets to portable references or drop the annotations in the next re-render, before any external circulation."
+    },
+    {
+      "id": "P2-STALE-PROMOTION-21498",
+      "severity": "P2",
+      "state": "open",
+      "blocks_internal_review": false,
+      "owner": "Designer",
+      "summary": "BEAAA-21498 still holds the 24 promoted files of the superseded candidate 0cb6e933, presented by the most recent comment there as Designer-approved for internal review. Those bytes are now superseded and were CMO-rejected.",
+      "required_action": "Refresh the BEAAA-21498 staging set to candidate 268f24b3 or annotate the existing set as superseded before BEAAA-21498 proceeds."
+    }
+  ],
+  "brand_backbone_version": "v1.6",
+  "brand_backbone_sha256": "a2ffc4f919b0f71a17b9f4506ac4edf11cd37956ff494f00d7a45f0b166ea090",
+  "brand_backbone_verified": true
+}

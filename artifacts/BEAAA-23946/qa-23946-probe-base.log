@@ -1,0 +1,43 @@
+--- FAIL: TestQAProbeProducerFreeTextNeverReachesSignedBatch (0.01s)
+    --- FAIL: TestQAProbeProducerFreeTextNeverReachesSignedBatch/collector_version (0.01s)
+        qa_beaaa23946_probe_test.go:93: producer.collector_version carrying free text was accepted and signed
+    --- FAIL: TestQAProbeProducerFreeTextNeverReachesSignedBatch/scanner_version (0.01s)
+        qa_beaaa23946_probe_test.go:93: producer.scanner_version carrying free text was accepted and signed
+    --- FAIL: TestQAProbeProducerFreeTextNeverReachesSignedBatch/corpus_version (0.00s)
+        qa_beaaa23946_probe_test.go:93: producer.corpus_version carrying free text was accepted and signed
+--- FAIL: TestQAProbeUnboundedFormsAreRefused (0.03s)
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/four_components (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0.0" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/json_injection (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0\",\"transcript\":\"leak" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/v_prefix (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "v0.5.0" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/unicode_digits (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "٠.٥.٠" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/fullwidth_digits (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "０.５.０" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/long_free_text (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording verbatim call recording " outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/build_metadata (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0+build.commit-abc" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/leading_space (0.01s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version " 0.5.0" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/tab_suffix (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0\t" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/prerelease (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0-rc1" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/five_digit_major (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "10000.0.0" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/single_component (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "5" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/trailing_newline (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0\n" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/null_byte (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0\x00SSN 123-45-6789" outside the bounded pin form
+    --- FAIL: TestQAProbeUnboundedFormsAreRefused/embedded_newline_leak (0.00s)
+        qa_beaaa23946_probe_test.go:128: accepted producer.collector_version "0.5.0\nSSN 123-45-6789" outside the bounded pin form
+--- FAIL: TestQAProbeNormalizeAlsoRefusesUnboundedPins (0.00s)
+    qa_beaaa23946_probe_test.go:181: Normalize accepted free text in producer.collector_version and emitted {"SourceEventID":"44444444-4444-4444-8444-444444444444","ObservedAt":"2026-08-08T12:00:00Z","SessionID":"","AgentID":"55555555-5555-4555-8555-555555555555","DeploymentID":"66666666-6666-4666-8666-666666666666","OperationName":"synthetic_voice_metadata","ActionClass":"message_send","Billable":false,"OutcomeStatus":"completed","Attributes":{"commitments":{"evidence_sha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"continuity":{"sequence":1,"previous_event_sha256":"sha256:0000000000000000000000000000000000000000000000000000000000000000"},"count":1,"determinations":[{"class":"availability","result":"pass"}],"producer":{"collector_version":"Caller Jane Doe, SSN 123-45-6789","driver_version":"synthetic-voice-metadata-map-v1.0","scanner_version":"0.5.0","corpus_version":"0.1.0","seed":0},"schema_event_type":"agent_invocation"},"SensitivePaths":null,"SourceIntegrity":{"signature_verified":true},"MappingVersion":"synthetic-voice-metadata-map-v1.0"}
+FAIL
+FAIL	backbond/are-collector/internal/collector	0.067s
+FAIL

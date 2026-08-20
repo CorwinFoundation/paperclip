@@ -1,0 +1,206 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/06_Actuarial_Aggregation_Options_v0.2.pdf",
+  "sha256": "fe415ac595368826f595e22d3b35627e6f0e40a36eb9fedc02216c599fe5b75b",
+  "size_bytes": 1103061,
+  "page_count": 14,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 463,
+      "minimum_font_pt": 7.4
+    },
+    {
+      "page": 2,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1197,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 3,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 829,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 4,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2210,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 5,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2480,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 6,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2441,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 7,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2500,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 8,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2238,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 9,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2820,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 10,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2575,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 11,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2538,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 12,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1791,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 13,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 2267,
+      "minimum_font_pt": 7.2
+    },
+    {
+      "page": 14,
+      "width_pt": 595.28,
+      "height_pt": 841.89,
+      "text_chars": 1613,
+      "minimum_font_pt": 7.2
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en",
+    "title": "Actuarial and Aggregation Options v0.2",
+    "outline_items": 4
+  },
+  "fonts": [
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "name": "QUWLDS+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "name": "UUNZFJ+IBM-Plex-Mono-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}

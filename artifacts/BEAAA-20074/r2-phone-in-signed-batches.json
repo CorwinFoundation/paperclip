@@ -1,0 +1,25 @@
+{
+  "note": "caller phone 555-010-9999 in session_id and E.164 14155550123 in agent_id, as signed",
+  "batch_ids": [
+    "voice-batch-1",
+    "voice-batch-2",
+    "voice-batch-3"
+  ],
+  "payload_identity_fields": [
+    {
+      "session_id": "555-010-9999",
+      "agent_id": "14155550123",
+      "deployment_id": "voice-reference"
+    },
+    {
+      "session_id": "555-010-9999",
+      "agent_id": "14155550123",
+      "deployment_id": "voice-reference"
+    },
+    {
+      "session_id": "555-010-9999",
+      "agent_id": "14155550123",
+      "deployment_id": "voice-reference"
+    }
+  ]
+}

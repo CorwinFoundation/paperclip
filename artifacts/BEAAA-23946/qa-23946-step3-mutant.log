@@ -1,0 +1,108 @@
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_class
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/deployment_id
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/collector_version
+    synthetic_voice_metadata_test.go:136: accepted transcript/content/PII-bearing free text
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/action_class
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/outcome_status
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/scanner_version
+    synthetic_voice_metadata_test.go:136: accepted transcript/content/PII-bearing free text
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/corpus_version
+    synthetic_voice_metadata_test.go:136: accepted transcript/content/PII-bearing free text
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_result
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/source_event_id
+=== RUN   TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/agent_id
+--- FAIL: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues (0.01s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_class (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/deployment_id (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/collector_version (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/action_class (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/outcome_status (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/scanner_version (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/corpus_version (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/determination_result (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/source_event_id (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRejectsFreeTextInNormalizedStringValues/agent_id (0.00s)
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/2026.6.24
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0_
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5.0 "
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/123-45-6789
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "123-45-6789"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/12345.0.0
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "12345.0.0"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0.1
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5.0.1"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/01.2.3
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "01.2.3"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0.1
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5.0.1"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/01.2.3
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "01.2.3"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/12345.0.0
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "12345.0.0"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/2026.6.24
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0_
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5.0 "
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/123-45-6789
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "123-45-6789"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0.1
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5.0.1"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/01.2.3
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "01.2.3"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/12345.0.0
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "12345.0.0"
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.0
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.1
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/2026.6.24
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0_
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "0.5.0 "
+=== RUN   TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/123-45-6789
+    synthetic_voice_metadata_test.go:166: accepted producer version outside bounded pin form "123-45-6789"
+--- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins (0.02s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/2026.6.24 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0_ (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/123-45-6789 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/12345.0.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.1.1 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/0.5.0.1 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/collector_version/01.2.3 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.1.1 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0.1 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/01.2.3 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/12345.0.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/2026.6.24 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/0.5.0_ (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/scanner_version/123-45-6789 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0.1 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/01.2.3 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/12345.0.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.0 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.1.1 (0.00s)
+    --- PASS: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/2026.6.24 (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/0.5.0_ (0.00s)
+    --- FAIL: TestSyntheticVoiceMetadataRequiresBoundedProducerVersionPins/corpus_version/123-45-6789 (0.00s)
+FAIL
+FAIL	backbond/are-collector/internal/source	0.028s
+FAIL

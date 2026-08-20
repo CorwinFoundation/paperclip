@@ -1,0 +1,274 @@
+{
+  "status": "pass",
+  "pdf": "ten/BEAAA-23838/output/10_BackBond_Capacity_Meeting_Deck_16x9_APPROVED.pdf",
+  "sha256": "5d18c7c39f670e1572fa67d111169a7c41a17e4a9723970da9c8c12b3317a52d",
+  "size_bytes": 127689,
+  "page_count": 10,
+  "pages": [
+    {
+      "page": 1,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 415,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 2,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 417,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 3,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 447,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 4,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 538,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 5,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 387,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 6,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 445,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 7,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 721,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 8,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 414,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 9,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 386,
+      "minimum_font_pt": 7.0
+    },
+    {
+      "page": 10,
+      "width_pt": 959.98,
+      "height_pt": 540.0,
+      "text_chars": 605,
+      "minimum_font_pt": 7.0
+    }
+  ],
+  "accessibility": {
+    "tagged": true,
+    "language": "en-US",
+    "title": "Capacity diligence deck v0.2",
+    "outline_items": 10
+  },
+  "fonts": [
+    {
+      "name": "EKLDZW+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "JHQUFT+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "LNXIQZ+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "MURBRO+Archivo-Ultra-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "PEQMLH+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "PRUBHW+IBM-Plex-Mono",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "QUWLDS+Inter-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "UUNZFJ+IBM-Plex-Mono-Medium",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "VUCOVK+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "XPNVCG+Inter",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "ZGGBPV+Archivo-Bold",
+      "embedded": true,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    }
+  ],
+  "errors": [],
+  "manual_gates_required": [
+    "font_identity_against_asset_manifest",
+    "logo_identity",
+    "visual_contact_sheet",
+    "visual_full_resolution",
+    "claim_reconciliation",
+    "clipping_overlap_and_reading_order",
+    "heading_table_alt_text_semantics",
+    "assistive_technology_smoke_test"
+  ]
+}

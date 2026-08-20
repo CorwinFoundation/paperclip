@@ -1,0 +1,19 @@
+=== baseline (unmutated) ===
+ok  	backbond/are-collector/internal/source	(cached)
+ok  	backbond/are-collector/internal/collector	(cached)
+
+M2 prohibitedPath->stub      KILLED         expected-catcher: TestProhibitedPathMatchesNestedEquivalentUnderAllowedKey
+      --- FAIL: TestProhibitedPathMatchesNestedEquivalentUnderAllowedKey (0.00s)
+M3 prohibitedValue->stub     KILLED         expected-catcher: TestSyntheticVoiceRejectsContentInjectedIntoAllowedScalar
+      --- FAIL: TestSyntheticVoiceRejectsContentInjectedIntoAllowedScalar (0.00s)
+          synthetic_voice_test.go:54: content case "555-010-9999" rejected for non-content reason: synthetic voice identity fields must use opaque fixture tokens
+M7 validateProducerPins->nil *** SURVIVED *** expected-catcher: E2E content_injection_rejected (unit-level may pass)
+M8 drop phone regex only     KILLED         expected-catcher: TestSyntheticVoiceRejectsContentInjectedIntoAllowedScalar
+      --- FAIL: TestSyntheticVoiceRejectsContentInjectedIntoAllowedScalar (0.00s)
+          synthetic_voice_test.go:54: content case "555-010-9999" rejected for non-content reason: synthetic voice identity fields must use opaque fixture tokens
+M9 stem substring->exact     KILLED         expected-catcher: TestSyntheticVoiceRejectsContentInjectedIntoAllowedScalar
+      --- FAIL: TestSyntheticVoiceRejectsContentInjectedIntoAllowedScalar (0.00s)
+          synthetic_voice_test.go:54: content case "cdn.example.com:transcript.abc123" rejected for non-content reason: synthetic voice identity fields must use opaque fixture tokens
+
+=== restored source identical to candidate? ===
+YES - source byte-identical to 89932217

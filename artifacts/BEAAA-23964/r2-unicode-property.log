@@ -1,0 +1,21 @@
+== P1: is Python's non-printable set a superset of PyYAML's forbidden set?
+   oracle: yaml.reader.Reader.NON_PRINTABLE = '[^\t\n\r -~\x85\xa0-\ud7ff\ue000-�𐀀-\U0010ffff]'
+   code points PyYAML forbids but the guard ACCEPTS : 0
+   code points the guard rejects that PyYAML tolerates (stricter, safe): 963003
+   P1 VERDICT: PASS - guard is sufficient over the full range
+
+== P2: end-to-end render + yaml.safe_load, real renderer
+   baseline frontmatter keys derived from the renderer: 13
+   swept=12363  rejected=1244  clean_round_trip=11119
+   accepted-but-unparseable   : 0 []
+   accepted-but-value-mutated : 0 []
+   accepted-with-key-injection: 0 []
+   render raised              : 0 []
+   P2 VERDICT: PASS - every accepted claim round-trips byte-identical
+
+== P3: does the guard reject ordinary claim text it should accept?
+   ok   'BEAAA-23953 rejects unsafe characters; no scoring path tou'
+   ok   "Reduces false positives by 40% (see #1234) -- per Ari's re"
+   ok   "Mesure de l'ecart: rendement eleve, cout reduit."
+   ok   "Fix: {a: b} | [c] & *d ! % @ ^ ~ ` = + < > ? / and 'quoted"
+   ok   'Bond spread widened 12bp -> 30bp across 3 issuers.'

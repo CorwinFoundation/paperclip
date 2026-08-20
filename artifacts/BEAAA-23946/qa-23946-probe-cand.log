@@ -1,0 +1,60 @@
+=== RUN   TestQAProbeProducerFreeTextNeverReachesSignedBatch
+=== RUN   TestQAProbeProducerFreeTextNeverReachesSignedBatch/collector_version
+    qa_beaaa23946_probe_test.go:100: producer.collector_version refused before signing: producer.collector_version must use a bounded dotted triple
+=== RUN   TestQAProbeProducerFreeTextNeverReachesSignedBatch/scanner_version
+    qa_beaaa23946_probe_test.go:100: producer.scanner_version refused before signing: producer.scanner_version must use a bounded dotted triple
+=== RUN   TestQAProbeProducerFreeTextNeverReachesSignedBatch/corpus_version
+    qa_beaaa23946_probe_test.go:100: producer.corpus_version refused before signing: producer.corpus_version must use a bounded dotted triple
+--- PASS: TestQAProbeProducerFreeTextNeverReachesSignedBatch (0.00s)
+    --- PASS: TestQAProbeProducerFreeTextNeverReachesSignedBatch/collector_version (0.00s)
+    --- PASS: TestQAProbeProducerFreeTextNeverReachesSignedBatch/scanner_version (0.00s)
+    --- PASS: TestQAProbeProducerFreeTextNeverReachesSignedBatch/corpus_version (0.00s)
+=== RUN   TestQAProbeUnboundedFormsAreRefused
+=== RUN   TestQAProbeUnboundedFormsAreRefused/embedded_newline_leak
+=== RUN   TestQAProbeUnboundedFormsAreRefused/empty
+=== RUN   TestQAProbeUnboundedFormsAreRefused/null_byte
+=== RUN   TestQAProbeUnboundedFormsAreRefused/leading_space
+=== RUN   TestQAProbeUnboundedFormsAreRefused/tab_suffix
+=== RUN   TestQAProbeUnboundedFormsAreRefused/five_digit_major
+=== RUN   TestQAProbeUnboundedFormsAreRefused/single_component
+=== RUN   TestQAProbeUnboundedFormsAreRefused/four_components
+=== RUN   TestQAProbeUnboundedFormsAreRefused/long_free_text
+=== RUN   TestQAProbeUnboundedFormsAreRefused/unicode_digits
+=== RUN   TestQAProbeUnboundedFormsAreRefused/fullwidth_digits
+=== RUN   TestQAProbeUnboundedFormsAreRefused/json_injection
+=== RUN   TestQAProbeUnboundedFormsAreRefused/trailing_newline
+=== RUN   TestQAProbeUnboundedFormsAreRefused/v_prefix
+=== RUN   TestQAProbeUnboundedFormsAreRefused/prerelease
+=== RUN   TestQAProbeUnboundedFormsAreRefused/build_metadata
+--- PASS: TestQAProbeUnboundedFormsAreRefused (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/embedded_newline_leak (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/empty (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/null_byte (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/leading_space (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/tab_suffix (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/five_digit_major (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/single_component (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/four_components (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/long_free_text (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/unicode_digits (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/fullwidth_digits (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/json_injection (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/trailing_newline (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/v_prefix (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/prerelease (0.00s)
+    --- PASS: TestQAProbeUnboundedFormsAreRefused/build_metadata (0.00s)
+=== RUN   TestQAProbeLegitimatePinsStillFlowEndToEnd
+=== RUN   TestQAProbeLegitimatePinsStillFlowEndToEnd/fixture_pins
+=== RUN   TestQAProbeLegitimatePinsStillFlowEndToEnd/zero_pins
+=== RUN   TestQAProbeLegitimatePinsStillFlowEndToEnd/max_bound
+=== RUN   TestQAProbeLegitimatePinsStillFlowEndToEnd/calendar_pins
+--- PASS: TestQAProbeLegitimatePinsStillFlowEndToEnd (0.00s)
+    --- PASS: TestQAProbeLegitimatePinsStillFlowEndToEnd/fixture_pins (0.00s)
+    --- PASS: TestQAProbeLegitimatePinsStillFlowEndToEnd/zero_pins (0.00s)
+    --- PASS: TestQAProbeLegitimatePinsStillFlowEndToEnd/max_bound (0.00s)
+    --- PASS: TestQAProbeLegitimatePinsStillFlowEndToEnd/calendar_pins (0.00s)
+=== RUN   TestQAProbeNormalizeAlsoRefusesUnboundedPins
+    qa_beaaa23946_probe_test.go:183: Normalize refused post-acquire mutation: producer.collector_version must use a bounded dotted triple
+--- PASS: TestQAProbeNormalizeAlsoRefusesUnboundedPins (0.00s)
+PASS
+ok  	backbond/are-collector/internal/collector	0.022s
