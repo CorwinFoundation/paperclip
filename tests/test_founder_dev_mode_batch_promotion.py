@@ -11,8 +11,9 @@ to scored (underwriting-eligibility, zero score weight):
   (P3.5 covered by test_founder_dev_mode_p3_5_promotion)
 
 Invariants:
-* Flag OFF (production default): every family reported-not-scored; the frozen
-  active-executable count is unchanged (417). No production impact.
+* Flag OFF (production default): every family reported-not-scored; the
+  active-executable count remains 477 after the separately approved
+  BEAAA-24273 60-row floor. No production impact.
 * Flag ON: every family scoring_active; the count rises only by the families that
   were previously non-countable (the legacy packs were already counted, so the
   flag only flips them scored — it does not double-count them).
@@ -30,10 +31,12 @@ from tools.active_test_registry import (
 )
 from tools.founder_dev_mode import FOUNDER_DEV_MODE_ENV, FounderDevModeError, assert_production_attested
 
-BASELINE_ACTIVE_EXECUTABLE = 417
+BASELINE_ACTIVE_EXECUTABLE = 477
 # Non-countable-while-reported families become countable on flag-on; legacy packs
 # were already counted, so they add nothing to the count (only flip to scored).
-EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 505
+# 477 production-default + 88 earlier Founder-Dev-Mode rows + the separately
+# authorized BEAAA-24008 lane-C tranche (44) = 609 on this combined train tree.
+EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 609
 
 
 def _rows_by_family(rows):
