@@ -15,7 +15,7 @@ python3 -m pytest -q \
   tests/test_authoritative_probe_registry_beaaa20357.py::test_release_epoch_semantics_match_probe_set_version \
   tests/test_authoritative_probe_registry_beaaa20357.py::test_stable_ids_are_unique_and_category_accounting_is_exact \
   tests/test_authoritative_probe_registry_beaaa20357.py::test_duplicate_stable_id_inputs_fail_closed \
-  tests/test_authoritative_probe_registry_beaaa20357.py::test_legacy_2244_is_not_default_executed_reported_or_scored
+  tests/test_authoritative_probe_registry_beaaa20357.py::test_executable_claim_is_not_default_executed_reported_or_scored
 python3 -m pytest -q tests/test_authoritative_probe_registry_beaaa20357.py::test_check_mode_fails_closed_on_drift
 python3 -m pytest -q tests/test_authoritative_probe_registry_beaaa20357.py::test_content_provenance_is_independent_of_merge_topology
 python3 -m pytest -q tests/test_authoritative_probe_registry_beaaa20357.py::test_failed_integration_gate_makes_push_unreachable

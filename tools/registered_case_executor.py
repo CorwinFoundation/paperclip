@@ -496,6 +496,18 @@ class RegisteredCaseExecutor:
         case_id: str,
         registry_row: Mapping[str, Any],
     ) -> dict[str, Any]:
+        # Applicability is resolved here, ahead of every runner branch, because
+        # it is a property of the family contract rather than of whichever
+        # adapter happens to serve the row. Deciding it per-branch is what let
+        # BEAAA-24612 F6 through: the lane-C and content-candidate paths each
+        # dispatched an mcp_tool_integrity case at a target that never declared
+        # an MCP surface, and reported the answer as a pass. A conditional
+        # family run against a surface it does not apply to is a fabricated
+        # result whether or not anyone reads it (directive BEAAA-24008, D.3).
+        applicable, reason = _resolve_applicability(test_id, registry_row)
+        if not applicable:
+            return _not_applicable_outcome(test_id, case_id, reason)
+
         if registry_row.get("runner") == "content_candidate_worker":
             return self._execute_content_candidate(test_id, case_id, registry_row)
 
@@ -1159,6 +1171,97 @@ def build_registered_case_workers(
         audience="internal_observational",
     )
     return {worker_id: executor for worker_id in WORKERS}
+
+
+def _declared_applicability_flag(test_id: str) -> str | None:
+    """The architecture flag a family declares as its applicability gate.
+
+    Read from ``FamilySpec.applicability_flag`` — the same field
+    ``evals.aiuc_path_b.base.run_family`` honors — so the production path and
+    the eval library cannot disagree about which surfaces a conditional family
+    applies to. A family that declares no flag is unconditional and returns
+    ``None``. Nothing is hardcoded here on purpose: adding a gate to a family
+    is a one-line SPEC change that this path picks up automatically.
+    """
+
+    try:
+        from evals.aiuc_path_b.manifest import FAMILY_MODULES
+    except Exception:  # a non-AIUC family must never be blocked by this import
+        return None
+    module = FAMILY_MODULES.get(test_id)
+    if module is None:
+        return None
+    flag = getattr(getattr(module, "SPEC", None), "applicability_flag", None)
+    return str(flag) if flag else None
+
+
+def _resolve_applicability(
+    test_id: str, registry_row: Mapping[str, Any]
+) -> tuple[bool, str]:
+    """Decide whether a conditional family applies to the target under scan.
+
+    Fail-closed, matching ``run_family``'s ``architecture_flags.get(flag,
+    False)`` and the mapping's ``applicability.na_when_absent: true``: only an
+    explicit ``True`` in the job's capability manifest makes a gated family
+    applicable. An absent, null or malformed manifest cannot affirm a surface,
+    so it yields N/A rather than a probe run — the safe direction, because the
+    alternative is charging a verdict to a surface that was never shown to
+    exist.
+    """
+
+    flag = _declared_applicability_flag(test_id)
+    if flag is None:
+        return True, "always"
+
+    capability = registry_row.get("capability_manifest")
+    if capability is None:
+        return False, f"{flag}=absent_capability_manifest"
+    if not isinstance(capability, Mapping):
+        return False, f"{flag}=malformed_capability_manifest"
+    declared = capability.get(flag)
+    if declared is True:
+        return True, f"{flag}=True"
+    return False, f"{flag}={declared!r}"
+
+
+def _not_applicable_outcome(
+    test_id: str, case_id: str, reason: str
+) -> dict[str, Any]:
+    """N/A terminal state: no score, no target call, no judge call.
+
+    Built without touching ``self.subject`` or ``self.judge`` so the budget
+    ledger records zero calls for a case that was never run.
+    """
+
+    expected: dict[str, Any] = {}
+    try:
+        from evals.aiuc_path_b.manifest import FAMILY_MODULES
+
+        module = FAMILY_MODULES.get(test_id)
+        spec = getattr(module, "SPEC", None)
+        case = next(
+            (item for item in getattr(spec, "cases", ()) if item.case_id == case_id),
+            None,
+        )
+        if case is not None:
+            expected = dict(case.oracle)
+    except Exception:  # the N/A verdict must not depend on oracle lookup
+        expected = {}
+
+    return _case_outcome(
+        payloads=[],
+        responses=[],
+        judge={
+            "type": "deterministic_applicability_gate",
+            "family_id": test_id,
+            "applicable": False,
+            "applicability_reason": reason,
+            "reported_not_scored": True,
+        },
+        score=None,
+        expected=expected,
+        verdict="not_applicable",
+    )
 
 
 def _find_case(probes: list[Any], case_id: str) -> Any:

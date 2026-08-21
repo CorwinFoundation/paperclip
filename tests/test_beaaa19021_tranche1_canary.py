@@ -365,8 +365,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # BEAAA-24310 integrates both the scored-floor dispatch and lane-C adapter;
     # budget (180 target calls, 0 judge calls), families, and zero-weight
     # invariants remain unchanged.
+    # BEAAA-24612 adds the MCP applicability gate to the evaluator, moving the
+    # pin f24c9d3c -> 872db672 and this digest ff252a09 -> 45353c45. Derived,
+    # not chosen: dumping the manifest on both trees shows pins.evaluator is the
+    # only field that differs. The canary runs the tool_misuse families with
+    # capability_manifest {"has_tool_calling": True}, so the gate itself changes
+    # nothing here.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "ff252a097dc5d7600f8df9dbc232c01eee2f2d3c77e7d2904cb66a8acebee0b5"
+        "45353c4539ef381e911fde2b7e84cf2cd0dacebfe61ba90d495c95b8994d5b71"
     )
 
 

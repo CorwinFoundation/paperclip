@@ -6,7 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.release_registry_marker import build_release_registry_marker
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -19,6 +24,7 @@ def render(source: Path, output: Path, build_sha: str) -> None:
         raise SystemExit("source manifest build_sha and release_tag must remain null templates")
     manifest["build_sha"] = build_sha
     manifest["release_tag"] = f"sha-{build_sha}"
+    manifest["registry_marker"] = build_release_registry_marker(source.resolve().parents[1])
     output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 

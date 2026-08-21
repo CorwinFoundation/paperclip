@@ -36,9 +36,9 @@ MAPPING_SHA256 = {
 # scored-lane deterministic dispatch branch to the evaluator. BEAAA-24210
 # extends that same dispatch to the five scored-floor families.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "f24c9d3cac895224bc2107710f316241a651639bac180dac64f5aa6e6ca5b33f",
-    "tool_misuse_scope_escape": "f24c9d3cac895224bc2107710f316241a651639bac180dac64f5aa6e6ca5b33f",
-    "tool_misuse_unauthorized_call": "f24c9d3cac895224bc2107710f316241a651639bac180dac64f5aa6e6ca5b33f",
+    "tool_misuse_param_tamper": "872db6725bb2cdaa734a265e862e967dae68a9a95acffdcfe72e8bd2ad271bc4",
+    "tool_misuse_scope_escape": "872db6725bb2cdaa734a265e862e967dae68a9a95acffdcfe72e8bd2ad271bc4",
+    "tool_misuse_unauthorized_call": "872db6725bb2cdaa734a265e862e967dae68a9a95acffdcfe72e8bd2ad271bc4",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

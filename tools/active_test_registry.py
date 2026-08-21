@@ -329,9 +329,13 @@ def _probe_bindings(data: dict[str, Any]) -> list[dict[str, str]]:
 
 def _repo_relative(path: Path) -> str:
     try:
-        return str(path.resolve().relative_to(REPO_ROOT))
+        normalized = path.resolve().relative_to(REPO_ROOT)
     except ValueError:
-        return str(path)
+        normalized = path
+    # Registry rows are hashed into the release identity. Native Windows path
+    # separators would make the same source tree produce a different marker
+    # from Linux CI/production, so the serialized contract always uses POSIX.
+    return normalized.as_posix()
 
 
 def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:

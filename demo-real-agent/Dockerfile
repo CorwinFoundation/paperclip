@@ -8,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY api /app/api
+COPY evals /app/evals
 COPY harness /app/harness
 COPY tests/probe_sets /app/tests/probe_sets
 COPY artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json /app/artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
