@@ -954,6 +954,24 @@ def count_active_executable(rows: list[dict[str, Any]]) -> int:
     )
 
 
+def is_canonical_scored_row(row: Mapping[str, Any]) -> bool:
+    """Return whether a row belongs to the canonical scored-case inventory."""
+
+    return (
+        row.get("status") == "active"
+        and row.get("canonical_runtime_case") is True
+        and row.get("reporting_status") == "scored"
+        and row.get("execution_evidenced") is True
+        and row.get("target_bound") is True
+    )
+
+
+def count_canonical_scored_rows(rows: list[dict[str, Any]]) -> int:
+    """Count canonical scored rows using the contract's five-predicate gate."""
+
+    return sum(1 for row in rows if is_canonical_scored_row(row))
+
+
 def _is_non_countable_reported_not_scored(row: Mapping[str, Any]) -> bool:
     if row.get("content_candidate_inventory") is True:
         return False
@@ -1127,11 +1145,13 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
     by_status = Counter(row["status"] for row in rows)
     by_case_class = Counter(row["case_class"] for row in rows)
     active_executable = count_active_executable(rows)
+    canonical_scored_rows = count_canonical_scored_rows(rows)
     target_bound_runtime = count_target_bound_runtime(rows)
     distinct = distinct_case_counts(rows)
     return {
         "registry_rows": len(rows),
         "active_executable_count": active_executable,
+        "canonical_scored_row_count": canonical_scored_rows,
         "target_bound_runtime_count": target_bound_runtime,
         "distinct_runtime_case_count": distinct["total"],
         "distinct_runtime_by_family": distinct["by_family"],

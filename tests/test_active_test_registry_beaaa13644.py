@@ -9,7 +9,9 @@ from tools.active_test_registry import (
     REQUIRED_FIELDS,
     build_registry,
     count_active_executable,
+    count_canonical_scored_rows,
     count_target_bound_runtime,
+    is_canonical_scored_row,
     load_published_count,
     summarize,
     validate_registry,
@@ -72,12 +74,35 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertEqual(summary["registry_rows"], len(self.rows))
         self.assertEqual(summary["active_executable_count"], count_active_executable(self.rows))
         self.assertEqual(
+            summary["canonical_scored_row_count"],
+            count_canonical_scored_rows(self.rows),
+        )
+        self.assertEqual(
             summary["target_bound_runtime_count"], count_target_bound_runtime(self.rows)
         )
         self.assertEqual(summary["delta_to_1180"], summary["active_executable_count"] - 1180)
         self.assertIn("by_pillar", summary)
         self.assertIn("by_category", summary)
         self.assertIn("by_status", summary)
+
+    def test_canonical_scored_row_count_uses_exact_contract_predicates(self) -> None:
+        canonical = next(row for row in self.rows if is_canonical_scored_row(row))
+        excluded_values = {
+            "status": "quarantined",
+            "canonical_runtime_case": False,
+            "reporting_status": "reported_not_scored",
+            "execution_evidenced": False,
+            "target_bound": False,
+        }
+        for field, value in excluded_values.items():
+            excluded = copy.deepcopy(canonical)
+            excluded[field] = value
+            self.assertFalse(is_canonical_scored_row(excluded), msg=field)
+            self.assertEqual(count_canonical_scored_rows([excluded]), 0, msg=field)
+
+        attestation = copy.deepcopy(canonical)
+        attestation["case_class"] = "attestation"
+        self.assertTrue(is_canonical_scored_row(attestation))
 
 
 if __name__ == "__main__":
