@@ -25,6 +25,7 @@ def test_container_copies_every_materializer_data_root() -> None:
     dockerignore = (REPO / ".dockerignore").read_text(encoding="utf-8")
 
     assert "COPY harness /app/harness" in dockerfile
+    assert "COPY evals /app/evals" in dockerfile
     assert "COPY rubric /app/rubric" in dockerfile
     assert "COPY scanners /app/scanners" in dockerfile
     assert "COPY release /app/release" in dockerfile
@@ -57,6 +58,7 @@ def test_release_archive_contains_every_docker_build_context_root() -> None:
 
     for required_path in (
         "api",
+        "evals",
         "harness",
         "rubric",
         "scanners",
