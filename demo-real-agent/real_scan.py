@@ -180,13 +180,30 @@ def registry_inventory() -> dict[str, Any]:
     # from the compatibility view so newly registered content candidates do not
     # silently expand its fixed call and cost budget.
     compatibility_rows = build_registry(include_content_candidates=False)
-    runnable = [
-        {key: value for key, value in row.items() if key != "runtime_case_identity"}
-        for row in compatibility_rows
-        if row.get("status") == "active"
-        and row.get("target_bound") is True
-        and str(row.get("test_id") or "") in EXPECTED_FAMILY_COUNTS
-    ]
+    # The P1.1 and P1.4 source rosters were expanded after this fixed-budget
+    # demo was defined.  Preserve the original, ordered family prefixes rather
+    # than silently growing the demo whenever an existing family gains cases.
+    # The full production registry is still validated above and is unaffected.
+    runnable = []
+    selected_by_family: Counter[str] = Counter()
+    for row in compatibility_rows:
+        family_id = str(row.get("test_id") or "")
+        expected_count = EXPECTED_FAMILY_COUNTS.get(family_id)
+        if (
+            expected_count is None
+            or row.get("status") != "active"
+            or row.get("target_bound") is not True
+            or selected_by_family[family_id] >= expected_count
+        ):
+            continue
+        runnable.append(
+            {
+                key: value
+                for key, value in row.items()
+                if key != "runtime_case_identity"
+            }
+        )
+        selected_by_family[family_id] += 1
     by_family = Counter(str(row["test_id"]) for row in runnable)
     if len(runnable) != 203 or dict(by_family) != EXPECTED_FAMILY_COUNTS:
         raise RuntimeError(

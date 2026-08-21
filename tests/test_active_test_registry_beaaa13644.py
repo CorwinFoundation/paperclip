@@ -51,14 +51,12 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertFalse(validate_registry(self.rows, published_count=load_published_count()))
 
     def test_production_registry_counts_canonical_runtime_identities_once(self) -> None:
-        # BEAAA-24272 freezes the published executed count while BEAAA-24273
-        # adds 60 executable rows, so active executable now exceeds published.
-        # ``validate_registry`` only errors when published > active, so
-        # under-claiming is the legal and safe direction. The explicit pin below
-        # keeps a silent drop in the published count caught; BEAAA-24454 owns
-        # moving that pin when the deliberate re-publish happens.
+        # Train 1 reconciles the previously stale published manifest to the
+        # already-established BEAAA-24273 executable floor. Keep the explicit
+        # equality pins so either the manifest or runtime inventory drifting
+        # independently remains a hard failure.
         self.assertGreaterEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(load_published_count(), 2279)
+        self.assertEqual(load_published_count(), 2339)
         self.assertEqual(count_active_executable(self.rows), 2339)
         # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
         # coverage while external evidence remains separate from the canonical
