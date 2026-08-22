@@ -14,7 +14,10 @@ import (
 	"backbond/are-collector/internal/adapter"
 	"backbond/are-collector/internal/collector"
 	"backbond/are-collector/internal/egress"
+	"backbond/are-collector/internal/reconciliation"
 	"backbond/are-collector/internal/redaction"
+	"backbond/are-collector/internal/schemav1"
+	numbatsource "backbond/are-collector/internal/source"
 )
 
 func main() {
@@ -37,6 +40,10 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	keyID := flags.String("key-id", "", "per-bind Ed25519 public key id")
 	policyJSON := flags.String("policy-json", "{}", "JSON object mapping payload paths to redaction classes")
 	privateKeyB64 := flags.String("ed25519-private-key-b64", "", "raw base64 Ed25519 private key")
+	receiptPath := flags.String("reconciliation-receipt", "", "append-only local Numbat receipt path")
+	deploymentID := flags.String("deployment-id", "", "pinned deployment id")
+	numbatCommit := flags.String("numbat-commit", "", "Numbat source commit pin")
+	numbatSchema := flags.String("numbat-schema", "", "Numbat schema pin")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -57,32 +64,92 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sink, err := adapter.AdapterFromFixture(*source, stdin)
-	if err != nil {
-		return err
+	var events []schemav1.Event
+	started := time.Now().UTC()
+	if *source == "numbat" {
+		if *receiptPath == "" || *deploymentID == "" {
+			return fmt.Errorf("numbat requires reconciliation-receipt and deployment-id")
+		}
+		if *numbatCommit != numbatsource.NumbatCommit {
+			return fmt.Errorf("numbat commit pin mismatch: got %q, require %q", *numbatCommit, numbatsource.NumbatCommit)
+		}
+		if *numbatSchema != numbatsource.NumbatSchemaVersion {
+			return fmt.Errorf("numbat schema pin mismatch: got %q, require %q", *numbatSchema, numbatsource.NumbatSchemaVersion)
+		}
+		driver, driverErr := numbatsource.NewNumbatSourceDriver(stdin)
+		if driverErr != nil {
+			return driverErr
+		}
+		events, err = (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
+	} else {
+		sink, adapterErr := adapter.AdapterFromFixture(*source, stdin)
+		if adapterErr != nil {
+			return adapterErr
+		}
+		events, err = collector.Pipeline{Adapter: sink, Policy: policy}.Collect(context.Background())
 	}
-	events, err := collector.Pipeline{Adapter: sink, Policy: policy}.Collect(context.Background())
 	if err != nil {
 		return err
 	}
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
+	var batch any
+	// batchIdentity is the hash the receipt binds: the v1 event digest on the v1
+	// wire, and the v2 chain identity (which commits to wire_version and
+	// prev_batch_hash) on the v2 wire. Binding batch_sha256 on v2 would make the
+	// receipt unreconcilable against a chained stream and would dedupe two
+	// distinct-predecessor batches into one row.
+	var batchIdentity string
+	var selectedWire string
+	// batchDigest is the time-independent event digest. It feeds the receipt's
+	// idempotency key; batchIdentity is what the receipt reports as the emitted
+	// batch. On v2 those must be different values: the identity commits to
+	// issued_at, so it cannot also serve as a replay key.
+	var batchDigest string
 	switch *wireVersion {
 	case "post-bind-egress-wire-v1":
-		batch, err := egress.NewSignedBatch(*customerID, *agentID, *batchID, *keyID, time.Now().UTC(), events, privateKey)
+		signed, err := egress.NewSignedBatch(*customerID, *agentID, *batchID, *keyID, time.Now().UTC(), events, privateKey)
 		if err != nil {
 			return err
 		}
-		return encoder.Encode(batch)
+		batch, batchIdentity, selectedWire, batchDigest = signed, signed.BatchSHA256, "post-bind-egress-wire-v1", signed.BatchSHA256
 	case egress.WireVersionV2:
-		batch, err := egress.NewSignedChainedBatch(*customerID, *agentID, *batchID, *keyID, *prevBatchHash, time.Now().UTC(), events, privateKey)
+		signed, err := egress.NewSignedChainedBatch(*customerID, *agentID, *batchID, *keyID, *prevBatchHash, time.Now().UTC(), events, privateKey)
 		if err != nil {
 			return err
 		}
-		return encoder.Encode(batch)
+		batch, batchIdentity, selectedWire, batchDigest = signed, signed.BatchHash, egress.WireVersionV2, signed.BatchSHA256
 	default:
 		return fmt.Errorf("unsupported wire-version %q", *wireVersion)
 	}
+	if *source == "numbat" {
+		totals := map[string]int{}
+		nonBillable := 0
+		for _, event := range events {
+			totals[string(event.EventType)]++
+			if billable, _ := event.Payload["billable"].(bool); !billable {
+				nonBillable++
+			}
+		}
+		receipt, replay, receiptErr := reconciliation.Append(*receiptPath, reconciliation.Receipt{
+			TenantID: *customerID, AgentID: *agentID, DeploymentID: *deploymentID,
+			SourceCount: len(events), EmittedCount: len(events), QuarantineCount: 0, NonBillableCount: nonBillable,
+			OrderedBatchHashes: []string{batchIdentity}, WireVersion: selectedWire, EventTotals: totals,
+			IdempotencyKey:   reconciliation.IdempotencyKey(*customerID, *agentID, *deploymentID, selectedWire, *batchID, *prevBatchHash, batchDigest),
+			CollectorVersion: "are-collector@76da84e+BEAAA-23693", ScannerVersion: "0.5.0", CorpusVersion: "0.1.0",
+			ProbeSetVersion: "monitor-only-numbat-v0.1", RubricPointID: "none-exercised", NumbatVersion: numbatsource.NumbatVersion,
+			NumbatCommit: numbatsource.NumbatCommit, NumbatSchema: numbatsource.NumbatSchemaVersion, MappingVersion: numbatsource.NumbatMappingVersion,
+			StartedAt: started.Format(time.RFC3339Nano), CompletedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		})
+		if receiptErr != nil {
+			return receiptErr
+		}
+		if replay {
+			return encoder.Encode(map[string]any{"batch": nil, "reconciliation_receipt": receipt})
+		}
+		return encoder.Encode(map[string]any{"batch": batch, "reconciliation_receipt": receipt})
+	}
+	return encoder.Encode(batch)
 }
 
 func parsePolicy(raw string) (redaction.Policy, error) {

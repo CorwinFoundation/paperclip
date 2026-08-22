@@ -43,6 +43,15 @@ Adapters:
   fail-closed redaction, validation, batching, signing, retry, and checkpoint
   commit. Unknown kinds are retained as non-billable observability events.
 
+Numbat reconciliation receipts:
+
+- `reconciliation.Append` refuses a receipt file holding any row whose `receipt_version` differs
+  from the collector's `ReceiptVersion` constant (currently
+  `numbat-reconciliation-receipt-v3`). An upgrade that bumps that constant therefore requires the
+  operator to rotate the receipt file first, or the first collection fails closed with no batch
+  emitted. Procedure, error text, and the reason the guard is not relaxed:
+  `docs/runbooks/numbat-collector-receipt-rotation.md` (BEAAA-24493).
+
 Run:
 
 ```sh

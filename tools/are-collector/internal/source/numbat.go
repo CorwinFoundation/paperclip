@@ -13,9 +13,11 @@ import (
 )
 
 const (
-	NumbatCommit         = "3d20d782d45001fd3bb200bc5690ce4b9ce0f12b"
+	NumbatCommit         = "83f8c74f"
 	NumbatBinarySHA256   = "2e95ac4909db80bfb74aa77f6bed8104173d411a1614bd831e8e65484ef4ecde"
-	NumbatMappingVersion = "numbat-map-v0.1"
+	NumbatMappingVersion = "numbat-map-v0.2"
+	NumbatVersion        = "0.1.1"
+	NumbatSchemaVersion  = "0.2.0"
 )
 
 type NumbatSourceDriver struct {
@@ -33,6 +35,9 @@ func NewNumbatSourceDriver(reader io.Reader) (*NumbatSourceDriver, error) {
 		var payload map[string]any
 		if err := json.Unmarshal(scanner.Bytes(), &payload); err != nil {
 			return nil, fmt.Errorf("numbat ndjson: %w", err)
+		}
+		if schema := stringValue(payload["schema_version"]); schema != NumbatSchemaVersion {
+			return nil, fmt.Errorf("numbat schema pin mismatch: got %q, require %q", schema, NumbatSchemaVersion)
 		}
 		driver.records = append(driver.records, RawEnvelope{
 			Offset: strconv.Itoa(len(driver.records) + 1), Payload: payload,
@@ -109,33 +114,70 @@ var numbatMappings = map[string]mapping{
 }
 
 func (d *NumbatSourceDriver) Normalize(raw RawEnvelope) (NormalizedEvent, error) {
-	kind, _ := raw.Payload["event_type"].(string)
-	observed, _ := raw.Payload["observed_at"].(string)
-	if kind == "" || observed == "" {
-		return NormalizedEvent{}, fmt.Errorf("numbat record requires event_type and observed_at")
+	recordType := stringValue(raw.Payload["record_type"])
+	kind := stringValue(raw.Payload["event_type"])
+	observed := stringValue(raw.Payload["observed_at"])
+	id := stringValue(raw.Payload["event_id"])
+	if recordType != "" {
+		kind, observed, id = officialNumbatIdentity(raw.Payload, recordType)
+	} else if kind == "" || observed == "" {
+		return NormalizedEvent{}, fmt.Errorf("numbat record requires record_type or legacy event_type and observed_at")
 	}
-	item, known := numbatMappings[kind]
-	if !known {
-		item = mapping{"invoke_agent", "message", false, "agent_invocation"}
-	}
-	id, _ := raw.Payload["event_id"].(string)
-	if id == "" {
+	if id == "" && recordType == "" {
 		canonical, _ := json.Marshal(raw.Payload)
 		sum := sha256.Sum256(canonical)
 		id = "numbat-" + hex.EncodeToString(sum[:8])
 	}
-	attributes := map[string]any{
-		"numbat.event_type": kind,
-		"numbat.known_kind": known,
-		"schema_event_type": item.eventType,
+	if id == "" {
+		return NormalizedEvent{}, fmt.Errorf("numbat %s record requires usable identity", recordType)
 	}
-	for _, key := range []string{"call_id", "parent_call_id", "outcome_status", "session_id", "agent_id", "deployment_id"} {
+	if observed == "" {
+		return NormalizedEvent{}, fmt.Errorf("numbat %s record requires usable event time", recordType)
+	}
+	item, known := numbatMappings[kind]
+	knownRecord := recordType == "event" || recordType == "finding" || recordType == "enforcement" || recordType == "indicator" || recordType == "scan_summary" || recordType == "diagnostic"
+	if !known {
+		// Declared behaviour, not an oversight (BEAAA-23695 QA observation, 2026-08-19):
+		// an unrecognised event_type is mapped to agent_invocation and emitted rather
+		// than dropped or quarantined, because a monitor-only listener that silently
+		// discards inputs it does not recognise is the failure this pilot exists to
+		// avoid. The reclassification is not lossy: attributes below carry
+		// numbat.event_type with the original string verbatim and numbat.known_kind
+		// false, so a consumer can filter unknowns without parsing anything else.
+		// What this does NOT do is surface unknown kinds as their own count in the
+		// reconciliation receipt. That is a receipt-schema change and belongs in its
+		// own increment alongside BEAAA-24444, not here.
+		item = mapping{"invoke_agent", "message", false, "agent_invocation"}
+	}
+	attributes := map[string]any{
+		"numbat.event_type":        kind,
+		"numbat.known_kind":        known,
+		"numbat.record_type":       recordType,
+		"numbat.known_record_type": knownRecord,
+		"schema_event_type":        item.eventType,
+	}
+	if recordType == "enforcement" {
+		attributes["numbat.enforcement_observed_only"] = true
+	}
+	if recordType == "indicator" || recordType == "scan_summary" {
+		attributes["numbat.synthetic_event_time"] = true
+	}
+	for _, key := range []string{"call_id", "parent_call_id", "outcome_status", "session_id", "agent_id", "deployment_id", "run_id", "schema_version", "source_agent", "source_type", "decision", "mode", "reason", "rule_id", "rule_version", "severity", "status", "level", "type", "count"} {
 		if value, ok := raw.Payload[key]; ok {
 			attributes[key] = value
 		}
 	}
+	if endpoint, ok := raw.Payload["endpoint"].(map[string]any); ok {
+		bounded := map[string]any{}
+		for _, key := range []string{"os", "arch", "device_id"} {
+			if value, exists := endpoint[key]; exists {
+				bounded[key] = value
+			}
+		}
+		attributes["endpoint"] = bounded
+	}
 	// Content and parameters remain local and are explicitly marked for Collector-core removal.
-	for _, key := range []string{"content", "reasoning", "parameters", "command", "path"} {
+	for _, key := range []string{"content", "reasoning", "parameters", "command", "path", "value", "message", "title", "observed_command", "observed_file_path", "observed_url", "observed_content_preview", "project_path"} {
 		if value, ok := raw.Payload[key]; ok {
 			attributes[key] = value
 		}
@@ -147,10 +189,53 @@ func (d *NumbatSourceDriver) Normalize(raw RawEnvelope) (NormalizedEvent, error)
 		DeploymentID:  stringValue(raw.Payload["deployment_id"]),
 		OperationName: item.operation, ActionClass: item.action, Billable: item.billable,
 		OutcomeStatus: stringValue(raw.Payload["outcome_status"]), Attributes: attributes,
-		SensitivePaths:  []string{"content", "reasoning", "parameters", "command", "path"},
+		SensitivePaths:  []string{"content", "reasoning", "parameters", "command", "path", "value", "message", "title", "observed_command", "observed_file_path", "observed_url", "observed_content_preview", "project_path"},
 		SourceIntegrity: map[string]any{"source_pin": NumbatCommit, "binary_sha256": NumbatBinarySHA256},
 		MappingVersion:  NumbatMappingVersion,
 	}, nil
+}
+
+func officialNumbatIdentity(payload map[string]any, recordType string) (kind, observed, id string) {
+	kind = stringValue(payload["event_type"])
+	switch recordType {
+	case "event":
+		observed, id = stringValue(payload["timestamp"]), stringValue(payload["event_id"])
+	case "finding":
+		observed, id = stringValue(payload["timestamp"]), stringValue(payload["finding_id"])
+		if observed == "" {
+			observed = stringValue(payload["detected_at"])
+		}
+	case "enforcement":
+		observed, id = stringValue(payload["timestamp"]), stringValue(payload["decision_id"])
+	case "diagnostic":
+		observed, id = stringValue(payload["timestamp"]), stringValue(payload["run_id"])
+	case "indicator":
+		observed = stringValue(payload["last_seen"])
+		if observed == "" {
+			observed = stringValue(payload["first_seen"])
+		}
+		if observed == "" {
+			observed = "1970-01-01T00:00:00Z"
+		}
+		id = stringValue(payload["sample_event_id"])
+	case "scan_summary":
+		observed, id = "1970-01-01T00:00:00Z", stringValue(payload["run_id"])
+	default:
+		observed = stringValue(payload["timestamp"])
+		id = stringValue(payload["event_id"])
+		if id == "" {
+			id = stringValue(payload["run_id"])
+		}
+	}
+	if kind == "" {
+		kind = "numbat." + recordType
+	}
+	if id == "" && (recordType == "indicator" || recordType == "diagnostic") {
+		canonical, _ := json.Marshal(payload)
+		sum := sha256.Sum256(canonical)
+		id = "numbat-" + hex.EncodeToString(sum[:8])
+	}
+	return kind, observed, id
 }
 
 func stringValue(value any) string {
