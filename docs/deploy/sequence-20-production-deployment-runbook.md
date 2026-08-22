@@ -6,9 +6,10 @@ phase: 1
 canonical_terms_only: true
 focus_claim: "This playbook makes the Sequence 20 BackBond Scanner edge promotion reproducible, fail-closed, and immediately reversible by integrating request-ID/redaction/default-deny INTO the one live scanner.backbond.ai TLS vhost on srv1749248 — never a parallel listener."
 contracts_referenced: ["are-scanner-api-v1@v1.3.0"]
-ticket_refs: ["BEAAA-16331", "BEAAA-16330", "BEAAA-16232", "BEAAA-16257", "BEAAA-16308", "BEAAA-15400", "BEAAA-15373"]
+ticket_refs: ["BEAAA-16331", "BEAAA-16330", "BEAAA-16232", "BEAAA-16257", "BEAAA-16308", "BEAAA-15400", "BEAAA-15373", "BEAAA-23948"]
 proof_points_cited:
   - "Consolidated candidate identity: signed release manifest artifacts/beaaa-16257/sequence-20-release-manifest.json"
+  - "Canonical GHCR record for Scanner commit c4a58caac801d24e7efa2436dbc5c4086b05d5fe: docs/deploy/scanner-image-c4a58caa-canonical.md"
   - "Scanner image (unchanged, signed): ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda1bb299287a35abaa7a82e5ce5788ca13f68f278e0007bfcb3d1e6a65"
   - "Retained rollback image (read back from the running container, BEAAA-16331): image ID sha256:7c4ff251dd0cc4d41b88e9e148094355985dc4a39e7ac4e93e280171c4101121, org.opencontainers.image.revision=37192e2b0e9f50416170da77dcbc189c00761ecc, env SCANNER_EDGE_IMAGE=sha256:7c4ff251…"
   - "Signed image provenance (offline archive, NOT re-pulled): tar sha256 d9f7203b79d42a77e17bfa292781250c7575d31f011ee03d79f9accbfbaf29ac, local RepoTag backbond-scanner-live:b1c577c74a127c1342617230689eb6f0ef9be6d2, org.opencontainers.image.revision=b1c577c…; GHCR provenance ghcr.io/corwinfoundation/are-scanner@sha256:0b565dda… (recorded, not inspected offline)"
@@ -27,6 +28,24 @@ escalations_noted:
 ---
 
 # Sequence 20 production deployment runbook (v1.6 — topology-, identity-, and automation-correct)
+
+## Canonical later image for commit c4a58caa
+
+This v1.6 procedure preserves its historical `b1c577c…` candidate references.
+For any later workflow that names Scanner commit
+`c4a58caac801d24e7efa2436dbc5c4086b05d5fe`, the one canonical repository
+reference is:
+
+```text
+ghcr.io/corwinfoundation/are-scanner@sha256:b9bd0e70943424331c67c07ad17682412871d4cddde69d97193f847cd0fccfdd
+```
+
+It is the image built and checked in GitHub Actions run `32010676498`, under tag
+`sha-c4a58caac801d24e7efa2436dbc5c4086b05d5fe`. The archive-imported image at
+digest `sha256:f014212dca8f70b73eb70ec9c993e709f81a0d9f1675fcff92b7458f619a7a8d`
+remains immutable evidence but is non-canonical for promotion. See
+`docs/deploy/scanner-image-c4a58caa-canonical.md` for provenance and the
+filesystem comparison. This designation does not authorize promotion.
 
 ## Why v1.6 supersedes v1.5
 

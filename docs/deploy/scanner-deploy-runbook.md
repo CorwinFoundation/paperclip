@@ -68,6 +68,21 @@ scp <stage>/backbond-scanner-<sha>.tar are-deploy@srv1749248:/var/tmp/backbond-s
 
 A non-zero exit means the helper already rolled the box back to the prior image.
 
+## Canonical c4a58caa repository reference
+
+Commit `c4a58caac801d24e7efa2436dbc5c4086b05d5fe` has two immutable images in
+GHCR. The canonical repository reference is the image built and checked by
+GitHub Actions run `32010676498`:
+
+```text
+ghcr.io/corwinfoundation/are-scanner@sha256:b9bd0e70943424331c67c07ad17682412871d4cddde69d97193f847cd0fccfdd
+```
+
+Do not supply the archive-imported digest `sha256:f014212dca8f…` for this
+commit. The helper rejects that pairing before archive access. The comparison
+and provenance record is `scanner-image-c4a58caa-canonical.md`. This reference
+does not authorize promotion.
+
 ## Install / update the on-box helper
 
 ```bash

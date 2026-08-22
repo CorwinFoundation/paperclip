@@ -20,6 +20,11 @@ EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
 ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
 
 REVISION_LABEL=org.opencontainers.image.revision
+# BEAAA-23948: the Development Mode helper remains argument-driven, but this
+# commit has two published GHCR manifests. Fail closed on the one canonical
+# repository digest instead of accepting whichever tag an operator resolved.
+CANONICAL_C4_SHA=c4a58caac801d24e7efa2436dbc5c4086b05d5fe
+CANONICAL_C4_REPO_DIGEST=ghcr.io/corwinfoundation/are-scanner@sha256:b9bd0e70943424331c67c07ad17682412871d4cddde69d97193f847cd0fccfdd
 
 log() { printf '[scanner-deploy] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -67,6 +72,9 @@ SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
 [[ "$REPO_DIGEST" =~ ^[a-zA-Z0-9._/-]+@sha256:[0-9a-f]{64}$ ]] || die 'repository digest must be an immutable repository@sha256 reference'
 [[ "$CANDIDATE" =~ ^BEAAA-[0-9]+$ ]] || die 'candidate id has invalid syntax'
+if [ "$SHA" = "$CANONICAL_C4_SHA" ] && [ "$REPO_DIGEST" != "$CANONICAL_C4_REPO_DIGEST" ]; then
+  die 'repository digest is not the canonical c4a58caa image'
+fi
 [ "$ARCHIVE" = "$ARCHIVE_DIR/backbond-scanner-$SHA.tar" ] || die 'archive path is not the fixed candidate path'
 [ -f "$ARCHIVE" ] || die 'archive not found'
 [ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" = "$ARCHIVE_SHA" ] || die 'archive checksum mismatch'

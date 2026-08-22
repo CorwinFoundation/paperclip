@@ -101,6 +101,45 @@ def test_development_helper_takes_identity_from_five_validated_arguments():
     assert "repository@sha256" in text
 
 
+def test_c4a58caa_accepts_only_the_canonical_ci_built_repository_digest():
+    text = HELPER.read_text()
+    assert "CANONICAL_C4_SHA=c4a58caac801d24e7efa2436dbc5c4086b05d5fe" in text
+    assert (
+        "CANONICAL_C4_REPO_DIGEST=ghcr.io/corwinfoundation/are-scanner@sha256:"
+        "b9bd0e70943424331c67c07ad17682412871d4cddde69d97193f847cd0fccfdd"
+        in text
+    )
+    assert 'if [ "$SHA" = "$CANONICAL_C4_SHA" ]' in text
+    assert 'repository digest is not the canonical c4a58caa image' in text
+
+
+def test_c4a58caa_wrong_repository_digest_fails_before_archive_access(tmp_path):
+    sha = "c4a58caac801d24e7efa2436dbc5c4086b05d5fe"
+    archive = tmp_path / f"backbond-scanner-{sha}.tar"
+    archive.write_bytes(b"checksum-valid archive must remain uninspected")
+    archive_sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+    result = subprocess.run(
+        [
+            "bash",
+            str(HELPER),
+            sha,
+            str(archive),
+            "ghcr.io/corwinfoundation/are-scanner@sha256:"
+            "f014212dca8f70b73eb70ec9c993e709f81a0d9f1675fcff92b7458f619a7a8d",
+            archive_sha,
+            "BEAAA-23948",
+        ],
+        env={**os.environ, "SCANNER_ARCHIVE_DIR": str(tmp_path)},
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0
+    assert result.stderr == (
+        "[scanner-deploy] ERROR: repository digest is not the canonical "
+        "c4a58caa image\n"
+    )
+
+
 def test_dev_deploy_emits_all_five_helper_arguments():
     text = DEV_DEPLOY.read_text()
     assert "BACKBOND_CANDIDATE_ID is required" in text
