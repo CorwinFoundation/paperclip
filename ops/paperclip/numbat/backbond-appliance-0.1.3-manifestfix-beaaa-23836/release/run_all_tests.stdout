@@ -1,0 +1,91 @@
+== no-content invariant (selftest) ==
+NO-CONTENT INVARIANT: PASS
+  emittable fields: ['action_class', 'agent_id', 'billable', 'channel', 'event_id', 'event_type', 'evidence_hash', 'gen_ai.operation.name', 'operation', 'outcome', 'tenant_id', 'ts']
+  evidence_hash: sha256:127f813aea971a7b9fd7fba86fc1d457b76c842e4567a9bf983ab2c1fa670be8
+
+== e2e (read→analyze→sign→no-content) ==
+wrote 7 synthetic engine events -> /tmp/bb-e2e-bnkof1a3/events/synthetic_activity_2026-08-01.json
+[1] first run
+{
+  "read": 7,
+  "emitted_events": 7,
+  "net_determinations": 5,
+  "suppressed_by_allowlist": 0,
+  "suppressed_by_rule": {},
+  "dropped_content_leaks": 0,
+  "batches": 1,
+  "shipped": [
+    "/tmp/bb-e2e-bnkof1a3/outbox/batch-000001.json"
+  ]
+}
+  [1] no-content invariant: PASS
+  [2] signed + chained: PASS (1 batch(es))
+  [5] determinations present: PASS (5 findings, rules: ['growth.brand_safety', 'growth.crm_data_misuse', 'growth.impersonation', 'growth.outreach_compliance', 'growth.unauthorized_spend'])
+  [6] tenancy attribution: PASS
+[3] second run (idempotency)
+{
+  "read": 7,
+  "emitted_events": 7,
+  "net_determinations": 5,
+  "suppressed_by_allowlist": 0,
+  "suppressed_by_rule": {},
+  "dropped_content_leaks": 0,
+  "batches": 0,
+  "shipped": []
+}
+  [3] idempotency: PASS (no duplicate events on re-run)
+  [4] tamper rejection: PASS
+
+E2E: GREEN — appliance reads, analyzes locally, and ships signed no-content batches.
+
+== loop (appliance→server→verify, tamper + content rejection) ==
+wrote 7 synthetic engine events -> /tmp/bb-loop-m9f7q40e/events/synthetic_activity_2026-08-01.json
+  [1] enrolled appliance public key
+{
+  "read": 7,
+  "emitted_events": 7,
+  "net_determinations": 5,
+  "suppressed_by_allowlist": 0,
+  "suppressed_by_rule": {},
+  "dropped_content_leaks": 0,
+  "batches": 1,
+  "shipped": [
+    "http 200 seq1"
+  ]
+}
+  [2] batch shipped over HTTP and ACCEPTED (findings: 5)
+  [3] findings by rule: {'growth.brand_safety': 1, 'growth.unauthorized_spend': 1, 'growth.outreach_compliance': 1, 'growth.crm_data_misuse': 1, 'growth.impersonation': 1}
+      findings by tenant: {'synthetic-tenant-a': 2, 'synthetic-tenant-b': 3}
+  [4] re-ship idempotent (duplicate (idempotent no-op))
+  [5] tampered batch REJECTED (signature/batch_hash invalid)
+  [6] validly-signed content-laden batch REJECTED (content boundary violated: content field 'text' present in event)
+
+LOOP: GREEN — appliance ships over HTTP; server verifies signature, chain, idempotency, and independently enforces the no-content boundary.
+
+== parity + windowing + contract (CEL≡declarative, P0-1, P0-2) ==
+  [P0-3] growth pack parity: PASS
+  [P0-3] coding pack parity: PASS (6 findings, identical both engines)
+{
+  "read": 7,
+  "emitted_events": 7,
+  "net_determinations": 5,
+  "suppressed_by_allowlist": 0,
+  "suppressed_by_rule": {},
+  "dropped_content_leaks": 0,
+  "batches": 4,
+  "shipped": [
+    "/tmp/bb-win-nxcz5f6d/outbox/batch-000001.json",
+    "/tmp/bb-win-nxcz5f6d/outbox/batch-000002.json",
+    "/tmp/bb-win-nxcz5f6d/outbox/batch-000003.json",
+    "..."
+  ]
+}
+  [P0-1] windowing + chain: PASS (4 batches @≤2 events, all chained)
+  [P0-2] contract-v1.0 fields present: PASS (batch_id, counts{billable_actions,tokens}, gen_ai.operation.name)
+
+PARITY/WINDOWING/CONTRACT: GREEN
+
+== package contract (sealed OCI, least privilege, operator path) ==
+PACKAGE CONTRACT: GREEN
+
+ALL GATES GREEN

@@ -45,4 +45,3 @@ class PullConsumer:
         if next_cursor is not None and not isinstance(next_cursor, str):
             raise PullModeError("next_cursor must be a string or null")
         return PullPage(tuple(accepted), next_cursor)
-

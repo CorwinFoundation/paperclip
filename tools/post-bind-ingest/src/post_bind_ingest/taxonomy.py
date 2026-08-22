@@ -26,4 +26,3 @@ def asi_view(peril: str) -> dict[str, object]:
     except KeyError as exc:
         raise ValueError(f"unsupported paid peril: {peril!r}") from exc
     return {"taxonomy_version": ASI_TAXONOMY_VERSION, "identifiers": identifiers}
-

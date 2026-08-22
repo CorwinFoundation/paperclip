@@ -178,7 +178,7 @@
 2026-08-17T13:29:43.5707250Z Collecting typing-extensions==4.16.0 (from -r requirements-scanner-regression.txt (line 110))
 2026-08-17T13:29:43.5723168Z   Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
 2026-08-17T13:29:43.7474208Z Installing collected packages: typing-extensions, sniffio, pyyaml, pygments, pluggy, packaging, iniconfig, idna, h11, certifi, pytest, httpcore, anyio, httpx
-2026-08-17T13:29:45.0337701Z 
+2026-08-17T13:29:45.0337701Z
 2026-08-17T13:29:45.0352198Z Successfully installed anyio-4.14.2 certifi-2026.7.22 h11-0.16.0 httpcore-1.0.9 httpx-0.27.2 idna-3.18 iniconfig-2.3.0 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 pyyaml-6.0.2 sniffio-1.3.1 typing-extensions-4.16.0
 2026-08-17T13:29:45.0930641Z ##[group]Run python -m pytest \
 2026-08-17T13:29:45.0931018Z [36;1mpython -m pytest \[0m

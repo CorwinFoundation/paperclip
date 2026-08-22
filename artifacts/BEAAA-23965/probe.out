@@ -19,7 +19,7 @@ payload 355 bytes, sha12=073b400317b8, 12 slices
   upstream POSTs added: 0   (must be 0)
 
 ### P3  concurrent commits on one session must reach upstream exactly once
-  12 concurrent wgo -> codes:       1 201      11 409 
+  12 concurrent wgo -> codes:       1 201      11 409
   upstream POSTs added: 1   (must be 1)
 
 ### P4  wput reply shape (acceptance 4)

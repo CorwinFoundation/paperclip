@@ -1,0 +1,74 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.74kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff
+#2 DONE 0.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context:
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [ 1/14] FROM docker.io/library/python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff
+#4 resolve docker.io/library/python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff 0.0s done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 9.23kB done
+#5 DONE 0.0s
+
+#6 [ 3/14] WORKDIR /opt/backbond-appliance
+#6 CACHED
+
+#7 [ 4/14] COPY requirements.txt .
+#7 CACHED
+
+#8 [ 5/14] RUN pip install --no-cache-dir --require-hashes -r requirements.txt
+#8 CACHED
+
+#9 [ 2/14] RUN useradd -r -u 10001 -m backbond
+#9 CACHED
+
+#10 [ 6/14] COPY appliance/ ./appliance/
+#10 CACHED
+
+#11 [ 7/14] COPY server/ ./server/
+#11 CACHED
+
+#12 [ 8/14] COPY synthetic/ ./synthetic/
+#12 DONE 0.1s
+
+#13 [ 9/14] COPY tests/ ./tests/
+#13 DONE 0.1s
+
+#14 [10/14] COPY config.example.yaml ./config.example.yaml
+#14 DONE 0.1s
+
+#15 [11/14] COPY run_all_tests.sh ./run_all_tests.sh
+#15 DONE 0.1s
+
+#16 [12/14] COPY Dockerfile install.sh compose.yaml README.md INSTALL.md backbond-appliance.service ./
+#16 DONE 0.1s
+
+#17 [13/14] COPY release/sbom.spdx.json ./release/sbom.spdx.json
+#17 DONE 0.1s
+
+#18 [14/14] RUN chmod 0555 ./run_all_tests.sh     && mkdir -p /home/backbond/.backbond     && chown -R backbond:backbond /home/backbond
+#18 DONE 0.5s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 0.6s done
+#19 exporting manifest sha256:ffca5745dc0853223b7b8c9512f16e5961fe474ab48d37919aef4180989412e1
+#19 exporting manifest sha256:ffca5745dc0853223b7b8c9512f16e5961fe474ab48d37919aef4180989412e1 0.0s done
+#19 exporting config sha256:c1b1df46f9624511267dc79b994cd3b6b237bbb5158271df7331188a4202f947 0.0s done
+#19 exporting attestation manifest sha256:256bb6772403f0bb0e12cb4efebd472c0de528617c5533687cfef05edb3cbef7 0.1s done
+#19 exporting manifest list sha256:564c6115315a28e9729d7d32b94b5c6221c7a4ff1307cc5afcc3285dfdc95eaf
+#19 exporting manifest list sha256:564c6115315a28e9729d7d32b94b5c6221c7a4ff1307cc5afcc3285dfdc95eaf 0.0s done
+#19 naming to docker.io/library/backbond-appliance:0.1.3 done
+#19 unpacking to docker.io/library/backbond-appliance:0.1.3
+#19 unpacking to docker.io/library/backbond-appliance:0.1.3 0.3s done
+#19 DONE 1.4s

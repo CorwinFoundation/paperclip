@@ -25,7 +25,7 @@ __________ test_persisted_golden_baseline_band_matches_its_own_total ___________
             )
             if mismatch:
                 drift.append(mismatch)
-    
+
         # Positive control: B2 alone carries no persisted baseline (BEAAA-10199), so
         # a run that checks fewer than the other eight is looking at the wrong tree
         # and would pass this test by finding nothing rather than by finding nothing
@@ -33,9 +33,9 @@ __________ test_persisted_golden_baseline_band_matches_its_own_total ___________
         assert checked == ["G1", "G2", "G3", "M1", "M2", "M3", "B1", "B3"]
 >       assert drift == []
 E       assert ["artifacts/beaaa-387/G1/baseline.json: bmi=81 -> display: persisted='B' recomputed='B+', modifier: persisted='neutral' recomputed='+', modifier_factor: persisted=1.0 recomputed=0.93", "artifacts/beaaa-387/G3/baseline.json: bmi=75 -> display: persisted='B-' recomputed='B', modifier: persisted='-' recomputed='neutral', modifier_factor: persisted=1.07 recomputed=1.0", "artifacts/beaaa-387/M3/baseline.json: bmi=60 -> display: persisted='D+' recomputed='C', letter: persisted='D' recomputed='C', modifier: persisted='+' recomputed='neutral', modifier_factor: persisted=0.93 recomputed=1.0, posture: persisted='Decline / layered-excess only' recomputed='Surplus (remediation endorsement)'"] == []
-E         
+E
 E         Left contains 3 more items, first extra item: "artifacts/beaaa-387/G1/baseline.json: bmi=81 -> display: persisted='B' recomputed='B+', modifier: persisted='neutral' recomputed='+', modifier_factor: persisted=1.0 recomputed=0.93"
-E         
+E
 E         Full diff:
 E         - []
 E         + [
@@ -55,9 +55,9 @@ E         + ]
 tests/test_release_gate_n5_beaaa10187.py:836: AssertionError
 =========================== short test summary info ============================
 FAILED tests/test_release_gate_n5_beaaa10187.py::test_persisted_golden_baseline_band_matches_its_own_total - assert ["artifacts/beaaa-387/G1/baseline.json: bmi=81 -> display: persisted='B' recomputed='B+', modifier: persisted='neutral' recomputed='+', modifier_factor: persisted=1.0 recomputed=0.93", "artifacts/beaaa-387/G3/baseline.json: bmi=75 -> display: persisted='B-' recomputed='B', modifier: persisted='-' recomputed='neutral', modifier_factor: persisted=1.07 recomputed=1.0", "artifacts/beaaa-387/M3/baseline.json: bmi=60 -> display: persisted='D+' recomputed='C', letter: persisted='D' recomputed='C', modifier: persisted='+' recomputed='neutral', modifier_factor: persisted=0.93 recomputed=1.0, posture: persisted='Decline / layered-excess only' recomputed='Surplus (remediation endorsement)'"] == []
-  
+
   Left contains 3 more items, first extra item: "artifacts/beaaa-387/G1/baseline.json: bmi=81 -> display: persisted='B' recomputed='B+', modifier: persisted='neutral' recomputed='+', modifier_factor: persisted=1.0 recomputed=0.93"
-  
+
   Full diff:
   - []
   + [

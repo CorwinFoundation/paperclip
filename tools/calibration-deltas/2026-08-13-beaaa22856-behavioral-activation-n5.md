@@ -6,10 +6,10 @@ fixtures contain no verified behavioral activation receipts, so this proves
 non-interference for missing candidate evidence; predicate discrimination is
 covered by the focused fail/pass/error/N/A and isolation tests.
 
-Contract: `are-scanner-api-v1@v1.3.0`  
-Scanner: `0.5.0`  
-Corpus: `0.1.0`  
-Probe set: `behavioral-integrity-activation-v0.1`  
+Contract: `are-scanner-api-v1@v1.3.0`
+Scanner: `0.5.0`
+Corpus: `0.1.0`
+Probe set: `behavioral-integrity-activation-v0.1`
 Rubric points: `ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL`,
 `ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER`, `P4.3`, `P4.6`, `P1.1`, `P1.2`
 

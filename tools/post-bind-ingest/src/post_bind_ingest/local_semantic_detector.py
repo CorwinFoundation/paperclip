@@ -43,4 +43,3 @@ def _strings(value: Any):
     elif isinstance(value, (list, tuple)):
         for item in value:
             yield from _strings(item)
-

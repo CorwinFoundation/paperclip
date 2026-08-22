@@ -1,0 +1,33 @@
+services:
+  appliance:
+    image: "${BACKBOND_APPLIANCE_IMAGE:?run ./install.sh install first}"
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    restart: "no"
+    environment:
+      BACKBOND_CONFIG: /config/config.yaml
+      BACKBOND_SHIP_TOKEN: "${BACKBOND_SHIP_TOKEN:-}"
+    volumes:
+      - type: bind
+        source: "${BACKBOND_SUBSTRATE_PATH:-./synthetic-fixture}"
+        target: /data
+        read_only: true
+      - type: bind
+        source: "${BACKBOND_CONFIG_PATH:-./config}"
+        target: /config
+        read_only: true
+      - type: volume
+        source: backbond-state
+        target: /home/backbond/.backbond
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=1777
+
+volumes:
+  backbond-state:
+    name: backbond-appliance-state

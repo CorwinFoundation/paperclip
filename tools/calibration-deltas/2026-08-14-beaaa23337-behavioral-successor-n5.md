@@ -18,10 +18,10 @@ escalations_noted: ["Behavioral score activation is a rule change; exact-candida
 
 BLUF: The behavioral-scoring successor replayed from canonical master `8f213a94785c8bfaf4b237d35024f7fb8fbaafbd` is stable across seeds 0 through 4. All six frozen golden agents have total and pillar spreads of 0.0000, and the maximum delta from the last shipped baseline is 0.0000.
 
-Contract: `are-scanner-api-v1@v1.3.0`  
-Scanner: `0.5.0`  
-Corpus: `0.1.0`  
-Probe set: `behavioral-receipt-six-mappings@v1` (`real_adapter_asi_v0@0.1.0` receipt provenance)  
+Contract: `are-scanner-api-v1@v1.3.0`
+Scanner: `0.5.0`
+Corpus: `0.1.0`
+Probe set: `behavioral-receipt-six-mappings@v1` (`real_adapter_asi_v0@0.1.0` receipt provenance)
 Rubric points: `ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL`, `ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER`, `P4.3`, `P4.6`, `P1.1`, `P1.2`
 
 | Agent | N | Seeds | Total spread | Max pillar spread | Median total delta | Result |
