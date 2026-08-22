@@ -3,11 +3,28 @@
 # Founder Directive 2026-07-21 suspended the release ceremony until first bind.
 # This is the deploy path in the meantime: one click, no operator laptop.
 #
-# WHY CI CAN SSH IN (supersedes the "operator-mediated push" note in the parked
-# cd.yml): the box is egress-sealed, so it can never PULL its release. But
-# inbound SSH is and always has been open (backbond-hostinger-hardening-firewall.sh
-# keeps 22 public and drops only 3000/8443/8000-8012). Pushing in over that
-# channel needs no firewall change and no self-hosted runner.
+# WHY THIS RUNS ON A SELF-HOSTED RUNNER, NOT ubuntu-latest
+# -------------------------------------------------------
+# srv1749248 filters inbound SSH by SOURCE IP. GitHub-hosted runners are not on
+# that allowlist, so scp from Azure hangs ~134s on IPv4 and then dies with
+# "ssh: connect to host ... port 22: Network is unreachable" as it falls back to
+# IPv6, which those runners have no route for.
+#
+# This restriction is NOT visible in backbond-hostinger-hardening-firewall.sh.
+# That script governs the OS-level firewall (it does keep 22 open and drops only
+# 3000/8443/8000-8012). The source-IP filter lives in the Hostinger cloud
+# firewall, outside the box entirely. Reading the OS script alone will tell you
+# — wrongly — that any host may connect. It was measured empirically:
+#   from a GitHub-hosted runner : 134s hang, then Network is unreachable
+#   from AriClaw                : same scp completes in ~5s
+#
+# So the job runs on the 'ariclaw' self-hosted runner (see
+# docs/deploy/push-cd-setup.md). DO NOT set runs-on back to ubuntu-latest unless
+# you have first added the runner ranges to the Hostinger firewall — which is
+# not recommended, as those ranges are large and rotate.
+#
+# The box itself remains egress-sealed and never pulls its own release; the
+# image is always pushed in over SSH.
 #
 # Nothing about the trust model on the box changes. `are-deploy` still has
 # NOPASSWD sudo for exactly /usr/local/sbin/scanner-deploy, and that helper
