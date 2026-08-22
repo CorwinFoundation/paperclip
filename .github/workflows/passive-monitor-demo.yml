@@ -69,6 +69,7 @@ jobs:
           python -m pytest -q \
             tools/log-tracker/tests/test_package_metadata.py \
             tools/log-tracker/tests/test_appliance_ingest_beaaa20231.py \
+            tools/post-bind-ingest/tests/test_synthetic_voice_e2e.py \
             tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py \
             tools/post-bind-ingest/tests/test_lifecycle_demo.py \
             tools/post-bind-ingest/tests/test_demo_app.py \
