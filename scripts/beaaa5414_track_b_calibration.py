@@ -28,7 +28,7 @@ What this harness does
 3. **Real factory invocation** — calls
    :func:`api.scan_runtime_factory.make_default_production_scan_runtime`
    and drives the returned ``ScanRuntime`` N=5 times via
-   ``runtime.run_scan_fn(scan_request, secret)``. The Prober + Scorer
+   ``runtime.kickoff(scan_request, secret)``. The Prober + Scorer
    subprocesses are spawned for every replicate; the fork-inherited
    vault carries the credential into the Prober; the score envelope
    is drained from the API-edge registry.
@@ -147,6 +147,7 @@ def _build_scan_request(replicate_idx: int, corpus_snapshot_hash: str) -> ScanRe
         corpus_version=_FIXTURE_CORPUS_VERSION,
         seed=_FIXTURE_SEED,
         agent_id=_FIXTURE_AGENT_ID,
+        scan_tier="smoke",
     )
 
 
@@ -158,16 +159,17 @@ def _drive_one_replicate(
 
     Each replicate constructs its own ``ScanRequest`` (distinct
     ``scan_id`` so the prior-scan-refs registry isn't tripped) and
-    calls ``runtime.run_scan_fn`` synchronously — the call returns
-    after the Prober + Scorer subprocesses join.
+    calls ``runtime.kickoff`` synchronously — the call returns after the
+    Prober + Scorer subprocesses join and registers the request provenance
+    needed by the production envelope factory.
     """
     scan_request = _build_scan_request(replicate_idx, corpus_snapshot_hash)
 
-    # ScanRuntime stores the kickoff callable as ``_run_scan_fn``; that's
-    # the entrypoint the API edge invokes inside ``kickoff()``. Calling
-    # it directly lets us drain the score envelope without persisting
-    # a scan_log row (the calibration is read-only on the wire surface).
-    result = runtime._run_scan_fn(scan_request, _FIXTURE_SECRET)
+    # Use the public runtime boundary so the per-scan request registry is
+    # populated before the production envelope factory validates provenance.
+    # Omitting agent_id keeps this calibration read-only on the scan-log
+    # surface while still exercising the real Prober + Scorer path.
+    result = runtime.kickoff(scan_request, _FIXTURE_SECRET)
 
     # The factory closure on the API edge captures the envelope into
     # an internal registry keyed by scan_id; the Scorer subprocess
@@ -280,9 +282,15 @@ def main() -> int:
     canonicals = [_canonical_json(env) for env in envelopes]
     cardinality = len(set(canonicals))
     max_spread = _max_numeric_spread(spread)
+    phase1_pending = any(
+        value == "_phase1_pending"
+        for envelope in envelopes
+        for value in (envelope.get("are_total"), envelope.get("subscores"))
+    )
     ag_b6_pass = bool(
         max_spread == 0
         and cardinality == 1
+        and not phase1_pending
         and not any(k.endswith("subscores_key_drift") for k in spread)
     )
 
@@ -312,6 +320,7 @@ def main() -> int:
         "envelope_canonical_jcs_cardinality": cardinality,
         "spread": spread,
         "max_numeric_spread": max_spread,
+        "phase1_pending": phase1_pending,
         "ag_b6_pass": ag_b6_pass,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
