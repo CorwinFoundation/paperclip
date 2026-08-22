@@ -1,10 +1,8 @@
 name: Scanner Immutable GHCR Image
 
 on:
-  # Every merge to master builds a deployable, verified image so the
-  # deploy workflow is a single click with nothing to wait for.
-  push:
-    branches: [master]
+  # Manual build only. Producing an immutable image is a governed release
+  # action; merging to master must not publish a deployable artifact by itself.
   workflow_dispatch:
 
 permissions:
