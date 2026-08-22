@@ -48,7 +48,7 @@ env:
 jobs:
   deploy:
     name: push image to srv1749248
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ariclaw]
     timeout-minutes: 25
     steps:
       - name: Resolve and validate target commit
