@@ -62,10 +62,21 @@ def test_scan_tier_and_webhook_off_sentinel():
     assert ApiConfig.from_env({"ARE_SCAN_WEBHOOK": "whatever"}).scan_webhook_enabled is True
 
 
-def test_production_scan_wiring_only_exact_one():
-    assert ApiConfig.from_env({"ARE_PRODUCTION_SCAN_WIRING": "1"}).production_scan_wiring is True
-    for v in ("0", "on", "true", "", "11"):
-        assert ApiConfig.from_env({"ARE_PRODUCTION_SCAN_WIRING": v}).production_scan_wiring is False
+def test_production_scan_wiring_documented_boolean_tokens():
+    for value in ("1", "true", "on", "yes", " TRUE ", "On"):
+        assert ApiConfig.from_env({"ARE_PRODUCTION_SCAN_WIRING": value}).production_scan_wiring is True
+    for value in ("0", "false", "off", "no", " FALSE ", "Off"):
+        assert ApiConfig.from_env({"ARE_PRODUCTION_SCAN_WIRING": value}).production_scan_wiring is False
+
+
+def test_production_scan_wiring_absent_defaults_off():
+    assert ApiConfig.from_env({}).production_scan_wiring is False
+
+
+@pytest.mark.parametrize("value", ["", "11", "enabled", "none"])
+def test_production_scan_wiring_invalid_token_fails_closed(value):
+    with pytest.raises(ValueError, match="ARE_PRODUCTION_SCAN_WIRING must be one of"):
+        ApiConfig.from_env({"ARE_PRODUCTION_SCAN_WIRING": value}).production_scan_wiring
 
 
 @pytest.mark.parametrize("var,accessor", [

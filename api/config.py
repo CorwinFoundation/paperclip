@@ -73,6 +73,7 @@ FULL_SCAN_JOB_STORE_PATH_ENV: str = "ARE_FULL_SCAN_JOB_STORE_PATH"
 
 #: Truthy-token sets used by the pre-existing boolean toggles (preserved exactly).
 _TRUTHY: frozenset[str] = frozenset({"on", "1", "true", "yes"})
+_FALSY: frozenset[str] = frozenset({"off", "0", "false", "no"})
 
 
 @dataclass(frozen=True)
@@ -146,8 +147,19 @@ class ApiConfig:
 
     @property
     def production_scan_wiring(self) -> bool:
-        """``ARE_PRODUCTION_SCAN_WIRING == "1"`` (BEAAA-553 opt-in, default off)."""
-        return self.env.get(PRODUCTION_SCAN_WIRING_ENV) == "1"
+        """Parse the production-wiring opt-in; unset stays default-off."""
+        raw = self.env.get(PRODUCTION_SCAN_WIRING_ENV)
+        if raw is None:
+            return False
+        token = raw.strip().lower()
+        if token in _TRUTHY:
+            return True
+        if token in _FALSY:
+            return False
+        raise ValueError(
+            f"{PRODUCTION_SCAN_WIRING_ENV} must be one of: "
+            "1, true, on, yes, 0, false, off, no"
+        )
 
     @property
     def rescans_measured_off(self) -> bool:

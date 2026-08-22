@@ -261,7 +261,8 @@ def create_app(
     runtime_profile = current_runtime_profile()
     # BEAAA-12021 — build + validate the typed config once at startup.
     config = ApiConfig.from_env()
-    config.require_production_signing_key()
+    if config.production_scan_wiring:
+        config.require_production_signing_key()
     app = FastAPI(
         title="ARE Scanner ⇄ Underwriter API",
         version=RELEASE_IDENTITY.api_app_version,
