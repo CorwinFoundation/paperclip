@@ -20,21 +20,30 @@ nothing. It cannot prevent an undisciplined landing; it makes one visible.
 
 ## Why it exists
 
-Branch protection on `CorwinFoundation/are-scanner` is configured correctly and
-does not bind the identity every agent pushes with. The deploy PAT authenticates
-as the repo owner, and `enforce_admins` is off, so the required checks and the
-PR requirement are advisory in effect for that one identity. Turning
-`enforce_admins` on today would stop every landing in the company, so it is
-sequenced as a migration rather than a switch. Full reasoning:
+**Updated 2026-08-22.** Branch protection on `CorwinFoundation/are-scanner` now
+binds every identity, including the one the agent fleet pushes with.
+`enforce_admins` is on, a pull request is required, and one approving review from
+an identity other than the pusher is required. See
+`decisions/ADR-0072-master-branch-protection-applied.md`.
+
+What this section used to say — that `enforce_admins` was off, that the required
+checks were advisory in effect for the fleet identity, and that flipping the
+switch "would stop every landing in the company, so it is sequenced as a
+migration rather than a switch" — was true when written and is no longer true.
+The switch was thrown on 2026-08-22 and seven pull requests landed the same
+afternoon. Prior reasoning is retained at
 `ADR-BEAAA-24442-canon-master-enforcement-surface.md` and the ruling on
 BEAAA-24442.
 
-That leaves the evidence recorded in Paperclip as the binding control, enforced
-by agent discipline alone. Nothing checked that a landed commit actually carried
-it. This does.
+Paperclip remains the substantive record. What moved is where the *gate* lives.
 
-It stays useful after `enforce_admins` flips: branch protection still would not
-check whether the QA approval cited the SHA that actually landed.
+**That change does not retire this tool, for the reason the original text already
+gave:** branch protection still does not check whether the QA approval cited the
+SHA that actually landed, and nothing else measures the
+`merged_sha_on_canon_master_at_close` leg at all. What has changed is that the QA
+approval is now a GitHub review carrying `commit_id`, so the failure class
+`QA APPROVED names predecessor` cannot recur on anything landing through the PR
+path. Expect that leg to fall on its own. The other two will not.
 
 ## Running it
 

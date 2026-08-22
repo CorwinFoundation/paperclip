@@ -16,6 +16,19 @@ escalations_noted: ["Blocked on account owner (Founder): (1) grant Administratio
 
 # ADR-0037: master branch protection for CorwinFoundation/are-scanner
 
+> **SUPERSEDED IN PART — 2026-08-22.** The **Blockers** section below is resolved.
+> Both blockers are cleared and the settings are applied; see
+> `decisions/ADR-0072-master-branch-protection-applied.md`.
+>
+> **Do not action the "Unblock path" instruction to grant `Administration: write`
+> to `GITHUB_PAT_ARE_SCANNER`.** That credential was deliberately unbound from
+> every seat and from both push paths by BEAAA-24437, BEAAA-24446 and
+> BEAAA-24500. No token holds administrative rights on this repository — the
+> account owner applied the settings through the web UI. Reviving that token in
+> order to grant it admin would undo three tickets of hardening.
+>
+> The Phase 1 and Phase 2 setting tables below remain accurate and are unchanged.
+
 ## Decision
 
 Make `master` on `CorwinFoundation/are-scanner` the canonical, audit-safe
