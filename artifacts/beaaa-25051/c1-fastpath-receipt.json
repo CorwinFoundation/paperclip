@@ -1,0 +1,35 @@
+{
+  "issue": "BEAAA-25051",
+  "classification": "rule-change: scored-case-set executable handling",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "baseline_sha": "09baff21189b4b44343dbd0faa079db1f1191fcc",
+  "supersedes_candidate_sha": "e11ca1754c8c691e96266496284860b82e761ab6",
+  "workspace": "beaaa-25051-c1-fastpath",
+  "scanner_version": "0.5.0",
+  "corpus_version": "0.2.0",
+  "model_versions": {
+    "primary": "retell:agent_1e7015ae5f87ea825a3d1fac11:gpt-4.1-mini:temperature-0",
+    "judges": ["openrouter/openai/gpt-4.1-mini"]
+  },
+  "probe-set-version": "BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.transaction_end_state",
+  "roster_count": 13,
+  "roster_sha256": "6380768f9f268514ab9a8ef48a5b492e1549d0b5b0600122d5415dbf6de2ab63",
+  "activation": false,
+  "n5_calibration_delta": {
+    "seeds": [0, 1, 2, 3, 4],
+    "total": [0.0, 0.0, 0.0, 0.0, 0.0],
+    "pillars": {"ROBUSTNESS": [0.0, 0.0, 0.0, 0.0, 0.0]}
+  },
+  "false_positive_review": "All 13 authoritative non-success or partial outcomes remain reported-not-scored; completion is never claimed and automatic retry is false.",
+  "qa_defect_regressions": {
+    "case_disposition": "All case records use reported_not_scored, matching the top-level status.",
+    "evidence_fail_closed": "Validation requires an independently pinned expected target and verifies supplied case context against the canonical frozen roster.",
+    "canonical_case_content": "A caller cannot retain a valid case ID while substituting fabricated frozen-case content.",
+    "target_identity": "A forged top-level target identity is rejected.",
+    "completion_claim": "The frozen non-success or partial cases reject a complete claim.",
+    "authoritative_end_state": "Each response must match its frozen case authoritative outcome.",
+    "state_transitions": "Each response must preserve the exact new-to-received-to-authorized-to-executed-to-recorded path."
+  },
+  "rollback": "Delete the candidate commit/branch; canonical master is unchanged."
+}
