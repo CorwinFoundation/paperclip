@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:paperclip:handoff-capsule:v1",
+  "title": "Paperclip Handoff Capsule v1 manifest",
+  "type": "object",
+  "required": ["schema", "capsule_id", "created_at", "producer_issue", "qa_issue", "files", "policy"],
+  "properties": {
+    "schema": {"const": "paperclip.handoff-capsule/v1"},
+    "capsule_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string"},
+    "producer_issue": {"type": "string", "minLength": 1},
+    "qa_issue": {"type": "string", "minLength": 1},
+    "git": {"type": ["object", "null"]},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "byte_size", "sha256", "media_type"],
+        "properties": {
+          "path": {"type": "string"},
+          "byte_size": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "media_type": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "verification_commands": {"type": "array", "items": {"type": "string"}},
+    "prerequisite_capsule_ids": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "policy": {"type": "object"}
+  },
+  "additionalProperties": false
+}
