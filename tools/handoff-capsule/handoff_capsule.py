@@ -28,6 +28,12 @@ import zipfile
 
 SCHEMA = "paperclip.handoff-capsule/v1"
 INDEX_SCHEMA = "paperclip.handoff-capsule-index/v1"
+LEGACY_SCHEMA = "backbond.handoff-capsule/v1"
+LEGACY_INDEX_SCHEMA = "backbond.handoff-capsule-index/v1"
+INDEX_TO_MANIFEST_SCHEMA = {
+    INDEX_SCHEMA: SCHEMA,
+    LEGACY_INDEX_SCHEMA: LEGACY_SCHEMA,
+}
 DEFAULT_API = "http://127.0.0.1:3100"
 DEFAULT_PART_BYTES = 8 * 1024 * 1024
 FIXED_ZIP_TIME = (2020, 1, 1, 0, 0, 0)
@@ -218,7 +224,7 @@ def build_capsule(
         capsule_id = sha256_bytes(canonical_json(unsigned_manifest))
         manifest = dict(unsigned_manifest)
         manifest["capsule_id"] = capsule_id
-        manifest_sha = sha256_bytes(canonical_json(manifest))
+        manifest_sha = sha256_bytes(canonical_json(manifest) + b"\n")
         archive = staging / f"handoff-{capsule_id}.zip"
         write_deterministic_zip(archive, payloads, manifest)
         parts = split_file(archive, output_dir, capsule_id, part_bytes)
@@ -228,6 +234,7 @@ def build_capsule(
             "producer_issue": producer_issue,
             "qa_issue": qa_issue,
             "manifest_sha256": manifest_sha,
+            "manifest_hash_semantics": "raw-file-sha256",
             "archive_sha256": sha256_file(archive),
             "archive_byte_size": archive.stat().st_size,
             "candidate_sha": git_metadata.get("candidate_sha") if git_metadata else None,
@@ -247,7 +254,8 @@ def load_json(path: Path) -> dict[str, object]:
 
 def verify_index(index_path: Path, *, extract_dir: Path | None = None, verify_git: bool = True) -> dict[str, object]:
     index = load_json(index_path)
-    if index.get("schema") != INDEX_SCHEMA:
+    manifest_schema = INDEX_TO_MANIFEST_SCHEMA.get(str(index.get("schema") or ""))
+    if manifest_schema is None:
         raise CapsuleError("unsupported capsule index schema")
     capsule_id = str(index.get("capsule_id") or "")
     parts = index.get("parts")
@@ -291,7 +299,7 @@ def verify_index(index_path: Path, *, extract_dir: Path | None = None, verify_gi
             capsule.extractall(unpack)
         manifest_path = unpack / "handoff-manifest-v1.json"
         manifest = load_json(manifest_path)
-        if manifest.get("schema") != SCHEMA:
+        if manifest.get("schema") != manifest_schema:
             raise CapsuleError("unsupported capsule manifest schema")
         if manifest.get("producer_issue") != index.get("producer_issue") or manifest.get("qa_issue") != index.get("qa_issue"):
             raise CapsuleError("index and manifest issue identities do not match")
@@ -299,7 +307,17 @@ def verify_index(index_path: Path, *, extract_dir: Path | None = None, verify_gi
         actual_id = str(manifest_for_id.pop("capsule_id", ""))
         if actual_id != capsule_id or sha256_bytes(canonical_json(manifest_for_id)) != capsule_id:
             raise CapsuleError("capsule id does not match manifest")
-        if sha256_bytes(canonical_json(manifest)) != index.get("manifest_sha256"):
+        raw_manifest_sha = sha256_file(manifest_path)
+        canonical_manifest_sha = sha256_bytes(canonical_json(manifest))
+        expected_manifest_sha = index.get("manifest_sha256")
+        manifest_hash_matches = raw_manifest_sha == expected_manifest_sha
+        if index.get("schema") == LEGACY_INDEX_SCHEMA:
+            # Legacy BackBond capsules predate explicit hash semantics and
+            # recorded canonical JSON without the file's trailing newline.
+            manifest_hash_matches = manifest_hash_matches or (
+                canonical_manifest_sha == expected_manifest_sha
+            )
+        if not manifest_hash_matches:
             raise CapsuleError("manifest checksum mismatch")
         manifest_files = manifest.get("files", [])
         if not isinstance(manifest_files, list) or not manifest_files:

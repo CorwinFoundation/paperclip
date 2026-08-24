@@ -203,6 +203,8 @@ class HandoffCapsuleSweepTests(unittest.TestCase):
             product = {
                 "title": f"Handoff Capsule v1 index {index['capsule_id'][:12]}",
                 "status": "ready_for_review",
+                "createdAt": "2026-01-02T00:00:00Z",
+                "updatedAt": "2026-01-02T00:00:00Z",
                 "metadata": {"attachmentId": "index"},
                 "summary": json.dumps(
                     {
@@ -215,13 +217,30 @@ class HandoffCapsuleSweepTests(unittest.TestCase):
                 ),
             }
             client = FakeDownloadClient(downloads)
-            capsule_id, found = find_capsule(client, [product], "OPS-1", "OPS-2")
+            capsule_id, found, candidate_sha = find_capsule(
+                client, [product], "OPS-1", "OPS-2"
+            )
+            self.assertEqual(capsule_id, index["capsule_id"])
+            self.assertIs(found, product)
+            self.assertIsNone(candidate_sha)
+
+            # Publishing a sibling can refresh every product's updatedAt.  The
+            # replacement must still win by immutable creation time.
+            older = dict(product)
+            older["createdAt"] = "2026-01-01T00:00:00Z"
+            older["updatedAt"] = "2026-01-03T00:00:00Z"
+            capsule_id, found, _ = find_capsule(
+                client, [older, product], "OPS-1", "OPS-2"
+            )
             self.assertEqual(capsule_id, index["capsule_id"])
             self.assertIs(found, product)
 
             first_part = downloads["/api/attachments/part-0/content"]
             first_part.write_bytes(first_part.read_bytes() + b"tamper")
-            self.assertEqual(find_capsule(client, [product], "OPS-1", "OPS-2"), (None, None))
+            self.assertEqual(
+                find_capsule(client, [product], "OPS-1", "OPS-2"),
+                (None, None, None),
+            )
 
     def test_discovery_combines_markers_and_capsules_without_guessing(self) -> None:
         issues = [

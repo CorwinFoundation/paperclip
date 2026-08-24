@@ -4,7 +4,7 @@ Handoff Capsule v1 makes cross-agent work reviewable after the producing session
 
 ## Contract
 
-A capsule is a deterministic ZIP containing `handoff-manifest-v1.json`, exact payload bytes, and (for code) a self-contained Git bundle, binary patch, and commit summary. The manifest's canonical JSON determines the 64-character capsule ID. The ZIP is split into 8 MiB parts, each hashed with SHA-256. The published index records every part's Paperclip attachment ID and is uploaded last as the primary attachment-backed `ready_for_review` work product.
+A capsule is a deterministic ZIP containing `handoff-manifest-v1.json`, exact payload bytes, and (for code) a self-contained Git bundle, binary patch, and commit summary. The manifest's canonical JSON determines the 64-character capsule ID. The index's `manifest_sha256` hashes the exact manifest file bytes, including its deterministic trailing newline, and declares `manifest_hash_semantics: raw-file-sha256`. The ZIP is split into 8 MiB parts, each hashed with SHA-256. The published index records every part's Paperclip attachment ID and is uploaded last as the primary attachment-backed `ready_for_review` work product.
 
 Free-text SHAs, local paths, and comments do not satisfy the contract.
 
@@ -58,7 +58,7 @@ python3 handoff_capsule_sweep.py \
 python3 handoff_capsule_sweep.py --company-id "$PAPERCLIP_COMPANY_ID" --discover
 ```
 
-For pre-capsule discovery, the reviewer issue carries `handoff_capsule_v1: required`, `handoff_role: reviewer`, and `handoff_producer: <producer-issue-identifier>` on separate lines. Producer helpers must not carry the reviewer-role marker. Published capsules are discovered from their work-product summaries. The sweep deliberately does not guess from titles or arbitrary issue references.
+For pre-capsule discovery, the reviewer issue carries `handoff_capsule_v1: required`, `handoff_role: reviewer`, and `handoff_producer: <producer-issue-identifier>` on separate lines. Producer helpers must not carry the reviewer-role marker. Published capsules are discovered from their work-product summaries. During company migration the verifier accepts attachment-backed `backbond.handoff-capsule*/v1` capsules as legacy input, but new capsules are always published under the `paperclip.handoff-capsule*/v1` namespace. Replacement capsules are ordered by immutable `createdAt`; Paperclip may refresh older work products' `updatedAt`, so it is not a safe recency signal. Candidate identity comes from the verified capsule bytes rather than the summary. The sweep deliberately does not guess from titles or arbitrary issue references.
 
 - Missing/invalid capsule or `CHANGES REQUESTED`: producer actionable, QA blocked by producer.
 - Valid capsule pending review: producer `in_review`, QA actionable.

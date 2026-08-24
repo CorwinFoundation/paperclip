@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from handoff_capsule import (
     DEFAULT_API,
     INDEX_SCHEMA,
+    LEGACY_INDEX_SCHEMA,
     CapsuleError,
     PaperclipClient,
     fetch_index,
@@ -33,7 +34,7 @@ from handoff_capsule import (
 ISSUE_IDENTIFIER = r"[A-Z][A-Z0-9]*-\d+"
 PAIR_PATTERN = re.compile(rf"\b({ISSUE_IDENTIFIER})\b", re.IGNORECASE)
 CAPSULE_TITLE = "Handoff Capsule v1 index "
-CAPSULE_SCHEMA = INDEX_SCHEMA
+CAPSULE_SCHEMAS = frozenset({INDEX_SCHEMA, LEGACY_INDEX_SCHEMA})
 REQUIRED_MARKER = re.compile(
     r"(?im)^\s*handoff_capsule_v1\s*:\s*required\s*$"
 )
@@ -112,10 +113,21 @@ def find_capsule(
     work_products: list[dict[str, object]],
     expected_producer: str,
     expected_reviewer: str,
-) -> tuple[str | None, dict[str, object] | None]:
-    """Return only an attachment-backed capsule whose complete bytes verify."""
+) -> tuple[str | None, dict[str, object] | None, str | None]:
+    """Return the newest created capsule whose complete bytes verify.
 
-    for product in sorted(work_products, key=lambda value: str(value.get("updatedAt") or value.get("createdAt") or ""), reverse=True):
+    Paperclip may refresh ``updatedAt`` on every work product when a sibling is
+    published.  Creation time is therefore the only stable ordering signal for
+    replacement capsules; using ``updatedAt`` can resurrect a rejected capsule.
+    Candidate identity also comes from the verified attachment bytes, never
+    from the denormalized work-product summary.
+    """
+
+    for product in sorted(
+        work_products,
+        key=lambda value: str(value.get("createdAt") or ""),
+        reverse=True,
+    ):
         if product_pair(product, expected_producer) != (
             expected_producer.upper(),
             expected_reviewer.upper(),
@@ -139,20 +151,14 @@ def find_capsule(
             and str(verified.get("producer_issue") or "").upper() == expected_producer.upper()
             and str(verified.get("qa_issue") or "").upper() == expected_reviewer.upper()
         ):
-            return capsule_id, product
-    return None, None
-
-
-def candidate_from_product(product: dict[str, object] | None) -> str | None:
-    summary = (product or {}).get("summary")
-    if not isinstance(summary, str):
-        return None
-    try:
-        parsed = json.loads(summary)
-    except json.JSONDecodeError:
-        return None
-    candidate = str(parsed.get("candidate_sha") or "").lower()
-    return candidate if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", candidate) else None
+            candidate = str(verified.get("candidate_sha") or "").lower()
+            candidate_sha = (
+                candidate
+                if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", candidate)
+                else None
+            )
+            return capsule_id, product, candidate_sha
+    return None, None, None
 
 
 def issue(client: PaperclipClient, identifier: str) -> dict[str, object]:
@@ -225,7 +231,7 @@ def product_pair(product: dict[str, object], expected_producer: str) -> tuple[st
     attachment_id = str(parsed.get("index_attachment_id") or "")
     metadata = product.get("metadata")
     if (
-        parsed.get("schema") != CAPSULE_SCHEMA
+        parsed.get("schema") not in CAPSULE_SCHEMAS
         or not isinstance(metadata, dict)
         or not attachment_id
         or str(metadata.get("attachmentId") or "") != attachment_id
@@ -318,13 +324,12 @@ def patch_if_needed(
 def route_pair(client: PaperclipClient, producer_ident: str, qa_ident: str, *, dry_run: bool = False) -> dict[str, object]:
     producer = issue(client, producer_ident)
     qa = issue(client, qa_ident)
-    capsule_id, product = find_capsule(
+    capsule_id, product, candidate_sha = find_capsule(
         client,
         work_products(client, producer_ident),
         producer_ident,
         qa_ident,
     )
-    candidate_sha = candidate_from_product(product)
     published_at = str((product or {}).get("createdAt") or (product or {}).get("updatedAt") or "") or None
     reviewer_agent_id = str(qa.get("assigneeAgentId") or "")
     verdict = (

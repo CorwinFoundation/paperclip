@@ -5,15 +5,42 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from handoff_capsule import CapsuleError, build_capsule, verify_index
+from handoff_capsule import (
+    CapsuleError,
+    LEGACY_INDEX_SCHEMA,
+    LEGACY_SCHEMA,
+    build_capsule,
+    verify_index,
+)
 
 
 class HandoffCapsuleTests(unittest.TestCase):
+    def test_verifier_accepts_legacy_capsules_during_company_migration(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            artifact = root / "result.txt"
+            artifact.write_text("legacy durable bytes", encoding="utf-8")
+            with (
+                patch("handoff_capsule.SCHEMA", LEGACY_SCHEMA),
+                patch("handoff_capsule.INDEX_SCHEMA", LEGACY_INDEX_SCHEMA),
+            ):
+                index = build_capsule(
+                    output_dir=root / "out",
+                    producer_issue="ALPHA-1",
+                    qa_issue="ALPHA-2",
+                    artifacts=[str(artifact)],
+                    created_at="2026-01-01T00:00:00Z",
+                )
+            result = verify_index(index, verify_git=False)
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["producer_issue"], "ALPHA-1")
+
     def test_artifact_capsule_round_trip_and_tamper_detection(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -33,6 +60,7 @@ class HandoffCapsuleTests(unittest.TestCase):
             self.assertTrue(result["ok"])
             self.assertEqual(result["producer_issue"], "ALPHA-1")
             document = json.loads(index.read_text(encoding="utf-8"))
+            self.assertEqual(document["manifest_hash_semantics"], "raw-file-sha256")
             part = out / document["parts"][0]["name"]
             part.write_bytes(part.read_bytes() + b"tamper")
             with self.assertRaisesRegex(CapsuleError, "(?:size|checksum) mismatch"):
