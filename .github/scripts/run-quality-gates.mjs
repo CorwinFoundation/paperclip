@@ -2,7 +2,7 @@
 /**
  * run-quality-gates.mjs
  * Orchestrates all quality gates. Fetches PR data once, runs all gates,
- * posts or updates a single consolidated comment via commitperclip.
+ * posts or updates a single consolidated comment via the workflow identity.
  *
  * Env: GH_TOKEN, GH_REPO, PR_NUMBER, PR_AUTHOR, PR_BRANCH
  * Exit: 0 if all quality gates pass, 1 if any fail.
@@ -17,7 +17,13 @@ import { checkTestCoverage } from './check-pr-test-coverage.mjs';
 import { checkLockfile } from './check-pr-lockfile.mjs';
 import { checkDependencies } from './check-pr-dependencies.mjs';
 
-const COMMENT_SIGNATURE = '— commitperclip';
+const COMMENT_SIGNATURE = '— paperclip quality gates';
+const LEGACY_COMMENT_SIGNATURE = '— commitperclip';
+const COMMENT_AUTHORS = new Set([
+  'github-actions[bot]',
+  'commitperclip[bot]',
+  'commitperclip',
+]);
 
 function buildComment(author, failures, informational) {
   if (failures.length === 0 && informational.length === 0) {
@@ -54,9 +60,9 @@ export async function findExistingComment(fetchFromGitHub, token, repo, prNumber
       token
     );
 
-    const existing = comments.find(
-      c => (c.user.login === 'commitperclip[bot]' || c.user.login === 'commitperclip') &&
-           c.body.includes(COMMENT_SIGNATURE)
+    const existing = comments.find(c =>
+      COMMENT_AUTHORS.has(c.user?.login) &&
+      (c.body?.includes(COMMENT_SIGNATURE) || c.body?.includes(LEGACY_COMMENT_SIGNATURE))
     );
     if (existing) return existing;
 

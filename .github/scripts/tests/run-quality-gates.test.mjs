@@ -30,6 +30,30 @@ test('findExistingComment: paginates until it finds the commitperclip comment', 
   ]);
 });
 
+test('findExistingComment: finds a repository-token workflow comment', async () => {
+  const comment = await findExistingComment(async () => ([
+    {
+      id: 201,
+      user: { login: 'github-actions[bot]' },
+      body: 'Checks complete.\n\n— paperclip quality gates',
+    },
+  ]), 'token', 'paperclipai/paperclip', 6469);
+
+  assert.equal(comment.id, 201);
+});
+
+test('findExistingComment: ignores a spoofed signed comment from an untrusted author', async () => {
+  const comment = await findExistingComment(async () => ([
+    {
+      id: 202,
+      user: { login: 'someone-else' },
+      body: 'Checks complete.\n\n— paperclip quality gates',
+    },
+  ]), 'token', 'paperclipai/paperclip', 6469);
+
+  assert.equal(comment, null);
+});
+
 test('findExistingComment: returns null when no signed comment exists', async () => {
   const comment = await findExistingComment(async () => ([
     {
