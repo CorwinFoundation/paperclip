@@ -844,6 +844,13 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         ),
         context_envelope_store=context_envelope_store,
     )
+    # BEAAA-26075 — identify the selected wiring on the runtime object that
+    # ``validate_runtime_environment`` inspects before the API can persist a
+    # score or construct its webhook outbox.  The guard is profile-sensitive,
+    # so dev/test retain the synthetic default while pilot/prod fail closed.
+    runtime.runtime_guard_flags["synthetic_walker"] = (
+        _selected_probe_run_fn is synthetic_v0_probe_run_fn
+    )
 
     # The standard full tier is registry-driven and asynchronous. Only rows
     # that tools.active_test_registry proves have a bound production execution

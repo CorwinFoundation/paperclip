@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 from pathlib import Path
 from unittest import mock
 
@@ -168,3 +169,61 @@ def test_create_app_refuses_prod_with_dev_signing_key_escape_hatch(tmp_path: Pat
     with mock.patch.dict(os.environ, env, clear=True):
         with pytest.raises(RuntimeGuardError, match="dev signing key"):
             create_app()
+
+
+@pytest.mark.parametrize("profile", ["pilot", "prod"])
+def test_default_synthetic_walker_fails_before_persistence_or_webhook(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, profile: str
+) -> None:
+    """BEAAA-26075: the default walker must never boot on a live profile."""
+    from api.app import create_app
+
+    scan_log_path = tmp_path / "scan-log.sqlite3"
+    webhook_factory_calls: list[bool] = []
+    monkeypatch.setattr(
+        "api.webhook_outbox.make_default_webhook_outbox",
+        lambda: webhook_factory_calls.append(True),
+    )
+    env = {
+        **_env_without_guard_vars(),
+        "ARE_RUNTIME_PROFILE": profile,
+        "ARE_BUNDLE_SIGNING_KEY": "prod-key",
+        "ARE_EVAL_PROVENANCE_KEY": "prod-provenance-key",
+        "ARE_BUNDLE_STORAGE": "file",
+        "ARE_BUNDLE_STORAGE_DIR": str(tmp_path / "bundles"),
+        "ARE_PRODUCTION_SCAN_WIRING": "1",
+        "ARE_SCAN_LOG_PATH": str(scan_log_path),
+    }
+
+    with mock.patch.dict(os.environ, env, clear=True):
+        with pytest.raises(RuntimeGuardError, match="synthetic walkers are forbidden"):
+            create_app()
+
+    with sqlite3.connect(scan_log_path) as connection:
+        row_count = connection.execute("SELECT COUNT(*) FROM scan_log").fetchone()[0]
+    assert row_count == 0
+    assert webhook_factory_calls == []
+
+
+def test_default_real_walker_remains_allowed_in_pilot(
+    tmp_path: Path,
+) -> None:
+    from api.scan_runtime_factory import make_default_production_scan_runtime
+
+    env = {
+        **_env_without_guard_vars(),
+        "ARE_RUNTIME_PROFILE": "pilot",
+        "ARE_BUNDLE_SIGNING_KEY": "prod-key",
+        "ARE_EVAL_PROVENANCE_KEY": "prod-provenance-key",
+        "ARE_WALKER_CUSTOMER_AGENT": "1",
+        "ARE_SCAN_LOG_PATH": str(tmp_path / "scan-log.sqlite3"),
+    }
+    bundles = BundleStore(storage=FileBundleStorage(tmp_path / "bundles"))
+
+    with mock.patch.dict(os.environ, env, clear=True):
+        runtime = make_default_production_scan_runtime()
+        validate_runtime_environment(
+            profile="pilot", bundles=bundles, scan_runtime=runtime, env=env
+        )
+
+    assert runtime.runtime_guard_flags["synthetic_walker"] is False
