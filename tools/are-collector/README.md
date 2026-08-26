@@ -8,6 +8,7 @@ Boundary invariants:
 
 - Contract: `are-scanner-api-v1@v1.0`
 - Schema pin: `log-event-schema-v1.0`
+- Batch-hash canonicalization: UTF-8 compact JSON with deterministic lexicographic key ordering, unescaped non-ASCII, and HTML escaping disabled. The exact bytes are the SHA-256 preimage for `batch_sha256`; integers remain JSON integers, including values above 2^53.
 - Scanner output delta: `0` by construction; this package has no scoring, rubric, pricing, portal, or detector imports.
 - Supervision classification: rule-execution per `scanner-implementation-supervision-v1@v1.1`, row 17 and ADR-0035 §8(a)-(c).
 
@@ -57,6 +58,8 @@ Run:
 ```sh
 go test ./...
 ```
+
+The shared adversarial corpus at `testdata/canonical_json_adversarial_events.json` is exercised by the Go collector tests and by the receiver's Go-sign → Python-verify test. It covers HTML-significant bytes, Unicode, URLs, nested arrays/objects, and `9007199254740993`.
 
 Fixture smoke:
 

@@ -1,0 +1,28 @@
+[
+  {
+    "event_id": "evt-html-unicode",
+    "event_type": "tool_call",
+    "logged_at": "2026-08-25T08:00:00Z",
+    "schema_version": "log-event-schema-v1.0",
+    "source_kind": "datadog",
+    "payload": {
+      "html": "<script>&copy;</script>",
+      "unicode": "café / 東京 / 😀",
+      "url": "https://example.test/search?q=a%26b&next=%3Citem%3E",
+      "nested": {"items": ["<", ">", "&", {"large": 9007199254740993}]}
+    },
+    "redaction_applied": []
+  },
+  {
+    "event_id": "evt-arrays",
+    "event_type": "llm_completion",
+    "logged_at": "2026-08-25T08:00:01Z",
+    "schema_version": "log-event-schema-v1.0",
+    "source_kind": "datadog",
+    "payload": {
+      "objects": [{"z": "最後", "a": "<>&"}, {"query": "x=1&y=2"}],
+      "numbers": [0, 1, 9007199254740993]
+    },
+    "redaction_applied": []
+  }
+]

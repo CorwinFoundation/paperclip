@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from post_bind_ingest.normalizer import normalize_receiver_events
+from post_bind_ingest.receiver.schema import compute_batch_sha256
 
 
 KEY_ID = "bind-key-e2e"
@@ -70,3 +71,52 @@ def test_collector_signed_batch_round_trips_through_receiver() -> None:
     assert batch["schema_version"] == "log-event-schema-v1.0"
     assert normalized[0]["event_id"] == "evt-e2e"
     assert normalized[0]["redactions"] == ({"path": "args.email", "redaction_class": "validated"},)
+
+
+def test_adversarial_canonical_json_corpus_round_trips_go_to_python() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    collector_dir = repo_root / "tools" / "are-collector"
+    corpus = json.loads(
+        (collector_dir / "testdata" / "canonical_json_adversarial_events.json").read_text(encoding="utf-8")
+    )
+    private_key = ed25519.Ed25519PrivateKey.generate()
+    seed = private_key.private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    public_key_raw = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    private_key_b64 = base64.b64encode(seed + public_key_raw).decode("ascii")
+    public_key_b64url = base64.urlsafe_b64encode(public_key_raw).rstrip(b"=").decode("ascii")
+    input_lines = []
+    for event in corpus:
+        input_lines.append(
+            json.dumps(
+                {key: event[key] for key in ("event_id", "event_type", "logged_at", "payload")},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+        )
+    proc = subprocess.run(
+        [
+            "go", "run", "./cmd/are-collector", "-mode", "fixture-smoke", "-source", "datadog",
+            "-customer-id", "customer-adversarial", "-agent-id", "agent-adversarial",
+            "-batch-id", "batch-adversarial", "-key-id", KEY_ID,
+            "-ed25519-private-key-b64", private_key_b64,
+        ],
+        cwd=collector_dir,
+        input="\n".join(input_lines) + "\n",
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    batch = json.loads(proc.stdout)
+    normalized = normalize_receiver_events(batch, jwt_keyring={KEY_ID: public_key_b64url})
+    assert len(normalized) == len(corpus)
+    assert batch["batch_sha256"] == f"sha256:{compute_batch_sha256(batch['events'])}"
+    assert "<script>&copy;</script>" in json.dumps(batch["events"], ensure_ascii=False)
+    assert "9007199254740993" in json.dumps(batch["events"], ensure_ascii=False)

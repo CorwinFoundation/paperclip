@@ -1,6 +1,7 @@
 package egress
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -132,8 +133,10 @@ func ComputeBatchSHA256(events []schemav1.Event) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
 	var normalized any
-	if err := json.Unmarshal(raw, &normalized); err != nil {
+	if err := decoder.Decode(&normalized); err != nil {
 		return "", err
 	}
 	canonical, err := schemav1.CanonicalJSON(normalized)

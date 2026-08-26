@@ -58,6 +58,7 @@ func (adapter *JSONLinesAdapter) Stream(ctx context.Context) (<-chan RawRecord, 
 		return nil, err
 	}
 	decoder := json.NewDecoder(adapter.reader)
+	decoder.UseNumber()
 	records := make(chan RawRecord)
 	go func() {
 		defer close(records)

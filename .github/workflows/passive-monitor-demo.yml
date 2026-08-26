@@ -74,6 +74,7 @@ jobs:
             tools/post-bind-ingest/tests/test_lifecycle_demo.py \
             tools/post-bind-ingest/tests/test_demo_app.py \
             tools/post-bind-ingest/tests/test_receiver.py \
+            tools/post-bind-ingest/tests/test_collector_receiver_e2e.py \
             tools/post-bind-ingest/tests/test_continuity_gate.py \
             tools/post-bind-ingest/tests/test_detector_input.py
       - name: Build presentation container

@@ -1,6 +1,7 @@
 package schemav1
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,7 +96,13 @@ func ValidateEvent(event Event) error {
 }
 
 func CanonicalJSON(value any) ([]byte, error) {
-	return json.Marshal(canonicalize(value))
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(canonicalize(value)); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), nil
 }
 
 func canonicalize(value any) any {
