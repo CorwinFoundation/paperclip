@@ -25,6 +25,7 @@ from harness.bench.corpus_pin import load_probe_set_version
 from tools.founder_dev_mode import (
     ATTESTATION_FOUNDER_DEV,
     ATTESTATION_PRODUCTION_SIGNED,
+    FounderDevModeError,
     assert_production_attested,
     attestation_tier as _attestation_tier,
     dev_scoring_declared as _dev_scoring_declared,
@@ -1180,6 +1181,16 @@ def load_published_count(path: Path = CLAIMS_PATH) -> int:
     return int(data["published_active_test_count"])
 
 
+def production_boundary_failure(error: FounderDevModeError) -> dict[str, str]:
+    """Return the stable fail-closed disposition used by registry CLI gates."""
+
+    return {
+        "status": "FAIL",
+        "disposition": "production_boundary_refused",
+        "error": str(error),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json-out", type=Path, help="write machine-readable count output")
@@ -1190,7 +1201,11 @@ def main() -> int:
     rows = build_registry()
     # Production boundary: the published active-test count is customer-visible.
     # Refuse to reconcile/publish it while any dev-mode-scored family is live.
-    assert_production_attested(rows)
+    try:
+        assert_production_attested(rows)
+    except FounderDevModeError as error:
+        print(json.dumps(production_boundary_failure(error), indent=2, sort_keys=True))
+        return 1
     published_count = load_published_count()
     summary = summarize(rows, published_count)
     # --check is the strict / CI fail-closed gate: an over-declared distinct

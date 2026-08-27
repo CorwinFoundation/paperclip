@@ -703,13 +703,7 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     assert "PII" not in markdown
 
 
-def test_artifact_candidate_identity_is_stable_for_owning_head(monkeypatch):
-    monkeypatch.setattr(
-        release_gate_n5.subprocess,
-        "check_output",
-        lambda *args, **kwargs: "a" * 40 + "\n",
-    )
-
+def test_artifact_candidate_identity_preserves_literal_resolved_values():
     identity = release_gate_n5._artifact_candidate_identity(
         "a" * 40,
         "a" * 40,
@@ -717,10 +711,10 @@ def test_artifact_candidate_identity_is_stable_for_owning_head(monkeypatch):
     )
 
     assert identity == (
-        "HEAD",
-        "self",
-        "self",
-        "candidate argument resolved to artifact-owning HEAD at gate execution",
+        "a" * 40,
+        "a" * 40,
+        "b" * 40,
+        "explicit immutable ref",
     )
 
 

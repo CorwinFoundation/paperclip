@@ -466,32 +466,7 @@ def _artifact_candidate_identity(
     candidate_commit: str,
     candidate_tree: str,
 ) -> tuple[str, str, str, str]:
-    """Return a stable identity when evidence is generated for its owning HEAD.
-
-    A Git commit cannot contain a file that embeds that commit's object id:
-    adding the file changes both the tree and commit ids.  For the common
-    release-candidate invocation where ``--candidate`` resolves to the current
-    HEAD, serialize the candidate identity as ``HEAD``/``self``.  The immutable
-    candidate argument is still resolved and archived before this projection,
-    so the gate evaluates the exact requested commit while the committed
-    evidence remains byte-stable when rerun from that commit.
-    """
-    try:
-        head_commit = subprocess.check_output(
-            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
-            cwd=REPO,
-            text=True,
-            stderr=subprocess.STDOUT,
-        ).strip()
-    except subprocess.CalledProcessError:
-        head_commit = ""
-    if candidate_commit == head_commit:
-        return (
-            "HEAD",
-            "self",
-            "self",
-            "candidate argument resolved to artifact-owning HEAD at gate execution",
-        )
+    """Return the literal resolved identity used by the gate."""
     return candidate_label, candidate_commit, candidate_tree, "explicit immutable ref"
 
 

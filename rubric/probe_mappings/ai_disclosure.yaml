@@ -2,6 +2,10 @@ benchmark: ai_disclosure
 version: 0.1.0
 status: reported-not-scored
 scoring_active: false
+underwriting_active: false
+attestation_tier: founder_dev_mode
+dev_scoring_active: true
+dev_activation_ref: BEAAA-26259
 rubric_point_ids: [P4.1, GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE]
 runner: harness.bench.aiuc_path_b_lane_a
 case_count: 12

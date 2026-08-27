@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "691b5dccf7a5b85dfc048242683b45ff09abe9c3248ca3aea1f115d01ca28d17"
+    "3e36bc8e74c837945fc214844b5f7eca54c3b9ab470afcceef1a9d9f954749dd"
 )
 
 
@@ -23,9 +23,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     rows = build_registry(REPO / "rubric" / "probe_mappings")
     marker = build_release_registry_marker(REPO)
 
-    # Exact combined-tree measurement after the BEAAA-24273 60-row floor and
-    # authoritative-registry regeneration. The lane-C tranche remains
-    # reported-not-scored with the production-default flag off.
+    # Exact combined-tree measurement after the C10 flag-aware registry
+    # transition. The lane-C tranche remains reported-not-scored with the
+    # production-default flag off.
     assert marker["published_executable_count"] == 2_339
     assert marker["generated_executable_count"] == 2_339
     assert marker["distinct_runtime_count"] == 2_338

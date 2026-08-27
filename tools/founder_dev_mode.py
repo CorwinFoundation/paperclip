@@ -36,7 +36,10 @@ FOUNDER_DEV_MODE_ENV = "BACKBOND_FOUNDER_DEV_MODE"
 
 ATTESTATION_PRODUCTION_SIGNED = "production_signed"
 ATTESTATION_FOUNDER_DEV = "founder_dev_mode"
-ATTESTATION_TIERS = frozenset({ATTESTATION_PRODUCTION_SIGNED, ATTESTATION_FOUNDER_DEV})
+ATTESTATION_PENDING_QA = "pending_qa"
+ATTESTATION_TIERS = frozenset(
+    {ATTESTATION_PRODUCTION_SIGNED, ATTESTATION_FOUNDER_DEV, ATTESTATION_PENDING_QA}
+)
 
 _TRUTHY = {"on", "1", "true", "yes"}
 _FALSY = {"", "off", "0", "false", "no"}
@@ -85,7 +88,7 @@ def dev_scoring_declared(data: Mapping[str, Any]) -> bool:
 
 
 def assert_production_attested(rows: Iterable[Mapping[str, Any]]) -> None:
-    """Fail closed if any *scored* row is only founder-dev attested.
+    """Fail closed if any scored row lacks production attestation.
 
     Call this at production / customer-facing emission boundaries (certificate
     generation, published-count reconciliation, production scan mode). A family
@@ -98,12 +101,12 @@ def assert_production_attested(rows: Iterable[Mapping[str, Any]]) -> None:
             for row in rows
             if row.get("scoring_active") is True
             and str(row.get("attestation_tier") or ATTESTATION_PRODUCTION_SIGNED)
-            == ATTESTATION_FOUNDER_DEV
+            != ATTESTATION_PRODUCTION_SIGNED
         }
     )
     if offenders:
         raise FounderDevModeError(
-            "dev-mode-scored families cannot cross the production boundary "
+            "non-production-attested scored families cannot cross the production boundary "
             f"without production attestation: {', '.join(offenders)}"
         )
 

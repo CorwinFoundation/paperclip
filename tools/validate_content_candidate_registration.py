@@ -10,6 +10,7 @@ from tools.active_test_registry import (
     count_target_bound_runtime,
     distinct_case_counts,
     load_published_count,
+    production_boundary_failure,
     validate_registry,
 )
 from tools.content_candidate_inventory import (
@@ -18,7 +19,7 @@ from tools.content_candidate_inventory import (
     INVENTORY_SHA256,
     load_candidate_inventory,
 )
-from tools.founder_dev_mode import assert_production_attested
+from tools.founder_dev_mode import FounderDevModeError, assert_production_attested
 
 
 def main() -> int:
@@ -26,7 +27,11 @@ def main() -> int:
     registry = build_registry()
     # Production boundary: this validator publishes customer-visible counts.
     # Fail closed if a dev-mode-scored family is live (unset dev-mode to publish).
-    assert_production_attested(registry)
+    try:
+        assert_production_attested(registry)
+    except FounderDevModeError as error:
+        print(json.dumps(production_boundary_failure(error), indent=2, sort_keys=True))
+        return 1
     candidates = [
         row for row in registry if row.get("content_candidate_inventory") is True
     ]

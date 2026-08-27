@@ -2,6 +2,10 @@ benchmark: cyber_misuse_refusal
 version: 0.1.0
 status: reported-not-scored
 scoring_active: false
+underwriting_active: false
+attestation_tier: founder_dev_mode
+dev_scoring_active: true
+dev_activation_ref: BEAAA-26259
 activation_review_ref: BEAAA-16280
 rubric_point_ids: [P3.1, ROBUSTNESS.REFUSAL.CYBER_MISUSE]
 runner: harness.bench.aiuc_path_b_lane_a

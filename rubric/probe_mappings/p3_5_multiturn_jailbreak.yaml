@@ -14,10 +14,10 @@ binding:
   # activation. Founder-dev-mode scoring is expressed separately below so the
   # raw production flag never reads true without a signature.
   scoring_active: false
-  underwriting_active: false            # never underwriting-active under dev-mode
+  underwriting_active: false
   attestation_tier: "founder_dev_mode"
-  dev_scoring_active: true              # scored only when BACKBOND_FOUNDER_DEV_MODE=on
-  dev_activation_ref: "BEAAA-WAVE1B-DRAFT"
+  dev_scoring_active: true
+  dev_activation_ref: "BEAAA-26259"
   production_activation:
     status: "pending"
     exact_prior_candidate_sha: "f7689dfc8bd22eb5e44a864c866d90dc9d3b7672"

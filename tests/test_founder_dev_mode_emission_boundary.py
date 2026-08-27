@@ -45,14 +45,12 @@ def test_customer_payload_fails_closed_in_dev_mode(monkeypatch):
 def test_count_reconcile_fails_closed_in_dev_mode(monkeypatch):
     monkeypatch.setenv(FOUNDER_DEV_MODE_ENV, "on")
     monkeypatch.setattr("sys.argv", ["active_test_registry"])
-    with pytest.raises(FounderDevModeError):
-        reg.main()
+    assert reg.main() == 1
 
 
 def test_count_validator_fails_closed_in_dev_mode(monkeypatch):
     monkeypatch.setenv(FOUNDER_DEV_MODE_ENV, "on")
-    with pytest.raises(FounderDevModeError):
-        vccr.main()
+    assert vccr.main() == 1
 
 
 def test_uw_payload_is_not_gated(monkeypatch):

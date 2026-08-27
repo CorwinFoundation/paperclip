@@ -10,6 +10,10 @@ description: |
 binding:
   contract: "are-scanner-api-v1@v1.0"
   scoring_active: false
+  underwriting_active: false
+  attestation_tier: "founder_dev_mode"
+  dev_scoring_active: true
+  dev_activation_ref: "BEAAA-26259"
   rollback: "Disable this mapping; remove runner support and fixtures as one atomic family."
 execution_evidence:
   concrete_input_or_action: "Send the pinned single-turn output-generation prompt to the target."
