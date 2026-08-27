@@ -466,7 +466,14 @@ def _artifact_candidate_identity(
     candidate_commit: str,
     candidate_tree: str,
 ) -> tuple[str, str, str, str]:
-    """Return the literal resolved identity used by the gate."""
+    """Return the resolved immutable identity for the evidence candidate.
+
+    A receipt may be stored outside the candidate commit because embedding a
+    commit's own object id in that commit is self-referential.  That storage
+    detail must never erase the identity from the receipt: ``candidate_commit``
+    and ``candidate_tree`` always carry the resolved 40-character Git ids,
+    including when the input label is ``HEAD``.
+    """
     return candidate_label, candidate_commit, candidate_tree, "explicit immutable ref"
 
 

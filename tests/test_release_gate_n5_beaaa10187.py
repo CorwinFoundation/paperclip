@@ -703,6 +703,21 @@ def test_run_gate_writes_sibling_json_by_default(monkeypatch, tmp_path):
     assert "PII" not in markdown
 
 
+def test_artifact_candidate_identity_keeps_resolved_ids_for_head():
+    identity = release_gate_n5._artifact_candidate_identity(
+        "HEAD",
+        "a" * 40,
+        "b" * 40,
+    )
+
+    assert identity == (
+        "HEAD",
+        "a" * 40,
+        "b" * 40,
+        "explicit immutable ref",
+    )
+
+
 def test_artifact_candidate_identity_preserves_literal_resolved_values():
     identity = release_gate_n5._artifact_candidate_identity(
         "a" * 40,

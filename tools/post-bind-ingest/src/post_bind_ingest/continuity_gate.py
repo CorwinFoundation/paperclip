@@ -27,6 +27,12 @@ CONTINUITY_STATUS_STALE_INELIGIBLE = "stale_ineligible"
 # Reasons that make attach/renew hard-ineligible (no live/complete telemetry).
 _STALE_INELIGIBLE_REASONS = frozenset({"heartbeat_stale", "heartbeat_missing", "no_sequence_data"})
 
+# Reasons a caller can assert from durable state that the event stream itself
+# cannot show. A skipped, replayed, or reset batch is refused before it is ever
+# stored, so the retained events stay contiguous and no gap is derivable from
+# them; the runtime records the violation and passes it in here instead.
+SEQUENCE_VIOLATION_REASONS = frozenset({"sequence_skipped", "sequence_replayed_or_reset"})
+
 
 class ContinuityGateError(ValueError):
     """Raised when the continuity gate cannot evaluate an action request."""
@@ -94,6 +100,7 @@ def evaluate_attach_renew_continuity(
     evaluated_at: datetime | str | None = None,
     heartbeat_max_age_seconds: int = DEFAULT_HEARTBEAT_MAX_AGE_SECONDS,
     prior_gap_state: TelemetryGapState | Mapping[str, Any] | None = None,
+    unresolved_violations: Iterable[str] = (),
 ) -> ContinuityGateDecision:
     """Evaluate no-logs-no-coverage enforcement for attach/renew actions.
 
@@ -102,6 +109,10 @@ def evaluate_attach_renew_continuity(
     records, and monotonic ``batch_seq`` values. ``attach`` and ``renew`` refuse
     while a discontinuity is active; other action classes pass through but still
     return the computed state for observability.
+
+    ``unresolved_violations`` carries discontinuities the caller holds in durable
+    state and the retained events cannot show — see ``SEQUENCE_VIOLATION_REASONS``.
+    Any entry keeps the gap active until the caller stops passing it.
     """
     action = str(action_class).strip().lower()
     if not action:
@@ -118,6 +129,7 @@ def evaluate_attach_renew_continuity(
         collector_id=collector_id,
         evaluated_at=now,
         heartbeat_max_age_seconds=heartbeat_max_age_seconds,
+        unresolved_violations=unresolved_violations,
     )
     refusal_reason = _refusal_reason(state) if action in ATTACH_RENEW_ACTION_CLASSES and state.active else None
     audit_events = []
@@ -151,6 +163,7 @@ def compute_gap_state(
     collector_id: str = "default",
     evaluated_at: datetime | str | None = None,
     heartbeat_max_age_seconds: int = DEFAULT_HEARTBEAT_MAX_AGE_SECONDS,
+    unresolved_violations: Iterable[str] = (),
 ) -> TelemetryGapState:
     now = _parse_dt(evaluated_at) if evaluated_at is not None else datetime.now(UTC)
     key = {
@@ -179,6 +192,9 @@ def compute_gap_state(
         reasons.append("no_sequence_data")
     elif missing:
         reasons.append("batch_sequence_gap")
+    for violation in sorted({str(reason).strip() for reason in unresolved_violations if str(reason).strip()}):
+        if violation not in reasons:
+            reasons.append(violation)
 
     heartbeat_age_seconds: int | None = None
     latest_heartbeat_at: str | None = None
@@ -210,7 +226,8 @@ def classify_continuity_status(state: TelemetryGapState) -> str:
 
     Precedence (strongest failure wins):
       * ``stale_ineligible`` — heartbeat stale/missing or no sequence data.
-      * ``gap`` — batch sequence gap while the heartbeat is still fresh.
+      * ``gap`` — batch sequence gap, or an unresolved skipped/replayed/reset
+        batch, while the heartbeat is still fresh.
       * ``grace`` — no active discontinuity but the heartbeat is aging past the
         grace fraction of its max age (eligible, warn).
       * ``healthy`` — fresh heartbeat, contiguous sequences.
@@ -218,7 +235,7 @@ def classify_continuity_status(state: TelemetryGapState) -> str:
     reasons = set(state.reasons)
     if _STALE_INELIGIBLE_REASONS & reasons:
         return CONTINUITY_STATUS_STALE_INELIGIBLE
-    if "batch_sequence_gap" in reasons:
+    if "batch_sequence_gap" in reasons or SEQUENCE_VIOLATION_REASONS & reasons:
         return CONTINUITY_STATUS_GAP
     age = state.heartbeat_age_seconds
     if age is not None and age > int(state.heartbeat_max_age_seconds * GRACE_HEARTBEAT_FRACTION):

@@ -19,6 +19,11 @@ from .continuity_gate import (
     compute_gap_state,
     evaluate_attach_renew_continuity,
 )
+from .runtime_continuity import (
+    PersistentContinuityRuntime,
+    RuntimeContinuityError,
+    RUNTIME_CONTINUITY_VERSION,
+)
 from .detector_input import normalize_tool_name
 from .p5_detector import detect_p5_events
 from .receiver import (
@@ -51,6 +56,9 @@ __all__ = [
     "classify_continuity_status",
     "compute_gap_state",
     "evaluate_attach_renew_continuity",
+    "PersistentContinuityRuntime",
+    "RuntimeContinuityError",
+    "RUNTIME_CONTINUITY_VERSION",
     "normalize_tool_name",
     "normalize_receiver_events",
     "validate_manifest_schema",

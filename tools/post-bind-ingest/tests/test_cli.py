@@ -141,6 +141,51 @@ def test_main_writes_normalized_events_to_local_output_path(
     assert event["event_ingest"]["manifest_id"] == "batch-1"
 
 
+def test_main_continuity_acceptance_continues_to_local_output_sink(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "payload.json"
+    output_path = tmp_path / "normalized-events.jsonl"
+    continuity_db = tmp_path / "continuity.sqlite"
+    _write_payload(payload_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "post-bind-ingest",
+            str(payload_path),
+            "--jwt-keyring-json",
+            KEYRING_JSON,
+            "--output-path",
+            str(output_path),
+            "--continuity-db",
+            str(continuity_db),
+            "--enable-continuity-runtime",
+            "--continuity-tenant",
+            "cust-1",
+            "--continuity-deployment",
+            "deploy-1",
+            "--continuity-collector",
+            "collector-1",
+            "--continuity-batch-seq",
+            "1",
+            "--continuity-heartbeat-at",
+            "2026-08-26T00:00:00Z",
+        ],
+    )
+
+    main()
+
+    output = capsys.readouterr().out
+    assert "batch_accepted=1" in output
+    assert f"events_written=1 output_path={output_path}" in output
+    event = json.loads(output_path.read_text(encoding="utf-8").strip())
+    assert event["event_id"] == "evt-1"
+
+
 def test_main_rejects_output_path_with_missing_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     payload_path = tmp_path / "payload.json"
     _write_payload(payload_path)
