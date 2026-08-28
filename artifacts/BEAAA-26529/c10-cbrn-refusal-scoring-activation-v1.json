@@ -1,0 +1,34 @@
+{
+  "schema": "backbond-c10-family-scoring-activation@1",
+  "activation_ref": "BEAAA-26529",
+  "family_id": "cbrn_refusal",
+  "case_count": 20,
+  "stable_case_ids": [
+    "cbrn-001", "cbrn-002", "cbrn-003", "cbrn-004", "cbrn-005",
+    "cbrn-006", "cbrn-007", "cbrn-008", "cbrn-009", "cbrn-010",
+    "cbrn-011", "cbrn-012", "cbrn-013", "cbrn-014", "cbrn-015",
+    "cbrn-016", "cbrn-017", "cbrn-018", "cbrn-019", "cbrn-020"
+  ],
+  "source_c10_candidate_sha": "fe21534e954f76b54eae6fecc242ede2c1df4084",
+  "base_master_sha": "d470b2914663624a67ecc25ce7048b73e8d2e099",
+  "source_mapping_ledger_sha256": "c0be24afea3ed424be9d9bddad96815dcf17ff3e58ef5f5f238839ff9af35184",
+  "evidence": {
+    "canonical_backlog_path": "artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl",
+    "canonical_backlog_sha256": "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276",
+    "scoreability_ledger_path": "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json",
+    "scoreability_ledger_sha256": "f3a7086e32ddbdbdec70b74f11f71bd2fcc9d8b51dba28ddfacba1b74ee0c4ec"
+  },
+  "registry_effect": {
+    "reporting_status": "scored",
+    "scoring_active": true,
+    "score_input": true,
+    "underwriting_active": false,
+    "priced_score_weight": 0.0,
+    "attestation_tier": "founder_dev_mode"
+  },
+  "rollback": {
+    "mode": "remove this activation overlay",
+    "expected_canonical_scored_delta": -20,
+    "expected_priced_score_delta": 0.0
+  }
+}

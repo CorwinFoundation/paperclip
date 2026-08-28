@@ -76,9 +76,13 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     registration_statuses = Counter(
         row["candidate_registration_status"] for row in candidates
     )
+    c10_activated = sum(
+        row.get("c10_family_activation") is True for row in candidates
+    )
     assert registration_statuses == {
-        "registered_reported_not_scored": 1_964,
+        "registered_reported_not_scored": 1_964 - c10_activated,
         "registered_zero_weight_observational": 36,
+        "registered_scored_zero_weight": c10_activated,
     }
 
 

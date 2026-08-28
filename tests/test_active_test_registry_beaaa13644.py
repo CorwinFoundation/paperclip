@@ -64,7 +64,12 @@ class ActiveTestRegistryTests(unittest.TestCase):
         self.assertEqual(count_target_bound_runtime(self.rows), 2350)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
-        self.assertEqual(len(promoted), 2091)
+        # The C10 zero-weight train turns 40 previously non-canonical content
+        # inventory rows into canonical runtime identities.  The remaining 82
+        # activated rows were already canonical runtime cases, so the runtime
+        # identity count moves by 40 while executable/target-bound totals stay
+        # unchanged.
+        self.assertEqual(len(promoted), 2131)
         self.assertEqual(len(aliases), 12)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:

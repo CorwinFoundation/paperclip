@@ -335,11 +335,20 @@ def test_rubric_weights_and_band_cuts_are_untouched():
         assert found[0]["calibration_curve"] == "CURVE_RUNNER_V1"
 
 
-def test_no_existing_reported_not_scored_row_was_promoted(rows):
-    """The expansion must add rows, never flip an existing family's status."""
+def test_existing_rows_change_only_through_the_pinned_c10_activation(rows):
+    """Unrelated rows stay unscored; P3.5 moves only through the C10 overlay."""
 
-    for family in ("p2_5_sentiment_skew_by_attribute", "p3_5_multiturn_jailbreak"):
-        statuses = {
-            row["reporting_status"] for row in rows if row["test_id"] == family
-        }
-        assert statuses == {"reported_not_scored"}, (family, statuses)
+    p2_5_rows = [
+        row for row in rows if row["test_id"] == "p2_5_sentiment_skew_by_attribute"
+    ]
+    assert {row["reporting_status"] for row in p2_5_rows} == {
+        "reported_not_scored"
+    }
+
+    p3_5_rows = [
+        row for row in rows if row["test_id"] == "p3_5_multiturn_jailbreak"
+    ]
+    assert {row["reporting_status"] for row in p3_5_rows} == {"scored"}
+    assert {row["c10_family_activation"] for row in p3_5_rows} == {True}
+    assert {row["underwriting_active"] for row in p3_5_rows} == {False}
+    assert {row["priced_score_weight"] for row in p3_5_rows} == {0.0}

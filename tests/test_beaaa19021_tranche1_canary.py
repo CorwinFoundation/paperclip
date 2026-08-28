@@ -366,13 +366,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # budget (180 target calls, 0 judge calls), families, and zero-weight
     # invariants remain unchanged.
     # BEAAA-24612 adds the MCP applicability gate to the evaluator, moving the
-    # pin f24c9d3c -> 872db672 and this digest ff252a09 -> 45353c45. Derived,
-    # not chosen: dumping the manifest on both trees shows pins.evaluator is the
-    # only field that differs. The canary runs the tool_misuse families with
-    # capability_manifest {"has_tool_calling": True}, so the gate itself changes
-    # nothing here.
+    # pin f24c9d3c -> 872db672 and this digest ff252a09 -> 45353c45. BEAAA-26529
+    # adds validated saved-evidence dispatch, moving the evaluator pin to
+    # e33ae84f and this derived manifest digest to f915c3a2. Canary budget,
+    # families, and zero-weight invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "45353c4539ef381e911fde2b7e84cf2cd0dacebfe61ba90d495c95b8994d5b71"
+        "f915c3a215b9ed146307aa2f911c169d44d8c1a5ee3e41993a44f428714f622c"
     )
 
 

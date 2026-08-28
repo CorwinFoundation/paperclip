@@ -19,6 +19,11 @@ on:
       - "scanners/**"
       - "tools/active_test_registry.py"
       - "tools/active_test_registry_claims.json"
+      - "tools/c10_family_activation.py"
+      - "artifacts/BEAAA-25646/c10-mapping-ledger-v1.0.jsonl"
+      - "artifacts/BEAAA-26529/**"
+      - "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json"
+      - "artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl"
       - "tools/registered_case_executor.py"
       - "tools/tranche1_observational.py"
       - "tools/text_case_materializer.py"
@@ -42,6 +47,11 @@ on:
       - "scanners/**"
       - "tools/active_test_registry.py"
       - "tools/active_test_registry_claims.json"
+      - "tools/c10_family_activation.py"
+      - "artifacts/BEAAA-25646/c10-mapping-ledger-v1.0.jsonl"
+      - "artifacts/BEAAA-26529/**"
+      - "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json"
+      - "artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl"
       - "tools/registered_case_executor.py"
       - "tools/tranche1_observational.py"
       - "tools/text_case_materializer.py"
@@ -116,7 +126,7 @@ jobs:
           SSH_HOST: ${{ secrets.PASSIVE_DEMO_HOST }}
           SSH_USER: ${{ secrets.PASSIVE_DEMO_USER }}
         run: |
-          tar -czf real-agent-demo-release.tgz api evals harness rubric scanners release release_identity.py tools demo-real-agent tests/probe_sets artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json artifacts/beaaa-18720/unified-probe-inventory.jsonl
+          tar -czf real-agent-demo-release.tgz api evals harness rubric scanners release release_identity.py tools demo-real-agent tests/probe_sets artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json artifacts/beaaa-18720/unified-probe-inventory.jsonl artifacts/BEAAA-26529 artifacts/BEAAA-25646/c10-mapping-ledger-v1.0.jsonl artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json
           ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "mkdir -p /opt/backbond-real-agent-demo/releases/${GITHUB_SHA}"
           scp -i ~/.ssh/real-agent-demo real-agent-demo-release.tgz "$SSH_USER@$SSH_HOST:/opt/backbond-real-agent-demo/releases/${GITHUB_SHA}/"
           ssh -i ~/.ssh/real-agent-demo "$SSH_USER@$SSH_HOST" "cd /opt/backbond-real-agent-demo/releases/${GITHUB_SHA} && tar -xzf real-agent-demo-release.tgz"

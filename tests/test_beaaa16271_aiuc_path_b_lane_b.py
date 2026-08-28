@@ -23,7 +23,11 @@ FAMILIES = {
     "system_prompt_extraction": 20,
     "insecure_code_generation": 20,
 }
-SCORING_ACTIVE_FAMILIES = {"cross_session_data_leak"}
+MAPPING_SCORING_ACTIVE_FAMILIES = {"cross_session_data_leak"}
+C10_SCORED_REGISTRY_FAMILIES = {
+    "p3_5_multiturn_jailbreak",
+    "p3_6_output_attack",
+}
 
 
 def _mapping(family: str) -> dict:
@@ -47,7 +51,7 @@ def test_path_b_family_mappings_have_required_case_counts_and_dual_namespaces():
 
         assert data["version"] == "0.1.0"
         assert data["binding"]["contract"] == "are-scanner-api-v1@v1.0"
-        expected_active = family in SCORING_ACTIVE_FAMILIES
+        expected_active = family in MAPPING_SCORING_ACTIVE_FAMILIES
         assert data["binding"]["scoring_active"] is expected_active
         assert data["reporting_status"] == (
             "scoring_active" if expected_active else "reported_not_scored"
@@ -69,10 +73,19 @@ def test_active_registry_rows_pin_execution_contract_and_reported_not_scored_sta
         assert {row["required_or_optional"] for row in rows} == {"required"}
         assert {row["owner"] for row in rows} == {"scanner_engineer"}
         assert {row["k_replicates"] for row in rows} == {5}
-        expected_active = family in SCORING_ACTIVE_FAMILIES
+        expected_active = family in (
+            MAPPING_SCORING_ACTIVE_FAMILIES | C10_SCORED_REGISTRY_FAMILIES
+        )
+        expected_reporting_status = (
+            "scored"
+            if family in C10_SCORED_REGISTRY_FAMILIES
+            else "scoring_active"
+            if family in MAPPING_SCORING_ACTIVE_FAMILIES
+            else "reported_not_scored"
+        )
         assert {row["scoring_active"] for row in rows} == {expected_active}
         assert {row["reporting_status"] for row in rows} == {
-            "scoring_active" if expected_active else "reported_not_scored"
+            expected_reporting_status
         }
         assert {row["surface_seed_rotation_enabled"] for row in rows} == {True}
         assert all(row["canary_registration"] for row in rows)
@@ -137,7 +150,12 @@ def test_path_b_families_have_exact_zero_golden_delta_by_construction():
     for family in FAMILIES:
         rows = _family_rows(family)
         assert rows
-        if family in SCORING_ACTIVE_FAMILIES:
+        if family in C10_SCORED_REGISTRY_FAMILIES:
+            assert all(row["scoring_active"] is True for row in rows)
+            assert all(row["reporting_status"] == "scored" for row in rows)
+            assert all(row["c10_family_activation"] is True for row in rows)
+            assert all(row["priced_score_weight"] == 0.0 for row in rows)
+        elif family in MAPPING_SCORING_ACTIVE_FAMILIES:
             assert all(row["scoring_active"] is True for row in rows)
             assert all(row["reporting_status"] == "scoring_active" for row in rows)
         else:

@@ -1,0 +1,36 @@
+{
+  "schema": "backbond-c10-family-scoring-activation@1",
+  "activation_ref": "BEAAA-26529",
+  "family_id": "harmful_output_golden",
+  "case_count": 30,
+  "stable_case_ids": [
+    "hog-001", "hog-002", "hog-003", "hog-004", "hog-005",
+    "hog-006", "hog-007", "hog-008", "hog-009", "hog-010",
+    "hog-011", "hog-012", "hog-013", "hog-014", "hog-015",
+    "hog-016", "hog-017", "hog-018", "hog-019", "hog-020",
+    "hog-021", "hog-022", "hog-023", "hog-024", "hog-025",
+    "hog-026", "hog-027", "hog-028", "hog-029", "hog-030"
+  ],
+  "source_c10_candidate_sha": "fe21534e954f76b54eae6fecc242ede2c1df4084",
+  "base_master_sha": "d470b2914663624a67ecc25ce7048b73e8d2e099",
+  "source_mapping_ledger_sha256": "c0be24afea3ed424be9d9bddad96815dcf17ff3e58ef5f5f238839ff9af35184",
+  "evidence": {
+    "canonical_backlog_path": "artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl",
+    "canonical_backlog_sha256": "eddc11e0156cde51f4ca9c4098173fd8d7c8e5b81452bbc6b9bd86efccf87276",
+    "scoreability_ledger_path": "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json",
+    "scoreability_ledger_sha256": "f3a7086e32ddbdbdec70b74f11f71bd2fcc9d8b51dba28ddfacba1b74ee0c4ec"
+  },
+  "registry_effect": {
+    "reporting_status": "scored",
+    "scoring_active": true,
+    "score_input": true,
+    "underwriting_active": false,
+    "priced_score_weight": 0.0,
+    "attestation_tier": "founder_dev_mode"
+  },
+  "rollback": {
+    "mode": "remove this activation overlay",
+    "expected_canonical_scored_delta": -30,
+    "expected_priced_score_delta": 0.0
+  }
+}

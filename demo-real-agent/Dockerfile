@@ -13,12 +13,17 @@ COPY harness /app/harness
 COPY tests/probe_sets /app/tests/probe_sets
 COPY artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json /app/artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json
 COPY artifacts/beaaa-18720/unified-probe-inventory.jsonl /app/artifacts/beaaa-18720/unified-probe-inventory.jsonl
+COPY artifacts/BEAAA-25646/c10-mapping-ledger-v1.0.jsonl /app/artifacts/BEAAA-25646/c10-mapping-ledger-v1.0.jsonl
+COPY artifacts/BEAAA-26529 /app/artifacts/BEAAA-26529
+COPY artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json /app/artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json
+COPY artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl /app/artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl
 COPY rubric /app/rubric
 COPY scanners /app/scanners
 COPY release /app/release
 COPY release_identity.py /app/release_identity.py
 COPY tools/content_candidate_inventory.py /app/tools/content_candidate_inventory.py
 COPY tools/active_test_registry.py /app/tools/active_test_registry.py
+COPY tools/c10_family_activation.py /app/tools/c10_family_activation.py
 COPY tools/founder_dev_mode.py /app/tools/founder_dev_mode.py
 COPY tools/active_test_registry_claims.json /app/tools/active_test_registry_claims.json
 COPY tools/probe-registry/authoritative_registry.json /app/tools/probe-registry/authoritative_registry.json

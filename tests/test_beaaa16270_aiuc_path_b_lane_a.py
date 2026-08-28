@@ -89,7 +89,12 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     assert eligible | blocked == {row["family"] for row in lane_manifest["families"]}
     assert eligible | blocked <= discovered
     for family in eligible:
-        family_rows = [row for row in rows if row["test_id"] == family]
+        family_rows = [
+            row
+            for row in rows
+            if row["test_id"] == family
+            and row.get("content_candidate_inventory") is not True
+        ]
         assert family_rows and all(row["status"] == "active" for row in family_rows)
         assert all(row["production_runner_executable"] for row in family_rows)
         assert all(row["reporting_status"] == "reported_not_scored" for row in family_rows)

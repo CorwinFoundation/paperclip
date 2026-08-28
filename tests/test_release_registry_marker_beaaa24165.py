@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "3e36bc8e74c837945fc214844b5f7eca54c3b9ab470afcceef1a9d9f954749dd"
+    "734a6557b431d8210628e6d1131852561d89bac2345f5245f61ac1e40393afb5"
 )
 
 

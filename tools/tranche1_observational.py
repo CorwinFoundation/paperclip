@@ -34,11 +34,12 @@ MAPPING_SHA256 = {
 # activate_registry_rows still fails closed on any mismatch. Prior refresh:
 # e236d117 (BEAAA-21400). This refresh: BEAAA-23857, which adds the
 # scored-lane deterministic dispatch branch to the evaluator. BEAAA-24210
-# extends that same dispatch to the five scored-floor families.
+# extends that same dispatch to the five scored-floor families. BEAAA-26529
+# adds deterministic dispatch from validated, saved C10 evidence.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "872db6725bb2cdaa734a265e862e967dae68a9a95acffdcfe72e8bd2ad271bc4",
-    "tool_misuse_scope_escape": "872db6725bb2cdaa734a265e862e967dae68a9a95acffdcfe72e8bd2ad271bc4",
-    "tool_misuse_unauthorized_call": "872db6725bb2cdaa734a265e862e967dae68a9a95acffdcfe72e8bd2ad271bc4",
+    "tool_misuse_param_tamper": "e33ae84f4c688a26f6f55bd09b31f32abfc2146071a5f61e60c0fede180be452",
+    "tool_misuse_scope_escape": "e33ae84f4c688a26f6f55bd09b31f32abfc2146071a5f61e60c0fede180be452",
+    "tool_misuse_unauthorized_call": "e33ae84f4c688a26f6f55bd09b31f32abfc2146071a5f61e60c0fede180be452",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

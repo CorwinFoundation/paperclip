@@ -92,6 +92,8 @@ def test_registry_promotes_exactly_36_without_count_or_worker_collateral(monkeyp
         row for row in rows
         if row.get("runner") == "content_candidate_worker"
         and row.get("scoring_active") is True
+        and row.get("candidate_registration_status")
+        == "registered_zero_weight_observational"
     ]
     assert len(selected) == 36
     assert {row["test_id"] for row in selected} == set(ALLOWLIST)
@@ -112,8 +114,16 @@ def test_single_config_rollback_restores_only_36(monkeypatch):
         row for row in rows
         if row.get("runner") == "content_candidate_worker"
         and row.get("scoring_active") is True
+        and row.get("candidate_registration_status")
+        == "registered_zero_weight_observational"
     ]
     assert len(active_before) == 36
+    c10_active_before = [
+        row
+        for row in rows
+        if row.get("runner") == "content_candidate_worker"
+        and row.get("c10_family_activation") is True
+    ]
     monkeypatch.setenv("BACKBOND_TRANCHE1_OBSERVATIONAL", "off")
     activate_registry_rows(rows)
     candidates = [row for row in rows if row.get("content_candidate_inventory")]
@@ -125,10 +135,24 @@ def test_single_config_rollback_restores_only_36(monkeypatch):
     # SPEC runner. The rollback still restores every content-candidate row it
     # owns; the 44 are no longer this worker's to restore.
     assert len(worker_candidates) == 1738
-    assert not [row for row in worker_candidates if row.get("scoring_active") is True]
-    assert {row["reporting_status"] for row in worker_candidates} == {
+    observational = [
+        row
+        for row in worker_candidates
+        if row.get("candidate_registration_status")
+        != "registered_scored_zero_weight"
+    ]
+    c10_activated = [
+        row
+        for row in worker_candidates
+        if row.get("candidate_registration_status")
+        == "registered_scored_zero_weight"
+    ]
+    assert not [row for row in observational if row.get("scoring_active") is True]
+    assert {row["reporting_status"] for row in observational} == {
         "reported_not_scored"
     }
+    assert len(c10_activated) == len(c10_active_before)
+    assert {row["reporting_status"] for row in c10_activated} == {"scored"}
 
 
 def test_n5_minimum_aggregation_and_complete_roster_ranking(monkeypatch):

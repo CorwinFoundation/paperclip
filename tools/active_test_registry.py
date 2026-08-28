@@ -823,9 +823,10 @@ def _merge_content_candidate_inventory(
             # identical-payload alias). Promote that same registry identity in
             # place so family/case uniqueness remains fail-closed.
             current.update(registration)
+    from tools.c10_family_activation import apply_c10_family_activations
     from tools.tranche1_observational import activate_registry_rows
 
-    return activate_registry_rows(rows)
+    return apply_c10_family_activations(activate_registry_rows(rows))
 
 
 def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

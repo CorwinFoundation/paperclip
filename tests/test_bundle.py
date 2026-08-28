@@ -358,21 +358,26 @@ class OfflineReplaySignedManifestRegressionTests(unittest.TestCase):
 
 
 class SigningKeyStartupTests(unittest.TestCase):
-    """BEAAA-5274 F-01: create_app() must refuse to start without a signing key.
+    """BEAAA-5274 F-01: production wiring must refuse a missing signing key.
 
     ADR-0009 §4 forbids silent dev-key fallback in any deployment that does not
     explicitly opt-in.  These tests verify the startup gate and its escape hatch.
     """
 
-    _SIGNING_VARS = ("ARE_BUNDLE_SIGNING_KEY", "ARE_ALLOW_DEV_SIGNING_KEY")
+    _SIGNING_VARS = (
+        "ARE_BUNDLE_SIGNING_KEY",
+        "ARE_ALLOW_DEV_SIGNING_KEY",
+        "ARE_PRODUCTION_SCAN_WIRING",
+    )
 
     def _env_without_signing_vars(self) -> dict:
         return {k: v for k, v in os.environ.items() if k not in self._SIGNING_VARS}
 
-    def test_create_app_raises_when_neither_env_var_set(self):
+    def test_create_app_raises_when_production_wiring_has_no_signing_key(self):
         from api.app import create_app
 
-        with mock.patch.dict(os.environ, self._env_without_signing_vars(), clear=True):
+        env = {**self._env_without_signing_vars(), "ARE_PRODUCTION_SCAN_WIRING": "true"}
+        with mock.patch.dict(os.environ, env, clear=True):
             with self.assertRaises(ValueError) as ctx:
                 create_app()
         self.assertIn("ARE_BUNDLE_SIGNING_KEY", str(ctx.exception))

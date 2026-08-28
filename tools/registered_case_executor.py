@@ -803,6 +803,32 @@ class RegisteredCaseExecutor:
         )
 
         spec = materialize_candidate_case(test_id, case_id)
+        if registry_row is not None and registry_row.get("c10_family_activation") is True:
+            saved_verdict = str(registry_row.get("saved_verdict") or "")
+            evidence_ref = str(registry_row.get("saved_evidence_ref") or "")
+            result_ref = str(registry_row.get("saved_result_ref") or "")
+            if saved_verdict not in {"PASS", "FAIL"} or not evidence_ref or not result_ref:
+                return {
+                    **_case_outcome(
+                        payloads=[], responses=[],
+                        judge={"type": "c10_saved_deterministic_evidence", "fail_closed": True},
+                        score=None, expected=spec.expected, verdict="unresolved",
+                    ),
+                    "c10_evidence_rejection": "missing_or_invalid_primary_evidence",
+                }
+            score = 1.0 if saved_verdict == "PASS" else 0.0
+            return _case_outcome(
+                payloads=[], responses=[],
+                judge={
+                    "type": "c10_saved_deterministic_evidence",
+                    "verdict": saved_verdict,
+                    "score": score,
+                    "evidence_ref": evidence_ref,
+                    "result_ref": result_ref,
+                    "activation_ref": registry_row.get("activation_ref"),
+                },
+                score=score, expected=spec.expected, verdict=saved_verdict.lower(),
+            )
         observational = False
         observational_rejection: str | None = None
         if registry_row is not None and registry_row.get("scoring_active") is True:
