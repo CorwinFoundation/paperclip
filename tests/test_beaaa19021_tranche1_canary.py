@@ -368,10 +368,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # BEAAA-24612 adds the MCP applicability gate to the evaluator, moving the
     # pin f24c9d3c -> 872db672 and this digest ff252a09 -> 45353c45. BEAAA-26529
     # adds validated saved-evidence dispatch, moving the evaluator pin to
-    # e33ae84f and this derived manifest digest to f915c3a2. Canary budget,
-    # families, and zero-weight invariants remain unchanged.
+    # e33ae84f and this derived manifest digest to f915c3a2. The AIUC-1 direct
+    # adapter then moves the evaluator pin to dbe225ba and this derived digest
+    # to a4691ed8. Canary budget, families, and zero-weight invariants remain
+    # unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "f915c3a215b9ed146307aa2f911c169d44d8c1a5ee3e41993a44f428714f622c"
+        "a4691ed847a8f3f6dad77a352eccd75618446249daa7f74d291f1b18f9ddbb40"
     )
 
 

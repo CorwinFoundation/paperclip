@@ -35,11 +35,12 @@ MAPPING_SHA256 = {
 # e236d117 (BEAAA-21400). This refresh: BEAAA-23857, which adds the
 # scored-lane deterministic dispatch branch to the evaluator. BEAAA-24210
 # extends that same dispatch to the five scored-floor families. BEAAA-26529
-# adds deterministic dispatch from validated, saved C10 evidence.
+# adds deterministic dispatch from validated, saved C10 evidence. The current
+# refresh adds the report-only AIUC-1 direct-family dispatch branch.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "e33ae84f4c688a26f6f55bd09b31f32abfc2146071a5f61e60c0fede180be452",
-    "tool_misuse_scope_escape": "e33ae84f4c688a26f6f55bd09b31f32abfc2146071a5f61e60c0fede180be452",
-    "tool_misuse_unauthorized_call": "e33ae84f4c688a26f6f55bd09b31f32abfc2146071a5f61e60c0fede180be452",
+    "tool_misuse_param_tamper": "dbe225ba299bbdd421cbcee66d87ff09075a118ad5eab3194a34fecff42a6b70",
+    "tool_misuse_scope_escape": "dbe225ba299bbdd421cbcee66d87ff09075a118ad5eab3194a34fecff42a6b70",
+    "tool_misuse_unauthorized_call": "dbe225ba299bbdd421cbcee66d87ff09075a118ad5eab3194a34fecff42a6b70",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

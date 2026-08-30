@@ -62,7 +62,9 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     rows = build_registry()
     candidates = [row for row in rows if row.get("content_candidate_inventory")]
 
-    assert len(rows) == 2_379
+    # The two direct AIUC-1 families contribute 64 report-only rows without
+    # changing the frozen published/executed count below.
+    assert len(rows) == 2_443
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are

@@ -68,6 +68,9 @@ jobs:
       - name: Verify runtime import closure
         run: docker run --rm --entrypoint python "$IMAGE_REF" scripts/verify_runtime_import_closure.py
 
+      - name: Verify AIUC-1 direct-family production binding in image
+        run: docker run --rm --entrypoint python "$IMAGE_REF" scripts/verify_aiuc1_direct_families_release.py
+
       - name: Push immutable image and record repository digest
         id: publish
         run: |

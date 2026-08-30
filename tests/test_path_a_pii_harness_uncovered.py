@@ -22,10 +22,14 @@ rubric/scoring.py, weights, or judge pins.
 from __future__ import annotations
 
 import unittest
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from rubric.scoring import Rubric, score
+from api.bundle import _signing_key
+from harness.applicability import applicability_record, load_policy, validate_for_scoring
+import rubric.scoring as scoring_module
+from rubric.scoring import Rubric, ScoringError, score
 from scripts import path_a_baselines
 
 REPO = Path(__file__).resolve().parents[1]
@@ -36,6 +40,7 @@ FORENSIC_URI = "https://goldens.local/path-a-pii-uncovered"
 
 PII_SUBSTRATE = "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
 PII_ATTESTATION = "GOVERNANCE.PII.HANDLING_ATTESTATION"
+G1_APPLICABILITY = REPO / "tests" / "fixtures" / "golden_agents" / "G1" / "applicability.json"
 
 
 def _full_suite_eval_outputs(active_dim_ids, raw_value: float = 3.0) -> dict:
@@ -49,6 +54,16 @@ class PathAPiiHarnessUncoveredTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rubric = Rubric.load(RUBRIC_PATH)
+        cls.policy = load_policy()
+        cls.architecture_flags = json.loads(G1_APPLICABILITY.read_text())["architecture_flags"]
+        cls.scanner_record = applicability_record(cls.policy, cls.architecture_flags)
+        cls.validated = validate_for_scoring(
+            cls.policy,
+            cls.architecture_flags,
+            cls.scanner_record["applicability_decisions"],
+            cls.rubric.active_dim_ids,
+            _signing_key(),
+        )
 
     def test_module_constants_pinned(self):
         """Both PII dim_ids are pinned in the harness constant exactly as
@@ -62,83 +77,23 @@ class PathAPiiHarnessUncoveredTests(unittest.TestCase):
             path_a_baselines._HARNESS_UNCOVERED_NA_JUSTIFICATION.lower(),
         )
 
-    def test_pii_override_recovers_pre_pii_total(self):
-        """Pre/post equivalence: the score on the existing dims is
-        identical when PII dims are absent (pre-PII rubric synthetic) vs
-        present-but-N/A (post-PII rubric synthetic + harness override).
-
-        Demonstrates Option C re-normalization holds: PII N/A does not
-        pull pillar means; ROBUSTNESS + GOVERNANCE pillar scores match
-        the pre-PII total.
-        """
-        active = self.rubric.active_dim_ids
-        non_pii_dims = [d for d in active if d not in path_a_baselines._HARNESS_UNCOVERED_DIMS]
-
-        # Pre-PII rubric synthetic: pretend the PII dims do not exist by
-        # omitting them from eval_outputs AND from any applicability hint
-        # — this is the pre-BEAAA-2649 rubric 1.0.1 shape. Score() walks
-        # rubric.active_dim_ids though, so we cannot truly drop the dims
-        # without a rubric reload; instead we emit them with N/A via
-        # applicability_decisions (which produces the same pillar mean as
-        # they simply not existing under Option C). This is the analytic
-        # claim: pre-rubric "absent" === post-rubric "N/A under Option C".
-        pre_pii_decisions = {
-            did: {
-                "fires": False,
-                "na_justification": "pre-PII synthetic: dim absent in rubric 1.0.1",
-                "na_justification_key": "synthetic_pre_pii",
-            }
-            for did in path_a_baselines._HARNESS_UNCOVERED_DIMS
-        }
-        pre_eval_outputs = _full_suite_eval_outputs(non_pii_dims, raw_value=3.0)
-        pre_result = score(
-            self.rubric,
-            pre_eval_outputs,
-            snapshot_hash=SNAPSHOT_HASH,
-            forensic_bundle_uri=FORENSIC_URI,
-            scored_at=SCORED_AT,
-            corpus_version="synthetic@pre",
-            seed=42,
-            applicability_decisions=pre_pii_decisions,
-            applicability_policy_version="synthetic-pre-pii",
+    def test_trusted_na_is_limited_to_genuine_non_applicability(self):
+        """Scanner validation preserves Option C only for policy-approved N/A."""
+        na_dims = set(self.scanner_record["na_dims"])
+        self.assertTrue(na_dims)
+        self.assertFalse(na_dims.intersection(path_a_baselines._HARNESS_UNCOVERED_DIMS))
+        eval_outputs = _full_suite_eval_outputs(
+            [did for did in self.rubric.active_dim_ids if did not in na_dims]
         )
-
-        # Post-PII rubric (current 1.1.0) + harness override: same Option
-        # C apparatus, the harness-specific N/A justification. ARE total
-        # and per-pillar score must match the pre-PII synthetic byte for
-        # byte (no scoring-math delta on existing dims).
-        post_pii_decisions = {
-            did: {
-                "fires": False,
-                "na_justification": path_a_baselines._HARNESS_UNCOVERED_NA_JUSTIFICATION,
-                "na_justification_key": (
-                    path_a_baselines._HARNESS_UNCOVERED_NA_JUSTIFICATION_KEY
-                ),
-            }
-            for did in path_a_baselines._HARNESS_UNCOVERED_DIMS
-        }
-        post_eval_outputs = _full_suite_eval_outputs(non_pii_dims, raw_value=3.0)
-        post_result = score(
-            self.rubric,
-            post_eval_outputs,
-            snapshot_hash=SNAPSHOT_HASH,
-            forensic_bundle_uri=FORENSIC_URI,
-            scored_at=SCORED_AT,
-            corpus_version="synthetic@post",
-            seed=42,
-            applicability_decisions=post_pii_decisions,
-            applicability_policy_version="0.1.2",
+        result = score(
+            self.rubric, eval_outputs, snapshot_hash=SNAPSHOT_HASH,
+            forensic_bundle_uri=FORENSIC_URI, scored_at=SCORED_AT,
+            corpus_version="synthetic@trusted", seed=42,
+            applicability_decisions=self.validated,
+            applicability_policy_version=self.policy.version,
         )
-
-        # ARE total + per-pillar score must match — proves no scoring
-        # delta on existing dims (ticket acceptance criterion).
-        self.assertEqual(pre_result["bmi"], post_result["bmi"])
-        for pid in pre_result["pillars"]:
-            self.assertEqual(
-                pre_result["pillars"][pid]["score"],
-                post_result["pillars"][pid]["score"],
-                msg=f"pillar {pid} pre/post diverged",
-            )
+        caveat = next(d for d in result["diagnostics"] if d["code"] == "coverage_caveat")
+        self.assertEqual(set(caveat["detail"]["na_dims"]), na_dims)
 
     def test_pii_override_drops_missing_dim_raise(self):
         """Without the override, rubric 1.1.0 + a harness eval_outputs
@@ -167,7 +122,7 @@ class PathAPiiHarnessUncoveredTests(unittest.TestCase):
         self.assertIn(PII_SUBSTRATE, err)
         self.assertIn(PII_ATTESTATION, err)
 
-        # With override: clean return + coverage_caveat diagnostic.
+        # The legacy raw PII waiver is rejected at the hardened scorer boundary.
         decisions = {
             did: {
                 "fires": False,
@@ -178,26 +133,18 @@ class PathAPiiHarnessUncoveredTests(unittest.TestCase):
             }
             for did in path_a_baselines._HARNESS_UNCOVERED_DIMS
         }
-        result = score(
-            self.rubric,
-            eval_outputs,
-            snapshot_hash=SNAPSHOT_HASH,
-            forensic_bundle_uri=FORENSIC_URI,
-            scored_at=SCORED_AT,
-            corpus_version="synthetic",
-            seed=42,
-            applicability_decisions=decisions,
-            applicability_policy_version="0.1.2",
-        )
-        self.assertIn("bmi", result)
-        # coverage_caveat names both PII dims.
-        caveat = next(
-            d for d in result.get("diagnostics", [])
-            if d.get("code") == "coverage_caveat"
-        )
-        na_dims = set(caveat["detail"]["na_dims"])
-        self.assertIn(PII_SUBSTRATE, na_dims)
-        self.assertIn(PII_ATTESTATION, na_dims)
+        with self.assertRaisesRegex(ScoringError, "raw applicability_decisions"):
+            scoring_module._score_with_required_corpus_pin(
+                self.rubric, eval_outputs, snapshot_hash=SNAPSHOT_HASH,
+                forensic_bundle_uri=FORENSIC_URI, scored_at=SCORED_AT,
+                corpus_version="synthetic", seed=42,
+                applicability_decisions=decisions,
+                applicability_policy_version="0.1.2",
+            )
+
+        # Scanner-produced validation keeps both always-applicable PII rows firing.
+        self.assertTrue(self.validated.decisions[PII_SUBSTRATE]["fires"])
+        self.assertTrue(self.validated.decisions[PII_ATTESTATION]["fires"])
 
     def test_rubric_active_dim_ids_still_include_pii(self):
         """Sanity: the override is harness-scope only — the rubric still

@@ -862,9 +862,11 @@ def registry_cases_from_rows(
 ) -> tuple[FullSuiteCase, ...]:
     """Convert selected active-test registry rows into unique executable cases.
 
-    Production callers use the evidence-gated default. Evidence-generation
-    workflows may explicitly select another boolean capability flag, such as
-    target_bound, without changing the published executed-test count.
+    Production callers use the production-executable default. Report-only
+    direct-family rows may be runnable before ``execution_evidenced`` becomes
+    true; the published executed-test count remains independently evidence
+    gated. Evidence-generation workflows may explicitly select another boolean
+    capability flag, such as ``target_bound``.
     """
     cases: list[FullSuiteCase] = []
     seen: set[str] = set()

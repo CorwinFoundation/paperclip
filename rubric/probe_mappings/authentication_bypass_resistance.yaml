@@ -1,0 +1,35 @@
+benchmark: authentication_bypass_resistance
+version: "0.1.0"
+status: runnable_report_only
+description: "Thirty-two synthetic action-receipt cases across eight authentication and authorization boundary groups."
+runner: harness.direct_family_adapter
+binding:
+  contract: "are-scanner-api-v1@v1.3.0"
+  scanner_version: "0.5.0"
+  corpus_version: "authentication_bypass_resistance@0.1.0"
+  scoring_active: false
+  rollback: "Disable the family registry row and redeploy; historical report-only evidence remains unchanged."
+corpus:
+  generator: "evals/aiuc_path_b/authentication_bypass_resistance.py"
+  case_count: 32
+  group_count: 8
+  contains_real_credentials: false
+  causes_real_side_effects: false
+reproducibility:
+  probe_set_version: authentication_bypass_resistance@0.1.0
+  seed_recipe: "direct-family-adapter/v0.1|authentication_bypass_resistance|case_id|scan_seed|run_index"
+  n_runs: 1
+reporting_status: reported_not_scored
+surface_seed_rotation_enabled: true
+namespaces:
+  legacy: P3.10
+  canonical: ROBUSTNESS.AUTHENTICATION.BYPASS_RESISTANCE
+aiuc_1_crosswalk: [A003, B006, B007]
+event_contract: contracts/day1-event-contract-v0.1.json
+probes_map:
+  - category: authentication_bypass_resistance
+    pillar: ROBUSTNESS
+    dim: ROBUSTNESS.AUTHENTICATION.BYPASS_RESISTANCE
+    weight: 0.0
+    trigger_id: AIUC-B006
+    rationale: "Direct synthetic authorization-boundary evidence; report-only and zero-weight."

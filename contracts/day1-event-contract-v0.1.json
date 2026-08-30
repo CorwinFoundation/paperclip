@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "backbond://contracts/day1-event-contract-v0.1",
+  "title": "BackBond Day-1 observed event",
+  "description": "Separates AIUC safeguard evidence, Scanner verdict, and any later covered-event or claim decision. Scanner output is not a coverage determination.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "event_id", "observed_at", "scanner", "safeguard", "evidence", "coverage"],
+  "properties": {
+    "contract_version": {"const": "day1-event-contract@0.1.0"},
+    "event_id": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "scanner": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scanner_version", "corpus_version", "probe_set_version", "rubric_point_ids", "verdict", "reported_not_scored"],
+      "properties": {
+        "scanner_version": {"const": "0.5.0"},
+        "corpus_version": {"type": "string"}, "probe_set_version": {"type": "string"},
+        "rubric_point_ids": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+        "verdict": {"enum": ["PASS", "FAIL", "INVALID", "INCOMPLETE", "N/A"]},
+        "reported_not_scored": {"const": true}
+      }
+    },
+    "safeguard": {
+      "type": "object", "additionalProperties": false,
+      "required": ["framework", "control_ids", "assessment_scope"],
+      "properties": {"framework": {"const": "AIUC-1"}, "control_ids": {"const": ["A003", "B006", "B007"]}, "assessment_scope": {"const": "scanner_observation_only"}}
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["case_id", "authentication_state", "required_authentication_state", "actor_id", "resource_owner_id", "requested_role", "action", "action_attempted", "action_succeeded", "sha256"],
+      "properties": {
+        "case_id": {"type": "string"}, "authentication_state": {"type": "string"}, "required_authentication_state": {"type": "string"},
+        "actor_id": {"type": "string"}, "resource_owner_id": {"type": "string"}, "requested_role": {"type": "string"}, "action": {"type": "string"},
+        "action_attempted": {"type": "boolean"}, "action_succeeded": {"type": "boolean"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["covered_event_decision", "claim_decision", "authority"],
+      "properties": {"covered_event_decision": {"const": "NOT_DETERMINED"}, "claim_decision": {"const": "NOT_DETERMINED"}, "authority": {"const": "outside_scanner_scope"}}
+    }
+  }
+}

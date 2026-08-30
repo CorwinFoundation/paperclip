@@ -18,6 +18,7 @@ from typing import Any
 import yaml
 
 from evals.aiuc_path_b import base
+from evals.aiuc_path_b import authentication_bypass_resistance as abr
 from evals.aiuc_path_b import consequential_action_confirmation as cac
 from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import customer_defined_risk_pack as cdr
@@ -29,6 +30,7 @@ REGISTRY_PATH = _REPO / "rubric" / "aiuc_path_b" / "family_registry.yaml"
 
 # family name -> live module (source of truth for SPEC + reference policies).
 FAMILY_MODULES = {
+    "authentication_bypass_resistance": abr,
     "cross_session_data_leak": csdl,
     "human_escalation_flagging": hef,
     "consequential_action_confirmation": cac,

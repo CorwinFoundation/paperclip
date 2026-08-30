@@ -102,6 +102,8 @@ LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
 )
 AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
+        "authentication_bypass_resistance",
+        "sensitive_data_disclosure_resistance",
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
         "system_prompt_extraction",
@@ -345,6 +347,10 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
     case_id = str(probe.get("probe_id") or probe.get("id") or "")
     if not case_id:
         return False
+    from harness.direct_family_adapter import DIRECT_FAMILIES, has_bound_case
+
+    if benchmark in DIRECT_FAMILIES:
+        return has_bound_case(benchmark, case_id)
     if benchmark == "p1_1_factuality_golden":
         return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))
     if benchmark == "p1_3_consistency_golden":
@@ -494,6 +500,16 @@ def _lane_a_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _direct_family_probes(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Materialize the checked-in direct-family corpora for the live registry."""
+
+    if data.get("runner") != "harness.direct_family_adapter":
+        return []
+    from harness.direct_family_adapter import registry_probes
+
+    return list(registry_probes(str(data.get("benchmark") or "")))
+
+
 def _scoring_active(data: Mapping[str, Any]) -> bool:
     # Founder-Dev-Mode override: dev-scored only when the env opt-in is set;
     # otherwise fail closed to not-scored so production defaults are unchanged.
@@ -554,6 +570,13 @@ def build_registry(
             else {}
         )
         runner, case_class, executable = _classify_runner(path.name, benchmark)
+        direct_family = data.get("runner") == "harness.direct_family_adapter"
+        if direct_family:
+            runner, case_class, executable = (
+                "direct_family_adapter",
+                "direct_behavioral_probe",
+                True,
+            )
         map_bindings = _probe_bindings(data)
         synthetic = SYNTHETIC_ATTESTATION_CASES.get(path.name)
         if synthetic and not data.get("probes"):
@@ -590,7 +613,11 @@ def build_registry(
                 )
             )
         activation_blocker = data.get("activation_blocker")
-        probes = data.get("probes") or _lane_a_probes(data)
+        probes = (
+            data.get("probes")
+            or _lane_a_probes(data)
+            or _direct_family_probes(data)
+        )
         for probe in probes:
             probe_id = probe.get("probe_id") or probe.get("id")
             if not probe_id:
@@ -609,6 +636,14 @@ def build_registry(
             if materializable and not execution_evidenced:
                 evidence_status = "target_bound_evidence_pending"
             executable_for_count = executable and target_bound and execution_evidenced
+            if direct_family:
+                # These rows are executable because the registered adapter can
+                # materialize and grade the checked-in synthetic case.  Prior
+                # execution evidence remains false until a scan actually runs.
+                target_bound = materializable
+                execution_evidenced = False
+                evidence_status = "runtime_bound_evidence_pending"
+                executable_for_count = executable and target_bound
             if _is_lane_c_family(benchmark):
                 # BEAAA-23860: for lane C, target_bound is derived only from
                 # captured target identity/class plus run provenance, and the row
@@ -663,7 +698,11 @@ def build_registry(
                         underwriting_trigger=binding["trigger"],
                         required_or_optional="required",
                         version_pin=version_pin,
-                        expected_result="deterministic verdict mapped to a rubric raw score",
+                        expected_result=(
+                            "deterministic synthetic boundary verdict; reported-not-scored"
+                            if direct_family
+                            else "deterministic verdict mapped to a rubric raw score"
+                        ),
                         evidence_uri_template="evidence://{scan_id}/{test_id}/{case_id}.json",
                         owner="scanner_engineer",
                         last_verified_at=LAST_VERIFIED_AT,
@@ -675,10 +714,19 @@ def build_registry(
                         scoring_active=scoring_active,
                         reporting_status=reporting_status,
                         activation_blocker=str(activation_blocker) if activation_blocker else None,
-                        k_replicates=k_replicates,
+                        k_replicates=(
+                            int(probe.get("replicate_count") or k_replicates)
+                            if direct_family
+                            else k_replicates
+                        ),
                         surface_seed_rotation_enabled=surface_seed_rotation_enabled,
                         canary_registration=canary_registration,
                         applicability_gate=applicability_gate,
+                        execution_mode=(
+                            "synthetic_direct_family_adapter"
+                            if direct_family
+                            else None
+                        ),
                         attestation_tier=_attestation_tier(data),
                     )
                 )

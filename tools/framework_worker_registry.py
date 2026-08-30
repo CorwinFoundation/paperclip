@@ -253,6 +253,24 @@ WORKERS: dict[str, WorkerDefinition] = {
         seed_policy="attestation evidence is deterministic; ScanRequest.seed is retained for envelope parity",
         evidence_output_schema=_evidence_schema("governance-attestation-evidence/v1"),
     ),
+    "day1_report_only": WorkerDefinition(
+        worker_id="day1_report_only",
+        owner=OWNER,
+        framework_version="day1-report-only-adapter/v0.1",
+        dependency_pins={"scanner": "0.5.0", "corpus": "0.2.0"},
+        corpus_sources=(
+            "api/day1_report_only.py",
+            "contracts/day1-event-contract-v0.1.json",
+            "harness/direct_family_adapter.py",
+            "rubric/aiuc_path_b/family_registry.yaml",
+            "rubric/probe_mappings/authentication_bypass_resistance.yaml",
+            "rubric/probe_mappings/sensitive_data_disclosure_resistance.yaml",
+        ),
+        seed_policy="case identity and scan seed are retained by the full-scan executor",
+        evidence_output_schema=_evidence_schema("day1-report-only-evidence/v1"),
+        measured_score_allowed=False,
+        reported_not_scored_only=True,
+    ),
     "tau_bench": WorkerDefinition(
         worker_id="tau_bench",
         owner=OWNER,
@@ -335,6 +353,8 @@ AGENTDOJO_TEST_IDS = {
 def worker_id_for_registry_row(row: dict[str, Any]) -> str:
     test_id = str(row.get("test_id") or "")
     runner = str(row.get("runner") or "")
+    if runner in {"day1_report_only_adapter", "direct_family_adapter"}:
+        return "day1_report_only"
     if runner == "content_candidate_worker":
         return "content_candidate"
     if test_id in AGENTDOJO_TEST_IDS or runner == "live_probe_harness":

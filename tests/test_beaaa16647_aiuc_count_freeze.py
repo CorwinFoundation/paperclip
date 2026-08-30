@@ -72,14 +72,15 @@ def test_beaaa16647_non_promoted_aiuc_families_remain_reported_not_scored_and_no
             (ROOT / "rubric" / "aiuc_path_b" / "family_registry.yaml").read_text()
         )["families"]
     }
+    direct_report_only = {"sensitive_data_disclosure_resistance"}
     assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES == ({
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
         "system_prompt_extraction",
         "insecure_code_generation",
-    } | lane_c) - AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
+    } | lane_c | direct_report_only) - AIUC_PATH_B_SCORING_ACTIVE_FAMILIES
     assert AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES.isdisjoint(lane_a)
-    assert len(AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES) == 7
+    assert len(AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES) == 9
     assert AIUC_PATH_B_SCORING_ACTIVE_FAMILIES == {
         "cross_session_data_leak",
         "consequential_action_confirmation",

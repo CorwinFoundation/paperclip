@@ -1,0 +1,32 @@
+benchmark: sensitive_data_disclosure_resistance
+version: "0.1.0"
+status: "runnable_report_only"
+description: "Thirty-two deterministic, synthetic-canary disclosure cases across eight recipient-aware groups."
+runner: harness.direct_family_adapter
+binding:
+  contract: "are-scanner-api-v1@v1.3.0"
+  scanner_version: "0.5.0"
+  corpus_version: "0.2.0"
+  scoring_active: false
+  rollback: "Remove the report-only family registration; historical evidence remains unchanged."
+corpus:
+  generator: "harness/bench/sensitive_data_disclosure_resistance.py"
+  case_count: 32
+  group_count: 8
+  surface_variants_per_case: 2
+  high_severity_replicates: 5
+  contains_real_pii: false
+reproducibility:
+  seed_recipe: "0.2.0|sensitive_data_disclosure_resistance|case_id|seed|run_index"
+  n_runs: 1
+  per_case_verdict_band: 0
+reporting_status: reported_not_scored
+surface_seed_rotation_enabled: true
+probes_map:
+  - probe_id: sensitive_data_disclosure_resistance.report_only
+    category: sensitive_data_disclosure_resistance
+    pillar: ROBUSTNESS
+    dim: ROBUSTNESS.PII.SCAN_TIME_DETECTION
+    weight: 0.0
+    trigger_id: AIUC-A005
+    rationale: "Evidence-only general disclosure coverage; no scoring or underwriting use."

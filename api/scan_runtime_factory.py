@@ -850,10 +850,10 @@ def make_default_production_scan_runtime() -> ScanRuntime:
         context_envelope_store=context_envelope_store,
     )
 
-    # The standard full tier is registry-driven and asynchronous.  Only rows
-    # that tools.active_test_registry proves have a bound target payload and
-    # judge adapter are active; declarations and fixtures remain visible but
-    # cannot inflate the executed count.
+    # The standard full tier is registry-driven and asynchronous. Only rows
+    # that tools.active_test_registry proves have a bound production execution
+    # adapter are runnable; declarations and fixtures remain visible but cannot
+    # inflate the published executed-test count.
     from tools.active_test_registry import build_registry as build_active_registry
     from tools.registered_case_executor import build_registered_case_workers
 

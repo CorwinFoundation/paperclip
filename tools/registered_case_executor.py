@@ -1,10 +1,9 @@
 """Real target execution for production-active registry cases.
 
-This module is intentionally smaller than a benchmark framework.  It binds
-the four case families that already have complete in-repo payload and judge
-adapters to the standard customer-agent transport.  Framework declarations
-without a target payload are kept in the registry as quarantined assets and
-never counted as executed tests.
+This module is intentionally smaller than a benchmark framework. It binds
+checked-in cases with complete payload and grading adapters to the standard
+customer-agent transport. Framework declarations without a target payload
+remain quarantined and never count as executed tests.
 """
 from __future__ import annotations
 
@@ -429,6 +428,7 @@ class RegisteredCaseExecutor:
             execution_row["capability_manifest"] = getattr(
                 job, "capability_manifest", None
             )
+            execution_row["scan_seed"] = job.seed
             outcome = self._execute_case(test_id, case_id, execution_row)
             observed = outcome.get("observational_result")
             if isinstance(observed, dict):
@@ -510,6 +510,9 @@ class RegisteredCaseExecutor:
 
         if registry_row.get("runner") == "content_candidate_worker":
             return self._execute_content_candidate(test_id, case_id, registry_row)
+
+        if registry_row.get("runner") == "direct_family_adapter":
+            return self._execute_direct_family_case(test_id, case_id, registry_row)
 
         from harness.lane_c_adapter import is_lane_c_family
 
@@ -693,6 +696,78 @@ class RegisteredCaseExecutor:
             )
 
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
+
+    def _execute_direct_family_case(
+        self,
+        test_id: str,
+        case_id: str,
+        registry_row: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Execute one synthetic direct-family row on the normal scan path."""
+
+        from harness.direct_family_adapter import (
+            aggregate_verdict,
+            build_instruction,
+            case_for_id,
+            grade_response,
+        )
+
+        case = case_for_id(test_id, case_id)
+        declared = int(registry_row.get("k_replicates") or case.replicate_count)
+        replicate_count = case.replicate_count
+        if declared != replicate_count:
+            raise ValueError(
+                f"direct family replicate mismatch: registry={declared} "
+                f"corpus={replicate_count}"
+            )
+        scan_seed = int(registry_row.get("scan_seed") or 0)
+        payloads: list[str] = []
+        responses: list[str] = []
+        run_results: list[dict[str, Any]] = []
+        for run_index in range(replicate_count):
+            instruction, marker, variant_index = build_instruction(
+                case,
+                scan_seed=scan_seed,
+                run_index=run_index,
+            )
+            response = self.subject.complete(instruction)
+            graded = grade_response(case, response, marker=marker)
+            payloads.append(instruction)
+            responses.append(response)
+            run_results.append(
+                {
+                    "run_index": run_index,
+                    "surface_variant": variant_index,
+                    "verdict": graded["verdict"],
+                    "marker_observed": graded["marker_observed"],
+                    "observation": graded["observation"],
+                }
+            )
+        verdicts = [str(result["verdict"]) for result in run_results]
+        verdict = aggregate_verdict(verdicts)
+        return _case_outcome(
+            payloads=payloads,
+            responses=responses,
+            judge={
+                "type": "synthetic_direct_family_adapter",
+                "family_id": test_id,
+                "reported_not_scored": True,
+                "score_weight": 0.0,
+                "run_results": run_results,
+                "verdict_counts": {
+                    value: verdicts.count(value) for value in sorted(set(verdicts))
+                },
+                "replication_verdict": verdict,
+            },
+            score=None,
+            expected={
+                "group": case.group,
+                "severity": case.severity,
+                "replicate_count": case.replicate_count,
+                "synthetic_only": True,
+            },
+            verdict=verdict,
+        )
 
     def _execute_lane_c_case(
         self,

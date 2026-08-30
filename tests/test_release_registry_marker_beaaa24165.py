@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "734a6557b431d8210628e6d1131852561d89bac2345f5245f61ac1e40393afb5"
+    "549c4819a1b204615f280f2c061bd2d6aa5bd080490d200687aeccc9579c7312"
 )
 
 
@@ -34,7 +34,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     ).hexdigest()
     assert marker["normalized_registry_sha256"] == EXPECTED_NORMALIZED_REGISTRY_SHA256
     assert all("\\" not in str(row["source_pack"]) for row in rows)
-    assert len(marker["excluded_rows"]) == 40
+    # The 64 new direct-family rows are deliberately report-only and therefore
+    # appear in the release marker's excluded-row proof.
+    assert len(marker["excluded_rows"]) == 104
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",
