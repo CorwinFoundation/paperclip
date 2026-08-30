@@ -298,7 +298,9 @@ def synthetic_v0_probe_run_fn(runner: ModelRunner) -> Iterable[tuple[str, dict[s
         )
 
 
-def v0_mock_runner_factory(agent_endpoint: str, secret: str) -> ModelRunner:  # noqa: ARG001
+def v0_mock_runner_factory(
+    agent_endpoint: str, secret: str, agent_id: str | None = None
+) -> ModelRunner:  # noqa: ARG001
     """v0 runner factory — returns a MockRunner that echoes its prompt.
 
     Production wiring will replace this with a real adapter
@@ -308,7 +310,7 @@ def v0_mock_runner_factory(agent_endpoint: str, secret: str) -> ModelRunner:  # 
     without any network traffic. The ``secret`` is dropped on return —
     a real factory would bind it into the runner's auth header.
     """
-    del secret
+    del secret, agent_id
     name = "v0-{}".format(agent_endpoint.replace("https://", "").replace("/", "_"))
     return MockRunner(name, lambda prompt: prompt)
 
@@ -356,7 +358,7 @@ def _prober_target(
     channel: WorkerChannel,
     corpus_tarball_path: Any,
     probe_run_fn: ProbeRunFn,
-    runner_factory: Callable[[str, str], ModelRunner],
+    runner_factory: Callable[[str, str, str | None], ModelRunner],
     agent_endpoint_url: str,
     result_queue: Any,
     fired_probe_ledger: FiredProbeLedger | None = None,
@@ -406,7 +408,7 @@ def _prober_target(
 def make_production_scan_runtime(
     *,
     corpus_tarball_path: Path | str,
-    runner_factory: Callable[[str, str], ModelRunner],
+    runner_factory: Callable[[str, str, str | None], ModelRunner],
     probe_run_fn: ProbeRunFn,
     parent_join_timeout_seconds: int | None = None,
     score_runtime: Any = None,
@@ -818,7 +820,7 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     if _customer_agent_walker_enabled():
         from harness.customer_runner import customer_agent_http_runner_factory
         from scanners.customer_agent_walker import customer_agent_probe_run_fn
-        _selected_runner_factory: Callable[[str, str], ModelRunner] = (
+        _selected_runner_factory: Callable[[str, str, str | None], ModelRunner] = (
             customer_agent_http_runner_factory
         )
         _selected_probe_run_fn: ProbeRunFn = customer_agent_probe_run_fn

@@ -105,7 +105,7 @@ def test_syllable_smoke_then_seeded_n5_current_route(
     envelopes: dict[str, dict[str, Any]] = {}
     runtime = make_production_scan_runtime(
         corpus_tarball_path=corpus_path,
-        runner_factory=lambda _endpoint, _secret: _runner(showcase),
+        runner_factory=lambda _endpoint, _secret, _agent_id: _runner(showcase),
         probe_run_fn=customer_agent_probe_run_fn,
         score_runtime=ScoreRuntime.from_rubric_path(ROOT / "rubric" / "rubric.yaml"),
         score_envelope_registry=envelopes,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -370,10 +371,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # adds validated saved-evidence dispatch, moving the evaluator pin to
     # e33ae84f and this derived manifest digest to f915c3a2. The AIUC-1 direct
     # adapter then moves the evaluator pin to dbe225ba and this derived digest
-    # to a4691ed8. Canary budget, families, and zero-weight invariants remain
-    # unchanged.
+    # to a4691ed8. Native VAPI transport binds the production subject to the
+    # requested assistant identity, moving the evaluator pin to 00e0d4cb and
+    # this derived digest to 40aa3926. Canary budget, families, and zero-weight
+    # invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "a4691ed847a8f3f6dad77a352eccd75618446249daa7f74d291f1b18f9ddbb40"
+        "40aa3926279e04625939fef4c5e2b91b1531ceeb44ce390b91453cf8027827fd"
     )
 
 
@@ -486,6 +489,47 @@ def test_ledger_failure_is_zero_call_zero_evidence_write(tmp_path, monkeypatch):
             promotion_lease_ledger=ledger_directory,
             now=NOW,
         )
+    assert calls == 0
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_locked_ledger_retries_are_bounded_and_fail_closed(tmp_path, monkeypatch):
+    _runtime(monkeypatch)
+    attempts = 0
+    calls = 0
+
+    def locked_connect(*_args, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise sqlite3.OperationalError("database is locked")
+
+    def target(_prompt: str) -> str:
+        nonlocal calls
+        calls += 1
+        return '{"actual_response_label":"resisted_no_disclosure"}'
+
+    monkeypatch.setattr(
+        "tools.tranche1_canary_runner.sqlite3.connect", locked_connect
+    )
+    monkeypatch.setattr("tools.tranche1_canary_runner.time.sleep", lambda _delay: None)
+
+    with pytest.raises(Tranche1CanaryError, match="ledger failed closed"):
+        run_tranche1_canary(
+            registry_rows=build_registry(),
+            subject=MockRunner("target", target),
+            evidence_root=tmp_path / "evidence",
+            job_id="locked-ledger",
+            tenant_id="tenant",
+            authorization_ref="root-ref",
+            commit_sha="a" * 40,
+            image_ref="scanner@sha256:" + "b" * 64,
+            promotion_lease=_lease(),
+            founder_authorization=_approval(),
+            promotion_lease_ledger=tmp_path / "locked-ledger.sqlite3",
+            now=NOW,
+        )
+
+    assert attempts == 5
     assert calls == 0
     assert not (tmp_path / "evidence").exists()
 

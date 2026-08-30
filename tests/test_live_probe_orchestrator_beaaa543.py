@@ -483,7 +483,7 @@ def test_missing_runner_and_factory_raises_orchestrator_error(
     assert loaded_vault.resolve(CRED_REF) is None
 
 
-def test_runner_factory_receives_endpoint_and_secret(
+def test_runner_factory_receives_endpoint_secret_and_agent_id(
     loaded_vault, corpus_tarball, corpus_hash,
 ):
     """Production wiring path: factory is invoked with the endpoint URL +
@@ -492,13 +492,14 @@ def test_runner_factory_receives_endpoint_and_secret(
     captured: dict[str, Any] = {}
     ipc = _CollectingIPC()
 
-    def factory(endpoint: str, secret: str) -> MockRunner:
+    def factory(endpoint: str, secret: str, agent_id: str | None) -> MockRunner:
         captured["endpoint"] = endpoint
         captured["secret"] = secret
+        captured["agent_id"] = agent_id
         return MockRunner("factory", lambda p: "x")
 
     run_scan(
-        _scan_request(corpus_hash),
+        _scan_request(corpus_hash, agent_id="agent-123"),
         loaded_vault,
         ipc,
         corpus_tarball_path=corpus_tarball,
@@ -508,6 +509,7 @@ def test_runner_factory_receives_endpoint_and_secret(
 
     assert captured["endpoint"] == "https://agent.example.com/api"
     assert captured["secret"] == SECRET_LITERAL
+    assert captured["agent_id"] == "agent-123"
 
 
 # ---------------------------------------------------------------------------

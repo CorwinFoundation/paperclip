@@ -203,11 +203,13 @@ def _build_full_stack_runtime(
     )
     score_envelope_registry: dict[str, dict[str, Any]] = {}
 
-    def loopback_runner_factory(agent_endpoint: str, secret: str) -> Any:
+    def loopback_runner_factory(
+        agent_endpoint: str, secret: str, agent_id: str | None = None
+    ) -> Any:
         # The real ``_CustomerAgentHttpRunner`` (ScopedEgressAllowlist +
         # streaming/compression/redirect gates) verbatim — only the URL is
         # the reachable loopback fixture rather than the edge's https host.
-        del agent_endpoint
+        del agent_endpoint, agent_id
         return customer_agent_http_runner_factory(fake_agent_url, secret)
 
     runtime = make_production_scan_runtime(

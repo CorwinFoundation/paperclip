@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json as _json
 import os
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -61,6 +62,13 @@ _REQUEST_TIMEOUT_SECONDS: float = 30.0
 orchestrator's ``MAX_WALL_CLOCK_SECONDS`` cap wraps the entire
 iteration. The per-request timeout prevents a single hung endpoint
 from consuming the whole wall-clock budget."""
+
+_VAPI_HOST: str = "api.vapi.ai"
+_VAPI_CHAT_ENDPOINT: str = "https://api.vapi.ai/chat"
+_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
+    r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+)
 
 
 def _extract_host(agent_endpoint: str) -> str:
@@ -111,6 +119,18 @@ class _CustomerAgentHttpRunner(ModelRunner):
     def model_id(self) -> str:
         return self._model_id
 
+    def _request_payload(self, prompt: str) -> dict[str, Any]:
+        return {"prompt": prompt}
+
+    def _parse_response(self, text: str) -> str:
+        try:
+            parsed: Any = _json.loads(text)
+        except _json.JSONDecodeError:
+            return text
+        if isinstance(parsed, dict) and isinstance(parsed.get("response"), str):
+            return parsed["response"]
+        return text
+
     def complete(self, prompt: str) -> str:
         """Issue a single probe request to the customer endpoint.
 
@@ -121,7 +141,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         """
         import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
 
-        body_bytes = _json.dumps({"prompt": prompt}).encode("utf-8")
+        body_bytes = _json.dumps(self._request_payload(prompt)).encode("utf-8")
         # BEAAA-5532: pin ``Accept-Encoding: identity`` so a well-behaved
         # customer endpoint returns uncompressed bytes. httpx's default
         # is ``gzip, deflate, br, zstd``; under that default a small
@@ -257,13 +277,65 @@ class _CustomerAgentHttpRunner(ModelRunner):
                 f"customer endpoint transport error: {exc}"
             ) from exc
         text = raw.decode("utf-8", errors="replace")
+        return self._parse_response(text)
+
+
+class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
+    """Hardened Vapi Chat adapter bound to one exact assistant.
+
+    Each completion starts a fresh chat because scanner probes are independent
+    test cases and must not inherit state from a prior probe. The response
+    assistant identity is checked fail-closed before text reaches the walker.
+    """
+
+    def __init__(self, *, secret: str, assistant_id: str) -> None:
+        if not isinstance(assistant_id, str) or not _UUID_RE.fullmatch(assistant_id):
+            raise RunnerError("vapi target requires agent_id to be an assistant UUID")
+        self._assistant_id = assistant_id.lower()
+        super().__init__(_VAPI_CHAT_ENDPOINT, secret)
+        self._model_id = f"vapi:{self._assistant_id}@{_VAPI_HOST}"
+
+    def _request_payload(self, prompt: str) -> dict[str, Any]:
+        return {
+            "assistantId": self._assistant_id,
+            "input": prompt,
+            "stream": False,
+        }
+
+    def _parse_response(self, text: str) -> str:
         try:
             parsed: Any = _json.loads(text)
-        except _json.JSONDecodeError:
-            return text
-        if isinstance(parsed, dict) and isinstance(parsed.get("response"), str):
-            return parsed["response"]
-        return text
+        except _json.JSONDecodeError as exc:
+            raise RunnerError("vapi chat returned invalid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise RunnerError("vapi chat returned a non-object response")
+
+        response_assistant_id = parsed.get("assistantId")
+        if not isinstance(response_assistant_id, str):
+            raise RunnerError("vapi chat response omitted assistantId")
+        if response_assistant_id.lower() != self._assistant_id:
+            raise RunnerError("vapi chat response assistantId mismatch")
+
+        output = parsed.get("output")
+        if not isinstance(output, list):
+            raise RunnerError("vapi chat response omitted output")
+        parts: list[str] = []
+        for item in output:
+            if isinstance(item, str):
+                if item.strip():
+                    parts.append(item.strip())
+                continue
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role")
+            content = item.get("content")
+            if role not in (None, "assistant") or not isinstance(content, str):
+                continue
+            if content.strip():
+                parts.append(content.strip())
+        if not parts:
+            raise RunnerError("vapi chat response contained no assistant output")
+        return " ".join(parts)
 
 
 class _SyllableCustomerAgentRunner(SyllableRunner):
@@ -430,17 +502,22 @@ class _BufferedResponse:
 
 
 def customer_agent_http_runner_factory(
-    agent_endpoint: str, secret: str
+    agent_endpoint: str, secret: str, agent_id: str | None = None
 ) -> ModelRunner:
     """Build a :class:`_CustomerAgentHttpRunner` bound to one endpoint + secret.
 
-    Signature matches :class:`Callable[[str, str], ModelRunner]` so the
+    Signature matches :class:`Callable[[str, str, str | None], ModelRunner]` so the
     factory is drop-in compatible with
     :func:`scanners.live_probe_orchestrator.run_scan`'s
     ``runner_factory`` parameter — same shape as
     :func:`api.scan_runtime_factory.v0_mock_runner_factory`.
     """
     host = _extract_host(agent_endpoint)
+    if host == _VAPI_HOST:
+        return _VapiCustomerAgentRunner(
+            secret=secret,
+            assistant_id=agent_id or "",
+        )
     if host == "apichat.syllable.cloud":
         # Syllable's public apichat surface is not a single root POST
         # endpoint. It requires the two-step /api/v1/chats protocol and

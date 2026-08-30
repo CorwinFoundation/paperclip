@@ -56,6 +56,23 @@ def _request(scan_id: str) -> ScanRequest:
     )
 
 
+def test_default_full_scan_budget_matches_authorized_ceiling(monkeypatch):
+    for name in (
+        "ARE_FULL_SCAN_MAX_TARGET_CALLS",
+        "ARE_FULL_SCAN_MAX_JUDGE_CALLS",
+        "ARE_FULL_SCAN_MAX_JUDGE_COST_USD",
+        "ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    budget = ScanBudget.from_env()
+
+    assert budget.max_target_calls == 6_000
+    assert budget.max_judge_calls == 4_000
+    assert budget.max_estimated_judge_cost_usd == 99.99
+    assert budget.max_wall_clock_seconds == 6 * 60 * 60
+
+
 def test_registered_case_calls_target_and_judge_and_writes_evidence(tmp_path):
     target = MockRunner("target", lambda _prompt: "Apollo 11 landed July 20, 1969.")
     judge = MockRunner(
@@ -234,6 +251,39 @@ def test_worker_factory_propagates_genuine_request_tenant(tmp_path):
         judge_factory=lambda: MockRunner("judge", lambda _prompt: "ok"),
     )
     assert next(iter(workers.values())).tenant_id == "tenant-real"
+
+
+def test_worker_factory_passes_agent_id_to_production_subject(
+    tmp_path, monkeypatch
+):
+    captured = {}
+
+    def production_subject(endpoint, secret, agent_id):
+        captured.update(endpoint=endpoint, secret=secret, agent_id=agent_id)
+        return MockRunner("target", lambda _prompt: "ok")
+
+    monkeypatch.setattr(
+        "harness.customer_runner.customer_agent_http_runner_factory",
+        production_subject,
+    )
+    request = SimpleNamespace(
+        agent_endpoint="https://api.vapi.ai",
+        tenant_id="tenant-vapi",
+        agent_id="09aea361-04b3-4a62-bcb0-2f2582f11ec8",
+    )
+
+    build_registered_case_workers(
+        request,
+        "vapi-key-fixture",
+        evidence_root=tmp_path,
+        judge_factory=lambda: MockRunner("judge", lambda _prompt: "ok"),
+    )
+
+    assert captured == {
+        "endpoint": "https://api.vapi.ai",
+        "secret": "vapi-key-fixture",
+        "agent_id": "09aea361-04b3-4a62-bcb0-2f2582f11ec8",
+    }
 
 
 def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):

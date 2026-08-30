@@ -46,7 +46,7 @@ class BudgetExceeded(RuntimeError):
 class ScanBudget:
     max_target_calls: int = 6_000
     max_judge_calls: int = 4_000
-    max_estimated_judge_cost_usd: float = 100.0
+    max_estimated_judge_cost_usd: float = 99.99
     max_wall_clock_seconds: int = 6 * 60 * 60
     judge_input_usd_per_million_tokens: float = 3.0
     judge_output_usd_per_million_tokens: float = 15.0
@@ -58,7 +58,7 @@ class ScanBudget:
             max_target_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_TARGET_CALLS", "6000")),
             max_judge_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_CALLS", "4000")),
             max_estimated_judge_cost_usd=float(
-                os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_COST_USD", "100")
+                os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_COST_USD", "99.99")
             ),
             max_wall_clock_seconds=int(
                 os.environ.get("ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS", str(6 * 60 * 60))
@@ -1247,7 +1247,6 @@ def build_registered_case_workers(
     from harness.customer_runner import customer_agent_http_runner_factory
     from tools.framework_worker_registry import WORKERS
 
-    subject_builder = subject_factory or customer_agent_http_runner_factory
     judge_builder = judge_factory or default_judge_runner
     root = evidence_root
     if root is None:
@@ -1259,8 +1258,18 @@ def build_registered_case_workers(
             if os.name != "nt"
             else REPO_ROOT / "artifacts" / "full-scan-evidence"
         )
+    if subject_factory is None:
+        subject = customer_agent_http_runner_factory(
+            scan_request.agent_endpoint,
+            secret,
+            getattr(scan_request, "agent_id", None),
+        )
+    else:
+        # Retain the two-argument injection seam used by offline/demo callers;
+        # production's native provider factory receives the target agent ID.
+        subject = subject_factory(scan_request.agent_endpoint, secret)
     executor = RegisteredCaseExecutor(
-        subject=subject_builder(scan_request.agent_endpoint, secret),
+        subject=subject,
         judge=judge_builder(),
         evidence_store=EvidenceStore(root),
         budget=budget or ScanBudget.from_env(),

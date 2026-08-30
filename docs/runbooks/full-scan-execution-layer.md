@@ -33,7 +33,7 @@ The initial evaluation authorization is enforced in code, before calls are made:
 
 - maximum target calls: `6,000`;
 - maximum judge calls: `4,000`;
-- maximum estimated judge cost: `$100.00`;
+- maximum estimated judge cost: `$99.99`;
 - maximum wall clock: `6 hours`;
 - maximum reserved judge output: `256 tokens` per call.
 
@@ -74,9 +74,48 @@ The signed manifest is the source of truth for what ran. The published executed-
 
 Any mismatch makes the analysis incomplete.
 
-## Demo-agent evaluation
+## VAPI production target
 
-The initial controlled target is the existing authenticated Syllable demo agent at `https://apichat.syllable.cloud`. Its two-step session transport is selected automatically by the customer-agent runner. The deployment host supplies judge credentials; no credential value is copied into the repository or evaluation artifact.
+The controlled VAPI target is the existing assistant
+`09aea361-04b3-4a62-bcb0-2f2582f11ec8` (`BackBond BEAAA-8459 Vapi`) at
+`https://api.vapi.ai`. The production runner selects the native VAPI Chat
+transport from that host and binds `scan_request.agent_id` as `assistantId`.
+The VAPI private key remains in the normal in-memory credential-vault path and
+is never written to evidence, manifests, or logs.
+
+Every scanner case starts a fresh non-streaming chat with
+`POST https://api.vapi.ai/chat` and `{assistantId, input, stream:false}`. Chats
+are intentionally not chained with `previousChatId`: independent probes must
+not share state. Every response must carry the exact requested `assistantId`
+and at least one assistant output message, or the case fails closed as a runner
+error. Redirects, compressed responses, oversized responses, and off-host
+egress remain rejected by the shared customer-runner controls.
+
+Fresh QA and deployment gates:
+
+1. focused VAPI request-construction and fail-closed response tests pass;
+2. existing generic-customer and Syllable runner regression tests pass;
+3. the full unit/integration CI suite passes on the exact candidate commit;
+4. the immutable image identifies that exact commit and passes runtime-closure checks;
+5. production activation reports the exact candidate commit and image digest;
+6. read-only VAPI inventory confirms the named assistant still exists;
+7. one paid VAPI chat canary returns the exact assistant identity and usable output;
+8. one judge canary succeeds through the configured OpenRouter route;
+9. the full scan stays within 6,000 target calls, 4,000 judge calls, `$99.99`,
+   and six hours;
+10. the signed terminal manifest reconciles expected, attempted, terminal, and
+    evidenced IDs with no silent omissions; and
+11. the AIUC-1 direct-family subset contains exactly 64 unique complete PASS
+    rows, 208 target calls, zero judge calls, report-only/zero-weight metadata,
+    evidence references, and no score contribution.
+
+Any identity, routing, budget, or reconciliation mismatch stops promotion and
+triggers rollback to the prior immutable scanner image. Listener ingestion is a
+separate later gate; a scan result alone does not enable listener processing.
+
+## Legacy demo-agent evaluation
+
+The former controlled target is the authenticated Syllable demo agent at `https://apichat.syllable.cloud`. Its two-step session transport remains supported for regression and rollback use, but it is not the VAPI production target defined above. The deployment host supplies judge credentials; no credential value is copied into the repository or evaluation artifact.
 
 Before the full evaluation:
 
@@ -86,7 +125,7 @@ Before the full evaluation:
 4. submit the full request with seed `42` and the 90-case registry snapshot;
 5. poll until terminal;
 6. verify `90 expected = 90 attempted = 90 terminal = 90 evidenced`;
-7. verify target calls equal `110`, judge calls equal `90`, and estimated judge cost is at most `$100`;
+7. verify target calls equal `110`, judge calls equal `90`, and estimated judge cost is at most `$99.99`;
 8. retain the signed manifest and case evidence as the deployment acceptance artifact.
 
 ## Known boundary

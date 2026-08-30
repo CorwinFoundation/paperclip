@@ -52,7 +52,7 @@ def _body(corpus_hash: str) -> dict:
 def _client_for_corpus(tarball_path: Path) -> TestClient:
     runtime = make_production_scan_runtime(
         corpus_tarball_path=tarball_path,
-        runner_factory=lambda endpoint, secret: endpoint,
+        runner_factory=lambda endpoint, secret, agent_id: endpoint,
         probe_run_fn=lambda runner: iter(()),
     )
     app = create_app(

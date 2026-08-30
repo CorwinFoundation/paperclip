@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sqlite3
+import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -41,6 +42,8 @@ FOUNDER_AUTHORIZATION_VERSION = "founder-production-authorization/v1"
 PROMOTION_ISSUES = ["BEAAA-19023", "BEAAA-19024"]
 LEASE_LEDGER_PATH = Path("/var/lib/backbond/tranche1-promotion-leases.sqlite3")
 LEASE_AUTHORITY_SCHEMA_VERSION = 1
+_SQLITE_LOCK_RETRY_ATTEMPTS = 5
+_SQLITE_LOCK_RETRY_DELAY_SECONDS = 0.05
 TRUSTED_PROMOTION_ISSUERS = {
     # Private material is not present in this repository or accepted from callers.
     "backbond-production-authority-2026-07":
@@ -236,57 +239,75 @@ def consume_promotion_lease(
     }
     scope_sha256 = hashlib.sha256(_canonical_json(scope)).hexdigest()
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
-    connection: sqlite3.Connection | None = None
-    try:
-        connection = sqlite3.connect(str(ledger_path), timeout=30, isolation_level=None)
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA synchronous=FULL")
-        connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS promotion_lease_consumptions (
-                scope_sha256 TEXT NOT NULL UNIQUE,
-                lease_id TEXT PRIMARY KEY,
-                signature TEXT NOT NULL,
-                commit_sha TEXT NOT NULL,
-                image_ref TEXT NOT NULL,
-                tenant_id TEXT NOT NULL,
-                environment TEXT NOT NULL,
-                consumed_at TEXT NOT NULL
+    for lock_attempt in range(_SQLITE_LOCK_RETRY_ATTEMPTS):
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = sqlite3.connect(
+                str(ledger_path), timeout=30, isolation_level=None
             )
-            """
-        )
-        connection.execute("BEGIN IMMEDIATE")
-        connection.execute(
-            """
-            INSERT INTO promotion_lease_consumptions
-            (scope_sha256, lease_id, signature, commit_sha, image_ref,
-             tenant_id, environment, consumed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                scope_sha256,
-                scope["lease_id"],
-                scope["signature"],
-                scope["commit_sha"],
-                scope["image_ref"],
-                scope["tenant_id"],
-                scope["environment"],
-                (consumed_at or datetime.now(timezone.utc)).isoformat(),
-            ),
-        )
-        connection.execute("COMMIT")
-    except sqlite3.IntegrityError as exc:
-        if connection is not None:
-            connection.execute("ROLLBACK")
-        raise Tranche1CanaryError("promotion lease has already been consumed") from exc
-    except (OSError, sqlite3.Error) as exc:
-        if connection is not None and connection.in_transaction:
-            connection.execute("ROLLBACK")
-        raise Tranche1CanaryError("promotion lease replay ledger failed closed") from exc
-    finally:
-        if connection is not None:
-            connection.close()
-    return scope_sha256
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("PRAGMA synchronous=FULL")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS promotion_lease_consumptions (
+                    scope_sha256 TEXT NOT NULL UNIQUE,
+                    lease_id TEXT PRIMARY KEY,
+                    signature TEXT NOT NULL,
+                    commit_sha TEXT NOT NULL,
+                    image_ref TEXT NOT NULL,
+                    tenant_id TEXT NOT NULL,
+                    environment TEXT NOT NULL,
+                    consumed_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                """
+                INSERT INTO promotion_lease_consumptions
+                (scope_sha256, lease_id, signature, commit_sha, image_ref,
+                 tenant_id, environment, consumed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    scope_sha256,
+                    scope["lease_id"],
+                    scope["signature"],
+                    scope["commit_sha"],
+                    scope["image_ref"],
+                    scope["tenant_id"],
+                    scope["environment"],
+                    (consumed_at or datetime.now(timezone.utc)).isoformat(),
+                ),
+            )
+            connection.execute("COMMIT")
+            return scope_sha256
+        except sqlite3.IntegrityError as exc:
+            if connection is not None and connection.in_transaction:
+                connection.execute("ROLLBACK")
+            raise Tranche1CanaryError(
+                "promotion lease has already been consumed"
+            ) from exc
+        except sqlite3.OperationalError as exc:
+            if connection is not None and connection.in_transaction:
+                connection.execute("ROLLBACK")
+            is_transient_lock = "locked" in str(exc).lower()
+            if is_transient_lock and lock_attempt + 1 < _SQLITE_LOCK_RETRY_ATTEMPTS:
+                time.sleep(_SQLITE_LOCK_RETRY_DELAY_SECONDS * (lock_attempt + 1))
+                continue
+            raise Tranche1CanaryError(
+                "promotion lease replay ledger failed closed"
+            ) from exc
+        except (OSError, sqlite3.Error) as exc:
+            if connection is not None and connection.in_transaction:
+                connection.execute("ROLLBACK")
+            raise Tranche1CanaryError(
+                "promotion lease replay ledger failed closed"
+            ) from exc
+        finally:
+            if connection is not None:
+                connection.close()
+    raise AssertionError("unreachable SQLite lease-consumption retry state")
 
 
 def consume_promotion_lease_postgres(

@@ -36,11 +36,12 @@ MAPPING_SHA256 = {
 # scored-lane deterministic dispatch branch to the evaluator. BEAAA-24210
 # extends that same dispatch to the five scored-floor families. BEAAA-26529
 # adds deterministic dispatch from validated, saved C10 evidence. The current
-# refresh adds the report-only AIUC-1 direct-family dispatch branch.
+# refresh adds the report-only AIUC-1 direct-family dispatch branch. This
+# refresh binds the native VAPI subject factory and the $99.99 budget ceiling.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "dbe225ba299bbdd421cbcee66d87ff09075a118ad5eab3194a34fecff42a6b70",
-    "tool_misuse_scope_escape": "dbe225ba299bbdd421cbcee66d87ff09075a118ad5eab3194a34fecff42a6b70",
-    "tool_misuse_unauthorized_call": "dbe225ba299bbdd421cbcee66d87ff09075a118ad5eab3194a34fecff42a6b70",
+    "tool_misuse_param_tamper": "00e0d4cba3ed14fd77660125c99ae4e0c84966d78fae6b3920e671e061343400",
+    "tool_misuse_scope_escape": "00e0d4cba3ed14fd77660125c99ae4e0c84966d78fae6b3920e671e061343400",
+    "tool_misuse_unauthorized_call": "00e0d4cba3ed14fd77660125c99ae4e0c84966d78fae6b3920e671e061343400",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

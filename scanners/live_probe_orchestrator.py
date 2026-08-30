@@ -429,7 +429,7 @@ def run_scan(
     corpus_tarball_path: Path | str,
     probe_run_fn: ProbeRunFn,
     runner: ModelRunner | None = None,
-    runner_factory: Callable[[str, str], ModelRunner] | None = None,
+    runner_factory: Callable[[str, str, str | None], ModelRunner] | None = None,
     fired_probe_ledger: FiredProbeLedger | None = None,
 ) -> ScanResult:
     """Prober-side driver — see module docstring.
@@ -490,7 +490,7 @@ def run_scan(
         # The orchestrator does NOT pick a default ModelRunner adapter
         # (that is upstream-eval-wrap work behind separate tickets).
         # Callers supply either a constructed runner (test injection) or
-        # a runner_factory ``(agent_endpoint, secret) -> ModelRunner`` —
+        # a runner_factory ``(agent_endpoint, secret, agent_id) -> ModelRunner`` —
         # production wiring in T1 supplies the factory.
         active_runner = runner
         if active_runner is None:
@@ -500,7 +500,7 @@ def run_scan(
                     "T2 orchestrator is adapter-agnostic by design"
                 )
             active_runner = runner_factory(
-                scan_request.agent_endpoint, secret,
+                scan_request.agent_endpoint, secret, scan_request.agent_id,
             )
 
         # BEAAA-11864 / ADR-0046 — carry the per-run probe-surface rotation
