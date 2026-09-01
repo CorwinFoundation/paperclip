@@ -43,6 +43,7 @@ function makeDb(
     failApprovalBinding?: boolean;
     failApprovalUpdate?: boolean;
     failMutableUpdate?: boolean;
+    loseStagingRace?: boolean;
     failStagingUpdate?: boolean;
   } = {},
 ) {
@@ -116,6 +117,9 @@ function makeDb(
               }
               if (options.failApprovalUpdate && (value as Record<string, unknown>).status === "approved") {
                 throw new Error("candidate approval update failed");
+              }
+              if (options.loseStagingRace && (value as Record<string, unknown>).status === "staged") {
+                return [];
               }
               if (options.failStagingUpdate && (value as Record<string, unknown>).status === "staged") {
                 throw new Error("candidate staging update failed");
@@ -969,6 +973,67 @@ describe("release candidate approval relay", () => {
     expect(updated).toHaveLength(0);
 
     options.failStagingUpdate = false;
+    await expect(
+      service.stageRelayArtifact(authorization.id, token, artifact, assetIds, {
+        agentId: candidate.createdByAgentId,
+      }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("rolls back token consumption when approval reissue wins the staging race", async () => {
+    const token = "pcdeploy_reissue-race";
+    const authorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      companyId: candidate.companyId,
+      candidateId: candidate.id,
+      approvalInteractionId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      tokenHash: createHash("sha256").update(token).digest("hex"),
+      tokenPrefix: "pcdeploy_reissue",
+      targetHost: candidate.targetHost,
+      imageDigest: candidate.imageDigest,
+      environment: candidate.environment,
+      sequence: candidate.sequence,
+      expiresAt: new Date(Date.now() + 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+      createdByUserId: "founder",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const artifact = {
+      imageDigest: candidate.imageDigest,
+      sbomHash: candidate.sbomHash,
+      signatureVerified: true,
+      sbomVerified: true,
+      tarballSha256: "4444444444444444444444444444444444444444444444444444444444444444",
+      signatureBundleSha256: candidate.signatureBundleSha256,
+      tarballBytes: Buffer.from("artifact"),
+      signatureBundleBytes: Buffer.from("signature"),
+    };
+    const options = { atomicAuthorizationConsume: true, loseStagingRace: true };
+    const { db, updated, transactions } = makeDb(
+      [[authorization], [candidate], [authorization], [candidate]],
+      options,
+    );
+    const service = releaseCandidateService(db);
+    const assetIds = { artifactAssetId: "asset-one", signatureBundleAssetId: "signature-one" };
+
+    await expect(
+      service.stageRelayArtifact(authorization.id, token, artifact, assetIds, {
+        agentId: candidate.createdByAgentId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Release candidate approval changed before artifact staging",
+      details: expect.objectContaining({ code: "release_candidate_stage_race" }),
+    });
+
+    expect(transactions.count).toBe(1);
+    expect(updated).toHaveLength(0);
+
+    options.loseStagingRace = false;
     await expect(
       service.stageRelayArtifact(authorization.id, token, artifact, assetIds, {
         agentId: candidate.createdByAgentId,

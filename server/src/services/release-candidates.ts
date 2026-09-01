@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   issueComments,
@@ -758,6 +758,7 @@ export function releaseCandidateService(db: Db) {
         }).where(and(
           eq(releaseDeployAuthorizations.id, authorization.id),
           eq(releaseDeployAuthorizations.tokenHash, authorization.tokenHash),
+          gt(releaseDeployAuthorizations.expiresAt, now),
           isNull(releaseDeployAuthorizations.usedAt),
         )).returning();
         if (!updatedAuth) {
@@ -773,8 +774,18 @@ export function releaseCandidateService(db: Db) {
           stagedSignatureBundleSha256: normalizeSha256(artifact.signatureBundleSha256),
           stagedAt: now,
           updatedAt: now,
-        }).where(eq(releaseCandidates.id, candidate.id)).returning();
-        if (!updatedCandidate) throw conflict("Failed to stage release candidate");
+        }).where(and(
+          eq(releaseCandidates.id, candidate.id),
+          eq(releaseCandidates.status, "approved"),
+          eq(releaseCandidates.approvalInteractionId, authorization.approvalInteractionId),
+        )).returning();
+        if (!updatedCandidate) {
+          throw conflict("Release candidate approval changed before artifact staging", {
+            code: "release_candidate_stage_race",
+            candidateId: candidate.id,
+            approvalInteractionId: authorization.approvalInteractionId,
+          });
+        }
         await appendAudit(transactionDb, {
           candidate: updatedCandidate,
           actor,
