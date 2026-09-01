@@ -37,7 +37,7 @@ jobs:
           [[ "$SEQUENCE" =~ ^[1-9][0-9]*$ ]]
 
       - name: Check out exact source candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 1
@@ -47,13 +47,13 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$IMAGE" = "ghcr.io/corwinfoundation/are-scanner@sha256:7cca0ea83d456326f11482aed8d4205b098db0e19a4e46d2293fff9cc75ead06"
-          mkdir -p release-evidence
+          mkdir -p release-evidence publication
           printf '%s\n' "$SOURCE_SHA" > release-evidence/source-commit.txt
           printf '%s\n' "$IMAGE" > release-evidence/image-ref.txt
           printf '%s\n' "Evidence-only: deployment requires independent QA and a fresh Founder approval card." > release-evidence/STOP-BEFORE-DEPLOYMENT.txt
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -68,8 +68,8 @@ jobs:
           docker image inspect "$IMAGE" > release-evidence/image-inspect.json
 
       - name: Install pinned evidence tools
-        uses: anchore/sbom-action/download-syft@v0.20.6
-      - uses: sigstore/cosign-installer@v4.1.2
+        uses: anchore/sbom-action/download-syft@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v3.1.1
 
@@ -93,14 +93,73 @@ jobs:
         run: |
           set -euo pipefail
           sha256sum release-evidence/image.sigstore.json release-evidence/sbom-attestation.sigstore.json > release-evidence/sigstore.sha256
-          jq -n --arg issue BEAAA-28248 --arg sourceSha "$SOURCE_SHA" --arg image "$IMAGE" --arg runUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --arg sequence "$SEQUENCE" '{issue:$issue,sourceSha:$sourceSha,image:$image,runUrl:$runUrl,evidenceSequence:$sequence,deployInvoked:false,requiredNextGates:["independent exact-candidate QA APPROVED","fresh Founder approval card","on-box auto-rollback helper invocation"]}' > release-evidence/manifest.json
+          jq -n \
+            --arg issue BEAAA-28248 \
+            --arg sourceSha "$SOURCE_SHA" \
+            --arg image "$IMAGE" \
+            --arg runUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg sequence "$SEQUENCE" \
+            '{issue:$issue,sourceSha:$sourceSha,image:$image,runUrl:$runUrl,evidenceSequence:$sequence,
+              deployInvoked:false,
+              helperInvocationAuthorizedByThisRun:false,
+              prerequisiteGates:[
+                {order:1,gate:"independent exact-candidate QA APPROVED",required:true,satisfiedByThisRun:false},
+                {order:2,gate:"fresh Founder approval card",required:true,satisfiedByThisRun:false}
+              ],
+              blockedActions:[
+                {action:"on-box auto-rollback helper invocation",
+                 isPrerequisite:false,
+                 blockedUntilPrerequisiteGateOrders:[1,2],
+                 authorizedByThisRun:false}
+              ]}' > release-evidence/manifest.json
           find release-evidence -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > release-evidence/SHA256SUMS
 
-      - name: Publish immutable evidence artifact and stop
-        uses: actions/upload-artifact@v4
+      - name: Install pinned ORAS
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1
+        with:
+          version: 1.2.0
+
+      - name: Publish durable immutable evidence to the registry
+        env:
+          SEQUENCE: ${{ inputs.evidence_sequence }}
+        run: |
+          set -euo pipefail
+          EVIDENCE_REPO=ghcr.io/corwinfoundation/are-scanner-release-evidence
+          TAG="beaaa-28248-${SOURCE_SHA}-${SEQUENCE}"
+          cd release-evidence
+          oras push "${EVIDENCE_REPO}:${TAG}" \
+            --artifact-type application/vnd.backbond.release-evidence.v1+json \
+            --annotation "org.opencontainers.image.revision=${SOURCE_SHA}" \
+            --annotation "com.backbond.issue=BEAAA-28248" \
+            --annotation "com.backbond.evidence-sequence=${SEQUENCE}" \
+            --format json $(find . -type f -printf '%P\n' | sort) > ../oras-push.json
+          cd ..
+          EVIDENCE_DIGEST="$(jq -r '.reference // "" | split("@")[1] // ""' oras-push.json)"
+          if [ -z "$EVIDENCE_DIGEST" ]; then
+            EVIDENCE_DIGEST="$(oras resolve "${EVIDENCE_REPO}:${TAG}")"
+          fi
+          case "$EVIDENCE_DIGEST" in sha256:*) ;; *) echo "no immutable digest returned"; exit 1;; esac
+          EVIDENCE_REF="${EVIDENCE_REPO}@${EVIDENCE_DIGEST}"
+          # the tag is mutable; the digest is not. Everything downstream binds the digest only.
+          oras manifest fetch "$EVIDENCE_REF" > publication/evidence-manifest.json
+          cosign sign --yes --new-bundle-format=true --bundle publication/evidence.sigstore.json "$EVIDENCE_REF"
+          cosign verify --certificate-identity "$EXPECTED_IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER" "$EVIDENCE_REF" > publication/evidence-signature-verification.json
+          jq -n \
+            --arg ref "$EVIDENCE_REF" \
+            --arg digest "$EVIDENCE_DIGEST" \
+            --arg tag "$TAG" \
+            --arg sealed "$(sha256sum release-evidence/SHA256SUMS | cut -d" " -f1)" \
+            '{durableEvidenceRef:$ref,evidenceDigest:$digest,mutableTagForConvenienceOnly:$tag,sealedSetSha256:$sealed,retention:"registry-durable; not artifact-retention-bound"}' > publication/publication-receipt.json
+          sha256sum publication/* > publication/PUBLICATION.sha256
+          cat publication/publication-receipt.json
+
+      - name: Attach convenience copy and stop before deployment
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: beaaa-28248-${{ env.SOURCE_SHA }}-${{ inputs.evidence_sequence }}
-          path: release-evidence/
+          path: |
+            release-evidence/
+            publication/
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
