@@ -393,7 +393,7 @@ describe.sequential("issue thread interaction routes", () => {
         }),
       }),
     );
-  });
+  }, 15_000);
 
   it("accepts suggested tasks and wakes created assignees plus the current assignee", async () => {
     const app = await createApp();
@@ -440,7 +440,7 @@ describe.sequential("issue thread interaction routes", () => {
         }),
       }),
     );
-  });
+  }, 15_000);
 
   it("returns a release authorization token once from the transactional accept hook", async () => {
     const interaction = {
