@@ -1,0 +1,106 @@
+name: Day-1 supporting families release evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_sequence:
+        description: Fresh positive integer for this evidence run
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+concurrency:
+  group: beaaa-28248-release-evidence
+  cancel-in-progress: false
+
+jobs:
+  immutable-evidence:
+    runs-on: ubuntu-latest
+    environment: production-release-evidence
+    env:
+      SOURCE_SHA: cf4906f927221fa970e87023e62a61159621d3c5
+      IMAGE: ghcr.io/corwinfoundation/are-scanner@sha256:7cca0ea83d456326f11482aed8d4205b098db0e19a4e46d2293fff9cc75ead06
+      EXPECTED_IDENTITY: https://github.com/CorwinFoundation/are-scanner/.github/workflows/day1-supporting-families-release-evidence.yml@refs/heads/master
+      OIDC_ISSUER: https://token.actions.githubusercontent.com
+    steps:
+      - name: Validate protected invocation
+        env:
+          SEQUENCE: ${{ inputs.evidence_sequence }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "CorwinFoundation/are-scanner"
+          test "$GITHUB_REF" = "refs/heads/master"
+          [[ "$SEQUENCE" =~ ^[1-9][0-9]*$ ]]
+
+      - name: Check out exact source candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Verify source identity and absence of deploy capabilities
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$IMAGE" = "ghcr.io/corwinfoundation/are-scanner@sha256:7cca0ea83d456326f11482aed8d4205b098db0e19a4e46d2293fff9cc75ead06"
+          mkdir -p release-evidence
+          printf '%s\n' "$SOURCE_SHA" > release-evidence/source-commit.txt
+          printf '%s\n' "$IMAGE" > release-evidence/image-ref.txt
+          printf '%s\n' "Evidence-only: deployment requires independent QA and a fresh Founder approval card." > release-evidence/STOP-BEFORE-DEPLOYMENT.txt
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and verify exact immutable image
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE"
+          test "$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')" = "$IMAGE"
+          test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$SOURCE_SHA"
+          docker image inspect "$IMAGE" > release-evidence/image-inspect.json
+
+      - name: Install pinned evidence tools
+        uses: anchore/sbom-action/download-syft@v0.20.6
+      - uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.1
+
+      - name: Generate and hash CycloneDX SBOM
+        run: |
+          set -euo pipefail
+          syft "$IMAGE" -o cyclonedx-json=release-evidence/sbom.cdx.json
+          sha256sum release-evidence/sbom.cdx.json > release-evidence/sbom.cdx.sha256
+
+      - name: Sign digest, verify GitHub OIDC identity, and attest SBOM
+        run: |
+          set -euo pipefail
+          cosign sign --yes --new-bundle-format=true --bundle release-evidence/image.sigstore.json "$IMAGE"
+          cosign verify --certificate-identity "$EXPECTED_IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER" "$IMAGE" > release-evidence/signature-verification.json
+          cosign attest --yes --new-bundle-format=true --bundle release-evidence/sbom-attestation.sigstore.json --predicate release-evidence/sbom.cdx.json --type cyclonedx "$IMAGE"
+          cosign verify-attestation --certificate-identity "$EXPECTED_IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER" --type cyclonedx "$IMAGE" > release-evidence/attestation-verification.json
+
+      - name: Seal immutable evidence manifest
+        env:
+          SEQUENCE: ${{ inputs.evidence_sequence }}
+        run: |
+          set -euo pipefail
+          sha256sum release-evidence/image.sigstore.json release-evidence/sbom-attestation.sigstore.json > release-evidence/sigstore.sha256
+          jq -n --arg issue BEAAA-28248 --arg sourceSha "$SOURCE_SHA" --arg image "$IMAGE" --arg runUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --arg sequence "$SEQUENCE" '{issue:$issue,sourceSha:$sourceSha,image:$image,runUrl:$runUrl,evidenceSequence:$sequence,deployInvoked:false,requiredNextGates:["independent exact-candidate QA APPROVED","fresh Founder approval card","on-box auto-rollback helper invocation"]}' > release-evidence/manifest.json
+          find release-evidence -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > release-evidence/SHA256SUMS
+
+      - name: Publish immutable evidence artifact and stop
+        uses: actions/upload-artifact@v4
+        with:
+          name: beaaa-28248-${{ env.SOURCE_SHA }}-${{ inputs.evidence_sequence }}
+          path: release-evidence/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
