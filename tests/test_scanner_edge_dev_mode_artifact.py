@@ -94,7 +94,9 @@ def test_release_evidence_has_sbom_bundle_and_in_toto_provenance() -> None:
     assert "scanner-edge-image.sigstore.sha256" in text
     assert "--type cyclonedx" in text
     assert "--type slsaprovenance" in text
-    assert "verify-attestation" in text
+    assert "verify-blob-attestation" in text
+    assert "--check-claims=true" in text
+    assert "--digestAlg sha256" in text
     assert text.count("--timeout 90s") == 6
     assert "scanner-edge-slsa-provenance.json" in text
     assert "release_identity_gate.py" in text

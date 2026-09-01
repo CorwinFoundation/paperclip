@@ -46,7 +46,13 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
             text.count('timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT"'),
             6,
         )
+        self.assertEqual(text.count("timeout-minutes: 4"), 6)
         self.assertEqual(text.count("--timeout 90s"), 6)
+        self.assertEqual(text.count("cosign verify-blob-attestation"), 2)
+        self.assertNotIn("cosign verify-attestation", text)
+        self.assertIn("--check-claims=true", text)
+        self.assertIn("scanner-edge-sbom-attestation.sigstore.json", text)
+        self.assertIn("scanner-edge-provenance-attestation.sigstore.json", text)
         self.assertIn("scanner-edge-image.sigstore.sha256", text)
         self.assertNotIn("ssh ", text.lower())
         self.assertNotIn("scp ", text.lower())

@@ -174,6 +174,7 @@ jobs:
       - name: Sign exact digest and write Sigstore bundle
         if: ${{ inputs.expected_image_digest != '' }}
         id: signed
+        timeout-minutes: 4
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
@@ -187,6 +188,7 @@ jobs:
 
       - name: Verify exact digest signature
         if: ${{ inputs.expected_image_digest != '' }}
+        timeout-minutes: 4
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
@@ -198,7 +200,8 @@ jobs:
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
             --output json \
-            "$SIGNED_REF" | tee release-candidate/scanner-edge-cosign-verify.json
+            --output-file release-candidate/scanner-edge-cosign-verify.json \
+            "$SIGNED_REF"
 
       - name: Write SLSA provenance predicate
         if: ${{ inputs.expected_image_digest != '' }}
@@ -223,59 +226,81 @@ jobs:
 
       - name: Attest CycloneDX SBOM
         if: ${{ inputs.expected_image_digest != '' }}
+        id: sbom_attested
+        timeout-minutes: 4
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
+          bundle=release-candidate/scanner-edge-sbom-attestation.sigstore.json
           timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
-            cosign attest --timeout 90s --yes \
+            cosign attest --timeout 90s --yes --new-bundle-format=true --bundle "$bundle" \
             --predicate release-candidate/scanner-edge-sbom.cdx.json \
             --type cyclonedx \
             "$SIGNED_REF"
+          sha256sum "$bundle" | tee release-candidate/scanner-edge-sbom-attestation.sigstore.sha256
+          printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-sbom-attestation.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Attest SLSA provenance
         if: ${{ inputs.expected_image_digest != '' }}
+        id: provenance_attested
+        timeout-minutes: 4
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
+          bundle=release-candidate/scanner-edge-provenance-attestation.sigstore.json
           timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
-            cosign attest --timeout 90s --yes \
+            cosign attest --timeout 90s --yes --new-bundle-format=true --bundle "$bundle" \
             --predicate release-candidate/scanner-edge-slsa-provenance.json \
             --type slsaprovenance \
             "$SIGNED_REF"
+          sha256sum "$bundle" | tee release-candidate/scanner-edge-provenance-attestation.sigstore.sha256
+          printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-provenance-attestation.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Verify SLSA provenance attestation
         if: ${{ inputs.expected_image_digest != '' }}
+        timeout-minutes: 4
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
+          subject_digest="${SIGNED_REF##*@sha256:}"
           timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
-            cosign verify-attestation \
+            cosign verify-blob-attestation \
             --timeout 90s \
+            --bundle release-candidate/scanner-edge-provenance-attestation.sigstore.json \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --check-claims=true \
+            --digest "$subject_digest" \
+            --digestAlg sha256 \
             --type slsaprovenance \
-            "$SIGNED_REF" | tee release-candidate/scanner-edge-provenance-verify.json
+            --output-file release-candidate/scanner-edge-provenance-verify.json
 
       - name: Verify CycloneDX SBOM attestation
         if: ${{ inputs.expected_image_digest != '' }}
+        timeout-minutes: 4
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
+          subject_digest="${SIGNED_REF##*@sha256:}"
           timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
-            cosign verify-attestation \
+            cosign verify-blob-attestation \
             --timeout 90s \
+            --bundle release-candidate/scanner-edge-sbom-attestation.sigstore.json \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --check-claims=true \
+            --digest "$subject_digest" \
+            --digestAlg sha256 \
             --type cyclonedx \
-            "$SIGNED_REF" | tee release-candidate/scanner-edge-sbom-attestation-verify.json
+            --output-file release-candidate/scanner-edge-sbom-attestation-verify.json
 
       - name: Write immutable release candidate manifest
         if: ${{ inputs.expected_image_digest != '' }}
@@ -284,6 +309,8 @@ jobs:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
           SBOM_HASH: ${{ steps.sbom.outputs.hash }}
           BUNDLE_HASH: ${{ steps.signed.outputs.bundle_hash }}
+          SBOM_ATTESTATION_BUNDLE_HASH: ${{ steps.sbom_attested.outputs.bundle_hash }}
+          PROVENANCE_ATTESTATION_BUNDLE_HASH: ${{ steps.provenance_attested.outputs.bundle_hash }}
         run: |
           set -euo pipefail
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -303,12 +330,16 @@ jobs:
             --arg signatureOidcIssuer "$OIDC_ISSUER" \
             --arg signatureWorkflowRef "$WORKFLOW_REF" \
             --arg provenanceRef "cosign-slsaprovenance:${SIGNED_REF}" \
+            --arg provenanceBundleRef "${run_url}/artifacts/${artifact}/scanner-edge-provenance-attestation.sigstore.json" \
+            --arg provenanceBundleSha256 "$PROVENANCE_ATTESTATION_BUNDLE_HASH" \
             --arg sbomHash "$SBOM_HASH" \
+            --arg sbomAttestationBundleRef "${run_url}/artifacts/${artifact}/scanner-edge-sbom-attestation.sigstore.json" \
+            --arg sbomAttestationBundleSha256 "$SBOM_ATTESTATION_BUNDLE_HASH" \
             --arg workflowRunUrl "$run_url" \
             --arg environment "$TARGET_ENVIRONMENT" \
             --arg targetHost "$TARGET_HOST" \
             --argjson sequence "$SEQUENCE" \
-            '{sourceIssueId:$sourceIssueId,commitSha:$commitSha,sourceCommitSha:$sourceCommitSha,ociRevision:$ociRevision,workflowCommitSha:$workflowCommitSha,workflowRef:$workflowRef,originMasterTip:$originMasterTip,imageDigest:$imageDigest,signatureBundleRef:$signatureBundleRef,signatureBundleSha256:$signatureBundleSha256,signatureSubject:$signatureSubject,signatureOidcIssuer:$signatureOidcIssuer,signatureWorkflowRef:$signatureWorkflowRef,provenanceRef:$provenanceRef,sbomHash:$sbomHash,workflowRunUrl:$workflowRunUrl,environment:$environment,targetHost:$targetHost,sequence:$sequence}' \
+            '{sourceIssueId:$sourceIssueId,commitSha:$commitSha,sourceCommitSha:$sourceCommitSha,ociRevision:$ociRevision,workflowCommitSha:$workflowCommitSha,workflowRef:$workflowRef,originMasterTip:$originMasterTip,imageDigest:$imageDigest,signatureBundleRef:$signatureBundleRef,signatureBundleSha256:$signatureBundleSha256,signatureSubject:$signatureSubject,signatureOidcIssuer:$signatureOidcIssuer,signatureWorkflowRef:$signatureWorkflowRef,provenanceRef:$provenanceRef,provenanceBundleRef:$provenanceBundleRef,provenanceBundleSha256:$provenanceBundleSha256,sbomHash:$sbomHash,sbomAttestationBundleRef:$sbomAttestationBundleRef,sbomAttestationBundleSha256:$sbomAttestationBundleSha256,workflowRunUrl:$workflowRunUrl,environment:$environment,targetHost:$targetHost,sequence:$sequence}' \
             | tee release-candidate/scanner-release-candidate.json
 
       - name: Validate release identity gate
