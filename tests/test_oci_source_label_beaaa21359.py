@@ -17,12 +17,12 @@ def test_immutable_image_gate_binds_source_and_revision_labels() -> None:
     assert 'org.opencontainers.image.revision="${GIT_SHA}"' in dockerfile
     assert f"EXPECTED_OCI_SOURCE: {EXPECTED_OCI_SOURCE}" in workflow
     assert (
-        "docker image inspect \"$IMAGE_REF\" --format "
+        "docker image inspect \"$IMAGE_TAG\" --format "
         "'{{ index .Config.Labels \"org.opencontainers.image.source\" }}'"
     ) in workflow
     assert ' = "$EXPECTED_OCI_SOURCE"' in workflow
     assert (
-        "docker image inspect \"$IMAGE_REF\" --format "
+        "docker image inspect \"$IMAGE_TAG\" --format "
         "'{{ index .Config.Labels \"org.opencontainers.image.revision\" }}'"
     ) in workflow
-    assert ' = "$GITHUB_SHA"' in workflow
+    assert ' = "$SOURCE_SHA"' in workflow

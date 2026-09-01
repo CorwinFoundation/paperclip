@@ -30,14 +30,20 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertEqual(rendered["build_sha"], SHA)
         self.assertEqual(rendered["release_tag"], f"sha-{SHA}")
 
-    def test_workflow_is_unsigned_and_immutable(self):
+    def test_workflow_is_manual_signed_and_immutable(self):
         text = (ROOT / ".github/workflows/scanner-edge-image.yml").read_text()
         workflow = yaml.safe_load(text)
-        self.assertEqual(workflow["permissions"], {"contents": "read", "packages": "write"})
-        self.assertIn("ghcr.io/corwinfoundation/are-scanner:sha-${{ github.sha }}", text)
+        self.assertEqual(
+            workflow["permissions"],
+            {"contents": "read", "id-token": "write", "packages": "write"},
+        )
+        self.assertEqual(set(workflow[True]), {"workflow_dispatch"})
+        self.assertIn('image_tag="${IMAGE_REPOSITORY}:sha-${SOURCE_SHA}"', text)
         self.assertNotIn(":latest", text)
-        self.assertNotIn("cosign", text.lower())
-        self.assertNotIn("id-token", text)
+        self.assertIn("cosign sign --yes --new-bundle-format=true", text)
+        self.assertIn("scanner-edge-image.sigstore.sha256", text)
+        self.assertNotIn("ssh ", text.lower())
+        self.assertNotIn("scp ", text.lower())
         self.assertIn('manifest["build_sha"]', text)
         self.assertIn('manifest["release_tag"]', text)
 

@@ -13,18 +13,19 @@ def _workflow() -> tuple[str, dict]:
     return text, yaml.safe_load(text)
 
 
-def test_image_build_is_manual_only_and_direct_deploy_workflow_is_absent() -> None:
-    """Neither a merge nor another workflow may create a deployment path.
-
-    BEAAA-25460 quarantined the unapproved direct-production workflow and
-    restored image publication to an explicit manual action. A future
-    automatic trigger or a recreated ``deploy.yml`` must fail this guard.
-    """
-    text, workflow = _workflow()
+def test_image_and_release_evidence_workflow_is_manual_only() -> None:
+    """A merge or chained workflow must never publish or deploy a candidate."""
+    _, workflow = _workflow()
     triggers = workflow[True]
 
     assert set(triggers) == {"workflow_dispatch"}
-    assert triggers["workflow_dispatch"] is None
+    dispatch = triggers["workflow_dispatch"]
+    assert set(dispatch["inputs"]) == {
+        "source_sha",
+        "expected_image_digest",
+        "source_issue_id",
+        "sequence",
+    }
     for automatic in (
         "push",
         "pull_request",
@@ -33,56 +34,83 @@ def test_image_build_is_manual_only_and_direct_deploy_workflow_is_absent() -> No
         "repository_dispatch",
     ):
         assert automatic not in triggers, automatic
-    assert "sequence" not in text.lower()
     assert not DEPLOY_WORKFLOW.exists()
 
 
-def test_workflow_builds_exact_sha_image_and_uploads_immutable_archive() -> None:
+def test_workflow_binds_source_sha_digest_and_master_ancestry() -> None:
     text, workflow = _workflow()
     job = workflow["jobs"]["image-build"]
     steps = job["steps"]
 
-    assert job["env"]["IMAGE_REF"] == "ghcr.io/corwinfoundation/are-scanner:sha-${{ github.sha }}"
-    assert job["env"]["RELEASE_TAG"] == "sha-${{ github.sha }}"
-    assert any(step.get("name") == "Validate candidate SHA and immutable target" for step in steps)
-    assert any(step.get("name") == "Verify OCI and embedded release identity before push" for step in steps)
-    assert any(step.get("name") == "Verify runtime import closure" for step in steps)
-    assert any(step.get("name") == "Push immutable image and record repository digest" for step in steps)
-    assert any(step.get("name") == "Export the same immutable image archive" for step in steps)
-    assert any(step.get("name") == "Upload immutable image archive" for step in steps)
+    assert job["env"]["SOURCE_SHA"] == "${{ inputs.source_sha || github.sha }}"
+    assert job["env"]["IMAGE_REPOSITORY"] == "ghcr.io/corwinfoundation/are-scanner"
+    assert any(step.get("name") == "Validate source and release inputs" for step in steps)
+    assert 'test "$GITHUB_REF" = refs/heads/master' in text
+    assert 'git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/master' in text
+    assert 'test "$SOURCE_SHA" = "$(git rev-parse refs/remotes/origin/master)"' in text
+    assert "expected_image_digest" in text
+    assert 'docker pull "$signed_ref"' in text
+    assert "org.opencontainers.image.revision" in text
+
+
+def test_workflow_builds_and_verifies_the_runtime_image() -> None:
+    text, workflow = _workflow()
+    steps = workflow["jobs"]["image-build"]["steps"]
+
+    for name in (
+        "Build or pull the exact candidate image",
+        "Verify OCI and embedded release identity",
+        "Verify runtime import closure",
+        "Verify AIUC-1 direct-family production binding in image",
+        "Export the exact immutable image archive",
+    ):
+        assert any(step.get("name") == name for step in steps)
+    assert "docker build" in text
     assert "docker push" in text
     assert "docker save" in text
     assert "scanner-edge-image.tar.sha256" in text
     assert "scanner-edge-image.digest" in text
 
 
-def test_registry_publish_is_unsigned_and_has_no_deploy_ceremony() -> None:
+def test_release_evidence_has_sbom_bundle_and_in_toto_provenance() -> None:
     text, workflow = _workflow()
+    steps = workflow["jobs"]["image-build"]["steps"]
 
-    forbidden = (
-        "paperclip",
-        "release-candidate",
-        "cosign",
-        "syft",
-        "sbom",
-        "id-token",
-        "ssh_private_key",
-        "known_hosts",
-        "deploy exact",
-        "scanner-ship",
-    )
-    lowered = text.lower()
-    for token in forbidden:
-        assert token not in lowered
+    for name in (
+        "Generate CycloneDX SBOM",
+        "Sign digest and attest SBOM and provenance",
+        "Write immutable release candidate manifest",
+        "Validate release identity gate",
+        "Upload governed release evidence",
+    ):
+        assert any(step.get("name") == name for step in steps)
+    assert "--new-bundle-format=true" in text
+    assert "scanner-edge-image.sigstore.sha256" in text
+    assert "--type cyclonedx" in text
+    assert "--type slsaprovenance" in text
+    assert "verify-attestation" in text
+    assert "scanner-edge-slsa-provenance.json" in text
+    assert "release_identity_gate.py" in text
+    assert workflow["permissions"] == {
+        "contents": "read",
+        "id-token": "write",
+        "packages": "write",
+    }
 
-    assert workflow["permissions"] == {"contents": "read", "packages": "write"}
 
-
-def test_workflow_does_not_contact_or_mutate_the_live_host() -> None:
+def test_workflow_cannot_contact_or_mutate_production() -> None:
     text, _ = _workflow()
     lowered = text.lower()
 
-    assert "ssh " not in lowered
-    assert "scp " not in lowered
-    assert "srv1749248" not in lowered
-    assert "scanner-deploy " not in lowered
+    forbidden = (
+        "ssh ",
+        "scp ",
+        "deploy_ssh",
+        "known_hosts",
+        "scanner-deploy ",
+        "paperclip_release_candidate_key",
+        "paperclip_api_key",
+        "/release-candidates",
+    )
+    for token in forbidden:
+        assert token not in lowered

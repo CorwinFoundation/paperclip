@@ -1,56 +1,124 @@
 name: Scanner Immutable GHCR Image
 
 on:
-  # Manual build only. Producing an immutable image is a governed release
-  # action; merging to master must not publish a deployable artifact by itself.
+  # Manual only. A blank expected digest builds an immutable master image.
+  # Supplying the four release inputs produces governed evidence for an
+  # already-published master image, but never contacts production.
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: "Exact master commit to build or prepare for release"
+        required: false
+        default: ""
+        type: string
+      expected_image_digest:
+        description: "Exact ghcr.io/corwinfoundation/are-scanner@sha256 digest; blank means build"
+        required: false
+        default: ""
+        type: string
+      source_issue_id:
+        description: "Paperclip source issue UUID; required for release evidence"
+        required: false
+        default: ""
+        type: string
+      sequence:
+        description: "Positive release-candidate sequence; required for release evidence"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
+  id-token: write
   packages: write
 
 concurrency:
-  group: scanner-immutable-image-${{ github.sha }}
+  group: scanner-immutable-image-${{ inputs.source_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
   image-build:
-    name: publish immutable scanner image
+    name: publish immutable scanner image and governed evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
-      IMAGE_REF: ghcr.io/corwinfoundation/are-scanner:sha-${{ github.sha }}
-      RELEASE_TAG: sha-${{ github.sha }}
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      EXPECTED_IMAGE_DIGEST: ${{ inputs.expected_image_digest }}
+      SOURCE_ISSUE_ID: ${{ inputs.source_issue_id }}
+      SEQUENCE: ${{ inputs.sequence }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+      WORKFLOW_REF: ${{ github.workflow_ref }}
+      IMAGE_REPOSITORY: ghcr.io/corwinfoundation/are-scanner
       EXPECTED_OCI_SOURCE: https://github.com/CorwinFoundation/are-scanner
+      EXPECTED_SIGNER: https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master
+      OIDC_ISSUER: https://token.actions.githubusercontent.com
+      TARGET_ENVIRONMENT: production
+      TARGET_HOST: srv1749248
     steps:
-      - name: Check out exact commit
-        uses: actions/checkout@v6
+      - name: Check out exact source commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 0
 
-      - name: Validate candidate SHA and immutable target
+      - name: Validate source and release inputs
+        shell: bash
         run: |
           set -euo pipefail
-          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
-          test "$IMAGE_REF" = "ghcr.io/corwinfoundation/are-scanner:sha-${GITHUB_SHA}"
-          test "$RELEASE_TAG" = "sha-${GITHUB_SHA}"
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/master
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git fetch --no-tags origin master:refs/remotes/origin/master
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/master
+
+          if [ -n "$EXPECTED_IMAGE_DIGEST" ]; then
+            [[ "$EXPECTED_IMAGE_DIGEST" =~ ^ghcr\.io/corwinfoundation/are-scanner@sha256:[0-9a-f]{64}$ ]]
+            [[ "$SOURCE_ISSUE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]]
+            [[ "$SEQUENCE" =~ ^[1-9][0-9]*$ ]]
+            test "$SOURCE_SHA" = "$(git rev-parse refs/remotes/origin/master)"
+          else
+            test -z "$SOURCE_ISSUE_ID"
+            test -z "$SEQUENCE"
+          fi
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build exact candidate image
+      - name: Build or pull the exact candidate image
+        id: image
+        shell: bash
         run: |
           set -euo pipefail
-          docker build --build-arg "GIT_SHA=${GITHUB_SHA}" --tag "$IMAGE_REF" .
+          image_tag="${IMAGE_REPOSITORY}:sha-${SOURCE_SHA}"
+          if [ -z "$EXPECTED_IMAGE_DIGEST" ]; then
+            docker build --build-arg "GIT_SHA=${SOURCE_SHA}" --tag "$image_tag" .
+            docker push "$image_tag"
+            digest="$(docker buildx imagetools inspect "$image_tag" --format '{{ .Manifest.Digest }}')"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            signed_ref="${IMAGE_REPOSITORY}@${digest}"
+          else
+            signed_ref="$EXPECTED_IMAGE_DIGEST"
+            docker pull "$signed_ref"
+            docker tag "$signed_ref" "$image_tag"
+          fi
+          test "$(docker image inspect "$image_tag" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$SOURCE_SHA"
+          printf 'image_tag=%s\n' "$image_tag" >> "$GITHUB_OUTPUT"
+          printf 'signed_ref=%s\n' "$signed_ref" >> "$GITHUB_OUTPUT"
 
-      - name: Verify OCI and embedded release identity before push
+      - name: Verify OCI and embedded release identity
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.image_tag }}
         run: |
           set -euo pipefail
-          test "$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "$EXPECTED_OCI_SOURCE"
-          test "$(docker image inspect "$IMAGE_REF" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$GITHUB_SHA"
-          docker run --rm --entrypoint python "$IMAGE_REF" -c '
+          test "$(docker image inspect "$IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "$EXPECTED_OCI_SOURCE"
+          test "$(docker image inspect "$IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$SOURCE_SHA"
+          docker run --rm --entrypoint python "$IMAGE_TAG" -c '
           import json, os, pathlib
           manifest = json.loads(pathlib.Path("release/backbond-scanner-release.json").read_text())
           assert manifest["scanner_version"] == "0.5.0"
@@ -66,33 +134,154 @@ jobs:
           '
 
       - name: Verify runtime import closure
-        run: docker run --rm --entrypoint python "$IMAGE_REF" scripts/verify_runtime_import_closure.py
+        run: docker run --rm --entrypoint python "${{ steps.image.outputs.image_tag }}" scripts/verify_runtime_import_closure.py
 
       - name: Verify AIUC-1 direct-family production binding in image
-        run: docker run --rm --entrypoint python "$IMAGE_REF" scripts/verify_aiuc1_direct_families_release.py
+        run: docker run --rm --entrypoint python "${{ steps.image.outputs.image_tag }}" scripts/verify_aiuc1_direct_families_release.py
 
-      - name: Push immutable image and record repository digest
-        id: publish
+      - name: Export the exact immutable image archive
+        shell: bash
         run: |
           set -euo pipefail
-          docker push "$IMAGE_REF"
-          digest="$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{ .Manifest.Digest }}')"
-          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          printf '%s@%s\n' "$IMAGE_REF" "$digest" | tee scanner-edge-image.digest
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          mkdir -p release-candidate
+          local_tag="backbond-scanner-live:${SOURCE_SHA}"
+          docker tag "${{ steps.image.outputs.image_tag }}" "$local_tag"
+          docker save "$local_tag" -o release-candidate/scanner-edge-image.tar
+          printf '%s\n' "${{ steps.image.outputs.signed_ref }}" > release-candidate/scanner-edge-image.digest
+          sha256sum release-candidate/scanner-edge-image.tar > release-candidate/scanner-edge-image.tar.sha256
 
-      - name: Export the same immutable image archive
+      - name: Install Syft
+        if: ${{ inputs.expected_image_digest != '' }}
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+
+      - name: Generate CycloneDX SBOM
+        if: ${{ inputs.expected_image_digest != '' }}
+        id: sbom
+        shell: bash
         run: |
           set -euo pipefail
-          mkdir -p immutable-image
-          docker save "$IMAGE_REF" -o immutable-image/scanner-edge-image.tar
-          mv scanner-edge-image.digest immutable-image/scanner-edge-image.digest
-          sha256sum immutable-image/scanner-edge-image.tar > immutable-image/scanner-edge-image.tar.sha256
+          syft "${{ steps.image.outputs.image_tag }}" -o cyclonedx-json=release-candidate/scanner-edge-sbom.cdx.json
+          sha256sum release-candidate/scanner-edge-sbom.cdx.json | tee release-candidate/scanner-edge-sbom.sha256
+          printf 'hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-sbom.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Cosign
+        if: ${{ inputs.expected_image_digest != '' }}
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.1
+
+      - name: Sign digest and attest SBOM and provenance
+        if: ${{ inputs.expected_image_digest != '' }}
+        id: signed
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+          SBOM_HASH: ${{ steps.sbom.outputs.hash }}
+        run: |
+          set -euo pipefail
+          bundle=release-candidate/scanner-edge-image.sigstore.json
+          cosign sign --yes --new-bundle-format=true --bundle "$bundle" "$SIGNED_REF"
+          cosign verify \
+            --certificate-identity "$EXPECTED_SIGNER" \
+            --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --output json \
+            "$SIGNED_REF" | tee release-candidate/scanner-edge-cosign-verify.json
+
+          recorded_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          jq -n \
+            --arg sourceSha "$SOURCE_SHA" \
+            --arg workflowSha "$WORKFLOW_SHA" \
+            --arg workflowRef "$WORKFLOW_REF" \
+            --arg runUrl "$run_url" \
+            --arg imageDigest "$SIGNED_REF" \
+            --arg sbomHash "$SBOM_HASH" \
+            --arg recordedAt "$recorded_at" \
+            '{buildDefinition:{buildType:"https://backbond.ai/build/scanner-release-evidence@v1",externalParameters:{sourceSha:$sourceSha,imageDigest:$imageDigest,sbomSha256:$sbomHash},internalParameters:{workflowSha:$workflowSha,workflowRef:$workflowRef},resolvedDependencies:[{uri:"git+https://github.com/CorwinFoundation/are-scanner",digest:{gitCommit:$sourceSha}}]},runDetails:{builder:{id:$workflowRef},metadata:{invocationId:$runUrl,startedOn:$recordedAt,finishedOn:$recordedAt}}}' \
+            > release-candidate/scanner-edge-slsa-provenance.json
+
+          cosign attest --yes \
+            --predicate release-candidate/scanner-edge-sbom.cdx.json \
+            --type cyclonedx \
+            "$SIGNED_REF"
+          cosign attest --yes \
+            --predicate release-candidate/scanner-edge-slsa-provenance.json \
+            --type slsaprovenance \
+            "$SIGNED_REF"
+          cosign verify-attestation \
+            --certificate-identity "$EXPECTED_SIGNER" \
+            --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --type slsaprovenance \
+            "$SIGNED_REF" | tee release-candidate/scanner-edge-provenance-verify.json
+          cosign verify-attestation \
+            --certificate-identity "$EXPECTED_SIGNER" \
+            --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --type cyclonedx \
+            "$SIGNED_REF" | tee release-candidate/scanner-edge-sbom-attestation-verify.json
+
+          sha256sum "$bundle" | tee release-candidate/scanner-edge-image.sigstore.sha256
+          printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Write immutable release candidate manifest
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+          SBOM_HASH: ${{ steps.sbom.outputs.hash }}
+          BUNDLE_HASH: ${{ steps.signed.outputs.bundle_hash }}
+        run: |
+          set -euo pipefail
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          artifact="scanner-edge-release-candidate-${SOURCE_SHA}-${SEQUENCE}"
+          jq -n \
+            --arg sourceIssueId "$SOURCE_ISSUE_ID" \
+            --arg commitSha "$SOURCE_SHA" \
+            --arg sourceCommitSha "$SOURCE_SHA" \
+            --arg ociRevision "$SOURCE_SHA" \
+            --arg workflowCommitSha "$WORKFLOW_SHA" \
+            --arg workflowRef "$WORKFLOW_REF" \
+            --arg originMasterTip "$(git rev-parse refs/remotes/origin/master)" \
+            --arg imageDigest "$SIGNED_REF" \
+            --arg signatureBundleRef "${run_url}/artifacts/${artifact}/scanner-edge-image.sigstore.json" \
+            --arg signatureBundleSha256 "$BUNDLE_HASH" \
+            --arg signatureSubject "$EXPECTED_SIGNER" \
+            --arg signatureOidcIssuer "$OIDC_ISSUER" \
+            --arg signatureWorkflowRef "$WORKFLOW_REF" \
+            --arg provenanceRef "cosign-slsaprovenance:${SIGNED_REF}" \
+            --arg sbomHash "$SBOM_HASH" \
+            --arg workflowRunUrl "$run_url" \
+            --arg environment "$TARGET_ENVIRONMENT" \
+            --arg targetHost "$TARGET_HOST" \
+            --argjson sequence "$SEQUENCE" \
+            '{sourceIssueId:$sourceIssueId,commitSha:$commitSha,sourceCommitSha:$sourceCommitSha,ociRevision:$ociRevision,workflowCommitSha:$workflowCommitSha,workflowRef:$workflowRef,originMasterTip:$originMasterTip,imageDigest:$imageDigest,signatureBundleRef:$signatureBundleRef,signatureBundleSha256:$signatureBundleSha256,signatureSubject:$signatureSubject,signatureOidcIssuer:$signatureOidcIssuer,signatureWorkflowRef:$signatureWorkflowRef,provenanceRef:$provenanceRef,sbomHash:$sbomHash,workflowRunUrl:$workflowRunUrl,environment:$environment,targetHost:$targetHost,sequence:$sequence}' \
+            | tee release-candidate/scanner-release-candidate.json
+
+      - name: Validate release identity gate
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/deploy/release_identity_gate.py \
+            --release-candidate release-candidate/scanner-release-candidate.json \
+            --cosign-verify release-candidate/scanner-edge-cosign-verify.json \
+            --expected-source-issue-id "$SOURCE_ISSUE_ID" \
+            --expected-source-sha "$SOURCE_SHA" \
+            --expected-image-digest "${{ steps.image.outputs.signed_ref }}"
 
       - name: Upload immutable image archive
-        uses: actions/upload-artifact@v7
+        if: ${{ inputs.expected_image_digest == '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: scanner-immutable-image-${{ github.sha }}
-          path: immutable-image/
+          name: scanner-immutable-image-${{ inputs.source_sha || github.sha }}
+          path: release-candidate/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload governed release evidence
+        if: ${{ inputs.expected_image_digest != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scanner-edge-release-candidate-${{ inputs.source_sha }}-${{ inputs.sequence }}
+          path: release-candidate/
+          if-no-files-found: error
+          retention-days: 90
