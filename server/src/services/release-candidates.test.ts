@@ -43,6 +43,7 @@ function makeDb(
     failApprovalBinding?: boolean;
     failApprovalUpdate?: boolean;
     failMutableUpdate?: boolean;
+    loseStagingRace?: boolean;
     failStagingUpdate?: boolean;
   } = {},
 ) {
@@ -116,6 +117,9 @@ function makeDb(
               }
               if (options.failApprovalUpdate && (value as Record<string, unknown>).status === "approved") {
                 throw new Error("candidate approval update failed");
+              }
+              if (options.loseStagingRace && (value as Record<string, unknown>).status === "staged") {
+                return [];
               }
               if (options.failStagingUpdate && (value as Record<string, unknown>).status === "staged") {
                 throw new Error("candidate staging update failed");
@@ -297,6 +301,238 @@ describe("release candidate approval relay", () => {
           interactionId: nextInteractionId,
           previousInteractionId,
           previousInteractionStatus: "expired",
+        }),
+      }),
+    ]));
+  });
+
+  it("allows a fresh Founder interaction after an unused deploy authorization expires", async () => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+      approvedByUserId: "founder",
+      approvedAt: new Date("2026-07-13T00:05:00.000Z"),
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      companyId: candidate.companyId,
+      issueId: candidate.sourceIssueId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      continuationPolicy: "wake_assignee" as const,
+      idempotencyKey: `release-candidate:${candidate.id}:approval:${candidate.imageDigest}`,
+      sourceCommentId: null,
+      sourceRunId: null,
+      title: null,
+      summary: null,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+      result: { version: 1 as const, outcome: "accepted" as const },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const expiredAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() - 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+    };
+
+    const result = await releaseCandidateService(
+      makeDb([[acceptedInteraction], [expiredAuthorization]]).db,
+    ).getApprovalReissueSource(approvedCandidate);
+
+    expect(result).toMatchObject({
+      id: previousInteractionId,
+      status: "accepted",
+    });
+  });
+
+  it("rejects approval reissue while an unused deploy authorization is still active", async () => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+    };
+    const activeAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() + 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+    };
+
+    await expect(
+      releaseCandidateService(makeDb([[acceptedInteraction], [activeAuthorization]]).db)
+        .getApprovalReissueSource(approvedCandidate),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Release candidate deploy authorization is still active",
+      details: expect.objectContaining({ code: "release_candidate_authorization_active" }),
+    });
+  });
+
+  it.each([
+    ["used", { usedAt: new Date() }],
+    ["artifact staged", { leaseArtifactAssetId: "22222222-2222-4222-8222-222222222222" }],
+    ["signature staged", { leaseSignatureBundleAssetId: "33333333-3333-4333-8333-333333333333" }],
+    ["lease issued", { leaseIssuedAt: new Date() }],
+  ])("rejects approval reissue after the authorization is %s", async (_state, consumedFields) => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+    };
+    const consumedAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() - 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+      ...consumedFields,
+    };
+
+    await expect(
+      releaseCandidateService(makeDb([[acceptedInteraction], [consumedAuthorization]]).db)
+        .getApprovalReissueSource(approvedCandidate),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Release candidate deploy authorization has already been consumed",
+      details: expect.objectContaining({ code: "release_candidate_authorization_consumed" }),
+    });
+  });
+
+  it("rebinds an approved candidate after its unused deploy authorization expires", async () => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const nextInteractionId = "11111111-1111-4111-8111-111111111111";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+      approvedByUserId: "founder",
+      approvedAt: new Date("2026-07-13T00:05:00.000Z"),
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      companyId: candidate.companyId,
+      issueId: candidate.sourceIssueId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      continuationPolicy: "wake_assignee" as const,
+      idempotencyKey: `release-candidate:${candidate.id}:approval:${candidate.imageDigest}`,
+      sourceCommentId: null,
+      sourceRunId: null,
+      title: null,
+      summary: null,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+      result: { version: 1 as const, outcome: "accepted" as const },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const nextInteraction = {
+      ...acceptedInteraction,
+      id: nextInteractionId,
+      status: "pending" as const,
+    };
+    const expiredAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() - 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+    };
+    const { db, inserted, updated } = makeDb([
+      [approvedCandidate],
+      [acceptedInteraction],
+      [expiredAuthorization],
+    ]);
+
+    const result = await releaseCandidateService(db).markApprovalInteractionCreated(
+      candidate.id,
+      nextInteraction,
+      { userId: "founder" },
+    );
+
+    expect(result).toMatchObject({
+      status: "approval_requested",
+      approvalInteractionId: nextInteractionId,
+      approvedByUserId: null,
+      approvedAt: null,
+    });
+    expect(updated).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        approvalInteractionId: nextInteractionId,
+        status: "approval_requested",
+        approvedByUserId: null,
+        approvedAt: null,
+      }),
+    ]));
+    expect(inserted).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        eventType: "approval_reissued",
+        payload: expect.objectContaining({
+          previousCandidateStatus: "approved",
+          reason: "expired_unconsumed_authorization",
         }),
       }),
     ]));
@@ -737,6 +973,67 @@ describe("release candidate approval relay", () => {
     expect(updated).toHaveLength(0);
 
     options.failStagingUpdate = false;
+    await expect(
+      service.stageRelayArtifact(authorization.id, token, artifact, assetIds, {
+        agentId: candidate.createdByAgentId,
+      }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("rolls back token consumption when approval reissue wins the staging race", async () => {
+    const token = "pcdeploy_reissue-race";
+    const authorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      companyId: candidate.companyId,
+      candidateId: candidate.id,
+      approvalInteractionId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      tokenHash: createHash("sha256").update(token).digest("hex"),
+      tokenPrefix: "pcdeploy_reissue",
+      targetHost: candidate.targetHost,
+      imageDigest: candidate.imageDigest,
+      environment: candidate.environment,
+      sequence: candidate.sequence,
+      expiresAt: new Date(Date.now() + 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+      createdByUserId: "founder",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const artifact = {
+      imageDigest: candidate.imageDigest,
+      sbomHash: candidate.sbomHash,
+      signatureVerified: true,
+      sbomVerified: true,
+      tarballSha256: "4444444444444444444444444444444444444444444444444444444444444444",
+      signatureBundleSha256: candidate.signatureBundleSha256,
+      tarballBytes: Buffer.from("artifact"),
+      signatureBundleBytes: Buffer.from("signature"),
+    };
+    const options = { atomicAuthorizationConsume: true, loseStagingRace: true };
+    const { db, updated, transactions } = makeDb(
+      [[authorization], [candidate], [authorization], [candidate]],
+      options,
+    );
+    const service = releaseCandidateService(db);
+    const assetIds = { artifactAssetId: "asset-one", signatureBundleAssetId: "signature-one" };
+
+    await expect(
+      service.stageRelayArtifact(authorization.id, token, artifact, assetIds, {
+        agentId: candidate.createdByAgentId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Release candidate approval changed before artifact staging",
+      details: expect.objectContaining({ code: "release_candidate_stage_race" }),
+    });
+
+    expect(transactions.count).toBe(1);
+    expect(updated).toHaveLength(0);
+
+    options.loseStagingRace = false;
     await expect(
       service.stageRelayArtifact(authorization.id, token, artifact, assetIds, {
         agentId: candidate.createdByAgentId,
