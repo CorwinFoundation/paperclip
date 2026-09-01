@@ -41,6 +41,12 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('image_tag="${IMAGE_REPOSITORY}:sha-${SOURCE_SHA}"', text)
         self.assertNotIn(":latest", text)
         self.assertIn("cosign sign --timeout 90s --yes --new-bundle-format=true", text)
+        self.assertIn("COSIGN_WALL_TIMEOUT: 180s", text)
+        self.assertEqual(
+            text.count('timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT"'),
+            6,
+        )
+        self.assertEqual(text.count("--timeout 90s"), 6)
         self.assertIn("scanner-edge-image.sigstore.sha256", text)
         self.assertNotIn("ssh ", text.lower())
         self.assertNotIn("scp ", text.lower())

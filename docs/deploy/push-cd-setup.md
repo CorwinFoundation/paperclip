@@ -8,8 +8,8 @@ focus_claim: "This runbook keeps BackBond Scanner production promotion behind ex
 contracts_referenced: ["are-scanner-api-v1"]
 ticket_refs: ["BEAAA-25460", "BEAAA-25461", "BEAAA-28248"]
 proof_points_cited: ["GitHub protected review", "Sigstore keyless signing", "CycloneDX SBOM", "in-toto provenance"]
-version: 0.3
-prior_version: "docs/deploy/push-cd-setup.md@e79d33dc"
+version: 0.4
+prior_version: "docs/deploy/push-cd-setup.md@8ee066c9"
 self_audit_passed: true
 escalations_noted: []
 ---
@@ -42,9 +42,11 @@ An authorized operator may manually dispatch
    manifest, and uploads the evidence bundle for 90 days.
 
 Each Cosign sign, verify, attest, and attestation-verification operation is a
-separate visible gate with a 90-second command timeout. A stalled trust-service
-or registry call therefore fails at the exact phase instead of consuming the
-workflow's cumulative timeout without actionable evidence.
+separate visible gate. Every operation keeps Cosign's 90-second command timeout
+and also runs inside a 180-second operating-system wall-clock timeout. If a
+trust-service or registry call ignores the internal timeout, the outer bound
+terminates it and the workflow fails at that exact phase with actionable
+evidence instead of hanging until the job-wide limit.
 
 The workflow runs only through `workflow_dispatch`, requires the workflow ref to
 be `master`, and requires a release-evidence source commit to equal current

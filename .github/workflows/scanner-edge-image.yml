@@ -52,6 +52,7 @@ jobs:
       EXPECTED_OCI_SOURCE: https://github.com/CorwinFoundation/are-scanner
       EXPECTED_SIGNER: https://github.com/CorwinFoundation/are-scanner/.github/workflows/scanner-edge-image.yml@refs/heads/master
       OIDC_ISSUER: https://token.actions.githubusercontent.com
+      COSIGN_WALL_TIMEOUT: 180s
       TARGET_ENVIRONMENT: production
       TARGET_HOST: srv1749248
     steps:
@@ -179,7 +180,8 @@ jobs:
         run: |
           set -euo pipefail
           bundle=release-candidate/scanner-edge-image.sigstore.json
-          cosign sign --timeout 90s --yes --new-bundle-format=true --bundle "$bundle" "$SIGNED_REF"
+          timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
+            cosign sign --timeout 90s --yes --new-bundle-format=true --bundle "$bundle" "$SIGNED_REF"
           sha256sum "$bundle" | tee release-candidate/scanner-edge-image.sigstore.sha256
           printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
@@ -190,7 +192,8 @@ jobs:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
-          cosign verify \
+          timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
+            cosign verify \
             --timeout 90s \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
@@ -225,7 +228,8 @@ jobs:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
-          cosign attest --timeout 90s --yes \
+          timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
+            cosign attest --timeout 90s --yes \
             --predicate release-candidate/scanner-edge-sbom.cdx.json \
             --type cyclonedx \
             "$SIGNED_REF"
@@ -237,7 +241,8 @@ jobs:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
-          cosign attest --timeout 90s --yes \
+          timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
+            cosign attest --timeout 90s --yes \
             --predicate release-candidate/scanner-edge-slsa-provenance.json \
             --type slsaprovenance \
             "$SIGNED_REF"
@@ -249,7 +254,8 @@ jobs:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
-          cosign verify-attestation \
+          timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
+            cosign verify-attestation \
             --timeout 90s \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
@@ -263,7 +269,8 @@ jobs:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
         run: |
           set -euo pipefail
-          cosign verify-attestation \
+          timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
+            cosign verify-attestation \
             --timeout 90s \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
