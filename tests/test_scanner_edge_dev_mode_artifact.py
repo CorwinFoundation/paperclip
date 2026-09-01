@@ -78,7 +78,13 @@ def test_release_evidence_has_sbom_bundle_and_in_toto_provenance() -> None:
 
     for name in (
         "Generate CycloneDX SBOM",
-        "Sign digest and attest SBOM and provenance",
+        "Sign exact digest and write Sigstore bundle",
+        "Verify exact digest signature",
+        "Write SLSA provenance predicate",
+        "Attest CycloneDX SBOM",
+        "Attest SLSA provenance",
+        "Verify SLSA provenance attestation",
+        "Verify CycloneDX SBOM attestation",
         "Write immutable release candidate manifest",
         "Validate release identity gate",
         "Upload governed release evidence",
@@ -89,6 +95,7 @@ def test_release_evidence_has_sbom_bundle_and_in_toto_provenance() -> None:
     assert "--type cyclonedx" in text
     assert "--type slsaprovenance" in text
     assert "verify-attestation" in text
+    assert text.count("--timeout 90s") == 6
     assert "scanner-edge-slsa-provenance.json" in text
     assert "release_identity_gate.py" in text
     assert workflow["permissions"] == {

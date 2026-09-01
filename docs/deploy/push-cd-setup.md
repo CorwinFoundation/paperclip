@@ -8,8 +8,8 @@ focus_claim: "This runbook keeps BackBond Scanner production promotion behind ex
 contracts_referenced: ["are-scanner-api-v1"]
 ticket_refs: ["BEAAA-25460", "BEAAA-25461", "BEAAA-28248"]
 proof_points_cited: ["GitHub protected review", "Sigstore keyless signing", "CycloneDX SBOM", "in-toto provenance"]
-version: 0.2
-prior_version: "docs/deploy/push-cd-setup.md@82492317"
+version: 0.3
+prior_version: "docs/deploy/push-cd-setup.md@e79d33dc"
 self_audit_passed: true
 escalations_noted: []
 ---
@@ -40,6 +40,11 @@ An authorized operator may manually dispatch
    release identity, generates a CycloneDX SBOM, creates and verifies a Sigstore
    bundle, attests both the SBOM and SLSA provenance, validates the release
    manifest, and uploads the evidence bundle for 90 days.
+
+Each Cosign sign, verify, attest, and attestation-verification operation is a
+separate visible gate with a 90-second command timeout. A stalled trust-service
+or registry call therefore fails at the exact phase instead of consuming the
+workflow's cumulative timeout without actionable evidence.
 
 The workflow runs only through `workflow_dispatch`, requires the workflow ref to
 be `master`, and requires a release-evidence source commit to equal current

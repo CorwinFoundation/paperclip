@@ -170,23 +170,41 @@ jobs:
         with:
           cosign-release: v3.1.1
 
-      - name: Sign digest and attest SBOM and provenance
+      - name: Sign exact digest and write Sigstore bundle
         if: ${{ inputs.expected_image_digest != '' }}
         id: signed
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+        run: |
+          set -euo pipefail
+          bundle=release-candidate/scanner-edge-image.sigstore.json
+          cosign sign --timeout 90s --yes --new-bundle-format=true --bundle "$bundle" "$SIGNED_REF"
+          sha256sum "$bundle" | tee release-candidate/scanner-edge-image.sigstore.sha256
+          printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact digest signature
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --timeout 90s \
+            --certificate-identity "$EXPECTED_SIGNER" \
+            --certificate-oidc-issuer "$OIDC_ISSUER" \
+            --output json \
+            "$SIGNED_REF" | tee release-candidate/scanner-edge-cosign-verify.json
+
+      - name: Write SLSA provenance predicate
+        if: ${{ inputs.expected_image_digest != '' }}
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
           SBOM_HASH: ${{ steps.sbom.outputs.hash }}
         run: |
           set -euo pipefail
-          bundle=release-candidate/scanner-edge-image.sigstore.json
-          cosign sign --yes --new-bundle-format=true --bundle "$bundle" "$SIGNED_REF"
-          cosign verify \
-            --certificate-identity "$EXPECTED_SIGNER" \
-            --certificate-oidc-issuer "$OIDC_ISSUER" \
-            --output json \
-            "$SIGNED_REF" | tee release-candidate/scanner-edge-cosign-verify.json
-
           recorded_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           jq -n \
@@ -200,27 +218,57 @@ jobs:
             '{buildDefinition:{buildType:"https://backbond.ai/build/scanner-release-evidence@v1",externalParameters:{sourceSha:$sourceSha,imageDigest:$imageDigest,sbomSha256:$sbomHash},internalParameters:{workflowSha:$workflowSha,workflowRef:$workflowRef},resolvedDependencies:[{uri:"git+https://github.com/CorwinFoundation/are-scanner",digest:{gitCommit:$sourceSha}}]},runDetails:{builder:{id:$workflowRef},metadata:{invocationId:$runUrl,startedOn:$recordedAt,finishedOn:$recordedAt}}}' \
             > release-candidate/scanner-edge-slsa-provenance.json
 
-          cosign attest --yes \
+      - name: Attest CycloneDX SBOM
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+        run: |
+          set -euo pipefail
+          cosign attest --timeout 90s --yes \
             --predicate release-candidate/scanner-edge-sbom.cdx.json \
             --type cyclonedx \
             "$SIGNED_REF"
-          cosign attest --yes \
+
+      - name: Attest SLSA provenance
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+        run: |
+          set -euo pipefail
+          cosign attest --timeout 90s --yes \
             --predicate release-candidate/scanner-edge-slsa-provenance.json \
             --type slsaprovenance \
             "$SIGNED_REF"
+
+      - name: Verify SLSA provenance attestation
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+        run: |
+          set -euo pipefail
           cosign verify-attestation \
+            --timeout 90s \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
             --type slsaprovenance \
             "$SIGNED_REF" | tee release-candidate/scanner-edge-provenance-verify.json
+
+      - name: Verify CycloneDX SBOM attestation
+        if: ${{ inputs.expected_image_digest != '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+        run: |
+          set -euo pipefail
           cosign verify-attestation \
+            --timeout 90s \
             --certificate-identity "$EXPECTED_SIGNER" \
             --certificate-oidc-issuer "$OIDC_ISSUER" \
             --type cyclonedx \
             "$SIGNED_REF" | tee release-candidate/scanner-edge-sbom-attestation-verify.json
-
-          sha256sum "$bundle" | tee release-candidate/scanner-edge-image.sigstore.sha256
-          printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Write immutable release candidate manifest
         if: ${{ inputs.expected_image_digest != '' }}

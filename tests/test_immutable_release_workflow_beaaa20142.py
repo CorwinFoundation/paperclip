@@ -40,7 +40,7 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertEqual(set(workflow[True]), {"workflow_dispatch"})
         self.assertIn('image_tag="${IMAGE_REPOSITORY}:sha-${SOURCE_SHA}"', text)
         self.assertNotIn(":latest", text)
-        self.assertIn("cosign sign --yes --new-bundle-format=true", text)
+        self.assertIn("cosign sign --timeout 90s --yes --new-bundle-format=true", text)
         self.assertIn("scanner-edge-image.sigstore.sha256", text)
         self.assertNotIn("ssh ", text.lower())
         self.assertNotIn("scp ", text.lower())
