@@ -62,6 +62,47 @@ def _candidate(**overrides):
         "signatureSubject": release_identity_gate.EXPECTED_SUBJECT,
         "signatureOidcIssuer": release_identity_gate.EXPECTED_ISSUER,
         "signatureWorkflowRef": release_identity_gate.EXPECTED_WORKFLOW_REF,
+        "evidencePublication": {
+            "schemaVersion": "backbond-scanner-evidence-publication@1",
+            "repository": release_identity_gate.EXPECTED_EVIDENCE_REPOSITORY,
+            "tag": f"sha-{SOURCE_SHA}-sequence-27-run-123456",
+            "artifactType": release_identity_gate.EXPECTED_EVIDENCE_ARTIFACT_TYPE,
+            "required": True,
+        },
+        "releaseGates": {
+            "schemaVersion": "backbond-scanner-release-gates@1",
+            "status": "evidence_only",
+            "deploymentInvoked": False,
+            "requiredOrder": [
+                {
+                    "order": 1,
+                    "id": "independent_exact_candidate_qa",
+                    "status": "pending",
+                    "binding": {
+                        "sourceIssueId": SOURCE_ISSUE_ID,
+                        "sourceCommitSha": SOURCE_SHA,
+                        "imageDigest": IMAGE_REF,
+                    },
+                },
+                {
+                    "order": 2,
+                    "id": "fresh_founder_approval",
+                    "status": "blocked",
+                    "dependsOn": ["independent_exact_candidate_qa"],
+                    "bindingPolicy": "exact_paperclip_release_candidate",
+                },
+                {
+                    "order": 3,
+                    "id": "on_box_fail_closed_activation",
+                    "status": "blocked",
+                    "dependsOn": [
+                        "independent_exact_candidate_qa",
+                        "fresh_founder_approval",
+                    ],
+                    "route": "paperclip_release_candidate",
+                },
+            ],
+        },
     }
     data.update(overrides)
     return data
@@ -152,6 +193,36 @@ def test_release_identity_gate_rejects_source_issue_drift():
 
     assert "sourceIssueId" in str(exc.value)
     assert SOURCE_ISSUE_ID in str(exc.value)
+
+
+def test_release_identity_gate_rejects_production_target_binding():
+    with pytest.raises(release_identity_gate.ReleaseIdentityError) as exc:
+        release_identity_gate.validate_release_identity(
+            _candidate(targetHost="production-host", environment="production"),
+            _cosign(),
+        )
+
+    assert "must not bind" in str(exc.value)
+
+
+def test_release_identity_gate_rejects_founder_approval_before_exact_candidate_qa():
+    candidate = _candidate()
+    candidate["releaseGates"]["requiredOrder"][1]["dependsOn"] = []
+
+    with pytest.raises(release_identity_gate.ReleaseIdentityError) as exc:
+        release_identity_gate.validate_release_identity(candidate, _cosign())
+
+    assert "Founder approval must be blocked" in str(exc.value)
+
+
+def test_release_identity_gate_rejects_transient_only_evidence():
+    candidate = _candidate()
+    candidate["evidencePublication"]["required"] = False
+
+    with pytest.raises(release_identity_gate.ReleaseIdentityError) as exc:
+        release_identity_gate.validate_release_identity(candidate, _cosign())
+
+    assert "evidencePublication must be required" in str(exc.value)
 
 
 def test_release_identity_gate_accepts_cosign_v3_output_with_empty_optional_claims():

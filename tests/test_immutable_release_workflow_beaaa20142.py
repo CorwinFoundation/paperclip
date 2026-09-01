@@ -54,6 +54,23 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("scanner-edge-sbom-attestation.sigstore.json", text)
         self.assertIn("scanner-edge-provenance-attestation.sigstore.json", text)
         self.assertIn("scanner-edge-image.sigstore.sha256", text)
+        self.assertIn(
+            "oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d",
+            text,
+        )
+        self.assertIn("ghcr.io/corwinfoundation/are-scanner-release-evidence", text)
+        self.assertIn("oras push", text)
+        self.assertIn("oras pull", text)
+        self.assertIn("verifiedByDigestPull:true", text)
+        self.assertIn("independent_exact_candidate_qa", text)
+        self.assertIn("fresh_founder_approval", text)
+        self.assertIn(
+            'dependsOn:["independent_exact_candidate_qa","fresh_founder_approval"]',
+            text,
+        )
+        self.assertIn('deploymentInvoked:false', text)
+        self.assertNotIn("srv1749248", text)
+        self.assertNotIn("TARGET_HOST", text)
         self.assertNotIn("ssh ", text.lower())
         self.assertNotIn("scp ", text.lower())
         self.assertIn('manifest["build_sha"]', text)

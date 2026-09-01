@@ -29,6 +29,12 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 )
+EXPECTED_EVIDENCE_REPOSITORY = (
+    "ghcr.io/corwinfoundation/are-scanner-release-evidence"
+)
+EXPECTED_EVIDENCE_ARTIFACT_TYPE = (
+    "application/vnd.backbond.scanner.release-evidence.v1"
+)
 
 
 class ReleaseIdentityError(ValueError):
@@ -77,6 +83,90 @@ def _release_digest(value: Any) -> str | None:
     return value
 
 
+def _validate_predeployment_contract(
+    release_candidate: dict[str, Any],
+    *,
+    source_sha: Any,
+    source_issue_id: Any,
+    image_ref: Any,
+) -> list[str]:
+    errors: list[str] = []
+    if "targetHost" in release_candidate or "environment" in release_candidate:
+        errors.append(
+            "evidence-only manifest must not bind a deployment targetHost or environment"
+        )
+
+    publication = release_candidate.get("evidencePublication")
+    if not isinstance(publication, dict):
+        errors.append("evidencePublication must be an object")
+    else:
+        if publication.get("schemaVersion") != "backbond-scanner-evidence-publication@1":
+            errors.append("evidencePublication schemaVersion is invalid")
+        if publication.get("repository") != EXPECTED_EVIDENCE_REPOSITORY:
+            errors.append("evidencePublication repository is invalid")
+        if publication.get("artifactType") != EXPECTED_EVIDENCE_ARTIFACT_TYPE:
+            errors.append("evidencePublication artifactType is invalid")
+        if publication.get("required") is not True:
+            errors.append("evidencePublication must be required")
+        tag = publication.get("tag")
+        expected_tag = re.compile(
+            rf"^sha-{re.escape(str(source_sha))}-sequence-[1-9][0-9]*-run-[1-9][0-9]*$"
+        )
+        if not isinstance(tag, str) or not expected_tag.fullmatch(tag):
+            errors.append("evidencePublication tag is not bound to sourceCommitSha")
+
+    gates = release_candidate.get("releaseGates")
+    if not isinstance(gates, dict):
+        return [*errors, "releaseGates must be an object"]
+    if gates.get("schemaVersion") != "backbond-scanner-release-gates@1":
+        errors.append("releaseGates schemaVersion is invalid")
+    if gates.get("status") != "evidence_only":
+        errors.append("releaseGates status must be evidence_only")
+    if gates.get("deploymentInvoked") is not False:
+        errors.append("releaseGates deploymentInvoked must be false")
+
+    required = gates.get("requiredOrder")
+    if not isinstance(required, list) or len(required) != 3:
+        return [*errors, "releaseGates requiredOrder must contain exactly three gates"]
+    expected_ids = [
+        "independent_exact_candidate_qa",
+        "fresh_founder_approval",
+        "on_box_fail_closed_activation",
+    ]
+    if [gate.get("id") if isinstance(gate, dict) else None for gate in required] != expected_ids:
+        errors.append("releaseGates requiredOrder is invalid")
+        return errors
+
+    qa_gate, founder_gate, activation_gate = required
+    expected_binding = {
+        "sourceIssueId": source_issue_id,
+        "sourceCommitSha": source_sha,
+        "imageDigest": image_ref,
+    }
+    if qa_gate.get("order") != 1 or qa_gate.get("status") != "pending":
+        errors.append("independent QA must be the first pending release gate")
+    if qa_gate.get("binding") != expected_binding:
+        errors.append("independent QA gate is not bound to the exact candidate")
+    if (
+        founder_gate.get("order") != 2
+        or founder_gate.get("status") != "blocked"
+        or founder_gate.get("dependsOn") != ["independent_exact_candidate_qa"]
+        or founder_gate.get("bindingPolicy") != "exact_paperclip_release_candidate"
+    ):
+        errors.append("Founder approval must be blocked on exact-candidate QA")
+    if (
+        activation_gate.get("order") != 3
+        or activation_gate.get("status") != "blocked"
+        or activation_gate.get("dependsOn")
+        != ["independent_exact_candidate_qa", "fresh_founder_approval"]
+        or activation_gate.get("route") != "paperclip_release_candidate"
+    ):
+        errors.append(
+            "on-box activation must be blocked on QA and fresh Founder approval"
+        )
+    return errors
+
+
 def validate_release_identity(
     release_candidate: dict[str, Any],
     cosign_verify: Any,
@@ -109,6 +199,14 @@ def validate_release_identity(
     release_workflow_ref = release_candidate.get("signatureWorkflowRef")
 
     errors: list[str] = []
+    errors.extend(
+        _validate_predeployment_contract(
+            release_candidate,
+            source_sha=source_sha,
+            source_issue_id=source_issue_id,
+            image_ref=image_ref_or_digest,
+        )
+    )
     if subject is not None and subject != EXPECTED_SUBJECT:
         errors.append(f"signature Subject={subject!r} expected {EXPECTED_SUBJECT!r}")
     if issuer is not None and issuer != EXPECTED_ISSUER:

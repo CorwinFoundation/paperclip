@@ -8,8 +8,8 @@ focus_claim: "This runbook keeps BackBond Scanner production promotion behind ex
 contracts_referenced: ["are-scanner-api-v1"]
 ticket_refs: ["BEAAA-25460", "BEAAA-25461", "BEAAA-28248"]
 proof_points_cited: ["GitHub protected review", "Sigstore keyless signing", "CycloneDX SBOM", "in-toto provenance"]
-version: 0.5
-prior_version: "docs/deploy/push-cd-setup.md@494c4677"
+version: 0.6
+prior_version: "docs/deploy/push-cd-setup.md@4eff250d"
 self_audit_passed: true
 escalations_noted: []
 ---
@@ -39,7 +39,17 @@ An authorized operator may manually dispatch
    `sequence`, it pulls that exact digest, verifies the OCI revision and embedded
    release identity, generates a CycloneDX SBOM, creates and verifies a Sigstore
    bundle, attests both the SBOM and SLSA provenance, validates the release
-   manifest, and uploads the evidence bundle for 90 days.
+   manifest, publishes the evidence bundle to GHCR as a content-addressed OCI
+   artifact, pulls it back by digest, and verifies the payload hash. A 90-day
+   Actions artifact is retained only as a convenience copy.
+
+The evidence manifest is deliberately target-neutral. It does not name a
+production host or environment. It records an ordered, fail-closed gate
+contract instead: independent QA must approve the exact source commit, image
+digest, and source issue; a fresh Founder approval is blocked until that QA
+gate passes; and on-box activation is blocked until both approvals pass. The
+successful workflow records the durable OCI digest and payload SHA-256 in its
+publication receipt and job summary.
 
 Each Cosign sign, verify, attest, and attestation-verification operation is a
 separate visible gate. Every operation keeps Cosign's 90-second command timeout,
@@ -57,8 +67,8 @@ host-activation step.
 
 ## Production gate
 
-The evidence bundle is not deploy authority. Promotion still requires all of
-the following:
+The durable evidence bundle is not deploy authority. Promotion still requires
+all of the following, in this order:
 
 1. a separately governed proposal and protected GitHub review;
 2. independent QA for the exact source commit and release evidence;
