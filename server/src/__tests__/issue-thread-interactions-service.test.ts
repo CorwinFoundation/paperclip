@@ -1847,5 +1847,83 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
         status: "accepted",
       });
     });
+
+    it("E2E: onRequestConfirmationAccepted hook is called exactly once; second accept is blocked by DB state", async () => {
+      // This is the end-to-end once-only issuance invariant test.
+      // It joins the transactional accept path (real DB state transition) with the
+      // onAccepted hook to confirm the hook fires exactly once and that the DB
+      // status change is what enforces the once-only property — not a derived flag.
+      const { companyId, issueId } = await seedConfirmationIssue("E2E once-only release token");
+
+      const created = await interactionsSvc.create(
+        { id: issueId, companyId },
+        {
+          kind: "request_confirmation",
+          continuationPolicy: "wake_assignee",
+          payload: {
+            version: 1,
+            prompt: "Approve production deploy?",
+          },
+        },
+        { userId: "local-board" },
+      );
+
+      expect(created.status).toBe("pending");
+
+      // Simulate what releaseCandidateService.handleAcceptedInteractionInTransaction does:
+      // returns a one-time token on the first call.
+      let hookCallCount = 0;
+      const fakeToken = "one-time-secret-token";
+      const onRequestConfirmationAccepted = async (_txDb: unknown, acceptedInteraction: { id: string }) => {
+        hookCallCount += 1;
+        return {
+          authorization: {
+            id: "auth-1",
+            candidateId: "cand-1",
+            targetHost: "srv1749248",
+            imageDigest: "sha256:abc",
+            environment: "production",
+            sequence: 1,
+            expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+          },
+          token: hookCallCount === 1 ? fakeToken : null,
+          alreadyIssued: hookCallCount > 1,
+          interactionId: acceptedInteraction.id,
+        };
+      };
+
+      // First accept — hook must fire and return the token.
+      const firstAccept = await interactionsSvc.acceptInteraction(
+        { id: issueId, companyId, goalId: null, projectId: null },
+        created.id,
+        {},
+        { userId: "local-board" },
+        { onRequestConfirmationAccepted },
+      );
+
+      expect(firstAccept.interaction.status).toBe("accepted");
+      expect(hookCallCount).toBe(1);
+      // acceptedResult carries the hook's return value — token is present on first issuance.
+      expect(firstAccept.acceptedResult).toMatchObject({
+        token: fakeToken,
+        alreadyIssued: false,
+      });
+
+      // Second accept on the same interaction ID — must be blocked by the DB status
+      // (status is now "accepted", not "pending"). The hook must NOT be called again.
+      await expect(
+        interactionsSvc.acceptInteraction(
+          { id: issueId, companyId, goalId: null, projectId: null },
+          created.id,
+          {},
+          { userId: "local-board" },
+          { onRequestConfirmationAccepted },
+        ),
+      ).rejects.toThrow("Interaction has already been resolved");
+
+      // The hook was never called a second time — once-only is enforced by DB state,
+      // not by a computed flag.
+      expect(hookCallCount).toBe(1);
+    });
   });
 });
