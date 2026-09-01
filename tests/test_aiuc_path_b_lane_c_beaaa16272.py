@@ -308,6 +308,6 @@ def test_rollback_flag_removes_family_from_manifest():
             r["activation_enabled"] = False
     m = manifest.full_scan_manifest(reg)
     assert "mcp_tool_integrity" not in {e["family"] for e in m["families"]}
-    # The authentication direct family is now an active lane-C manifest entry,
-    # so disabling MCP leaves five enabled families rather than four.
-    assert len(m["families"]) == 5
+    # Both direct families are active lane-C manifest entries, so disabling MCP
+    # leaves six enabled families.
+    assert len(m["families"]) == 6

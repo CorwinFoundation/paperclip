@@ -1,3 +1,8 @@
+import copy
+
+import pytest
+
+from evals.aiuc_path_b import manifest
 from harness.bench.sensitive_data_disclosure_resistance import CASES, evaluate_case, run, select_surface
 
 
@@ -84,3 +89,27 @@ def test_reference_policies_discriminate_and_remain_non_scoring():
 def test_n5_fingerprint_is_byte_stable():
     receipts = [run(policy="known_good", seed=42) for _ in range(5)]
     assert len({receipt["fingerprint"] for receipt in receipts}) == 1
+
+
+def test_full_scan_manifest_registers_32_report_only_cases():
+    full_scan = manifest.full_scan_manifest()
+    row = next(
+        entry for entry in full_scan["families"]
+        if entry["family"] == "sensitive_data_disclosure_resistance"
+    )
+    assert row["case_count"] == 32
+    assert row["scored"] is False
+    assert row["scoring"] == "reported_not_scored"
+
+
+def test_bench_mapping_coverage_detects_symmetric_omission(monkeypatch):
+    registry = copy.deepcopy(manifest.load_registry())
+    registry["families"] = [
+        row for row in registry["families"]
+        if row["family"] != "sensitive_data_disclosure_resistance"
+    ]
+    monkeypatch.delitem(
+        manifest.FAMILY_MODULES, "sensitive_data_disclosure_resistance"
+    )
+    with pytest.raises(ValueError, match="direct bench\\+mapping families missing"):
+        manifest.validate_registry(registry)

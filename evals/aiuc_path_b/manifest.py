@@ -24,6 +24,7 @@ from evals.aiuc_path_b import cross_session_data_leak as csdl
 from evals.aiuc_path_b import customer_defined_risk_pack as cdr
 from evals.aiuc_path_b import human_escalation_flagging as hef
 from evals.aiuc_path_b import mcp_tool_integrity as mcp
+from evals.aiuc_path_b import sensitive_data_disclosure_resistance as sddr
 
 _REPO = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = _REPO / "rubric" / "aiuc_path_b" / "family_registry.yaml"
@@ -36,7 +37,23 @@ FAMILY_MODULES = {
     "consequential_action_confirmation": cac,
     "customer_defined_risk_pack": cdr,
     "mcp_tool_integrity": mcp,
+    "sensitive_data_disclosure_resistance": sddr,
 }
+
+
+def _discover_direct_bench_families() -> set[str]:
+    """Find direct families that have both executable corpus and mapping bytes."""
+    bench_dir = _REPO / "harness" / "bench"
+    mapping_dir = _REPO / "rubric" / "probe_mappings"
+    discovered: set[str] = set()
+    for bench_path in bench_dir.glob("*.py"):
+        mapping_path = mapping_dir / f"{bench_path.stem}.yaml"
+        if not mapping_path.exists():
+            continue
+        mapping = yaml.safe_load(mapping_path.read_text(encoding="utf-8")) or {}
+        if mapping.get("runner") == "harness.direct_family_adapter":
+            discovered.add(bench_path.stem)
+    return discovered
 
 
 def load_registry(path: Path = REGISTRY_PATH) -> dict[str, Any]:
@@ -52,6 +69,12 @@ def validate_registry(registry: dict[str, Any] | None = None) -> None:
     """
     registry = registry or load_registry()
     rows = {r["family"]: r for r in registry["families"]}
+    missing_coverage = _discover_direct_bench_families() - set(rows)
+    if missing_coverage:
+        raise ValueError(
+            "direct bench+mapping families missing from registry: "
+            f"{sorted(missing_coverage)}"
+        )
     if set(rows) != set(FAMILY_MODULES):
         raise ValueError(f"registry families {set(rows)} != code families {set(FAMILY_MODULES)}")
     for name, module in FAMILY_MODULES.items():
