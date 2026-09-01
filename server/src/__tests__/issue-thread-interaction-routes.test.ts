@@ -21,6 +21,10 @@ const mockInteractionService = vi.hoisted(() => ({
   cancelQuestions: vi.fn(),
 }));
 
+const mockReleaseCandidateService = vi.hoisted(() => ({
+  handleAcceptedInteractionInTransaction: vi.fn(),
+}));
+
 const mockHeartbeatService = vi.hoisted(() => ({
   wakeup: vi.fn(async () => undefined),
 }));
@@ -123,6 +127,9 @@ function registerModuleMocks() {
       syncRunStatusForIssue: vi.fn(async () => undefined),
     }),
     workProductService: () => ({}),
+  }));
+  vi.doMock("../services/release-candidates.js", () => ({
+    releaseCandidateService: () => mockReleaseCandidateService,
   }));
 }
 
@@ -401,6 +408,9 @@ describe.sequential("issue thread interaction routes", () => {
       "interaction-1",
       { selectedClientKeys: ["task-1"] },
       expect.objectContaining({ userId: "local-board" }),
+      expect.objectContaining({
+        onRequestConfirmationAccepted: expect.any(Function),
+      }),
     );
     expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(2);
     expect(mockHeartbeatService.wakeup).toHaveBeenNthCalledWith(
@@ -429,6 +439,84 @@ describe.sequential("issue thread interaction routes", () => {
           sourceRunId: "run-1",
         }),
       }),
+    );
+  });
+
+  it("returns a release authorization token once from the transactional accept hook", async () => {
+    const interaction = {
+      id: "interaction-release",
+      companyId: "company-1",
+      issueId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      kind: "request_confirmation",
+      status: "accepted",
+      continuationPolicy: "wake_assignee",
+      idempotencyKey: null,
+      sourceCommentId: "comment-release",
+      sourceRunId: null,
+      payload: {
+        version: 1,
+        prompt: "Approve production deploy?",
+        target: {
+          type: "custom",
+          key: "release_candidate:candidate-1",
+          revisionId: `ghcr.io/corwinfoundation/are-scanner@sha256:${"a".repeat(64)}`,
+        },
+      },
+      result: { version: 1, outcome: "accepted" },
+      createdAt: "2026-09-01T09:00:00.000Z",
+      updatedAt: "2026-09-01T09:01:00.000Z",
+      resolvedAt: "2026-09-01T09:01:00.000Z",
+    };
+    const deployAuthorization = {
+      authorization: {
+        id: "authorization-1",
+        candidateId: "candidate-1",
+        targetHost: "srv1749248",
+        imageDigest: `ghcr.io/corwinfoundation/are-scanner@sha256:${"a".repeat(64)}`,
+        environment: "production",
+        sequence: 25,
+        expiresAt: new Date("2026-09-01T09:16:00.000Z"),
+      },
+      token: "one-time-token",
+      alreadyIssued: false,
+    };
+    mockInteractionService.acceptInteraction.mockResolvedValueOnce({
+      interaction,
+      createdIssues: [],
+      continuationIssue: null,
+      acceptedResult: deployAuthorization,
+    });
+    mockReleaseCandidateService.handleAcceptedInteractionInTransaction.mockResolvedValueOnce(deployAuthorization);
+
+    const app = await createApp();
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-release/accept")
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      interaction: { id: "interaction-release", status: "accepted" },
+      deployAuthorization: {
+        id: "authorization-1",
+        candidateId: "candidate-1",
+        token: "one-time-token",
+        tokenReturnedOnce: true,
+        alreadyIssued: false,
+        targetHost: "srv1749248",
+        environment: "production",
+        sequence: 25,
+      },
+    });
+
+    const hookOptions = mockInteractionService.acceptInteraction.mock.calls.at(-1)?.[4] as {
+      onRequestConfirmationAccepted: (transactionDb: unknown, acceptedInteraction: unknown) => Promise<unknown>;
+    };
+    const transactionDb = { transaction: "db" };
+    await hookOptions.onRequestConfirmationAccepted(transactionDb, interaction);
+    expect(mockReleaseCandidateService.handleAcceptedInteractionInTransaction).toHaveBeenCalledWith(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      interaction,
+      expect.objectContaining({ userId: "local-board" }),
     );
   });
 
@@ -590,6 +678,9 @@ describe.sequential("issue thread interaction routes", () => {
       "interaction-checkbox",
       { selectedOptionIds: ["file-b"] },
       expect.objectContaining({ userId: "local-board" }),
+      expect.objectContaining({
+        onRequestConfirmationAccepted: expect.any(Function),
+      }),
     );
     expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(1);
     expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(

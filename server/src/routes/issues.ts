@@ -152,6 +152,7 @@ import {
   type TrustPresetResolution,
 } from "../services/trust-preset-resolver.js";
 import { externalObjectService } from "../services/external-objects.js";
+import { releaseCandidateService } from "../services/release-candidates.js";
 
 const MAX_ISSUE_COMMENT_LIMIT = 500;
 const updateIssueRouteSchema = updateIssueSchema.extend({
@@ -7058,10 +7059,32 @@ export function issueRoutes(
       assertBoard(req);
 
       const actor = getActorInfo(req);
-      const { interaction, createdIssues, continuationIssue } = await issueThreadInteractionService(db).acceptInteraction(issue, interactionId, req.body, {
-        agentId: actor.agentId,
-        userId: actor.actorType === "user" ? actor.actorId : null,
-      });
+      const {
+        interaction,
+        createdIssues,
+        continuationIssue,
+        acceptedResult: deployAuthorization,
+      } = await issueThreadInteractionService(db).acceptInteraction(
+        issue,
+        interactionId,
+        req.body,
+        {
+          agentId: actor.agentId,
+          userId: actor.actorType === "user" ? actor.actorId : null,
+        },
+        {
+          onRequestConfirmationAccepted: (transactionDb, acceptedInteraction) =>
+            releaseCandidateService(transactionDb).handleAcceptedInteractionInTransaction(
+              issue.id,
+              acceptedInteraction,
+              {
+                agentId: actor.agentId,
+                userId: actor.actorType === "user" ? actor.actorId : null,
+                runId: actor.runId,
+              },
+            ),
+        },
+      );
       const continuationWakeIssue = continuationIssue ?? issue;
 
       await logActivity(db, {
@@ -7145,6 +7168,25 @@ export function issueRoutes(
         forceFreshSession: acceptedPlanConfirmation,
         workspaceRefreshReason: acceptedPlanConfirmation ? "accepted_plan_confirmation" : null,
       });
+
+      if (deployAuthorization) {
+        res.json({
+          interaction,
+          deployAuthorization: {
+            id: deployAuthorization.authorization.id,
+            candidateId: deployAuthorization.authorization.candidateId,
+            token: deployAuthorization.token,
+            tokenReturnedOnce: deployAuthorization.token !== null,
+            alreadyIssued: deployAuthorization.alreadyIssued,
+            targetHost: deployAuthorization.authorization.targetHost,
+            imageDigest: deployAuthorization.authorization.imageDigest,
+            environment: deployAuthorization.authorization.environment,
+            sequence: deployAuthorization.authorization.sequence,
+            expiresAt: deployAuthorization.authorization.expiresAt,
+          },
+        });
+        return;
+      }
 
       res.json(interaction);
     },
