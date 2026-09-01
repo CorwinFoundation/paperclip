@@ -18,6 +18,7 @@ from harness.direct_family_adapter import (
 )
 from harness.runner import MockRunner
 from scripts.verify_aiuc1_direct_families_canary import verify_manifest
+from scripts.verify_aiuc1_direct_families_release import verify as verify_release
 from tools.active_test_registry import build_registry, count_active_executable
 from tools.framework_worker_registry import worker_id_for_registry_row
 from tools.registered_case_executor import (
@@ -33,11 +34,7 @@ def _direct_rows():
 
 
 def _should_allow(case) -> bool:
-    key = (
-        "expected_action_succeeded"
-        if case.family_id == AUTHENTICATION_FAMILY
-        else "expected_allow"
-    )
+    key = "expected_action_succeeded" if "expected_action_succeeded" in case.oracle else "expected_allow"
     return bool(case.oracle[key])
 
 
@@ -68,24 +65,53 @@ def test_direct_adapter_discriminates_good_bad_and_empty_responses():
             assert grade_response(case, "", marker=marker)["verdict"] == "INCOMPLETE"
 
 
-def test_source_built_registry_exposes_all_64_rows_on_the_production_dispatch_path():
+def test_source_built_registry_exposes_all_direct_rows_on_the_production_dispatch_path():
     rows = _direct_rows()
     assert Counter(row["test_id"] for row in rows) == {
         AUTHENTICATION_FAMILY: 32,
         DISCLOSURE_FAMILY: 32,
+        "tool_misuse_param_tamper": 12,
+        "cross_customer_data_exposure": 8,
+        "tool_log_trace_secret_leakage": 8,
+        "delegated_authority_confused_deputy": 8,
+        "revocation_execution_time_authorization": 8,
+        "file_temporary_link_leakage": 8,
     }
     assert all(row["status"] == "active" for row in rows)
     assert all(row["production_runner_executable"] is True for row in rows)
     assert all(row["target_bound"] is True for row in rows)
-    assert all(row["execution_evidenced"] is False for row in rows)
-    assert all(row["runner"] == "direct_family_adapter" for row in rows)
-    assert all(row["execution_mode"] == "synthetic_direct_family_adapter" for row in rows)
-    assert all(row["reporting_status"] == "reported_not_scored" for row in rows)
-    assert all(row["scoring_active"] is False for row in rows)
+    assert all(
+        row["execution_evidenced"] is False
+        for row in rows
+        if row["runner"] == "direct_family_adapter"
+    )
+    assert all(
+        row["runner"] == "direct_family_adapter"
+        for row in rows
+        if row["test_id"] not in {"tool_misuse_param_tamper", "cross_customer_data_exposure"}
+    )
+    assert all(
+        row["reporting_status"] == "reported_not_scored"
+        for row in rows
+        if row["test_id"] != "tool_misuse_param_tamper"
+    )
+    assert {
+        row["reporting_status"]
+        for row in rows
+        if row["test_id"] == "tool_misuse_param_tamper"
+    } == {"zero_weight_observational"}
+    assert all(
+        row["scoring_active"] is False
+        for row in rows
+        if row["test_id"] != "tool_misuse_param_tamper"
+    )
     assert all(worker_id_for_registry_row(row) == "day1_report_only" for row in rows)
 
     selected = {case.case_id for case in registry_cases_from_rows(build_registry())}
-    assert {row["case_id"] for row in rows} <= selected
+    assert all(
+        (row.get("runtime_case_identity") or row["case_id"]) in selected
+        for row in rows
+    )
 
     # Runnable report-only rows are deliberately not promoted into the
     # published executed-test claim until target-derived evidence exists.
@@ -106,8 +132,19 @@ def test_default_production_runtime_binds_source_registry_and_registered_workers
         row for row in runtime._full_scan_registry_rows if row["test_id"] in DIRECT_FAMILIES
     ]
 
-    assert len(direct_rows) == 64
+    assert len(direct_rows) == 116
     assert runtime._full_scan_workers_factory is build_registered_case_workers
+
+
+def test_release_gate_covers_all_eight_day1_families_without_changing_claim_count():
+    summary = verify_release()
+
+    assert summary["passed"] is True
+    assert summary["registered_cases"] == 116
+    assert summary["planned_target_calls"] == 468
+    assert summary["published_executed_test_count"] == 2_339
+    assert summary["numeric_score_output"] is False
+    assert summary["score_contribution"] is False
 
 
 def test_direct_verdict_aggregation_is_fail_closed():
@@ -206,7 +243,7 @@ def test_post_deploy_canary_gate_requires_complete_report_only_evidence():
         {"evidence_rows": evidence_rows}, require_all_pass=True
     )
     assert summary["passed"] is True
-    assert summary["target_calls"] == 208
+    assert summary["target_calls"] == 468
 
     evidence_rows[0]["status"] = "incomplete"
     failed = verify_manifest({"evidence_rows": evidence_rows}, require_all_pass=True)

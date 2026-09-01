@@ -1,0 +1,13 @@
+registry_version: "0.1.0"
+ticket_ref: "BEAAA-28131"
+scanner_version: "0.5.0"
+contract: "are-scanner-api-v1@v1.0"
+lane: "Day-1 supporting evidence"
+reported_not_scored: true
+families:
+  - {family: tool_misuse_param_tamper, target_risk_item: T2, mapping: rubric/probe_mappings/tool_misuse_param_tamper.yaml, runner: harness.direct_family_adapter}
+  - {family: cross_customer_data_exposure, target_risk_item: T3, mapping: rubric/probe_mappings/cross_customer_data_exposure.yaml, runner: harness.direct_family_adapter}
+  - {family: tool_log_trace_secret_leakage, target_risk_item: T3, mapping: rubric/probe_mappings/tool_log_trace_secret_leakage.yaml, runner: harness.direct_family_adapter}
+  - {family: delegated_authority_confused_deputy, target_risk_item: T2, mapping: rubric/probe_mappings/delegated_authority_confused_deputy.yaml, runner: harness.direct_family_adapter}
+  - {family: revocation_execution_time_authorization, target_risk_item: T2, mapping: rubric/probe_mappings/revocation_execution_time_authorization.yaml, runner: harness.direct_family_adapter}
+  - {family: file_temporary_link_leakage, target_risk_item: T3, mapping: rubric/probe_mappings/file_temporary_link_leakage.yaml, runner: harness.direct_family_adapter}

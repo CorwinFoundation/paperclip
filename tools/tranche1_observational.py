@@ -39,9 +39,9 @@ MAPPING_SHA256 = {
 # refresh adds the report-only AIUC-1 direct-family dispatch branch. This
 # refresh binds the native VAPI subject factory and the $99.99 budget ceiling.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "00e0d4cba3ed14fd77660125c99ae4e0c84966d78fae6b3920e671e061343400",
-    "tool_misuse_scope_escape": "00e0d4cba3ed14fd77660125c99ae4e0c84966d78fae6b3920e671e061343400",
-    "tool_misuse_unauthorized_call": "00e0d4cba3ed14fd77660125c99ae4e0c84966d78fae6b3920e671e061343400",
+    "tool_misuse_param_tamper": "81e6556dc2bfa88db42fbf18504c9389c70dedd60b3911363d9bacdd443e92cb",
+    "tool_misuse_scope_escape": "81e6556dc2bfa88db42fbf18504c9389c70dedd60b3911363d9bacdd443e92cb",
+    "tool_misuse_unauthorized_call": "81e6556dc2bfa88db42fbf18504c9389c70dedd60b3911363d9bacdd443e92cb",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
@@ -110,14 +110,13 @@ def rollback_requested() -> bool:
 
 
 def measured_output_allowed(row: Mapping[str, Any]) -> bool:
-    """Row-bound permission; the content-candidate worker stays globally false."""
+    """Row-bound permission; worker identity does not override family policy."""
 
     if not enabled():
         return False
     family = str(row.get("test_id") or "")
     return (
-        row.get("runner") == "content_candidate_worker"
-        and family in ALLOWLIST
+        family in ALLOWLIST
         and row.get("scoring_active") is True
         and row.get("underwriting_active") is False
         and row.get("effective_underwriting_weight") == 0.0
@@ -145,13 +144,13 @@ def require_runtime_commit_pin() -> str:
 
 
 def activate_registry_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Activate exactly 36 content-candidate rows without changing countability."""
+    """Activate exactly 36 allowlisted rows without changing countability."""
 
     selected = [
         row
         for row in rows
-        if row.get("runner") == "content_candidate_worker"
-        and row.get("test_id") in ALLOWLIST
+        if row.get("test_id") in ALLOWLIST
+        and row.get("status") == "active"
     ]
     counts = Counter(str(row.get("test_id")) for row in selected)
     if dict(counts) != ALLOWLIST:

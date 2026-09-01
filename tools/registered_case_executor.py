@@ -508,6 +508,13 @@ class RegisteredCaseExecutor:
         if not applicable:
             return _not_applicable_outcome(test_id, case_id, reason)
 
+        from harness.bench.day1_supporting_families import SUPPORTING_FAMILIES
+
+        # Legacy rows retain historical runner labels. Family identity is the
+        # canonical dispatch key for the shared report-only production path.
+        if test_id in SUPPORTING_FAMILIES:
+            return self._execute_direct_family_case(test_id, case_id, registry_row)
+
         if registry_row.get("runner") == "content_candidate_worker":
             return self._execute_content_candidate(test_id, case_id, registry_row)
 
@@ -730,7 +737,9 @@ class RegisteredCaseExecutor:
                 scan_seed=scan_seed,
                 run_index=run_index,
             )
+            started_at = datetime.now(timezone.utc).isoformat()
             response = self.subject.complete(instruction)
+            completed_at = datetime.now(timezone.utc).isoformat()
             graded = grade_response(case, response, marker=marker)
             payloads.append(instruction)
             responses.append(response)
@@ -741,11 +750,13 @@ class RegisteredCaseExecutor:
                     "verdict": graded["verdict"],
                     "marker_observed": graded["marker_observed"],
                     "observation": graded["observation"],
+                    "started_at": started_at,
+                    "completed_at": completed_at,
                 }
             )
         verdicts = [str(result["verdict"]) for result in run_results]
         verdict = aggregate_verdict(verdicts)
-        return _case_outcome(
+        outcome = _case_outcome(
             payloads=payloads,
             responses=responses,
             judge={
@@ -768,6 +779,71 @@ class RegisteredCaseExecutor:
             },
             verdict=verdict,
         )
+        from harness.bench.day1_supporting_families import SUPPORTING_FAMILIES, listener_evidence
+        if test_id in SUPPORTING_FAMILIES:
+            outcome["listener_evidence"] = listener_evidence(
+                case, verdict=verdict,
+                evidence_ref=f"evidence://pending/{test_id}/{case_id}",
+            )
+        if registry_row.get("scoring_active") is True:
+            from tools.tranche1_observational import (
+                ALLOWLIST,
+                CONFIG_SHA256,
+                EVALUATOR_SHA256,
+                INVENTORY_SHA256,
+                MAPPING_SHA256,
+                build_case_record,
+                measured_output_allowed,
+                require_runtime_commit_pin,
+            )
+
+            if test_id in ALLOWLIST and measured_output_allowed(registry_row):
+                dispositions = {
+                    "INCOMPLETE": "INCOMPLETE",
+                    "INVALID": "INVALID",
+                }
+                replicates = []
+                for result in run_results:
+                    run_verdict = str(result["verdict"])
+                    replicates.append(
+                        {
+                            "replicate_index": int(result["run_index"]),
+                            "seed": (
+                                f"{registry_row.get('version_pin')}|{case_id}|"
+                                f"{result['run_index']}"
+                            ),
+                            "raw_result": 4 if run_verdict == "PASS" else 0 if run_verdict == "FAIL" else None,
+                            "disposition": dispositions.get(run_verdict),
+                            "evidence_uri": str(registry_row.get("case_evidence_uri") or ""),
+                            "evidence_sha256": _content_hash([responses[int(result["run_index"])]]),
+                            "started_at": str(result["started_at"]),
+                            "completed_at": str(result["completed_at"]),
+                        }
+                    )
+                try:
+                    runtime_commit = require_runtime_commit_pin()
+                    outcome["observational_result"] = build_case_record(
+                        family_id=test_id,
+                        case_id=case_id,
+                        replicates=replicates,
+                        pins={
+                            "inventory_sha256": INVENTORY_SHA256,
+                            "mapping_sha256": MAPPING_SHA256[test_id],
+                            "evaluator_sha256": EVALUATOR_SHA256[test_id],
+                            "configuration_sha256": CONFIG_SHA256,
+                            "corpus_sha256": INVENTORY_SHA256,
+                            "commit_sha256": runtime_commit,
+                        },
+                        target_authorization_ref=str(registry_row.get("target_authorization_ref") or ""),
+                        tenant_id=str(registry_row.get("tenant_id") or self.tenant_id or ""),
+                        audience=str(registry_row.get("audience") or self.audience),
+                    )
+                except Exception as exc:
+                    outcome["observational_rejection"] = (
+                        f"observational_fail_closed:{type(exc).__name__}"
+                    )
+                    outcome["verdict"] = "unresolved"
+        return outcome
 
     def _execute_lane_c_case(
         self,

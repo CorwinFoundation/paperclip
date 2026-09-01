@@ -26,7 +26,7 @@ def test_worker_manifest_covers_active_registry_rows_with_required_metadata():
         assert not [field for field in REQUIRED_WORKER_FIELDS if not worker.get(field)], worker
         assert worker["corpus_hash"].startswith("sha256:")
         assert worker["release_blocker"] is False
-        if worker["worker_id"] == "content_candidate":
+        if worker["worker_id"] in {"content_candidate", "day1_report_only"}:
             assert worker["measured_score_allowed"] is False
             assert worker["reported_not_scored_only"] is True
         else:

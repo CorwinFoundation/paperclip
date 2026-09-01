@@ -24,7 +24,18 @@ from typing import Any, Mapping
 
 AUTHENTICATION_FAMILY = "authentication_bypass_resistance"
 DISCLOSURE_FAMILY = "sensitive_data_disclosure_resistance"
-DIRECT_FAMILIES = frozenset({AUTHENTICATION_FAMILY, DISCLOSURE_FAMILY})
+from harness.bench.day1_supporting_families import SUPPORTING_FAMILIES
+DIRECT_FAMILIES = frozenset({AUTHENTICATION_FAMILY, DISCLOSURE_FAMILY} | SUPPORTING_FAMILIES)
+# These two supporting families already had production registry ownership
+# before BEAAA-28131.  They dispatch through the shared Day-1 worker by family
+# identity, but must not be reclassified as newly declared direct-registry rows:
+# doing so would erase their existing inventory/evidence state and move frozen
+# registry counts.  The other six families declare the direct adapter in their
+# mapping and are materialized through that path.
+LEGACY_SUPPORTING_REGISTRY_FAMILIES = frozenset(
+    {"tool_misuse_param_tamper", "cross_customer_data_exposure"}
+)
+DIRECT_REGISTRY_FAMILIES = DIRECT_FAMILIES - LEGACY_SUPPORTING_REGISTRY_FAMILIES
 RUNNER_ID = "direct_family_adapter"
 
 
@@ -40,6 +51,9 @@ class DirectCase:
 
 
 def cases_for_family(family_id: str) -> tuple[DirectCase, ...]:
+    if family_id in SUPPORTING_FAMILIES:
+        from harness.bench.day1_supporting_families import cases_for_family as load_supporting
+        return tuple(DirectCase(c.family_id, c.case_id, c.group, c.severity, c.replicate_count, c.scenario_variants, dict(c.oracle)) for c in load_supporting(family_id))
     if family_id == AUTHENTICATION_FAMILY:
         from evals.aiuc_path_b.authentication_bypass_resistance import SPEC
 
@@ -92,11 +106,11 @@ def has_bound_case(family_id: str, case_id: str) -> bool:
 
 def registry_probes(family_id: str) -> tuple[dict[str, Any], ...]:
     """Return active-registry probe rows without claiming prior execution."""
-    rubric_id = (
-        "ROBUSTNESS.AUTHENTICATION.BYPASS_RESISTANCE"
-        if family_id == AUTHENTICATION_FAMILY
-        else "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
-    )
+    if family_id in SUPPORTING_FAMILIES:
+        from harness.bench.day1_supporting_families import FAMILY_RISK
+        rubric_id = FAMILY_RISK[family_id]
+    else:
+        rubric_id = ("ROBUSTNESS.AUTHENTICATION.BYPASS_RESISTANCE" if family_id == AUTHENTICATION_FAMILY else "ROBUSTNESS.PII.SCAN_TIME_DETECTION")
     return tuple(
         {
             "probe_id": case.case_id,
@@ -120,6 +134,10 @@ def build_instruction(
     variant_index = _variant_index(case, scan_seed=scan_seed, run_index=run_index)
     marker = _marker(case, scan_seed=scan_seed, run_index=run_index)
     scenario = case.scenario_variants[variant_index]
+    if case.family_id in SUPPORTING_FAMILIES:
+        from harness.bench.day1_supporting_families import build_instruction as build_supporting
+        supporting = type("SupportingCase", (), {"family_id": case.family_id, "case_id": case.case_id, "group": case.group, "severity": case.severity, "replicate_count": case.replicate_count, "scenario_variants": case.scenario_variants, "oracle": case.oracle})()
+        return build_supporting(supporting, scan_seed=scan_seed, run_index=run_index)
     if case.family_id == AUTHENTICATION_FAMILY:
         oracle = case.oracle
         instruction = (
@@ -165,6 +183,10 @@ def grade_response(case: DirectCase, response: str, *, marker: str) -> dict[str,
             "observation": {"reason": "empty_target_response"},
         }
     marker_observed = marker in response
+    if case.family_id in SUPPORTING_FAMILIES:
+        from harness.bench.day1_supporting_families import grade_response as grade_supporting
+        supporting = type("SupportingCase", (), {"oracle": case.oracle})()
+        return grade_supporting(supporting, response, marker=marker)
     if case.family_id == AUTHENTICATION_FAMILY:
         from evals.aiuc_path_b.authentication_bypass_resistance import SPEC, grade
 
@@ -236,6 +258,8 @@ def _marker(case: DirectCase, *, scan_seed: int, run_index: int) -> str:
 __all__ = [
     "AUTHENTICATION_FAMILY",
     "DIRECT_FAMILIES",
+    "DIRECT_REGISTRY_FAMILIES",
+    "LEGACY_SUPPORTING_REGISTRY_FAMILIES",
     "DISCLOSURE_FAMILY",
     "DirectCase",
     "RUNNER_ID",

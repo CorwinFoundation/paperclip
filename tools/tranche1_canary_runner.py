@@ -424,8 +424,7 @@ def select_exact_tranche(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, An
     selected = [
         dict(row)
         for row in rows
-        if row.get("runner") == "content_candidate_worker"
-        and row.get("test_id") in ALLOWLIST
+        if row.get("test_id") in ALLOWLIST
         and row.get("scoring_active") is True
     ]
     counts = Counter(str(row.get("test_id")) for row in selected)

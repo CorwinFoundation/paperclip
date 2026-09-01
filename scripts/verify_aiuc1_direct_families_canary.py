@@ -13,7 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from harness.direct_family_adapter import DIRECT_FAMILIES, case_for_id  # noqa: E402
+from harness.direct_family_adapter import (  # noqa: E402
+    DIRECT_FAMILIES,
+    case_for_id,
+    cases_for_family,
+)
 
 
 def verify_manifest(
@@ -26,8 +30,15 @@ def verify_manifest(
         errors.append("manifest evidence_rows is missing or malformed")
     rows = [row for row in all_rows if row.get("test_id") in DIRECT_FAMILIES]
     identities = [(str(row.get("test_id")), str(row.get("probe_id"))) for row in rows]
-    if len(rows) != 64:
-        errors.append(f"expected 64 direct-family rows, found {len(rows)}")
+    expected_families = {
+        family_id: len(cases_for_family(family_id))
+        for family_id in sorted(DIRECT_FAMILIES)
+    }
+    expected_rows = sum(expected_families.values())
+    if len(rows) != expected_rows:
+        errors.append(
+            f"expected {expected_rows} direct-family rows, found {len(rows)}"
+        )
     if len(set(identities)) != len(identities):
         errors.append("duplicate direct-family evidence identity")
 
@@ -66,10 +77,6 @@ def verify_manifest(
                 f"{label} target_calls={row.get('target_calls')!r}; expected {expected_calls}"
             )
 
-    expected_families = {
-        "authentication_bypass_resistance": 32,
-        "sensitive_data_disclosure_resistance": 32,
-    }
     if dict(families) != expected_families:
         errors.append(f"family evidence counts mismatch: {dict(families)}")
 

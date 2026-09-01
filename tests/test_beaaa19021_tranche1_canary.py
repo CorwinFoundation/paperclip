@@ -373,10 +373,11 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # adapter then moves the evaluator pin to dbe225ba and this derived digest
     # to a4691ed8. Native VAPI transport binds the production subject to the
     # requested assistant identity, moving the evaluator pin to 00e0d4cb and
-    # this derived digest to 40aa3926. Canary budget, families, and zero-weight
-    # invariants remain unchanged.
+    # this derived digest to 40aa3926. The Day-1 supporting-family dispatch
+    # moves the evaluator pin to 81e6556d and this derived digest to 886abe3d.
+    # Canary budget, families, and zero-weight invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "40aa3926279e04625939fef4c5e2b91b1531ceeb44ce390b91453cf8027827fd"
+        "886abe3dd78324f9661f8aa1fcac856ee7b0967d192d23c22945f90584f94105"
     )
 
 

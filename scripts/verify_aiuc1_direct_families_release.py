@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed unless both AIUC-1 direct families are production-dispatchable."""
+"""Fail closed unless every AIUC-1 Day-1 family is production-dispatchable."""
 from __future__ import annotations
 
 import json
@@ -25,10 +25,40 @@ from tools.tranche1_observational import load_config  # noqa: E402
 EXPECTED_CASE_COUNTS = {
     AUTHENTICATION_FAMILY: 32,
     DISCLOSURE_FAMILY: 32,
+    "tool_misuse_param_tamper": 12,
+    "cross_customer_data_exposure": 8,
+    "tool_log_trace_secret_leakage": 8,
+    "delegated_authority_confused_deputy": 8,
+    "revocation_execution_time_authorization": 8,
+    "file_temporary_link_leakage": 8,
 }
 EXPECTED_REPLICATE_CALLS = {
     AUTHENTICATION_FAMILY: 128,
     DISCLOSURE_FAMILY: 80,
+    "tool_misuse_param_tamper": 60,
+    "cross_customer_data_exposure": 40,
+    "tool_log_trace_secret_leakage": 40,
+    "delegated_authority_confused_deputy": 40,
+    "revocation_execution_time_authorization": 40,
+    "file_temporary_link_leakage": 40,
+}
+LEGACY_SUPPORTING_ROW_EXPECTATIONS = {
+    "tool_misuse_param_tamper": {
+        "runner": "content_candidate_worker",
+        "execution_evidenced": False,
+        "execution_evidence_status": "runtime_bound_evidence_pending",
+        "scoring_active": True,
+        "reporting_status": "zero_weight_observational",
+        "execution_mode": "content_candidate_inventory_adapter",
+    },
+    "cross_customer_data_exposure": {
+        "runner": "bench_wrapper",
+        "execution_evidenced": True,
+        "execution_evidence_status": "legacy_target_bound_production_counted",
+        "scoring_active": False,
+        "reporting_status": "reported_not_scored",
+        "execution_mode": "legacy_registered_case_executor",
+    },
 }
 
 
@@ -66,18 +96,29 @@ def verify() -> dict[str, object]:
     for row in direct:
         family_id = str(row.get("test_id") or "")
         case_id = str(row.get("case_id") or "")
-        if case_id not in selected:
+        production_case_id = str(
+            row.get("runtime_case_identity")
+            or row.get("case_id")
+            or row.get("case_id_or_probe_id")
+            or ""
+        )
+        if production_case_id not in selected:
             errors.append(f"production dispatcher omitted {family_id}:{case_id}")
         expected = {
             "status": "active",
-            "runner": "direct_family_adapter",
             "production_runner_executable": True,
             "target_bound": True,
-            "execution_evidenced": False,
-            "execution_evidence_status": "runtime_bound_evidence_pending",
-            "scoring_active": False,
-            "reporting_status": "reported_not_scored",
-            "execution_mode": "synthetic_direct_family_adapter",
+            **LEGACY_SUPPORTING_ROW_EXPECTATIONS.get(
+                family_id,
+                {
+                    "runner": "direct_family_adapter",
+                    "execution_evidenced": False,
+                    "execution_evidence_status": "runtime_bound_evidence_pending",
+                    "scoring_active": False,
+                    "reporting_status": "reported_not_scored",
+                    "execution_mode": "synthetic_direct_family_adapter",
+                },
+            ),
         }
         for field, value in expected.items():
             if row.get(field) != value:
@@ -110,7 +151,7 @@ def verify() -> dict[str, object]:
         )
 
     summary: dict[str, object] = {
-        "gate": "aiuc1-direct-families-release/v1",
+        "gate": "aiuc1-direct-families-release/v2",
         "passed": not errors,
         "errors": errors,
         "families": dict(sorted(counts.items())),
@@ -119,8 +160,10 @@ def verify() -> dict[str, object]:
         "planned_target_calls_by_family": dict(sorted(replicate_calls.items())),
         "published_executed_test_count": published_executed_count,
         "selection_mode": selection_mode,
-        "scoring_active": False,
-        "disposition": "reported_not_scored",
+        "numeric_score_output": False,
+        "score_contribution": False,
+        "legacy_zero_weight_observational_families": ["tool_misuse_param_tamper"],
+        "disposition": "day1-supporting-evidence",
     }
     return summary
 

@@ -104,6 +104,15 @@ AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
         "authentication_bypass_resistance",
         "sensitive_data_disclosure_resistance",
+        # BEAAA-28131: these newly authored Day-1 supporting families are
+        # runnable through the direct-family adapter, but they remain outside
+        # the published executed-test count until target-derived evidence is
+        # promoted separately.  Runtime capability and claim countability are
+        # intentionally independent.
+        "tool_log_trace_secret_leakage",
+        "delegated_authority_confused_deputy",
+        "revocation_execution_time_authorization",
+        "file_temporary_link_leakage",
         "p3_5_multiturn_jailbreak",
         "p3_6_output_attack",
         "system_prompt_extraction",
@@ -347,9 +356,9 @@ def _case_has_bound_execution(benchmark: str, probe: dict[str, Any]) -> bool:
     case_id = str(probe.get("probe_id") or probe.get("id") or "")
     if not case_id:
         return False
-    from harness.direct_family_adapter import DIRECT_FAMILIES, has_bound_case
+    from harness.direct_family_adapter import DIRECT_REGISTRY_FAMILIES, has_bound_case
 
-    if benchmark in DIRECT_FAMILIES:
+    if benchmark in DIRECT_REGISTRY_FAMILIES:
         return has_bound_case(benchmark, case_id)
     if benchmark == "p1_1_factuality_golden":
         return bool(probe.get("prompt_text") and probe.get("ground_truth_answer"))

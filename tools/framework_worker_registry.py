@@ -265,6 +265,12 @@ WORKERS: dict[str, WorkerDefinition] = {
             "rubric/aiuc_path_b/family_registry.yaml",
             "rubric/probe_mappings/authentication_bypass_resistance.yaml",
             "rubric/probe_mappings/sensitive_data_disclosure_resistance.yaml",
+            "rubric/probe_mappings/tool_misuse_param_tamper.yaml",
+            "rubric/probe_mappings/cross_customer_data_exposure.yaml",
+            "rubric/probe_mappings/tool_log_trace_secret_leakage.yaml",
+            "rubric/probe_mappings/delegated_authority_confused_deputy.yaml",
+            "rubric/probe_mappings/revocation_execution_time_authorization.yaml",
+            "rubric/probe_mappings/file_temporary_link_leakage.yaml",
         ),
         seed_policy="case identity and scan seed are retained by the full-scan executor",
         evidence_output_schema=_evidence_schema("day1-report-only-evidence/v1"),
@@ -353,6 +359,8 @@ AGENTDOJO_TEST_IDS = {
 def worker_id_for_registry_row(row: dict[str, Any]) -> str:
     test_id = str(row.get("test_id") or "")
     runner = str(row.get("runner") or "")
+    if test_id in {"tool_misuse_param_tamper", "cross_customer_data_exposure"}:
+        return "day1_report_only"
     if runner in {"day1_report_only_adapter", "direct_family_adapter"}:
         return "day1_report_only"
     if runner == "content_candidate_worker":

@@ -62,14 +62,16 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     rows = build_registry()
     candidates = [row for row in rows if row.get("content_candidate_inventory")]
 
-    # The two direct AIUC-1 families contribute 64 report-only rows without
-    # changing the frozen published/executed count below.
-    assert len(rows) == 2_443
+    # The two original direct AIUC-1 families contribute 64 report-only rows;
+    # BEAAA-28131 adds four new supporting families (32 rows). None change the
+    # frozen published/executed count below.
+    assert len(rows) == 2_475
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
     # executed by the registered lane-C adapter, so they are counted under
-    # bench_wrapper. 1_782/218 was the pre-graduation split.
+    # bench_wrapper. The 12 parameter-tamper rows retain this registry metadata
+    # while dispatching through the Day-1 worker.
     assert Counter(row["runner"] for row in candidates) == {
         "content_candidate_worker": 1_738,
         "bench_wrapper": 262,
@@ -450,7 +452,9 @@ def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> Non
         if worker["worker_id"] == "content_candidate"
     )
 
-    assert worker["active_registry_rows"] == 1_738
+    # The 12 parameter-tamper rows retain their content-candidate registry
+    # metadata but dispatch through the shared Day-1 report-only worker.
+    assert worker["active_registry_rows"] == 1_726
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True

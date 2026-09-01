@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "549c4819a1b204615f280f2c061bd2d6aa5bd080490d200687aeccc9579c7312"
+    "b29478693621aa0b9a455015acaa6a32bd792499fc8b3a164a1b077cfab9cffc"
 )
 
 
@@ -23,9 +23,8 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     rows = build_registry(REPO / "rubric" / "probe_mappings")
     marker = build_release_registry_marker(REPO)
 
-    # Exact combined-tree measurement after the C10 flag-aware registry
-    # transition. The lane-C tranche remains reported-not-scored with the
-    # production-default flag off.
+    # Exact combined-tree measurement after the Day-1 supporting-family
+    # registration. The new rows remain reported-not-scored.
     assert marker["published_executable_count"] == 2_339
     assert marker["generated_executable_count"] == 2_339
     assert marker["distinct_runtime_count"] == 2_338
@@ -34,9 +33,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     ).hexdigest()
     assert marker["normalized_registry_sha256"] == EXPECTED_NORMALIZED_REGISTRY_SHA256
     assert all("\\" not in str(row["source_pack"]) for row in rows)
-    # The 64 new direct-family rows are deliberately report-only and therefore
-    # appear in the release marker's excluded-row proof.
-    assert len(marker["excluded_rows"]) == 104
+    # The 64 original direct-family rows and the 32 new supporting rows are
+    # deliberately report-only and appear in the excluded-row proof.
+    assert len(marker["excluded_rows"]) == 136
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

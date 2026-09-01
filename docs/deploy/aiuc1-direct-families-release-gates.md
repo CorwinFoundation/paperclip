@@ -1,7 +1,6 @@
-# AIUC-1 direct-family integration and release gates
+# AIUC-1 Day-1 family integration and release gates
 
-This release brings the six approved candidate commits onto the current
-`origin/master` baseline and closes the missing production binding for:
+The original release closed the missing production binding for:
 
 - `authentication_bypass_resistance@0.1.0`: 32 cases, 128 target calls;
 - `sensitive_data_disclosure_resistance@0.1.0`: 32 cases, 80 target calls.
@@ -10,6 +9,24 @@ Both families are synthetic, report-only, zero-weight, and judge-free. They
 produce categorical evidence and must not change a score, band, eligibility,
 pricing result, or the published 2,339 executed-test claim before separate
 target-derived evidence promotion.
+
+BEAAA-28131 extends the same production dispatch and canary surface with six
+supporting families for the T2 and T3 Day-1 evidence map:
+
+- `tool_misuse_param_tamper`: 12 cases, 60 target calls;
+- `cross_customer_data_exposure`: 8 cases, 40 target calls;
+- `tool_log_trace_secret_leakage`: 8 cases, 40 target calls;
+- `delegated_authority_confused_deputy`: 8 cases, 40 target calls;
+- `revocation_execution_time_authorization`: 8 cases, 40 target calls;
+- `file_temporary_link_leakage`: 8 cases, 40 target calls.
+
+The combined gate covers 116 cases and 468 target calls across eight families.
+The four newly authored families remain report-only and excluded from the
+published 2,339 executed-test count. The two previously developed supporting
+families retain their existing registry classifications: parameter tamper is
+zero-weight observational, and cross-customer exposure is legacy
+reported-not-scored. Their Day-1 dispatch still emits no numeric score and has
+no score contribution.
 
 ## Why the families were not deployed
 
@@ -41,11 +58,13 @@ python -m pytest -v -ra \
 
 The release verifier must report:
 
-- 32 rows per family and 64 total;
-- 208 planned target calls: 128 authentication and 80 disclosure;
+- the exact per-family row counts above and 116 total;
+- 468 planned target calls with the exact per-family totals above;
 - every row active, target-bound, and production-dispatchable;
-- `execution_evidenced=false` until a real scan runs;
-- zero scoring and the 2,339 published executed-test count unchanged;
+- `execution_evidenced=false` for newly bound direct-adapter rows until a real
+  scan runs, without erasing the two legacy families' existing evidence state;
+- no numeric score output, no score contribution, and the 2,339 published
+  executed-test count unchanged;
 - the shared registered-executor tamper pin valid.
 
 ## Gate 2: pull request and registry QA
@@ -82,8 +101,8 @@ python scripts/verify_aiuc1_direct_families_canary.py \
   --require-all-pass
 ```
 
-The gate requires exactly 64 unique direct-family rows, all complete, all PASS
-for the controlled known-good target, 208 attributable target calls, zero judge
+The gate requires exactly 116 unique Day-1 family rows, all complete, all PASS
+for the controlled known-good target, 468 attributable target calls, zero judge
 calls, evidence references for every row, no numeric result, and
 `disposition=report-only` with `score_contribution=false`.
 
@@ -110,9 +129,11 @@ repeats release-identity and health verification.
 
 ## Listener follow-on gate
 
-Listener ingestion is not activated by this scanner release. The compatibility
-seam in `api/day1_report_only.py` accepts already-authorized observations, but
-it must not receive raw or unsigned listener data.
+Listener ingestion is not activated by this scanner release. The supporting
+adapter can produce a minimized `day1-supporting-event/v0.1.0` evidence object,
+and the compatibility seam in `api/day1_report_only.py` accepts
+already-authorized observations, but neither surface may receive raw or
+unsigned listener data.
 
 Before activation, add and pass all of the following:
 
