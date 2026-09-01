@@ -302,6 +302,238 @@ describe("release candidate approval relay", () => {
     ]));
   });
 
+  it("allows a fresh Founder interaction after an unused deploy authorization expires", async () => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+      approvedByUserId: "founder",
+      approvedAt: new Date("2026-07-13T00:05:00.000Z"),
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      companyId: candidate.companyId,
+      issueId: candidate.sourceIssueId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      continuationPolicy: "wake_assignee" as const,
+      idempotencyKey: `release-candidate:${candidate.id}:approval:${candidate.imageDigest}`,
+      sourceCommentId: null,
+      sourceRunId: null,
+      title: null,
+      summary: null,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+      result: { version: 1 as const, outcome: "accepted" as const },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const expiredAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() - 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+    };
+
+    const result = await releaseCandidateService(
+      makeDb([[acceptedInteraction], [expiredAuthorization]]).db,
+    ).getApprovalReissueSource(approvedCandidate);
+
+    expect(result).toMatchObject({
+      id: previousInteractionId,
+      status: "accepted",
+    });
+  });
+
+  it("rejects approval reissue while an unused deploy authorization is still active", async () => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+    };
+    const activeAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() + 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+    };
+
+    await expect(
+      releaseCandidateService(makeDb([[acceptedInteraction], [activeAuthorization]]).db)
+        .getApprovalReissueSource(approvedCandidate),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Release candidate deploy authorization is still active",
+      details: expect.objectContaining({ code: "release_candidate_authorization_active" }),
+    });
+  });
+
+  it.each([
+    ["used", { usedAt: new Date() }],
+    ["artifact staged", { leaseArtifactAssetId: "22222222-2222-4222-8222-222222222222" }],
+    ["signature staged", { leaseSignatureBundleAssetId: "33333333-3333-4333-8333-333333333333" }],
+    ["lease issued", { leaseIssuedAt: new Date() }],
+  ])("rejects approval reissue after the authorization is %s", async (_state, consumedFields) => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+    };
+    const consumedAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() - 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+      ...consumedFields,
+    };
+
+    await expect(
+      releaseCandidateService(makeDb([[acceptedInteraction], [consumedAuthorization]]).db)
+        .getApprovalReissueSource(approvedCandidate),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Release candidate deploy authorization has already been consumed",
+      details: expect.objectContaining({ code: "release_candidate_authorization_consumed" }),
+    });
+  });
+
+  it("rebinds an approved candidate after its unused deploy authorization expires", async () => {
+    const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const nextInteractionId = "11111111-1111-4111-8111-111111111111";
+    const approvedCandidate = {
+      ...candidate,
+      status: "approved",
+      approvalInteractionId: previousInteractionId,
+      approvedByUserId: "founder",
+      approvedAt: new Date("2026-07-13T00:05:00.000Z"),
+    };
+    const acceptedInteraction = {
+      id: previousInteractionId,
+      companyId: candidate.companyId,
+      issueId: candidate.sourceIssueId,
+      kind: "request_confirmation" as const,
+      status: "accepted" as const,
+      continuationPolicy: "wake_assignee" as const,
+      idempotencyKey: `release-candidate:${candidate.id}:approval:${candidate.imageDigest}`,
+      sourceCommentId: null,
+      sourceRunId: null,
+      title: null,
+      summary: null,
+      payload: {
+        version: 1 as const,
+        prompt: "approve",
+        target: {
+          type: "custom" as const,
+          key: `release_candidate:${candidate.id}`,
+          revisionId: candidate.imageDigest,
+        },
+      },
+      result: { version: 1 as const, outcome: "accepted" as const },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const nextInteraction = {
+      ...acceptedInteraction,
+      id: nextInteractionId,
+      status: "pending" as const,
+    };
+    const expiredAuthorization = {
+      id: "99999999-9999-4999-8999-999999999999",
+      candidateId: candidate.id,
+      approvalInteractionId: previousInteractionId,
+      expiresAt: new Date(Date.now() - 60_000),
+      usedAt: null,
+      leaseArtifactAssetId: null,
+      leaseSignatureBundleAssetId: null,
+      leaseIssuedAt: null,
+    };
+    const { db, inserted, updated } = makeDb([
+      [approvedCandidate],
+      [acceptedInteraction],
+      [expiredAuthorization],
+    ]);
+
+    const result = await releaseCandidateService(db).markApprovalInteractionCreated(
+      candidate.id,
+      nextInteraction,
+      { userId: "founder" },
+    );
+
+    expect(result).toMatchObject({
+      status: "approval_requested",
+      approvalInteractionId: nextInteractionId,
+      approvedByUserId: null,
+      approvedAt: null,
+    });
+    expect(updated).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        approvalInteractionId: nextInteractionId,
+        status: "approval_requested",
+        approvedByUserId: null,
+        approvedAt: null,
+      }),
+    ]));
+    expect(inserted).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        eventType: "approval_reissued",
+        payload: expect.objectContaining({
+          previousCandidateStatus: "approved",
+          reason: "expired_unconsumed_authorization",
+        }),
+      }),
+    ]));
+  });
+
   it("rejects approval reissue while the current candidate-native interaction is still pending", async () => {
     const previousInteractionId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
     const approvalRequestedCandidate = {

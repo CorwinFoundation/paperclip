@@ -355,6 +355,48 @@ export function releaseCandidateService(db: Db) {
     return db.select().from(releaseCandidates).where(eq(releaseCandidates.id, id)).then((rows) => rows[0] ?? null);
   }
 
+  async function getExpiredUnconsumedAuthorization(
+    candidate: CandidateRow,
+    interaction: Pick<IssueThreadInteraction, "id">,
+  ) {
+    const authorization = await db
+      .select()
+      .from(releaseDeployAuthorizations)
+      .where(and(
+        eq(releaseDeployAuthorizations.candidateId, candidate.id),
+        eq(releaseDeployAuthorizations.approvalInteractionId, interaction.id),
+      ))
+      .then((rows) => rows[0] ?? null);
+    if (!authorization) {
+      throw conflict("Release candidate deploy authorization is missing", {
+        code: "release_candidate_authorization_missing",
+        candidateId: candidate.id,
+        approvalInteractionId: interaction.id,
+      });
+    }
+    if (
+      authorization.usedAt
+      || authorization.leaseArtifactAssetId
+      || authorization.leaseSignatureBundleAssetId
+      || authorization.leaseIssuedAt
+    ) {
+      throw conflict("Release candidate deploy authorization has already been consumed", {
+        code: "release_candidate_authorization_consumed",
+        candidateId: candidate.id,
+        authorizationId: authorization.id,
+      });
+    }
+    if (authorization.expiresAt.getTime() > Date.now()) {
+      throw conflict("Release candidate deploy authorization is still active", {
+        code: "release_candidate_authorization_active",
+        candidateId: candidate.id,
+        authorizationId: authorization.id,
+        expiresAt: authorization.expiresAt.toISOString(),
+      });
+    }
+    return authorization;
+  }
+
   async function getAuthorizationById(id: string) {
     return db
       .select()
@@ -438,11 +480,7 @@ export function releaseCandidateService(db: Db) {
             } as IssueThreadInteraction)
           : null;
 
-        if (
-          candidate.status !== "approval_requested"
-          || !previous
-          || !isTerminalApprovalInteractionStatus(previous.status)
-        ) {
+        if (!previous) {
           throw conflict("Release candidate is immutable after approval interaction creation", {
             code: "release_candidate_immutable",
             candidateId: candidate.id,
@@ -450,13 +488,34 @@ export function releaseCandidateService(db: Db) {
           });
         }
         assertApprovalInteractionTargetsCandidate(previous, candidate);
+        if (candidate.status === "approval_requested") {
+          if (!isTerminalApprovalInteractionStatus(previous.status)) {
+            throw conflict("Release candidate is immutable after approval interaction creation", {
+              code: "release_candidate_immutable",
+              candidateId: candidate.id,
+              status: candidate.status,
+            });
+          }
+        } else if (candidate.status === "approved" && previous.status === "accepted") {
+          await getExpiredUnconsumedAuthorization(candidate, previous);
+        } else {
+          throw conflict("Release candidate is immutable after approval interaction creation", {
+            code: "release_candidate_immutable",
+            candidateId: candidate.id,
+            status: candidate.status,
+          });
+        }
+        const reissuingExpiredAuthorization = candidate.status === "approved";
         const [updated] = await db.update(releaseCandidates).set({
           approvalInteractionId: interaction.id,
           status: "approval_requested",
+          ...(reissuingExpiredAuthorization
+            ? { approvedByUserId: null, approvedAt: null }
+            : {}),
           updatedAt: new Date(),
         }).where(and(
           eq(releaseCandidates.id, candidateId),
-          eq(releaseCandidates.status, "approval_requested"),
+          eq(releaseCandidates.status, candidate.status),
           eq(releaseCandidates.approvalInteractionId, previous.id),
         )).returning();
         if (!updated) {
@@ -473,6 +532,8 @@ export function releaseCandidateService(db: Db) {
             interactionId: interaction.id,
             previousInteractionId: previous.id,
             previousInteractionStatus: previous.status,
+            previousCandidateStatus: candidate.status,
+            reason: reissuingExpiredAuthorization ? "expired_unconsumed_authorization" : "terminal_interaction",
             digest: updated.imageDigest,
             documentRevisionId: updated.documentRevisionId,
           },
@@ -480,6 +541,8 @@ export function releaseCandidateService(db: Db) {
             interaction_id: interaction.id,
             previous_interaction_id: previous.id,
             previous_interaction_status: previous.status,
+            previous_candidate_status: candidate.status,
+            reissue_reason: reissuingExpiredAuthorization ? "expired_unconsumed_authorization" : "terminal_interaction",
             document_revision_id: updated.documentRevisionId,
           },
         });
@@ -556,7 +619,7 @@ export function releaseCandidateService(db: Db) {
 
     getApprovalReissueSource: async (candidate: CandidateRow) => {
       if (!candidate.approvalInteractionId) return null;
-      if (candidate.status !== "approval_requested") {
+      if (candidate.status !== "approval_requested" && candidate.status !== "approved") {
         throw conflict("Release candidate is immutable after approval interaction creation", {
           code: "release_candidate_immutable",
           candidateId: candidate.id,
@@ -582,6 +645,17 @@ export function releaseCandidateService(db: Db) {
         payload: row.payload,
       } as IssueThreadInteraction;
       assertApprovalInteractionTargetsCandidate(interaction, candidate);
+      if (candidate.status === "approved") {
+        if (interaction.status !== "accepted") {
+          throw conflict("Release candidate is immutable after approval interaction creation", {
+            code: "release_candidate_immutable",
+            candidateId: candidate.id,
+            status: candidate.status,
+          });
+        }
+        await getExpiredUnconsumedAuthorization(candidate, interaction);
+        return interaction;
+      }
       if (!isTerminalApprovalInteractionStatus(interaction.status)) {
         throw conflict("Release candidate approval interaction is still pending", {
           code: "release_candidate_approval_pending",
