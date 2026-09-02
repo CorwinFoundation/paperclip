@@ -1,0 +1,47 @@
+name: BEAAA-28516 red-path demonstration
+
+# Runs the enrolled gate script, unmodified, against paperclip PR #3 — the PR
+# from the BEAAA-28421 breach, whose only backbond-qa APPROVED review carries a
+# zero-character body. Expected result: a `qa-review-evidence` check-run with
+# conclusion `failure` on head SHA 30b9f5475acfcd440f59b300d000c53b452d9b64.
+#
+# Scratch branch only. Never merged to master.
+
+on:
+  push:
+    branches: [beaaa-28516-red-demo]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  red-demo:
+    name: beaaa-28516-red-demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show the enrolled script is byte-identical to master
+        run: |
+          sha256sum .github/scripts/check-qa-review.mjs
+          git rev-parse HEAD
+
+      - name: Evaluate the gate against PR #3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: '3'
+          PR_HEAD_SHA: 30b9f5475acfcd440f59b300d000c53b452d9b64
+        run: node .github/scripts/check-qa-review.mjs
+
+      - name: Assert the posted check-run is a failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 5
+          gh api "repos/${{ github.repository }}/commits/30b9f5475acfcd440f59b300d000c53b452d9b64/check-runs?check_name=qa-review-evidence" \
+            --jq '.check_runs[] | {id, name, conclusion, url: .html_url, summary: .output.summary}' | tee out.json
+          test "$(gh api "repos/${{ github.repository }}/commits/30b9f5475acfcd440f59b300d000c53b452d9b64/check-runs?check_name=qa-review-evidence" --jq '[.check_runs[]|select(.conclusion=="failure")]|length')" != "0"
+          echo "ASSERT OK: qa-review-evidence is red on 30b9f547"
