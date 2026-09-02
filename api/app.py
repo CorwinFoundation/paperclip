@@ -261,7 +261,8 @@ def create_app(
     runtime_profile = current_runtime_profile()
     # BEAAA-12021 — build + validate the typed config once at startup.
     config = ApiConfig.from_env()
-    if config.production_scan_wiring:
+    production_scan_wiring = config.production_scan_wiring
+    if production_scan_wiring:
         config.require_production_signing_key()
     app = FastAPI(
         title="ARE Scanner ⇄ Underwriter API",
@@ -282,7 +283,7 @@ def create_app(
     # 503 path so the offline ``/score`` path is untouched. Lazy-import the
     # factory so test setups that never construct a real ``ScanRuntime``
     # don't pay the multiprocessing import cost.
-    if scan_runtime is None and config.production_scan_wiring:
+    if scan_runtime is None and production_scan_wiring:
         from .scan_runtime_factory import make_default_production_scan_runtime
         scan_runtime = make_default_production_scan_runtime()
     app.state.scan_runtime = scan_runtime
@@ -301,7 +302,7 @@ def create_app(
     # (unwired) boot keeps ``POST /scan`` byte-identical with no delivery.
     # The lazy import keeps httpx off the import path for callers that never
     # deliver a webhook.
-    if webhook_outbox is None and config.production_scan_wiring:
+    if webhook_outbox is None and production_scan_wiring:
         from .webhook_outbox import make_default_webhook_outbox
         webhook_outbox = make_default_webhook_outbox()
     app.state.webhook_outbox = webhook_outbox
