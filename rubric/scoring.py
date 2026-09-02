@@ -342,24 +342,15 @@ def score(
             entry = eval_outputs[did]
             # BEAAA-3161 / ADR-0027 wiring: if the cell carries `pass_rate`,
             # resolve the dim's calibration curve and recompute `raw` via the
-            # named-curve registry. Falls back to CURVE_RUNNER_V1 with stderr
-            # WARN on missing/unknown curve_id (rubric.calibration_curves.get).
+            # named-curve registry. Missing or unknown curve_id values raise
+            # CalibrationCurveError so scoring fails closed.
             # When the cell carries only `raw` (legacy artifacts produced
             # before v1.2.0 / scanner v0.4.1), the engine reads `raw` as-is
             # — preserves byte-identical replay on the frozen golden roster
             # and on every persisted historical scan envelope.
             if "pass_rate" in entry and entry["pass_rate"] is not None:
                 curve_id = rubric.dim_calibration_curves.get(did)
-                curve, curve_diagnostic = calibration_curves.resolve(curve_id)
-                if curve_diagnostic:
-                    diagnostic = {
-                        **curve_diagnostic,
-                        "detail": {
-                            **curve_diagnostic["detail"],
-                            "dim_id": did,
-                        },
-                    }
-                    diagnostics.append(diagnostic)
+                curve, _ = calibration_curves.resolve(curve_id)
                 raw = curve.apply(float(entry["pass_rate"]))
             else:
                 raw = float(entry["raw"])
