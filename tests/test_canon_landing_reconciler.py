@@ -136,6 +136,200 @@ class TestQaVerdict:
     def test_negative_vocabulary_on_the_verdict_line_still_vetoes(self):
         assert lr.is_qa_approval("**NOT APPROVED** for candidate `bf21e9d9`") is False
 
+    def test_unemphasized_line_leading_negative_vetoes(self):
+        body = "CHANGES REQUESTED - previously APPROVED at abc1234."
+        assert lr.is_qa_approval(body) is False
+
+    @pytest.mark.parametrize("body", [
+        "WITHDRAWN. The earlier APPROVED no longer stands.",
+        "DECLINED. Candidate was APPROVED in round 1.",
+        "REVOKED - the APPROVED verdict at abc1234 is retracted.",
+        "NOT AN APPROVAL. This restates the APPROVED row only.",
+        "DO NOT PROMOTE. APPROVED at abc1234 was previously recorded.",
+    ])
+    def test_each_line_leading_negative_verdict_token_vetoes_approval(self, body):
+        assert lr.is_qa_approval(body) is False
+
+    @pytest.mark.parametrize("body", [
+        ("Gate closed APPROVED. Capsule f01bc27c, candidate fba6bd9b. "
+         "SUPERSEDED: d1daf0f7 -> fba6bd9b."),
+        ("Gate closed APPROVED. Capsule f01bc27c, candidate fba6bd9b. "
+         "SUPERSEDED: d1daf0f7 -> fba6bd9b. No blockers remain."),
+        ("**APPROVED** at `1ecec12e`. "
+         "SUPERSEDED: `649b362e` -> `1ecec12e`."),
+    ])
+    def test_same_line_candidate_supersession_note_preserves_approval(self, body):
+        assert lr.is_qa_approval(body) is True
+
+    @pytest.mark.parametrize("body", [
+        ("APPROVED (candidate-only): SUPERSEDED 0d2556f -> d4e8fa9. "
+         "All prior findings fixed."),
+        ("**APPROVED** - `SUPERSEDED` re-test\n\n"
+         "`bd583ae53f7a80b2c8549c1bb28362a905ef52a5` -> "
+         "`08b517a88cd0016dadebc2982367e1a70486a8e5`."),
+        ("**APPROVED**QA gate PASSED for PR #148. "
+         "This SHA resolves the sole CHANGES-REQUESTED blocker from my prior review."),
+    ])
+    def test_real_board_supersession_approval_shapes(self, body):
+        assert lr.is_qa_approval(body) is True
+
+    def test_earlier_negative_is_not_overridden_by_later_code_citation(self):
+        body = (
+            "**CHANGES REQUESTED**\n\n"
+            "Discussion: `is_qa_approval(\"**APPROVED** - not blocked by "
+            "**anything**\")` returns false."
+        )
+        assert lr.is_qa_approval(body) is False
+
+    def test_separate_line_supersession_authoring_workaround_preserves_approval(self):
+        body = (
+            "SUPERSEDED: d1daf0f7 -> fba6bd9b.\n"
+            "Gate closed APPROVED for candidate fba6bd9b."
+        )
+        assert lr.is_qa_approval(body) is True
+
+    def test_unrelated_bold_spans_do_not_form_an_emphasized_negative_window(self):
+        assert lr.is_qa_approval("**APPROVED** — not blocked by **anything**") is True
+
+    @pytest.mark.parametrize("body", [
+        "**APPROVED** — not blocked by anything",
+        "APPROVED — not blocked by anything",
+    ])
+    def test_affirmative_no_blocker_clause_is_independent_of_emphasis(self, body):
+        assert lr.is_qa_approval(body) is True
+
+    def test_unrelated_bold_spans_do_not_veto_valid_approval(self):
+        body = "**APPROVED** for abc1234 - **nothing** here is blocked, **nothing** rejected"
+        assert lr.is_qa_approval(body) is True
+
+    def test_line_leading_negative_still_vetoes_separately_emphasized_approval(self):
+        assert lr.is_qa_approval("NOT APPROVED - this is not **APPROVED**") is False
+
+    @pytest.mark.parametrize("body", [
+        ("**Landed:** child **BEAAA-24612** created. No APPROVED verdict exists "
+         "and nothing is authorized to merge or promote."),
+        ("Reviewed **BEAAA-28616** at **a6d0fd16**: the APPROVED above is "
+         "WITHDRAWN."),
+        "Per **CTO** ruling on **28614**, that APPROVED is REVOKED.",
+        "Build **a6d0fd16** on **master**: APPROVED but DO NOT PROMOTE.",
+    ])
+    def test_mid_line_negative_token_vetoes_regardless_of_emphasis_count(self, body):
+        assert lr.is_qa_approval(body) is False
+
+    @pytest.mark.parametrize("body", [
+        "QA gate closed. **BEAAA-23766 is APPROVED** for candidate d3fed4e8; "
+        "the earlier CHANGES REQUESTED verdict does not apply.",
+        "Promotion was BLOCKED on the prior candidate; this candidate `71c5124d` is APPROVED.",
+        "APPROVED for `71c5124d`. No probe was rejected during the run.",
+        "Blocked on BEAAA-26434: QA verdict APPROVED for candidate b6a76118 stands unchanged.",
+    ])
+    def test_adjudicated_false_negatives_prefer_safe_manual_review(self, body):
+        assert lr.is_qa_approval(body) is False
+
+    @pytest.mark.parametrize("body", [
+        "**CHANGES REQUESTED** - previously APPROVED at abc1234.",
+        "Candidate `e48711e`. Not approved.",
+    ])
+    def test_asserted_negative_verdict_vetoes_same_line_approval(self, body):
+        assert lr.is_qa_approval(body) is False
+
+    @pytest.mark.parametrize(("body", "expected"), [
+        ("**APPROVED**\nNothing is blocked by this landing.", True),
+        ("QA gate closed. **BEAAA-23766 is APPROVED** for candidate d3fed4e8; "
+         "the earlier CHANGES REQUESTED verdict does not apply.", False),
+        ("Promotion was BLOCKED on the prior candidate; this candidate is APPROVED.", False),
+        ("APPROVED for 71c5124d. No probe was rejected during the run.", False),
+        ("**CHANGES REQUESTED**\nCandidate e48711e. Not approved.", False),
+        ("**NOT APPROVED** for candidate deadbee.", False),
+        ("**CHANGES REQUESTED** - previously APPROVED at abc1234.", False),
+        ("Verdict: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("Status: NOT APPROVED. Prior candidate was APPROVED at abc1234.", False),
+        ("QA: REJECTED. The earlier run was APPROVED.", False),
+        ("CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("**APPROVED** - not blocked by **anything**", True),
+        ("**APPROVED** for abc1234 - **nothing** here is blocked, **nothing** rejected", True),
+        ("Verdict: **CHANGES REQUESTED**. An earlier candidate was APPROVED.", False),
+        ("Note - blocked items were resolved; this is APPROVED.", False),
+        ("Result: __NOT APPROVED__ though abc1234 was APPROVED before.", False),
+        ("Result: __REJECTED__ though abc1234 was APPROVED before.", False),
+        ("__SUPERSEDED__ - prior APPROVED retracted.", False),
+        ("1. CHANGES REQUESTED - abc1234 was APPROVED earlier.", False),
+        ("We have not blocked anything here; candidate abc1234 is APPROVED.", False),
+        ("Round 2: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("Verdict for BEAAA-28616: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("Final QA verdict for this gate: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("R2 status: NOT APPROVED. Earlier candidate APPROVED at abc1234.", False),
+        ("QA (round 2): REJECTED. The earlier run was APPROVED.", False),
+        ("**Verdict**: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("2026-09-02: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("Gate 6e4f303e: CHANGES REQUESTED. Previously APPROVED at abc1234.", False),
+        ("**SUPERSEDED -> re-staged on a4f2f3c0. Still BLOCKED "
+         "(do-not-test-yet). No approved SHA stands.**", False),
+        ("**SUPERSEDED - prior APPROVED retracted. Gate re-BLOCKED "
+         "pending BEAAA-18645.**", False),
+        ("Summary: BLOCKED, then fixed; now APPROVED.", False),
+        ("Update: rejected, then corrected; APPROVED at abc1234.", False),
+        ("We have not approved this candidate, though an earlier one was APPROVED.", False),
+        ("The earlier candidate was NOT APPROVED; this run is APPROVED at abc1234.", False),
+    ])
+    def test_fail_closed_verdict_matrix_prefers_safe_manual_review(self, body, expected):
+        assert lr.is_qa_approval(body) is expected
+
+    @pytest.mark.parametrize("body", [
+        "If approved, target traffic remains held until the board grants authorization.",
+        "Same posture as when I approved it - CI, not review, and not this gate's scope.",
+        "The candidate was previously approved at abc1234.",
+    ])
+    def test_lowercase_approval_prose_is_not_a_verdict(self, body):
+        assert lr.is_qa_approval(body) is False
+
+    def test_uppercase_approval_remains_a_verdict(self):
+        assert lr.is_qa_approval("**APPROVED** for candidate abc1234.") is True
+
+    @pytest.mark.parametrize("body", [
+        "Summary.\n\nThis candidate is **NOT APPROVED**.\n\n**APPROVED**",
+        "**APPROVED**\n\nRETRACTED: this approval is withdrawn, see F-9.",
+        "My earlier **APPROVED** is RETRACTED.",
+        "**APPROVED** at abc1234.\n\nREVOKED.",
+    ])
+    def test_body_level_retraction_vetoes_approval(self, body):
+        assert lr.is_qa_approval(body) is False
+
+    @pytest.mark.parametrize("body", [
+        "**APPROVED**\n\nOne finding was raised and withdrawn on execution.",
+        "**APPROVED**\n\nThe implications are narrowed or retracted.",
+        "**APPROVED**\n\nUnknown/revoked/invalid signatures fail closed.",
+        "**APPROVED**\n\nThe issuer is unknown or revoked.",
+        "**APPROVED**\n\nThe superseded candidate is not approved by this verdict.",
+        "**APPROVED**\n\nPrior-head history: `7831c6b` approved-then-withdrawn after rejection.",
+    ])
+    def test_evidence_narration_does_not_withdraw_current_approval(self, body):
+        assert lr.is_qa_approval(body) is True
+
+    @pytest.mark.parametrize("body", [
+        "SUPERSEDED: <old> -> <CHANGES REQUESTED>. Previously APPROVED.",
+        "APPROVED. SUPERSEDED: <old> -> <NOT APPROVED>.",
+    ])
+    def test_placeholder_does_not_swallow_negative_verdict(self, body):
+        assert lr.is_qa_approval(body) is False
+
+
+@pytest.mark.parametrize(("body", "expected"), [
+    (
+        "Classification: rule-execution under `spec@v2.1`. "
+        "No rubric, judge, scoring, or tamper-resistance rule changed.",
+        lr.RULE_EXECUTION,
+    ),
+    (
+        "Provisional classification: rule execution, subject to N=5. "
+        "Any delta greater than 1 reclassifies it as rule change.",
+        lr.RULE_EXECUTION,
+    ),
+    ("classification: rule execution -> **rule change**", lr.RULE_CHANGE),
+])
+def test_classification_ignores_negated_or_conditional_tail(body, expected):
+    assert lr.ticket_classification([body]) == expected
+
 
 class TestCosignStrength:
     def test_explicit_grant(self):
@@ -152,6 +346,18 @@ class TestCosignStrength:
     def test_recalling_an_earlier_cosign_is_not_a_grant(self):
         body = "it keeps `63441702` in history instead of rewriting a SHA I had already co-signed"
         assert lr.cosign_strength(body, "63441702") == 1
+
+    @pytest.mark.parametrize("body", [
+        "Merge co-sign granted earlier is REVOKED.",
+        "CTO merge co-sign: **DENIED**. Do not merge.",
+        "I am withholding the merge co-sign until QA clears.",
+    ])
+    def test_negative_cosign_disposition_is_not_a_grant_or_reference(self, body):
+        assert lr.cosign_strength(body) == 0
+
+    def test_negative_evidence_narration_does_not_cancel_cosign_reference(self):
+        body = "Co-sign recorded on BEAAA-123. Revoked signatures fail closed."
+        assert lr.cosign_strength(body) == 1
 
     def test_bare_assertion_naming_the_sha_is_a_grant(self):
         assert lr.cosign_strength("BLUF: co-signed `63441702`.", "63441702") == 2
@@ -441,6 +647,53 @@ class TestTicketClassification:
         assert lr.ticket_classification(
             ["This ticket is not a rule change in my view."]) == lr.UNCLASSIFIED
 
+    @pytest.mark.parametrize("text", [
+        'The prior comment said "classification: rule change".',
+        '> classification: rule change',
+        'The prior comment said "This ticket is a rule change."',
+    ])
+    def test_quoted_classification_classifies_nothing(self, text):
+        assert lr.ticket_classification([text]) == lr.UNCLASSIFIED
+
+    def test_negated_field_classifies_nothing(self):
+        assert lr.ticket_classification(
+            ["classification: not a rule change"]) == lr.UNCLASSIFIED
+
+    def test_negated_rule_execution_field_classifies_nothing(self):
+        assert lr.ticket_classification(
+            ["classification: not rule execution"]) == lr.UNCLASSIFIED
+
+    @pytest.mark.parametrize(("text", "expected"), [
+        ('classification: "rule change"', lr.RULE_CHANGE),
+        ('classification: "rule execution"', lr.RULE_EXECUTION),
+        ('classification: “rule change”', lr.RULE_CHANGE),
+        ('classification: “rule execution”', lr.RULE_EXECUTION),
+        ('Per "the v2.0 table", classification: rule change', lr.RULE_CHANGE),
+    ])
+    def test_quoted_field_values_are_preserved(self, text, expected):
+        assert lr.ticket_classification([text]) == expected
+
+    @pytest.mark.parametrize("text", [
+        "Classification: rule execution - this is not a rule change under the v2.0 table.",
+        "classification: rule execution (no rubric_point_id, no scoring math, so not a rule change)",
+    ])
+    def test_negated_later_value_does_not_replace_execution(self, text):
+        assert lr.ticket_classification([text]) == lr.RULE_EXECUTION
+
+    def test_sentence_initial_no_correction_reclassifies_bare_field(self):
+        text = "classification: rule execution. No - the scoring table moved, so rule change."
+        assert lr.ticket_classification([text]) == lr.RULE_CHANGE
+
+    @pytest.mark.parametrize("tail", [
+        "Any delta greater than 1 would reclassify it as a rule change.",
+        "If the delta moves we will re-classify it as a rule change.",
+        "Any delta greater than 1 reclassifies it as rule change.",
+    ])
+    def test_hypothetical_reclassification_does_not_replace_current_field(self, tail):
+        assert lr.ticket_classification([
+            f"classification: rule execution. {tail}"
+        ]) == lr.RULE_EXECUTION
+
     def test_silence_is_unclassified_not_a_rule_change(self):
         assert lr.ticket_classification(["Land the probe wrapper."]) == lr.UNCLASSIFIED
 
@@ -490,6 +743,50 @@ class TestRendering:
 
     def test_summary_counts_each_class(self):
         assert lr.summarise(self.rows) == {lr.RECONCILED: 1, lr.UNRECONCILED: 1, lr.EXEMPT: 0}
+
+
+class TestShaSearchResolution:
+    def test_sha_search_widens_to_owning_issue_neighbourhood(self):
+        item = landing(subject="landing without a ticket reference")
+        owner = {"id": "owner", "identifier": "BEAAA-9001", "description": "rule execution"}
+        gate = {"id": "gate", "identifier": "BEAAA-9002"}
+        comments = {
+            "owner": [{
+                "id": "merged", "authorAgentId": CTO, "createdAt": "2026-08-20T00:00:00Z",
+                "body": f"mentions {SHA_CANDIDATE}\nmerged_sha_on_canon_master_at_close: {SHA_LANDED}",
+            }],
+            "gate": [{
+                "id": "approved", "authorAgentId": QA, "createdAt": "2026-08-20T00:01:00Z",
+                "body": f"**APPROVED** at {SHA_CANDIDATE}",
+            }],
+        }
+
+        class Client:
+            def search_issues(self, query):
+                return [owner]
+
+            def comments(self, issue_id):
+                return comments[issue_id]
+
+            def issue(self, issue_id):
+                return owner if issue_id == "owner" else gate
+
+            def neighbourhood(self, issue):
+                return [owner, gate]
+
+        class Repo:
+            branch = "master"
+
+            def resolve(self, rev):
+                return SHA_LANDED if SHA_LANDED.startswith(rev) else None
+
+            def is_ancestor(self, ancestor, descendant):
+                return ancestor == SHA_LANDED
+
+        row = lr.resolve_landing(item, Client(), Repo(), {CTO}, {QA}, None, SHA_LANDED)
+        assert row.issue == "BEAAA-9001"
+        assert row.qa_comment_id == "approved"
+        assert lr.FINDING_QA not in row.findings
 
 
 # --------------------------------------------------------------------------
@@ -596,11 +893,40 @@ class TestCli:
         self._run(monkeypatch, [], roles={"engineer": {"x"}})
         assert lr.main(["--no-fetch"]) == 2
 
-    def test_unresolvable_canon_head_exits_two_rather_than_flagging_every_landing(
-            self, monkeypatch):
-        self._run(monkeypatch, [])
-        monkeypatch.setattr(lr.CanonRepo, "head", lambda self: None)
-        assert lr.main(["--no-fetch"]) == 2
+    def test_missing_canon_ref_exits_two_before_reading_landings(
+            self, monkeypatch, canon, capsys):
+        repo, _ = canon
+        for var, value in {
+            "PAPERCLIP_API_URL": "http://api.invalid",
+            "PAPERCLIP_API_KEY": "k",
+            "PAPERCLIP_COMPANY_ID": "c",
+        }.items():
+            monkeypatch.setenv(var, value)
+
+        assert lr.main([
+            "--no-fetch", "--cache-dir", repo.dir, "--branch", "missing-ref",
+        ]) == 2
+        assert "cannot resolve canon missing-ref HEAD" in capsys.readouterr().err
+
+    @pytest.mark.parametrize("failure", [
+        subprocess.CalledProcessError(128, ["git", "clone"], stderr="repository not found"),
+        subprocess.CalledProcessError(128, ["git", "fetch"], stderr="remote branch missing"),
+    ])
+    def test_default_fetch_sync_failure_exits_two_without_traceback(
+            self, monkeypatch, capsys, failure):
+        for var, value in {
+            "PAPERCLIP_API_URL": "http://api.invalid",
+            "PAPERCLIP_API_KEY": "k",
+            "PAPERCLIP_COMPANY_ID": "c",
+        }.items():
+            monkeypatch.setenv(var, value)
+        monkeypatch.setattr(lr.CanonRepo, "sync", lambda self: (_ for _ in ()).throw(failure))
+
+        assert lr.main([]) == 2
+        err = capsys.readouterr().err
+        assert "cannot sync canon" in err
+        assert failure.stderr in err
+        assert "Traceback" not in err
 
     def _run(self, monkeypatch, rows, roles=None):
         monkeypatch.setenv("PAPERCLIP_API_URL", "http://api.invalid")

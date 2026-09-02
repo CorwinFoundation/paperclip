@@ -60,11 +60,13 @@ DEFAULT_BRANCH = "master"
 ISSUE_REF_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,9}-\d+)\b")
 HEX_TOKEN_RE = re.compile(r"\b([0-9a-f]{7,40})\b")
 
-# A QA verdict is APPROVED only when the word stands alone. "NOT APPROVED",
-# "CHANGES REQUESTED" and "SUPERSEDED" are verdicts too, and none of them gate.
-QA_APPROVED_RE = re.compile(r"(?<!not )(?<!un)\bAPPROVED\b", re.IGNORECASE)
+# A QA verdict uses the uppercase token APPROVED; lowercase prose does not gate.
+# "NOT APPROVED", "CHANGES REQUESTED" and "SUPERSEDED" are negative verdicts.
+QA_APPROVED_RE = re.compile(r"(?<!not )(?<!un)\bAPPROVED\b")
 QA_NEGATIVE_RE = re.compile(
-    r"\b(NOT APPROVED|CHANGES REQUESTED|REJECTED|BLOCKED)\b", re.IGNORECASE
+    r"(?<![A-Za-z0-9])(NO APPROVED VERDICT|NOT APPROVED|CHANGES REQUESTED|REJECTED|BLOCKED|SUPERSEDED"
+    r"|WITHDRAWN|DECLINED|REVOKED|NOT AN APPROVAL|DO NOT PROMOTE)(?![A-Za-z0-9])",
+    re.IGNORECASE,
 )
 # A co-sign is *granted* in a comment, but co-signs are also referred to in
 # passing ("I have co-signed the diff on BEAAA-23945"). Rank the grant above the
@@ -83,6 +85,25 @@ COSIGN_GRANT_RE = re.compile(
     re.IGNORECASE,
 )
 COSIGN_MENTION_RE = re.compile(r"co-?sign", re.IGNORECASE)
+COSIGN_NEGATIVE_RE = re.compile(
+    r"\b(?:REVOKED|WITHDRAWN|DECLINED|DENIED|WITHHOLDING|WITHHELD)\b",
+    re.IGNORECASE,
+)
+
+
+def _cosign_negative_declaration(body: str) -> bool:
+    """Whether a negative disposition governs the co-sign itself.
+
+    Negative vocabulary in evidence narration (for example, revoked signing
+    keys) must not cancel a co-sign.  Require the negative and the co-sign noun
+    to share a sentence-sized clause.
+    """
+    for clause in re.split(r"[.;\n]", body or ""):
+        if not COSIGN_MENTION_RE.search(clause):
+            continue
+        if COSIGN_NEGATIVE_RE.search(clause):
+            return True
+    return False
 
 # The other grant form this org uses is a bare assertion naming the SHA:
 # "BLUF: co-signed `cc0fdcf`." A subordinating clause turns the same words into
@@ -304,13 +325,109 @@ def issue_refs(text: str) -> list[str]:
 
 
 def is_qa_approval(body: str) -> bool:
-    # Verdict vocabulary elsewhere in the comment is often quoted history or
-    # ordinary prose (for example, "nothing is blocked by this landing"). Only
-    # a negative verdict on the line asserting APPROVED can veto that assertion.
+    # A later declaration can withdraw an earlier verdict, but the negative
+    # must govern this candidate/verdict.  Matching those words anywhere in a
+    # long QA report wrongly vetoes approvals that discuss revoked signatures,
+    # withdrawn findings, or a superseded candidate.
     for line in (body or "").splitlines():
-        if QA_APPROVED_RE.search(line) and not QA_NEGATIVE_RE.search(line):
+        prose = re.sub(r"`[^`]*`", "", line)
+        if re.search(
+            r"\b(?:this|the current)\s+(?:candidate|approval|verdict)\b[^.;]{0,80}"
+            r"\b(?:NOT APPROVED|WITHDRAWN|RETRACTED|REVOKED)\b"
+            r"|\b(?:this\s+)?approval\b[^.;]{0,40}\b(?:WITHDRAWN|RETRACTED|REVOKED)\b"
+            r"|\b(?-i:APPROVED)\b[^.;]{0,40}\b(?:WITHDRAWN|RETRACTED|REVOKED)\b"
+            r"|^\s*[*_`#-]*\s*(?:NOT APPROVED|WITHDRAWN|RETRACTED|REVOKED)"
+            r"\s*[.!:;*_`-]*\s*$",
+            prose,
+            re.IGNORECASE,
+        ):
+            return False
+    prior_negative_verdict = False
+    for line in (body or "").splitlines():
+        # A QA handoff may describe the candidate transition using either real
+        # SHAs or the gate's prescribed ``<old> -> <new>`` placeholders. Remove
+        # that bookkeeping before stripping inline code so backticked tokens do
+        # not turn an otherwise valid pair into the misleading text `` -> ``.
+        transition = r"(?:[0-9a-f]{7,40}|<[A-Za-z0-9_.-]+>)"
+        supersession_note_re = re.compile(
+            rf"\bSUPERSEDED\s*:?[ ]*`?{transition}`?\s*->\s*"
+            rf"`?{transition}`?\s*[.]?",
+            re.IGNORECASE,
+        )
+        line_without_bookkeeping = supersession_note_re.sub("", line)
+        # Inline code is evidence or discussion, never the comment's verdict.
+        # In particular, a later ``is_qa_approval("**APPROVED** ...")`` citation
+        # must not override an earlier CHANGES REQUESTED verdict.
+        verdict_line = re.sub(r"`[^`]*`", "", line_without_bookkeeping)
+        if not QA_APPROVED_RE.search(verdict_line):
+            if QA_NEGATIVE_RE.search(verdict_line):
+                prior_negative_verdict = True
+            continue
+        if prior_negative_verdict:
+            return False
+        # A canonical QA re-test may record the candidate transition after its
+        # verdict on the same line.  That ``SUPERSEDED: old -> new`` note names
+        # the retired candidate; it does not supersede the approval immediately
+        # preceding it.  Keep the exemption deliberately SHA-shaped so prose
+        # such as "SUPERSEDED - prior APPROVED retracted" remains fail-closed.
+        # Remove only the SHA-shaped bookkeeping clause. Real QA comments often
+        # continue with an ordinary sentence after it; that trailing prose must
+        # still be inspected for an independent negative verdict.
+        negative_scope = verdict_line
+        # QA also uses a backticked ``SUPERSEDED`` heading, with the old/new
+        # pair on the next line. The code-span removal above leaves the genuine
+        # APPROVED verdict and removes that bookkeeping label.
+        negative_scope = re.sub(r"`SUPERSEDED`", "", negative_scope,
+                                flags=re.IGNORECASE)
+        # Markdown emphasis is presentation, not clause structure. Remove its
+        # delimiters, then exempt only the narrow affirmative phrases that say
+        # the approval has no blocker. Every remaining negative verdict token
+        # on the line remains fail-closed, regardless of its position.
+        negative_scope = negative_scope.replace("**", "").replace("__", "")
+        negative_scope = re.sub(
+            r"\bnot blocked by anything\b|\bnothing(?: here)? is blocked\b|\bnothing rejected\b",
+            "",
+            negative_scope,
+            flags=re.IGNORECASE,
+        )
+        negative_scope = re.sub(
+            r"\bresolves?\b[^.;\n]{0,80}\bCHANGES[- ]REQUESTED\b"
+            r"[^.;\n]{0,80}\b(?:prior|earlier)\s+review\b",
+            "",
+            negative_scope,
+            flags=re.IGNORECASE,
+        )
+        cleaned_stripped = re.sub(
+            r"^\s*(?:(?:[-*+]|\d+[.)])\s+|#+\s*)*[*_`]*", "", negative_scope
+        )
+        cleaned_label = re.sub(
+            r"^[A-Za-z][A-Za-z0-9 ()_-]{0,40}[:\u2013\u2014-]\s*[*_`]*",
+            "", cleaned_stripped, count=1,
+        )
+        negative_at_verdict = bool(
+            QA_NEGATIVE_RE.match(cleaned_stripped) or QA_NEGATIVE_RE.match(cleaned_label)
+        )
+        negative = negative_at_verdict or bool(QA_NEGATIVE_RE.search(negative_scope))
+        if not negative:
             return True
     return False
+
+
+def _unquoted_prose(text: str) -> str:
+    """Remove quoted prose that cannot declare the current ticket's state."""
+    kept: list[str] = []
+    for line in (text or "").splitlines():
+        if re.match(r"\s*>", line):
+            continue
+        def remove_or_unquote(match: re.Match[str]) -> str:
+            prefix = line[:match.start()]
+            if re.search(r"\bclassification\s*[:=]\s*$", prefix, re.IGNORECASE):
+                return match.group(2)
+            return ""
+
+        line = re.sub(r'(["\u201c])(.*?)(["\u201d])', remove_or_unquote, line)
+        kept.append(line)
+    return "\n".join(kept)
 
 
 def cosign_strength(body: str, named_token: str | None = None) -> int:
@@ -322,6 +439,8 @@ def cosign_strength(body: str, named_token: str | None = None) -> int:
     closure report stand in for the gate.
     """
     body = body or ""
+    if _cosign_negative_declaration(body):
+        return 0
     if COSIGN_GRANT_RE.search(body):
         return 2
     if named_token and re.search(COSIGN_ASSERTION_RE.pattern % re.escape(named_token),
@@ -352,17 +471,48 @@ def ticket_classification(texts: list[str], identifier: str | None = None) -> st
         CLASS_DECLARATION_TEMPLATE.format(subject=subject), re.IGNORECASE
     )
 
+    def conditional_candidate(text: str, value_start: int) -> bool:
+        """Whether the candidate is the outcome of a hypothetical condition."""
+        clause = re.split(r"[.;]", text[:value_start])[-1]
+        return bool(re.search(
+            r"\b(?:(?:would|will)\s+re-?classif(?:y|ies|ied)|re-?classifies)\b"
+            r"[^.;]{0,48}\bas\s+"
+            r"(?:an?\s+)?[*_`]{0,2}$",
+            clause,
+            re.I,
+        ))
+
     verdict = UNCLASSIFIED
     for text in texts:
-        text = text or ""
+        text = _unquoted_prose(text or "")
         latest: tuple[int, str] | None = None
         for field in CLASS_FIELD_RE.finditer(text):
-            values = CLASS_VALUE_RE.findall(field.group(0))
+            span = field.group(0)
+            values = []
+            for value in CLASS_VALUE_RE.finditer(span):
+                prefix = span[:value.start()]
+                immediate_negation = re.search(
+                    r"(?:\b(?:not|no|never)\s+(?:an?\s+)?|n['\u2019]t\s+(?:an?\s+)?|"
+                    r"\b(?:rather\s+than|instead\s+of)\s+(?:an?\s+)?)$",
+                    prefix[-48:],
+                    re.I,
+                )
+                clause = re.split(r"[.;]", prefix)[-1]
+                # "No rubric ... rule changed" is a denial; "No - ... so
+                # rule change" is a correction. Punctuation after No carries
+                # that distinction without vetoing the corrected value.
+                broad_no_clause = re.match(r"\s*no\b(?!\s*[-\u2013\u2014,:])", clause, re.I)
+                if not (immediate_negation or broad_no_clause
+                        or conditional_candidate(span, value.start())):
+                    values.append(value.group(1))
             if values:  # a corrected field states both; the last one is current
                 latest = (field.start(), values[-1].lower())
         for match in declaration_re.finditer(text):
             value = next(g for g in match.groups() if g)
-            if latest is None or match.start() > latest[0]:
+            value_start = next(match.start(i) for i, g in enumerate(match.groups(), 1) if g)
+            candidate_start = text.rfind("rule", match.start(), value_start + 1)
+            if (not conditional_candidate(text, candidate_start)
+                    and (latest is None or match.start() > latest[0])):
                 latest = (match.start(), value.lower())
         if latest:
             verdict = RULE_CHANGE if latest[1] == "change" else RULE_EXECUTION
@@ -1024,7 +1174,9 @@ def resolve_landing(
                 if hit["id"] in neighbourhood:
                     continue
                 if any(sha_named_in(c.get("body") or "", sha) for c in client.comments(hit["id"])):
-                    neighbourhood[hit["id"]] = hit
+                    full = client.issue(hit["id"]) or hit
+                    for near in client.neighbourhood(full):
+                        neighbourhood.setdefault(near["id"], near)
                     if owning_issue is None:
                         owning_issue, owning_id = hit.get("identifier"), hit["id"]
 
@@ -1113,14 +1265,20 @@ def main(argv: list[str] | None = None) -> int:
 
     repo = CanonRepo(args.cache_dir, args.repo, args.branch)
     if not args.no_fetch:
-        repo.sync()
-    landings = repo.landings(since, until)
+        try:
+            repo.sync()
+        except subprocess.CalledProcessError as exc:
+            detail = (exc.stderr or exc.stdout or str(exc)).strip()
+            print(f"cannot sync canon {args.repo} branch {args.branch}: {detail}",
+                  file=sys.stderr)
+            return 2
     head_sha = repo.head()
     if head_sha is None:
         print(f"cannot resolve canon {args.branch} HEAD in {args.cache_dir}; "
               "the merged-SHA reachability leg would report every landing unreachable",
               file=sys.stderr)
         return 2
+    landings = repo.landings(since, until)
 
     client = PaperclipClient(api_url, api_key, company)
     roles = client.agents_by_role()
