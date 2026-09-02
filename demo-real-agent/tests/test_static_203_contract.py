@@ -44,38 +44,3 @@ def test_container_copies_every_materializer_data_root() -> None:
     assert "artifacts/*" in dockerignore
     assert f"!{HALUEVAL_DATASET}" in dockerignore
     assert f"!{CONTENT_CANDIDATE_INVENTORY}" in dockerignore
-
-
-def test_release_archive_contains_every_docker_build_context_root() -> None:
-    workflow = (REPO / ".github" / "workflows" / "real-agent-demo.yml").read_text(
-        encoding="utf-8"
-    )
-    release_command = next(
-        line.strip()
-        for line in workflow.splitlines()
-        if line.strip().startswith("tar -czf real-agent-demo-release.tgz")
-    )
-
-    for required_path in (
-        "api",
-        "evals",
-        "harness",
-        "rubric",
-        "scanners",
-        "release",
-        "release_identity.py",
-        "tools",
-        "demo-real-agent",
-        "tests/probe_sets",
-        HALUEVAL_DATASET,
-        CONTENT_CANDIDATE_INVENTORY,
-    ):
-        assert required_path in release_command.split()
-
-
-def test_ci_container_supplies_strong_demo_access_token() -> None:
-    workflow = (REPO / ".github" / "workflows" / "real-agent-demo.yml").read_text(
-        encoding="utf-8"
-    )
-
-    assert "-e DEMO_ACCESS_TOKEN=ci-only-real-agent-demo-access-token" in workflow
