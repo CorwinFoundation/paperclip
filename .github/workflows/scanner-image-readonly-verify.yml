@@ -1,0 +1,127 @@
+name: Scanner Image Read-only Verification
+
+on:
+  workflow_dispatch:
+
+# Exactly three repository-scoped read-only job-token permissions, per the
+# CTO scope ruling and co-sign on BEAAA-23837 (Option A). `actions: read` is
+# required because an explicit permissions map sets every unlisted scope to
+# `none`, and the Actions-artifact REST calls below cannot authenticate
+# against this private repository without it. No job-level override is
+# permitted, and no scope here can mutate anything.
+permissions:
+  contents: read
+  packages: read
+  actions: read
+
+jobs:
+  verify:
+    name: verify immutable Scanner image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      IMAGE_REPOSITORY: ghcr.io/corwinfoundation/are-scanner
+      IMAGE_TAG: sha-7850289333ffc1de6eebea9c2201e0f1059c4c12
+      EXPECTED_DIGEST: sha256:e955a2812015cf7da487c2e266e0a7f3fc9478cdafc2580dc0e02df53d96df9b
+      EXPECTED_REVISION: 7850289333ffc1de6eebea9c2201e0f1059c4c12
+      EXPECTED_MANIFEST_SHA256: 2417a7b22c1ad82c7b3ad68eb815b03b6345be6b1c25bbcd54fc756a85957ddc
+      SOURCE_RUN_ID: "30672001992"
+      SOURCE_ARTIFACT_ID: "8809120470"
+      EXPECTED_ARTIFACT_SHA256: 502a52979825fe838fdccceac08d079fc553262bce69d69d06d904c2af94f1c0
+    steps:
+      - name: Check out verifier only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Initialize fail-closed evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          jq -n \
+            --arg status FAIL \
+            --arg tag_reference "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
+            --arg expected_digest "$EXPECTED_DIGEST" \
+            --arg source_run "$SOURCE_RUN_ID" \
+            --arg source_artifact "$SOURCE_ARTIFACT_ID" \
+            --arg verification_run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{schema_version:"backbond-scanner-readonly-image-verification@2",
+              binding_model:{image_and_actions_artifact_cross_checked:false},
+              $status,$tag_reference,$expected_digest,$source_run,$source_artifact,$verification_run_url}' \
+            > evidence/verification.json
+
+      - name: Authenticate to GHCR with repository token
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Resolve tag and inspect immutable digest
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          resolved="$(docker buildx imagetools inspect "${IMAGE_REPOSITORY}:${IMAGE_TAG}" --format '{{ .Manifest.Digest }}')"
+          test "$resolved" = "$EXPECTED_DIGEST"
+          docker pull "${IMAGE_REPOSITORY}@${resolved}"
+          docker image inspect "${IMAGE_REPOSITORY}@${resolved}" > image-inspect.json
+          printf 'resolved=%s\n' "$resolved" >> "$GITHUB_OUTPUT"
+
+      - name: Recompute release manifest from frozen source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$EXPECTED_REVISION"
+          git show "${EXPECTED_REVISION}:release/backbond-scanner-release.json" > frozen-release-manifest.json
+          test "$(sha256sum frozen-release-manifest.json | cut -d' ' -f1)" = "$EXPECTED_MANIFEST_SHA256"
+
+      - name: Download named Actions artifact using read-only API
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}" \
+            --output source-artifact-metadata.json
+          test "$(jq -r '.id' source-artifact-metadata.json)" = "$SOURCE_ARTIFACT_ID"
+          test "$(jq -r '.workflow_run.id' source-artifact-metadata.json)" = "$SOURCE_RUN_ID"
+          curl --fail-with-body --location --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip" \
+            --output source-artifact.zip
+
+      - name: Verify all immutable bindings and emit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/verify_scanner_image.py \
+            --inspect-json image-inspect.json \
+            --artifact-zip source-artifact.zip \
+            --source-manifest frozen-release-manifest.json \
+            --evidence evidence/verification.json \
+            --repository "$IMAGE_REPOSITORY" \
+            --tag "$IMAGE_TAG" \
+            --resolved-digest "${{ steps.image.outputs.resolved }}" \
+            --expected-digest "$EXPECTED_DIGEST" \
+            --expected-revision "$EXPECTED_REVISION" \
+            --expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \
+            --expected-artifact-sha256 "$EXPECTED_ARTIFACT_SHA256" \
+            --source-run "$SOURCE_RUN_ID" \
+            --source-artifact "$SOURCE_ARTIFACT_ID" \
+            --verification-run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Upload non-secret verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scanner-image-verification-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
