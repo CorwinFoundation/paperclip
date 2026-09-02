@@ -10,6 +10,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from rubric.calibration_curves import CalibrationCurveError
 from rubric.scoring import Rubric, ScoringError, score
 
 REPO = Path(__file__).resolve().parents[1]
@@ -87,31 +88,19 @@ class ScoringTests(unittest.TestCase):
         # Distinct from rubric_version (the two are not aliased).
         self.assertNotEqual(out["rubric_locked_through"], out["rubric_version"])
 
-    def test_pass_rate_curve_fallback_surfaces_in_diagnostics(self):
+    def test_unknown_pass_rate_curve_fails_closed(self):
         eo = _flat_eval(self.rubric, 2.0)
         eo["P1.2"] = {"pass_rate": 0.95, "evidence_uri": "https://evidence.local/P1.2"}
         original = self.rubric.dim_calibration_curves["P1.2"]
         self.rubric.dim_calibration_curves["P1.2"] = "CURVE_DOES_NOT_EXIST"
         try:
-            out = score(self.rubric, eo, **self.kwargs)
+            with self.assertRaisesRegex(
+                CalibrationCurveError,
+                "unknown calibration curve_id 'CURVE_DOES_NOT_EXIST'",
+            ):
+                score(self.rubric, eo, **self.kwargs)
         finally:
             self.rubric.dim_calibration_curves["P1.2"] = original
-
-        diagnostics = out["diagnostics"]
-        fallback = [
-            d for d in diagnostics
-            if d["code"] == "calibration_curve_fallback"
-        ]
-        self.assertEqual(len(fallback), 1)
-        self.assertEqual(fallback[0]["detail"]["dim_id"], "P1.2")
-        self.assertEqual(
-            fallback[0]["detail"]["requested_curve_id"],
-            "CURVE_DOES_NOT_EXIST",
-        )
-        self.assertEqual(
-            fallback[0]["detail"]["fallback_curve_id"],
-            "CURVE_RUNNER_V1",
-        )
 
     def test_missing_snapshot_hash_raises(self):
         with self.assertRaisesRegex(ScoringError, "snapshot_hash"):

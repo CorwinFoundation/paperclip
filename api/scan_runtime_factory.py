@@ -734,20 +734,13 @@ def _production_score_envelope_factory(
                 if truncated:
                     envelope["prior_scan_refs_truncated"] = True
                 return envelope
-            # Registry MISS under flag-on is a programmer error — fall
-            # through to the placeholder envelope so persistence doesn't
-            # block, but surface the miss to stderr so the next replay
-            # check catches it.
-            import sys as _sys
-            print(
-                f"[score_envelope_factory] WARN: registry miss for "
-                f"scan_id={result.scan_id} under ARE_SCORER_REAL=on; "
-                f"falling back to _phase1_pending envelope.",
-                file=_sys.stderr,
+            raise ScanRuntimeError(
+                f"score envelope registry miss for scan_id={result.scan_id!r} "
+                "under ARE_SCORER_REAL=on; aborting scan before persistence"
             )
 
-        # Flag-off path (or registry miss) — master 52c003e placeholder
-        # envelope. Tier-1 rollback target.
+        # Flag-off path — master 52c003e placeholder envelope. Tier-1
+        # rollback target. Registry misses in the flag-on path fail closed.
         envelope: dict[str, Any] = {
             "agent_id": agent_id,
             "are_total": "_phase1_pending",

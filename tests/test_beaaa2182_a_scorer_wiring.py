@@ -494,6 +494,48 @@ class TestAGA6FlagOffRollback:
         # API-edge patch: prior_scan_refs populated post-receive.
         assert envelope["prior_scan_refs"] == []
 
+    def test_registry_miss_aborts_before_scan_log_persistence(self) -> None:
+        from api.scan_handlers import ScanRuntime
+        from api.scan_log import ScanLog
+        from api.scan_runtime_factory import (
+            ScanRuntimeError,
+            _production_score_envelope_factory,
+        )
+        from scanners.live_probe_orchestrator import ScanRequest, ScanResult
+
+        scan_log = ScanLog()
+        result = ScanResult(
+            scan_id="scan-registry-miss",
+            status="complete",
+            scanner_version="0.3.11",
+            corpus_version="0.1.0",
+            rows_emitted=4,
+        )
+        runtime = ScanRuntime(
+            run_scan_fn=lambda scan_request, secret: result,
+            scan_log=scan_log,
+        )
+        runtime_ref = [runtime]
+        runtime._score_envelope_factory = _production_score_envelope_factory(
+            runtime_ref, {}
+        )
+        request = ScanRequest(
+            scan_id=result.scan_id,
+            tenant_id="tenant-test",
+            agent_endpoint="https://agent.example",
+            credential_ref="credential-test",
+            corpus_snapshot_hash="sha256:" + "a" * 64,
+            scanner_version=result.scanner_version,
+            corpus_version=result.corpus_version,
+            seed=42,
+        )
+
+        with patch.dict(os.environ, {"ARE_SCORER_REAL": "on"}):
+            with pytest.raises(ScanRuntimeError, match="registry miss"):
+                runtime.kickoff(request, "secret", agent_id="agent-test")
+
+        assert scan_log.list_for_agent("agent-test") == []
+
     @pytest.mark.parametrize(
         ("field_name", "forged_value", "message"),
         (

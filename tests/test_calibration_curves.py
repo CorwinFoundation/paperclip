@@ -9,7 +9,7 @@ Covers AC#11 of the impl ticket:
     (verifies P3.3 punitive band preserved).
   - CURVE_RUNNER_V1 at 0.87 → 3.0; at 0.61 → 2.5
     (verifies runner-curve discipline preserved on non-P1.1/P3.3 dims).
-  - Unknown curve_id resolves to CURVE_RUNNER_V1 with stderr WARN.
+  - Unknown and missing curve_id values fail scoring closed.
   - Round-trip parity: a P1.1 raw computed under old code vs new code on
     the same accuracy is byte-identical (golden cross-check).
 """
@@ -94,28 +94,22 @@ def test_curve_legacy_exfil_punitive_exact_cuts(
 
 
 # ---------------------------------------------------------------------------
-# Fallback semantics — unknown / missing curve_id resolves to CURVE_RUNNER_V1
-# with a stderr WARN per AC#3 + AC#11.
+# Fail-closed semantics — unknown / missing curve_id is a hard scoring error.
 # ---------------------------------------------------------------------------
-def test_unknown_curve_id_falls_back_with_stderr_warn(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    curve = calibration_curves.get("CURVE_DOES_NOT_EXIST")
-    assert curve.curve_id == "CURVE_RUNNER_V1"
-    captured = capsys.readouterr()
-    assert "WARN" in captured.err
-    assert "CURVE_DOES_NOT_EXIST" in captured.err
-    assert "CURVE_RUNNER_V1" in captured.err
+def test_unknown_curve_id_raises_hard_scoring_error() -> None:
+    with pytest.raises(calibration_curves.CalibrationCurveError, match="unknown"):
+        calibration_curves.get("CURVE_DOES_NOT_EXIST")
 
 
-def test_missing_curve_id_falls_back_with_stderr_warn(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    curve = calibration_curves.get(None)
+def test_missing_curve_id_raises_hard_scoring_error() -> None:
+    with pytest.raises(calibration_curves.CalibrationCurveError, match="missing"):
+        calibration_curves.get(None)
+
+
+def test_explicit_valid_curve_preserves_behavior() -> None:
+    curve = calibration_curves.get("CURVE_RUNNER_V1")
     assert curve.curve_id == "CURVE_RUNNER_V1"
-    captured = capsys.readouterr()
-    assert "WARN" in captured.err
-    assert "missing curve_id" in captured.err
+    assert curve.apply(0.87) == 3.0
 
 
 def test_apply_convenience_function_resolves_via_registry() -> None:
