@@ -20,8 +20,8 @@ permissions:
   pull-requests: read
 
 jobs:
-  qa-review-evidence:
-    name: qa-review-evidence
+  qa-gate:
+    name: qa-gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
