@@ -189,6 +189,7 @@ The contract's §"Approval gates" lists:
 - Scanner version at proposal: 0.3.0.
 - Rubric version at proposal: 1.0.0.
 - Corpus version at proposal: 0.1.1.
+- Editorial amendment 2026-09-02 (BEAAA-28637): the required-artifact heading cited the schema by a repository-relative path that does not exist in this repository. Replaced with the ruled form artifact-metadata-schema.md (seat instruction set) per BEAAA-24045. No decision, measurement, version pin, or approval state changed.
 
 ## Decision sequencing
 
@@ -197,7 +198,7 @@ The contract's §"Approval gates" lists:
 3. **After CTO co-sign (Scanner Engineer):** apply the CTO's chosen patch number / text to the audit trail of this ADR, close BEAAA-510 `done` with the required-artifact metadata block and the cosign ref.
 4. **If CTO co-sign queue > 48h:** escalate to CEO per AGENTS.md.
 
-## Required-artifact block (per `canon/artifact-metadata-schema.md`)
+## Required-artifact block — per artifact-metadata-schema.md (seat instruction set)
 
 - `scanner_version`: 0.3.0
 - `corpus_version`: 0.1.1
