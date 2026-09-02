@@ -1,0 +1,117 @@
+# BackBond Scanner — public edge contract
+#
+# artifact_id: beaaa-28631-edge-contract
+# owner: CTO
+# authority: CEO ruling on BEAAA-28631, 2026-09-02
+# external_scope: out
+# purpose: the fixed set of request/response facts the live public edge is
+#   expected to serve, so a train read-back can record PASS or FAIL per route
+#   instead of "unverifiable".
+#
+# This file is NOT published at the edge and is NOT an OpenAPI document. It is
+# an internal read-back checklist. Adding a route here does not create a route;
+# a route that exists in the app but is not reachable at the edge is a FAIL.
+#
+# Verified against the live edge on 2026-09-02 by CTO (curl, from the company
+# host). Every status_class below is an observed value, not an intention.
+
+contract_version: 1
+edge_host: scanner.backbond.ai
+scheme: https
+verified_at: "2026-09-02"
+verified_by: CTO
+
+routes:
+  - id: root-fixture
+    method: GET
+    path: /
+    request:
+      headers: {}
+      body: null
+    expect:
+      status_class: 2xx
+      keys: [ok, echo, host]
+    note: >-
+      Synthetic edge fixture, not the Scanner API. Recorded so a read-back
+      cannot mistake it for an API surface. If this ever returns Scanner API
+      data, that is a FAIL and an edge routing change to investigate.
+
+  - id: release-identity
+    method: GET
+    path: /scanner/v1/release-identity
+    request:
+      headers: {}
+      body: null
+    expect:
+      status_class: 2xx
+      keys: [schema_version, environment, host, commit_sha, image_digest]
+    note: >-
+      Load-bearing for the train. commit_sha here is what the read-back
+      compares against the approved candidate SHA.
+
+  - id: sla
+    method: GET
+    path: /scanner/v1/sla
+    request:
+      headers: {}
+      body: null
+    expect:
+      status_class: 2xx
+      keys: []
+    note: >-
+      Returns an empty JSON object on the currently live build. The contract
+      asserts reachability and status class only; no key is asserted.
+
+  - id: scans-auth-rejection
+    method: POST
+    path: /scanner/v1/scans
+    request:
+      headers:
+        content-type: application/json
+      body: {}
+    expect:
+      status_class: 4xx
+      status: 401
+      keys: [detail]
+      body_contains: authorization_bearer_required
+    note: >-
+      The auth-rejection case required by the ruling. An unauthenticated POST
+      must be refused before any work is done. A 2xx here is a FAIL and an
+      incident, not a passing smoke.
+
+  - id: rescans-auth-rejection
+    method: POST
+    path: /scanner/v1/rescans
+    request:
+      headers:
+        content-type: application/json
+      body: {}
+    expect:
+      status_class: 4xx
+      status: 401
+      keys: [detail]
+      body_contains: authorization_bearer_required
+    note: Same rejection property as scans-auth-rejection.
+
+  - id: scans-method-guard
+    method: GET
+    path: /scanner/v1/scans
+    request:
+      headers: {}
+      body: null
+    expect:
+      status_class: 4xx
+      status: 405
+      keys: [detail]
+    note: >-
+      Confirms the path is routed to the Scanner app rather than absorbed by
+      nginx. A 404 here means the edge stopped routing the collection path.
+
+# Routes deliberately absent from the edge. A read-back that finds any of these
+# answering 2xx must FAIL the smoke and open a scoped ticket, because it means a
+# surface was published without a decision.
+must_not_serve:
+  - GET /openapi.json
+  - GET /docs
+  - GET /redoc
+  - GET /score
