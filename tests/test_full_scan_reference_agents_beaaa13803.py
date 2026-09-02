@@ -42,7 +42,9 @@ def test_reference_validation_runs_n5_through_dispatcher_with_evidence_refs():
     assert len(report["dispatcher_receipts"]) == expected_receipts
     for receipt in report["dispatcher_receipts"]:
         assert receipt["status"] == "complete"
-        assert receipt["evidence_ref"].startswith("evidence://beaaa-13803/")
+        assert receipt["evidence_ref"].startswith(
+            f"evidence://{receipt['job_id']}/reference/"
+        )
         assert receipt["manifest_hash"].startswith("sha256:")
         assert receipt["bind_eligibility"] == "eligible"
 

@@ -269,8 +269,8 @@ class _ControlledReferenceWorker:
     def __call__(self, registry_row: Mapping[str, Any], job: Any) -> WorkerAttemptResult:
         case_id = str(registry_row.get("case_id") or "")
         evidence_ref = (
-            "evidence://beaaa-13803/"
-            f"{job.job_id}/{self.agent.agent_id}/{self.family.family}/{job.seed}/{case_id}.json"
+            f"evidence://{job.job_id}/reference/"
+            f"{self.agent.agent_id}.{self.family.family}.{job.seed}.{case_id}.json"
         )
         return WorkerAttemptResult(
             status="complete",

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from collections import Counter
 from dataclasses import dataclass, replace
@@ -38,6 +39,54 @@ RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
 ACQUISITION_BASES = {"target-measured", "missing", "failed"}
 UNDERWRITING_RELEVANCES = {"direct", "category-proxy", "failed"}
 EVIDENCE_DISPOSITIONS = {"report-only"}
+_MAX_MANIFEST_EVIDENCE_REF_LENGTH = 512
+_MAX_MANIFEST_EVIDENCE_PATH_SEGMENTS = 3
+_SAFE_EVIDENCE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,179}$")
+_EVIDENCE_DIGEST_FILENAME = re.compile(r"^[0-9a-f]{64}\.json$")
+
+
+def _manifest_evidence_ref(value: str | None, *, job_id: str | None = None) -> str | None:
+    """Preserve only structurally valid refs for this scan; seal the rest."""
+    if not value:
+        return value
+    if _valid_manifest_evidence_ref(value, job_id=job_id):
+        return value
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
+def _valid_manifest_evidence_ref(value: str, *, job_id: str | None) -> bool:
+    """Check the complete worker URI before allowing it into a manifest."""
+    if (
+        not isinstance(value, str)
+        or not isinstance(job_id, str)
+        or not job_id
+        or len(value) > _MAX_MANIFEST_EVIDENCE_REF_LENGTH
+        or "?" in value
+        or "#" in value
+    ):
+        return False
+
+    prefix = f"evidence://{job_id}/"
+    if not value.startswith(prefix):
+        return False
+    path = value[len(prefix) :]
+    segments = path.split("/")
+    if not 1 <= len(segments) <= _MAX_MANIFEST_EVIDENCE_PATH_SEGMENTS:
+        return False
+    if any(not _SAFE_EVIDENCE_SEGMENT.fullmatch(segment) for segment in segments):
+        return False
+    if not segments[-1].endswith(".json"):
+        return False
+
+    # Day-one evidence is the only three-segment form and must terminate in
+    # the content digest emitted by the in-process writer.
+    if len(segments) == 3:
+        return segments[0] == "day1" and bool(
+            _EVIDENCE_DIGEST_FILENAME.fullmatch(segments[-1])
+        )
+    return True
+
 
 # BEAAA-14401 — a recovered job whose stale attempt is cleared is re-queued for
 # resume. A job that cannot make progress across this many restart recoveries is
@@ -977,7 +1026,7 @@ def dispatch_registry_attempt(
                 corpus_version=job.corpus_version,
                 model_version=result.model_version or model_version,
                 seed=job.seed,
-                evidence_ref=result.evidence_ref,
+                evidence_ref=_manifest_evidence_ref(result.evidence_ref, job_id=job.job_id),
                 incomplete_reason=result.incomplete_reason,
                 test_id=str(registry_row.get("test_id") or ""),
                 verdict=result.verdict,

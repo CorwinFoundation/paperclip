@@ -1,10 +1,12 @@
 """BEAAA-13681 async full-scan executor tests."""
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
@@ -13,11 +15,13 @@ from api.full_scan_executor import (
     ASYNC_FULL_SCAN_API_VERSION,
     ControlledFamilyRun,
     EvidenceAttemptRow,
+    FullScanExecutorError,
     FullScanJobStore,
     WorkerAttemptResult,
     build_attempt_manifest,
     build_controlled_validation_report,
     dispatch_registry_attempt,
+    _manifest_evidence_ref,
     registry_cases_from_rows,
     validate_full_scan_release_gate,
 )
@@ -346,6 +350,98 @@ def test_registry_dispatch_runs_unique_cases_not_collapsed_rubric_points(monkeyp
     assert {
         row["probe_id"] for row in finalized.final_manifest["evidence_rows"]
     } == {"promptinject.case_001", "promptinject.case_002"}
+
+
+def test_attempt_manifest_hashes_worker_controlled_evidence_uri_content(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-28728-test-key")
+    hostile_ref = "evidence://../../tenant-alpha?token=secret-looking-value"
+    registry_rows = [
+        {
+            "test_id": "promptinject",
+            "case_id": "promptinject.adversarial_evidence_ref",
+            "status": "active",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "promptfoo_wrapper",
+        }
+    ]
+    store = FullScanJobStore()
+    job = store.submit(
+        agent_id="agent-1",
+        scanner_version="0.5.0",
+        corpus_version="registry-baseline-2026-07-13",
+        model_versions={"primary": "fixture-agent-v0", "judges": []},
+        seed=0,
+        registry_cases=registry_cases_from_rows(registry_rows),
+    )
+    lease = store.lease(job.job_id)
+
+    def promptfoo_worker(_row, _job):
+        return WorkerAttemptResult(status="complete", evidence_ref=hostile_ref)
+
+    dispatch_registry_attempt(
+        store,
+        job.job_id,
+        attempt_id=lease["attempt_id"],
+        registry_rows=registry_rows,
+        workers={"promptfoo": promptfoo_worker},
+    )
+    finalized = store.finalize(job.job_id)
+
+    assert finalized.final_manifest is not None
+    row = finalized.final_manifest["evidence_rows"][0]
+    assert row["evidence_ref"] == (
+        "sha256:" + hashlib.sha256(hostile_ref.encode("utf-8")).hexdigest()
+    )
+    assert row["score_contribution"] is False
+    assert row["disposition"] == "report-only"
+
+
+def test_manifest_evidence_ref_preserves_none_and_rejects_empty_complete_ref(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-28765-test-key")
+    assert _manifest_evidence_ref(None) is None
+    scan_ref = "evidence://scan-123/day1/family/" + ("a" * 64) + ".json"
+    assert _manifest_evidence_ref(scan_ref, job_id="scan-123") == scan_ref
+
+    prefixed_forgery = "evidence://scan-123/../../tenant-alpha?token=secret-looking-value"
+    assert _manifest_evidence_ref(prefixed_forgery, job_id="scan-123") == (
+        "sha256:" + hashlib.sha256(prefixed_forgery.encode("utf-8")).hexdigest()
+    )
+
+    registry_rows = [
+        {
+            "test_id": "promptinject",
+            "case_id": "promptinject.empty_evidence_ref",
+            "status": "active",
+            "production_runner_executable": True,
+            "risk_or_rubric_id": "P3.1",
+            "runner": "promptfoo_wrapper",
+        }
+    ]
+    store = FullScanJobStore()
+    job = store.submit(
+        agent_id="agent-1",
+        scanner_version="0.5.0",
+        corpus_version="registry-baseline-2026-07-13",
+        model_versions={"primary": "fixture-agent-v0", "judges": []},
+        seed=0,
+        registry_cases=registry_cases_from_rows(registry_rows),
+    )
+    lease = store.lease(job.job_id)
+
+    def promptfoo_worker(_row, _job):
+        return WorkerAttemptResult(status="complete", evidence_ref="")
+
+    with pytest.raises(
+        FullScanExecutorError, match="complete evidence row requires evidence_ref"
+    ):
+        dispatch_registry_attempt(
+            store,
+            job.job_id,
+            attempt_id=lease["attempt_id"],
+            registry_rows=registry_rows,
+            workers={"promptfoo": promptfoo_worker},
+        )
 
 
 def test_registry_dispatch_keys_canonical_runtime_identity_once(monkeypatch):
