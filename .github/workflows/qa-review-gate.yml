@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, review_requested]
   pull_request_review:
-    types: [submitted]
+    types: [submitted, dismissed, edited]
 
 permissions:
   checks: write
@@ -12,8 +12,8 @@ permissions:
   pull-requests: read
 
 jobs:
-  qa-review-evidence:
-    name: qa-review-evidence
+  qa-review-evidence-runner:
+    name: qa-review-evidence-runner
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,4 +24,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: node .github/scripts/check-qa-review.mjs
