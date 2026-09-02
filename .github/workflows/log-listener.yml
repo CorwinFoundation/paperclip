@@ -5,11 +5,13 @@ on:
     branches: [master]
     paths:
       - "tools/log-tracker/**"
+      - "tools/post-bind-ingest/**"
       - ".github/workflows/log-listener.yml"
   push:
     branches: [master]
     paths:
       - "tools/log-tracker/**"
+      - "tools/post-bind-ingest/**"
       - ".github/workflows/log-listener.yml"
   workflow_dispatch:
 
@@ -34,9 +36,21 @@ jobs:
           cache-dependency-path: |
             requirements-dev.txt
             tools/log-tracker/pyproject.toml
+            tools/post-bind-ingest/pyproject.toml
       - name: Install focused log-listener dependencies
         run: |
           python -m pip install --require-hashes -r requirements-dev.txt
-          python -m pip install -e tools/log-tracker
+          python -m pip install -e tools/log-tracker -e tools/post-bind-ingest
       - name: Run log-listener checks
-        run: python -m pytest -q tools/log-tracker/tests tests/test_log_tracker_beaaa6159.py
+        run: |
+          python -m pytest -q \
+            tools/log-tracker/tests \
+            tests/test_log_tracker_beaaa6159.py \
+            tools/post-bind-ingest/tests/test_synthetic_voice_e2e.py \
+            tools/post-bind-ingest/tests/test_passive_log_reader_e2e.py \
+            tools/post-bind-ingest/tests/test_lifecycle_demo.py \
+            tools/post-bind-ingest/tests/test_demo_app.py \
+            tools/post-bind-ingest/tests/test_receiver.py \
+            tools/post-bind-ingest/tests/test_collector_receiver_e2e.py \
+            tools/post-bind-ingest/tests/test_continuity_gate.py \
+            tools/post-bind-ingest/tests/test_detector_input.py
