@@ -14,6 +14,7 @@ from tools.active_test_registry import (
     _is_countable_active_executable,
     build_registry as build_active_test_registry,
 )
+from harness.direct_family_adapter import DIRECT_FAMILIES
 
 
 REPO_DEFAULT = Path.cwd()
@@ -257,7 +258,9 @@ def _runnable_today_rows(repo: Path) -> list[dict[str, Any]]:
 def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for row in build_active_test_registry(repo / "rubric" / "probe_mappings"):
-        if not _is_countable_active_executable(row):
+        family_id = str(row.get("test_id") or "")
+        claim_countable = _is_countable_active_executable(row)
+        if not claim_countable and family_id not in DIRECT_FAMILIES:
             continue
         version_pin = str(row.get("version_pin") or "")
         _, _, framework_version = version_pin.partition("@")
@@ -267,16 +270,30 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
                 "framework": str(row.get("runner") or row.get("test_id") or "unknown"),
                 "framework_version": framework_version or "unpinned",
                 "corpus_or_family": str(row.get("test_id") or ""),
-                "case_id_or_probe_id": str(row.get("case_id") or ""),
+                # Evidence manifests key content-candidate rows by their
+                # immutable payload identity.  Preserve the runner-facing
+                # ``case_id`` in the active registry, but export the canonical
+                # runtime identity here so registry/evidence reconciliation is
+                # exact even when a family uses a human-readable case alias.
+                "case_id_or_probe_id": str(
+                    row.get("runtime_case_identity")
+                    or row.get("case_id")
+                    or ""
+                ),
                 "rubric_point_id": str(row.get("risk_or_rubric_id") or ""),
                 "mode": "production_worker_registry_v0.1",
                 "source": source,
-                "countable_as_executable": True,
+                "countable_as_executable": claim_countable,
                 "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
                 "evidence_uri_template": str(row.get("evidence_uri_template") or "evidence://{scan_id}/{test_id}/{case_id}.json"),
                 "worker_runner": str(row.get("runner") or ""),
                 "version_pin": version_pin,
             }
+        if family_id in DIRECT_FAMILIES:
+            emitted.update(
+                default_runtime_executable=True,
+                scoring_active=False,
+            )
         if str(row.get("test_id")) == "consequential_action_confirmation":
             mapping = _load_yaml(repo / source)
             probe = next(
@@ -318,7 +335,10 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
     # the current default runtime executed or scored them. Keep those facts
     # separate and fail closed unless a source row carries the stronger evidence.
     for row in rows:
-        legacy_runnable = bool(row["bucket"] == "runnable_today" and row["countable_as_executable"])
+        legacy_runnable = bool(
+            row["bucket"] == "runnable_today"
+            and row["countable_as_executable"]
+        )
         row["categories"] = {
             "registered": True,
             "executable": legacy_runnable,
@@ -338,6 +358,20 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "version": row.get("version_pin") or row.get("framework_version") or "unversioned",
         }
         row.pop("countable_as_executable", None)
+        evidenced = row["categories"]["executed_in_latest_evidenced_run"]
+        evidence = row.get("execution_evidence")
+        if evidenced and not evidence:
+            raise ValueError(
+                f"executed row lacks execution_evidence: {row['stable_id']}"
+            )
+        if not evidenced and evidence is not None:
+            raise ValueError(
+                f"unexecuted row carries execution_evidence: {row['stable_id']}"
+            )
+        if evidenced and not row["categories"]["executable_on_default_runtime"]:
+            raise ValueError(
+                f"executed row is not default-runtime executable: {row['stable_id']}"
+            )
     category_names = list(rows[0]["categories"]) if rows else []
     category_counts = {
         name: sum(bool(row["categories"][name]) for row in rows)
@@ -370,13 +404,13 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
             "generated_from_content_sha": source_sha,
             "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
             "generated_at": "2026-08-06T00:00:00Z",
-            "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.0.1; deterministic regeneration does not use wall-clock time",
+            "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
             "schema": SCHEMA_PATH,
             "contract": "are-scanner-api-v1@v1.3.0",
             "scanner_version": "0.5.0",
             "corpus_version": "0.2.0",
             "source_closure_version": f"registry-source-{source_sha[:7]}",
-            "probe_set_version": "authoritative-probe-registry@1.0.1",
+            "probe_set_version": "authoritative-probe-registry@1.1.0",
             "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
             "active_rubric_point_count": len(active_points),
             "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -414,12 +448,8 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
 
 
 def build_active_registry_view(registry: dict[str, Any]) -> dict[str, Any]:
-    """Return the schema-valid legacy view consumed by registry readers."""
-    view = json.loads(json.dumps(registry))
-    for row in view["rows"]:
-        row["stable_executable_key"] = row["stable_id"]
-        row["countable_as_executable"] = bool(row["categories"]["executable"])
-    return view
+    """Return a detached, byte-equivalent copy of the authoritative registry."""
+    return json.loads(json.dumps(registry))
 
 
 def _resolve_output(repo: Path, value: str) -> Path:

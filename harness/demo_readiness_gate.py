@@ -95,6 +95,7 @@ def load_registry(path: Path) -> list[RegistryCase]:
                 "case_id",
                 "case_id_or_probe_id",
                 "stable_executable_key",
+                "stable_id",
                 "id",
                 "test_id",
                 "entry_id",
@@ -103,7 +104,10 @@ def load_registry(path: Path) -> list[RegistryCase]:
             rubric_point_id = _first_str(row, "rubric_point_id", "dimension_id", "rubric_id")
             if not case_id or not rubric_point_id:
                 continue
+            categories = row.get("categories")
             countable = row.get("countable_as_executable")
+            if countable is None and isinstance(categories, dict):
+                countable = categories.get("executable")
             status = str(row.get("status") or ("live" if countable is True else "not_executable"))
             cases.append(RegistryCase(
                 case_id=case_id,

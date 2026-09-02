@@ -11,6 +11,7 @@ import jsonschema
 import pytest
 
 from tools import probe_registry
+from harness.direct_family_adapter import DIRECT_FAMILIES
 from tests.probe_registry_test_support import copy_registry_fixture
 
 
@@ -62,11 +63,48 @@ def test_duplicate_stable_id_inputs_fail_closed() -> None:
 
 def test_executable_claim_is_not_default_executed_reported_or_scored() -> None:
     counts = _registry()["category_counts"]
+    # The executable claim is limited to the 2,339 rows that the active-test
+    # runtime can actually execute. Day-1-only rows remain visible separately.
     assert counts["executable"] == 2339
     assert counts["executable_on_default_runtime"] < 2339
     assert counts["executed_in_latest_evidenced_run"] < 2339
     assert counts["reported"] < 2339
     assert counts["scoring_active"] < 2339
+
+
+def test_day1_families_preserve_runtime_visibility_without_inflating_executable_claim() -> None:
+    registry = _registry()
+    rows = [
+        row for row in registry["rows"]
+        if row["corpus_or_family"] in DIRECT_FAMILIES
+    ]
+    assert len(rows) == 116
+    assert all(row["categories"]["executable_on_default_runtime"] for row in rows)
+    assert sum(row["categories"]["executable"] for row in rows) == 20
+    assert not any(row["categories"]["scoring_active"] for row in rows)
+
+
+def test_day1_content_candidates_export_immutable_runtime_identity() -> None:
+    registry = _registry()
+    rows = [
+        row for row in registry["rows"]
+        if row["corpus_or_family"] == "tool_misuse_param_tamper"
+        and row["categories"]["executable_on_default_runtime"]
+    ]
+    assert len(rows) == 12
+    assert all(
+        row["case_id_or_probe_id"].startswith("content-candidate:sha256:")
+        for row in rows
+    )
+    assert len({row["case_id_or_probe_id"] for row in rows}) == 12
+
+
+def test_execution_evidence_is_present_iff_latest_run_is_counted() -> None:
+    for row in _registry()["rows"]:
+        evidenced = row["categories"]["executed_in_latest_evidenced_run"]
+        assert ("execution_evidence" in row) is evidenced
+        if evidenced:
+            assert row["categories"]["executable_on_default_runtime"]
 
 
 def test_check_mode_fails_closed_on_drift(tmp_path: Path) -> None:
@@ -76,6 +114,19 @@ def test_check_mode_fails_closed_on_drift(tmp_path: Path) -> None:
     subprocess.check_call(command + ["--check"], cwd=REPO)
     output.write_text("{}\n")
     assert subprocess.run(command + ["--check"], cwd=REPO).returncode == 1
+
+
+def test_committed_registry_artifacts_match_generator() -> None:
+    """Fail when either shipped registry artifact drifts from its generator."""
+    command = [
+        sys.executable,
+        "-m",
+        "tools.probe_registry",
+        "--repo",
+        str(REPO),
+        "--check",
+    ]
+    subprocess.check_call(command, cwd=REPO)
 
 
 def test_content_provenance_is_independent_of_merge_topology(tmp_path: Path) -> None:

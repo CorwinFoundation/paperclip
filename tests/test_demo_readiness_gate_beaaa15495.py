@@ -112,7 +112,7 @@ def _evidence_dir_for_registry_rows(tmp_path: Path, rows: list[dict]) -> Path:
     evidence_dir = tmp_path / "registry-evidence"
     evidence_dir.mkdir()
     for index, row in enumerate(rows):
-        case_id = row["case_id_or_probe_id"]
+        case_id = row.get("case_id") or row.get("case_id_or_probe_id")
         rubric_point_id = row["rubric_point_id"]
         for seed in range(5):
             _write_json(evidence_dir / f"{index:03d}-{seed}.json", {
@@ -174,43 +174,21 @@ def test_shipped_278_row_registry_reports_non_countable_rows_without_blocking_re
     assert len(non_countable) == 188
 
 
-def test_shipped_registry_is_not_ready_because_case_ids_are_duplicated(tmp_path: Path):
-    """The gate must refuse to declare the real shipped registry ready.
+def test_day1_manifest_ids_bind_to_gate_registry_identity():
+    registry_path = REPO / "tools" / "probe-registry" / "active_registry.json"
+    manifest_path = REPO / "tools" / "probe-registry" / "BEAAA-28721-day1-registry-evidence-manifest.json"
+    registry_case_ids = {case.case_id for case in load_registry(registry_path)}
+    manifest_case_ids = {row["case_id"] for row in json.loads(manifest_path.read_text(encoding="utf-8"))["rows"]}
 
-    This test used to freeze a different property: that the shipped registry
-    carried zero ``countable_as_executable`` rows, so nothing could ever enter
-    the ready set. BEAAA-23954 gave the shipped artifact a compatibility shim
-    that marks rows countable, so that property is gone by authorization and
-    was never an invariant worth protecting - it was a stale-artifact defect.
+    assert len(manifest_case_ids) == 116
+    assert manifest_case_ids <= registry_case_ids
 
-    The named condition that closes the gate now is ``duplicate_registry_case_id``.
-    ``CaseAssessment.readiness_blocking`` treats a duplicated ``case_id`` as
-    blocking whether or not the case is required, because a case_id that
-    identifies more than one registry row cannot be bound unambiguously to its
-    evidence. ``evaluate_readiness`` computes
-    ``ready = bool(ready_cases) and not blocking_rejected and not evidence_errors``,
-    so a non-empty ``blocking_rejected`` alone closes the gate.
 
-    The closure is not incidental. This test hands every required row complete,
-    pinned, terminal, N=5-clean synthetic evidence, so the two other ways the
-    gate can close are ruled out by construction: ``ready_set`` is non-empty and
-    ``evidence_store.errors`` is empty. The gate stays closed purely on a
-    property of the shipped artifact itself.
-
-    Measured at 71c5124d (BEAAA-24445): 2,608 rows, 2,244 countable, 2,605
-    loaded cases, ready_set 2,016, rejected 589 (228 required-and-duplicated,
-    228 non-required-and-duplicated, 133 non-required only), 228 distinct
-    duplicated case_ids over 456 rows. Those counts are recorded here rather
-    than asserted; freezing them is what made this module red three times.
-
-    The duplicate case_ids are pre-existing and are not in scope to fix here.
-    If they are ever deduplicated this test goes red, which is the intended
-    behaviour: the gate would then be open on the shipped registry and that
-    needs a decision, not a silent flip.
-    """
+def test_shipped_registry_is_not_ready_because_evidence_identity_is_duplicated(tmp_path: Path):
+    """Complete evidence cannot reopen readiness while its binding key is ambiguous."""
     registry_path = REPO / "tools" / "probe-registry" / "active_registry.json"
     rows = json.loads(registry_path.read_text(encoding="utf-8"))["rows"]
-    required_rows = [row for row in rows if row.get("countable_as_executable")]
+    required_rows = [row for row in rows if row.get("categories", {}).get("executable")]
 
     report = evaluate_readiness(
         registry_path=registry_path,
@@ -221,14 +199,10 @@ def test_shipped_registry_is_not_ready_because_case_ids_are_duplicated(tmp_path:
     )
 
     assert report["ready"] is False
-
-    # Rule out the two incidental closures: evidence was complete for every
-    # required row, and the ready set is non-empty.
     assert report["evidence_store"]["errors"] == []
     assert report["golden_set_regression"]["clean"] is True
     assert report["ready_set"]
 
-    # The one named condition that closes the gate.
     blocking = [
         row for row in report["rejected_cases"]
         if row["reasons"] != ["not_required_by_registry"]
@@ -241,17 +215,12 @@ def test_shipped_registry_is_not_ready_because_case_ids_are_duplicated(tmp_path:
         if reason != "not_required_by_registry"
     } == {"duplicate_registry_case_id"}
 
-    # Non-required rows on their own never block; that is what
-    # test_shipped_278_row_registry_reports_non_countable_rows_without_blocking_ready
-    # protects, and it must stay true here too.
     assert {tuple(row["reasons"]) for row in report["rejected_cases"]} == {
         ("not_required_by_registry",),
         ("duplicate_registry_case_id",),
         ("duplicate_registry_case_id", "not_required_by_registry"),
     }
 
-    # The duplication is a property of the shipped artifact, not of the
-    # fabricated evidence: it is visible from the registry alone.
     case_ids = Counter(case.case_id for case in load_registry(registry_path))
     duplicated = {case_id for case_id, n in case_ids.items() if n > 1}
     assert duplicated

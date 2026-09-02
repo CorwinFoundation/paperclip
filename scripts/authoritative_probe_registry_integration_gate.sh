@@ -24,6 +24,7 @@ python3 - <<'PY'
 import json
 from pathlib import Path
 import jsonschema
+from tools.probe_registry import _active_test_executable_rows, _stable_key
 
 root = Path(".")
 schema = json.loads((root / "tools/probe-registry/authoritative_registry.schema.json").read_text())
@@ -36,5 +37,24 @@ for registry_name in ("authoritative_registry.json", "active_registry.json"):
     for category, count in counts.items():
         assert count == sum(bool(row["categories"][category]) for row in rows)
     assert registry["unique_executable_count"] == counts["executable"]
+
+authoritative = json.loads(
+    (root / "tools/probe-registry/authoritative_registry.json").read_text()
+)
+published_executable_ids = {
+    row["stable_id"]
+    for row in authoritative["rows"]
+    if row["categories"]["executable"]
+}
+active_executable_ids = {
+    _stable_key(row)
+    for row in _active_test_executable_rows(root)
+    if row["countable_as_executable"]
+}
+assert published_executable_ids == active_executable_ids, (
+    "authoritative executable identities diverge from the active runtime: "
+    f"published_only={len(published_executable_ids - active_executable_ids)}, "
+    f"runtime_only={len(active_executable_ids - published_executable_ids)}"
+)
 PY
 git diff --check HEAD

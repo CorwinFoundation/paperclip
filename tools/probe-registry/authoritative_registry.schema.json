@@ -28,12 +28,37 @@
             "required": ["path", "version"],
             "properties": {"path": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}
           },
+          "execution_evidence": {
+            "type": "object",
+            "required": ["evidence_uri", "evidence_digest", "verdict", "run_ref"],
+            "additionalProperties": false,
+            "properties": {
+              "evidence_uri": {"type": "string", "minLength": 1},
+              "evidence_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+              "verdict": {"enum": ["pass", "fail", "error"]},
+              "run_ref": {"type": "string", "minLength": 1}
+            }
+          },
           "categories": {
             "type": "object",
             "required": ["registered", "executable", "executable_on_default_runtime", "executed_in_latest_evidenced_run", "reported", "scoring_active", "proxy_grade", "attestation_only", "fixture_test_only", "inactive_deferred", "blocked_unsupported"],
             "additionalProperties": {"type": "boolean"}
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "categories": {
+                  "properties": {"executed_in_latest_evidenced_run": {"const": true}},
+                  "required": ["executed_in_latest_evidenced_run"]
+                }
+              }
+            },
+            "then": {"required": ["execution_evidence"]},
+            "else": {"not": {"required": ["execution_evidence"]}}
+          }
+        ]
       }
     }
   }

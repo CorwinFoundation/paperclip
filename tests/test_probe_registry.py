@@ -37,7 +37,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             second = Path(tmp) / "second.json"
             self.assertEqual(self._emit(first), self._emit(second))
 
-    def test_active_view_preserves_legacy_consumer_fields(self) -> None:
+    def test_active_view_is_byte_equivalent_to_authoritative_registry(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             authoritative = Path(tmp) / "authoritative.json"
             active = Path(tmp) / "active.json"
@@ -57,17 +57,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             )
             authoritative_payload = json.loads(authoritative.read_text(encoding="utf-8"))
             active_payload = json.loads(active.read_text(encoding="utf-8"))
-        self.assertEqual(
-            active_payload["active_rubric_points"],
-            authoritative_payload["active_rubric_points"],
-        )
-        for row in active_payload["rows"]:
-            self.assertEqual(row["stable_executable_key"], row["stable_id"])
-            self.assertEqual(
-                row["countable_as_executable"], row["categories"]["executable"]
-            )
-            self.assertIn("case_id_or_probe_id", row)
-            self.assertIn("bucket", row)
+        self.assertEqual(active_payload, authoritative_payload)
 
     def test_added_probe_without_active_regeneration_fails_check(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
