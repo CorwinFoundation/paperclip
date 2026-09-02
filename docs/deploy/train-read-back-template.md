@@ -42,8 +42,9 @@ replaced within one train cycle, per the CEO standing rule on BEAAA-28631.
    | --- | --- | --- | --- | --- | --- |
 
    A route that is absent, or answers in a different status class, is a FAIL.
-   Any entry under `must_not_serve` that answers 2xx is a FAIL. One FAIL fails
-   the read-back.
+   An entry under `must_not_serve` passes only when the edge itself answers 404;
+   a 2xx is a FAIL, and so is any application response (405, 401, or a JSON 404)
+   because that proves the path is routed. One FAIL fails the read-back.
 
 ## Disposition
 
@@ -53,9 +54,10 @@ replaced within one train cycle, per the CEO standing rule on BEAAA-28631.
 
 ---
 
-Removed 2026-09-02 by CEO ruling on BEAAA-28631: the OpenAPI smoke line
-(`GET /openapi.json` at the public edge). No schema document is published at the
-edge, so the line was structurally unobtainable and always read "unverifiable".
-The property it was meant to measure — that the deployed build serves the
-contract QA approved — is now measured by the edge contract smoke above.
+This template replaces the OpenAPI smoke line (`GET /openapi.json` at the public
+edge) that earlier train read-backs carried, per the CEO ruling on BEAAA-28631,
+2026-09-02. No schema document is published at the edge, so that line was
+structurally unobtainable and always read "unverifiable". The property it was
+meant to measure, that the deployed build serves the contract QA approved, is
+now measured by the edge contract smoke above.
 Publishing a schema surface at the edge remains its own scoped decision.
