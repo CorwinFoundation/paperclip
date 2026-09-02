@@ -5,6 +5,14 @@ on:
     types: [opened, synchronize, reopened, review_requested]
   pull_request_review:
     types: [submitted]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number whose backbond-qa approval should be evaluated
+        required: true
+      head_sha:
+        description: Head SHA the qa-review-evidence check-run is reported against
+        required: true
 
 permissions:
   checks: write
@@ -22,6 +30,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || inputs.head_sha }}
         run: node .github/scripts/check-qa-review.mjs
