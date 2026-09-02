@@ -42,13 +42,13 @@ FAMILY_MODULES = {
 
 # Mapped shared-corpus families are executable through the direct adapter but
 # are outside BEAAA-28519's ratified 64-row tranche.  Keep this list closed and
-# ticketed: adding a family requires an explicit code review, and BEAAA-28542
+# ticketed: adding a family requires an explicit code review, and BEAAA-28589
 # owns the decision to register these four as report-only families.
 DEFERRED_DIRECT_FAMILIES = {
-    "delegated_authority_confused_deputy": "shared corpus; registry decision BEAAA-28542",
-    "file_temporary_link_leakage": "shared corpus; registry decision BEAAA-28542",
-    "revocation_execution_time_authorization": "shared corpus; registry decision BEAAA-28542",
-    "tool_log_trace_secret_leakage": "shared corpus; registry decision BEAAA-28542",
+    "delegated_authority_confused_deputy": "shared corpus; registry decision BEAAA-28589",
+    "file_temporary_link_leakage": "shared corpus; registry decision BEAAA-28589",
+    "revocation_execution_time_authorization": "shared corpus; registry decision BEAAA-28589",
+    "tool_log_trace_secret_leakage": "shared corpus; registry decision BEAAA-28589",
 }
 
 

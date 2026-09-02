@@ -129,13 +129,13 @@ def test_direct_discovery_includes_shared_bench_adapter_families():
 def test_shared_corpus_deferrals_are_frozen_and_ticketed():
     assert manifest.DEFERRED_DIRECT_FAMILIES == {
         "delegated_authority_confused_deputy":
-            "shared corpus; registry decision BEAAA-28542",
+            "shared corpus; registry decision BEAAA-28589",
         "file_temporary_link_leakage":
-            "shared corpus; registry decision BEAAA-28542",
+            "shared corpus; registry decision BEAAA-28589",
         "revocation_execution_time_authorization":
-            "shared corpus; registry decision BEAAA-28542",
+            "shared corpus; registry decision BEAAA-28589",
         "tool_log_trace_secret_leakage":
-            "shared corpus; registry decision BEAAA-28542",
+            "shared corpus; registry decision BEAAA-28589",
     }
 
 
