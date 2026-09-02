@@ -41,6 +41,7 @@ jobs:
         run: |
           python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e tools/log-tracker -e tools/post-bind-ingest
+          npm install --no-save --ignore-scripts playwright@1.61.1
       - name: Run log-listener checks
         run: |
           python -m pytest -q \
