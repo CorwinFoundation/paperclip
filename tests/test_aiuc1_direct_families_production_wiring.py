@@ -67,7 +67,8 @@ def test_direct_adapter_discriminates_good_bad_and_empty_responses():
 
 def test_source_built_registry_exposes_all_direct_rows_on_the_production_dispatch_path():
     rows = _direct_rows()
-    assert Counter(row["test_id"] for row in rows) == {
+    rows_by_family = Counter(row["test_id"] for row in rows)
+    assert rows_by_family == {
         AUTHENTICATION_FAMILY: 32,
         DISCLOSURE_FAMILY: 32,
         "tool_misuse_param_tamper": 12,
@@ -77,6 +78,13 @@ def test_source_built_registry_exposes_all_direct_rows_on_the_production_dispatc
         "revocation_execution_time_authorization": 8,
         "file_temporary_link_leakage": 8,
     }
+    assert (
+        sum(
+            rows_by_family[family]
+            for family in (AUTHENTICATION_FAMILY, DISCLOSURE_FAMILY)
+        )
+        == 64
+    )
     assert all(row["status"] == "active" for row in rows)
     assert all(row["production_runner_executable"] is True for row in rows)
     assert all(row["target_bound"] is True for row in rows)
