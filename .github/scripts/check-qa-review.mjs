@@ -1,31 +1,19 @@
 #!/usr/bin/env node
 /**
- * check-qa-review.mjs
- * Validates that a `backbond-qa` APPROVED review is evidence-backed.
+ * Fail closed unless the current PR head has an evidence-backed approval from
+ * a repository collaborator other than the PR author.
  *
- * A qualifying approval must:
- *   1. Have a body of at least MIN_BODY_LENGTH characters.
- *   2. Include the PR head SHA so the reviewer affirms the exact commit.
- *
- * If `backbond-qa` has not reviewed the PR, the check passes (this gate
- * validates review quality, not whether a review is required).
- *
- * Posts a `qa-review-evidence` check-run. Add it to branch protection
- * as a required status check to gate merges.
- *
- * Env: GH_TOKEN (github.token), GH_REPO, PR_NUMBER, PR_HEAD_SHA
- * Exit: always 0 — the check-run is the signal.
+ * Env: GH_TOKEN, GH_REPO, PR_NUMBER, PR_HEAD_SHA, PR_AUTHOR
+ * Exit: always 0 after posting a check-run; the check-run is the signal.
  */
 
 import { fileURLToPath } from 'node:url';
 
-const QA_REVIEWER = 'backbond-qa';
-const MIN_BODY_LENGTH = 50;
 const CHECK_NAME = 'qa-review-evidence';
+const COLLABORATOR_ASSOCIATIONS = new Set(['COLLABORATOR', 'MEMBER', 'OWNER']);
 
 async function ghFetch(path, token, opts = {}) {
-  const url = `https://api.github.com${path}`;
-  const res = await fetch(url, {
+  const res = await fetch(`https://api.github.com${path}`, {
     ...opts,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -73,11 +61,37 @@ async function postCheckRun(token, repo, headSha, conclusion, summary) {
   });
 }
 
-async function main() {
-  const { GH_TOKEN, GH_REPO, PR_NUMBER, PR_HEAD_SHA } = process.env;
+export function decideQaReview(reviews, headSha, prAuthor) {
+  const qualifyingApproval = reviews.find(review => {
+    const reviewer = review.user?.login;
+    const body = review.body?.trim() ?? '';
+    return review.state === 'APPROVED'
+      && reviewer
+      && reviewer.toLowerCase() !== prAuthor.toLowerCase()
+      && COLLABORATOR_ASSOCIATIONS.has(review.author_association)
+      && review.commit_id === headSha
+      && body.length > 0
+      && body.includes(headSha);
+  });
 
-  if (!GH_TOKEN || !GH_REPO || !PR_NUMBER || !PR_HEAD_SHA) {
-    console.error('ERROR: GH_TOKEN, GH_REPO, PR_NUMBER, PR_HEAD_SHA are all required');
+  if (qualifyingApproval) {
+    return {
+      conclusion: 'success',
+      summary: `A non-author collaborator approved exact head \`${headSha}\` with SHA-bound review evidence.`,
+    };
+  }
+
+  return {
+    conclusion: 'failure',
+    summary: `A qualifying APPROVED review is required from a non-author collaborator for exact head \`${headSha}\`; the non-empty review body must cite that SHA.`,
+  };
+}
+
+async function main() {
+  const { GH_TOKEN, GH_REPO, PR_NUMBER, PR_HEAD_SHA, PR_AUTHOR } = process.env;
+
+  if (!GH_TOKEN || !GH_REPO || !PR_NUMBER || !PR_HEAD_SHA || !PR_AUTHOR) {
+    console.error('ERROR: GH_TOKEN, GH_REPO, PR_NUMBER, PR_HEAD_SHA, and PR_AUTHOR are all required');
     process.exit(1);
   }
 
@@ -86,49 +100,18 @@ async function main() {
     console.error('ERROR: PR_NUMBER must be a positive integer');
     process.exit(1);
   }
-
   if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(GH_REPO)) {
     console.error('ERROR: GH_REPO must be in owner/repo format');
     process.exit(1);
   }
 
   const reviews = await fetchAllReviews(GH_TOKEN, GH_REPO, prNumber);
+  const decision = decideQaReview(reviews, PR_HEAD_SHA, PR_AUTHOR);
+  if (decision.conclusion === 'success') console.log(`[qa-review-gate] ${decision.summary}`);
+  else console.error(`[qa-review-gate] ${decision.summary}`);
 
-  // Latest APPROVED review from backbond-qa wins; earlier ones may have been superseded.
-  const qaApprovals = reviews
-    .filter(r => r.user?.login === QA_REVIEWER && r.state === 'APPROVED')
-    .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
-
-  const latest = qaApprovals[0];
-
-  if (!latest) {
-    console.log(`[qa-review-gate] no APPROVED review from ${QA_REVIEWER} — gate not triggered`);
-    await postCheckRun(GH_TOKEN, GH_REPO, PR_HEAD_SHA, 'success',
-      `No APPROVED review from \`${QA_REVIEWER}\` on this PR.`);
-    process.exit(0);
-  }
-
-  const body = latest.body ?? '';
-  const hasSubstantiveBody = body.length >= MIN_BODY_LENGTH;
-  const containsSha = body.includes(PR_HEAD_SHA);
-
-  if (hasSubstantiveBody && containsSha) {
-    console.log(`[qa-review-gate] APPROVED review from ${QA_REVIEWER} is evidence-backed`);
-    await postCheckRun(GH_TOKEN, GH_REPO, PR_HEAD_SHA, 'success',
-      `\`${QA_REVIEWER}\` APPROVED review is evidence-backed: ${body.length} chars, head SHA present.`);
-  } else {
-    const reasons = [];
-    if (!hasSubstantiveBody) reasons.push(`body is ${body.length} chars (minimum ${MIN_BODY_LENGTH})`);
-    if (!containsSha) reasons.push(`body omits head SHA \`${PR_HEAD_SHA.slice(0, 12)}\``);
-
-    console.error(`[qa-review-gate] APPROVED review from ${QA_REVIEWER} fails evidence check: ${reasons.join('; ')}`);
-    await postCheckRun(GH_TOKEN, GH_REPO, PR_HEAD_SHA, 'failure',
-      `\`${QA_REVIEWER}\` APPROVED review does not meet evidence requirements: ${reasons.join('; ')}.\n\n` +
-      `A qualifying review must include at least ${MIN_BODY_LENGTH} characters of review notes ` +
-      `and explicitly cite the head SHA \`${PR_HEAD_SHA}\`.`);
-  }
-
-  process.exit(0);
+  await postCheckRun(GH_TOKEN, GH_REPO, PR_HEAD_SHA, decision.conclusion, decision.summary);
+  process.exit(decision.conclusion === 'success' ? 0 : 1);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
