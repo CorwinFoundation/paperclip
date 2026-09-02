@@ -39,9 +39,9 @@ MAPPING_SHA256 = {
 # refresh adds the report-only AIUC-1 direct-family dispatch branch. This
 # refresh binds the native VAPI subject factory and the $99.99 budget ceiling.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "81e6556dc2bfa88db42fbf18504c9389c70dedd60b3911363d9bacdd443e92cb",
-    "tool_misuse_scope_escape": "81e6556dc2bfa88db42fbf18504c9389c70dedd60b3911363d9bacdd443e92cb",
-    "tool_misuse_unauthorized_call": "81e6556dc2bfa88db42fbf18504c9389c70dedd60b3911363d9bacdd443e92cb",
+    "tool_misuse_param_tamper": "35bde87ec091a5196d33712e84ca1f9c6c7f5a8382a0eda42afab2acb485d64d",
+    "tool_misuse_scope_escape": "35bde87ec091a5196d33712e84ca1f9c6c7f5a8382a0eda42afab2acb485d64d",
+    "tool_misuse_unauthorized_call": "35bde87ec091a5196d33712e84ca1f9c6c7f5a8382a0eda42afab2acb485d64d",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

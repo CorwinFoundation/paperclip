@@ -125,6 +125,45 @@ def _scrub_live_probe_evidence(
         return value
 
     return [scrub(dict(record)) for record in records]
+
+
+def _append_report_only_manifest_evidence(
+    score_envelope: dict[str, Any],
+    manifest: Mapping[str, Any] | None,
+    *,
+    scan_id: str,
+) -> None:
+    """Project completed report-only attempts into the existing evidence list.
+
+    This is an evidence projection only. It neither assigns a numeric weight nor
+    changes the score envelope's field set.
+    """
+    if manifest is None:
+        return
+    refs = score_envelope.get("evidence_refs")
+    if not isinstance(refs, list):
+        refs = []
+        score_envelope["evidence_refs"] = refs
+    for row in manifest.get("evidence_rows", ()):
+        if (
+            not isinstance(row, Mapping)
+            or row.get("disposition") != "report-only"
+            or row.get("test_id") != "tau_support_crm"
+        ):
+            continue
+        refs.append(
+            {
+                "scan_id": scan_id,
+                "test_id": str(row.get("test_id") or ""),
+                "case_id": str(row.get("probe_id") or ""),
+                "rubric_point_id": str(row.get("rubric_point_id") or ""),
+                "artifact_uri": row.get("evidence_ref"),
+                "verdict": str(row.get("verdict") or "unresolved"),
+                "weight": 0.0,
+                "score_contribution": False,
+                "disposition": "report-only",
+            }
+        )
 _CRED_REF_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-:.]{0,127}$")
 # Aligned with harness.cli_runner._AGENT_ID_RE (same regex; not imported to keep
 # the api/ module self-contained per existing dependency direction).
@@ -635,6 +674,11 @@ class ScanRuntime:
                 score_envelope = self._score_envelope_factory(
                     result, agent_id, run_timestamp
                 )
+                _append_report_only_manifest_evidence(
+                    score_envelope,
+                    result.full_suite_manifest,
+                    scan_id=scan_request.scan_id,
+                )
                 forensic_bundle_uri = self._forensic_bundle_uri_factory(
                     agent_id, scan_request.scan_id
                 )
@@ -822,6 +866,7 @@ class ScanRuntime:
             model_versions=model_versions,
             seed=scan_request.seed,
             registry_cases=registry_cases,
+            scan_id=scan_request.scan_id,
             idempotency_key=f"{scan_request.tenant_id}:{scan_request.scan_id}:full-registry",
             terminal_webhook=(
                 {

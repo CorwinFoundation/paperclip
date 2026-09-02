@@ -36,6 +36,10 @@ from tools.founder_dev_mode import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAPPING_DIR = REPO_ROOT / "rubric" / "probe_mappings"
 CLAIMS_PATH = REPO_ROOT / "tools" / "active_test_registry_claims.json"
+AUTHORITATIVE_REGISTRY_PATH = (
+    REPO_ROOT / "tools" / "probe-registry" / "authoritative_registry.json"
+)
+ACTIVE_REGISTRY_PATH = REPO_ROOT / "tools" / "probe-registry" / "active_registry.json"
 ALLOWED_STATUSES = {"active", "quarantined", "retired", "roadmap"}
 ALLOWED_PILLARS = {"GOVERNANCE", "ROBUSTNESS", "BIAS_FAIRNESS", "OPS"}
 REQUIRED_FIELDS = {
@@ -764,8 +768,99 @@ def build_registry(
         include_content_candidates
         and mapping_dir.resolve() == MAPPING_DIR.resolve()
     ):
-        return _merge_content_candidate_inventory(reconciled)
+        reconciled = _merge_content_candidate_inventory(reconciled)
+    if mapping_dir.resolve() == MAPPING_DIR.resolve():
+        reconciled = _merge_authorized_tau_support_crm(reconciled)
     return reconciled
+
+
+def _merge_authorized_tau_support_crm(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Expose the three authorized report-only TAU cases to production dispatch."""
+    manifest = json.loads(AUTHORITATIVE_REGISTRY_PATH.read_text(encoding="utf-8"))
+    authorized = [
+        row
+        for row in manifest.get("rows", ())
+        if row.get("bucket") == "report_only"
+        and row.get("corpus_or_family") == "tau_support_crm_pilot"
+        and row.get("framework") == "tau-bench"
+        and row.get("source") == "evals/provisional_tau_support_crm.py"
+        and row.get("scoring_active") is False
+    ]
+    if len(authorized) != 3:
+        raise ValueError("authorized TAU support/CRM registry must contain exactly 3 cases")
+
+    authorized_ids = {str(row["stable_id"]) for row in authorized}
+    for registry_path in (AUTHORITATIVE_REGISTRY_PATH, ACTIVE_REGISTRY_PATH):
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        runnable_ids = {
+            str(row.get("case_id_or_probe_id"))
+            for row in registry.get("rows", ())
+            if row.get("bucket") == "runnable_today"
+            and row.get("corpus_or_family") == "tau_support_crm"
+            and row.get("framework") == "tau_bench"
+            and row.get("default_runtime_executable") is True
+            and row.get("scoring_active") is False
+            and row.get("weight") == 0.0
+            and row.get("score_contribution") is False
+        }
+        if runnable_ids != authorized_ids:
+            raise ValueError(
+                f"{registry_path.name} must declare exactly the 3 authorized "
+                "TAU support/CRM cases as runnable_today"
+            )
+
+    existing = {
+        (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
+        for row in rows
+    }
+    for source in sorted(authorized, key=lambda row: str(row["stable_id"])):
+        key = ("tau_support_crm", str(source["stable_id"]))
+        if key in existing:
+            continue
+        rows.append(
+            {
+                "test_id": key[0],
+                "case_id": key[1],
+                "status": "active",
+                "pillar": "OPS",
+                "category": "tau_support_crm",
+                "risk_or_rubric_id": "UNSCORED.TAU.SUPPORT_CRM",
+                "source_pack": str(source["source"]),
+                "runner": "tau_bench",
+                "framework": "tau-bench",
+                "underwriting_trigger": "reported_not_scored",
+                "required_or_optional": "required",
+                "version_pin": (
+                    "tau-bench@"
+                    + str(source["framework_version"])
+                    + ";tau-support-crm@0.1.0-report-only"
+                ),
+                "expected_result": "deterministic database-end-state verdict",
+                "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+                "owner": "scanner_engineer",
+                "last_verified_at": "2026-08-08",
+                "case_class": "tau_support_crm_report_only",
+                "production_runner_executable": True,
+                "target_bound": True,
+                "execution_evidenced": True,
+                "execution_evidence_status": "authorized_report_only_tau_harness",
+                "scoring_active": False,
+                "reporting_status": "reported_not_scored",
+                "activation_blocker": None,
+                "k_replicates": 1,
+                "surface_seed_rotation_enabled": False,
+                "canary_registration": "",
+                "applicability_gate": {"applicable": True},
+                "execution_mode": "tau_support_crm_production_dispatch",
+                "disposition": "report-only",
+                "score_contribution": False,
+                "weight": 0.0,
+                "authoritative_registry_stable_id": str(source["stable_id"]),
+            }
+        )
+    return rows
 
 
 def _merge_content_candidate_inventory(

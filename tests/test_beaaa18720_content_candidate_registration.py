@@ -65,7 +65,7 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # The two original direct AIUC-1 families contribute 64 report-only rows;
     # BEAAA-28131 adds four new supporting families (32 rows). None change the
     # frozen published/executed count below.
-    assert len(rows) == 2_475
+    assert len(rows) == 2_478
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
@@ -93,11 +93,11 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_339
-    assert count_target_bound_runtime(rows) == 2_350
-    assert distinct_case_counts(rows)["total"] == 2_338
+    assert count_active_executable(rows) == 2_342
+    assert count_target_bound_runtime(rows) == 2_353
+    assert distinct_case_counts(rows)["total"] == 2_341
     # Deliberate under-claim: BEAAA-24272 freezes published at 2_279 while
-    # BEAAA-24273 raises active executable to 2_339. Strict validation stays
+    # TAU registry landing raises active executable to 2_342. Strict validation stays
     # clean because it only rejects published > active. BEAAA-24454 owns the pin.
     assert not validate_registry(rows, published_count=2_279, strict=True)
 

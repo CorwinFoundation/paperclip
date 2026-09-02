@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "b29478693621aa0b9a455015acaa6a32bd792499fc8b3a164a1b077cfab9cffc"
+    "fb80e89fc1375e80df80b2cf960bbcbba9bf4348cc063d26b34cab9403bf31b8"
 )
 
 
@@ -25,9 +25,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_339
-    assert marker["generated_executable_count"] == 2_339
-    assert marker["distinct_runtime_count"] == 2_338
+    assert marker["published_executable_count"] == 2_342
+    assert marker["generated_executable_count"] == 2_342
+    assert marker["distinct_runtime_count"] == 2_341
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()

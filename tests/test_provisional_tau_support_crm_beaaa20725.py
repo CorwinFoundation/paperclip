@@ -10,9 +10,43 @@ from evals.provisional_tau_support_crm import SCENARIOS, run_pilot
 from harness.agent_interface import MockAgentSession, ToolCall
 
 
-TAU_INTEGRATION_BASELINE = "f11f2dfb41d57c30f154d54fb3a9385fcc6248c1"
-TAU_INTEGRATION_CANDIDATE = "3129c9393556c3ed7797c9557e471e6541f92166"
 FORBIDDEN_PREFIXES = ("api/", "rubric/", "registry/", "config/", "scanners/", "probes/")
+# Immutable canonical-master tree onto which BEAAA-28990 reconciled the TAU
+# feature.  The earlier Aug-8 feature base made this guard attribute every
+# intervening master change to TAU.  Pinning the actual landing base keeps the
+# comparison independent of later master movement while preserving mutation
+# detection within the candidate delta.
+TAU_LANDING_BASE = "82affc43818df960ffaff04f386acbb7c2735735"
+TAU_FEATURE_PATHS = {
+    "api/full_scan_executor.py",
+    "api/scan_handlers.py",
+    "scripts/verify_aiuc1_direct_families_release.py",
+    "tests/test_active_test_registry_beaaa13644.py",
+    "tests/test_aiuc1_direct_families_production_wiring.py",
+    "tests/test_authoritative_probe_registry_beaaa20357.py",
+    "tests/test_beaaa16647_aiuc_count_freeze.py",
+    "tests/test_beaaa16972_wave1a_scored_activation.py",
+    "tests/test_beaaa18720_content_candidate_registration.py",
+    "tests/test_beaaa19021_tranche1_canary.py",
+    "tests/test_c10_ai_disclosure_scoring_activation.py",
+    "tests/test_canonical_test_registry_beaaa13762.py",
+    "tests/test_distinct_case_count_beaaa14423.py",
+    "tests/test_founder_dev_mode_batch_promotion.py",
+    "tests/test_founder_dev_mode_p3_5_promotion.py",
+    "tests/test_full_scan_queue_worker_beaaa14843.py",
+    "tests/test_lane_c_registration_beaaa16272.py",
+    "tests/test_provisional_tau_support_crm_beaaa20725.py",
+    "tests/test_release_registry_marker_beaaa24165.py",
+    "tests/test_tau_production_dispatch_beaaa21427.py",
+    "tests/test_text_case_activation.py",
+    "tools/active_test_registry.py",
+    "tools/framework_worker_registry.py",
+    "tools/probe-registry/active_registry.json",
+    "tools/probe-registry/authoritative_registry.json",
+    "tools/probe_registry.py",
+    "tools/registered_case_executor.py",
+    "tools/tranche1_observational.py",
+}
 
 
 def _candidate_changed_paths(repo: Path, baseline: str, candidate: str) -> list[str]:
@@ -33,10 +67,33 @@ def _candidate_changed_paths(repo: Path, baseline: str, candidate: str) -> list[
     ).stdout.splitlines()
 
 
-def _assert_candidate_scope(repo: Path, baseline: str, candidate: str) -> None:
+def _feature_candidate(repo: Path, feature_paths: set[str]) -> str:
+    return subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", *sorted(feature_paths)],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _assert_candidate_scope(
+    repo: Path,
+    baseline: str,
+    candidate: str,
+    *,
+    allowed_paths: set[str] | None = None,
+) -> None:
     changed = _candidate_changed_paths(repo, baseline, candidate)
     assert changed
-    assert not [path for path in changed if path.startswith(FORBIDDEN_PREFIXES)]
+    allowed = allowed_paths or set()
+    assert not [
+        path
+        for path in changed
+        if path.startswith(FORBIDDEN_PREFIXES) and path not in allowed
+    ]
+    if allowed_paths is not None:
+        assert not set(changed).difference(allowed_paths)
 
 
 def _call(scenario, suffix, tool_name, arguments, action_class):
@@ -151,11 +208,14 @@ def test_refund_ledger_preserves_pre_mutation_lookup_snapshot():
     assert refund["call"]["tool_name"] == "issue_credit"
 
 
-def test_candidate_diff_does_not_touch_scoring_registry_runtime_defaults_or_api():
+def test_complete_tau_feature_diff_is_confined_to_authorized_paths():
+    repo = Path.cwd()
+    candidate = _feature_candidate(repo, TAU_FEATURE_PATHS)
     _assert_candidate_scope(
-        Path.cwd(),
-        TAU_INTEGRATION_BASELINE,
-        TAU_INTEGRATION_CANDIDATE,
+        repo,
+        TAU_LANDING_BASE,
+        candidate,
+        allowed_paths=TAU_FEATURE_PATHS,
     )
 
 
@@ -186,14 +246,26 @@ def test_scope_guard_preserves_candidate_provenance_before_and_after_merge(tmp_p
     git("add", "evals/tau.py")
     git("commit", "-qm", "tau candidate")
     candidate = git("rev-parse", "HEAD")
+    feature_paths = {"evals/tau.py"}
 
     # Candidate is ahead of the recorded baseline while master still names baseline.
     git("branch", "-f", "master", baseline)
-    _assert_candidate_scope(repo, baseline, candidate)
+    assert _feature_candidate(repo, feature_paths) == candidate
+    _assert_candidate_scope(repo, baseline, _feature_candidate(repo, feature_paths))
+
+    git("commit", "--allow-empty", "-qm", "empty follow-up")
+    assert _feature_candidate(repo, feature_paths) == candidate
+    _assert_candidate_scope(repo, baseline, _feature_candidate(repo, feature_paths))
+
+    (repo / "notes.md").write_text("unrelated\n", encoding="utf-8")
+    git("add", "notes.md")
+    git("commit", "-qm", "unrelated follow-up")
+    assert _feature_candidate(repo, feature_paths) == candidate
+    _assert_candidate_scope(repo, baseline, _feature_candidate(repo, feature_paths))
 
     # The same immutable candidate remains provable after master advances to it.
     git("branch", "-f", "master", candidate)
-    _assert_candidate_scope(repo, baseline, candidate)
+    _assert_candidate_scope(repo, baseline, _feature_candidate(repo, feature_paths))
 
     git("switch", "-qc", "prohibited", candidate)
     (repo / "api").mkdir()

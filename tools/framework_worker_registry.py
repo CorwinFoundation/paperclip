@@ -363,6 +363,13 @@ def worker_id_for_registry_row(row: dict[str, Any]) -> str:
         return "day1_report_only"
     if runner in {"day1_report_only_adapter", "direct_family_adapter"}:
         return "day1_report_only"
+    framework = str(row.get("framework") or "").lower()
+    if (
+        framework == "tau-bench"
+        and runner == "tau_bench"
+        and test_id == "tau_support_crm"
+    ):
+        return "tau_bench"
     if runner == "content_candidate_worker":
         return "content_candidate"
     if test_id in AGENTDOJO_TEST_IDS or runner == "live_probe_harness":

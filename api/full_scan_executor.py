@@ -209,6 +209,7 @@ class FullScanJob:
     model_versions: Mapping[str, Any]
     seed: int
     registry_cases: tuple[FullSuiteCase, ...]
+    scan_id: str | None = None
     status: str = "queued"
     attempts: tuple[str, ...] = ()
     active_attempt_id: str | None = None
@@ -286,6 +287,7 @@ class FullScanJobStore:
         model_versions: Mapping[str, Any],
         seed: int,
         registry_cases: Iterable[FullSuiteCase],
+        scan_id: str | None = None,
         idempotency_key: str | None = None,
         approved_blocker_ref: str | None = None,
         wall_clock_budget_seconds: int | None = None,
@@ -311,6 +313,7 @@ class FullScanJobStore:
                 model_versions=dict(model_versions),
                 seed=seed,
                 registry_cases=cases,
+                scan_id=scan_id,
                 approved_blocker_ref=approved_blocker_ref,
                 created_at=now,
                 updated_at=now,
@@ -1235,6 +1238,7 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
             }
             for case in job.registry_cases
         ],
+        "scan_id": job.scan_id,
         "status": job.status,
         "attempts": list(job.attempts),
         "active_attempt_id": job.active_attempt_id,
@@ -1277,6 +1281,7 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
             )
             for case in record["registry_cases"]
         ),
+        scan_id=record.get("scan_id"),
         status=record["status"],
         attempts=tuple(record.get("attempts", ())),
         active_attempt_id=record.get("active_attempt_id"),

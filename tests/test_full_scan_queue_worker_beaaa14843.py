@@ -97,8 +97,8 @@ def test_default_registry_loader_matches_standard_production_count():
 
     # BEAAA-24273: +60 executable rows and +60 distinct (prompts, expected)
     # pairs. The content-candidate inventory below is unchanged at 2_000.
-    assert len(rows) == count_active_executable(rows) == 2_339
-    assert distinct_case_counts(rows)["total"] == 2_338
+    assert len(rows) == count_active_executable(rows) == 2_342
+    assert distinct_case_counts(rows)["total"] == 2_341
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)
         == 2_000

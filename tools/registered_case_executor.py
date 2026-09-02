@@ -300,6 +300,7 @@ class RegisteredCaseExecutor:
         budget: ScanBudget,
         tenant_id: str | None = None,
         audience: str = "internal_observational",
+        tau_session_factory: Callable[[Any, int], Any] | None = None,
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
         self.budget = budget
@@ -308,6 +309,7 @@ class RegisteredCaseExecutor:
         self.evidence_store = evidence_store
         self.tenant_id = tenant_id
         self.audience = audience
+        self.tau_session_factory = tau_session_factory
         self._observational_lock = threading.RLock()
         self._observational_records: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -394,6 +396,7 @@ class RegisteredCaseExecutor:
         evidence: dict[str, Any] = {
             "schema": EVIDENCE_SCHEMA,
             "job_id": job.job_id,
+            "scan_id": str(getattr(job, "scan_id", None) or job.job_id),
             "agent_id": job.agent_id,
             "test_id": test_id,
             "case_id": case_id,
@@ -421,6 +424,7 @@ class RegisteredCaseExecutor:
             )
             execution_row["tenant_id"] = self.tenant_id
             execution_row["audience"] = self.audience
+            execution_row["scan_seed"] = job.seed
             execution_row["case_evidence_uri"] = (
                 f"evidence://{job.job_id}/{_safe_segment(test_id)}/"
                 f"{_safe_segment(case_id)}.json"
@@ -514,6 +518,37 @@ class RegisteredCaseExecutor:
         # canonical dispatch key for the shared report-only production path.
         if test_id in SUPPORTING_FAMILIES:
             return self._execute_direct_family_case(test_id, case_id, registry_row)
+
+        if _is_tau_support_crm_row(registry_row):
+            if self.tau_session_factory is None:
+                raise RuntimeError("tau_session_factory_unconfigured")
+            from evals.provisional_tau_support_crm import SCENARIOS, run_scenario
+
+            scenario = next(
+                (item for item in SCENARIOS if item.stable_id == case_id), None
+            )
+            if scenario is None:
+                raise KeyError(f"tau support/CRM case not found: {case_id}")
+            tau_result = run_scenario(
+                scenario,
+                self.tau_session_factory,
+                seed=int(registry_row.get("scan_seed", 0)),
+            )
+            return {
+                "payloads": list(scenario.user_turns),
+                "responses": [
+                    str(turn.get("assistant_text") or "")
+                    for turn in tau_result["transcript"]["turns"]
+                ],
+                "judge": {
+                    "type": "tau_bench_database_end_state",
+                    "llm_judge_calls": 0,
+                    "checks": tau_result["checks"],
+                },
+                "score": None,
+                "verdict": tau_result["verdict"],
+                "tau_result": tau_result,
+            }
 
         if registry_row.get("runner") == "content_candidate_worker":
             return self._execute_content_candidate(test_id, case_id, registry_row)
@@ -1319,6 +1354,7 @@ def build_registered_case_workers(
     evidence_root: Path | None = None,
     subject_factory: Callable[[str, str], ModelRunner] | None = None,
     judge_factory: Callable[[], ModelRunner] | None = None,
+    tau_session_factory: Callable[[Any, int], Any] | None = None,
 ) -> dict[str, RegisteredCaseExecutor]:
     from harness.customer_runner import customer_agent_http_runner_factory
     from tools.framework_worker_registry import WORKERS
@@ -1344,6 +1380,11 @@ def build_registered_case_workers(
         # Retain the two-argument injection seam used by offline/demo callers;
         # production's native provider factory receives the target agent ID.
         subject = subject_factory(scan_request.agent_endpoint, secret)
+
+    if tau_session_factory is None:
+        tau_session_factory = _http_tau_session_factory(
+            scan_request.agent_endpoint, secret
+        )
     executor = RegisteredCaseExecutor(
         subject=subject,
         judge=judge_builder(),
@@ -1355,6 +1396,7 @@ def build_registered_case_workers(
             else None
         ),
         audience="internal_observational",
+        tau_session_factory=tau_session_factory,
     )
     return {worker_id: executor for worker_id in WORKERS}
 
@@ -1448,6 +1490,66 @@ def _not_applicable_outcome(
         expected=expected,
         verdict="not_applicable",
     )
+
+
+def _is_tau_support_crm_row(row: Mapping[str, Any]) -> bool:
+    """Select only configured, report-only TAU support/CRM cases."""
+    return (
+        str(row.get("framework") or "").lower() == "tau-bench"
+        and row.get("runner") == "tau_bench"
+        and row.get("test_id") == "tau_support_crm"
+        and row.get("production_runner_executable") is True
+        and row.get("scoring_active") is False
+    )
+
+
+def _http_tau_session_factory(
+    endpoint: str, secret: str
+) -> Callable[[Any, int], Any]:
+    from harness.agent_interface import HTTPAgentSession
+
+    tools = (
+        _openai_tool("lookup_charge", {"charge_id": {"type": "string"}}),
+        _openai_tool(
+            "issue_credit",
+            {
+                "charge_id": {"type": "string"},
+                "amount_cents": {"type": "integer"},
+            },
+        ),
+        _openai_tool("get_account", {"contact_id": {"type": "string"}}),
+        _openai_tool(
+            "update_account",
+            {"contact_id": {"type": "string"}, "fields": {"type": "object"}},
+        ),
+    )
+
+    def factory(scenario: Any, seed: int) -> HTTPAgentSession:
+        return HTTPAgentSession(
+            url=endpoint,
+            model="backbond-customer-agent",
+            auth=secret,
+            tools=tools,
+            label=f"customer-agent:{scenario.stable_id}:seed-{seed}",
+        )
+
+    return factory
+
+
+def _openai_tool(name: str, properties: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": f"TAU support/CRM tool {name}",
+            "parameters": {
+                "type": "object",
+                "properties": dict(properties),
+                "required": list(properties),
+                "additionalProperties": False,
+            },
+        },
+    }
 
 
 def _find_case(probes: list[Any], case_id: str) -> Any:

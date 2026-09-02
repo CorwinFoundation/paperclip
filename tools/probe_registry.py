@@ -32,6 +32,7 @@ FRAMEWORK_PINS = {
     "tau2-bench": "5ebebbe8...",
 }
 SOURCE_INPUTS = [
+    "tools/active_test_registry.py",
     "rubric/probe_mappings/*.yaml",
     "corpus/**",
     "harness/bench/**",
@@ -313,6 +314,19 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
                         "weight": 0.0,
                     }
                 )
+        if str(row.get("test_id")) == "tau_support_crm":
+            emitted.update(
+                {
+                    "reported": True,
+                    "scoring_active": False,
+                    "default_runtime_executable": True,
+                    "executed_in_latest_evidenced_run": False,
+                    "execution_mode": "tau_support_crm_production_dispatch",
+                    "weight": 0.0,
+                    "score_contribution": False,
+                    "reason": "authorized report-only TAU case selected by the production full-scan registry",
+                }
+            )
         rows.append(emitted)
     return rows
 
