@@ -49,3 +49,7 @@ test('a non-author collaborator approval for the exact cited head succeeds', () 
 test('a non-collaborator approval fails', () => {
   assert.equal(decideQaReview([approval({ author_association: 'CONTRIBUTOR' })], HEAD_SHA, PR_AUTHOR).conclusion, 'failure');
 });
+
+test('an org MEMBER approval fails — org membership does not imply push access', () => {
+  assert.equal(decideQaReview([approval({ author_association: 'MEMBER' })], HEAD_SHA, PR_AUTHOR).conclusion, 'failure');
+});
