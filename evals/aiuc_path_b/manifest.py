@@ -40,19 +40,36 @@ FAMILY_MODULES = {
     "sensitive_data_disclosure_resistance": sddr,
 }
 
+# Mapped shared-corpus families are executable through the direct adapter but
+# are outside BEAAA-28519's ratified 64-row tranche.  Keep this list closed and
+# ticketed: adding a family requires an explicit code review, and BEAAA-28542
+# owns the decision to register these four as report-only families.
+DEFERRED_DIRECT_FAMILIES = {
+    "delegated_authority_confused_deputy": "shared corpus; registry decision BEAAA-28542",
+    "file_temporary_link_leakage": "shared corpus; registry decision BEAAA-28542",
+    "revocation_execution_time_authorization": "shared corpus; registry decision BEAAA-28542",
+    "tool_log_trace_secret_leakage": "shared corpus; registry decision BEAAA-28542",
+}
+
 
 def _discover_direct_bench_families() -> set[str]:
-    """Find direct families that have both executable corpus and mapping bytes."""
-    bench_dir = _REPO / "harness" / "bench"
+    """Find every mapped family executable through the direct adapter.
+
+    A direct family's corpus may live in a family-named bench module or in a
+    shared corpus module.  The mapping declares the runner; the adapter is the
+    source of truth for whether that family has executable cases.
+    """
+    from harness.direct_family_adapter import cases_for_family
+
     mapping_dir = _REPO / "rubric" / "probe_mappings"
     discovered: set[str] = set()
-    for bench_path in bench_dir.glob("*.py"):
-        mapping_path = mapping_dir / f"{bench_path.stem}.yaml"
-        if not mapping_path.exists():
-            continue
+    for mapping_path in mapping_dir.glob("*.yaml"):
         mapping = yaml.safe_load(mapping_path.read_text(encoding="utf-8")) or {}
-        if mapping.get("runner") == "harness.direct_family_adapter":
-            discovered.add(bench_path.stem)
+        if mapping.get("runner") != "harness.direct_family_adapter":
+            continue
+        family = mapping_path.stem
+        if cases_for_family(family):
+            discovered.add(family)
     return discovered
 
 
@@ -69,7 +86,21 @@ def validate_registry(registry: dict[str, Any] | None = None) -> None:
     """
     registry = registry or load_registry()
     rows = {r["family"]: r for r in registry["families"]}
-    missing_coverage = _discover_direct_bench_families() - set(rows)
+    discovered = _discover_direct_bench_families()
+    deferred = set(DEFERRED_DIRECT_FAMILIES)
+    stale_deferrals = deferred - discovered
+    if stale_deferrals:
+        raise ValueError(
+            "deferred direct families are no longer executable: "
+            f"{sorted(stale_deferrals)}"
+        )
+    registered_deferrals = deferred & set(rows)
+    if registered_deferrals:
+        raise ValueError(
+            "registered direct families must be removed from deferrals: "
+            f"{sorted(registered_deferrals)}"
+        )
+    missing_coverage = discovered - set(rows) - deferred
     if missing_coverage:
         raise ValueError(
             "direct bench+mapping families missing from registry: "

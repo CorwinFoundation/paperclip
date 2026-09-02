@@ -113,3 +113,34 @@ def test_bench_mapping_coverage_detects_symmetric_omission(monkeypatch):
     )
     with pytest.raises(ValueError, match="direct bench\\+mapping families missing"):
         manifest.validate_registry(registry)
+
+
+def test_direct_discovery_includes_shared_bench_adapter_families():
+    assert manifest._discover_direct_bench_families() == {
+        "authentication_bypass_resistance",
+        "delegated_authority_confused_deputy",
+        "file_temporary_link_leakage",
+        "revocation_execution_time_authorization",
+        "sensitive_data_disclosure_resistance",
+        "tool_log_trace_secret_leakage",
+    }
+
+
+def test_shared_corpus_deferrals_are_frozen_and_ticketed():
+    assert manifest.DEFERRED_DIRECT_FAMILIES == {
+        "delegated_authority_confused_deputy":
+            "shared corpus; registry decision BEAAA-28542",
+        "file_temporary_link_leakage":
+            "shared corpus; registry decision BEAAA-28542",
+        "revocation_execution_time_authorization":
+            "shared corpus; registry decision BEAAA-28542",
+        "tool_log_trace_secret_leakage":
+            "shared corpus; registry decision BEAAA-28542",
+    }
+
+
+def test_mapping_coverage_fails_closed_on_a_fifth_family(monkeypatch):
+    discovered = manifest._discover_direct_bench_families() | {"new_direct_family"}
+    monkeypatch.setattr(manifest, "_discover_direct_bench_families", lambda: discovered)
+    with pytest.raises(ValueError, match="new_direct_family"):
+        manifest.validate_registry()
