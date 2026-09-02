@@ -1,0 +1,27 @@
+name: QA Review Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, review_requested]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  qa-review-evidence:
+    name: qa-review-evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run QA review evidence check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node .github/scripts/check-qa-review.mjs
