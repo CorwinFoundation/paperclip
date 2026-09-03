@@ -81,6 +81,40 @@ describe("onEnvironmentResumeLease", () => {
         phase: "Running",
         backend: "sandbox-cr",
         resumedLease: true,
+        // sandbox-cr has a pod-exec channel, so native file sync stays enabled.
+        nativeFileSyncUnsupported: false,
+      }),
+    );
+  });
+
+  it("flags a resumed job-backend lease as native-sync-unsupported so the server keeps the base64 fallback", async () => {
+    h.clients = {
+      batch: {
+        readNamespacedJobStatus: vi.fn().mockResolvedValue({ status: { active: 1 } }),
+      },
+      core: {
+        listNamespacedPod: vi.fn().mockResolvedValue({
+          items: [{ metadata: { name: "pc-job-pod" }, status: { phase: "Running" } }],
+        }),
+      },
+    };
+
+    const lease = await plugin.definition.onEnvironmentResumeLease!({
+      driverKey: "kubernetes",
+      companyId: "acme",
+      environmentId: "env-1",
+      config: { inCluster: true, backend: "job" },
+      providerLeaseId: "pc-job",
+      leaseMetadata: leaseMetadata({ jobName: "pc-job", backend: "job", podName: "pc-job-pod" }),
+    });
+
+    expect(lease.providerLeaseId).toBe("pc-job");
+    expect(lease.metadata).toEqual(
+      expect.objectContaining({
+        backend: "job",
+        // The job backend has no exec channel; its native sync hook rejects, so
+        // the lease must fall back to the byte-identical base64 transport.
+        nativeFileSyncUnsupported: true,
       }),
     );
   });
@@ -124,6 +158,91 @@ describe("onEnvironmentResumeLease", () => {
 
     expect(lease.providerLeaseId).toBeNull();
     expect(lease.metadata?.expired).toBe(true);
+  });
+});
+
+describe("onEnvironmentAcquireLease", () => {
+  function acquireClients() {
+    const rejectNotFound = vi.fn().mockRejectedValue({ code: 404 });
+    const resolve = vi.fn().mockResolvedValue({});
+    const createSandbox = vi.fn().mockImplementation(
+      async (request: { body: Record<string, unknown> }) => ({
+        ...request.body,
+        metadata: {
+          ...((request.body.metadata as Record<string, unknown>) ?? {}),
+          uid: "sandbox-uid",
+        },
+      }),
+    );
+
+    return {
+      createSandbox,
+      clients: {
+        core: {
+          readNamespace: rejectNotFound,
+          createNamespace: resolve,
+          readNamespacedServiceAccount: rejectNotFound,
+          createNamespacedServiceAccount: resolve,
+          readNamespacedResourceQuota: rejectNotFound,
+          createNamespacedResourceQuota: resolve,
+          readNamespacedLimitRange: rejectNotFound,
+          createNamespacedLimitRange: resolve,
+          createNamespacedSecret: resolve,
+        },
+        rbac: {
+          readNamespacedRole: rejectNotFound,
+          createNamespacedRole: resolve,
+          readNamespacedRoleBinding: rejectNotFound,
+          createNamespacedRoleBinding: resolve,
+        },
+        networking: {
+          readNamespacedNetworkPolicy: rejectNotFound,
+          createNamespacedNetworkPolicy: resolve,
+        },
+        custom: {
+          createNamespacedCustomObject: createSandbox,
+          getNamespacedCustomObject: vi.fn().mockResolvedValue({
+            status: { podName: "sandbox-pod" },
+          }),
+        },
+      },
+    };
+  }
+
+  it("threads the configured service account into the Sandbox CR without mounting its token", async () => {
+    const { clients, createSandbox } = acquireClients();
+    h.clients = clients;
+
+    await plugin.definition.onEnvironmentAcquireLease!({
+      driverKey: "kubernetes",
+      companyId: "11111111-1111-1111-1111-111111111111",
+      environmentId: "env-1",
+      runId: "run-1",
+      config: {
+        inCluster: true,
+        backend: "sandbox-cr",
+        serviceAccountName: "pc-canary-auditor-dbiso-v1",
+      },
+    });
+
+    const sandboxRequest = createSandbox.mock.calls[0][0] as {
+      body: {
+        spec: {
+          podTemplate: {
+            spec: {
+              serviceAccountName: string;
+              automountServiceAccountToken: boolean;
+            };
+          };
+        };
+      };
+    };
+    expect(sandboxRequest.body.spec.podTemplate.spec.serviceAccountName).toBe(
+      "pc-canary-auditor-dbiso-v1",
+    );
+    expect(
+      sandboxRequest.body.spec.podTemplate.spec.automountServiceAccountToken,
+    ).toBe(false);
   });
 });
 

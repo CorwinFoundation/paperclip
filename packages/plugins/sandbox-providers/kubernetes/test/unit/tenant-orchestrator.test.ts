@@ -44,6 +44,7 @@ describe("ensureTenant", () => {
     namespace: "paperclip-acme",
     companyId: "11111111-1111-1111-1111-111111111111",
     paperclipServerNamespace: "paperclip",
+    serviceAccountName: "paperclip-tenant-sa",
     serviceAccountAnnotations: {},
     egressMode: "standard" as const,
     egressAllowFqdns: ["api.anthropic.com"],
@@ -86,6 +87,26 @@ describe("ensureTenant", () => {
     const saCall = clients.calls.find((c) => c.kind === "ServiceAccount");
     const sa = saCall!.body as { metadata: { annotations: Record<string, string> } };
     expect(sa.metadata.annotations["eks.amazonaws.com/role-arn"]).toBe("arn:aws:iam::123:role/paperclip");
+  });
+
+  it("provisions and binds the configured service account name", async () => {
+    const clients = makeMockClients();
+    await ensureTenant(clients as never, {
+      ...baseInput,
+      serviceAccountName: "pc-canary-auditor-dbiso-v1",
+    });
+
+    expect(clients.core.readNamespacedServiceAccount).toHaveBeenCalledWith({
+      name: "pc-canary-auditor-dbiso-v1",
+      namespace: baseInput.namespace,
+    });
+    const serviceAccount = clients.calls.find((call) => call.kind === "ServiceAccount")!
+      .body as { metadata: { name: string } };
+    expect(serviceAccount.metadata.name).toBe("pc-canary-auditor-dbiso-v1");
+
+    const roleBinding = clients.calls.find((call) => call.kind === "RoleBinding")!
+      .body as { subjects: Array<{ name: string }> };
+    expect(roleBinding.subjects[0].name).toBe("pc-canary-auditor-dbiso-v1");
   });
 
   it("skips creates that already exist (idempotency)", async () => {

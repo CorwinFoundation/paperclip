@@ -6,6 +6,7 @@ export interface EnsureTenantInput {
   namespace: string;
   companyId: string;
   paperclipServerNamespace: string;
+  serviceAccountName: string;
   serviceAccountAnnotations: Record<string, string>;
   egressMode: "standard" | "cilium";
   egressAllowFqdns: string[];
@@ -19,7 +20,6 @@ export interface EnsureTenantInput {
   };
 }
 
-const SERVICE_ACCOUNT_NAME = "paperclip-tenant-sa";
 const ROLE_NAME = "paperclip-tenant-role";
 const ROLE_BINDING_NAME = "paperclip-tenant-rb";
 const RESOURCE_QUOTA_NAME = "paperclip-quota";
@@ -80,7 +80,7 @@ async function ensureNamespace(clients: KubeClients, input: EnsureTenantInput): 
 
 async function ensureServiceAccount(clients: KubeClients, input: EnsureTenantInput): Promise<void> {
   try {
-    await clients.core.readNamespacedServiceAccount({ name: SERVICE_ACCOUNT_NAME, namespace: input.namespace });
+    await clients.core.readNamespacedServiceAccount({ name: input.serviceAccountName, namespace: input.namespace });
     return;
   } catch (err) {
     if (!isNotFound(err)) throw err;
@@ -92,7 +92,7 @@ async function ensureServiceAccount(clients: KubeClients, input: EnsureTenantInp
           apiVersion: "v1",
           kind: "ServiceAccount",
           metadata: {
-            name: SERVICE_ACCOUNT_NAME,
+            name: input.serviceAccountName,
             namespace: input.namespace,
             annotations: input.serviceAccountAnnotations,
             labels: { "paperclip.io/managed-by": "paperclip-k8s-plugin" },
@@ -139,7 +139,7 @@ async function ensureRoleBinding(clients: KubeClients, input: EnsureTenantInput)
           kind: "RoleBinding",
           metadata: { name: ROLE_BINDING_NAME, namespace: input.namespace },
           roleRef: { apiGroup: "rbac.authorization.k8s.io", kind: "Role", name: ROLE_NAME },
-          subjects: [{ kind: "ServiceAccount", name: SERVICE_ACCOUNT_NAME, namespace: input.namespace }],
+          subjects: [{ kind: "ServiceAccount", name: input.serviceAccountName, namespace: input.namespace }],
         },
       }),
   );

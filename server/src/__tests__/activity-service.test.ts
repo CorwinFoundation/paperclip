@@ -18,6 +18,7 @@ import {
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 import { activityService } from "../services/activity.ts";
+import { logActivity } from "../services/activity-log.ts";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
@@ -117,6 +118,41 @@ describeEmbeddedPostgres("activity service", () => {
     expect(result.map((event) => event.action)).toEqual(["test.newest", "test.middle"]);
   });
 
+  it("records activity without a run link when a minimal seed omitted the inherited run", async () => {
+    const companyId = randomUUID();
+    const missingSourceRunId = randomUUID();
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Minimal Seed Successor",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+
+    await expect(logActivity(db, {
+      companyId,
+      actorType: "user",
+      actorId: "local-board",
+      action: "plugin.installed",
+      entityType: "plugin",
+      entityId: randomUUID(),
+      runId: missingSourceRunId,
+      details: { source: "local_path" },
+    })).resolves.toEqual({ id: expect.any(String) });
+
+    const [persisted] = await db
+      .select({
+        action: activityLog.action,
+        runId: activityLog.runId,
+      })
+      .from(activityLog);
+
+    expect(persisted).toEqual({
+      action: "plugin.installed",
+      runId: null,
+    });
+  });
+
   it("returns compact usage and result summaries for issue runs", async () => {
     const companyId = randomUUID();
     const agentId = randomUUID();
@@ -212,6 +248,7 @@ describeEmbeddedPostgres("activity service", () => {
       lastUsefulActionAt: new Date("2026-04-18T19:59:00.000Z"),
       nextAction: "Review the completed output.",
     });
+    expect(runs[0]).not.toHaveProperty("contextSnapshot");
   });
 
   it("backfills missing liveness for completed issue runs before returning the ledger", async () => {

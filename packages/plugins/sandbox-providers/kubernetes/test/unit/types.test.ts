@@ -8,8 +8,26 @@ describe("kubernetesProviderConfigSchema", () => {
     expect(parsed.namespacePrefix).toBe("paperclip-");
     expect(parsed.imageAllowList).toEqual([]);
     expect(parsed.egressMode).toBe("standard");
+    expect(parsed.serviceAccountName).toBe("paperclip-tenant-sa");
     expect(parsed.jobTtlSecondsAfterFinished).toBe(900);
   });
+
+  it("accepts an operator-pinned service account name", () => {
+    const parsed = parseKubernetesProviderConfig({
+      inCluster: true,
+      serviceAccountName: "pc-canary-auditor-dbiso-v1",
+    });
+    expect(parsed.serviceAccountName).toBe("pc-canary-auditor-dbiso-v1");
+  });
+
+  it.each(["UPPERCASE", "-leading-hyphen", "trailing-hyphen-", "two..dots"])(
+    "rejects invalid service account name %s",
+    (serviceAccountName) => {
+      expect(() =>
+        parseKubernetesProviderConfig({ inCluster: true, serviceAccountName }),
+      ).toThrow(/DNS-1123/);
+    },
+  );
 
   it("accepts inline kubeconfig", () => {
     const parsed = parseKubernetesProviderConfig({
