@@ -76,7 +76,23 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
         "content_candidate_worker": 1_738,
         "bench_wrapper": 262,
     }
-    assert all(row["production_runner_executable"] is True for row in candidates)
+    gated = [
+        row for row in candidates
+        if row["test_id"] in {
+            "cbrn_refusal",
+            "consequential_action_confirmation",
+            "ai_disclosure",
+            "agentdojo",
+            "counterfactual_stability",
+        }
+    ]
+    assert gated
+    assert all(row["production_runner_executable"] is False for row in gated)
+    assert all(
+        row["production_runner_executable"] is True
+        for row in candidates
+        if row not in gated
+    )
     registration_statuses = Counter(
         row["candidate_registration_status"] for row in candidates
     )
@@ -93,13 +109,15 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_342
+    assert count_active_executable(rows) == 2_203
     assert count_target_bound_runtime(rows) == 2_353
     assert distinct_case_counts(rows)["total"] == 2_341
-    # Deliberate under-claim: BEAAA-24272 freezes published at 2_279 while
-    # TAU registry landing raises active executable to 2_342. Strict validation stays
-    # clean because it only rejects published > active. BEAAA-24454 owns the pin.
-    assert not validate_registry(rows, published_count=2_279, strict=True)
+    # BEAAA-29085 lowers the executable inventory below the frozen published
+    # count. Strict validation must surface that mismatch until the published
+    # marker is updated by its owning release process.
+    assert validate_registry(rows, published_count=2_279, strict=True) == [
+        "published_active_test_count 2279 exceeds active executable registry count 2203"
+    ]
 
 
 def test_candidate_materializer_handles_pairs_and_conversation_events() -> None:
@@ -454,7 +472,7 @@ def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> Non
 
     # The 12 parameter-tamper rows retain their content-candidate registry
     # metadata but dispatch through the shared Day-1 report-only worker.
-    assert worker["active_registry_rows"] == 1_726
+    assert worker["active_registry_rows"] == 1_634
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True

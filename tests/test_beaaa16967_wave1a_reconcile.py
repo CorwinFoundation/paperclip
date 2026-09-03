@@ -153,7 +153,14 @@ def test_wave1a_registry_promotes_only_two_families() -> None:
     promoted = [row for row in rows if row["test_id"] in WAVE1A_SCORING_ACTIVE_FAMILIES]
 
     assert len(promoted) == 35
-    assert count_active_executable(promoted) == 35
+    # The 15 consequential-action rows remain scoring-active but are excluded
+    # from production execution until their registered adapter is bound.
+    assert count_active_executable(promoted) == 20
+    assert {
+        row["production_runner_executable"]
+        for row in promoted
+        if row["test_id"] == "consequential_action_confirmation"
+    } == {False}
     assert {row["reporting_status"] for row in promoted} == {"scoring_active"}
     assert {row["scoring_active"] for row in promoted} == {True}
     assert {row["activation_blocker"] for row in promoted} == {None}

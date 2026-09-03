@@ -95,13 +95,13 @@ def test_default_registry_loader_uses_live_production_registry(monkeypatch):
 def test_default_registry_loader_matches_standard_production_count():
     rows = list(load_default_full_scan_registry_rows())
 
-    # BEAAA-24273: +60 executable rows and +60 distinct (prompts, expected)
-    # pairs. The content-candidate inventory below is unchanged at 2_000.
-    assert len(rows) == count_active_executable(rows) == 2_342
-    assert distinct_case_counts(rows)["total"] == 2_341
+    # BEAAA-29085 gates unbound production adapters, retiring the BEAAA-24273
+    # content-candidate inventory invariant for these five families.
+    assert len(rows) == count_active_executable(rows) == 2_203
+    assert distinct_case_counts(rows)["total"] == 2_202
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)
-        == 2_000
+        == 1_893
     )
 
 

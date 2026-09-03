@@ -88,6 +88,7 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     blocked = set(full_scan["activation_blocked"])
     assert eligible | blocked == {row["family"] for row in lane_manifest["families"]}
     assert eligible | blocked <= discovered
+    unbound_families = {"ai_disclosure", "cbrn_refusal"}
     for family in eligible:
         family_rows = [
             row
@@ -96,7 +97,9 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
             and row.get("content_candidate_inventory") is not True
         ]
         assert family_rows and all(row["status"] == "active" for row in family_rows)
-        assert all(row["production_runner_executable"] for row in family_rows)
+        assert {
+            row["production_runner_executable"] for row in family_rows
+        } == ({False} if family in unbound_families else {True})
         assert all(row["reporting_status"] == "reported_not_scored" for row in family_rows)
     for family in blocked:
         family_rows = [row for row in rows if row["test_id"] == family]

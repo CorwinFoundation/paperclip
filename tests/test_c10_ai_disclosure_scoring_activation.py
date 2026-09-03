@@ -72,7 +72,7 @@ def test_exact_c10_ai_disclosure_family_is_scored_zero_weight() -> None:
     assert {row["underwriting_active"] for row in activated} == {False}
     assert {row["attestation_tier"] for row in activated} == {"founder_dev_mode"}
     assert {row["execution_evidence_status"] for row in activated} == {
-        "saved_vapi_deterministic_verdict_bound"
+        "registered_case_adapter_not_bound"
     }
     with pytest.raises(FounderDevModeError):
         assert_production_attested(rows)
@@ -114,7 +114,7 @@ def test_activations_add_exact_scored_cases_without_count_or_pricing_drift() -> 
     activated = c10_family_activation.load_c10_family_activations()
 
     assert count_canonical_scored_rows(rows) == 309 + len(activated)
-    assert count_active_executable(rows) == 2_342
+    assert count_active_executable(rows) == 2_203
     assert count_target_bound_runtime(rows) == 2_353
     assert sum(
         row.get("priced_score_weight", 0.0)

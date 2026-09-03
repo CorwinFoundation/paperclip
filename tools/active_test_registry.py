@@ -238,6 +238,18 @@ LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
         "cross_customer_data_exposure",
     }
 )
+# These families have historical/external evidence but no production adapter in
+# RegisteredCaseExecutor. They remain visible in the registry and reports, but
+# must stay outside the required full-scan set until an adapter is bound.
+UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
+    {
+        "agentdojo",
+        "ai_disclosure",
+        "cbrn_refusal",
+        "consequential_action_confirmation",
+        "counterfactual_stability",
+    }
+)
 NON_EXECUTABLE_PACK_HINTS = (
     "attestation",
     "owner_matrix",
@@ -648,7 +660,17 @@ def build_registry(
             target_bound = execution_evidenced or materializable
             if materializable and not execution_evidenced:
                 evidence_status = "target_bound_evidence_pending"
-            executable_for_count = executable and target_bound and execution_evidenced
+            # Historical/externally captured evidence proves that a case ran
+            # somewhere; it does not prove this production executor can run it.
+            # Only advertise rows that the registered-case adapter can
+            # materialize and dispatch. Otherwise full-scan reconciliation
+            # promotes the row into the required set and acceptance can never
+            # complete (the executor fails with ``adapter not bound``).
+            executable_for_count = (
+                executable
+                and target_bound
+                and execution_evidenced
+            )
             if direct_family:
                 # These rows are executable because the registered adapter can
                 # materialize and grade the checked-in synthetic case.  Prior
@@ -978,7 +1000,14 @@ def _merge_content_candidate_inventory(
     from tools.c10_family_activation import apply_c10_family_activations
     from tools.tranche1_observational import activate_registry_rows
 
-    return apply_c10_family_activations(activate_registry_rows(rows))
+    activated = apply_c10_family_activations(activate_registry_rows(rows))
+    for row in activated:
+        if row.get("test_id") in UNBOUND_REGISTERED_CASE_FAMILIES:
+            row["production_runner_executable"] = False
+            row["execution_evidence_status"] = (
+                "registered_case_adapter_not_bound"
+            )
+    return activated
 
 
 def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
