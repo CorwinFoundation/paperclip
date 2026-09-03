@@ -114,6 +114,14 @@ COSIGN_ASSERTION_RE = re.compile(
     r"\bco-?sign(?:ed|ing)?\b[^\n]{0,40}?[`'\"]?%s",
     re.IGNORECASE,
 )
+# A closure report can put the co-sign and QA legs side by side without
+# granting either one: "Co-sign <sha>, QA APPROVED on <issue>." Keep that
+# evidence visible at strength 1 instead of letting the assertion fallback
+# promote it to strength 2. Explicit grants are evaluated first.
+COSIGN_REPORT_RE = re.compile(
+    r"\bco-?sign(?:ed|ing)?\b[^\n]{0,40}?[`'\"]?%s\b[`'\"*_]*\s*[,;]\s*QA\s+APPROVED\b",
+    re.IGNORECASE,
+)
 
 RECONCILED = "reconciled"
 UNRECONCILED = "unreconciled"
@@ -443,6 +451,9 @@ def cosign_strength(body: str, named_token: str | None = None) -> int:
         return 0
     if COSIGN_GRANT_RE.search(body):
         return 2
+    if named_token and re.search(COSIGN_REPORT_RE.pattern % re.escape(named_token),
+                                 body, re.IGNORECASE):
+        return 1
     if named_token and re.search(COSIGN_ASSERTION_RE.pattern % re.escape(named_token),
                                  body, re.IGNORECASE):
         return 2

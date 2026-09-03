@@ -360,15 +360,24 @@ class TestCosignStrength:
         assert lr.cosign_strength(body) == 1
 
     def test_bare_assertion_naming_the_sha_is_a_grant(self):
-        assert lr.cosign_strength("BLUF: co-signed `63441702`.", "63441702") == 2
+        assert lr.cosign_strength("BLUF: co-signed `cc0fdcf1`.", "cc0fdcf1") == 2
 
     def test_subordinate_clause_is_only_a_reference(self):
         body = "recording a residual found while co-signing `63441702` on BEAAA-23957"
         assert lr.cosign_strength(body, "63441702") == 1
 
-    def test_closure_report_citing_a_cosign_is_only_a_reference(self):
-        body = "Merged to canon master at 8b0b340b. Co-sign b6d0d61f, QA APPROVED on BEAAA-23946."
-        assert lr.cosign_strength(body, "8b0b340b") == 1
+    @pytest.mark.parametrize(("body", "named_token"), [
+        (
+            "Co-sign b6d0d61f, QA APPROVED on BEAAA-23946. Closing.",
+            "b6d0d61f",
+        ),
+        (
+            "Closure report: co-signed `8b0b340b`; QA APPROVED on BEAAA-23946. Closing.",
+            "8b0b340b",
+        ),
+    ])
+    def test_closure_report_citing_a_cosign_is_only_a_reference(self, body, named_token):
+        assert lr.cosign_strength(body, named_token) == 1
 
     def test_unrelated_comment(self):
         assert lr.cosign_strength("Rebased onto current master.") == 0
