@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS dispositions (
   created_at TEXT NOT NULL,
   supersedes_disposition_id INTEGER REFERENCES dispositions(id)
 );
+CREATE TRIGGER IF NOT EXISTS dispositions_no_update
+BEFORE UPDATE ON dispositions
+BEGIN
+  SELECT RAISE(ABORT, 'dispositions are append-only');
+END;
+CREATE TRIGGER IF NOT EXISTS dispositions_no_delete
+BEFORE DELETE ON dispositions
+BEGIN
+  SELECT RAISE(ABORT, 'dispositions are append-only');
+END;
 """
 
 
@@ -153,4 +163,3 @@ def evaluate(
     if corroboration.get("disposition_id") != latest["id"]:
         return Decision("failure", "corroborated disposition is stale", latest["id"])
     return Decision("success", "exact candidate has current evidence-backed QA approval", latest["id"])
-

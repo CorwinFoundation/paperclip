@@ -38,7 +38,7 @@ def run(output: Path) -> None:
                                                "qa_issue_status": "done", "disposition_id": disposition_id})
     output.write_text(json.dumps({
         "check_name": "paperclip-qa-evidence-shadow",
-        "required_check_changed": False,
+        "required_check_state": "not_measured_by_fixture",
         "healthy": healthy.__dict__,
         "reader_outage": reader_outage.__dict__,
         "reader_disagreement": disagreement.__dict__,
@@ -47,4 +47,3 @@ def run(output: Path) -> None:
 
 if __name__ == "__main__":
     run(Path("tools/qa_authority/shadow-evidence.json"))
-

@@ -15,5 +15,5 @@
     "disposition_id": null,
     "reason": "Paperclip corroboration unavailable or disagreeing"
   },
-  "required_check_changed": false
+  "required_check_state": "not_measured_by_fixture"
 }

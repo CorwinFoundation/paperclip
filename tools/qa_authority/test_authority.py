@@ -50,6 +50,35 @@ class AuthorityTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             bind(self.db, repository_id=7, pr_number=299, implementation_issue_id="x", qa_issue_id="y", created_by="cto")
 
+    def test_dispositions_are_append_only_at_database_boundary(self):
+        disposition_id = record_disposition(self.db, self.event(outcome="CHANGES_REQUESTED"))
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
+            self.db.execute("UPDATE dispositions SET outcome='APPROVED' WHERE id=?", (disposition_id,))
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
+            self.db.execute("DELETE FROM dispositions WHERE id=?", (disposition_id,))
+
+    def test_stale_status_identity_binding_and_sha_shape_fail_closed(self):
+        record_disposition(self.db, self.event())
+        cases = [
+            self.corroboration(disposition_id=999),
+            self.corroboration(qa_issue_status="in_review"),
+        ]
+        for corroboration in cases:
+            with self.subTest(corroboration=corroboration):
+                self.assertEqual(evaluate(self.db, repository_id=7, pr_number=299, head_sha=SHA,
+                                          corroboration=corroboration).conclusion, "failure")
+        self.assertEqual(evaluate(self.db, repository_id=7, pr_number=299, head_sha="short",
+                                  corroboration=self.corroboration()).conclusion, "failure")
+        self.db.execute("UPDATE bindings SET active=0")
+        self.assertEqual(evaluate(self.db, repository_id=7, pr_number=299, head_sha=SHA,
+                                  corroboration=self.corroboration()).conclusion, "failure")
+
+    def test_disposition_rejects_wrong_identity_role_and_sha(self):
+        for changes in ({"author_identity_key": "attacker"}, {"paperclip_role": "engineer"},
+                        {"candidate_sha": "short"}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                record_disposition(self.db, self.event(**changes))
+
     def test_reader_rejects_non_loopback_and_unlisted_path(self):
         with self.assertRaises(ValueError):
             PaperclipReader("https://paperclip.example.com", "secret")
@@ -60,4 +89,3 @@ class AuthorityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

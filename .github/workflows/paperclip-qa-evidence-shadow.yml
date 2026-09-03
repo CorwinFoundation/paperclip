@@ -1,7 +1,7 @@
 name: paperclip-qa-evidence-shadow
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     - cron: "*/10 * * * *"
@@ -14,22 +14,54 @@ permissions:
   id-token: write
 
 jobs:
-  shadow:
+  discover:
     if: ${{ vars.QA_AUTHORITY_SHADOW_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      pull_requests: ${{ steps.prs.outputs.pull_requests }}
+    steps:
+      - id: prs
+        name: Resolve target PRs from the base-owned workflow context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = pull_request_target ]; then
+            [[ "$EVENT_PR" =~ ^[1-9][0-9]*$ ]]
+            prs="[$EVENT_PR]"
+          else
+            prs="$(gh api --paginate "/repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --jq '[.[].number]' | jq -sc 'add // []')"
+          fi
+          jq -e 'type == "array" and all(.[]; type == "number")' <<<"$prs" >/dev/null
+          echo "pull_requests=$(jq -c . <<<"$prs")" >> "$GITHUB_OUTPUT"
+
+  shadow:
+    needs: discover
+    if: ${{ needs.discover.outputs.pull_requests != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pr_number: ${{ fromJSON(needs.discover.outputs.pull_requests) }}
     runs-on: ubuntu-latest
     steps:
       - name: Read live PR head before authority query
         id: before
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ matrix.pr_number }}
         run: |
           set -euo pipefail
-          sha="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq .head.sha)"
+          sha="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha)"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: Exchange OIDC and query credential-free QA Authority edge
         env:
           HEAD_SHA: ${{ steps.before.outputs.sha }}
+          PR_NUMBER: ${{ matrix.pr_number }}
           AUTHORITY_URL: https://qa-authority.backbond.ai
         run: |
           set -euo pipefail
@@ -39,14 +71,15 @@ jobs:
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=backbond-qa-authority" | jq -er .value)"
           curl --fail --silent --show-error --max-time 5 --proto '=https' --tlsv1.2 \
             -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
-            --data "$(jq -n --argjson repository_id '${{ github.repository_id }}' --argjson pull_request_number '${{ github.event.pull_request.number }}' --arg head_sha "$HEAD_SHA" '{repository_id:$repository_id,pull_request_number:$pull_request_number,head_sha:$head_sha}')" \
+            --data "$(jq -n --argjson repository_id '${{ github.repository_id }}' --argjson pull_request_number "$PR_NUMBER" --arg head_sha "$HEAD_SHA" '{repository_id:$repository_id,pull_request_number:$pull_request_number,head_sha:$head_sha}')" \
             "${AUTHORITY_URL}/v1/github/check" | jq -e '.conclusion == "success"'
-      - name: Re-read live head before posting shadow result
+
+      - name: Re-read live head before completing shadow result
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ matrix.pr_number }}
           BEFORE_SHA: ${{ steps.before.outputs.sha }}
         run: |
           set -euo pipefail
-          after="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq .head.sha)"
+          after="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha)"
           test "$after" = "$BEFORE_SHA"
-
