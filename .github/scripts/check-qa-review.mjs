@@ -10,7 +10,7 @@
 import { fileURLToPath } from 'node:url';
 
 const CHECK_NAME = 'qa-review-evidence';
-const COLLABORATOR_ASSOCIATIONS = new Set(['COLLABORATOR', 'MEMBER', 'OWNER']);
+const COLLABORATOR_ASSOCIATIONS = new Set(['COLLABORATOR', 'OWNER']);
 
 async function ghFetch(path, token, opts = {}) {
   const res = await fetch(`https://api.github.com${path}`, {
