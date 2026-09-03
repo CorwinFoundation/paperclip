@@ -8,6 +8,7 @@ const PR_AUTHOR = 'pr-author';
 
 function approval(overrides = {}) {
   return {
+    id: 1,
     user: { login: 'repo-collaborator' },
     author_association: 'COLLABORATOR',
     state: 'APPROVED',
@@ -52,4 +53,38 @@ test('a non-collaborator approval fails', () => {
 
 test('an org MEMBER approval fails — org membership does not imply push access', () => {
   assert.equal(decideQaReview([approval({ author_association: 'MEMBER' })], HEAD_SHA, PR_AUTHOR).conclusion, 'failure');
+});
+
+test('a later changes-requested review on the exact head invalidates an approval', () => {
+  const changesRequested = approval({
+    id: 2,
+    state: 'CHANGES_REQUESTED',
+    submitted_at: '2026-09-02T00:01:00Z',
+  });
+  assert.equal(
+    decideQaReview([approval(), changesRequested], HEAD_SHA, PR_AUTHOR).conclusion,
+    'failure',
+  );
+});
+
+test('a later approval supersedes the same reviewer changes request', () => {
+  const changesRequested = approval({ state: 'CHANGES_REQUESTED' });
+  const laterApproval = approval({ id: 2, submitted_at: '2026-09-02T00:01:00Z' });
+  assert.equal(
+    decideQaReview([changesRequested, laterApproval], HEAD_SHA, PR_AUTHOR).conclusion,
+    'success',
+  );
+});
+
+test('one reviewer cannot approve over another reviewer outstanding changes request', () => {
+  const changesRequested = approval({
+    id: 2,
+    user: { login: 'required-reviewer' },
+    state: 'CHANGES_REQUESTED',
+    submitted_at: '2026-09-02T00:01:00Z',
+  });
+  assert.equal(
+    decideQaReview([approval(), changesRequested], HEAD_SHA, PR_AUTHOR).conclusion,
+    'failure',
+  );
 });

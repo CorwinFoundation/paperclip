@@ -62,14 +62,44 @@ async function postCheckRun(token, repo, headSha, conclusion, summary) {
 }
 
 export function decideQaReview(reviews, headSha, prAuthor) {
-  const qualifyingApproval = reviews.find(review => {
+  const relevantReviews = reviews.filter(review => {
     const reviewer = review.user?.login;
-    const body = review.body?.trim() ?? '';
-    return review.state === 'APPROVED'
-      && reviewer
+    return reviewer
       && reviewer.toLowerCase() !== prAuthor.toLowerCase()
       && COLLABORATOR_ASSOCIATIONS.has(review.author_association)
       && review.commit_id === headSha
+      && ['APPROVED', 'CHANGES_REQUESTED'].includes(review.state);
+  });
+
+  // GitHub returns a review history, not one current state per reviewer. Reduce
+  // it to each reviewer's latest decisive review on this exact head so an old
+  // approval cannot mask a later request for changes.
+  const latestByReviewer = new Map();
+  for (const review of relevantReviews) {
+    const reviewer = review.user.login.toLowerCase();
+    const current = latestByReviewer.get(reviewer);
+    const reviewKey = [review.submitted_at ?? '', Number(review.id ?? 0)];
+    const currentKey = current
+      ? [current.submitted_at ?? '', Number(current.id ?? 0)]
+      : ['', -1];
+    if (reviewKey[0] > currentKey[0]
+        || (reviewKey[0] === currentKey[0] && reviewKey[1] > currentKey[1])) {
+      latestByReviewer.set(reviewer, review);
+    }
+  }
+
+  const outstandingChangeRequest = [...latestByReviewer.values()]
+    .find(review => review.state === 'CHANGES_REQUESTED');
+  if (outstandingChangeRequest) {
+    return {
+      conclusion: 'failure',
+      summary: `A collaborator has an outstanding CHANGES_REQUESTED review on exact head \`${headSha}\`.`,
+    };
+  }
+
+  const qualifyingApproval = [...latestByReviewer.values()].find(review => {
+    const body = review.body?.trim() ?? '';
+    return review.state === 'APPROVED'
       && body.length > 0
       && body.includes(headSha);
   });
