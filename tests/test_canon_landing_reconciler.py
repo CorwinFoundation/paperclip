@@ -454,6 +454,21 @@ class TestFindEvidence:
         found = self._find([comment("se-1", ENGINEER, f"**APPROVED** `{SHA_CANDIDATE}`")])
         assert found.qa_comment_id is None
 
+    def test_board_approval_is_surfaced_but_cannot_satisfy_qa(self):
+        found = self._find([comment("board-1", None, f"**APPROVED** `{SHA_CANDIDATE}`")])
+        assert found.qa_comment_id is None
+        assert found.qa_unattributed_comment_id == "board-1"
+
+    def test_board_approval_without_a_named_sha_is_not_landing_evidence(self):
+        found = self._find([comment("board-1", None, "**APPROVED**")])
+        assert found.qa_comment_id is None
+        assert found.qa_unattributed_comment_id is None
+
+    def test_non_qa_agent_cannot_take_the_unattributed_board_path(self):
+        found = self._find([comment("se-1", ENGINEER, f"**APPROVED** `{SHA_CANDIDATE}`")])
+        assert found.qa_comment_id is None
+        assert found.qa_unattributed_comment_id is None
+
     def test_cosign_from_a_non_cto_seat_does_not_count(self):
         found = self._find([comment("se-1", ENGINEER, f"co-sign: GRANTED `{SHA_CANDIDATE}`")])
         assert found.cosign_comment_id is None
@@ -510,6 +525,91 @@ class TestClassify:
         assert row.classification == lr.UNRECONCILED
         assert "predecessor" in row.reason and SHA_PREDECESSOR[:12] in row.reason
         assert row.findings == [lr.FINDING_QA]
+
+    def test_unattributed_board_approval_is_a_distinct_fail_closed_finding(self):
+        row = lr.classify(
+            landing(), "BEAAA-23945", None, None, None, [], [], None,
+            ticket_class=lr.RULE_EXECUTION, merged=merged_ok(),
+            qa_unattributed_comment_id="board-1",
+        )
+        assert row.classification == lr.UNRECONCILED
+        assert row.findings == [lr.FINDING_QA, lr.FINDING_QA_UNATTRIBUTED]
+        assert "not attributable to a QA agent" in row.reason
+
+
+class TestResolveLanding:
+    def test_unattributed_board_approval_survives_resolution(self, monkeypatch):
+        hit = {"id": "implementation", "identifier": "BEAAA-1", "description": "rule execution"}
+
+        class Client:
+            def issue_by_identifier(self, _identifier):
+                return hit
+
+            def comments(self, _issue_id):
+                return [comment("board-1", None, f"**APPROVED** `{SHA_CANDIDATE}`")]
+
+            def issue(self, _issue_id):
+                return hit
+
+            def neighbourhood(self, _issue):
+                return [hit]
+
+            def search_issues(self, _query):
+                return []
+
+        class Repo:
+            branch = "master"
+
+            def resolve(self, sha):
+                return sha
+
+            def is_ancestor(self, _ancestor, _descendant):
+                return True
+
+        monkeypatch.setattr(lr, "find_merged_sha", lambda *a, **k: merged_ok())
+        row = lr.resolve_landing(
+            landing(subject="BEAAA-1 implementation"), Client(), Repo(), set(), {QA}, None,
+            SHA_LANDED,
+        )
+        assert row.classification == lr.UNRECONCILED
+        assert lr.FINDING_QA_UNATTRIBUTED in row.findings
+        assert "board-1" in row.reason
+
+    def test_sha_search_widens_to_hit_neighbourhood(self, monkeypatch):
+        hit = {"id": "implementation", "identifier": "BEAAA-1", "description": "rule execution"}
+        gate = {"id": "qa-gate", "identifier": "BEAAA-2"}
+
+        class Client:
+            def search_issues(self, _query):
+                return [hit]
+
+            def comments(self, issue_id):
+                return {
+                    "implementation": [comment("mention", ENGINEER, f"candidate {SHA_CANDIDATE}")],
+                    "qa-gate": [comment("qa-1", QA, f"**APPROVED** `{SHA_CANDIDATE}`")],
+                }[issue_id]
+
+            def issue(self, issue_id):
+                return hit if issue_id == "implementation" else gate
+
+            def neighbourhood(self, _issue):
+                return [hit, gate]
+
+        class Repo:
+            branch = "master"
+
+            def resolve(self, sha):
+                return sha
+
+            def is_ancestor(self, _ancestor, _descendant):
+                return True
+
+        monkeypatch.setattr(lr, "find_merged_sha", lambda *a, **k: merged_ok())
+        item = landing(subject="landing without ticket reference")
+        row = lr.resolve_landing(item, Client(), Repo(), set(), {QA}, None, SHA_LANDED)
+        assert row.issue == "BEAAA-1"
+        assert row.qa_comment_id == "qa-1"
+        assert row.classification == lr.RECONCILED
 
     def test_a_cosign_reference_is_reported_by_comment_id(self):
         row = lr.classify(landing(), "BEAAA-23945", None, "q1", None, [], [], None,

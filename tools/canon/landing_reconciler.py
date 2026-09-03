@@ -182,6 +182,7 @@ MERGED_SHA_VALUE_RE = re.compile(
 # and the merged-SHA leg is a closure-discipline matter the Auditor already
 # flags nightly for security closures (routine 161a7f8a).
 FINDING_QA = "qa_exact_sha"
+FINDING_QA_UNATTRIBUTED = "qa_approval_unattributed"
 FINDING_COSIGN = "cosign_required_missing"
 FINDING_MERGED_SHA = "merged_sha"
 #: Not a leg — a landing no ticket resolves has no closure record to check, so
@@ -563,6 +564,7 @@ def classify(
     ticket_class: str = UNCLASSIFIED,
     merged: MergedShaEvidence | None = None,
     branch: str = DEFAULT_BRANCH,
+    qa_unattributed_comment_id: str | None = None,
 ) -> Row:
     """Decide the verdict for one landing. Pure — all lookups already done.
 
@@ -626,6 +628,12 @@ def classify(
             missing.append(
                 "QA APPROVED names unrelated SHA "
                 + ", ".join(sorted({s[:12] for s in qa_other_shas}))
+            )
+        elif qa_unattributed_comment_id:
+            findings.append(FINDING_QA_UNATTRIBUTED)
+            missing.append(
+                f"approval-shaped board comment {qa_unattributed_comment_id[:8]} names this "
+                "landing but is not attributable to a QA agent"
             )
         else:
             missing.append("no QA APPROVED naming an exact SHA of this landing")
@@ -1029,6 +1037,7 @@ class Evidence:
     cosign_comment_id: str | None = None
     cosign_mention_id: str | None = None
     qa_comment_id: str | None = None
+    qa_unattributed_comment_id: str | None = None
     matched_sha: str | None = None
     qa_other_shas: list[str] = dataclasses.field(default_factory=list)
 
@@ -1069,13 +1078,18 @@ def find_evidence(
                 found.matched_sha = found.matched_sha or named
             elif strength == 1 and not found.cosign_mention_id:
                 found.cosign_mention_id = comment["id"]
-        if author in qa_agents and is_qa_approval(body):
+        approval = is_qa_approval(body)
+        if author in qa_agents and approval:
             if named:
                 if not found.qa_comment_id:
                     found.qa_comment_id = comment["id"]
                     found.matched_sha = found.matched_sha or named
             else:
                 qa_other |= hex_tokens(body)
+        elif author is None and approval and named and not found.qa_unattributed_comment_id:
+            # A board-path comment cannot satisfy the closed QA role allowlist.
+            # Preserve it as a distinct finding instead of silently dropping it.
+            found.qa_unattributed_comment_id = comment["id"]
     found.qa_other_shas = sorted(qa_other)
     return found
 
@@ -1224,6 +1238,7 @@ def resolve_landing(
         found.matched_sha, found.qa_other_shas if not predecessors else [],
         predecessors, None, found.cosign_mention_id,
         ticket_class=ticket_class, merged=merged, branch=repo.branch,
+        qa_unattributed_comment_id=found.qa_unattributed_comment_id,
     )
 
 
