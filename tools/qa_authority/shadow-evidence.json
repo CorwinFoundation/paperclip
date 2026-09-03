@@ -1,0 +1,19 @@
+{
+  "check_name": "paperclip-qa-evidence-shadow",
+  "healthy": {
+    "conclusion": "success",
+    "disposition_id": 1,
+    "reason": "exact candidate has current evidence-backed QA approval"
+  },
+  "reader_disagreement": {
+    "conclusion": "failure",
+    "disposition_id": null,
+    "reason": "corroborated QA issue disagrees with binding"
+  },
+  "reader_outage": {
+    "conclusion": "failure",
+    "disposition_id": null,
+    "reason": "Paperclip corroboration unavailable or disagreeing"
+  },
+  "required_check_changed": false
+}

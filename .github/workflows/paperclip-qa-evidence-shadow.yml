@@ -1,0 +1,52 @@
+name: paperclip-qa-evidence-shadow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+  id-token: write
+
+jobs:
+  shadow:
+    if: ${{ vars.QA_AUTHORITY_SHADOW_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read live PR head before authority query
+        id: before
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq .head.sha)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Exchange OIDC and query credential-free QA Authority edge
+        env:
+          HEAD_SHA: ${{ steps.before.outputs.sha }}
+          AUTHORITY_URL: https://qa-authority.backbond.ai
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          token="$(curl --fail --silent --show-error --max-time 5 --proto '=https' --tlsv1.2 \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=backbond-qa-authority" | jq -er .value)"
+          curl --fail --silent --show-error --max-time 5 --proto '=https' --tlsv1.2 \
+            -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
+            --data "$(jq -n --argjson repository_id '${{ github.repository_id }}' --argjson pull_request_number '${{ github.event.pull_request.number }}' --arg head_sha "$HEAD_SHA" '{repository_id:$repository_id,pull_request_number:$pull_request_number,head_sha:$head_sha}')" \
+            "${AUTHORITY_URL}/v1/github/check" | jq -e '.conclusion == "success"'
+      - name: Re-read live head before posting shadow result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_SHA: ${{ steps.before.outputs.sha }}
+        run: |
+          set -euo pipefail
+          after="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq .head.sha)"
+          test "$after" = "$BEFORE_SHA"
+
