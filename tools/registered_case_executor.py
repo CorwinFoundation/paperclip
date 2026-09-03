@@ -14,6 +14,7 @@ import re
 import secrets
 import threading
 import time
+import traceback
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -173,6 +174,34 @@ class _UnavailableJudge(ModelRunner):
             "no judge credential configured; set OPENROUTER_API_KEY or "
             "ANTHROPIC_API_KEY"
         )
+
+
+class _BudgetedTauSession:
+    """Count every TAU transport send at the actual session boundary."""
+
+    def __init__(self, base: Any, ledger: ScanBudgetLedger) -> None:
+        self._base = base
+        self._ledger = ledger
+
+    def session_id(self) -> str:
+        return self._base.session_id()
+
+    def model_id(self) -> str:
+        return self._base.model_id()
+
+    @property
+    def mode(self) -> Any:
+        return self._base.mode
+
+    def send(self, message: str, *, tool_results: Any = ()) -> Any:
+        self._ledger.reserve_target_call()
+        return self._base.send(message, tool_results=tool_results)
+
+    def trace(self) -> Any:
+        return self._base.trace()
+
+    def close(self) -> None:
+        self._base.close()
 
 
 class _ScopedEgressRunner(ModelRunner):
@@ -454,6 +483,12 @@ class RegisteredCaseExecutor:
                     "verdict": "unresolved",
                     "error": reason,
                     "error_detail": str(exc)[:500],
+                    # Frame-only traceback preserves actionable call sites
+                    # without capturing locals or duplicating exception text
+                    # that may contain target-controlled material.
+                    "error_traceback": "".join(
+                        traceback.format_list(traceback.extract_tb(exc.__traceback__))
+                    )[-4000:],
                 }
             )
 
@@ -529,9 +564,14 @@ class RegisteredCaseExecutor:
             )
             if scenario is None:
                 raise KeyError(f"tau support/CRM case not found: {case_id}")
+            def budgeted_tau_session_factory(item: Any, seed: int) -> Any:
+                return _BudgetedTauSession(
+                    self.tau_session_factory(item, seed), self.ledger
+                )
+
             tau_result = run_scenario(
                 scenario,
-                self.tau_session_factory,
+                budgeted_tau_session_factory,
                 seed=int(registry_row.get("scan_seed", 0)),
             )
             return {
@@ -545,7 +585,10 @@ class RegisteredCaseExecutor:
                     "llm_judge_calls": 0,
                     "checks": tau_result["checks"],
                 },
-                "score": None,
+                # Report-only numeric evidence: this value is never aggregated
+                # because the registry row remains zero-weight and
+                # ``score_contribution`` is forced false by the executor.
+                "score": 1.0 if tau_result["verdict"] == "pass" else 0.0,
                 "verdict": tau_result["verdict"],
                 "tau_result": tau_result,
             }

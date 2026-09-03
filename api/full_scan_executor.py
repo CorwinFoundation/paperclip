@@ -660,6 +660,23 @@ def build_attempt_manifest(
             incomplete_reasons.append(
                 f"{row['probe_id']}:{row['incomplete_reason']}"
             )
+    reconciliation_attempted = len(rows)
+    reconciliation_terminal = sum(
+        count
+        for status, count in status_counts.items()
+        if status in RECONCILED_TERMINAL_PROBE_STATUSES
+    )
+    canonical_reconciliation_equal = (
+        len(job.registry_cases)
+        == reconciliation_attempted
+        == reconciliation_terminal
+        == len(rows)
+    )
+    acceptance_passed = (
+        canonical_reconciliation_equal
+        and not incomplete_reasons
+        and not missing_required
+    )
     manifest: dict[str, Any] = {
         "api_version": ASYNC_FULL_SCAN_API_VERSION,
         "manifest_version": ATTEMPT_MANIFEST_VERSION,
@@ -682,13 +699,15 @@ def build_attempt_manifest(
             "missing_required": len(missing_required),
         },
         "reconciliation": {
-            "attempted": len(rows),
-            "terminal": sum(
-                count
-                for status, count in status_counts.items()
-                if status in RECONCILED_TERMINAL_PROBE_STATUSES
-            ),
+            "attempted": reconciliation_attempted,
+            "terminal": reconciliation_terminal,
             "by_status": dict(sorted(status_counts.items())),
+        },
+        "acceptance_gate": {
+            "canonical_reconciliation_equal": canonical_reconciliation_equal,
+            "incomplete_false": not incomplete_reasons,
+            "zero_unapproved_missing_required": not missing_required,
+            "passed": acceptance_passed,
         },
         "verdict_counts": dict(sorted(verdict_counts.items())),
         "budget": budget,

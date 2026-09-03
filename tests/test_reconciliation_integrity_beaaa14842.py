@@ -65,6 +65,12 @@ def test_invalid_attempt_rows_do_not_satisfy_required_case(monkeypatch, row):
     assert manifest["counts"]["missing_required"] == 1
     assert f"required_case_not_attempted:{CASE.case_id}" in manifest["incomplete_reasons"]
     assert manifest["bind_eligibility"] == "blocked_base_suite_incomplete"
+    assert manifest["acceptance_gate"] == {
+        "canonical_reconciliation_equal": True,
+        "incomplete_false": False,
+        "zero_unapproved_missing_required": False,
+        "passed": False,
+    }
     assert manifest["signed_manifest"].startswith("hmac-sha256:")
 
 
@@ -76,4 +82,10 @@ def test_exact_complete_evidenced_row_satisfies_required_case(monkeypatch):
     assert manifest["counts"]["missing_required"] == 0
     assert manifest["incomplete_reasons"] == []
     assert manifest["bind_eligibility"] == "eligible"
+    assert manifest["acceptance_gate"] == {
+        "canonical_reconciliation_equal": True,
+        "incomplete_false": True,
+        "zero_unapproved_missing_required": True,
+        "passed": True,
+    }
     assert manifest["signed_manifest"].startswith("hmac-sha256:")

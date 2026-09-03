@@ -74,6 +74,19 @@ The signed manifest is the source of truth for what ran. The published executed-
 
 Any mismatch makes the analysis incomplete.
 
+Four-field equality is necessary but not sufficient for acceptance. A full
+scan passes only when that equality holds and there are no incomplete or
+missing required cases. The signed manifest records these two effective legs
+under `acceptance_gate`; `incomplete_false` and
+`zero_unapproved_missing_required` expose the same fail-closed condition from
+two operator-facing views. A URI-bearing failed row does not count as
+successful evidence.
+
+Approved skips are not supported by the async attempt-manifest path. The
+`approved_skip_reasons` allowlist belongs to the separate full-suite payload
+builder and does not make an async full-scan attempt bind-eligible. Any missing
+required case fails this gate.
+
 ## VAPI production target
 
 The controlled VAPI target is the existing assistant

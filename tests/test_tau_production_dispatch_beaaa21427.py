@@ -121,6 +121,13 @@ def test_normal_scan_boundary_dispatches_tau_and_persists_correlated_evidence(tm
         assert row.framework.startswith("tau_bench@")
         assert row.test_id == "tau_support_crm"
         assert row.verdict == "pass"
+        expected_calls = {
+            scenario.stable_id: len(scenario.user_turns) + len(scenario.expected_calls)
+            for scenario in SCENARIOS
+        }
+        assert row.target_calls == expected_calls[row.probe_id]
+        assert row.numeric_result == 1.0
+        assert row.acquisition_basis == "target-measured"
         assert row.score_contribution is False
         evidence_path = evidence_root / row.evidence_ref.removeprefix("evidence://")
         evidence = __import__("json").loads(evidence_path.read_text(encoding="utf-8"))

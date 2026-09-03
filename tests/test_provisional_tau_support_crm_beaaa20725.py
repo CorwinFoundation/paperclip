@@ -20,6 +20,7 @@ TAU_LANDING_BASE = "82affc43818df960ffaff04f386acbb7c2735735"
 TAU_FEATURE_PATHS = {
     "api/full_scan_executor.py",
     "api/scan_handlers.py",
+    "docs/runbooks/full-scan-execution-layer.md",
     "scripts/verify_aiuc1_direct_families_release.py",
     "tests/test_active_test_registry_beaaa13644.py",
     "tests/test_aiuc1_direct_families_production_wiring.py",
@@ -36,6 +37,7 @@ TAU_FEATURE_PATHS = {
     "tests/test_full_scan_queue_worker_beaaa14843.py",
     "tests/test_lane_c_registration_beaaa16272.py",
     "tests/test_provisional_tau_support_crm_beaaa20725.py",
+    "tests/test_reconciliation_integrity_beaaa14842.py",
     "tests/test_release_registry_marker_beaaa24165.py",
     "tests/test_tau_production_dispatch_beaaa21427.py",
     "tests/test_text_case_activation.py",
