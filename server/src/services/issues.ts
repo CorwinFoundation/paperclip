@@ -2833,28 +2833,6 @@ async function listIssueBlockedInboxAttentionMap(
       continue;
     }
     const source = issueRef(row);
-    const handoff = handoffMap.get(row.id);
-    if (handoff && (handoff.required || handoff.state === "escalated")) {
-      result.set(row.id, attentionBase({
-        state: "missing_disposition",
-        reason: "missing_successful_run_disposition",
-        severity: "high",
-        stoppedSinceAt: handoff.createdAt ?? row.updatedAt,
-        owner: {
-          type: row.assigneeAgentId ? "agent" : row.assigneeUserId ? "user" : "unknown",
-          agentId: row.assigneeAgentId,
-          userId: row.assigneeUserId,
-          label: null,
-        },
-        action: {
-          label: "Choose disposition",
-          detail: "Choose exactly one final disposition: done, cancelled, review/input, blocked with owner, delegated follow-up, or queued continuation.",
-        },
-        sourceIssue: source,
-      }));
-      continue;
-    }
-
     if (BLOCKED_INBOX_RECOVERY_ORIGIN_KINDS.includes(row.originKind as typeof BLOCKED_INBOX_RECOVERY_ORIGIN_KINDS[number])) {
       let sourceIssue: IssueBlockedInboxIssueRef | null = null;
       let leafIssue: IssueBlockedInboxIssueRef | null = null;
@@ -2906,6 +2884,28 @@ async function listIssueBlockedInboxAttentionMap(
         },
         sourceIssue: source,
         interactionId: interaction.id,
+      }));
+      continue;
+    }
+
+    const handoff = handoffMap.get(row.id);
+    if (handoff && (handoff.required || handoff.state === "escalated")) {
+      result.set(row.id, attentionBase({
+        state: "missing_disposition",
+        reason: "missing_successful_run_disposition",
+        severity: "high",
+        stoppedSinceAt: handoff.createdAt ?? row.updatedAt,
+        owner: {
+          type: row.assigneeAgentId ? "agent" : row.assigneeUserId ? "user" : "unknown",
+          agentId: row.assigneeAgentId,
+          userId: row.assigneeUserId,
+          label: null,
+        },
+        action: {
+          label: "Choose disposition",
+          detail: "Choose exactly one final disposition: done, cancelled, review/input, blocked with owner, delegated follow-up, or queued continuation.",
+        },
+        sourceIssue: source,
       }));
       continue;
     }

@@ -738,6 +738,93 @@ describeEmbeddedPostgres("issue blocker attention", () => {
     });
   });
 
+  it("prefers a pending interaction over an escalated successful-run handoff", async () => {
+    const { companyId, agentId } = await createCompany("BIP");
+    const issueId = await insertIssue({
+      companyId,
+      identifier: "BIP-1",
+      title: "Pending confirmation after escalated handoff",
+      status: "blocked",
+      assigneeAgentId: agentId,
+    });
+    const interactionId = randomUUID();
+    await db.insert(activityLog).values({
+      companyId,
+      actorType: "system",
+      actorId: "system",
+      action: "issue.successful_run_handoff_escalated",
+      entityType: "issue",
+      entityId: issueId,
+      details: {
+        source: "recovery.reconcile_successful_run_handoff_missing_state",
+        detectedProgressSummary: "Progress was made",
+      },
+    });
+    await db.insert(issueThreadInteractions).values({
+      id: interactionId,
+      companyId,
+      issueId,
+      kind: "request_confirmation",
+      status: "pending",
+      continuationPolicy: { kind: "wake_assignee" },
+      payload: { version: 1, prompt: "Approve the proposed next action?" },
+      createdByUserId: "local-board",
+    });
+
+    const rows = await svc.list(companyId, { attention: "blocked" });
+    const row = rows.find((candidate) => candidate.id === issueId);
+
+    expect(row?.blockedInboxAttention).toMatchObject({
+      state: "awaiting_decision",
+      reason: "pending_board_decision",
+      severity: "medium",
+      owner: { type: "board", label: "Board" },
+      interactionId,
+    });
+  });
+
+  it("keeps recovery attention ahead of a pending interaction", async () => {
+    const { companyId, agentId } = await createCompany("BIR");
+    const sourceId = await insertIssue({
+      companyId,
+      identifier: "BIR-1",
+      title: "Stopped source",
+      status: "blocked",
+    });
+    const recoveryId = await insertIssue({
+      companyId,
+      identifier: "BIR-2",
+      title: "Open recovery",
+      status: "blocked",
+      assigneeAgentId: agentId,
+      originKind: "stranded_issue_recovery",
+      originId: sourceId,
+    });
+    const interactionId = randomUUID();
+    await db.insert(issueThreadInteractions).values({
+      id: interactionId,
+      companyId,
+      issueId: recoveryId,
+      kind: "request_confirmation",
+      status: "pending",
+      continuationPolicy: { kind: "wake_assignee" },
+      payload: { version: 1, prompt: "Approve recovery disposition?" },
+      createdByUserId: "local-board",
+    });
+
+    const rows = await svc.list(companyId, { attention: "blocked" });
+    const row = rows.find((candidate) => candidate.id === recoveryId);
+
+    expect(row?.blockedInboxAttention).toMatchObject({
+      state: "recovery_open",
+      reason: "open_recovery_issue",
+      severity: "high",
+      recoveryIssue: { id: recoveryId },
+      sourceIssue: { id: sourceId },
+      interactionId: null,
+    });
+  });
+
   it("applies assigneeAgentId='null' as an IS NULL filter on the blocked-inbox path", async () => {
     const { companyId, agentId } = await createCompany("BAN");
     const unassignedParentId = await insertIssue({
