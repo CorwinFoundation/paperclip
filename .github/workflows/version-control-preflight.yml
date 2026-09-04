@@ -39,6 +39,7 @@ jobs:
         with:
           name: release-identity-${{ github.sha }}
           path: release/release-identity-evidence.json
+          retention-days: 90
 
   policy:
     name: required policy test
