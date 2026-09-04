@@ -419,7 +419,7 @@ jobs:
           name: scanner-immutable-image-${{ inputs.source_sha || github.sha }}
           path: release-candidate/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
 
       - name: Upload governed release evidence
         if: ${{ inputs.expected_image_digest != '' }}
