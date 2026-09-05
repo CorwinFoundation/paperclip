@@ -6,12 +6,16 @@ on:
     paths:
       - "tools/log-tracker/**"
       - "tools/post-bind-ingest/**"
+      - "ops/paperclip/numbat/install-listener-ariclaw.sh"
+      - "ops/paperclip/numbat/backbond-appliance-ingest.service"
       - ".github/workflows/log-listener.yml"
   push:
     branches: [master]
     paths:
       - "tools/log-tracker/**"
       - "tools/post-bind-ingest/**"
+      - "ops/paperclip/numbat/install-listener-ariclaw.sh"
+      - "ops/paperclip/numbat/backbond-appliance-ingest.service"
       - ".github/workflows/log-listener.yml"
   workflow_dispatch:
 
