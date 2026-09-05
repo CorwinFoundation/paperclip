@@ -10,6 +10,11 @@ import (
 	"backbond/are-collector/internal/schemav1"
 )
 
+// Control: this test is falsified by two independent mutations. Swap
+// schemav1.CanonicalJSON's encoder for a plain json.Marshal (HTML escaping on)
+// and the \u003c/\u003e/\u0026 assertion fails; drop the encoder's
+// UseNumber/number-preserving path and the 9007199254740993 assertion fails
+// as the integer round-trips through float64.
 func TestCanonicalJSONAdversarialFixturePreservesReceiverBytes(t *testing.T) {
 	raw, err := os.ReadFile("../../testdata/canonical_json_adversarial_events.json")
 	if err != nil {
