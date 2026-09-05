@@ -573,7 +573,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_archive="/var/tmp/${ARCHIVE}"
-          ssh_opts=(-i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          ssh_opts=(-4 -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes)
           scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
           ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
