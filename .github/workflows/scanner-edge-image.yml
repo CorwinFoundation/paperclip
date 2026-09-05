@@ -558,9 +558,16 @@ jobs:
           test -n "$DEPLOY_KEY"
           test -n "$KNOWN_HOSTS"
           install -d -m 0700 ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_deploy
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts_scanner
+          # GitHub secrets may arrive with CRLF line endings or literal `\n`
+          # separators. Normalize both forms before OpenSSH/libcrypto reads them.
+          deploy_key="${DEPLOY_KEY//$'\r'/}"
+          deploy_key="${deploy_key//\\n/$'\n'}"
+          known_hosts="${KNOWN_HOSTS//$'\r'/}"
+          known_hosts="${known_hosts//\\n/$'\n'}"
+          printf '%s\n' "$deploy_key" > ~/.ssh/id_deploy
+          printf '%s\n' "$known_hosts" > ~/.ssh/known_hosts_scanner
           chmod 0600 ~/.ssh/id_deploy ~/.ssh/known_hosts_scanner
+          ssh-keygen -y -f ~/.ssh/id_deploy >/dev/null
 
       - name: Capture prior identity
         shell: bash
