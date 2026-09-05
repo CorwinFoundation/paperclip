@@ -920,6 +920,51 @@ describeEmbeddedPostgres("issue blocker attention", () => {
     });
   });
 
+  it("prefers a pending interaction over an escalated successful-run handoff", async () => {
+    const { companyId, agentId } = await createCompany("PIP");
+    const issueId = await insertIssue({
+      companyId,
+      identifier: "PIP-1",
+      title: "Escalated handoff with a pending ask",
+      status: "in_progress",
+      assigneeAgentId: agentId,
+    });
+    await db.insert(activityLog).values({
+      companyId,
+      actorType: "system",
+      actorId: "system",
+      action: "issue.successful_run_handoff_escalated",
+      entityType: "issue",
+      entityId: issueId,
+      agentId,
+      details: { sourceRunId: randomUUID() },
+    });
+
+    const maskedRows = await svc.list(companyId, { attention: "blocked" });
+    expect(maskedRows.find((row) => row.id === issueId)?.blockedInboxAttention).toMatchObject({
+      state: "missing_disposition",
+      reason: "missing_successful_run_disposition",
+    });
+
+    const interactionId = randomUUID();
+    await db.insert(issueThreadInteractions).values({
+      id: interactionId,
+      companyId,
+      issueId,
+      kind: "request_confirmation",
+      status: "pending",
+      payload: { version: 1, title: "Confirm", prompt: "Confirm the plan." },
+    });
+
+    const unmaskedRows = await svc.list(companyId, { attention: "blocked" });
+    expect(unmaskedRows.find((row) => row.id === issueId)?.blockedInboxAttention).toMatchObject({
+      state: "awaiting_decision",
+      reason: "pending_board_decision",
+      owner: { type: "board" },
+      interactionId,
+    });
+  });
+
   it("applies assigneeAgentId='null' as an IS NULL filter on the blocked-inbox path", async () => {
     const { companyId, agentId } = await createCompany("BAN");
     const unassignedParentId = await insertIssue({
