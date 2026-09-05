@@ -965,6 +965,41 @@ describeEmbeddedPostgres("issue blocker attention", () => {
     });
   });
 
+  it("keeps recovery attention ahead of a pending interaction", async () => {
+    const { companyId, agentId } = await createCompany("ROI");
+    const sourceId = await insertIssue({
+      companyId,
+      identifier: "ROI-1",
+      title: "Stranded source",
+      status: "blocked",
+    });
+    const recoveryId = await insertIssue({
+      companyId,
+      identifier: "ROI-2",
+      title: "Recovery issue",
+      status: "in_progress",
+      assigneeAgentId: agentId,
+      originKind: "stranded_issue_recovery",
+      originId: sourceId,
+    });
+    const interactionId = randomUUID();
+    await db.insert(issueThreadInteractions).values({
+      id: interactionId,
+      companyId,
+      issueId: recoveryId,
+      kind: "request_confirmation",
+      status: "pending",
+      payload: { version: 1, title: "Confirm", prompt: "Confirm the recovery." },
+    });
+
+    const rows = await svc.list(companyId, { attention: "blocked" });
+    expect(rows.find((row) => row.id === recoveryId)?.blockedInboxAttention).toMatchObject({
+      state: "recovery_open",
+      reason: "open_recovery_issue",
+      recoveryIssue: { id: recoveryId },
+    });
+  });
+
   it("applies assigneeAgentId='null' as an IS NULL filter on the blocked-inbox path", async () => {
     const { companyId, agentId } = await createCompany("BAN");
     const unassignedParentId = await insertIssue({
