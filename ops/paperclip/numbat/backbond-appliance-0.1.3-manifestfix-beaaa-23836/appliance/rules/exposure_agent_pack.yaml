@@ -1,0 +1,55 @@
+# Shared exposure names across the three instruments (development reference pack).
+# Rule IDs are stable taxonomy IDs; this pack emits determinations only and does
+# not change scanner scoring or underwriting.
+version: "0.1"
+segment: shared_exposure
+rules:
+  - id: exposure.secret_egress
+    title: Secret-capable action reached unrestricted egress
+    severity: critical
+    action_class: tool_call
+    tags: [secret_egress, shared_exposure]
+    match: all
+    conditions:
+      - {field: _raw.secret_access, op: eq, value: true}
+      - {field: _raw.egress_authorized, op: eq, value: false}
+
+  - id: exposure.destructive_command
+    title: Destructive command executed by the agent
+    severity: high
+    action_class: tool_call
+    tags: [destructive_command, shared_exposure]
+    match: any
+    conditions:
+      - {field: _raw.command, op: regex, value: "(^|[;&| ])(rm\\s+-rf|drop\\s+database|terraform\\s+destroy|shutdown|reboot)\\b"}
+      - {field: _raw.destructive, op: eq, value: true}
+
+  - id: exposure.scope_creep
+    title: Action exceeded the agent's declared scope
+    severity: high
+    action_class: tool_call
+    tags: [scope_creep, shared_exposure]
+    match: all
+    conditions:
+      - {field: _raw.scope_authorized, op: eq, value: false}
+      - {field: _raw.scope, op: exists}
+
+  - id: exposure.unapproved_consequential_action
+    title: Consequential action lacked approval
+    severity: high
+    action_class: tool_call
+    tags: [consequential_action, approval, shared_exposure]
+    match: all
+    conditions:
+      - {field: _raw.consequential, op: eq, value: true}
+      - {field: _raw.approval, op: in, value: [none, advisory]}
+
+  - id: exposure.off_policy_tool_call
+    title: Tool call was outside the active policy
+    severity: medium
+    action_class: tool_call
+    tags: [off_policy_tool_call, shared_exposure]
+    match: all
+    conditions:
+      - {field: _raw.policy_allowed, op: eq, value: false}
+      - {field: _raw.tool_name, op: exists}
