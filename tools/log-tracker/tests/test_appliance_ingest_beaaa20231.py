@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from log_tracker.appliance_ingest import (
-    FIRST_BATCH_SEQ, ApplianceIngestStore, IngestRejected,
+    FIRST_BATCH_SEQ, ApplianceIngestStore, IngestRejected, _agent_digest,
 )
 from log_tracker.appliance_ingest_server import load_sealed_contract
 
@@ -27,6 +27,8 @@ from log_tracker.appliance_ingest_server import load_sealed_contract
 REPO = Path(__file__).resolve().parents[3]
 SEALED = REPO / "ops/paperclip/numbat/backbond-appliance-0.1.0/backbond-appliance"
 MIGRATION = Path(__file__).parents[1] / "migrations" / "0002_appliance_ingest.sql"
+AGENT_MIGRATION = Path(__file__).parents[1] / "migrations" / "0003_appliance_ingest_agents.sql"
+MIGRATIONS = (MIGRATION, AGENT_MIGRATION)
 
 verify_batch, CONTENT_FIELDS = load_sealed_contract(SEALED)
 if str(SEALED) not in sys.path:  # load_sealed_contract already inserted it
@@ -101,7 +103,7 @@ def appliance(tmp_path: Path) -> Appliance:
 
 @pytest.fixture
 def store(tmp_path: Path, appliance: Appliance) -> ApplianceIngestStore:
-    result = ApplianceIngestStore(tmp_path / "tracker.sqlite3", MIGRATION,
+    result = ApplianceIngestStore(tmp_path / "tracker.sqlite3", MIGRATIONS,
                                   verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
     result.enroll(appliance_id="a1", tenant_id="t1", source_id="enso-synthetic",
                   token="secret", public_key_pem=appliance.public_key_pem)
@@ -132,7 +134,7 @@ def test_genuine_chain_continues_and_survives_restart(store, appliance):
     second = appliance.emit()
     assert second["batch_seq"] == 2 and second["prev_batch_hash"] == first["batch_hash"]
 
-    restarted = ApplianceIngestStore(store.database, MIGRATION,
+    restarted = ApplianceIngestStore(store.database, MIGRATIONS,
                                      verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
     assert ingest(restarted, second).accepted
     assert ingest(restarted, first).duplicate
@@ -286,6 +288,107 @@ def test_a_genuine_multi_agent_envelope_is_accepted(store, appliance):
 
     assert ingest(store, batch).accepted
     assert store.status()["events_accepted"] == 2
+    with sqlite3.connect(store.database) as db:
+        rows = db.execute(
+            "SELECT agent_id_hash,events_count,determinations_count,billable_actions "
+            "FROM appliance_ingest_receipt_agents ORDER BY agent_id_hash"
+        ).fetchall()
+        salt = db.execute(
+            "SELECT salt FROM appliance_agent_salts WHERE appliance_id='a1'"
+        ).fetchone()[0]
+    assert rows == sorted([
+        (_agent_digest(salt, "ag1"), 1, 0, 1),
+        (_agent_digest(salt, "ag2"), 1, 0, 1),
+    ])
+    assert all("ag" not in row[0] for row in rows)
+
+
+def _emittable(event_id: str, agent: str, billable, tenant: str = "t1") -> dict:
+    """An emittable event built directly against ``pipeline.EMIT_ALLOWLIST``.
+
+    ``pipeline.normalize`` coerces ``billable`` with ``bool()``, so a 0.1.0 producer
+    that runs the whole pipeline can only ever put a real bool on the wire. The
+    adapter does not get to assume that: it receives a body, not a pipeline, and the
+    sealed verifier signs the body it is handed. Building the event at the allowlist
+    is how a truthy-non-``True`` ``billable`` reaches ingest, which is the exact value
+    the appliance bills and an identity test would drop.
+    """
+    return {"tenant_id": tenant, "agent_id": agent, "event_id": event_id,
+            "ts": "2026-08-17T00:00:00Z", "event_type": "social_post",
+            "operation": "chat", "gen_ai.operation.name": "chat",
+            "action_class": "message", "channel": None, "outcome": "ok",
+            "billable": billable, "evidence_hash": "sha256:" + "0" * 64}
+
+
+def _determination(event: dict, rule_id: str) -> dict:
+    """The determination shape ``rules/engine.py`` emits, limbs that matter only."""
+    return {"rule_id": rule_id, "severity": "low", "title": "synthetic",
+            "tags": [], "confidence": "high", "tenant_id": event["tenant_id"],
+            "agent_id": event["agent_id"], "event_id": event["event_id"],
+            "ts": event["ts"], "evidence_hash": event["evidence_hash"]}
+
+
+def _receipt_and_agent_rows(store) -> tuple:
+    with sqlite3.connect(store.database) as db:
+        parent = db.execute(
+            "SELECT events_count,determinations_count,billable_actions "
+            "FROM appliance_ingest_receipts"
+        ).fetchall()
+        children = db.execute(
+            "SELECT agent_id_hash,events_count,determinations_count,billable_actions "
+            "FROM appliance_ingest_receipt_agents"
+        ).fetchall()
+    return parent, children
+
+
+def test_child_agent_rows_sum_to_the_parent_receipt(store, appliance):
+    """BEAAA-24613 CTO item 2. The reconciliation list is only usable if it ties back
+    to the billed total, so the tie is an asserted invariant and not a hope. The
+    batch below mixes agents and mixes ``billable`` representations: ``True``, the
+    truthy-non-``True`` ``1``, and ``False``. The sealed producer's own predicate is
+    truthy, so it attests two billable actions; the child rows must attribute both."""
+    builder = BatchBuilder("a1", appliance.signer, appliance.state_dir, PRODUCER_PINS)
+    events = [_emittable("e-1", "ag1", True), _emittable("e-2", "ag1", 1),
+              _emittable("e-3", "ag2", False)]
+    determinations = [_determination(events[0], "r1"), _determination(events[2], "r2")]
+    batch = builder.build(events, determinations, {"start": "x", "end": "y"})[0]
+    assert batch["counts"]["billable_actions"] == 2
+
+    assert ingest(store, batch).accepted
+    parent, children = _receipt_and_agent_rows(store)
+    assert len(parent) == 1
+    events_count, determinations_count, billable_actions = parent[0]
+    assert sum(row[1] for row in children) == events_count == 3
+    assert sum(row[2] for row in children) == determinations_count == 2
+    assert sum(row[3] for row in children) == billable_actions == 2
+    by_agent = {row[0]: row[1:] for row in children}
+    with sqlite3.connect(store.database) as db:
+        salt = db.execute(
+            "SELECT salt FROM appliance_agent_salts WHERE appliance_id='a1'"
+        ).fetchone()[0]
+    assert by_agent[_agent_digest(salt, "ag1")] == (2, 1, 2)
+    assert by_agent[_agent_digest(salt, "ag2")] == (1, 1, 0)
+
+
+def test_an_attested_count_that_disagrees_with_its_events_is_still_accepted(store, appliance):
+    """BEAAA-24613 CTO item 3. ``billable_actions`` is not covered by
+    ``_histogram_violation`` -- only ``by_action_class`` gets exact equality -- so a
+    batch whose attested total disagrees with its own events is accepted. Widening
+    the reject was ruled against (BEAAA-24534 item 2), and this test pins that
+    ruling: the parent limb keeps the value the appliance attested and signed, the
+    child limb keeps the value the adapter derived, and the two are allowed to
+    differ. A ledger reader tying children to parent has to know which is which."""
+    builder = BatchBuilder("a1", appliance.signer, appliance.state_dir, PRODUCER_PINS)
+    events = [_emittable("e-9", "ag1", True)]
+    batch = builder.build(events, [], {"start": "x", "end": "y"})[0]
+    batch["counts"]["billable_actions"] = 7
+    resign(batch, appliance.signer)
+    assert verify_batch(batch, appliance.public_key_pem) is True
+
+    assert ingest(store, batch).accepted
+    parent, children = _receipt_and_agent_rows(store)
+    assert parent[0][2] == 7, "parent keeps the attested value"
+    assert [row[3] for row in children] == [1], "child keeps the derived value"
 
 
 @pytest.mark.parametrize("break_it,reason", [
@@ -303,7 +406,7 @@ def test_a_rejected_envelope_mutates_no_other_appliances_ledger(tmp_path, break_
     transaction, and the write is atomic."""
     a = Appliance(tmp_path / "a", "a1")
     b = Appliance(tmp_path / "b", "a2")
-    store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATION,
+    store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATIONS,
                                  verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
     store.enroll(appliance_id="a1", tenant_id="tenantA", source_id="s",
                  token="tokA", public_key_pem=a.public_key_pem)
@@ -392,7 +495,7 @@ def test_scoped_status_requires_the_enrolled_token_and_never_crosses_tenants(tmp
     """F5: the only status path on the wire is authenticated and single-tenant."""
     a = Appliance(tmp_path / "a", "a1")
     b = Appliance(tmp_path / "b", "a2")
-    store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATION,
+    store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATIONS,
                                  verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
     store.enroll(appliance_id="a1", tenant_id="tenantA", source_id="s",
                  token="tokA", public_key_pem=a.public_key_pem)

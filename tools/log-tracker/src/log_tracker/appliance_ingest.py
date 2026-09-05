@@ -10,12 +10,13 @@ import hashlib
 import hmac
 import json
 import re
+import secrets
 import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Collection, Mapping, Any
+from typing import Callable, Collection, Iterable, Mapping, Any
 
 
 # The appliance emits its first batch with ``batch_seq == 1``: BatchBuilder starts
@@ -71,6 +72,31 @@ class IngestResult:
 
 def _digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _agent_digest(salt: bytes, agent_id: str) -> str:
+    """Commit to an agent id without correlating names across appliances."""
+    return hashlib.sha256(b"backbond-agent-id\x00" + salt + agent_id.encode("utf-8")).hexdigest()
+
+
+def _agent_id(item: Mapping) -> str:
+    """Mirror the sealed 0.1.0 normalizer, including its real ``unknown`` bucket."""
+    return str(item.get("agent_id") or item.get("agent") or "unknown")
+
+
+def _agent_counts(events: list, determinations: list) -> dict[str, tuple[int, int, int]]:
+    counts: dict[str, list[int]] = {}
+    for event in events:
+        bucket = counts.setdefault(_agent_id(event), [0, 0, 0])
+        bucket[0] += 1
+        # The producer's predicate, verbatim: ``sum(1 for e in events if e.get("billable"))``
+        # at ``appliance/batch.py``. A truthy test, not an identity test against ``True``.
+        # An identity test would drop any truthy-non-``True`` value the appliance already
+        # billed, so the child rows would silently sum to less than the attested parent.
+        bucket[2] += 1 if event.get("billable") else 0
+    for determination in determinations:
+        counts.setdefault(_agent_id(determination), [0, 0, 0])[1] += 1
+    return {agent_id: tuple(values) for agent_id, values in counts.items()}
 
 
 def _plain_int(value: Any) -> bool:
@@ -304,7 +330,7 @@ class ApplianceIngestStore:
     def __init__(
         self,
         database: str | Path,
-        migration: str | Path,
+        migration: str | Path | Iterable[str | Path],
         *,
         verify_batch: Callable[[dict, str], bool],
         prohibited_fields: Collection[str],
@@ -313,8 +339,10 @@ class ApplianceIngestStore:
         self.verify_batch = verify_batch
         self.prohibited_fields = frozenset(prohibited_fields)
         self.counters = OutcomeCounters()
+        migrations = ([migration] if isinstance(migration, (str, Path)) else migration)
         with self._connect() as db:
-            db.executescript(Path(migration).read_text(encoding="utf-8"))
+            for path in migrations:
+                db.executescript(Path(path).read_text(encoding="utf-8"))
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.database, timeout=30, isolation_level=None)
@@ -427,6 +455,24 @@ class ApplianceIngestStore:
                     "VALUES (?,?,?,?,?,?,?,?,?,?)",
                     receipt,
                 )
+                # The random salt is appliance-scoped: identical low-entropy
+                # agent names cannot be correlated across appliances. It lives
+                # beside the hashes, so this is a commitment/content-boundary
+                # control rather than encryption against database compromise.
+                db.execute(
+                    "INSERT OR IGNORE INTO appliance_agent_salts (appliance_id,salt) VALUES (?,?)",
+                    (appliance_id, secrets.token_bytes(32)),
+                )
+                salt = db.execute(
+                    "SELECT salt FROM appliance_agent_salts WHERE appliance_id=?", (appliance_id,),
+                ).fetchone()[0]
+                for agent_id, agent_counts in _agent_counts(events, determinations).items():
+                    db.execute(
+                        "INSERT INTO appliance_ingest_receipt_agents "
+                        "(batch_hash,agent_id_hash,events_count,determinations_count,billable_actions) "
+                        "VALUES (?,?,?,?,?)",
+                        (batch_hash, _agent_digest(salt, agent_id), *agent_counts),
+                    )
                 db.commit()
             except Exception:
                 db.rollback()

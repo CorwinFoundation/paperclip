@@ -64,10 +64,12 @@ executed is a procedure with steps that do not work.
        install -d -o backbond -g backbond -m 0750 /var/lib/backbond
        install -d -o root -g backbond -m 0750 /etc/backbond
 
-5. Install the migration the unit passes as `--migration`:
+5. Install the ordered migrations the unit passes as `--migration`:
 
        install -D -m 0644 ./tools/log-tracker/migrations/0002_appliance_ingest.sql \
          /opt/backbond/migrations/0002_appliance_ingest.sql
+       install -D -m 0644 ./tools/log-tracker/migrations/0003_appliance_ingest_agents.sql \
+         /opt/backbond/migrations/0003_appliance_ingest_agents.sql
 
 6. Write the two configuration files. The enrollment JSON contains
    `appliance_id`, `tenant_id`, `source_id`, `public_key_pem` and `token_env`.
@@ -154,6 +156,18 @@ forgeable (BEAAA-20237 F7 / BEAAA-24478 item 1). In place of the name scan that
 node is checked by exact equality against the per-class tally of
 `batch["events"]`, which the scan has already cleared, so it can hold nothing
 the events do not already hold.
+
+## Receipt counts: attested parent, derived child
+
+`appliance_ingest_receipts.billable_actions` is the value the appliance attested
+and signed. `appliance_ingest_receipt_agents.billable_actions` is derived by the
+adapter from the delivered events, using the producer's own truthy predicate. The
+two limbs normally agree, and the child rows are asserted to sum to the parent on
+a well-formed batch. They are allowed to disagree: `billable_actions` is not
+covered by the histogram equality check, and widening the reject to cover it was
+ruled against (BEAAA-24534 item 2), so a batch whose attested total disagrees with
+its own events is accepted. A ledger reader reconciling per-agent rows against the
+billed total is reading an attested number against a derived one.
 
 ## Closed envelope
 

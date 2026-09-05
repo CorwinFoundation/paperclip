@@ -134,7 +134,7 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--database", required=True)
-    parser.add_argument("--migration", required=True)
+    parser.add_argument("--migration", required=True, action="append")
     parser.add_argument("--sealed-root", required=True)
     parser.add_argument("--enrollment-file", required=True)
     args = parser.parse_args()

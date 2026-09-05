@@ -41,7 +41,7 @@ from log_tracker import appliance_ingest_server as server_module
 from log_tracker.appliance_ingest_server import make_handler
 
 from test_appliance_ingest_beaaa20231 import (  # noqa: F401  (fixtures)
-    CONTENT_FIELDS, MIGRATION, Appliance, appliance, ingest, resign, store,
+    CONTENT_FIELDS, MIGRATIONS, Appliance, appliance, ingest, resign, store,
     verify_batch,
 )
 
@@ -353,7 +353,7 @@ def test_a_snapshot_cannot_be_mutated_through():
 def two_tenant_store(tmp_path):
     a = Appliance(tmp_path / "a", "a1")
     b = Appliance(tmp_path / "b", "a2")
-    store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATION,
+    store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATIONS,
                                  verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
     store.enroll(appliance_id="a1", tenant_id="tenantA", source_id="s",
                  token="tokA", public_key_pem=a.public_key_pem)
@@ -414,7 +414,7 @@ def test_the_chain_tip_is_per_appliance_and_survives_a_restart(tmp_path):
     assert store.scoped_status(token="tokA", tenant_id="tenantA")["chain_tip_batch_seq"] == {"a1": 2}
     assert store.scoped_status(token="tokB", tenant_id="tenantB")["chain_tip_batch_seq"] == {"a2": 1}
 
-    restarted = ApplianceIngestStore(store.database, MIGRATION, verify_batch=verify_batch,
+    restarted = ApplianceIngestStore(store.database, MIGRATIONS, verify_batch=verify_batch,
                                      prohibited_fields=CONTENT_FIELDS)
     after = restarted.scoped_status(token="tokA", tenant_id="tenantA")
     assert after["chain_tip_batch_seq"] == {"a1": 2}
