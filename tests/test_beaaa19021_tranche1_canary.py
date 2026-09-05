@@ -109,11 +109,11 @@ def _runtime(monkeypatch, *, commit="a" * 40, image=None, environment="productio
     monkeypatch.setenv("BACKBOND_RUNTIME_TENANT_ID", "tenant")
 
 
-def test_public_full_scan_path_overdispatches_and_does_not_carry_capability_manifest():
+def test_public_full_scan_path_overdispatches_and_defaults_capability_manifest_to_none():
     rows = build_registry()
     executable = [row for row in rows if row.get("production_runner_executable")]
     assert len(executable) > sum(ALLOWLIST.values())
-    assert "capability_manifest" not in FullScanJob.__dataclass_fields__
+    assert FullScanJob.__dataclass_fields__["capability_manifest"].default is None
 
 
 def test_exact_selector_rejects_count_and_family_drift_before_target_call(tmp_path, monkeypatch):
