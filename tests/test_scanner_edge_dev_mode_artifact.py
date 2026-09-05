@@ -120,12 +120,15 @@ def test_only_the_master_push_deploy_job_contacts_the_scanner_server() -> None:
     assert deploy_text, "deploy job missing"
     for token in ("paperclip_release_candidate_key", "/release-candidates"):
         assert token not in text.lower(), token
-    for token in ("ssh ", "scp ", "deploy_ssh", "known_hosts", "scanner-deploy", "paperclip_api_key"):
+    for token in ("ssh ", "scp ", "scanner_deploy_key", "known_hosts", "scanner-deploy", "paperclip_api_key"):
         assert token not in build_text.lower(), token
         assert token in deploy_text.lower(), token
     deploy = workflow["jobs"]["deploy"]
     assert deploy["needs"] == "image-build"
     assert deploy["if"] == "${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}"
-    assert "${{ secrets.SCANNER_DEPLOY_SSH_KEY }}" in deploy_text
-    assert "${{ secrets.SCANNER_DEPLOY_KNOWN_HOSTS }}" in deploy_text
+    assert "/home/ghrunner/.ssh/scanner_deploy_key" in deploy_text
+    assert "/home/ghrunner/.ssh/known_hosts_scanner" in deploy_text
+    assert "ghrunner 600" in deploy_text
+    assert "secrets.SCANNER_DEPLOY_SSH_KEY" not in deploy_text
+    assert "secrets.SCANNER_DEPLOY_KNOWN_HOSTS" not in deploy_text
     assert "-o StrictHostKeyChecking=yes" in deploy_text
