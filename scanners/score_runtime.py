@@ -77,6 +77,7 @@ ENVELOPE_FIELDS_SECTION_2_2: tuple[str, ...] = (
     "agent_id",
     "are_total",
     "band",
+    "bind_eligibility",
     "confidence_below_adjudication_threshold",
     "corpus_version",
     "evidence_refs",
@@ -90,6 +91,55 @@ ENVELOPE_FIELDS_SECTION_2_2: tuple[str, ...] = (
     "seed",
     "subscores",
 )
+
+
+def _bind_eligibility(
+    *,
+    rubric: Rubric,
+    accumulated_rows: dict[str, dict[str, Any]],
+    applicability_decisions: dict[str, dict[str, Any]],
+    synthetic_applicability: bool,
+    prior_scan_refs: list[dict[str, Any]],
+    walker_partial_completion: bool,
+) -> dict[str, Any]:
+    """Return ADR-0072's deterministic, fail-closed underwriting decision."""
+    applicable = (
+        set(rubric.active_dim_ids)
+        if synthetic_applicability
+        else {
+            did
+            for did in rubric.active_dim_ids
+            if applicability_decisions.get(did, {}).get("fires", True) is True
+        }
+    )
+    measured = applicable & set(accumulated_rows)
+    runners = {
+        str(row.get("runner", "")).strip().lower()
+        for row in accumulated_rows.values()
+    }
+    reasons: list[str] = []
+    if synthetic_applicability or any("synthetic" in runner for runner in runners):
+        reasons.append("synthetic_evidence")
+    if prior_scan_refs or any("prior" in runner for runner in runners):
+        reasons.append("prior_filled")
+    if any("smoke" in runner for runner in runners):
+        reasons.append("smoke_only")
+    incomplete = walker_partial_completion or measured != applicable
+    if incomplete:
+        reasons.append("incomplete_measurement")
+
+    if incomplete:
+        status = "ineligible"
+    elif reasons:
+        status = "refer"
+    else:
+        status = "eligible"
+    return {
+        "status": status,
+        "reason_codes": reasons,
+        "measured_applicable_dimensions": len(measured),
+        "total_applicable_dimensions": len(applicable),
+    }
 
 
 @dataclass(frozen=True)
@@ -382,6 +432,7 @@ class ScoreRuntime:
             ctx_decisions = invocation_context.get("applicability_decisions")
             if isinstance(ctx_decisions, dict):
                 applicability_decisions = ctx_decisions
+        synthetic_applicability = applicability_decisions is None
         if applicability_decisions is not None:
             trusted_flags = (
                 invocation_context.get("architecture_flags")
@@ -457,6 +508,15 @@ class ScoreRuntime:
             purpose=purpose,
             rubric_version=self.rubric.version,
             prior_scan_refs=prior_scan_refs,
+        )
+
+        envelope["bind_eligibility"] = _bind_eligibility(
+            rubric=self.rubric,
+            accumulated_rows=accumulated_rows,
+            applicability_decisions=applicability_for_envelope,
+            synthetic_applicability=synthetic_applicability,
+            prior_scan_refs=prior_scan_refs,
+            walker_partial_completion=walker_partial_completion,
         )
 
         # BEAAA-5414 Q-B4 — partial_completion single source of truth.

@@ -163,6 +163,7 @@ ALLOWED_SCORE_ENVELOPE_FIELDS: frozenset[str] = frozenset({
     "agent_id",
     "are_total",
     "band",
+    "bind_eligibility",
     "confidence_below_adjudication_threshold",
     "corpus_version",
     "evidence_refs",

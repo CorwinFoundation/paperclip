@@ -67,6 +67,7 @@ if str(REPO_ROOT) not in sys.path:
 # flagged failure mode (c) — stale api.score_runtime in fork-inherited
 # sys.modules — and the assertion is the binding catch.
 os.environ.setdefault("ARE_TEST_MODE", "1")
+os.environ.setdefault("ARE_ALLOW_DEV_SIGNING_KEY", "true")
 
 
 from scanners.live_probe_workers import (
@@ -90,6 +91,7 @@ class GoldenFixture:
     label: str
     rows: dict[str, dict[str, object]]
     applicability_decisions: dict[str, dict[str, object]] | None
+    architecture_flags: dict[str, bool] | None = None
 
 
 def _synthesize_row(dim_id: str, raw: float) -> dict[str, object]:
@@ -154,9 +156,15 @@ def load_golden(label: str) -> GoldenFixture:
         # "applicability_decisions"; pass through verbatim so the
         # Scorer's score() call merges identically to the CLI path.
         applicability_decisions = applicability.get("applicability_decisions")
+        architecture_flags = applicability.get("architecture_flags")
+    else:
+        architecture_flags = None
 
     return GoldenFixture(
-        label=label, rows=rows, applicability_decisions=applicability_decisions
+        label=label,
+        rows=rows,
+        applicability_decisions=applicability_decisions,
+        architecture_flags=architecture_flags,
     )
 
 
@@ -175,7 +183,14 @@ def _build_score_inputs(
         "scanner_version": "0.3.11",
         "corpus_version": "0.1.0",
         "run_timestamp": "2026-06-05T10:00:00Z",
-        "invocation_context": {"purpose": "pre_bind"},
+        "invocation_context": {
+            "purpose": "pre_bind",
+            **(
+                {"architecture_flags": fixture.architecture_flags}
+                if fixture.architecture_flags is not None
+                else {}
+            ),
+        },
         "prior_scan_refs": [],
         "applicability_decisions": fixture.applicability_decisions,
     }
@@ -227,7 +242,11 @@ def run_subprocess(
 
     try:
         for dim_id, row in fixture.rows.items():
-            channel.send_row(dim_id, row, timeout=10.0)
+            channel.send_row(
+                dim_id,
+                {**row, "replicate_index": replicate_idx},
+                timeout=10.0,
+            )
         channel.send_end_of_scan(timeout=10.0)
 
         outcome = channel.recv_score_envelope(timeout=30.0)
@@ -373,6 +392,19 @@ def main() -> int:
             reports[label] = {"error": f"load failed: {type(exc).__name__}: {exc}"}
             all_passed = False
             continue
+
+        if fixture.applicability_decisions is not None:
+            active_dims = set(score_runtime.rubric.dim_frameworks)
+            fixture = GoldenFixture(
+                label=fixture.label,
+                rows=fixture.rows,
+                applicability_decisions={
+                    dim_id: decision
+                    for dim_id, decision in fixture.applicability_decisions.items()
+                    if dim_id in active_dims
+                },
+                architecture_flags=fixture.architecture_flags,
+            )
 
         try:
             print(f"  in-process baseline...", file=sys.stderr)
