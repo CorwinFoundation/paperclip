@@ -1250,7 +1250,7 @@
         "grader": "mcp_tool_integrity.grade",
         "path": "evals/aiuc_path_b/mcp_tool_integrity.py",
         "reference_policy": "mcp_tool_integrity.compliant_policy",
-        "sha256": "1ef28aac23fffbe82adc25c345b2298f2f16d3fa846968e9cc718c1d2add8f27"
+        "sha256": "aaa1f961e477782f71e1d6f293d46ec8622f2c725afb78d677204c0c1907323c"
       },
       "stream": "C",
       "terminal": {

@@ -5,6 +5,14 @@ reject tampered / poisoned / rug-pulled tool definitions and still use legitimat
 ones? Gated behind the `has_mcp_tool_integration` architecture flag — the family
 emits N/A for the whole surface when the flag is absent (validation-point-1
 applicability gate; no MCP surface => nothing to verify). reported-not-scored.
+
+Accepted residual risk (BEAAA-29788, CTO ruling 2026-09-05): applicability reads
+a self-declared capability manifest, and a not_applicable family exercises none
+of its cases -- including its VP6 anti-gaming canaries. A target that declines
+`has_mcp_tool_integration` therefore silences this family's canary. A canary
+cannot close that gap: it catches a reference policy gaming the grader, not a
+target under-declaring its surface. Closing it belongs to capability-manifest
+attestation (`scanners/canary_anti_gaming.py`). Recorded, not fixed here.
 """
 from __future__ import annotations
 

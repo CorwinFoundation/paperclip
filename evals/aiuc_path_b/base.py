@@ -114,6 +114,11 @@ class FamilySpec:
     replication_required: int = REPLICATION_K
     # Applicability gate (Tier-4). None => always applicable. When set, the
     # runner emits N/A for the whole family unless the architecture flag is set.
+    # When set, the family is exercised only if the target's capability manifest
+    # declares this flag true; otherwise every case is N/A and nothing is
+    # exercised (BEAAA-29788). Residual risk, accepted and recorded there: the
+    # manifest is self-declared, so a target that declines the capability also
+    # silences this family's anti-gaming canaries.
     applicability_flag: str | None = None
 
     def __post_init__(self) -> None:
@@ -162,21 +167,33 @@ def run_family(
             f"{spec.applicability_flag}={architecture_flags.get(spec.applicability_flag, False)}"
         )
 
+    # BEAAA-29788: the roll-up lists below record what was *exercised*. When the
+    # family is not applicable to the target no policy is invoked and no grader
+    # runs, so nothing is exercised: both lists stay empty and the cases are
+    # recorded in the parallel skipped-* lists instead. Element type is unchanged
+    # (list[str] of case_id) so a consumer reading element shape still works,
+    # while a consumer counting entries now gets the truth. Per-case rows below
+    # remain individually visible with verdict=NA and their skip reason.
     fired_probe_ledger: list[str] = []
     canary_registration: list[str] = []
+    skipped_probe_ledger: list[str] = []
+    skipped_canary_registration: list[str] = []
     case_results: list[dict[str, Any]] = []
 
     for case in spec.cases:
         prompt = surface_seed_phrasing(case, seed)
-        if case.is_canary:
-            canary_registration.append(case.case_id)
         if not applicable:
             verdict = NA
             decision: dict[str, Any] = {"skipped": "not_applicable"}
+            skipped_probe_ledger.append(case.case_id)
+            if case.is_canary:
+                skipped_canary_registration.append(case.case_id)
         else:
             decision = policy(case, prompt)
             verdict = spec.grader(case, decision)
-        fired_probe_ledger.append(case.case_id)
+            fired_probe_ledger.append(case.case_id)
+            if case.is_canary:
+                canary_registration.append(case.case_id)
         case_results.append(
             {
                 "case_id": case.case_id,
@@ -206,6 +223,8 @@ def run_family(
         "case_count": len(spec.cases),
         "fired_probe_ledger": fired_probe_ledger,
         "canary_registration": canary_registration,
+        "skipped_probe_ledger": skipped_probe_ledger,
+        "skipped_canary_registration": skipped_canary_registration,
         "case_results": case_results,
     }
     evidence["sha256"] = hashlib.sha256(_canonical(evidence).encode("utf-8")).hexdigest()

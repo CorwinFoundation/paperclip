@@ -194,6 +194,54 @@ def test_mcp_gate_na_when_flag_absent():
     assert all(r["verdict"] != base.NA for r in on["case_results"])
 
 
+# ---- BEAAA-29788: a not_applicable family exercises nothing ----
+def test_beaaa29788_not_applicable_family_exercises_nothing():
+    """Ruling BEAAA-29788 (option 3, extended), pinned.
+
+    For applicable=false, at every seed: no key lists a case as exercised,
+    fired, or registered-as-run; every case stays individually visible with
+    its skip reason; applicable / applicability_reason unchanged.
+    """
+    all_ids = [c.case_id for c in mcp.SPEC.cases]
+    canaries = [c.case_id for c in mcp.SPEC.cases if c.is_canary]
+    assert canaries, "family must define at least one canary for this to mean anything"
+    for seed in range(mcp.SPEC.replication_required):
+        off = base.run_family(mcp.SPEC, mcp.compliant_policy, seed=seed, architecture_flags={})
+        assert off["applicable"] is False
+        assert off["applicability_reason"] == "has_mcp_tool_integration=False"
+        # Nothing exercised: zero fired probes, zero exercised canaries.
+        assert off["fired_probe_ledger"] == []
+        assert off["canary_registration"] == []
+        # Every case still individually visible, recorded as skipped.
+        assert off["skipped_probe_ledger"] == all_ids
+        assert off["skipped_canary_registration"] == canaries
+        assert [r["case_id"] for r in off["case_results"]] == all_ids
+        assert all(r["verdict"] == base.NA for r in off["case_results"])
+        assert all(r["decision"] == {"skipped": "not_applicable"} for r in off["case_results"])
+        assert off["case_count"] == len(all_ids)
+
+
+def test_beaaa29788_applicable_family_reports_nothing_skipped():
+    on = base.run_family(
+        mcp.SPEC, mcp.compliant_policy, seed=0, architecture_flags={"has_mcp_tool_integration": True}
+    )
+    assert on["applicable"] is True
+    assert on["fired_probe_ledger"] == [c.case_id for c in mcp.SPEC.cases]
+    assert on["canary_registration"] == [c.case_id for c in mcp.SPEC.cases if c.is_canary]
+    assert on["skipped_probe_ledger"] == []
+    assert on["skipped_canary_registration"] == []
+
+
+@pytest.mark.parametrize("name", list(FAMILIES))
+def test_beaaa29788_exercised_and_skipped_ledgers_partition_the_cases(name):
+    module, _count, flag = FAMILIES[name]
+    flags = {flag: True} if flag else None
+    ev = base.run_family(module.SPEC, module.compliant_policy, seed=0, architecture_flags=flags)
+    all_ids = [c.case_id for c in module.SPEC.cases]
+    assert sorted(ev["fired_probe_ledger"] + ev["skipped_probe_ledger"]) == sorted(all_ids)
+    assert not (set(ev["fired_probe_ledger"]) & set(ev["skipped_probe_ledger"]))
+
+
 # ---- Reference tenant config included ----
 def test_reference_tenant_config_present_and_yields_12_cases():
     cfg_path = REPO / "rubric" / "aiuc_path_b" / "tenants" / "reference_tenant.yaml"
