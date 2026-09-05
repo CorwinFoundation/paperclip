@@ -30,14 +30,17 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertEqual(rendered["build_sha"], SHA)
         self.assertEqual(rendered["release_tag"], f"sha-{SHA}")
 
-    def test_workflow_is_manual_signed_and_immutable(self):
+    def test_workflow_is_master_triggered_signed_and_immutable(self):
         text = (ROOT / ".github/workflows/scanner-edge-image.yml").read_text()
         workflow = yaml.safe_load(text)
         self.assertEqual(
             workflow["permissions"],
             {"contents": "read", "id-token": "write", "packages": "write"},
         )
-        self.assertEqual(set(workflow[True]), {"workflow_dispatch"})
+        # BEAAA-28837: every master commit builds and signs automatically.
+        # Manual dispatch is retained for the governed release-evidence lane.
+        self.assertEqual(set(workflow[True]), {"push", "workflow_dispatch"})
+        self.assertEqual(workflow[True]["push"], {"branches": ["master"]})
         self.assertIn('image_tag="${IMAGE_REPOSITORY}:sha-${SOURCE_SHA}"', text)
         self.assertNotIn(":latest", text)
         self.assertIn("cosign sign --timeout 90s --yes --new-bundle-format=true", text)

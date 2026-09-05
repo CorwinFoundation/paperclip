@@ -13,12 +13,18 @@ def _workflow() -> tuple[str, dict]:
     return text, yaml.safe_load(text)
 
 
-def test_image_and_release_evidence_workflow_is_manual_only() -> None:
-    """A merge or chained workflow must never publish or deploy a candidate."""
+def test_image_and_release_evidence_workflow_publishes_on_master_only() -> None:
+    """Master commits publish a signed image; nothing else may trigger, and no lane deploys.
+
+    BEAAA-28837: the automatic build-on-master lane is deliberate. What stays
+    forbidden is any trigger that is not a master commit or an explicit manual
+    dispatch, and any deploy step in either lane.
+    """
     _, workflow = _workflow()
     triggers = workflow[True]
 
-    assert set(triggers) == {"workflow_dispatch"}
+    assert set(triggers) == {"push", "workflow_dispatch"}
+    assert triggers["push"] == {"branches": ["master"]}
     dispatch = triggers["workflow_dispatch"]
     assert set(dispatch["inputs"]) == {
         "source_sha",
@@ -27,10 +33,11 @@ def test_image_and_release_evidence_workflow_is_manual_only() -> None:
         "sequence",
     }
     for automatic in (
-        "push",
         "pull_request",
+        "pull_request_target",
         "schedule",
         "workflow_run",
+        "workflow_call",
         "repository_dispatch",
     ):
         assert automatic not in triggers, automatic

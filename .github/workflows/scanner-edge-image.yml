@@ -1,7 +1,15 @@
 name: Scanner Immutable GHCR Image
 
 on:
-  # Manual only. A blank expected digest builds an immutable master image.
+  # Automatic on every master commit: build, sign, and publish an immutable
+  # content-addressed image plus its release manifest. Never deploys, never
+  # activates, never promotes an environment, never moves a mutable tag.
+  # Production activation stays manual and Founder-controlled.
+  # Authorized by CEO under BEAAA-29786 on BEAAA-28837.
+  push:
+    branches:
+      - master
+  # Manual. A blank expected digest builds an immutable master image.
   # Supplying the four release inputs produces governed evidence for an
   # already-published master image, but never contacts production.
   workflow_dispatch:
@@ -40,7 +48,8 @@ jobs:
   image-build:
     name: publish immutable scanner image and governed evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    if: github.repository == 'CorwinFoundation/are-scanner'
+    timeout-minutes: 35
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
       EXPECTED_IMAGE_DIGEST: ${{ inputs.expected_image_digest }}
@@ -66,7 +75,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch) ;;
+            push)
+              # Automatic master build lane: no release-evidence inputs exist.
+              test -z "$EXPECTED_IMAGE_DIGEST"
+              test -z "$SOURCE_ISSUE_ID"
+              test -z "$SEQUENCE"
+              test "$SOURCE_SHA" = "$GITHUB_SHA"
+              ;;
+            *) echo "unsupported event: $GITHUB_EVENT_NAME" >&2; exit 1 ;;
+          esac
           test "$GITHUB_REF" = refs/heads/master
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
@@ -152,11 +171,9 @@ jobs:
           sha256sum release-candidate/scanner-edge-image.tar > release-candidate/scanner-edge-image.tar.sha256
 
       - name: Install Syft
-        if: ${{ inputs.expected_image_digest != '' }}
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
 
       - name: Generate CycloneDX SBOM
-        if: ${{ inputs.expected_image_digest != '' }}
         id: sbom
         shell: bash
         run: |
@@ -166,13 +183,11 @@ jobs:
           printf 'hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-sbom.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Install Cosign
-        if: ${{ inputs.expected_image_digest != '' }}
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v3.1.1
 
       - name: Sign exact digest and write Sigstore bundle
-        if: ${{ inputs.expected_image_digest != '' }}
         id: signed
         timeout-minutes: 4
         shell: bash
@@ -187,7 +202,6 @@ jobs:
           printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-image.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Verify exact digest signature
-        if: ${{ inputs.expected_image_digest != '' }}
         timeout-minutes: 4
         shell: bash
         env:
@@ -204,7 +218,6 @@ jobs:
             "$SIGNED_REF"
 
       - name: Write SLSA provenance predicate
-        if: ${{ inputs.expected_image_digest != '' }}
         shell: bash
         env:
           SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
@@ -225,7 +238,6 @@ jobs:
             > release-candidate/scanner-edge-slsa-provenance.json
 
       - name: Attest CycloneDX SBOM
-        if: ${{ inputs.expected_image_digest != '' }}
         id: sbom_attested
         timeout-minutes: 4
         shell: bash
@@ -243,7 +255,6 @@ jobs:
           printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-sbom-attestation.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Attest SLSA provenance
-        if: ${{ inputs.expected_image_digest != '' }}
         id: provenance_attested
         timeout-minutes: 4
         shell: bash
@@ -261,7 +272,6 @@ jobs:
           printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-provenance-attestation.sigstore.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Verify SLSA provenance attestation
-        if: ${{ inputs.expected_image_digest != '' }}
         timeout-minutes: 4
         shell: bash
         env:
@@ -282,7 +292,6 @@ jobs:
             --output-file release-candidate/scanner-edge-provenance-verify.json
 
       - name: Verify CycloneDX SBOM attestation
-        if: ${{ inputs.expected_image_digest != '' }}
         timeout-minutes: 4
         shell: bash
         env:
@@ -301,6 +310,66 @@ jobs:
             --digestAlg sha256 \
             --type cyclonedx \
             --output-file release-candidate/scanner-edge-sbom-attestation-verify.json
+
+      - name: Write the signed release manifest for the automatic master build
+        if: ${{ inputs.expected_image_digest == '' }}
+        shell: bash
+        env:
+          SIGNED_REF: ${{ steps.image.outputs.signed_ref }}
+          IMAGE_TAG: ${{ steps.image.outputs.image_tag }}
+          SBOM_HASH: ${{ steps.sbom.outputs.hash }}
+          BUNDLE_HASH: ${{ steps.signed.outputs.bundle_hash }}
+          SBOM_ATTESTATION_BUNDLE_HASH: ${{ steps.sbom_attested.outputs.bundle_hash }}
+          PROVENANCE_ATTESTATION_BUNDLE_HASH: ${{ steps.provenance_attested.outputs.bundle_hash }}
+        run: |
+          set -euo pipefail
+          test "$SIGNED_REF" = "${IMAGE_REPOSITORY}@${SIGNED_REF#*@}"
+          [[ "${SIGNED_REF#*@}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$IMAGE_TAG" = "${IMAGE_REPOSITORY}:sha-${SOURCE_SHA}"
+          jq -n \
+            --arg schema "backbond.scanner.release-manifest/v1" \
+            --arg trigger "$GITHUB_EVENT_NAME" \
+            --arg commitSha "$SOURCE_SHA" \
+            --arg imageTag "$IMAGE_TAG" \
+            --arg signedRef "$SIGNED_REF" \
+            --arg imageDigest "${SIGNED_REF#*@}" \
+            --arg signer "$EXPECTED_SIGNER" \
+            --arg oidcIssuer "$OIDC_ISSUER" \
+            --arg sigstoreBundleSha256 "$BUNDLE_HASH" \
+            --arg sbomSha256 "$SBOM_HASH" \
+            --arg sbomAttestationBundleSha256 "$SBOM_ATTESTATION_BUNDLE_HASH" \
+            --arg provenanceAttestationBundleSha256 "$PROVENANCE_ATTESTATION_BUNDLE_HASH" \
+            --arg workflowRef "$WORKFLOW_REF" \
+            --arg workflowSha "$WORKFLOW_SHA" \
+            --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{
+              schema: $schema,
+              lane: "automatic-master-build",
+              trigger: $trigger,
+              commit_sha: $commitSha,
+              image_tag: $imageTag,
+              image_digest: $imageDigest,
+              immutable_ref: $signedRef,
+              mutable_tag_moved: false,
+              signature: {
+                type: "cosign-keyless",
+                certificate_identity: $signer,
+                oidc_issuer: $oidcIssuer,
+                sigstore_bundle_sha256: $sigstoreBundleSha256,
+                verified_in_run: true
+              },
+              sbom: {format: "cyclonedx-json", sha256: $sbomSha256,
+                     attestation_bundle_sha256: $sbomAttestationBundleSha256},
+              provenance: {predicate_type: "slsaprovenance",
+                           attestation_bundle_sha256: $provenanceAttestationBundleSha256},
+              builder: {workflow_ref: $workflowRef, workflow_sha: $workflowSha, run_url: $runUrl},
+              deploy_authorized: false,
+              environment_promoted: null,
+              activation: "Production activation is manual and Founder-controlled. This manifest authorizes no deploy, activation, or promotion."
+            }' > release-candidate/backbond-scanner-release-manifest.json
+          sha256sum release-candidate/backbond-scanner-release-manifest.json \
+            | tee release-candidate/backbond-scanner-release-manifest.sha256
+          cat release-candidate/backbond-scanner-release-manifest.json
 
       - name: Write immutable release candidate manifest
         if: ${{ inputs.expected_image_digest != '' }}
