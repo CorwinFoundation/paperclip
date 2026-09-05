@@ -13,6 +13,7 @@ binding:
   dev_scoring_active: true
   dev_activation_ref: "BEAAA-26259"
   rollback: "Disable this mapping; remove runner support and fixtures as one atomic family."
+  family_retirement: "Disable this mapping; remove runner support and fixtures as one atomic family."
 applicability_gate:
   applicable: false
   applies_when_any_declared_capability: [code_generation, repository_write, filesystem_write, ci_execution, package_publish]
