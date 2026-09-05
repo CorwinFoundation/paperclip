@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -247,7 +247,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -255,7 +255,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 471c115"
     }
   ],
   "bucket_counts": {
@@ -265,7 +265,7 @@
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
     "report_only": 3,
-    "runnable_today": 2154
+    "runnable_today": 2194
   },
   "bucket_definitions": {
     "attestation_only": "Governance/operator evidence row; countable as evidence requirement, not an executable probe.",
@@ -279,13 +279,13 @@
   "category_counts": {
     "attestation_only": 7,
     "blocked_unsupported": 360,
-    "executable": 2058,
+    "executable": 2098,
     "executable_on_default_runtime": 119,
     "executed_in_latest_evidenced_run": 0,
     "fixture_test_only": 111,
     "inactive_deferred": 8,
     "proxy_grade": 49,
-    "registered": 2540,
+    "registered": 2580,
     "reported": 6,
     "scoring_active": 0
   },
@@ -293,7 +293,7 @@
     "claim_supported": false,
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
-    "supported_unique_executable_count": 2058,
+    "supported_unique_executable_count": 2098,
     "unsupported_rows_count": 360
   },
   "dedupe_key_fields": [
@@ -309,7 +309,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "10ba8981ff5bf04b7811a64a6419ed8851ef9415",
+    "generated_from_content_sha": "471c1150ff499fc2a8617d44e5f167da8fd16398",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -319,9 +319,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "10ba8981ff5bf04b7811a64a6419ed8851ef9415",
+    "source_closure_sha": "471c1150ff499fc2a8617d44e5f167da8fd16398",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-10ba898",
+    "source_closure_version": "registry-source-471c115",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -2719,6 +2719,646 @@
       },
       "stable_id": "c1d1b1cb4fd7187e6f1b7dd7c0b7f0e20681fff26580dd25f2bbc3e1a193c588",
       "version_pin": "customer_defined_risk_pack@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "4c73ac0c92f15e5d0af10570c65af83a476b6209630d9abcc205f53ef585415d",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "ef8c00ae2871d09643730625b31466b2be71855dc040a9ce67a84effb8bbeb7b",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "309238419e763d8828e67fa1b6d78ad417a83ac5b98edb3270cb214f2f00b9a0",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "832eb8146100cc5cd3d69135da61d0c518a35c4804451b7bfc73715afa2d1859",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "3d10b1e2542b0374005c2050cb05921d16dbba3c2cf76f0f1e2e5b9407c3e993",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "2fbaa5a8de511e2dfbc40534ef1bd739edeae422f9aa298afd96e021ad616333",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "82785689657046e5499e27caf0872e3c6cceff2bf4b74983f90e43c674e26eb0",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "be7c81b0ceda85513dea2ac2ba9af87fc3ce251a9e403fafe0dccabf3eb60358",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-09",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "40bf859ed9ff8ab359164a32e6321b911ab570403616ec971a5ba8ed3324feac",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-10",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "9405c6a154a9adfb320d5d732b8b6d06349c351768262b2937b547ba916600a9",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-11",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "427d6c63bb27d8872ddbbd4a6dfe8e57587e7c01952c1a92ec2434ead26997fd",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-12",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "7a0feab8f40e3d9a60f969434b7c77fb636136d08a4654c4689503702ac3239e",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-13",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "0a9f6033da6222fa1e03bab40240a2a81cc6ce44c7b520e399f663ec79daeb11",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-14",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "6771897ac2fd4cccd62149e8a1e46d445054edbd06341bf547f41a0cf110e249",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-15",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "430e3d9483c67b5ed9279daf7b8816eeb640230b843aae65b8604de64215e644",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-16",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "bc8413642aebfd3262e7298a27a6ab0d7e2ab0bf9c21ef22d70619f4904307df",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-17",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "b760ae154a98742aed1c75d698a730bace869ffcce216d6da5c77fdb070db27b",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-18",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "a400729927f5346d2605038dc6eea3558e3335fc0c3e49ad3118bd44c363b826",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-19",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "90b13c8e158409bbe3f321556bcdc91a730b221d5931dfcba73bb9861f30dfc1",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CMR-20",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "ROBUSTNESS.REFUSAL.CYBER_MISUSE",
+      "source": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cyber_misuse_refusal.yaml",
+        "version": "cyber_misuse_refusal@0.1.0"
+      },
+      "stable_id": "94428ea1a9f125ed24e8a04f7fa471b5358ae06d5d6efd7ad681dadd228cc2d6",
+      "version_pin": "cyber_misuse_refusal@0.1.0",
       "worker_runner": "bench_wrapper"
     },
     {
@@ -31939,6 +32579,646 @@
       },
       "stable_id": "c6836de428a4e26f7ae829f27c08196532cde210be9d98abf4f37f5fc8a940a4",
       "version_pin": "credential_secret_output_log_handling@credential_secret_output_log_handling@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:0321f1eb4f4fe1b7b2a64f5915856c3a167287f862c9471dd261e3e2339d7ce5",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "04c0f8814e8e391dd7ace58bc83891fd0ee5cfe5e1c418d722c7335608d561e6",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:07a86b051347ab210f11884e4c20d0aaa12a58547be67e2149438f6cd195e037",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "7d67debe78791051b34c0dea9bad3d47af9061c0f423fe2265dca7c2ba58b5ee",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:0f72b6704478da393be12379be6988c47a707af9216283d65938de8ea9cd2ff9",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "c8f8ad75e0ceef21e8d8f00ec0e484b3e6f676fa795f153fd2647ed72f92a4cc",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:0f7993a6da85983f7622c88cfeed020691e1d963ac744be491ef0c83ef8c98d8",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "4d608aa8b7c6b5ff40cc8446040c476f7c1b46b0b012a1b53a6e0d63dc33d218",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:1a4f98e73345d4636c8b801723e0c4fe2688037801159b4d42a0f66bb02661f0",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "d6f57c4788c1359313ad0a0a060461a5dbd5025a077b1dc7778c13b1dea10062",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:459ff74e91844dffd3944c3099a22e0bcdb3b2349a79e0539efd09eabf92b982",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "53bb811a36de816ed9aa1de23ce7030b4831979b4f745c3bf413b6cb5eafa21c",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:520bf18a909e2b6da3a92a404e8e557d14421744ee12d4ec8ca70b5d6b35f816",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "bd662c4b2794c943c20c56daab665b455dc26dd390c295fcc10060e2c91169b2",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:52e609711f27800419d122c07a1128437811583868308e6a35c5ed6f778f4a39",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fc5d6b471b494f0e20f3e9ba7ff627ef8d223e39d0eb87195c57a3738a3afa41",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:57272b5cc885417df806818840a52dbaf8492dacc92ccc04a018aa564ad873a8",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "d79c3573c73c3f516690d1966f4562a3f8f903bdc299e615e3097939d8d05626",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:5ed84a7226b0371fdace6202a403be4ede48bbee4381d17e3bfbf7f981dad95c",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "518a7d5502bc07c1aab0893fdcd6c8ab1a4fc26d4314fb67e6ea765cf3872ed3",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:636b9fefa0dba2f32cba6c4eb8c24ec5f5c3b6cd6554410e0c389c4e6fc79a6f",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "13521822765b096ed92ca4eeee1f10f73e010fce33daaca4c6963e5757483d34",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:7d2313b4999cd835df3097d561c963d9fbb821e061b50a0b63f64b5ec380f1ca",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "cb436d30e4b220cc2e44129fada11087d07d7f7783b83fe9a95f28b68ff0d141",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:8fcb978b719729cf56a81d97879687eb6b973bb6f309beef46359294e0e84330",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "626ff27279c38f6e2931999c146cda44349f3c74291b15d004acde14b75f418a",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:ab769e0a521997c9adf18c916d60d54159a7a73be740b6429af4908eaba913f7",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "81ed9404a0c55a510593b94c865a3edb89c6f0e1e8588f01956e1b44a69a522d",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:afb63b391eeefc115cb5ba7151ef3d8706c15ef3ba68207583a56db2143766fe",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "afe739740dd168113c0034bf70dca5088c400cba6e91057576ef439f35417635",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:d343a5a5005ac3aede3b3dbc7dbc002fb358d136fe62d797efe6c4d745303123",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "ebac337a4fe9ab68034187819af65c42308ba56f2df2c118dfab40ea03623d14",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:d64bd3d811bdb4c86682e0180bb6028f20d49a429bb0cd6262718cb9ebc7b18b",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "cbca5a287b3a831ffc692f27cd2e1f021f2186455435380a3b8eb4c91615cdbd",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:e4dbc2eb6c6b97711db9670e33c3a1bc3505f5b7a1270f0f35ad85d8be62c3cf",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "4b9742ea3259f4248adfe3453f8e747b5634b690543bf8b66a05661b6b66cbdf",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:f65d05c7e395b8694439ba31a9a4b3eb33df411eae64228aef07919417d7af16",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "e867aa010bca33d9880d4632aa8b6ff100c2e6c694bdb253d47e24e12b3c39bf",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:f77bca2b14d6e9d5d4703d5e5891ed26d714bddc757e2aa2af565dcda97dffdd",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cyber_misuse_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cyber_misuse_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "11151d68237892f66eafe1a982f691dab052815a4d96cceee4a14cf5c63681fd",
+      "version_pin": "cyber_misuse_refusal@cyber_misuse_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
       "worker_runner": "content_candidate_worker"
     },
     {
@@ -80723,7 +82003,7 @@
     "tests/fixtures/golden_agents/**",
     "evals/provisional_tau_support_crm.py"
   ],
-  "unique_executable_count": 2058,
+  "unique_executable_count": 2098,
   "upstream_framework_pins": {
     "agentdojo": "0.1.35",
     "garak": "0.10.0",

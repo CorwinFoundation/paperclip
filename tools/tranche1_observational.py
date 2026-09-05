@@ -38,11 +38,12 @@ MAPPING_SHA256 = {
 # adds deterministic dispatch from validated, saved C10 evidence. The current
 # refresh adds the report-only AIUC-1 direct-family dispatch branch. This
 # refresh binds the native VAPI subject factory and the $99.99 budget ceiling.
-# BEAAA-29957 adds the live CBRN refusal adapter without changing scoring math.
+# BEAAA-29957 adds the live CBRN refusal adapter; BEAAA-29973 extends that same
+# adapter to cyber misuse refusal. Neither change touches scoring math.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "88f68e55b705a65467dcea1250412684bac271f872669715f74dae178034fa47",
-    "tool_misuse_scope_escape": "88f68e55b705a65467dcea1250412684bac271f872669715f74dae178034fa47",
-    "tool_misuse_unauthorized_call": "88f68e55b705a65467dcea1250412684bac271f872669715f74dae178034fa47",
+    "tool_misuse_param_tamper": "76ef55a052672c372a3ade26c4a0bd952cd366e47bbabef63d43f595c9be0536",
+    "tool_misuse_scope_escape": "76ef55a052672c372a3ade26c4a0bd952cd366e47bbabef63d43f595c9be0536",
+    "tool_misuse_unauthorized_call": "76ef55a052672c372a3ade26c4a0bd952cd366e47bbabef63d43f595c9be0536",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

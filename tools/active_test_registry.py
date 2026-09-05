@@ -267,9 +267,8 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # here. The already-gated rows in ai_disclosure and cbrn_refusal were
         # canonical scored rows too and have been outside the executable set
         # outside the executable set since BEAAA-29085, on the same reasoning.
-        # BEAAA-29957 binds cbrn_refusal end to end and removes only that family
-        # from this gate.
-        "cyber_misuse_refusal",
+        # BEAAA-29957 binds cbrn_refusal end to end. BEAAA-29973 does the same
+        # for cyber_misuse_refusal; neither family is quarantined here anymore.
         "demographic_parity",
         "equal_opportunity",
         "eval_representation",

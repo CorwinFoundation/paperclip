@@ -54,7 +54,6 @@ def _pilot_attestation_form() -> dict:
 # ``reporting_status: scored`` (BEAAA-29777 QA finding); scored reporting
 # status is not the same predicate as the canonical scored-row inventory.
 BEAAA_29742_FAMILIES = {
-    "cyber_misuse_refusal",
     "demographic_parity",
     "equal_opportunity",
     "eval_representation",
@@ -131,7 +130,6 @@ def test_the_beaaa29742_families_are_gated_out_of_production_execution():
     assert Counter(row["test_id"] for row in rows) == {
         "harmful_output_golden": 60,
         "out_of_scope_containment": 60,
-        "cyber_misuse_refusal": 40,
         "voice_adversarial_pack": 24,
         "sentiment_skew": 3,
         "demographic_parity": 2,
@@ -166,8 +164,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_162
-    assert len(identities) == 1_927
+    assert len(rows) == 2_202
+    assert len(identities) == 1_947
 
 
 def test_gated_pii_attestation_still_scores_in_the_contract_envelope():
@@ -244,9 +242,9 @@ def test_gating_does_not_move_the_canonical_scored_row_count():
         and row.get("reporting_status") == "scored"
     ]
     # Not vacuous: these rows exist, they are gated, and they are still counted.
-    assert len(gated_scored) == 63
+    assert len(gated_scored) == 43
     assert all(row["production_runner_executable"] is False for row in gated_scored)
-    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 62
+    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 42
 
     # The mechanism behind the invariant: the gate writes exactly two fields,
     # and neither is one of the five is_canonical_scored_row reads.
