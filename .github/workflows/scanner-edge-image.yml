@@ -503,7 +503,7 @@ jobs:
     name: deploy master image to scanner server
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     needs: image-build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 25
     env:
       SHA: ${{ github.sha }}
@@ -559,8 +559,8 @@ jobs:
           test -n "$KNOWN_HOSTS"
           install -d -m 0700 ~/.ssh
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_deploy
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 0600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts_scanner
+          chmod 0600 ~/.ssh/id_deploy ~/.ssh/known_hosts_scanner
 
       - name: Capture prior identity
         shell: bash
@@ -573,7 +573,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_archive="/var/tmp/${ARCHIVE}"
-          ssh_opts=(-4 -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          ssh_opts=(-4 -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts_scanner)
           scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
           ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
@@ -605,4 +605,4 @@ jobs:
 
       - name: Remove deploy SSH identity
         if: always()
-        run: rm -f ~/.ssh/id_deploy
+        run: rm -f ~/.ssh/id_deploy ~/.ssh/known_hosts_scanner "$ARCHIVE"
