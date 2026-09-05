@@ -230,6 +230,15 @@ class FullScanJob:
     # ``DEFAULT_MAX_RECOVERY_ATTEMPTS`` so an unresumable job reaches a terminal
     # failure instead of looping forever.
     recovery_count: int = 0
+    # BEAAA-29804 — the target surfaces this scan established, read by
+    # ``registered_case_executor._resolve_applicability`` to decide whether a
+    # conditionally-applicable family (lane C's ``has_structured_output``,
+    # ``mcp_tool_integrity``'s ``has_mcp_tool_integration``) is measured or
+    # terminates ``not_applicable``. ``None`` means no surface was established,
+    # which is the fail-closed direction: every gated family goes N/A. Populate
+    # it from ``harness.structured_output_probe``, never by hand — a declared
+    # surface is a promise, a probed one is a demonstration.
+    capability_manifest: Mapping[str, Any] | None = None
 
 
 FrameworkWorker = Callable[[Mapping[str, Any], FullScanJob], WorkerAttemptResult]
@@ -293,6 +302,7 @@ class FullScanJobStore:
         wall_clock_budget_seconds: int | None = None,
         rate_limit_per_minute: int | None = None,
         terminal_webhook: Mapping[str, Any] | None = None,
+        capability_manifest: Mapping[str, Any] | None = None,
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
@@ -319,6 +329,11 @@ class FullScanJobStore:
                 updated_at=now,
                 wall_clock_budget_seconds=wall_clock_budget_seconds,
                 rate_limit_per_minute=rate_limit_per_minute,
+                capability_manifest=(
+                    dict(capability_manifest)
+                    if capability_manifest is not None
+                    else None
+                ),
                 terminal_webhook=(
                     dict(terminal_webhook) if terminal_webhook is not None else None
                 ),
@@ -1280,6 +1295,14 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
             else None
         ),
         "recovery_count": job.recovery_count,
+        # BEAAA-29804 — must round-trip, or a job resumed after a restart loses
+        # the surface its probe established and every gated family silently
+        # flips to not_applicable mid-scan.
+        "capability_manifest": (
+            dict(job.capability_manifest)
+            if job.capability_manifest is not None
+            else None
+        ),
     }
 
 
@@ -1323,4 +1346,5 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
             record.get("terminal_webhook_delivered_at")
         ),
         recovery_count=record.get("recovery_count", 0),
+        capability_manifest=record.get("capability_manifest"),
     )
