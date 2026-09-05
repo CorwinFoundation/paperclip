@@ -141,7 +141,12 @@ async function main() {
   else console.error(`[qa-review-gate] ${decision.summary}`);
 
   await postCheckRun(GH_TOKEN, GH_REPO, PR_HEAD_SHA, decision.conclusion, decision.summary);
-  process.exit(decision.conclusion === 'success' ? 0 : 1);
+  // The posted check-run is the merge signal; branch protection requires the
+  // `qa-review-evidence` context, not this workflow job. Exiting non-zero here
+  // only turns the run red and mails a failure notice, so exit 0 once the
+  // check-run is posted. Every path above this line still exits 1: if we fail
+  // before posting, no check-run exists and the merge stays blocked.
+  process.exit(0);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

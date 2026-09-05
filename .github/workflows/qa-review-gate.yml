@@ -2,9 +2,9 @@ name: QA Review Gate
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, review_requested]
+    types: [opened, synchronize, reopened]
   pull_request_review:
-    types: [submitted, dismissed, edited]
+    types: [submitted, dismissed]
 
 permissions:
   checks: write

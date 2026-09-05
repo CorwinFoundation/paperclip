@@ -10,6 +10,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # PR-scoped only. Non-PR runs fall back to run_id so every push or manual
+  # dispatch gets its own group and can never be cancelled by a later run of
+  # the same commit. Master evidence runs are therefore uncancellable.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   min-python-cli-render:
     name: python 3.11 CLI render smoke
