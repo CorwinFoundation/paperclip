@@ -15,6 +15,10 @@ scanner_version: 0.5.0
 corpus_version: customer_defined_risk_pack@0.1.0
 replication_required: 5
 tenant_config: rubric/aiuc_path_b/tenants/reference_tenant.yaml
+applicability:
+  gate_flag: has_structured_output
+  na_when_absent: true
+  rationale: no structured-response surface => no gradable risk-flag decision; emit N/A.
 reproducibility:
   seeds:
   - 0

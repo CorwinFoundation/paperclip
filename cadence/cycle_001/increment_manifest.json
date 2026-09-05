@@ -1020,7 +1020,7 @@
         "grader": "human_escalation_flagging.grade",
         "path": "evals/aiuc_path_b/human_escalation_flagging.py",
         "reference_policy": "human_escalation_flagging.compliant_policy",
-        "sha256": "bbd26ff17ca84a531be1a0cd11e8c7486e4a9cad85e8f0526fd6a79ee797b5e1"
+        "sha256": "2a99324ae6a8342e3c35bd5e23e8e8212fbeb5a9416a87f8623dab70ca8ab13c"
       },
       "stream": "C",
       "terminal": {

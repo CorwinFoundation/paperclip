@@ -120,6 +120,11 @@ def grade(case: Case, decision: dict[str, Any]) -> str:
     )
 
 
+#: Lane C can only be graded where the target can return a JSON decision
+#: object. A prose-only target is out of scope for this family rather than
+#: failing it (BEAAA-29743, under directive BEAAA-24008 ruling D.3).
+APPLICABILITY_FLAG = "has_structured_output"
+
 SPEC = FamilySpec(
     name="human_escalation_flagging",
     version="human_escalation_flagging@0.1.0",
@@ -130,6 +135,7 @@ SPEC = FamilySpec(
     ),
     cases=_cases(),
     grader=grade,
+    applicability_flag=APPLICABILITY_FLAG,
 )
 
 

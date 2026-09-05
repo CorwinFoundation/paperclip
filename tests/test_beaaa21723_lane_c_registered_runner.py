@@ -79,6 +79,19 @@ def test_scope_is_exactly_the_44_registered_lane_c_rows() -> None:
 MCP_DECLARED = {"has_mcp_tool_integration": True}
 GATED_ROWS = 12
 
+# BEAAA-29743: human_escalation_flagging and customer_defined_risk_pack are
+# conditional on a structured-response surface. The fixture target below answers
+# in JSON, so it declares that surface. A target that does not declare it is
+# N/A for those two families, which is the whole point of the gate.
+STRUCTURED_DECLARED = {"has_structured_output": True}
+ALL_DECLARED = {**MCP_DECLARED, **STRUCTURED_DECLARED}
+
+
+def _declaring(row, manifest=STRUCTURED_DECLARED):
+    """Row scanned against a target that declares the structured surface."""
+
+    return {**row, "capability_manifest": manifest}
+
 
 def _run_all(tmp_path, rows, capability_manifest):
     sent: list[str] = []
@@ -112,7 +125,7 @@ def test_all_44_rows_reach_the_subject_through_the_registered_executor(
 
     rows = _lane_c_rows()
 
-    outcomes, sent = _run_all(tmp_path, rows, MCP_DECLARED)
+    outcomes, sent = _run_all(tmp_path, rows, ALL_DECLARED)
     expected_calls = sum(len(declared_seeds(row)) for row in rows)
 
     assert len(outcomes) == EXPECTED_LANE_C_ROWS
@@ -136,7 +149,7 @@ def test_undeclared_mcp_surface_runs_the_other_32_and_na_s_the_gated_12(
 
     rows = _lane_c_rows()
 
-    outcomes, sent = _run_all(tmp_path, rows, {})
+    outcomes, sent = _run_all(tmp_path, rows, STRUCTURED_DECLARED)
 
     by_family = {}
     for row, outcome in zip(rows, outcomes):
@@ -166,7 +179,9 @@ def test_executed_seed_set_matches_what_the_registry_row_declares(tmp_path) -> N
         lambda prompt: (sent.append(prompt), _decision_for(row["test_id"]))[1],
     )
 
-    outcome = executor._execute_case(row["test_id"], row["case_id"], row)
+    outcome = executor._execute_case(
+        row["test_id"], row["case_id"], _declaring(row)
+    )
 
     assert row["surface_seed_rotation_enabled"] is False
     assert row["k_replicates"] == 1
@@ -206,7 +221,9 @@ def test_rows_stay_reported_not_scored_and_unscored(tmp_path) -> None:
     row = rows[0]
     executor = _executor(tmp_path, lambda _p: _decision_for(row["test_id"]))
 
-    outcome = executor._execute_case(row["test_id"], row["case_id"], row)
+    outcome = executor._execute_case(
+        row["test_id"], row["case_id"], _declaring(row)
+    )
 
     assert all(r["scoring_active"] is False for r in rows)
     assert all(r["reporting_status"] == "reported_not_scored" for r in rows)
@@ -231,7 +248,7 @@ def test_missing_or_malformed_target_response_fails_closed(
     executor = _executor(tmp_path, lambda _p: response)
 
     with pytest.raises(LaneCError):
-        executor._execute_case(row["test_id"], row["case_id"], row)
+        executor._execute_case(row["test_id"], row["case_id"], _declaring(row))
 
 
 def test_unrecognized_family_or_case_does_not_fall_through_as_executable() -> None:
@@ -359,7 +376,9 @@ def test_forged_lane_c_row_cannot_claim_measured_permission(
     )
     executor = _executor(tmp_path, lambda _p: _decision_for(forged["test_id"]))
 
-    outcome = executor._execute_case(forged["test_id"], forged["case_id"], forged)
+    outcome = executor._execute_case(
+        forged["test_id"], forged["case_id"], _declaring(forged)
+    )
 
     assert "observational_result" not in outcome
     assert outcome["observational_rejection"] == (

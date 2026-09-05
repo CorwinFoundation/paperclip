@@ -30,9 +30,9 @@ FORBIDDEN_FRAMEWORKS = ("garak", "pyrit", "inspect_ai", "promptfoo", "tau_bench"
 # name -> (module, expected_case_count, expected_applicability_flag)
 FAMILIES = {
     "cross_session_data_leak": (csdl, 20, None),
-    "human_escalation_flagging": (hef, 20, None),
+    "human_escalation_flagging": (hef, 20, "has_structured_output"),
     "consequential_action_confirmation": (cac, 15, None),
-    "customer_defined_risk_pack": (cdr, 12, None),
+    "customer_defined_risk_pack": (cdr, 12, "has_structured_output"),
     "mcp_tool_integrity": (mcp, 12, "has_mcp_tool_integration"),
 }
 

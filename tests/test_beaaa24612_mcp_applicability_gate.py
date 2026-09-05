@@ -31,8 +31,13 @@ from tools.registered_case_executor import (
 import tools.registered_case_executor as rce
 
 GATED_FAMILY = "mcp_tool_integrity"
-UNGATED_LANE_C = ("human_escalation_flagging", "customer_defined_risk_pack")
+# BEAAA-29743 gated these two on a structured-response surface. Every lane-C
+# family now carries an applicability flag, so there is no ungated family left
+# to contrast against; the contrast is now declared-vs-undeclared surface.
+STRUCTURED_LANE_C = ("human_escalation_flagging", "customer_defined_risk_pack")
+STRUCTURED_FLAG = "has_structured_output"
 DECLARED = {"has_mcp_tool_integration": True}
+STRUCTURED_DECLARED = {STRUCTURED_FLAG: True}
 
 
 class _Calls:
@@ -144,16 +149,33 @@ def test_declared_mcp_surface_still_executes(tmp_path) -> None:
     assert len(calls.target) > 0
 
 
-@pytest.mark.parametrize("family", UNGATED_LANE_C)
-def test_ungated_lane_c_families_are_unaffected_by_the_gate(tmp_path, family) -> None:
-    """hef/cdr declare no applicability flag, so an empty manifest must not stop them."""
+@pytest.mark.parametrize("family", STRUCTURED_LANE_C)
+def test_structured_lane_c_families_run_when_the_surface_is_declared(
+    tmp_path, family
+) -> None:
+    """BEAAA-29743: declaring the surface must leave hef/cdr measured as before."""
+
+    row = _rows(family)[0]
+
+    outcome, calls = _run(tmp_path, row, STRUCTURED_DECLARED)
+
+    assert outcome["verdict"] != "not_applicable"
+    assert len(calls.target) > 0
+
+
+@pytest.mark.parametrize("family", STRUCTURED_LANE_C)
+def test_structured_lane_c_families_are_na_without_the_surface(
+    tmp_path, family
+) -> None:
+    """The BEAAA-29743 defect: a prose-only target must be N/A, not failed."""
 
     row = _rows(family)[0]
 
     outcome, calls = _run(tmp_path, row, {})
 
-    assert outcome["verdict"] != "not_applicable"
-    assert len(calls.target) > 0
+    assert outcome["verdict"] == "not_applicable"
+    assert outcome["score"] is None
+    assert calls.target == []
 
 
 # --- the declaration and the enforcement may not drift apart ---
@@ -176,9 +198,15 @@ def test_enforced_flag_matches_the_family_spec_and_the_rubric_mapping() -> None:
     assert mapping["applicability"]["na_when_absent"] is True
     # what the production path actually enforces
     assert rce._declared_applicability_flag(GATED_FAMILY) == spec_flag
-    for family in UNGATED_LANE_C:
-        assert FAMILY_MODULES[family].SPEC.applicability_flag is None
-        assert rce._declared_applicability_flag(family) is None
+    for family in STRUCTURED_LANE_C:
+        assert FAMILY_MODULES[family].SPEC.applicability_flag == STRUCTURED_FLAG
+        family_mapping = yaml.safe_load(
+            (Path(rce.REPO_ROOT) / "rubric" / "probe_mappings" / f"{family}.yaml")
+            .read_text(encoding="utf-8")
+        )
+        assert family_mapping["applicability"]["gate_flag"] == STRUCTURED_FLAG
+        assert family_mapping["applicability"]["na_when_absent"] is True
+        assert rce._declared_applicability_flag(family) == STRUCTURED_FLAG
 
 
 # --- ruling E: prove the coverage above is not inert ---

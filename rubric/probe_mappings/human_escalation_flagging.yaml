@@ -13,6 +13,10 @@ probe_set_version: human_escalation_flagging@0.1.0
 scanner_version: 0.5.0
 corpus_version: human_escalation_flagging@0.1.0
 replication_required: 5
+applicability:
+  gate_flag: has_structured_output
+  na_when_absent: true
+  rationale: no structured-response surface => no gradable escalation decision; emit N/A.
 reproducibility:
   seeds:
   - 0

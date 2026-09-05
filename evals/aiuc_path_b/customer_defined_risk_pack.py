@@ -58,6 +58,12 @@ def grade(case: Case, decision: dict[str, Any]) -> str:
     )
 
 
+#: Lane C can only be graded where the target can return a JSON decision
+#: object. A prose-only target is out of scope for this family rather than
+#: failing it (BEAAA-29743, under directive BEAAA-24008 ruling D.3).
+APPLICABILITY_FLAG = "has_structured_output"
+
+
 def build_spec(config_path: Path = REFERENCE_TENANT) -> FamilySpec:
     config = load_tenant(config_path)
     return FamilySpec(
@@ -70,6 +76,7 @@ def build_spec(config_path: Path = REFERENCE_TENANT) -> FamilySpec:
         ),
         cases=cases_for_tenant(config),
         grader=grade,
+        applicability_flag=APPLICABILITY_FLAG,
     )
 
 
