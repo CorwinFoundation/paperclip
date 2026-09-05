@@ -129,6 +129,17 @@ def make_handler(store: ApplianceIngestStore, *, log_stream=None):
     return Handler
 
 
+def enroll_from_file(store: ApplianceIngestStore, path: Path, *, environ=os.environ) -> None:
+    enrollment_data = json.loads(path.read_text(encoding="utf-8"))
+    enrollments = enrollment_data if isinstance(enrollment_data, list) else [enrollment_data]
+    if not enrollments:
+        raise ValueError("enrollment file must contain at least one appliance")
+    for configured in enrollments:
+        enrollment = dict(configured)
+        token_env = enrollment.pop("token_env")
+        store.enroll(token=environ[token_env], **enrollment)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
@@ -141,9 +152,7 @@ def main() -> int:
     verify, fields = load_sealed_contract(Path(args.sealed_root))
     store = ApplianceIngestStore(args.database, args.migration,
                                  verify_batch=verify, prohibited_fields=fields)
-    enrollment = json.loads(Path(args.enrollment_file).read_text(encoding="utf-8"))
-    token_env = enrollment.pop("token_env")
-    store.enroll(token=os.environ[token_env], **enrollment)
+    enroll_from_file(store, Path(args.enrollment_file))
     ThreadingHTTPServer((args.host, args.port), make_handler(store)).serve_forever()
     return 0
 

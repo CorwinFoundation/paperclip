@@ -49,8 +49,13 @@ if [ -z "$ROOT" ]; then
   id backbond >/dev/null 2>&1 || useradd --system --gid backbond --home-dir /var/lib/backbond --shell /usr/sbin/nologin backbond
 fi
 install -d -m 0755 "$OPT" "$UNITS"
-install -d -m 0750 "$ETC" "$VAR" "$BACKUP"
-[ -n "$ROOT" ] || chown backbond:backbond "$VAR"
+if [ -z "$ROOT" ]; then
+  install -d -o root -g backbond -m 0750 "$ETC"
+  install -d -o backbond -g backbond -m 0750 "$VAR"
+  install -d -o root -g backbond -m 0750 "$BACKUP"
+else
+  install -d -m 0750 "$ETC" "$VAR" "$BACKUP"
+fi
 
 stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
 unzip -q "$ARCHIVE" -d "$stage"
@@ -86,7 +91,9 @@ if [ "${BACKBOND_INSTALL_SKIP_RUNTIME:-0}" = 1 ]; then
   PUBLIC_KEY="test-public-key"
 else
   install -d -o backbond -g backbond -m 0750 "$VAR/appliance-state"
-  PUBLIC_KEY="$(BACKBOND_CONFIG=/etc/backbond/config.yaml "$OPT/venv/bin/python" -m appliance.main enroll -c "$ETC/config.yaml" | python3 -c 'import json,sys; print(json.load(sys.stdin)["public_key_pem"], end="")')"
+  PUBLIC_KEY="$(PYTHONPATH="$OPT/appliance-0.1.0" BACKBOND_CONFIG=/etc/backbond/config.yaml "$OPT/venv/bin/python" -m appliance.main enroll -c "$ETC/config.yaml" | python3 -c 'import json,sys; print(json.load(sys.stdin)["public_key_pem"], end="")')"
+  chown backbond:backbond "$VAR/appliance.key"
+  chmod 0600 "$VAR/appliance.key"
 fi
 python3 - "$ETC/appliance-enrollment.json.tmp" "$APPLIANCE_ID" "$TENANT_ID" "$SOURCE_ID" "$BINDING_ID" "$BINDING_FROM" "$PUBLIC_KEY" <<'PY'
 import json,sys
