@@ -63,13 +63,13 @@ def test_duplicate_stable_id_inputs_fail_closed() -> None:
 
 def test_executable_claim_is_not_default_executed_reported_or_scored() -> None:
     counts = _registry()["category_counts"]
-    # The executable claim is limited to the 2,203 rows that the active-test
+    # The executable claim is limited to the 2,019 rows that the active-test
     # runtime can actually execute. Day-1-only rows remain visible separately.
-    assert counts["executable"] == 2203
-    assert counts["executable_on_default_runtime"] < 2203
-    assert counts["executed_in_latest_evidenced_run"] < 2203
-    assert counts["reported"] < 2203
-    assert counts["scoring_active"] < 2203
+    assert counts["executable"] == 2018
+    assert counts["executable_on_default_runtime"] < 2018
+    assert counts["executed_in_latest_evidenced_run"] < 2018
+    assert counts["reported"] < 2018
+    assert counts["scoring_active"] < 2018
 
 
 def test_day1_families_preserve_runtime_visibility_without_inflating_executable_claim() -> None:

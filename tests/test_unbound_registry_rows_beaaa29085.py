@@ -42,10 +42,14 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
         dict(sorted(counts.items())), sort_keys=True, separators=(",", ":")
     ).encode()
 
-    # Pin the complete per-family count map from master 3c6e4677. A total-only
-    # assertion could miss equal and opposite family changes.
-    assert len(counts) == 125
-    assert sum(counts.values()) == 2314
+    # Pin the complete per-family count map. A total-only assertion could miss
+    # equal and opposite family changes. Refrozen by BEAAA-29742, which gated
+    # nine more unbound families (192 rows) out of production execution, so the
+    # map loses those nine families and 192 rows: 125 -> 116 families and
+    # 2,314 -> 2,122 rows. The ninth, pii_attestation, was gated after the CTO
+    # ruling on BEAAA-29746; it contributes one row and one family.
+    assert len(counts) == 116
+    assert sum(counts.values()) == 2122
     assert hashlib.sha256(serialized).hexdigest() == (
-        "4c332ace720107965d6d395cf3e27446b1ecab5f37ae12f3cef04959fd9652d2"
+        "8c5addc239a6c093231b1f779234e7d3867971fe695a81610b9782cef4a66a08"
     )

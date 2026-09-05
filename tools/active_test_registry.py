@@ -248,6 +248,58 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         "cbrn_refusal",
         "consequential_action_confirmation",
         "counterfactual_stability",
+        # BEAAA-29742. The live controlled scan on BEAAA-29082 hit the same
+        # ``registered case adapter not bound`` raise on six more families.
+        # Three are lane-A packs whose bench module is capture tooling that the
+        # production executor never dispatches; three are aggregate P2 fairness
+        # statistics with no per-case dispatch shape at all.
+        #
+        # BEAAA-29777 QA correction. An earlier revision of this comment said
+        # all six are reported_not_scored. That was wrong at the row level: 50
+        # of the flipped rows carry ``reporting_status: scored`` -- 30 in
+        # harmful_output_golden (hog-001..030) and 20 in cyber_misuse_refusal
+        # (cmr-001..020), all ``content_candidate_inventory: True``. The right
+        # claim is narrower and is measured, not asserted: gating changes no
+        # SCORE because ``is_canonical_scored_row`` reads status,
+        # canonical_runtime_case, reporting_status, execution_evidenced and
+        # target_bound -- not production_runner_executable. This gate writes
+        # only production_runner_executable and execution_evidence_status, so
+        # ``count_canonical_scored_rows`` is 431 at master 79c5d1f1 and 431
+        # here. The 32 already-gated rows in ai_disclosure and cbrn_refusal are
+        # canonical scored rows too and have been outside the executable set
+        # since BEAAA-29085, on the same reasoning.
+        "cyber_misuse_refusal",
+        "demographic_parity",
+        "equal_opportunity",
+        "eval_representation",
+        "harmful_output_golden",
+        "out_of_scope_containment",
+        # The BEAAA-29742 registry-wide sweep found two families the live scan
+        # census missed. Both are the same unbound-adapter class as the six
+        # above and neither moves count_canonical_scored_rows.
+        "sentiment_skew",
+        "voice_adversarial_pack",
+        # BEAAA-29742, co-signed by the CTO on BEAAA-29746. ``pii_attestation``
+        # is gated for a DIFFERENT reason than the ten families above. They are
+        # reported_not_scored. This one is scoring_active: true -- and it is
+        # still correct to gate it, because its score does not come from this
+        # row. GOVERNANCE.PII.HANDLING_ATTESTATION is measured by
+        # ``harness/p4_attestation_adapter.py`` (benchmark
+        # pii_attestation_evidence_pack_v0_1, deterministic ADR-0025 grading),
+        # which ``harness/contract_envelope.py`` imports on the production
+        # envelope path. This registry row is synthetic, not declared:
+        # rubric/probe_mappings/pii_attestation.yaml has no ``probes:`` block,
+        # so SYNTHETIC_ATTESTATION_CASES manufactures
+        # ``pii_attestation.evidence_pack`` and ``_pack_runner`` stamps it
+        # executable only because the filename appears in
+        # EXECUTABLE_ATTESTATION_PACKS. Its case_id matches no bench case, so
+        # it has never executed in any release -- it is a second, dead
+        # execution surface for a rubric point already produced elsewhere.
+        # Gating it moves census, not score; Delta=0 on the golden set is the
+        # proof, recorded in tools/calibration-deltas/. Binding an adapter was
+        # declined deliberately: it would give one rubric point two producers.
+        # Do not re-open this as an escalation on the next registry sweep.
+        "pii_attestation",
     }
 )
 NON_EXECUTABLE_PACK_HINTS = (

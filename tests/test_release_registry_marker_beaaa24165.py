@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "07e5095a487b97dcecbb0e9d6149967196e50be2afdca2cb17a408e3a2fdae5a"
+    "34235144eb87f04a7ef0fc5134cbae8a5ec49a39f8c19e71c8e793ec9f9cf67f"
 )
 
 
@@ -25,8 +25,8 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_203
-    assert marker["generated_executable_count"] == 2_203
+    assert marker["published_executable_count"] == 2_018
+    assert marker["generated_executable_count"] == 2_018
     assert marker["distinct_runtime_count"] == 2_341
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
@@ -34,8 +34,11 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     assert marker["normalized_registry_sha256"] == EXPECTED_NORMALIZED_REGISTRY_SHA256
     assert all("\\" not in str(row["source_pack"]) for row in rows)
     # The 64 original direct-family rows and the 32 new supporting rows are
-    # deliberately report-only and appear in the excluded-row proof.
-    assert len(marker["excluded_rows"]) == 275
+    # deliberately report-only and appear in the excluded-row proof. BEAAA-29742
+    # gated 192 rows as unbound and the proof grew by 185, so seven of them were
+    # already carried here under another disposition. The 192nd row is
+    # pii_attestation.evidence_pack, gated after the CTO ruling on BEAAA-29746.
+    assert len(marker["excluded_rows"]) == 460
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

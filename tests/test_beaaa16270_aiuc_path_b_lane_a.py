@@ -88,7 +88,34 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     blocked = set(full_scan["activation_blocked"])
     assert eligible | blocked == {row["family"] for row in lane_manifest["families"]}
     assert eligible | blocked <= discovered
-    unbound_families = {"ai_disclosure", "cbrn_refusal"}
+    # BEAAA-29742 gates more of the lane-A families the same way BEAAA-29085
+    # gated ai_disclosure and cbrn_refusal: registered, but no adapter branch
+    # claims them in RegisteredCaseExecutor.
+    #
+    # BEAAA-29777 QA correction: this stays a pinned literal. Importing
+    # UNBOUND_REGISTERED_CASE_FAMILIES and using it here made the assertion
+    # true for any frozenset content, which removed the one check positioned to
+    # catch an over-broad gate. The equality below is the guard: widening the
+    # frozenset without editing this literal fails.
+    from tools.active_test_registry import UNBOUND_REGISTERED_CASE_FAMILIES
+
+    unbound_families = {
+        "agentdojo",
+        "ai_disclosure",
+        "cbrn_refusal",
+        "consequential_action_confirmation",
+        "counterfactual_stability",
+        "cyber_misuse_refusal",
+        "demographic_parity",
+        "equal_opportunity",
+        "eval_representation",
+        "harmful_output_golden",
+        "out_of_scope_containment",
+        "pii_attestation",
+        "sentiment_skew",
+        "voice_adversarial_pack",
+    }
+    assert unbound_families == set(UNBOUND_REGISTERED_CASE_FAMILIES)
     for family in eligible:
         family_rows = [
             row
