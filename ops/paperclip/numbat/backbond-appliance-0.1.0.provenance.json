@@ -23,11 +23,11 @@
   },
   "artifact": {
     "archiveFilename": "backbond-appliance-0.1.0.zip",
-    "archiveSha256": "dbef6e73a715adda40e7697c070a96b7844398e09c7925926b8e541e5c87ef8a",
+    "archiveSha256": "4ffe23ca2c8821903e4e85b0958d378500e3d841b0fd660ce21771b85f47d76b",
     "unpackedTreePath": "backbond-appliance-0.1.0/backbond-appliance",
     "sourceManifestFilename": "backbond-appliance-0.1.0.source-tree.sha256",
-    "sourceManifestSha256": "e22a299fe7332d6755979fd576b74c60ae45ed2d40ba25f532d19dd6464921b1",
-    "sourceFileCount": 39,
+    "sourceManifestSha256": "ce4736afb6039596d7b06e54d51d174d3987c6cf35206c054921fce81cf59df4",
+    "sourceFileCount": 40,
     "manifestAlgorithm": "For each regular file, from unpacked tree root: LC_ALL=C sorted relative path; sha256sum line format `<file_sha256>  ./<relative_path>\\n`; manifest SHA-256 is SHA-256 of the manifest bytes."
   },
   "verification": {

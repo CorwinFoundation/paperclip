@@ -5,7 +5,7 @@ REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 ROOT="${BACKBOND_INSTALL_ROOT:-}"
 DRY_RUN="${DRY_RUN:-0}"
 ARCHIVE="$REPO/ops/paperclip/numbat/backbond-appliance-0.1.0.zip"
-EXPECTED_SHA=dbef6e73a715adda40e7697c070a96b7844398e09c7925926b8e541e5c87ef8a
+EXPECTED_SHA=4ffe23ca2c8821903e4e85b0958d378500e3d841b0fd660ce21771b85f47d76b
 OPT="$ROOT/opt/backbond"
 ETC="$ROOT/etc/backbond"
 VAR="$ROOT/var/lib/backbond"
@@ -95,10 +95,17 @@ else
   chown backbond:backbond "$VAR/appliance.key"
   chmod 0600 "$VAR/appliance.key"
 fi
-python3 - "$ETC/appliance-enrollment.json.tmp" "$APPLIANCE_ID" "$TENANT_ID" "$SOURCE_ID" "$BINDING_ID" "$BINDING_FROM" "$PUBLIC_KEY" <<'PY'
+python3 - "$ETC/appliance-enrollment.json.tmp" "$ETC/appliance-enrollment.json" "$APPLIANCE_ID" "$TENANT_ID" "$SOURCE_ID" "$BINDING_ID" "$BINDING_FROM" "$PUBLIC_KEY" <<'PY'
 import json,sys
-p, appliance, tenant, source, binding, effective, public = sys.argv[1:]
-with open(p, "w") as f: json.dump({"appliance_id":appliance,"tenant_id":tenant,"source_id":source,"public_key_pem":public,"token_env":"BACKBOND_INGEST_TOKEN","binding_id":binding,"binding_effective_from":effective}, f, indent=2, sort_keys=True)
+p, current, appliance, tenant, source, binding, effective, public = sys.argv[1:]
+entry={"appliance_id":appliance,"tenant_id":tenant,"source_id":source,"public_key_pem":public,"token_env":"BACKBOND_INGEST_TOKEN","binding_id":binding,"binding_effective_from":effective}
+try:
+    with open(current) as f: old=json.load(f)
+except (OSError, ValueError): old=[]
+items=old if isinstance(old,list) else [old]
+items=[x for x in items if isinstance(x,dict) and x.get("appliance_id") != appliance]
+items.append(entry)
+with open(p, "w") as f: json.dump(items, f, indent=2, sort_keys=True)
 PY
 put "$ETC/appliance-enrollment.json" 0640 root:backbond < "$ETC/appliance-enrollment.json.tmp"; rm -f "$ETC/appliance-enrollment.json.tmp"
 

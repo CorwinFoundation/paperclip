@@ -81,7 +81,8 @@ class BatchBuilder:
                 fh.write(i + "\n")
 
     def build(self, events: List[Dict[str, Any]], determinations: List[Dict[str, Any]],
-              window: Dict[str, str], max_events: int = 100_000) -> List[Dict[str, Any]]:
+              window: Dict[str, str], max_events: int = 100_000,
+              persist: bool = True) -> List[Dict[str, Any]]:
         """Build one or more signed, hash-chained batches. Events are split into
         windows of at most `max_events` (P0-1) so a huge run never lands in a single
         oversized batch; every window is independently signed and chained to the prior.
@@ -109,9 +110,19 @@ class BatchBuilder:
             batches.append(self._make_batch(chunk, chunk_dets, window))
             persisted_ids.extend(e.get("event_id") or _sha256(_canonical(e)) for e in chunk)
 
-        self._persist_seen(new_ids)
+        self._pending_ids = new_ids
         self._seen.update(new_ids)
+        if persist:
+            self.commit()
         return batches
+
+    def commit(self) -> None:
+        """Atomically make the already-built chain and idempotency state durable."""
+        if not getattr(self, "_pending_ids", None):
+            return
+        self._persist_chain(self._prev_hash)
+        self._persist_seen(self._pending_ids)
+        self._pending_ids = []
 
     def _make_batch(self, events: List[Dict[str, Any]], determinations: List[Dict[str, Any]],
                     window: Dict[str, str]) -> Dict[str, Any]:
@@ -148,7 +159,6 @@ class BatchBuilder:
         signed["signature"] = self.signer.sign(payload)
         signed["key_id"] = self.signer.key_id
         self._prev_hash = batch_hash
-        self._persist_chain(batch_hash)
         return signed
 
 

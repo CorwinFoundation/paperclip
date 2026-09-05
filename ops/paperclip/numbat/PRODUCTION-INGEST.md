@@ -5,7 +5,7 @@ counts, approved identifier hashes, and batch-chain hashes to Log Tracker.
 
 Deployment is gated on exact-candidate QA in BEAAA-20237. Install the sealed
 artifact `ops/paperclip/numbat/backbond-appliance-0.1.0.zip`, archive SHA-256
-`dbef6e73a715adda40e7697c070a96b7844398e09c7925926b8e541e5c87ef8a`, at
+`4ffe23ca2c8821903e4e85b0958d378500e3d841b0fd660ce21771b85f47d76b`, at
 `/opt/backbond/appliance-0.1.0`, install the Log Tracker package/migrations, and
 enable `backbond-appliance-ingest.service`.
 
@@ -32,7 +32,7 @@ executed is a procedure with steps that do not work.
    and move the tree to the path the unit passes as `--sealed-root`. The archive
    unpacks to `backbond-appliance/`, not to a version-named directory:
 
-       sha256sum backbond-appliance-0.1.0.zip     # must be dbef6e73...ef8a
+       sha256sum backbond-appliance-0.1.0.zip     # must be 4ffe23ca...d76b
        unzip -q backbond-appliance-0.1.0.zip -d /opt/backbond
        mv /opt/backbond/backbond-appliance /opt/backbond/appliance-0.1.0
 

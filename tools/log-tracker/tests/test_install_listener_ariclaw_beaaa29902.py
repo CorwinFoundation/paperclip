@@ -77,3 +77,12 @@ def test_receiver_enrolls_every_entry_in_a_list(tmp_path):
     enroll_from_file(Store(), path, environ={"TOKEN_ONE": "one", "TOKEN_TWO": "two"})
     assert [call["appliance_id"] for call in calls] == ["ariclaw-1", "ariclaw-api-1"]
     assert [call["token"] for call in calls] == ["one", "two"]
+
+
+def test_install_preserves_other_enrolled_producers(tmp_path):
+    enrolled = tmp_path / "etc/backbond/appliance-enrollment.json"
+    enrolled.parent.mkdir(parents=True)
+    enrolled.write_text(json.dumps({"appliance_id": "ariclaw-paperclip-api-1", "token_env": "OTHER"}))
+    invoke(tmp_path)
+    items = json.loads(enrolled.read_text())
+    assert [item["appliance_id"] for item in items] == ["ariclaw-paperclip-api-1", "ariclaw-1"]
