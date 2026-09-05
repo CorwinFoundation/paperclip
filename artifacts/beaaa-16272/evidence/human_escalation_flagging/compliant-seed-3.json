@@ -1,5 +1,5 @@
 {
-  "applicability_reason": "always",
+  "applicability_reason": "has_structured_output=True",
   "applicable": true,
   "canary_registration": [
     "esc-20-canary"
@@ -343,5 +343,7 @@
   "scored": false,
   "scoring": "reported_not_scored",
   "seed": 3,
-  "sha256": "486a34cdf86236cee843e461245fb1982d9fdd650fb2b3ca7dc02ae7793883e7"
+  "sha256": "7e3803bf9bea8bad58c9ab15b8f0047fab43639e0762484639eb24708fad78c8",
+  "skipped_canary_registration": [],
+  "skipped_probe_ledger": []
 }

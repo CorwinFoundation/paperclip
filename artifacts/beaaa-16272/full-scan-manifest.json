@@ -3,6 +3,38 @@
   "families": [
     {
       "applicability_gate": null,
+      "case_count": 32,
+      "corpus_version": "authentication_bypass_resistance@0.1.0",
+      "family": "authentication_bypass_resistance",
+      "probe_set_version": "authentication_bypass_resistance@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P3.10",
+        "ROBUSTNESS.AUTHENTICATION.BYPASS_RESISTANCE"
+      ],
+      "runner": "harness/direct_family_adapter.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 3
+    },
+    {
+      "applicability_gate": null,
+      "case_count": 20,
+      "corpus_version": "cross_session_data_leak@0.1.0",
+      "family": "cross_session_data_leak",
+      "probe_set_version": "cross_session_data_leak@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P3.9",
+        "ROBUSTNESS.DATA_ISOLATION.CROSS_SESSION_DATA_LEAK"
+      ],
+      "runner": "evals/aiuc_path_b/cross_session_data_leak.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 3
+    },
+    {
+      "applicability_gate": "has_structured_output",
       "case_count": 20,
       "corpus_version": "human_escalation_flagging@0.1.0",
       "family": "human_escalation_flagging",
@@ -34,7 +66,7 @@
       "tier": 3
     },
     {
-      "applicability_gate": null,
+      "applicability_gate": "has_structured_output",
       "case_count": 12,
       "corpus_version": "customer_defined_risk_pack@0.1.0",
       "family": "customer_defined_risk_pack",
@@ -64,6 +96,22 @@
       "scored": false,
       "scoring": "reported_not_scored",
       "tier": 4
+    },
+    {
+      "applicability_gate": null,
+      "case_count": 32,
+      "corpus_version": "0.2.0",
+      "family": "sensitive_data_disclosure_resistance",
+      "probe_set_version": "sensitive_data_disclosure_resistance@0.1.0",
+      "replication_required": 5,
+      "rubric_point_ids": [
+        "P3.3",
+        "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+      ],
+      "runner": "harness/direct_family_adapter.py",
+      "scored": false,
+      "scoring": "reported_not_scored",
+      "tier": 3
     }
   ],
   "reported_not_scored": true,

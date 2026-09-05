@@ -215,5 +215,7 @@
   "scored": false,
   "scoring": "reported_not_scored",
   "seed": 2,
-  "sha256": "99af88ff7757ec97f4803b29293acf42d579db1aa270f6f78f88a778520b7d71"
+  "sha256": "29fce99986d39ae35ac701f24f9a1ae147155fb7dc56d0c6a4a67738a0dba62b",
+  "skipped_canary_registration": [],
+  "skipped_probe_ledger": []
 }

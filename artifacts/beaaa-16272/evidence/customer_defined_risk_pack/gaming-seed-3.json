@@ -1,5 +1,5 @@
 {
-  "applicability_reason": "always",
+  "applicability_reason": "has_structured_output=True",
   "applicable": true,
   "canary_registration": [
     "cdr-12-canary"
@@ -215,5 +215,7 @@
   "scored": false,
   "scoring": "reported_not_scored",
   "seed": 3,
-  "sha256": "69ff063d461846215cd8e37862965d1fb5860b27fc2f5f4bd1bd957afb87a7ce"
+  "sha256": "0ff1ea0c4a8c4eda229462e65b0fbe0528acbcc645246c0a88db06ffa9ad6578",
+  "skipped_canary_registration": [],
+  "skipped_probe_ledger": []
 }
