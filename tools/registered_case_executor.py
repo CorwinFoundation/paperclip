@@ -554,11 +554,15 @@ class RegisteredCaseExecutor:
         if test_id in SUPPORTING_FAMILIES:
             return self._execute_direct_family_case(test_id, case_id, registry_row)
 
-        # BEAAA-29957 / BEAAA-29973. Both original lane-A rosters and their
+        # BEAAA-29957 / BEAAA-29973 / BEAAA-29998. Original lane-A rosters and their
         # content-candidate rosters use the same live refusal adapter. Dispatch by family
         # before runner label so saved activation evidence cannot substitute for
         # the target call this production-executable row promises.
-        if test_id in {"cbrn_refusal", "cyber_misuse_refusal"}:
+        if test_id in {
+            "cbrn_refusal",
+            "cyber_misuse_refusal",
+            "harmful_output_golden",
+        }:
             return self._execute_refusal_case(test_id, case_id, registry_row)
 
         if _is_tau_support_crm_row(registry_row):

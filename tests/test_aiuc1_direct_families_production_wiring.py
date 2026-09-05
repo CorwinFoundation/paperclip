@@ -123,7 +123,7 @@ def test_source_built_registry_exposes_all_direct_rows_on_the_production_dispatc
 
     # The 40 bound cyber misuse refusal rows extend the executable claim while remaining
     # report-only and non-scoring.
-    assert count_active_executable(build_registry()) == 2_098
+    assert count_active_executable(build_registry()) == 2_158
 
 
 def test_default_production_runtime_binds_source_registry_and_registered_workers(
@@ -150,7 +150,7 @@ def test_release_gate_covers_all_eight_day1_families_with_current_claim_count():
     assert summary["passed"] is True
     assert summary["registered_cases"] == 116
     assert summary["planned_target_calls"] == 468
-    assert summary["published_executed_test_count"] == 2_098
+    assert summary["published_executed_test_count"] == 2_158
     assert summary["numeric_score_output"] is False
     assert summary["score_contribution"] is False
 

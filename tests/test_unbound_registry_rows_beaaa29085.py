@@ -47,9 +47,10 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # map loses those nine families and 192 rows: 125 -> 116 families and
     # 2,314 -> 2,122 rows. The ninth, pii_attestation, was gated after the CTO
     # ruling on BEAAA-29746; it contributes one row and one family. Binding
-    # CBRN restores one family and 40 rows.
-    assert len(counts) == 118
-    assert sum(counts.values()) == 2202
+    # CBRN and cyber-misuse restore two families and 80 rows; harmful-output
+    # restores one more family and 60 rows.
+    assert len(counts) == 119
+    assert sum(counts.values()) == 2262
     assert hashlib.sha256(serialized).hexdigest() == (
-        "6d8b380426181fcf5babe8bc5c56df97ea960ac910a64e827e5c50dd66b08862"
+        "220377e8c42d3c5dfdf5a863b96e88f1bf5e6a06c16cce1209bcde2eba392133"
     )
