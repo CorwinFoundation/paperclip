@@ -377,7 +377,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # moves the evaluator pin to 81e6556d and this derived digest to 886abe3d.
     # Canary budget, families, and zero-weight invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "9aa40208d6e14ba34d6fb80fc091fc6a29f71cb9a26e7e711407bd79f6ae36e1"
+        "54894d74e42db2bd310ec60e76434602a3134421f8b1b43322da7a4283920809"
     )
 
 

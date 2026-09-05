@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -247,7 +247,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -255,7 +255,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure c190b3c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 10ba898"
     }
   ],
   "bucket_counts": {
@@ -265,7 +265,7 @@
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
     "report_only": 3,
-    "runnable_today": 2114
+    "runnable_today": 2154
   },
   "bucket_definitions": {
     "attestation_only": "Governance/operator evidence row; countable as evidence requirement, not an executable probe.",
@@ -279,13 +279,13 @@
   "category_counts": {
     "attestation_only": 7,
     "blocked_unsupported": 360,
-    "executable": 2018,
+    "executable": 2058,
     "executable_on_default_runtime": 119,
     "executed_in_latest_evidenced_run": 0,
     "fixture_test_only": 111,
     "inactive_deferred": 8,
     "proxy_grade": 49,
-    "registered": 2500,
+    "registered": 2540,
     "reported": 6,
     "scoring_active": 0
   },
@@ -293,7 +293,7 @@
     "claim_supported": false,
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
-    "supported_unique_executable_count": 2018,
+    "supported_unique_executable_count": 2058,
     "unsupported_rows_count": 360
   },
   "dedupe_key_fields": [
@@ -309,7 +309,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "c190b3c18692b8132231cdda5450a11878bffd9d",
+    "generated_from_content_sha": "10ba8981ff5bf04b7811a64a6419ed8851ef9415",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -319,9 +319,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "c190b3c18692b8132231cdda5450a11878bffd9d",
+    "source_closure_sha": "10ba8981ff5bf04b7811a64a6419ed8851ef9415",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-c190b3c",
+    "source_closure_version": "registry-source-10ba898",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -623,6 +623,646 @@
       },
       "stable_id": "78c3bd8ea22e8eb0d2a022920905454f8cf5c6f0a8c49d45611c3b11949f517d",
       "version_pin": "advbench@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "899255532d105c2e60820267443353a3f1d2256d88ef04a4abedda1759dd2e45",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "a08c080473700c70ce338e1c045f842a1100945fe70b3b7e9cabc503f47dfc0e",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "03b9275e20d6c1a615aecc491b5b43256015a20f04fd5fd68a39eb2111308d0b",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "de28067f358946fb678da65f76baf44b24f3af7bf9779ea3abdabd84e0d92ba3",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "74f046b58cc649af43a60c5eb682e8ffce5754c2f8148658cfb091f120d478a1",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "377f2516fcebb5d3e3f200923f0a2e0565ce7c047805db81e2c2b43b458e0325",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "7cbd36279d78ffcd3a1b9ba3638ed09976c8c7f7a275058e59ab38256376854a",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "d345cf40e666568e3716c85d8d3d846c8f936365c366b8ff6f3ca003c9590653",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-09",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "2f0924afe96abff3dc0dc7cb0954744d5f92f6370963f6c59773cea60aaeb6e9",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-10",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "a83bdb2ac554de379b27b34e7abeb688da69d36e1b171405395e049d375248ce",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-11",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "e9d6ab743dea2ba6b789e96035de5d3793478cd5ec6ef4f30460b640f6c5b911",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-12",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "9e66beb06927b5db6a57055c5232335928f89bd463a571f12896338e9f4563c0",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-13",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "b47fe86778ae1bef9c0021cc408af17818a56cbb0ad9fcabdb4e91d3acb845b2",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-14",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "a31c2b892db4367c8b939461abc820dc3fcdc78b6d619ee4010344072100a5ba",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-15",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "4a81b70d4c274ece740c163782a595f2717b694eb9b0b6745517977acb8077cd",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-16",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "74fdcd854a03cb2bbbd08b756a8fa9866295885f6b61dcd722485254bd631abb",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-17",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "72f5d71e74b95a6987b00be1927fce4db26f2420cfdf87a627732f919eeefe2e",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-18",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "7b23485ebc0a6fd891bc66ff6061bae9ecd1c5796857b19e142b08811736bbe1",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-19",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "58083c86f9ebddcc7431f3307ec9c61f0323d28c497fdf1d39832b92982abe02",
+      "version_pin": "cbrn_refusal@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "CR-20",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.REFUSAL.CBRN",
+      "source": "rubric/probe_mappings/cbrn_refusal.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/cbrn_refusal.yaml",
+        "version": "cbrn_refusal@0.1.0"
+      },
+      "stable_id": "fd459aa0728b4ee51307344d6d4befb0124c2f743d42f91af8b97c91bddaf372",
+      "version_pin": "cbrn_refusal@0.1.0",
       "worker_runner": "bench_wrapper"
     },
     {
@@ -19715,6 +20355,646 @@
       },
       "stable_id": "2d44d10de650884c1e59ca43e8fbf6ac6343b49bc26132eea021e636c8fc4188",
       "version_pin": "browser_surface_action_integrity@1.0.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:13f5d2967b46f6bc6082c8a09143ef5eff3e51222ca64abd13ccb93927206427",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fc445b2c375e621f25763f7936a6a8d219e3dd1f035453857fe37554e6ff5dcb",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:1e6d9f2d53c7b556dfa8dd49ed69127c2e5e83b015e6829daa69fdf3a94f58c6",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "ea95f3528682433d6570e6cdef74c78d108b172b5031d0a6c3f5f582786b788f",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:237b439263e621543a7e47db3b26e1e1a12a5501a7d9e5fe92957bc6a484c6cc",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "cd1eb2ae28b55c8eea5dc23f4331aa261f80eaacd91bd1ba004c9ea04c2d2245",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:3e9705c35d748614c6752735cd71a12525eb4e18287e346ae2175815be393aca",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "f5db5c5b29a5ed441b80cd458286a896db14e35cd706691d420652aaa9d7c8e8",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:52f4882570594ea060f2e02a006c09076b78582f1b92eafeddfba3ec9eede9fc",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "267e6065224ffd537bb2f416c45b2ecc9188ad3c5b22245699354632332fb340",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:5c23e72c5b37f5ac948291a5351646ead488f58a47c8fd4ff859f5e46cd69242",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "843844e6619c6a92d2a5fccf55565b054b12e5a9894bfc8978a0785916799e02",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:660d3ef0769fbc091382764fd86797887af9f3d5c01ded93af9bd8c5f920c7c6",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "108a92609e8dfc1a0ce35e4e99915003a1fef9470d3b779f3fab0062b09d0ffc",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:6e451b5369ca981ff02ba6108fa1e8126e852a426896cd8abcb49026bccd213d",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "115eb9084f2c4f08c8479279dcec782e73363ecb47bc2821c40eed30d55622d1",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:6fa4fe122c3d5270e9ed3027ef18d644573120b267edfba770bfd104d9f8005d",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fdd526ba99ea21644922b0771c495bb234d9f256ab7590b8f0aea93dbe68988a",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:7f1ac2aade7f849877f37dd0dc1793e3dd5c99c9f4453edf9fec1e31cbd1aadf",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "f36f18c8db3d18f83d211d72b8a4d6ce9d0fd9a48e71ab61f27a4e9562f3ecf1",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:843e79e8aef3b8a0c67831b43dc3ca6991807b5486b879d729f7de906b27b058",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "1827dc47e6623a9cc3ad8acab37beb3b3d133ae9740bdf2e636f2b59ba8bfdfa",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:98550f06df50f6da3828f3e09fb404e41ae2955d33c8a0d822fa3515b363514b",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "e9d43fc9f682953f391d497f5aac92a6d2ed1f6b82b3d3428e22f53a34252c97",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:9c96e2cc610d51ec544f7a1d7a5b8d3d8e098d162f36cf83b4d59d000d7d919e",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "2a09f9004c5bb09cda37513fd58bec179df0f8fe1ae8d9d01cbe1180ee0075e4",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:a4d7484f400f0a5353996c71df5f55023fdbbcee7ada6ad89429ab986537bff9",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "a31527bd8e1836a62dd4cf81166e0a084184ec432e38b27bd60643f26e03230e",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:acf7d42c4f48db8052dff4b3dc927fc886ae4a6980ed652d7b99bed603c106cf",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "48f3adcbf67d7c4800da9425255b48b133f52ba7962fe0f4fc5ce86af2734c87",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:c298189d5d470a0016953ff69df5f776f112b42c518f00b40e81832bb0d8eff3",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "f0afcdc3c803ad19f5a574092eb165676d084a0611e827423c5273955168c4b5",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:ce6c9aa94941cdf26bdb6f950c360370923ca83c3f73287aa80f1f04b5a64cbf",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fa1311e927e6798a2c28bffb30e487613d7b21f864743cd5458ccb034814e806",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:d6c545b779ddc7406eab4c41c0ac08147a819f1cda680cfdf7d744e56160b8db",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "f2e6cba9f8a7b61ea12c2c0b9281b18569dcbb6eb47958a07f02e8fa5e79e2a2",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:da37fdcadc7f509246f35beb7287d662bdd9a46bd72ca92b7b8ede0fa82e696f",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "f2b3abc27956d21cddf5b9c51844a671c6231acdc2b7013d32e4f5900e79b6d7",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:ff260f5b2df51e4b1c70d0d62aae37223e706c51d3fe854f2d22f9c524fa00a3",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "cbrn_refusal",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.cbrn_refusal",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "e697276b261c1a6a59f23eb381597a466cef19d4cbd3339cda44dc1930b2752b",
+      "version_pin": "cbrn_refusal@cbrn_refusal@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
       "worker_runner": "content_candidate_worker"
     },
     {
@@ -79443,7 +80723,7 @@
     "tests/fixtures/golden_agents/**",
     "evals/provisional_tau_support_crm.py"
   ],
-  "unique_executable_count": 2018,
+  "unique_executable_count": 2058,
   "upstream_framework_pins": {
     "agentdojo": "0.1.35",
     "garak": "0.10.0",

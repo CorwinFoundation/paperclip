@@ -102,7 +102,6 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     unbound_families = {
         "agentdojo",
         "ai_disclosure",
-        "cbrn_refusal",
         "consequential_action_confirmation",
         "counterfactual_stability",
         "cyber_misuse_refusal",

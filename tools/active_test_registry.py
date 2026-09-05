@@ -245,7 +245,6 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
     {
         "agentdojo",
         "ai_disclosure",
-        "cbrn_refusal",
         "consequential_action_confirmation",
         "counterfactual_stability",
         # BEAAA-29742. The live controlled scan on BEAAA-29082 hit the same
@@ -265,9 +264,11 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # target_bound -- not production_runner_executable. This gate writes
         # only production_runner_executable and execution_evidence_status, so
         # ``count_canonical_scored_rows`` is 431 at master 79c5d1f1 and 431
-        # here. The 32 already-gated rows in ai_disclosure and cbrn_refusal are
+        # here. The already-gated rows in ai_disclosure and cbrn_refusal were
         # canonical scored rows too and have been outside the executable set
-        # since BEAAA-29085, on the same reasoning.
+        # outside the executable set since BEAAA-29085, on the same reasoning.
+        # BEAAA-29957 binds cbrn_refusal end to end and removes only that family
+        # from this gate.
         "cyber_misuse_refusal",
         "demographic_parity",
         "equal_opportunity",

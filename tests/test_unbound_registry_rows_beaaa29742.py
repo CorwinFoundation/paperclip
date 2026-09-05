@@ -156,7 +156,9 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # Two distinct numbers by design, reported separately per the BEAAA-29742
     # definition of done: executable rows 2,314 -> 2,122 (164 named by the live
     # scan, 27 more the sweep found, and pii_attestation after the BEAAA-29746
-    # ruling) and distinct runtime case identities 1,999 -> 1,907.
+    # ruling) and distinct runtime case identities 1,999 -> 1,907. BEAAA-29957
+    # then binds 40 CBRN rows; 20 content-candidate rows share existing runtime
+    # identities, so the two censuses move by 40 and 20 respectively.
     #
     # The identity count does NOT move when pii_attestation is gated, and that
     # is not an oversight. Its runtime_case_identity is None, so it never
@@ -164,8 +166,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_122
-    assert len(identities) == 1_907
+    assert len(rows) == 2_162
+    assert len(identities) == 1_927
 
 
 def test_gated_pii_attestation_still_scores_in_the_contract_envelope():
@@ -242,9 +244,9 @@ def test_gating_does_not_move_the_canonical_scored_row_count():
         and row.get("reporting_status") == "scored"
     ]
     # Not vacuous: these rows exist, they are gated, and they are still counted.
-    assert len(gated_scored) == 83
+    assert len(gated_scored) == 63
     assert all(row["production_runner_executable"] is False for row in gated_scored)
-    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 82
+    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 62
 
     # The mechanism behind the invariant: the gate writes exactly two fields,
     # and neither is one of the five is_canonical_scored_row reads.
