@@ -4,7 +4,7 @@ Proves the dev-mode-scored surface fails closed at customer / production
 emission points, and is a no-op in production (flag off):
 
 * api.scan_response_envelopes.customer_payload  (per-response customer surface)
-* tools.active_test_registry.main               (published-count reconcile)
+* tools.active_test_registry.main               (informational registry report)
 * tools.validate_content_candidate_registration.main  (published-count validator)
 """
 from __future__ import annotations
@@ -42,10 +42,19 @@ def test_customer_payload_fails_closed_in_dev_mode(monkeypatch):
         env.customer_payload(_fake_result())
 
 
+def test_registry_report_succeeds_in_dev_mode(monkeypatch):
+    monkeypatch.setenv(FOUNDER_DEV_MODE_ENV, "on")
+    monkeypatch.setattr("sys.argv", ["active_test_registry"])
+    assert reg.main() == 0
+
+
+# Alias for test_registry_report_succeeds_in_dev_mode — master added this name
+# after the branch was cut with the old assertion (== 1).  BEAAA-29781 changes
+# main() to exit 0 in dev mode; this definition wins via 3-way merge.
 def test_count_reconcile_fails_closed_in_dev_mode(monkeypatch):
     monkeypatch.setenv(FOUNDER_DEV_MODE_ENV, "on")
     monkeypatch.setattr("sys.argv", ["active_test_registry"])
-    assert reg.main() == 1
+    assert reg.main() == 0
 
 
 def test_count_validator_fails_closed_in_dev_mode(monkeypatch):

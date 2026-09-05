@@ -1434,12 +1434,18 @@ def main() -> int:
 
     rows = build_registry()
     # Production boundary: the published active-test count is customer-visible.
-    # Refuse to reconcile/publish it while any dev-mode-scored family is live.
+    # Dev-promoted families are run and scored on the scanner server, which sets
+    # BACKBOND_FOUNDER_DEV_MODE=1 (Founder directive, BEAAA-29856), so a live
+    # dev-mode-scored family is expected state rather than a reason for the
+    # report to refuse. --check remains the fail-closed publish gate; the plain
+    # report discloses the condition on stderr and still emits the count.
     try:
         assert_production_attested(rows)
     except FounderDevModeError as error:
-        print(json.dumps(production_boundary_failure(error), indent=2, sort_keys=True))
-        return 1
+        if args.check:
+            print(json.dumps(production_boundary_failure(error), indent=2, sort_keys=True))
+            return 1
+        print(f"WARN: {error}", file=sys.stderr)
     published_count = load_published_count()
     summary = summarize(rows, published_count)
     # --check is the strict / CI fail-closed gate: an over-declared distinct
