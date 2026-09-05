@@ -44,6 +44,13 @@ brand_backbone_verified: true
 - `claim_candidate_event` emission — provenance `backbond_detector`; normalizer never emits it.
 - Pn taxonomy reconciliation — BEAAA-5864 (does not block this ticket; normalizer never emits `claim_candidate_event`).
 
+Appliance reconciliation resolves its deployment limb in
+`deployment_reconciliation.resolve_deployment_limb`. The consumer joins the
+hashed tenant/binding/agent receipt context to exactly one row in the existing
+deployment/binding registry and attaches that row's opaque `deployment_id`.
+Missing or non-unique registry matches remain unresolved; no appliance wire
+field, source-derived identifier, or fallback deployment is accepted.
+
 ## N=5 reproducibility posture
 
 This ticket keeps determinism by construction on the existing scanner score surface:
