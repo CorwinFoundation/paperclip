@@ -32,9 +32,14 @@ WORKFLOW_TEXT = WORKFLOW.read_text(encoding="utf-8")
 def test_workflow_removed_broad_paperclip_release_candidate_key() -> None:
     forbidden = (
         "PAPERCLIP_RELEASE_CANDIDATE_KEY",
-        "PAPERCLIP_API_KEY",
         "/release-candidates",
         "/api/companies/${PAPERCLIP_COMPANY_ID}/release-candidates",
+        "secrets.PAPERCLIP_API_KEY",
     )
     for marker in forbidden:
         assert marker not in WORKFLOW_TEXT
+
+
+def test_workflow_holds_only_the_scoped_deploy_receipt_token() -> None:
+    assert WORKFLOW_TEXT.count("PAPERCLIP_API_KEY") == 1
+    assert "PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_AGENT_TOKEN }}" in WORKFLOW_TEXT

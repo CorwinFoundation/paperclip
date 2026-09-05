@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""BEAAA-13362 — post the deploy record back to the tracker automatically.
+"""Post an automatic development deploy receipt back to the tracker.
 
-Runs as the final step of the operator-mediated push path, so every deploy
+Runs as the final step of the master push path, so every deploy
 attempt — pass, fail, or rolled-back — leaves an auditable record on the
 tracker: SHA, image digest, acceptance-checks output, Founder approver, and
-timestamp. Operator-mediated push / ADR-0057 v2.0.
+timestamp. Receipt delivery is post-activation evidence, never a deploy gate.
 
 The record is posted as a first-class comment on the tracker issue via the
 Paperclip API (PAPERCLIP_API_URL + PAPERCLIP_API_KEY of a deploy-bot key).
@@ -38,14 +38,14 @@ def render(args: argparse.Namespace, acceptance: dict, ts: str) -> str:
     verdict = {True: "PASS", False: "FAIL", None: "UNKNOWN"}[passed]
     rolled_back = args.outcome == "failure" and bool(args.previous)
     lines = [
-        f"**Deploy record — {args.sha}** (BEAAA-13362 CD pipeline / ADR-0057)",
+        f"**Automatic development deploy receipt — {args.sha}**",
         "",
         f"- **outcome:** `{args.outcome}`"
         + ("  → **AUTO-ROLLED BACK** to previous image" if rolled_back else ""),
         f"- **image:** `{args.ref}`",
         f"- **digest:** `{args.digest or 'n/a'}`",
         f"- **previous image:** `{args.previous or 'n/a'}`",
-        f"- **approver (Founder gate):** `{args.approver}`",
+        f"- **authorization:** `{args.approver}`",
         f"- **acceptance:** **{verdict}**",
         f"- **timestamp (UTC):** {ts}",
         f"- **run:** {args.run_url}",

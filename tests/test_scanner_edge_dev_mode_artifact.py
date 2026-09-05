@@ -114,19 +114,18 @@ def test_release_evidence_has_sbom_bundle_and_in_toto_provenance() -> None:
     }
 
 
-def test_workflow_cannot_contact_or_mutate_production() -> None:
-    text, _ = _workflow()
-    lowered = text.lower()
-
-    forbidden = (
-        "ssh ",
-        "scp ",
-        "deploy_ssh",
-        "known_hosts",
-        "scanner-deploy ",
-        "paperclip_release_candidate_key",
-        "paperclip_api_key",
-        "/release-candidates",
-    )
-    for token in forbidden:
-        assert token not in lowered
+def test_only_the_master_push_deploy_job_contacts_the_scanner_server() -> None:
+    text, workflow = _workflow()
+    build_text, _, deploy_text = text.partition("\n  deploy:\n")
+    assert deploy_text, "deploy job missing"
+    for token in ("paperclip_release_candidate_key", "/release-candidates"):
+        assert token not in text.lower(), token
+    for token in ("ssh ", "scp ", "deploy_ssh", "known_hosts", "scanner-deploy", "paperclip_api_key"):
+        assert token not in build_text.lower(), token
+        assert token in deploy_text.lower(), token
+    deploy = workflow["jobs"]["deploy"]
+    assert deploy["needs"] == "image-build"
+    assert deploy["if"] == "${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}"
+    assert "${{ secrets.SCANNER_DEPLOY_SSH_KEY }}" in deploy_text
+    assert "${{ secrets.SCANNER_DEPLOY_KNOWN_HOSTS }}" in deploy_text
+    assert "-o StrictHostKeyChecking=yes" in deploy_text

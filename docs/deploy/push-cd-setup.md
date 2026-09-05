@@ -4,79 +4,38 @@ owner: cto
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "This runbook keeps BackBond Scanner production promotion behind exact-candidate evidence and Founder approval."
+focus_claim: "Master pushes deploy the BackBond Scanner development target automatically after the image build."
 contracts_referenced: ["are-scanner-api-v1"]
-ticket_refs: ["BEAAA-25460", "BEAAA-25461", "BEAAA-28248"]
-proof_points_cited: ["GitHub protected review", "Sigstore keyless signing", "CycloneDX SBOM", "in-toto provenance"]
-version: 0.6
-prior_version: "docs/deploy/push-cd-setup.md@4eff250d"
+ticket_refs: ["BEAAA-29900"]
+proof_points_cited: ["same-run immutable image artifact", "pinned SSH host key", "on-box helper rollback"]
+version: 0.7
+prior_version: "docs/deploy/push-cd-setup.md@0.6"
 self_audit_passed: true
 escalations_noted: []
 ---
 
-# Governed Scanner release evidence
+# Scanner push deployment
 
-Status: the former direct-production workflow remains quarantined under
-BEAAA-25460 and BEAAA-25461. BEAAA-28248 adds a manual, evidence-only release
-lane. It does not deploy, copy files to, activate, or roll back production.
+Every push to `master` builds and signs an immutable scanner image in
+`.github/workflows/scanner-edge-image.yml`. After the build job succeeds, the
+workflow's `deploy` job downloads that exact run's archive, copies it to
+`are-deploy@srv1749248`, and invokes `/usr/local/sbin/scanner-deploy`.
 
-The quarantined controls remain in force:
+The repository needs two pinned SSH secrets:
 
-- `.github/workflows/deploy.yml` must not exist;
-- merging to `master` must not build or publish a deployable image;
-- repository workflows must not hold or use production SSH credentials;
-- the self-hosted direct-deployment route from Git history must not return.
+- `SCANNER_DEPLOY_SSH_KEY`: the private key for the restricted `are-deploy` user.
+- `SCANNER_DEPLOY_KNOWN_HOSTS`: the pinned `known_hosts` line for
+  `srv1749248.hstgr.cloud`. The workflow does not use trust-on-first-use.
 
-## Evidence-only release lane
+`PAPERCLIP_API_URL` and `PAPERCLIP_DEPLOY_AGENT_TOKEN` let the final step post
+the deployment receipt to BEAAA-29900. Receipt posting runs even when activation
+fails, and does not replace the workflow result.
 
-An authorized operator may manually dispatch
-`.github/workflows/scanner-edge-image.yml` in one of two modes.
+The server never builds or pulls an image. The existing root-owned helper checks
+the archive hash, OCI revision, and embedded release identity, then updates the
+systemd service atomically. It checks readiness and restores the prior image on
+failure. The workflow verifies the public release identity and SLA endpoint after
+activation. A broken master is fixed forward.
 
-1. With blank release inputs, it builds and publishes an immutable image for an
-   exact commit on `master`, verifies its embedded release identity and runtime
-   closure, and uploads the image archive.
-2. With `source_sha`, `expected_image_digest`, `source_issue_id`, and a positive
-   `sequence`, it pulls that exact digest, verifies the OCI revision and embedded
-   release identity, generates a CycloneDX SBOM, creates and verifies a Sigstore
-   bundle, attests both the SBOM and SLSA provenance, validates the release
-   manifest, publishes the evidence bundle to GHCR as a content-addressed OCI
-   artifact, pulls it back by digest, and verifies the payload hash. A 90-day
-   Actions artifact is retained only as a convenience copy.
-
-The evidence manifest is deliberately target-neutral. It does not name a
-production host or environment. It records an ordered, fail-closed gate
-contract instead: independent QA must approve the exact source commit, image
-digest, and source issue; a fresh Founder approval is blocked until that QA
-gate passes; and on-box activation is blocked until both approvals pass. The
-successful workflow records the durable OCI digest and payload SHA-256 in its
-publication receipt and job summary.
-
-Each Cosign sign, verify, attest, and attestation-verification operation is a
-separate visible gate. Every operation keeps Cosign's 90-second command timeout,
-runs inside a 180-second operating-system wall-clock timeout, and has a native
-four-minute GitHub step timeout. The attestation steps also save new-format
-Sigstore bundles and verify those bundles locally with claim checking against
-the exact image digest. This preserves certificate, transparency-log, predicate,
-and subject verification without relying on the registry retrieval path known
-to hang on large SBOM attestations.
-
-The workflow runs only through `workflow_dispatch`, requires the workflow ref to
-be `master`, and requires a release-evidence source commit to equal current
-`master`. It contains no SSH, SCP, production secret, Paperclip mutation, or
-host-activation step.
-
-## Production gate
-
-The durable evidence bundle is not deploy authority. Promotion still requires
-all of the following, in this order:
-
-1. a separately governed proposal and protected GitHub review;
-2. independent QA for the exact source commit and release evidence;
-3. a Paperclip release candidate whose digest, SBOM hash, signature bundle,
-   provenance, workflow run, environment, target host, and sequence match;
-4. a fresh Founder approval on that exact candidate;
-5. activation through the current on-box fail-closed path, with health checks,
-   a terminal receipt, and automatic rollback on failure.
-
-Any mismatch stops the release. Historical direct-deploy instructions remain
-read-only evidence and are not authorization to restore the retired path.
+The manual `workflow_dispatch` evidence lane remains available and does not run
+the deploy job.

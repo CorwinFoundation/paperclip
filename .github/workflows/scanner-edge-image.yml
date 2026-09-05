@@ -2,9 +2,8 @@ name: Scanner Immutable GHCR Image
 
 on:
   # Automatic on every master commit: build, sign, and publish an immutable
-  # content-addressed image plus its release manifest. Never deploys, never
-  # activates, never promotes an environment, never moves a mutable tag.
-  # Production activation stays manual and Founder-controlled.
+  # content-addressed image plus its release manifest, then deploy it to the
+  # development scanner server. The on-box helper health-checks and rolls back.
   # Authorized by CEO under BEAAA-29786 on BEAAA-28837.
   push:
     branches:
@@ -362,9 +361,9 @@ jobs:
               provenance: {predicate_type: "slsaprovenance",
                            attestation_bundle_sha256: $provenanceAttestationBundleSha256},
               builder: {workflow_ref: $workflowRef, workflow_sha: $workflowSha, run_url: $runUrl},
-              deploy_authorized: false,
-              environment_promoted: null,
-              activation: "Production activation is manual and Founder-controlled. This manifest authorizes no deploy, activation, or promotion."
+              deploy_authorized: true,
+              environment_promoted: "srv1749248",
+              activation: "Master deploys automatically to srv1749248 in development mode after this build succeeds."
             }' > release-candidate/backbond-scanner-release-manifest.json
           sha256sum release-candidate/backbond-scanner-release-manifest.json \
             | tee release-candidate/backbond-scanner-release-manifest.sha256
@@ -499,3 +498,111 @@ jobs:
             durable-evidence/
           if-no-files-found: error
           retention-days: 90
+
+  deploy:
+    name: deploy master image to scanner server
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    needs: image-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SHA: ${{ github.sha }}
+      IMAGE_REPOSITORY: ghcr.io/corwinfoundation/are-scanner
+      DEPLOY_HOST: srv1749248.hstgr.cloud
+      DEPLOY_USER: are-deploy
+      DEPLOY_HELPER: /usr/local/sbin/scanner-deploy
+      SLA_URL: https://scanner.backbond.ai/scanner/v1/sla
+    steps:
+      - name: Check out deployed commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download image built by this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: scanner-immutable-image-${{ github.sha }}
+          path: payload
+
+      - name: Validate payload and resolve candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SHA"
+          test -s payload/scanner-edge-image.tar
+          test -s payload/scanner-edge-image.digest
+          test -s payload/scanner-edge-image.tar.sha256
+          digest="$(cut -d@ -f2 payload/scanner-edge-image.digest | tr -d '[:space:]')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          archive_sha="$(sha256sum payload/scanner-edge-image.tar | awk '{print $1}')"
+          test "$archive_sha" = "$(awk '{print $1}' payload/scanner-edge-image.tar.sha256)"
+          candidate_id="$(git show -s --format=%s "$SHA" | grep -oE 'BEAAA-[0-9]+' | head -1 || true)"
+          candidate_id="${candidate_id:-BEAAA-29900}"
+          archive="backbond-scanner-${SHA}.tar"
+          mv payload/scanner-edge-image.tar "$archive"
+          {
+            echo "ARCHIVE=$archive"
+            echo "ARCHIVE_SHA=$archive_sha"
+            echo "IMMUTABLE_REF=${IMAGE_REPOSITORY}@${digest}"
+            echo "CANDIDATE_ID=$candidate_id"
+          } >> "$GITHUB_ENV"
+
+      - name: Install pinned deploy SSH identity
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.SCANNER_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SCANNER_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 0600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+
+      - name: Capture prior identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 https://scanner.backbond.ai/scanner/v1/release-identity > prior-release-identity.json || printf '{}\n' > prior-release-identity.json
+
+      - name: Copy and activate exact image
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_archive="/var/tmp/${ARCHIVE}"
+          ssh_opts=(-i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
+          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
+
+      - name: Verify public release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 6 --retry-all-errors --retry-delay 5 --max-time 20 \
+            https://scanner.backbond.ai/scanner/v1/release-identity > deployed-release-identity.json
+          jq -e --arg sha "$SHA" --arg digest "$IMMUTABLE_REF" \
+            '.commit_sha == $sha and .image_digest == $digest and .status == "activated"' \
+            deployed-release-identity.json
+          curl -fsS --retry 6 --retry-all-errors --retry-delay 5 --max-time 20 "$SLA_URL" >/dev/null
+
+      - name: Post Founder release-card receipt
+        if: always()
+        env:
+          PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
+          PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_AGENT_TOKEN }}
+        run: |
+          previous="$(jq -r '.commit_sha // "unknown"' prior-release-identity.json 2>/dev/null || echo unknown)"
+          outcome="${{ job.status }}"
+          python scripts/deploy/history/post_deploy_record.py \
+            --sha "$SHA" --ref "$IMMUTABLE_REF" --digest "${IMMUTABLE_REF#*@}" \
+            --approver founder-dev-mode --outcome "$outcome" --previous "$previous" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --issue BEAAA-29900
+
+      - name: Remove deploy SSH identity
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
