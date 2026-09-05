@@ -78,6 +78,14 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertNotIn("scp ", text.lower())
         self.assertIn('manifest["build_sha"]', text)
         self.assertIn('manifest["release_tag"]', text)
+        self.assertIn("build_release_registry_marker", text)
+        self.assertIn(
+            'marker == build_release_registry_marker(pathlib.Path(".").resolve())',
+            text,
+        )
+        self.assertNotIn('marker["published_executable_count"] ==', text)
+        self.assertNotIn('marker["generated_executable_count"] ==', text)
+        self.assertNotIn('marker["distinct_runtime_count"] ==', text)
 
 
 if __name__ == "__main__":

@@ -140,6 +140,8 @@ jobs:
           test "$(docker image inspect "$IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$SOURCE_SHA"
           docker run --rm --entrypoint python "$IMAGE_TAG" -c '
           import json, os, pathlib
+          from tools.release_registry_marker import build_release_registry_marker
+
           manifest = json.loads(pathlib.Path("release/backbond-scanner-release.json").read_text())
           assert manifest["scanner_version"] == "0.5.0"
           assert manifest["corpus_version"] == "0.2.0"
@@ -147,10 +149,7 @@ jobs:
           assert manifest["release_tag"] == "sha-" + os.environ["BACKBOND_BUILD_SHA"]
           marker = manifest["registry_marker"]
           assert marker["schema_version"] == "backbond-scanner-registry-marker@1"
-          assert marker["published_executable_count"] == 2339
-          assert marker["generated_executable_count"] == 2339
-          assert marker["distinct_runtime_count"] == 2338
-          assert len(marker["normalized_registry_sha256"]) == 64
+          assert marker == build_release_registry_marker(pathlib.Path(".").resolve())
           '
 
       - name: Verify runtime import closure
