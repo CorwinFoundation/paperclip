@@ -70,9 +70,19 @@ executed is a procedure with steps that do not work.
          /opt/backbond/migrations/0002_appliance_ingest.sql
        install -D -m 0644 ./tools/log-tracker/migrations/0003_appliance_ingest_agents.sql \
          /opt/backbond/migrations/0003_appliance_ingest_agents.sql
+       install -D -m 0644 ./tools/log-tracker/migrations/0004_appliance_binding.sql \
+         /opt/backbond/migrations/0004_appliance_binding.sql
 
 6. Write the two configuration files. The enrollment JSON contains
-   `appliance_id`, `tenant_id`, `source_id`, `public_key_pem` and `token_env`.
+   `appliance_id`, `tenant_id`, `source_id`, `public_key_pem`, `token_env` and
+   `binding_id`, plus `binding_effective_from` on a first enrollment. The
+   appliance emits no binding identifier on the wire, so `binding_id` is how the
+   binding limb of the reconciliation key reaches the ingest side at all
+   (BEAAA-29823); set `binding_effective_from` to the bind date, because a batch
+   whose window opened before the first revision is refused
+   `unenrolled_binding` rather than attributed to the current binding. An
+   appliance enrolled before this migration must be re-enrolled with its
+   `binding_id` before it can deliver again.
    The token value itself stays in the environment file, which systemd reads as
    root before dropping privileges, so that file is `0600 root:root`. The
    enrollment JSON is different: the service process opens it *after* dropping

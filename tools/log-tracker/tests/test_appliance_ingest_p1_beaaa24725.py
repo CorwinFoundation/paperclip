@@ -355,9 +355,9 @@ def two_tenant_store(tmp_path):
     b = Appliance(tmp_path / "b", "a2")
     store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATIONS,
                                  verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
-    store.enroll(appliance_id="a1", tenant_id="tenantA", source_id="s",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="tenantA", source_id="s",
                  token="tokA", public_key_pem=a.public_key_pem)
-    store.enroll(appliance_id="a2", tenant_id="tenantB", source_id="s",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a2", tenant_id="tenantB", source_id="s",
                  token="tokB", public_key_pem=b.public_key_pem)
     return store, a, b
 

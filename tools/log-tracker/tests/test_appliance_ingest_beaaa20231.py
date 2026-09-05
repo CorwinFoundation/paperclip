@@ -28,7 +28,8 @@ REPO = Path(__file__).resolve().parents[3]
 SEALED = REPO / "ops/paperclip/numbat/backbond-appliance-0.1.0/backbond-appliance"
 MIGRATION = Path(__file__).parents[1] / "migrations" / "0002_appliance_ingest.sql"
 AGENT_MIGRATION = Path(__file__).parents[1] / "migrations" / "0003_appliance_ingest_agents.sql"
-MIGRATIONS = (MIGRATION, AGENT_MIGRATION)
+BINDING_MIGRATION = Path(__file__).parents[1] / "migrations" / "0004_appliance_binding.sql"
+MIGRATIONS = (MIGRATION, AGENT_MIGRATION, BINDING_MIGRATION)
 
 verify_batch, CONTENT_FIELDS = load_sealed_contract(SEALED)
 if str(SEALED) not in sys.path:  # load_sealed_contract already inserted it
@@ -67,6 +68,11 @@ def test_sealed_prohibited_set_is_the_real_one():
     assert {"content", "message", "recipient", "argv"} <= set(CONTENT_FIELDS)
 
 
+# A real batch window. The binding limb resolves against its start, so this
+# carries an instant rather than the placeholder it used to (BEAAA-29823).
+WINDOW = {"start": "2026-08-17T00:00:00Z", "end": "2026-08-17T01:00:00Z"}
+
+
 class Appliance:
     """A sealed appliance instance with durable chain state, as deployed."""
 
@@ -77,6 +83,7 @@ class Appliance:
         self.appliance_id = appliance_id
         self.public_key_pem = self.signer.public_pem()
         self._n = 0
+        self.window: dict | None = None
 
     def emit(self, tenant: str = "t1", count: int = 2, etype: str = "social_post") -> dict:
         """Build one genuine signed batch from synthetic Enso raw events."""
@@ -91,7 +98,7 @@ class Appliance:
                 "billable": True,
             })
         emittable = [pipeline.redact(pipeline.normalize(r)) for r in raw]
-        batches = builder.build(emittable, [], {"start": "x", "end": "y"})
+        batches = builder.build(emittable, [], self.window or WINDOW)
         assert len(batches) == 1
         return batches[0]
 
@@ -105,7 +112,7 @@ def appliance(tmp_path: Path) -> Appliance:
 def store(tmp_path: Path, appliance: Appliance) -> ApplianceIngestStore:
     result = ApplianceIngestStore(tmp_path / "tracker.sqlite3", MIGRATIONS,
                                   verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
-    result.enroll(appliance_id="a1", tenant_id="t1", source_id="enso-synthetic",
+    result.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="t1", source_id="enso-synthetic",
                   token="secret", public_key_pem=appliance.public_key_pem)
     return result
 
@@ -159,7 +166,7 @@ def test_content_boundary_still_rejects_a_validly_signed_leak(store, appliance):
     leaky = [dict(pipeline.redact(pipeline.normalize(
         {"event_id": "leak", "tenant_id": "t1", "type": "social_post", "billable": True})),
         content="LEAKED CUSTOMER TEXT")]
-    batch = builder.build(leaky, [], {"start": "x", "end": "y"})[0]
+    batch = builder.build(leaky, [], WINDOW)[0]
     assert verify_batch(batch, appliance.public_key_pem) is True
     with pytest.raises(IngestRejected, match=r"content_boundary_violated:\$\.events\[0\]\.content"):
         ingest(store, batch)
@@ -282,7 +289,7 @@ def test_a_genuine_multi_agent_envelope_is_accepted(store, appliance):
             "content": f"synthetic body for {agent}", "billable": True}
            for agent in ("ag1", "ag2")]
     batch = builder.build([pipeline.redact(pipeline.normalize(r)) for r in raw],
-                          [], {"start": "x", "end": "y"})[0]
+                          [], WINDOW)[0]
     assert {event["agent_id"] for event in batch["events"]} == {"ag1", "ag2"}
     assert {event["tenant_id"] for event in batch["events"]} == {"t1"}
 
@@ -351,7 +358,7 @@ def test_child_agent_rows_sum_to_the_parent_receipt(store, appliance):
     events = [_emittable("e-1", "ag1", True), _emittable("e-2", "ag1", 1),
               _emittable("e-3", "ag2", False)]
     determinations = [_determination(events[0], "r1"), _determination(events[2], "r2")]
-    batch = builder.build(events, determinations, {"start": "x", "end": "y"})[0]
+    batch = builder.build(events, determinations, WINDOW)[0]
     assert batch["counts"]["billable_actions"] == 2
 
     assert ingest(store, batch).accepted
@@ -380,7 +387,7 @@ def test_an_attested_count_that_disagrees_with_its_events_is_still_accepted(stor
     differ. A ledger reader tying children to parent has to know which is which."""
     builder = BatchBuilder("a1", appliance.signer, appliance.state_dir, PRODUCER_PINS)
     events = [_emittable("e-9", "ag1", True)]
-    batch = builder.build(events, [], {"start": "x", "end": "y"})[0]
+    batch = builder.build(events, [], WINDOW)[0]
     batch["counts"]["billable_actions"] = 7
     resign(batch, appliance.signer)
     assert verify_batch(batch, appliance.public_key_pem) is True
@@ -408,9 +415,9 @@ def test_a_rejected_envelope_mutates_no_other_appliances_ledger(tmp_path, break_
     b = Appliance(tmp_path / "b", "a2")
     store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATIONS,
                                  verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
-    store.enroll(appliance_id="a1", tenant_id="tenantA", source_id="s",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="tenantA", source_id="s",
                  token="tokA", public_key_pem=a.public_key_pem)
-    store.enroll(appliance_id="a2", tenant_id="tenantB", source_id="s",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a2", tenant_id="tenantB", source_id="s",
                  token="tokB", public_key_pem=b.public_key_pem)
     store.ingest(a.emit(tenant="tenantA", count=2), token="tokA",
                  tenant_id="tenantA", source_id="s")
@@ -434,7 +441,7 @@ def test_enrollment_is_the_p1_single_tenant_invariant(store, appliance):
     That, not a wire-level check, is what makes a mixed-tenant envelope
     unreachable in P1."""
     with pytest.raises(ValueError, match="enrollment_binding_conflict"):
-        store.enroll(appliance_id="a1", tenant_id="t-second", source_id="enso-synthetic",
+        store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="t-second", source_id="enso-synthetic",
                      token="secret", public_key_pem=appliance.public_key_pem)
     # ... and the original binding still holds, so a batch for the second tenant
     # cannot be delivered under this appliance at all.
@@ -444,10 +451,10 @@ def test_enrollment_is_the_p1_single_tenant_invariant(store, appliance):
 
 
 def test_enrollment_restart_is_idempotent_but_rebinding_fails(store, appliance):
-    store.enroll(appliance_id="a1", tenant_id="t1", source_id="enso-synthetic",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="t1", source_id="enso-synthetic",
                  token="secret", public_key_pem=appliance.public_key_pem)
     with pytest.raises(ValueError, match="enrollment_binding_conflict"):
-        store.enroll(appliance_id="a1", tenant_id="other", source_id="enso-synthetic",
+        store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="other", source_id="enso-synthetic",
                      token="secret", public_key_pem=appliance.public_key_pem)
 
 
@@ -497,9 +504,9 @@ def test_scoped_status_requires_the_enrolled_token_and_never_crosses_tenants(tmp
     b = Appliance(tmp_path / "b", "a2")
     store = ApplianceIngestStore(tmp_path / "t.sqlite3", MIGRATIONS,
                                  verify_batch=verify_batch, prohibited_fields=CONTENT_FIELDS)
-    store.enroll(appliance_id="a1", tenant_id="tenantA", source_id="s",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a1", tenant_id="tenantA", source_id="s",
                  token="tokA", public_key_pem=a.public_key_pem)
-    store.enroll(appliance_id="a2", tenant_id="tenantB", source_id="s",
+    store.enroll(binding_id="BND-0001", binding_effective_from="1970-01-01T00:00:00Z", appliance_id="a2", tenant_id="tenantB", source_id="s",
                  token="tokB", public_key_pem=b.public_key_pem)
     store.ingest(a.emit(tenant="tenantA", count=1), token="tokA",
                  tenant_id="tenantA", source_id="s")

@@ -74,6 +74,24 @@ def _digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _instant(value: Any) -> "datetime | None":
+    """Parse an ISO-8601 instant, tolerating the trailing ``Z`` that both the
+    appliance and SQLite's ``strftime`` emit.
+
+    Comparison is on parsed instants, never on the raw strings. SQLite writes
+    millisecond precision and the appliance need not, and ``Z`` sorts after
+    ``.``, so a second-precision stamp string-compares *later* than a
+    millisecond stamp inside the same second -- the wrong way round.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
 def _agent_digest(salt: bytes, agent_id: str) -> str:
     """Commit to an agent id without correlating names across appliances."""
     return hashlib.sha256(b"backbond-agent-id\x00" + salt + agent_id.encode("utf-8")).hexdigest()
@@ -352,9 +370,21 @@ class ApplianceIngestStore:
 
     def enroll(
         self, *, appliance_id: str, tenant_id: str, source_id: str,
-        token: str, public_key_pem: str,
+        token: str, public_key_pem: str, binding_id: str,
+        binding_effective_from: str | None = None,
     ) -> None:
-        if not all((appliance_id, tenant_id, source_id, token, public_key_pem)):
+        """Enroll an appliance, or append a binding revision to an enrolled one.
+
+        ``binding_effective_from`` is honoured for an appliance's *first*
+        revision only: a binding is issued at bind time, which genuinely
+        precedes the appliance being stood up, and refusing to say so would
+        strand every batch whose window opened in that gap. A re-binding always
+        takes effect now. Back-dating a later revision would shift batches that
+        already ran under the previous binding onto the new one, which is the
+        thing ADR BEAAA-20236 rule 7 exists to forbid.
+        """
+        if not all((appliance_id, tenant_id, source_id, token,
+                    public_key_pem, binding_id)):
             raise ValueError("complete enrollment required")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -371,7 +401,60 @@ class ApplianceIngestStore:
                 )
             elif current != values:
                 raise ValueError("enrollment_binding_conflict")
+            binding_hash = _digest(binding_id)
+            latest = db.execute(
+                "SELECT binding_id_hash FROM appliance_enrollment_bindings "
+                "WHERE appliance_id=? ORDER BY effective_from DESC LIMIT 1",
+                (appliance_id,),
+            ).fetchone()
+            if latest is None:
+                effective = binding_effective_from
+                if effective is not None and _instant(effective) is None:
+                    raise ValueError("malformed_binding_effective_from")
+                db.execute(
+                    "INSERT INTO appliance_enrollment_bindings VALUES (?,?,"
+                    "COALESCE(?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))",
+                    (appliance_id, binding_hash, effective),
+                )
+            elif latest[0] != binding_hash:
+                # Re-binding appends; it never rewrites. The prior revision stays
+                # readable so a batch whose window opened under it still resolves
+                # to it.
+                db.execute(
+                    "INSERT INTO appliance_enrollment_bindings VALUES (?,?,"
+                    "strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+                    (appliance_id, binding_hash),
+                )
             db.commit()
+
+    def _binding_at(self, appliance_id: str, window_start: datetime):
+        """The binding revision in force when the batch window opened.
+
+        Resolved by authenticated ``appliance_id``, never by anything the sender
+        names: the appliance emits no binding identifier -- ``EMIT_ALLOWLIST``
+        carries none through 0.1.3 and the signed body is nine keys -- and a
+        server-resolved limb must not quietly become a sender-chosen one.
+
+        Selecting the window-start revision rather than the current one is ADR
+        BEAAA-20236 rule 7: a batch delivered after a re-binding still belongs to
+        the binding it ran under.
+        """
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT binding_id_hash,effective_from FROM appliance_enrollment_bindings "
+                "WHERE appliance_id=?", (appliance_id,),
+            ).fetchall()
+        eligible = [
+            (moment, binding, effective)
+            for moment, binding, effective in (
+                (_instant(effective), binding, effective) for binding, effective in rows
+            )
+            if moment is not None and moment <= window_start
+        ]
+        if not eligible:
+            return None
+        _, binding, effective = max(eligible, key=lambda row: row[0])
+        return binding, effective
 
     def ingest(self, batch: dict, *, token: str, tenant_id: str, source_id: str) -> IngestResult:
         appliance_id = str(batch.get("appliance_id", ""))
@@ -420,6 +503,19 @@ class ApplianceIngestStore:
         for item in [*events, *determinations]:
             if item.get("tenant_id") != tenant_id:
                 raise IngestRejected("unauthorized_scope")
+        window = batch.get("window")
+        window_start = _instant(window.get("start") if isinstance(window, Mapping) else None)
+        if window_start is None:
+            # Malformed shape is a deterministic reject, never a retryable
+            # unavailable (BEAAA-20237 F6). ``window`` is inside the signed body,
+            # so this is a producer defect, not tampering.
+            raise IngestRejected("malformed_window")
+        binding = self._binding_at(appliance_id, window_start)
+        if binding is None:
+            # No revision was in force yet. Attributing the batch to the current
+            # binding is exactly the shift rule 7 forbids, and there is no
+            # nullable alternative or fallback to fall back to (ADR line 74).
+            raise IngestRejected("unenrolled_binding")
         counts = batch.get("counts") or {}
         # Malformed shape is a deterministic 422, never a retryable 503 (F6).
         batch_seq = _require_seq(batch.get("batch_seq"))
@@ -459,6 +555,11 @@ class ApplianceIngestStore:
                 # agent names cannot be correlated across appliances. It lives
                 # beside the hashes, so this is a commitment/content-boundary
                 # control rather than encryption against database compromise.
+                db.execute(
+                    "INSERT INTO appliance_ingest_receipt_bindings "
+                    "(batch_hash,binding_id_hash,effective_from) VALUES (?,?,?)",
+                    (batch_hash, *binding),
+                )
                 db.execute(
                     "INSERT OR IGNORE INTO appliance_agent_salts (appliance_id,salt) VALUES (?,?)",
                     (appliance_id, secrets.token_bytes(32)),
