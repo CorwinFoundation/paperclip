@@ -23,7 +23,9 @@ def mapped(request=None, guard=None, sequence=1, batch_id="batch-1"):
 
 def test_valid_allowlist_mapping_records_source_and_tier():
     event = mapped()[0]
-    assert event["payload"] == {"resource": {"service.name": "vendor-agent"}, "span": {"gen_ai.operation.name": "chat"}}
+    assert event["payload"]["resource"] == {"service.name": "vendor-agent"}
+    assert event["payload"]["span"] == {"gen_ai.operation.name": "chat"}
+    assert event["payload"]["causal"]["operation"]["name"] == "chat"
     assert event["provenance"]["source_driver"] == "otel-collector-direct-v1"
     assert event["provenance"]["evidence_tier"] == "vendor-local-redacted"
     assert event["redaction_applied"] == []

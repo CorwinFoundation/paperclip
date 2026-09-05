@@ -20,6 +20,7 @@ ALLOWED_EVENT_TYPES = frozenset(
         "security_event",
         "pii_emission",
         "claim_candidate_event",
+        "otel_span",
     }
 )
 

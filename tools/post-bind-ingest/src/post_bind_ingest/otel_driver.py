@@ -39,8 +39,30 @@ SPAN_ALLOWLIST = frozenset(
         "gen_ai.tool.name",
         "gen_ai.tool.type",
         "error.type",
+        "backbond.task.id",
+        "backbond.run.id",
+        "backbond.agent.id",
+        "backbond.agent.version",
+        "backbond.model.id",
+        "backbond.tool.id",
+        "backbond.action.kind",
+        "backbond.action.fact",
+        "backbond.action.digest",
+        "backbond.retry.of_span_id",
+        "backbond.handoff.from_agent_id",
+        "backbond.verification.status",
     }
 )
+
+OPERATION_EVENT_TYPES = {
+    "agent": "agent_invocation",
+    "chat": "llm_completion",
+    "generate_content": "llm_completion",
+    "text_completion": "llm_completion",
+    "execute_tool": "tool_call",
+    "tool": "tool_call",
+    "retrieval": "tool_source_reference",
+}
 CONTENT_ATTRIBUTES = frozenset(
     {
         "gen_ai.prompt",
@@ -185,8 +207,10 @@ def map_otlp_json(
                     raise OTelDriverError("traceId must be 16-byte hex")
                 if not isinstance(span_id, str) or not re.fullmatch(r"[0-9a-fA-F]{16}", span_id):
                     raise OTelDriverError("spanId must be 8-byte hex")
-                started = _iso_from_unix_nano(span.get("startTimeUnixNano"))
-                ended = _iso_from_unix_nano(span.get("endTimeUnixNano"))
+                started_nanos = int(span.get("startTimeUnixNano"))
+                ended_nanos = int(span.get("endTimeUnixNano"))
+                started = _iso_from_unix_nano(str(started_nanos))
+                ended = _iso_from_unix_nano(str(ended_nanos))
                 started_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
                 ended_dt = datetime.fromisoformat(ended.replace("Z", "+00:00"))
                 if ended_dt < started_dt or abs((clock - ended_dt).total_seconds()) > max_clock_skew_seconds:
@@ -195,13 +219,43 @@ def map_otlp_json(
                     _attrs(span.get("attributes"), path="span.attributes"), SPAN_ALLOWLIST,
                     content_enabled=content_enabled,
                 )
+                parent_span_id = span.get("parentSpanId") or None
+                if parent_span_id is not None and (
+                    not isinstance(parent_span_id, str)
+                    or not re.fullmatch(r"[0-9a-fA-F]{16}", parent_span_id)
+                ):
+                    raise OTelDriverError("parentSpanId must be empty or 8-byte hex")
+                operation_name = str(span_attrs.get("gen_ai.operation.name") or span.get("name") or "").strip()
+                if not operation_name:
+                    raise OTelDriverError("span operation name is required")
+                status = span.get("status") or {}
+                if not isinstance(status, Mapping) or set(status) - {"code", "message"}:
+                    raise OTelDriverError("invalid OTLP span status")
+                status_code = status.get("code", 0)
+                if not isinstance(status_code, (int, str)):
+                    raise OTelDriverError("span status code must be an integer or string")
+                causal = {
+                    "trace_id": trace_id.lower(),
+                    "span_id": span_id.lower(),
+                    "parent_span_id": parent_span_id.lower() if parent_span_id else None,
+                    "operation": {"name": operation_name, "kind": span.get("kind", 0)},
+                    "timing": {
+                        "started_at": started,
+                        "ended_at": ended,
+                        "duration_ns": ended_nanos - started_nanos,
+                    },
+                    "status": {"code": status_code, **({"message_digest": "sha256:" + hashlib.sha256(str(status["message"]).encode()).hexdigest()} if status.get("message") else {})},
+                    "correlation": {key.removeprefix("backbond."): span_attrs[key] for key in ("backbond.task.id", "backbond.run.id") if key in span_attrs},
+                    "identities": {key.removeprefix("backbond."): span_attrs[key] for key in ("backbond.agent.id", "backbond.agent.version", "backbond.model.id", "backbond.tool.id") if key in span_attrs},
+                    "facts": {key.removeprefix("backbond."): span_attrs[key] for key in ("backbond.action.kind", "backbond.action.fact", "backbond.action.digest", "backbond.retry.of_span_id", "backbond.handoff.from_agent_id", "backbond.verification.status") if key in span_attrs},
+                }
                 event_id = hashlib.sha256(f"{source_id}:{batch_id}:{trace_id}:{span_id}".encode()).hexdigest()
                 candidate.append({
                     "event_id": event_id,
-                    "event_type": "llm_completion",
+                    "event_type": OPERATION_EVENT_TYPES.get(operation_name, "otel_span"),
                     "logged_at": ended,
                     "schema_version": SCHEMA_VERSION,
-                    "payload": {"resource": resource_attrs, "span": span_attrs},
+                    "payload": {"resource": resource_attrs, "span": span_attrs, "causal": causal},
                     "provenance": {"class": "vendor_otel", "component": "post_bind_ingest.otel_driver", "source_driver": SOURCE_DRIVER, "evidence_tier": EVIDENCE_TIER},
                     "redaction_applied": [],
                 })
