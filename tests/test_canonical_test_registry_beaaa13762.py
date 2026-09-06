@@ -150,16 +150,16 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         # registers the accepted content inventory; BEAAA-23857 then adds 32
         # scored-lane cases and BEAAA-24210 a further 35, which brought the
         # total to 2,279; BEAAA-24273 adds the 60 six-point floor cases for
-        # 2,339. This is the live evidence-gated count, not the published one,
-        # which BEAAA-24272 freezes at 2,279.
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2257)
+        # 2,339. BEAAA-30128 binds the 60 counterfactual-stability rows, taking
+        # the active executable count to 2,317.
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2317)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 2257)
+        self.assertEqual(len(active_rows), 2317)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

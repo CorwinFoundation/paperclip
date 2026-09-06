@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "95279a67f1718953db7cc04605b7c5ae6cd818b9d4f540f51c46844d8b61f2e4"
+    "798e11895a45261e4a2cbc18d03891ed8dc821e9c5afa15dc1b4a5a59aacc0ec"
 )
 
 
@@ -25,8 +25,8 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_257
-    assert marker["generated_executable_count"] == 2_257
+    assert marker["published_executable_count"] == 2_317
+    assert marker["generated_executable_count"] == 2_317
     assert marker["distinct_runtime_count"] == 2_341
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
@@ -37,9 +37,10 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # deliberately report-only and appear in the excluded-row proof. BEAAA-29742
     # gated 192 rows as unbound and the proof grew by 185, so seven of them were
     # already carried here under another disposition. Binding the 40 cyber misuse and
-    # 60 harmful-output rows removes them from this exclusion proof. The remaining row is
-    # pii_attestation.evidence_pack, gated after the CTO ruling on BEAAA-29746.
-    assert len(marker["excluded_rows"]) == 221
+    # 60 harmful-output rows and 60 counterfactual-stability rows remove them from
+    # this exclusion proof. The remaining row is pii_attestation.evidence_pack,
+    # gated after the CTO ruling on BEAAA-29746.
+    assert len(marker["excluded_rows"]) == 161
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

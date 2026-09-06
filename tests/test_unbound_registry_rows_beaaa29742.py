@@ -152,7 +152,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # scan, 27 more the sweep found, and pii_attestation after the BEAAA-29746
     # ruling) and distinct runtime case identities 1,999 -> 1,907. BEAAA-29957
     # then binds 40 CBRN rows; 20 content-candidate rows share existing runtime
-    # identities, so the two censuses move by 40 and 20 respectively.
+    # identities, so the two censuses move by 40 and 20 respectively. BEAAA-30128
+    # binds 60 counterfactual-stability rows, each with a distinct identity.
     #
     # The identity count does NOT move when pii_attestation is gated, and that
     # is not an oversight. Its runtime_case_identity is None, so it never
@@ -160,8 +161,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_361
-    assert len(identities) == 2_019
+    assert len(rows) == 2_422
+    assert len(identities) == 2_079
 
 
 def test_gated_pii_attestation_still_scores_in_the_contract_envelope():

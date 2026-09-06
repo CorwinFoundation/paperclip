@@ -12,7 +12,6 @@ from tools.active_test_registry import build_registry
 
 UNBOUND_FAMILIES = {
     "agentdojo",
-    "counterfactual_stability",
 }
 
 
@@ -46,9 +45,11 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # 2,314 -> 2,122 rows. The ninth, pii_attestation, was gated after the CTO
     # ruling on BEAAA-29746; it contributes one row and one family. Binding
     # CBRN and cyber-misuse restore two families and 80 rows; harmful-output
-    # restores one more family and 60 rows.
-    assert len(counts) == 122
-    assert sum(counts.values()) == 2361
+    # restores one more family and 60 rows. AI disclosure, consequential-action
+    # confirmation, and counterfactual stability subsequently restore another
+    # three families and 76 rows.
+    assert len(counts) == 123
+    assert sum(counts.values()) == 2422
     assert hashlib.sha256(serialized).hexdigest() == (
-        "5ae2255b2269033a7f85cad449dd5c3f387f4c2c71e46f358db5c2f008bf4e04"
+        "a74bb2a5aa91f94ef873014c42e327f3c2762f380f20df55ef49d43f4d782f56"
     )

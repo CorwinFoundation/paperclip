@@ -25,7 +25,7 @@ def test_exact_cyber_misuse_roster_is_executable_without_other_family_delta() ->
         "content_candidate_worker": 20,
     }
     assert all(row["production_runner_executable"] is True for row in cyber)
-    assert count_active_executable(rows) == 2_257
+    assert count_active_executable(rows) == 2_317
 
 
 def test_all_cyber_misuse_rows_call_live_target_and_return_verdicts(tmp_path) -> None:
