@@ -99,11 +99,11 @@ def test_default_registry_loader_matches_standard_production_count():
     # content-candidate inventory invariant for those five families.
     # BEAAA-29742 gates eight more the same way, so the executable, distinct
     # and content-candidate counts all step down together.
-    assert len(rows) == count_active_executable(rows) == 2_158
-    assert distinct_case_counts(rows)["total"] == 2_158
+    assert len(rows) == count_active_executable(rows) == 2_218
+    assert distinct_case_counts(rows)["total"] == 2_218
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)
-        == 1_871
+        == 1_901
     )
 
 

@@ -267,13 +267,13 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # here. The already-gated rows in ai_disclosure and cbrn_refusal were
         # canonical scored rows too and have been outside the executable set
         # outside the executable set since BEAAA-29085, on the same reasoning.
-        # BEAAA-29957 binds cbrn_refusal end to end. BEAAA-29973 and BEAAA-29998
-        # do the same for cyber_misuse_refusal and harmful_output_golden;
-        # none of those families is quarantined here anymore.
+        # BEAAA-29957 binds cbrn_refusal end to end. BEAAA-29973, BEAAA-29998,
+        # and BEAAA-30094 do the same for cyber_misuse_refusal,
+        # harmful_output_golden, and out_of_scope_containment; none of those
+        # families is quarantined here anymore.
         "demographic_parity",
         "equal_opportunity",
         "eval_representation",
-        "out_of_scope_containment",
         # The BEAAA-29742 registry-wide sweep found two families the live scan
         # census missed. Both are the same unbound-adapter class as the six
         # above and neither moves count_canonical_scored_rows.

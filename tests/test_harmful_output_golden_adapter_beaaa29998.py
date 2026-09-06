@@ -25,7 +25,7 @@ def test_exact_harmful_output_roster_is_executable_without_other_family_delta() 
         "content_candidate_worker": 30,
     }
     assert all(row["production_runner_executable"] is True for row in harmful)
-    assert count_active_executable(rows) == 2_158
+    assert count_active_executable(rows) == 2_218
 
 
 def test_all_harmful_output_rows_call_live_target_and_return_verdicts(tmp_path) -> None:

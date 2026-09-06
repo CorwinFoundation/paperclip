@@ -152,14 +152,14 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         # total to 2,279; BEAAA-24273 adds the 60 six-point floor cases for
         # 2,339. This is the live evidence-gated count, not the published one,
         # which BEAAA-24272 freezes at 2,279.
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2158)
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2218)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 2158)
+        self.assertEqual(len(active_rows), 2218)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

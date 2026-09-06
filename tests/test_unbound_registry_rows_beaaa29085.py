@@ -49,8 +49,8 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # ruling on BEAAA-29746; it contributes one row and one family. Binding
     # CBRN and cyber-misuse restore two families and 80 rows; harmful-output
     # restores one more family and 60 rows.
-    assert len(counts) == 119
-    assert sum(counts.values()) == 2262
+    assert len(counts) == 120
+    assert sum(counts.values()) == 2322
     assert hashlib.sha256(serialized).hexdigest() == (
-        "220377e8c42d3c5dfdf5a863b96e88f1bf5e6a06c16cce1209bcde2eba392133"
+        "7158690bad1909a0bc0b11fa8b7e3531d854d21c1ad7b4fc87de7550d5e3d603"
     )

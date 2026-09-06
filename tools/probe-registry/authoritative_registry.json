@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -247,7 +247,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -255,7 +255,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 730591c"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure e0b70af"
     }
   ],
   "bucket_counts": {
@@ -265,7 +265,7 @@
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 49,
     "report_only": 3,
-    "runnable_today": 2254
+    "runnable_today": 2314
   },
   "bucket_definitions": {
     "attestation_only": "Governance/operator evidence row; countable as evidence requirement, not an executable probe.",
@@ -279,13 +279,13 @@
   "category_counts": {
     "attestation_only": 7,
     "blocked_unsupported": 360,
-    "executable": 2158,
+    "executable": 2218,
     "executable_on_default_runtime": 119,
     "executed_in_latest_evidenced_run": 0,
     "fixture_test_only": 111,
     "inactive_deferred": 8,
     "proxy_grade": 49,
-    "registered": 2640,
+    "registered": 2700,
     "reported": 6,
     "scoring_active": 0
   },
@@ -293,7 +293,7 @@
     "claim_supported": false,
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
-    "supported_unique_executable_count": 2158,
+    "supported_unique_executable_count": 2218,
     "unsupported_rows_count": 360
   },
   "dedupe_key_fields": [
@@ -309,7 +309,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "730591c53c60bbdae74ed6170da8b786c1b4c224",
+    "generated_from_content_sha": "e0b70af4efcec3d894eeed35eabe705705dd50dc",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -319,9 +319,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "730591c53c60bbdae74ed6170da8b786c1b4c224",
+    "source_closure_sha": "e0b70af4efcec3d894eeed35eabe705705dd50dc",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-730591c",
+    "source_closure_version": "registry-source-e0b70af",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -6623,6 +6623,966 @@
       },
       "stable_id": "f400468446040f7ab53edaccd3eadff4567750eaba13ddd3bdaaa74895495626",
       "version_pin": "mcp_tool_integrity@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "f9d73f73eae2b542a88da791234a482b42df639c8cb1fd5587f5283425c39a99",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "6d7ba92dacf0107442becc9b9231dfa2494c0fdcb7d9811636adba65e2007e71",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "7d1f26ac90e6495b5252e30261077c05570db91be0fa35c053f3918961b7a3a3",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "830fcc5891839518196eb86a2b15e4de254670bdaa112f71f0bab603cfd1b1bf",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "529c4370d640b27bc35a544686312393d71fa700304c55bd52b56a503849b137",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "f6ee6dd59d9d7e83f3a08ac507fc6ef356262f05fe0217ac1e112535589de93f",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "c937fe1e3eea412d659c2de0f6a272ae6e35bff59655866ad46e251566e59ecf",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "d1ecd6b9342a48c84475b056eca6e947eb3d9a8314caa96d6fb5331f7d9433ae",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-09",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "6d196ba94070de3d58fc366e424bfd3e5d9f626c981a27ded4c3d2a2ba2ac2da",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-10",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "d3e2df46899411f244fbf60234f36d6aab81edc68bfe5789cb6acc4355da5c47",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-11",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "a350f60ff7ef3df6088f3b056a51144f410b45a45a99f24c2d996e3ca61d6298",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-12",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "0c3e8a4bc93a0823c154b39cfd05af3dd45e54a32f37e3cda948c7a1b09b78f0",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-13",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "6e3447f9357699454dc156d177617da1c21c111e8fd538f2cedc09a29b653d66",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-14",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "899a333452e00ad12c959d5bfc89aeb1f5ea0d577879ad16881093d4abffbc7d",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-15",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "7c5446e1e40f7b25e28512e86170070e0d1b7b34040e044a0fc8d27d566db7f7",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-16",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "ede7f62b2d3a31ee1073970d8c19d3ee645853d77207e6943bd72b40afcd1514",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-17",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "c81b6fd63b483f366be148d2109f413bac8629e3a410337082c112506863b181",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-18",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "62660f14cd7a4bd7b9c2872e4a6a2df203554f5d2f3118e7870b15b182300f50",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-19",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "b3e5d8b3edbe0d2c1149792d7b07485707ce8ca2df03297132253125fda30bf5",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-20",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "d4a9ddfcef0d7109b98656e377f0dc8711949a044e21af89803351928d5a4778",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-21",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "0135f5e8520b2b4026056fbbb6ff472944fa5f9eb8b1f4dafacf4b5c2d46bd31",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-22",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "e7f09f61124161bd09b84a01b383ded394c86cbc056351b5a55d5151c2cc91a0",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-23",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "ca13683f6b86716fb9f3f1b12fec63d0e34b6672d7eea3f166a3b73eec4d6008",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-24",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "9ea9029da048d2050bf43e35f35952709833db13f4e6960a2de5a44d1769feba",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-25",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "1530ba99fefe7d9467e35fac5618e0a58d136c5380ad05e557e70d0adc1c76b5",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-26",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "8ef4b51c5cc8f681be22571c95e58fabd61abd9d2141dbf68a287085bf7cb81c",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-27",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "f6c8dfd4dac367d7d4c5c95e2290a088e93ca82f2c81a338f9d72a6e8f66df58",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-28",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "653b879039cae6bc2ab6878c1ecf3663c551d4e1e52e511a237c9fe30c204353",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-29",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "ba19cfe3ae5ae3465da7f348c191355c1c847435598220ac9aa0df43e4d9d8d4",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-30",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "1a7c20bd273edf1ad8dee18937ec0eca246c2ab25b7b406b2f58e81e15cc8685",
+      "version_pin": "out_of_scope_containment@0.1.0",
       "worker_runner": "bench_wrapper"
     },
     {
@@ -49255,6 +50215,966 @@
     },
     {
       "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:04789e47c5fe0e9846918b879ad8f9b4e4795f183d380d8991fc9c7e7fd09154",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "476dfc02063c28ad8a3e1252c231ffe63cb15bc32f64f4394e469eef7daaa7e5",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:1f8e1aa7da13b51aeb746a1d5146f760ac47cbc2d6ee2407905c2eba13f2e698",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "de6968f4dc3babcbe7b3f6914b31b96e933325c92571cdbb8db461b8ccd8892b",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:2d0fbf212f998184898dab7adfac1f65bb0502ad45a1954c5e194bbfa1b164d2",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fd11f15275bbef25f18f6a605faca52ff46bf05d5452818d041abe3b04ade98a",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:37b25c23ba45a50481c3ad206ffb737d867f9d8bef52dfa395acf23be2dc3d97",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "bf064bda64348d4d90af55f3ca4d2386ab3a9e8587d16c763e4be636db242a81",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:4c4221ca9a388f08a2f512c8086b558e4c135d813df19d71c30dfb7bc736617b",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "daa14697497d4795594908cfc8143dab31d2255484c4b4b95519f11444b15cc6",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:4e44ec33f1de76cc7f707963aaf9e3ac240328e754d63b670645c5d4def81ce6",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "b71a5108e7192a1d43a7ff9fe8ea86382ef111c188f9a14a1142265ebcca1c22",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:53ebe05ca339628ac1bdfba9b0435fb7747fb7f31b6015e5cf3556c44d935701",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "af6840486b43b56678eac4618f244c4133898220454d9c526a798dbefdef8805",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:54f009cb36212b85bf3aea6dd6abef767e4f20a1a797cef03c19152f2726e1c6",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "658f760c1cf0e840c425d45b34b3378a51a59f812cf2fc93bd43bdecfd172ab3",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:739b3abf8babc0d12180e01dd7ccc0a7677a28d458d63afc030d53d8ab66067b",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "57afb0a9e51fe3d47f8b99812b53e5c03171c70551bb85716f7024189fba514d",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:74e27497c385915dbabde29ba9612744fa55cdb51db0aa25b22e40abcae35429",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "22857b027a1f03bcffbbf50d0eeb1780baa4f049255d83a1270fb69d114304ac",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:874e76555a5aca78512ee2a0745b4b2ce51e05779662d7774bd209b4458bbfb3",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "aadd90c6460cc91a6afcd9bca1fdbc6da6b3d8259027c0f8d647d7b1145d4d3b",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:88759f036d07534c04ceb904b81ee5d16d14ffe535ccc940a305e7115e64249d",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "6929895151d157b1335b8eedecc32d04cd4d41873578c252bbfe4a8a850b4063",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:8d68111eabcef3ef19ff1e7613e44ba68aaa0f437b2ddb784ea486a6da38cfbb",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "9855ca8937e43db8605d383675f72fa36e2ec8084f0499499a0d75b164d932cc",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:8eb525ad042af0ae18989178400c8bdfc2ccdcb91f8e164e345ea4a50f7d330e",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "c0ef51fd5de7adb7850b5df3edd05b533d1230c3b0989647c123569b5a6d6382",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:aafe0e1756cee89382dd7a84464790ca7b63df561c94e35605320611a95a2b37",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "9d4bfffef8bd3bc8ed66b678abe1a39a4241acf4bb647296d0d8201f2b54d6ad",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:afc281639f44d1924b3786034a79af96e79d4bd7f220fe33f0e7dd2efa72d0e9",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "2a877c4c120684a0c8a589929772e818e875703f7a1efc3c51aa5644fb4ac112",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:b4b029d94959f359852b311d5a43c6ec0a91583b9945cd4c9cb81edbaf2215b0",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fa76fe5b9ccd1cb72bd1ebbc90b66bcfa57042d7cddbdd9ba13e0d3dfee1466a",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:b6f33044bde9f62f8ae5be759ac264a5bfffcac91c5096abdddbaddb135857d7",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "6bc70b37a52335fbd5178497bfd5a0300b142dfaf6e281f6fb05ce596b5101c1",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:b96923639362d9e76a5c4ab72ccfa609ae08dedab16bb5d597498e01b999799b",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "771a9788df48fc0e806e5d37ba1873ccd27ec288fa26ab7d39700c250499c478",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:cad6fe3649f682a7ec3ceef5e8111458cd831c300be7bcfe8291fb33ea77fc0d",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "7fbb97094097db90c947cd1ee5b4892db6d1d37ee68a9794be193ba38a0ec8c8",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:cf3b6870293f6692db730d595f056bd26f2584ae9862b60618d8cfd0074bf52c",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "54f418b728f4903c06a7ff8da7d7c6d8b44eb9af7b79d3ce9ae4f6f7160d825a",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:d1a178f5595a08e370479c7487a9e7e7e57b1d3b026d86d0579ca701f677a653",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "ad7eb37bb10b9a250bb8bc82f78d22457b9af1e24b8e7231d8193ba5b51ad7be",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:dc6a45343e2d2a8c9652355dd3701867412adefa498594da1aaa4abecc96f1b7",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "259f87f6f493f6da96f2380d4d75c251672456a4e52effe40c2f8ab5277acfc8",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:e20d0db36e312e3c504b7c66aba1df32890f0fac1fd91ee61ed8d4c93fdfb508",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "62aecdf91854a17e38159eebd34dfd204281005140ccaa82ad1a52699aebf40c",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:e2f058491cafcc53a44b45699f5cfd6a1fcd4a4b8811b25f7bb376a275523ea4",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "26e84cd0feadf506451fea7136e0db7f446b32f9f35adc2b6626372b4b1df90d",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:e582167ebbaac4e5cfc384175a1c4205a74cabbf182adb1c99166d37e8bfbe28",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "73d42d19a995a960a99dc1b44559820115663148ce9f835e7d3f1430545b8ed1",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:e97d9335a7e8284655f83a79ef03437e2a6d43717ea1193bbf9627bc6fdf7e69",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "3e5188aee263f7e2397442fd0b8b4ec6cd543fc43ac7c19fda9388c089443826",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:ee6640e220cf97584ad5d459b63ee47936e4b5e74df4e465ec3db8ba3af88f71",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "fa233f7389e2d319f844bc99c0478d48d3ceef6eeebf029747ede6099c9bc3ce",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:f0afc310b264b7f5f2fa0ce2669fa79b21434219402d54517d4f3851e3d2427a",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "dd8f822762891c66c38d16fdc7639510d17f22b93867d3994678e5a274d4bcd4",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "content-candidate:sha256:f685705106a56ae8a6ded69621eef8b7c2aa4ca4968f54eea21f9fe28a2cb876",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "content_candidate_worker",
+      "framework_version": "out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.out_of_scope_containment",
+      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+      "source_provenance": {
+        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        "version": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
+      },
+      "stable_id": "e29ecd89149af95325fef5b4a322e1cf5bce3a1f4aece4f8888358ad24b96b1c",
+      "version_pin": "out_of_scope_containment@out_of_scope_containment@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+      "worker_runner": "content_candidate_worker"
+    },
+    {
+      "bucket": "runnable_today",
       "case_id_or_probe_id": "content-candidate:sha256:0ec3d759092ae97ffbd95403f09c40d87f73da6f72c3678b2b6ebfb04bf2db57",
       "categories": {
         "attestation_only": false,
@@ -83923,7 +85843,7 @@
     "tests/fixtures/golden_agents/**",
     "evals/provisional_tau_support_crm.py"
   ],
-  "unique_executable_count": 2158,
+  "unique_executable_count": 2218,
   "upstream_framework_pins": {
     "agentdojo": "0.1.35",
     "garak": "0.10.0",

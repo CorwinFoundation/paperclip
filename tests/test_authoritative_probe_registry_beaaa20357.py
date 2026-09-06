@@ -65,7 +65,7 @@ def test_executable_claim_is_not_default_executed_reported_or_scored() -> None:
     counts = _registry()["category_counts"]
     # The executable claim is limited to the 2,098 rows that the active-test
     # runtime can actually execute. Day-1-only rows remain visible separately.
-    assert counts["executable"] == 2158
+    assert counts["executable"] == 2218
     assert counts["executable_on_default_runtime"] < 2018
     assert counts["executed_in_latest_evidenced_run"] < 2018
     assert counts["reported"] < 2018

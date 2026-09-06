@@ -57,7 +57,6 @@ BEAAA_29742_FAMILIES = {
     "demographic_parity",
     "equal_opportunity",
     "eval_representation",
-    "out_of_scope_containment",
     "pii_attestation",
     "sentiment_skew",
     "voice_adversarial_pack",
@@ -127,7 +126,6 @@ def test_the_beaaa29742_families_are_gated_out_of_production_execution():
     ]
 
     assert Counter(row["test_id"] for row in rows) == {
-        "out_of_scope_containment": 60,
         "voice_adversarial_pack": 24,
         "sentiment_skew": 3,
         "demographic_parity": 2,
@@ -162,8 +160,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_262
-    assert len(identities) == 1_977
+    assert len(rows) == 2_322
+    assert len(identities) == 2_007
 
 
 def test_gated_pii_attestation_still_scores_in_the_contract_envelope():

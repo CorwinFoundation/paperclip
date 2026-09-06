@@ -107,7 +107,6 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
         "demographic_parity",
         "equal_opportunity",
         "eval_representation",
-        "out_of_scope_containment",
         "pii_attestation",
         "sentiment_skew",
         "voice_adversarial_pack",
