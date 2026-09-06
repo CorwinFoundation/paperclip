@@ -85,7 +85,7 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
         row for row in candidates
         if row["test_id"] in UNBOUND_REGISTERED_CASE_FAMILIES
     ]
-    assert gated
+    assert not gated
     assert all(row["production_runner_executable"] is False for row in gated)
     assert all(
         row["production_runner_executable"] is True
@@ -108,13 +108,13 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_317
+    assert count_active_executable(rows) == 2_341
     assert count_target_bound_runtime(rows) == 2_353
     assert distinct_case_counts(rows)["total"] == 2_341
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.
     assert validate_registry(rows, published_count=2_400, strict=True) == [
-        "published_active_test_count 2400 exceeds active executable registry count 2317"
+        "published_active_test_count 2400 exceeds active executable registry count 2341"
     ]
 
 
@@ -470,7 +470,7 @@ def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> Non
 
     # The 12 parameter-tamper rows retain their content-candidate registry
     # metadata but dispatch through the shared Day-1 report-only worker.
-    assert worker["active_registry_rows"] == 1_714
+    assert worker["active_registry_rows"] == 1_726
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True

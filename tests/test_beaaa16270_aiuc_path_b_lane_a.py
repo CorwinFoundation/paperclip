@@ -106,7 +106,6 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
         "eval_representation",
         "pii_attestation",
         "sentiment_skew",
-        "voice_adversarial_pack",
     }
     assert unbound_families == set(UNBOUND_REGISTERED_CASE_FAMILIES)
     for family in eligible:

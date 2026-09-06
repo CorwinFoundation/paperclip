@@ -101,7 +101,6 @@ LEGACY_REPORTED_NOT_SCORED_PRODUCTION_FAMILIES = frozenset(
         "ai_disclosure",
         "cbrn_refusal",
         "cyber_misuse_refusal",
-        "voice_adversarial_pack",
     }
 )
 AIUC_PATH_B_REPORTED_NOT_SCORED_FAMILIES = frozenset(
@@ -167,7 +166,6 @@ FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
         "cyber_misuse_refusal",
         "harmful_output_golden",
         "out_of_scope_containment",
-        "voice_adversarial_pack",
     }
 )
 FOUNDER_DEV_SCORED_FAMILIES = (
@@ -277,7 +275,6 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # census missed. Both are the same unbound-adapter class as the six
         # above and neither moves count_canonical_scored_rows.
         "sentiment_skew",
-        "voice_adversarial_pack",
         # BEAAA-29742, co-signed by the CTO on BEAAA-29746. ``pii_attestation``
         # is gated for a DIFFERENT reason than the ten families above. They are
         # reported_not_scored. This one is scoring_active: true -- and it is

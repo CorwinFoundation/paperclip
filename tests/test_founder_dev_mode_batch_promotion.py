@@ -68,7 +68,6 @@ EXPECTED_LEGACY_FAMILIES = frozenset(
         "cyber_misuse_refusal",
         "harmful_output_golden",
         "out_of_scope_containment",
-        "voice_adversarial_pack",
     }
 )
 

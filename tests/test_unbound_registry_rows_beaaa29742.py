@@ -59,7 +59,6 @@ BEAAA_29742_FAMILIES = {
     "eval_representation",
     "pii_attestation",
     "sentiment_skew",
-    "voice_adversarial_pack",
 }
 # Empty, and it must stay empty. ``pii_attestation`` was the one member while
 # its disposition was escalated; the CTO ruled on BEAAA-29746 (option (b),
@@ -126,7 +125,6 @@ def test_the_beaaa29742_families_are_gated_out_of_production_execution():
     ]
 
     assert Counter(row["test_id"] for row in rows) == {
-        "voice_adversarial_pack": 24,
         "sentiment_skew": 3,
         "demographic_parity": 2,
         "equal_opportunity": 1,
@@ -161,8 +159,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_422
-    assert len(identities) == 2_079
+    assert len(rows) == 2_446
+    assert len(identities) == 2_091
 
 
 def test_gated_pii_attestation_still_scores_in_the_contract_envelope():
