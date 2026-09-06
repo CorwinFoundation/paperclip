@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "c4849a4c76314cfd96956e21513907b11bcca602d0fb08034a0d1df3b47ec1cd"
+    "95279a67f1718953db7cc04605b7c5ae6cd818b9d4f540f51c46844d8b61f2e4"
 )
 
 
@@ -25,8 +25,8 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_233
-    assert marker["generated_executable_count"] == 2_233
+    assert marker["published_executable_count"] == 2_257
+    assert marker["generated_executable_count"] == 2_257
     assert marker["distinct_runtime_count"] == 2_341
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
@@ -39,7 +39,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # already carried here under another disposition. Binding the 40 cyber misuse and
     # 60 harmful-output rows removes them from this exclusion proof. The remaining row is
     # pii_attestation.evidence_pack, gated after the CTO ruling on BEAAA-29746.
-    assert len(marker["excluded_rows"]) == 245
+    assert len(marker["excluded_rows"]) == 221
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

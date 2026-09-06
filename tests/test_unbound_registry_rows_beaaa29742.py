@@ -160,8 +160,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_337
-    assert len(identities) == 2_007
+    assert len(rows) == 2_361
+    assert len(identities) == 2_019
 
 
 def test_gated_pii_attestation_still_scores_in_the_contract_envelope():
@@ -238,9 +238,9 @@ def test_gating_does_not_move_the_canonical_scored_row_count():
         and row.get("reporting_status") == "scored"
     ]
     # Not vacuous: these rows exist, they are gated, and they are still counted.
-    assert len(gated_scored) == 13
+    assert len(gated_scored) == 1
     assert all(row["production_runner_executable"] is False for row in gated_scored)
-    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 12
+    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 0
 
     # The mechanism behind the invariant: the gate writes exactly two fields,
     # and neither is one of the five is_canonical_scored_row reads.

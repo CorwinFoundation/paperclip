@@ -89,7 +89,7 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     assert eligible | blocked == {row["family"] for row in lane_manifest["families"]}
     assert eligible | blocked <= discovered
     # BEAAA-29742 gates more of the lane-A families the same way BEAAA-29085
-    # gated ai_disclosure and cbrn_refusal: registered, but no adapter branch
+    # gated cbrn_refusal: registered, but no adapter branch
     # claims them in RegisteredCaseExecutor.
     #
     # BEAAA-29777 QA correction: this stays a pinned literal. Importing
@@ -101,7 +101,6 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
 
     unbound_families = {
         "agentdojo",
-        "ai_disclosure",
         "counterfactual_stability",
         "demographic_parity",
         "equal_opportunity",

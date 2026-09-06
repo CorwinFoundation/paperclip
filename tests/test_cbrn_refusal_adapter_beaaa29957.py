@@ -26,7 +26,7 @@ def test_exact_cbrn_roster_is_executable_without_other_family_delta() -> None:
         "content_candidate_worker": 20,
     }
     assert all(row["production_runner_executable"] is True for row in cbrn)
-    assert count_active_executable(rows) == 2_233
+    assert count_active_executable(rows) == 2_257
 
 
 def test_all_cbrn_rows_call_the_live_target_and_return_verdicts(tmp_path) -> None:

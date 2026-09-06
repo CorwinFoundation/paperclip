@@ -244,7 +244,6 @@ LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
 UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
     {
         "agentdojo",
-        "ai_disclosure",
         "counterfactual_stability",
         # BEAAA-29742. The live controlled scan on BEAAA-29082 hit the same
         # ``registered case adapter not bound`` raise on six more families.
@@ -269,7 +268,8 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # BEAAA-29957 binds cbrn_refusal end to end. BEAAA-29973, BEAAA-29998,
         # BEAAA-30094, and BEAAA-30123 do the same for cyber_misuse_refusal,
         # harmful_output_golden, out_of_scope_containment, and
-        # consequential_action_confirmation; none is quarantined here anymore.
+        # consequential_action_confirmation, and BEAAA-30127 ai_disclosure;
+        # none is quarantined here anymore.
         "demographic_parity",
         "equal_opportunity",
         "eval_representation",

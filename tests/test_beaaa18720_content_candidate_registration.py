@@ -108,14 +108,14 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_233
+    assert count_active_executable(rows) == 2_257
     assert count_target_bound_runtime(rows) == 2_353
     assert distinct_case_counts(rows)["total"] == 2_341
     # BEAAA-29085 lowers the executable inventory below the frozen published
     # count. Strict validation must surface that mismatch until the published
     # marker is updated by its owning release process.
     assert validate_registry(rows, published_count=2_279, strict=True) == [
-        "published_active_test_count 2279 exceeds active executable registry count 2233"
+        "published_active_test_count 2279 exceeds active executable registry count 2257"
     ]
 
 
@@ -471,7 +471,7 @@ def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> Non
 
     # The 12 parameter-tamper rows retain their content-candidate registry
     # metadata but dispatch through the shared Day-1 report-only worker.
-    assert worker["active_registry_rows"] == 1_642
+    assert worker["active_registry_rows"] == 1_654
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True
