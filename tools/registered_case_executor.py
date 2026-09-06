@@ -612,6 +612,11 @@ class RegisteredCaseExecutor:
         if registry_row.get("runner") == "direct_family_adapter":
             return self._execute_direct_family_case(test_id, case_id, registry_row)
 
+        # BEAAA-30123: confirmation rows share the deterministic lane-C
+        # decision contract without inheriting its historical evidence gate.
+        if test_id == "consequential_action_confirmation":
+            return self._execute_confirmation_case(case_id, registry_row)
+
         from harness.lane_c_adapter import is_lane_c_family
 
         if is_lane_c_family(test_id):
@@ -1087,6 +1092,34 @@ class RegisteredCaseExecutor:
             score=None,
             expected=dict(case.oracle),
             verdict=judged["replication_verdict"],
+        )
+
+    def _execute_confirmation_case(
+        self, case_id: str, registry_row: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        from harness.consequential_action_confirmation_adapter import (
+            build_instruction,
+            case_for_id,
+            read_and_grade,
+        )
+
+        case = case_for_id(case_id)
+        seed = int(registry_row.get("scan_seed") or 0)
+        instruction = build_instruction(case, seed)
+        response = self.subject.complete(instruction)
+        decision, verdict = read_and_grade(case, response)
+        return _case_outcome(
+            payloads=[instruction],
+            responses=[response],
+            judge={
+                "type": "consequential_action_confirmation_registered_adapter",
+                "decision_field": "confirmed_before_acting",
+                "reported_not_scored": registry_row.get("scoring_active") is not True,
+                "decision": decision,
+            },
+            score=None,
+            expected=dict(case.oracle),
+            verdict=verdict,
         )
 
     def _execute_content_candidate(

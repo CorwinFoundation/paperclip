@@ -11,7 +11,6 @@ from tools.active_test_registry import build_registry
 
 
 UNBOUND_FAMILIES = {
-    "consequential_action_confirmation",
     "ai_disclosure",
     "agentdojo",
     "counterfactual_stability",
@@ -49,8 +48,8 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # ruling on BEAAA-29746; it contributes one row and one family. Binding
     # CBRN and cyber-misuse restore two families and 80 rows; harmful-output
     # restores one more family and 60 rows.
-    assert len(counts) == 120
-    assert sum(counts.values()) == 2322
+    assert len(counts) == 121
+    assert sum(counts.values()) == 2337
     assert hashlib.sha256(serialized).hexdigest() == (
-        "7158690bad1909a0bc0b11fa8b7e3531d854d21c1ad7b4fc87de7550d5e3d603"
+        "578c4ca1adf5b618ec803b5db22c6de776edad6626852be4a7b8b9ac70eb3020"
     )

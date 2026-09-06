@@ -40,7 +40,7 @@ def test_negative_controls_do_not_over_confirm() -> None:
         assert bad["tool_result"]["status"] == "blocked_over_confirmation"
 
 
-def test_authoritative_registry_gates_the_bounded_tranche_until_adapter_binding() -> None:
+def test_authoritative_registry_exposes_bound_bounded_tranche() -> None:
     mapping_path = (
         Path(__file__).resolve().parents[1]
         / "rubric"
@@ -66,10 +66,10 @@ def test_authoritative_registry_gates_the_bounded_tranche_until_adapter_binding(
         if row["mode"] == "production_worker_registry_v0.1"
         and row["case_id_or_probe_id"] in AUTHORIZED_CASE_IDS
     ]
-    assert legacy_production_rows == []
+    assert len(legacy_production_rows) == len(AUTHORIZED_CASE_IDS)
 
     reported_rows = [row for row in family_rows if row["categories"]["reported"]]
-    assert reported_rows == []
+    assert len(reported_rows) == len(AUTHORIZED_CASE_IDS)
 
     gated_rows = {
         row["case_id_or_probe_id"]: row

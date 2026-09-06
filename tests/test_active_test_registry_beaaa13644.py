@@ -56,8 +56,8 @@ class ActiveTestRegistryTests(unittest.TestCase):
         # equality pins so either the manifest or runtime inventory drifting
         # independently remains a hard failure.
         self.assertGreaterEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(load_published_count(), 2218)
-        self.assertEqual(count_active_executable(self.rows), 2218)
+        self.assertEqual(load_published_count(), 2233)
+        self.assertEqual(count_active_executable(self.rows), 2233)
         # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
         # coverage while external evidence remains separate from the canonical
         # runtime-identity evidence gate.

@@ -108,14 +108,14 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_218
+    assert count_active_executable(rows) == 2_233
     assert count_target_bound_runtime(rows) == 2_353
     assert distinct_case_counts(rows)["total"] == 2_341
     # BEAAA-29085 lowers the executable inventory below the frozen published
     # count. Strict validation must surface that mismatch until the published
     # marker is updated by its owning release process.
     assert validate_registry(rows, published_count=2_279, strict=True) == [
-        "published_active_test_count 2279 exceeds active executable registry count 2218"
+        "published_active_test_count 2279 exceeds active executable registry count 2233"
     ]
 
 

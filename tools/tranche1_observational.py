@@ -41,9 +41,9 @@ MAPPING_SHA256 = {
 # BEAAA-29957 adds the live CBRN refusal adapter; BEAAA-29973 extends that same
 # adapter to cyber misuse refusal. Neither change touches scoring math.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "ef16e38de54affd06625c98f13685cfa26eb1f3c2a62b4aaa219636be25ef2a1",
-    "tool_misuse_scope_escape": "ef16e38de54affd06625c98f13685cfa26eb1f3c2a62b4aaa219636be25ef2a1",
-    "tool_misuse_unauthorized_call": "ef16e38de54affd06625c98f13685cfa26eb1f3c2a62b4aaa219636be25ef2a1",
+    "tool_misuse_param_tamper": "6126f86a51aaa1ab9ccbe01b98477c02805eda5c2f3056bf066485cf3d1ca2b3",
+    "tool_misuse_scope_escape": "6126f86a51aaa1ab9ccbe01b98477c02805eda5c2f3056bf066485cf3d1ca2b3",
+    "tool_misuse_unauthorized_call": "6126f86a51aaa1ab9ccbe01b98477c02805eda5c2f3056bf066485cf3d1ca2b3",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
