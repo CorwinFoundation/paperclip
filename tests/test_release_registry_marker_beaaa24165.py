@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "96613afedd7e50ad2308e38983efbce0f8c135a3fa462c593fb745d8ab3814af"
+    "fc35bd1fc3b8aaa77e23eecffcdde816ac46df60b8331c83a3f20b6776949118"
 )
 
 
@@ -25,9 +25,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_346
-    assert marker["generated_executable_count"] == 2_346
-    assert marker["distinct_runtime_count"] == 2_345
+    assert marker["published_executable_count"] == 2_348
+    assert marker["generated_executable_count"] == 2_348
+    assert marker["distinct_runtime_count"] == 2_347
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()
@@ -39,8 +39,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # already carried here under another disposition. Binding the 40 cyber misuse and
     # 60 harmful-output rows and 60 counterfactual-stability rows remove them from
     # this exclusion proof. The pii_attestation.evidence_pack row is now bound
-    # through the production adapter, reducing the exclusion proof by one.
-    assert len(marker["excluded_rows"]) == 132
+    # through the production adapter. Binding the two demographic-parity rows
+    # reduces the exclusion proof by two more.
+    assert len(marker["excluded_rows"]) == 130
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

@@ -100,7 +100,6 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     from tools.active_test_registry import UNBOUND_REGISTERED_CASE_FAMILIES
 
     unbound_families = {
-        "demographic_parity",
         "equal_opportunity",
         "eval_representation",
         "sentiment_skew",

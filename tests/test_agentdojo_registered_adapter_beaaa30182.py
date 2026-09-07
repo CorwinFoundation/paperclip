@@ -16,7 +16,7 @@ def test_exact_agentdojo_roster_is_executable() -> None:
     rows = _rows()
     assert len(rows) == 4
     assert all(row["production_runner_executable"] is True for row in rows)
-    assert count_active_executable(build_registry()) == 2_346
+    assert count_active_executable(build_registry()) == 2_348
 
 
 def test_live_dispatch_records_four_verdicts_and_exact_calls(tmp_path) -> None:

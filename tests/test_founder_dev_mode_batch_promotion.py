@@ -31,12 +31,12 @@ from tools.active_test_registry import (
 )
 from tools.founder_dev_mode import FOUNDER_DEV_MODE_ENV, FounderDevModeError, assert_production_attested
 
-BASELINE_ACTIVE_EXECUTABLE = 484
+BASELINE_ACTIVE_EXECUTABLE = 486
 # Non-countable-while-reported families become countable on flag-on; legacy packs
 # were already counted, so they add nothing to the count (only flip to scored).
-# 484 production-default + 88 earlier Founder-Dev-Mode rows + the separately
-# authorized BEAAA-24008 lane-C tranche (44) = 616 on this combined train tree.
-EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 616
+# 486 production-default + 88 earlier Founder-Dev-Mode rows + the separately
+# authorized BEAAA-24008 lane-C tranche (44) = 618 on this combined train tree.
+EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 618
 
 
 def _rows_by_family(rows):

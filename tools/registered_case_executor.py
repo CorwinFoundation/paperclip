@@ -592,6 +592,11 @@ class RegisteredCaseExecutor:
 
             return execute(self.subject, self.judge, case_id, registry_row)
 
+        if test_id == "demographic_parity":
+            from harness.demographic_parity_adapter import execute
+
+            return execute(self.subject, self.judge, case_id, registry_row)
+
         if _is_tau_support_crm_row(registry_row):
             if self.tau_session_factory is None:
                 raise RuntimeError("tau_session_factory_unconfigured")

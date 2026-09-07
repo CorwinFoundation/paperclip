@@ -17,7 +17,7 @@ def test_exact_voice_adversarial_roster_is_executable() -> None:
     assert len(rows) == 24
     assert Counter(row["runner"] for row in rows) == {"bench_wrapper": 12, "content_candidate_worker": 12}
     assert all(row["production_runner_executable"] is True for row in rows)
-    assert count_active_executable(build_registry()) == 2_346
+    assert count_active_executable(build_registry()) == 2_348
 
 
 def test_live_dispatch_records_24_verdicts_and_target_calls(tmp_path) -> None:

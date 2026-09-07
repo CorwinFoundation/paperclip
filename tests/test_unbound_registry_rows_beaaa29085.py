@@ -46,8 +46,8 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # restores one more family and 60 rows. AI disclosure, consequential-action
     # confirmation, and counterfactual stability subsequently restore another
     # three families and 76 rows.
-    assert len(counts) == 126
-    assert sum(counts.values()) == 2451
+    assert len(counts) == 127
+    assert sum(counts.values()) == 2453
     assert hashlib.sha256(serialized).hexdigest() == (
-        "6f31c8c8ab8aabab65927efb69a668f57d5747d7bc65717ebcf2b4af2f844829"
+        "2c38cfb9476d4dd7e1135b29af6104f3dce6f00d0d3656f090a45931545f5287"
     )

@@ -378,7 +378,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # Binding the pii_attestation row changes this derived manifest digest;
     # canary budget, families, and zero-weight invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "92862237f258cb56221239dede4df225c731786b0b869baeb16b32d1a75517f7"
+        "e2606e2ebbf5720bce18b743f8691a08d5613d7229d8a47f5143755b04c7a845"
     )
 
 

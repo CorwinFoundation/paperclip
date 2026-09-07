@@ -50,7 +50,10 @@ def test_capture_uses_real_default_runner_when_target_present(monkeypatch):
 def test_beaaa21704_exact_roster_is_real_and_reported_not_scored():
     records = json.loads(cap.EVIDENCE_PATH.read_text(encoding="utf-8"))
     expected = {f"{family}:{case}" for family, case in registry.BEAAA_21704_REPORTED_NOT_SCORED_CASES}
-    expected.update(key for key in records if key.startswith("agentdojo:"))
+    expected.update(
+        key for key in records
+        if key.startswith(("agentdojo:", "demographic_parity:"))
+    )
     assert set(records) == expected
     rows = {
         (row["test_id"], row["case_id"]): row
