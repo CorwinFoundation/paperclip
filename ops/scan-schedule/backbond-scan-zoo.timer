@@ -1,10 +1,9 @@
 [Unit]
-Description=Run the BackBond model-zoo scan weekly
+Description=Run the BackBond model-zoo scan nightly
 
 [Timer]
-OnCalendar=Thu *-*-* 03:00:00 UTC
+OnCalendar=*-*-* 03:30:00 UTC
 Persistent=true
-RandomizedDelaySec=15m
 Unit=backbond-scan-zoo.service
 
 [Install]

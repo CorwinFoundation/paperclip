@@ -1,5 +1,5 @@
 [Unit]
-Description=BackBond weekly Vapi controlled scan
+Description=BackBond weekly Vapi scan
 After=network-online.target
 Wants=network-online.target
 
@@ -7,6 +7,8 @@ Wants=network-online.target
 Type=oneshot
 User=are-deploy
 EnvironmentFile=/etc/backbond/scan-schedule.env
+EnvironmentFile=/etc/backbond/scan-schedule.conf
 WorkingDirectory=/home/are-deploy/are-scanner
-ExecStartPre=/usr/bin/sudo /usr/local/libexec/backbond-scan-schedule-update
-ExecStart=/usr/bin/python3 scripts/run_scheduled_full_scan.py --job vapi
+ExecStartPre=/usr/bin/git -C /home/are-deploy/are-scanner fetch --quiet origin master
+ExecStartPre=/usr/bin/git -C /home/are-deploy/are-scanner merge --ff-only --quiet origin/master
+ExecStart=/usr/bin/python3 scripts/scheduled_scan.py --job vapi
