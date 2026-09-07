@@ -742,6 +742,10 @@ def build_attempt_manifest(
         ),
         "finished_at": _iso(finished_at),
     }
+    evidence_class = job.model_versions.get("evidence_class")
+    if evidence_class:
+        manifest["evidence_class"] = str(evidence_class)
+        manifest["live_service_signed"] = False
     signed = dict(manifest)
     signed["signed_manifest"] = sign_manifest(manifest)
     signed["manifest_hash"] = manifest_content_hash(signed)

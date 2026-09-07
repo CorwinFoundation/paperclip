@@ -9,6 +9,7 @@ by the live Vapi evidence path and dispatches them in-process.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import os
 import sys
@@ -18,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -31,7 +32,7 @@ from api.full_scan_executor import (  # noqa: E402
 )
 from api.full_scan_worker import load_default_full_scan_registry_rows  # noqa: E402
 from harness.customer_runner import customer_agent_http_runner_factory  # noqa: E402
-from harness.egress import verify_live_egress_fail_closed  # noqa: E402
+from harness.egress import get as egress_get, verify_live_egress_fail_closed  # noqa: E402
 from tools.registered_case_executor import (  # noqa: E402
     ScanBudget,
     build_registered_case_workers,
@@ -44,6 +45,18 @@ SECRET_ENV = (
     "VAPI_API_KEY",
     "VAPI_ASSISTANT_ID",
     "OPENROUTER_API_KEY",
+)
+EVIDENCE_LABEL = "scheduled-controlled-evidence"
+PREFLIGHT_TARGETS = {
+    "github.com": "https://github.com/",
+    "api.vapi.ai": "https://api.vapi.ai/",
+    "openrouter.ai": "https://openrouter.ai/",
+}
+INCOMPLETE_GROUPS = (
+    "transport",
+    "format",
+    "missing_judge",
+    "unavailable_capability",
 )
 
 
@@ -110,25 +123,157 @@ class ScheduleConfig:
             raise RuntimeError("scheduled scan cost cap exceeds USD 100")
 
 
-class RateLimitedRunner:
-    """Serialize calls and enforce the configured maximum requests per minute."""
+class SharedRateLimiter:
+    """One serialized request budget shared by target and judge runners."""
 
-    def __init__(self, base: Any, rpm: int) -> None:
-        self._base = base
+    def __init__(
+        self,
+        rpm: int,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
         self._interval = 60.0 / rpm
         self._lock = threading.Lock()
         self._next_call = 0.0
+        self._clock = clock
+        self._sleep = sleep
+
+    def acquire(self) -> None:
+        with self._lock:
+            now = self._clock()
+            if now < self._next_call:
+                self._sleep(self._next_call - now)
+            self._next_call = self._clock() + self._interval
+
+
+class RateLimitedRunner:
+    def __init__(self, base: Any, limiter: SharedRateLimiter) -> None:
+        self._base = base
+        self._limiter = limiter
 
     def model_id(self) -> str:
         return self._base.model_id()
 
     def complete(self, prompt: str) -> str:
-        with self._lock:
-            now = time.monotonic()
-            if now < self._next_call:
-                time.sleep(self._next_call - now)
-            self._next_call = time.monotonic() + self._interval
+        self._limiter.acquire()
         return self._base.complete(prompt)
+
+
+def run_positive_egress_preflight(
+    artifact_path: Path,
+    *,
+    requester: Callable[..., Any] = egress_get,
+) -> dict[str, Any]:
+    """Prove credential-free reachability and retain each HTTP response code."""
+    results: dict[str, dict[str, Any]] = {}
+    failures: list[str] = []
+    for host, url in PREFLIGHT_TARGETS.items():
+        try:
+            response = requester(url, timeout=10.0, follow_redirects=False)
+            results[host] = {"url": url, "http_status_code": int(response.status_code)}
+        except Exception as exc:
+            results[host] = {"url": url, "error_type": type(exc).__name__}
+            failures.append(host)
+    record = {
+        "schema": "backbond.scheduled-egress-preflight/v1",
+        "credential_free": True,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "endpoints": results,
+        "passed": not failures,
+    }
+    artifact_path.write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    if failures:
+        raise RuntimeError(f"scheduled egress preflight failed: {', '.join(failures)}")
+    return record
+
+
+def _incomplete_group(reason: Any) -> str:
+    value = str(reason or "").lower()
+    if "judge" in value:
+        return "missing_judge"
+    if any(token in value for token in ("unavailable", "unsupported", "capability")):
+        return "unavailable_capability"
+    if any(token in value for token in ("transport", "timeout", "connection", "http", "network")):
+        return "transport"
+    return "format"
+
+
+def _family_name(raw: Mapping[str, Any]) -> str:
+    return str(
+        raw.get("family")
+        or raw.get("test_id")
+        or raw.get("corpus_or_family")
+        or raw.get("framework")
+        or "unknown"
+    )
+
+
+def _family_summary(
+    registry_rows: Any,
+    evidence_rows: Any,
+) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
+    families: dict[str, Counter[str]] = {}
+    incomplete = Counter({name: 0 for name in INCOMPLETE_GROUPS})
+    for raw in registry_rows if isinstance(registry_rows, list) else []:
+        if not isinstance(raw, Mapping):
+            continue
+        family = _family_name(raw)
+        counts = families.setdefault(
+            family,
+            Counter(
+                {
+                    name: 0
+                    for name in (
+                        "considered",
+                        "routed",
+                        "target_called",
+                        "pass",
+                        "fail",
+                        "incomplete",
+                    )
+                }
+            ),
+        )
+        counts["considered"] += 1
+        if raw.get("status") == "active" and raw.get("production_runner_executable") is True:
+            counts["routed"] += 1
+
+    for raw in evidence_rows if isinstance(evidence_rows, list) else []:
+        if not isinstance(raw, Mapping):
+            continue
+        family = _family_name(raw)
+        counts = families.setdefault(
+            family,
+            Counter(
+                {
+                    name: 0
+                    for name in (
+                        "considered",
+                        "routed",
+                        "target_called",
+                        "pass",
+                        "fail",
+                        "incomplete",
+                    )
+                }
+            ),
+        )
+        if int(raw.get("target_calls") or 0) > 0:
+            counts["target_called"] += 1
+        verdict = str(raw.get("verdict") or "").upper()
+        if raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
+            counts["incomplete"] += 1
+            incomplete[_incomplete_group(raw.get("incomplete_reason"))] += 1
+        else:
+            counts[verdict.lower()] += 1
+    return (
+        {name: dict(counts) for name, counts in sorted(families.items())},
+        dict(incomplete),
+    )
 
 
 def _operator_manifest(
@@ -139,11 +284,17 @@ def _operator_manifest(
     preflight_path: Path,
     started_at: str,
     finished_at: str,
+    total_runtime_seconds: float,
+    registry_rows: list[Mapping[str, Any]],
 ) -> dict[str, Any]:
     final = dict(job.final_manifest or {})
+    families, incomplete = _family_summary(registry_rows, final.get("evidence_rows", []))
+    budget = final.get("budget") if isinstance(final.get("budget"), Mapping) else {}
     return {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": job_name,
+        "evidence_label": EVIDENCE_LABEL,
+        "live_service_signed": False,
         "scan_id": job.scan_id or job.job_id,
         "job_id": job.job_id,
         "status": job.status,
@@ -157,7 +308,13 @@ def _operator_manifest(
         "cost_cap_usd": config.cost_cap_usd,
         "started_at": started_at,
         "finished_at": finished_at,
+        "total_runtime_seconds": round(total_runtime_seconds, 3),
+        "estimated_cost_usd": round(
+            float(budget.get("estimated_judge_cost_usd") or 0), 6
+        ),
         "egress_preflight_result_path": str(preflight_path),
+        "families": families,
+        "incomplete_by_reason": incomplete,
         "evidence_rows": len(final.get("evidence_rows", [])),
         "final_manifest_hash": job.final_manifest_hash,
         "executor": "api.full_scan_executor.dispatch_registry_attempt",
@@ -167,6 +324,10 @@ def _operator_manifest(
 def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -> Path:
     if job_name not in {"vapi", "zoo"}:
         raise ValueError("job must be vapi or zoo")
+    if job_name == "zoo":
+        raise RuntimeError(
+            "scheduled zoo scans are disabled until a controlled-target runner is implemented"
+        )
     secrets = map_secret_environment()
     config = config or ScheduleConfig.from_environment()
     config.validate()
@@ -176,12 +337,14 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
     output_dir = config.evidence_root / run_date / job_name
     output_dir.mkdir(parents=True, exist_ok=True)
     preflight_path = output_dir / "egress-preflight.json"
+    negative_control_path = output_dir / "egress-negative-control.json"
+    run_positive_egress_preflight(preflight_path)
     verify_live_egress_fail_closed(
         scanner_version=config.scanner_version,
         corpus_version=config.corpus_version,
         seed=config.seed,
         execution_environment="ariclaw-scheduled-unit",
-        artifact_path=preflight_path,
+        artifact_path=negative_control_path,
     )
 
     request = SimpleNamespace(
@@ -189,11 +352,12 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         agent_id=secrets["VAPI_ASSISTANT_ID"],
         tenant_id=config.tenant_id,
     )
+    shared_limiter = SharedRateLimiter(config.rpm)
     target_factory = lambda endpoint, secret: RateLimitedRunner(  # noqa: E731
         customer_agent_http_runner_factory(endpoint, secret, secrets["VAPI_ASSISTANT_ID"]),
-        config.rpm,
+        shared_limiter,
     )
-    judge_factory = lambda: RateLimitedRunner(default_judge_runner(), config.rpm)  # noqa: E731
+    judge_factory = lambda: RateLimitedRunner(default_judge_runner(), shared_limiter)  # noqa: E731
     budget = ScanBudget(
         max_estimated_judge_cost_usd=config.cost_cap_usd,
         max_wall_clock_seconds=config.timeout_seconds,
@@ -209,7 +373,9 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
     rows = load_default_full_scan_registry_rows()
     cases = registry_cases_from_rows(rows)
     model_versions = next(iter(workers.values())).manifest_metadata()
+    model_versions["evidence_class"] = EVIDENCE_LABEL
     store = FullScanJobStore()
+    runtime_started = time.monotonic()
     started_at = datetime.now(timezone.utc).isoformat()
     job = store.submit(
         agent_id=secrets["VAPI_ASSISTANT_ID"],
@@ -240,6 +406,8 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         preflight_path=preflight_path,
         started_at=started_at,
         finished_at=finished_at,
+        total_runtime_seconds=time.monotonic() - runtime_started,
+        registry_rows=rows,
     )
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")

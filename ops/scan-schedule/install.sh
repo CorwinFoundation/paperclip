@@ -2,17 +2,15 @@
 set -eu
 test "$(id -u)" -eq 0 || { echo 'run as root' >&2; exit 1; }
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-unit_user=are-deploy
-checkout=/home/$unit_user/are-scanner
+unit_user=backbond-scan
+checkout=/opt/backbond/src
 manifest_root=/var/lib/backbond/scans
 
-id "$unit_user" >/dev/null 2>&1
-test -d "$checkout/.git" || {
-  install -d -o "$unit_user" -g "$unit_user" -m 0755 /home/$unit_user
-  su -s /bin/sh -c "git clone --origin origin https://github.com/CorwinFoundation/are-scanner.git '$checkout'" "$unit_user"
-}
-test "$(stat -c %U "$checkout")" = "$unit_user"
-su -s /bin/sh -c "git -C '$checkout' fetch --quiet origin master && git -C '$checkout' merge --ff-only --quiet origin/master" "$unit_user"
+id "$unit_user" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$unit_user"
+test -d "$checkout/.git" || { echo "missing root-owned checkout: $checkout" >&2; exit 1; }
+test "$(stat -c %U "$checkout")" = root || { echo "checkout must be root-owned: $checkout" >&2; exit 1; }
+git -C "$checkout" fetch --quiet origin master
+git -C "$checkout" merge --ff-only --quiet origin/master
 
 install -d -m 0755 /usr/local/libexec /etc/backbond /etc/systemd/system /etc/sudoers.d "$manifest_root"
 install -o root -g root -m 0644 "$here/scan-schedule.conf" /etc/backbond/scan-schedule.conf
@@ -25,5 +23,6 @@ printf '%s\n' "$unit_user ALL=(root) NOPASSWD: /usr/bin/systemctl start backbond
 chmod 0440 /etc/sudoers.d/backbond-scan-schedule
 visudo -cf /etc/sudoers.d/backbond-scan-schedule >/dev/null
 systemctl daemon-reload
-systemctl enable backbond-scan-vapi.timer backbond-scan-zoo.timer
-echo "Installed scheduled scans. Root command: $here/install.sh"
+systemctl enable backbond-scan-vapi.timer
+systemctl disable backbond-scan-zoo.timer
+echo "Installed weekly Vapi scan; nightly zoo scan remains disabled. Root command: $here/install.sh"

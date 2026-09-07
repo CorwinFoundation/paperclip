@@ -2,10 +2,23 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from scripts.scheduled_scan import ScheduleConfig, map_secret_environment
+from api.bundle import sign_manifest
+from api.full_scan_executor import FullScanJob, build_attempt_manifest
+
+from scripts.scheduled_scan import (
+    EVIDENCE_LABEL,
+    RateLimitedRunner,
+    ScheduleConfig,
+    SharedRateLimiter,
+    _operator_manifest,
+    map_secret_environment,
+    run_positive_egress_preflight,
+    run_scheduled_scan,
+)
 
 
 ROOT = Path(__file__).parents[1]
@@ -49,29 +62,206 @@ def test_units_have_required_cadence_and_direct_runner():
     assert "OnCalendar=*-*-* 03:30:00 UTC" in zoo_timer
     for name in ("backbond-scan-vapi.service", "backbond-scan-zoo.service"):
         text = (OPS / name).read_text()
-        assert "User=are-deploy" in text
+        assert "User=backbond-scan" in text
         assert "EnvironmentFile=/etc/backbond/scan-schedule.env" in text
         assert "scripts/scheduled_scan.py" in text
-        assert "git -C /home/are-deploy/are-scanner" in text
+        assert "ExecStartPre=+/usr/bin/git -C /opt/backbond/src" in text
         assert "sudo" not in text
         assert "scanner/v1/scans" not in text
 
 
 def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     text = (OPS / "install.sh").read_text()
-    assert "su -s /bin/sh -c" in text
-    assert "git -C '$checkout'" in text
+    assert "useradd --system --no-create-home --shell /usr/sbin/nologin" in text
+    assert "checkout=/opt/backbond/src" in text
     assert 'chown "$unit_user:$unit_user" "$manifest_root"' in text
     assert "sudoers.d/backbond-scan-schedule" in text
     assert "backbond-scan-schedule-update" not in text
     for action in ("start", "stop", "restart", "status"):
         assert f"systemctl {action} backbond-scan-vapi.service" in text
         assert f"systemctl {action} backbond-scan-zoo.service" in text
-    assert "systemctl enable backbond-scan-vapi.timer backbond-scan-zoo.timer" in text
+    assert "systemctl enable backbond-scan-vapi.timer" in text
+    assert "systemctl disable backbond-scan-zoo.timer" in text
+
+
+def test_zoo_job_refuses_before_secrets_or_vapi_worker_construction(monkeypatch):
+    monkeypatch.setattr(
+        "scripts.scheduled_scan.map_secret_environment",
+        lambda: pytest.fail("zoo must not read Vapi secrets"),
+    )
+    monkeypatch.setattr(
+        "scripts.scheduled_scan.build_registered_case_workers",
+        lambda *args, **kwargs: pytest.fail("zoo must not construct Vapi workers"),
+    )
+    with pytest.raises(RuntimeError, match="controlled-target runner"):
+        run_scheduled_scan("zoo")
 
 
 def test_direct_executor_and_egress_preflight_are_in_source():
     text = (ROOT / "scripts" / "scheduled_scan.py").read_text()
     assert "dispatch_registry_attempt(" in text
-    assert "verify_live_egress_fail_closed(" in text
+    assert "run_positive_egress_preflight(" in text
     assert "egress_preflight_result_path" in text
+
+
+def test_target_and_judge_share_one_aggregate_30_rpm_limiter():
+    now = [0.0]
+    calls: list[tuple[str, float]] = []
+
+    def sleep(seconds):
+        now[0] += seconds
+
+    class Runner:
+        def __init__(self, name):
+            self.name = name
+
+        def model_id(self):
+            return self.name
+
+        def complete(self, prompt):
+            calls.append((self.name, now[0]))
+            return prompt
+
+    limiter = SharedRateLimiter(30, clock=lambda: now[0], sleep=sleep)
+    target = RateLimitedRunner(Runner("target"), limiter)
+    judge = RateLimitedRunner(Runner("judge"), limiter)
+    target.complete("one")
+    judge.complete("two")
+    target.complete("three")
+    assert calls == [("target", 0.0), ("judge", 2.0), ("target", 4.0)]
+
+
+def test_positive_preflight_records_exact_hosts_and_http_codes(tmp_path):
+    codes = {"github.com": 200, "api.vapi.ai": 401, "openrouter.ai": 302}
+
+    def request(url, **kwargs):
+        host = url.split("//", 1)[1].rstrip("/")
+        assert kwargs == {"timeout": 10.0, "follow_redirects": False}
+        return SimpleNamespace(status_code=codes[host])
+
+    path = tmp_path / "preflight.json"
+    result = run_positive_egress_preflight(path, requester=request)
+    assert result["credential_free"] is True
+    assert result["passed"] is True
+    assert {host: row["http_status_code"] for host, row in result["endpoints"].items()} == codes
+
+
+def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_path):
+    config = ScheduleConfig(
+        "tenant", "endpoint", tmp_path, "scanner", "corpus", 0, 1, 30, 0, 100, 30, "judge"
+    )
+    rows = [
+        {"test_id": "safety", "status": "complete", "verdict": "PASS", "target_calls": 1},
+        {"test_id": "safety", "status": "complete", "verdict": "FAIL", "target_calls": 1},
+        {
+            "test_id": "tools",
+            "status": "incomplete",
+            "incomplete_reason": "worker_timeout:x",
+            "target_calls": 0,
+        },
+        {
+            "test_id": "tools",
+            "status": "incomplete",
+            "incomplete_reason": "missing_judge",
+            "target_calls": 1,
+        },
+        {
+            "test_id": "tools",
+            "status": "incomplete",
+            "incomplete_reason": "worker_unavailable:x",
+            "target_calls": 0,
+        },
+        {
+            "test_id": "tools",
+            "status": "incomplete",
+            "incomplete_reason": "invalid_response",
+            "target_calls": 1,
+        },
+    ]
+    registry_rows = [
+        {
+            "test_id": "safety",
+            "status": "active",
+            "production_runner_executable": True,
+        },
+        {
+            "test_id": "safety",
+            "status": "active",
+            "production_runner_executable": True,
+        },
+        {
+            "test_id": "safety",
+            "status": "active",
+            "production_runner_executable": False,
+        },
+        *[
+            {
+                "test_id": "tools",
+                "status": "active",
+                "production_runner_executable": True,
+            }
+            for _ in range(4)
+        ],
+    ]
+    job = SimpleNamespace(
+        job_id="j1",
+        scan_id="s1",
+        status="complete",
+        bind_eligibility="blocked",
+        final_manifest_hash="sha256:x",
+        final_manifest={
+            "evidence_rows": rows,
+            "budget": {"estimated_judge_cost_usd": 12.25},
+        },
+    )
+    manifest = _operator_manifest(
+        job_name="vapi",
+        config=config,
+        job=job,
+        preflight_path=tmp_path / "preflight.json",
+        started_at="start",
+        finished_at="finish",
+        total_runtime_seconds=9.8765,
+        registry_rows=registry_rows,
+    )
+    assert manifest["evidence_label"] == EVIDENCE_LABEL
+    assert manifest["live_service_signed"] is False
+    assert manifest["total_runtime_seconds"] == 9.877
+    assert manifest["estimated_cost_usd"] == 12.25
+    assert manifest["families"]["safety"] == {
+        "considered": 3,
+        "routed": 2,
+        "target_called": 2,
+        "pass": 1,
+        "fail": 1,
+        "incomplete": 0,
+    }
+    assert manifest["incomplete_by_reason"] == {
+        "transport": 1,
+        "format": 1,
+        "missing_judge": 1,
+        "unavailable_capability": 1,
+    }
+
+
+def test_signed_attempt_manifest_binds_scheduled_evidence_class(monkeypatch):
+    monkeypatch.setenv("ARE_ALLOW_DEV_SIGNING_KEY", "true")
+    job = FullScanJob(
+        job_id="scheduled-job",
+        agent_id="agent",
+        scanner_version="scanner",
+        corpus_version="corpus",
+        model_versions={"evidence_class": EVIDENCE_LABEL},
+        seed=0,
+        registry_cases=(),
+    )
+    manifest = build_attempt_manifest(job)
+    unsigned = {
+        key: value
+        for key, value in manifest.items()
+        if key not in {"signed_manifest", "manifest_hash"}
+    }
+    assert unsigned["evidence_class"] == EVIDENCE_LABEL
+    assert unsigned["live_service_signed"] is False
+    assert "live-service-signed" not in str(unsigned)
+    assert manifest["signed_manifest"] == sign_manifest(unsigned)
