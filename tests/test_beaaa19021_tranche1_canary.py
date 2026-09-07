@@ -375,9 +375,10 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # requested assistant identity, moving the evaluator pin to 00e0d4cb and
     # this derived digest to 40aa3926. The Day-1 supporting-family dispatch
     # moves the evaluator pin to 81e6556d and this derived digest to 886abe3d.
-    # Canary budget, families, and zero-weight invariants remain unchanged.
+    # Binding the pii_attestation row changes this derived manifest digest;
+    # canary budget, families, and zero-weight invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "e89cf5008ae43369f845159f08f6bf4aac2119985e2906415b2db965a3706b17"
+        "945de803faf40379e1411de375474b65308d9c81ef6d5ef07a534fe13070cd37"
     )
 
 

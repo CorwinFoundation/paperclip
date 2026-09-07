@@ -67,7 +67,7 @@ def test_executable_claim_is_not_default_executed_reported_or_scored() -> None:
     # can actually execute. Day-1-only rows remain visible separately. The
     # counterfactual-stability production binding adds 60 rows to the prior
     # 2,257-row claim (BEAAA-30128).
-    assert counts["executable"] == 2341
+    assert counts["executable"] == 2342
     assert counts["executable_on_default_runtime"] < 2018
     assert counts["executed_in_latest_evidenced_run"] < 2018
     assert counts["reported"] < 2018

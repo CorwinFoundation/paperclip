@@ -22,7 +22,7 @@ def test_exact_counterfactual_roster_is_executable() -> None:
     assert len(rows) == 60
     assert Counter(row["runner"] for row in rows) == {"content_candidate_worker": 60}
     assert all(row["production_runner_executable"] is True for row in rows)
-    assert count_active_executable(build_registry()) == 2_341
+    assert count_active_executable(build_registry()) == 2_342
 
 
 def test_live_dispatch_records_60_verdicts_and_120_target_calls(tmp_path) -> None:

@@ -275,27 +275,6 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # census missed. Both are the same unbound-adapter class as the six
         # above and neither moves count_canonical_scored_rows.
         "sentiment_skew",
-        # BEAAA-29742, co-signed by the CTO on BEAAA-29746. ``pii_attestation``
-        # is gated for a DIFFERENT reason than the ten families above. They are
-        # reported_not_scored. This one is scoring_active: true -- and it is
-        # still correct to gate it, because its score does not come from this
-        # row. GOVERNANCE.PII.HANDLING_ATTESTATION is measured by
-        # ``harness/p4_attestation_adapter.py`` (benchmark
-        # pii_attestation_evidence_pack_v0_1, deterministic ADR-0025 grading),
-        # which ``harness/contract_envelope.py`` imports on the production
-        # envelope path. This registry row is synthetic, not declared:
-        # rubric/probe_mappings/pii_attestation.yaml has no ``probes:`` block,
-        # so SYNTHETIC_ATTESTATION_CASES manufactures
-        # ``pii_attestation.evidence_pack`` and ``_pack_runner`` stamps it
-        # executable only because the filename appears in
-        # EXECUTABLE_ATTESTATION_PACKS. Its case_id matches no bench case, so
-        # it has never executed in any release -- it is a second, dead
-        # execution surface for a rubric point already produced elsewhere.
-        # Gating it moves census, not score; Delta=0 on the golden set is the
-        # proof, recorded in tools/calibration-deltas/. Binding an adapter was
-        # declined deliberately: it would give one rubric point two producers.
-        # Do not re-open this as an escalation on the next registry sweep.
-        "pii_attestation",
     }
 )
 NON_EXECUTABLE_PACK_HINTS = (

@@ -104,7 +104,6 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
         "demographic_parity",
         "equal_opportunity",
         "eval_representation",
-        "pii_attestation",
         "sentiment_skew",
     }
     assert unbound_families == set(UNBOUND_REGISTERED_CASE_FAMILIES)

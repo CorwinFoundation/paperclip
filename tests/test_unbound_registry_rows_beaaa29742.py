@@ -57,17 +57,9 @@ BEAAA_29742_FAMILIES = {
     "demographic_parity",
     "equal_opportunity",
     "eval_representation",
-    "pii_attestation",
     "sentiment_skew",
 }
-# Empty, and it must stay empty. ``pii_attestation`` was the one member while
-# its disposition was escalated; the CTO ruled on BEAAA-29746 (option (b),
-# co-signed) that gating it is rule-execution, because its score is produced by
-# harness/p4_attestation_adapter.py and not by this registry row. The xfail that
-# stood here is replaced by
-# test_gated_pii_attestation_still_scores_in_the_contract_envelope below, which
-# is a stronger claim: not "we know this one is broken" but "the dim survives
-# the gate". Anything added here needs a fresh ruling, not a code review.
+# Empty, and it must stay empty.
 CTO_DECISION_PENDING: set[str] = set()
 
 
@@ -129,7 +121,6 @@ def test_the_beaaa29742_families_are_gated_out_of_production_execution():
         "demographic_parity": 2,
         "equal_opportunity": 1,
         "eval_representation": 1,
-        "pii_attestation": 1,
     }
     assert not any(row["production_runner_executable"] for row in rows)
     assert BEAAA_29742_FAMILIES <= set(UNBOUND_REGISTERED_CASE_FAMILIES)
@@ -159,19 +150,18 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_446
+    assert len(rows) == 2_447
     assert len(identities) == 2_091
 
 
-def test_gated_pii_attestation_still_scores_in_the_contract_envelope():
-    """BEAAA-29746 condition 2: gating the census row must not drop the dim.
+def test_bound_pii_attestation_still_scores_in_the_contract_envelope():
+    """Binding the census row must preserve the existing scored dimension.
 
     This is the assertion that replaced the ``CTO_DECISION_PENDING`` xfail. The
     whole basis of the CTO's co-sign is that ``GOVERNANCE.PII.HANDLING_ATTESTATION``
     is scored by ``harness/p4_attestation_adapter.py`` rather than by the
-    registry row gated above. If that ever stops being true, gating the row
-    silently drops a scored dim -- so prove the dim survives instead of
-    assuming it.
+    registry row. The production binding is additive execution evidence; it
+    does not replace the deterministic contract-envelope score producer.
     """
     from harness import p4_attestation_adapter as adapter
 
@@ -180,8 +170,8 @@ def test_gated_pii_attestation_still_scores_in_the_contract_envelope():
         for row in build_registry()
         if row.get("status") == "active" and row["test_id"] == "pii_attestation"
     ]
-    assert registry_rows, "the pii_attestation row should still exist, just not execute"
-    assert not any(row["production_runner_executable"] for row in registry_rows)
+    assert registry_rows, "the pii_attestation row should still exist"
+    assert all(row["production_runner_executable"] for row in registry_rows)
 
     result = adapter.attestation_to_measurements(
         _pilot_attestation_form(),
@@ -237,9 +227,7 @@ def test_gating_does_not_move_the_canonical_scored_row_count():
         and row.get("reporting_status") == "scored"
     ]
     # Not vacuous: these rows exist, they are gated, and they are still counted.
-    assert len(gated_scored) == 1
-    assert all(row["production_runner_executable"] is False for row in gated_scored)
-    assert sum(1 for row in gated_scored if is_canonical_scored_row(row)) == 0
+    assert len(gated_scored) == 0
 
     # The mechanism behind the invariant: the gate writes exactly two fields,
     # and neither is one of the five is_canonical_scored_row reads.
